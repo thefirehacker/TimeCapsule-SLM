@@ -1,0 +1,21 @@
+# Credits
+
+## Fish Visualization Algorithm
+
+Original fish algorithm created by **@yuruyurau**
+
+**Source:** https://x.com/yuruyurau/status/1936449579161092595
+
+The beautiful mathematical fish animation algorithm was originally developed and shared by @yuruyurau on X (Twitter). This implementation adapts their compact JavaScript code into an interactive p5.js live coding environment with Monaco Editor.
+
+## Implementation
+
+- Interactive editor interface and p5.js adaptation
+- Live coding environment setup
+- Canvas integration and visualization framework
+
+## Libraries Used
+
+- **p5.js** - Creative coding library for canvas graphics
+- **Monaco Editor** - Code editor component
+- **Babel Standalone** - JavaScript transpilation 
