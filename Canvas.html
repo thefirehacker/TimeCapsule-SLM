@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live p5.js + Monaco Editor</title>
+  <style>
+    /* Full-height flex layout: left is editor, right is canvas */
+    body { margin: 0; display: flex; height: 100vh; overflow: hidden; }
+    #editor { width: 50%; height: 100%; }
+    #canvas { width: 50%; height: 100%; background: #111; }
+    /* Center the control button */
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    #runBtn { padding: 8px 16px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="runBtn">Draw</button>
+  </div>
+  <div id="editor"></div>
+  <div id="canvas"></div>
+
+  <!-- 1) Load p5.js first -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+
+  <!-- 2) Load Monaco AMD loader -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js"></script>
+  <script>
+    // Point Monaco to its loader scripts
+    require.config({
+      paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' }
+    });
+
+    let editorInstance, currentP5;
+
+    // When Monaco is ready, set up the editor and button
+    require(['vs/editor/editor.main'], () => {
+      // 3) Instantiate Monaco in the left pane
+      editorInstance = monaco.editor.create(
+        document.getElementById('editor'),
+        {
+          value: [
+            '// Your fish one-liner:',
+            'a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))',
+            '=>point(',
+            '  (q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))',
+            '    *cos(d/8+t/4)+50*cos(c=d-t)+200,',
+            '  q*sin(c)+d*7*sin(c/4)+200',
+            ')',
+            't=0,draw=$=>{',
+            '  t||createCanvas(w=400,w);',
+            '  background(9).stroke(w,116);',
+            '  for(t+=PI/120,i=1e4;i--;)',
+            '    a(i,i/235)',
+            '}'
+          ].join('\n'),
+          language: 'javascript',
+          theme: 'vs-dark',
+          automaticLayout: true,
+          fontSize: 18
+        }
+      );
+
+      // 4) Define the runner that tears down and recreates the sketch
+      function runSketch(userCode) {
+        if (currentP5) currentP5.remove();
+        // Wrap the user’s code into a p5 instance scope
+        const wrapped = `
+          with (this) {
+            ${userCode}
+          }
+        `;
+        currentP5 = new p5(p => { eval(wrapped); }, 'canvas');
+      }
+
+      // 5) Wire the Draw button
+      document.getElementById('runBtn').addEventListener('click', () => {
+        console.log('Draw clicked');
+        runSketch(editorInstance.getValue());
+      });
+    });
+  </script>
+</body>
+</html>
