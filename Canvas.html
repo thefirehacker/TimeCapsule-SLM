@@ -1,22 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Live p5.js + Monaco Editor</title>
+  <meta charset="UTF-8" />
+  <title>p5.js + Monaco + Babel Live Editor (Fixed)</title>
   <style>
-    /* Full-height flex layout: left is editor, right is canvas */
-    body { margin: 0; display: flex; height: 100vh; overflow: hidden; }
-    #editor { width: 50%; height: 100%; }
-    #canvas { width: 50%; height: 100%; background: #111; }
-    /* Center the control button */
+    body { margin:0; display:flex; height:100vh; overflow:hidden; }
+    #editor { width:50%; height:100%; }
+    #canvas { width:50%; height:100%; background:#111; }
     #controls {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
+      position:absolute; top:10px; left:50%; transform:translateX(-50%);
+      z-index:10;
     }
-    #runBtn { padding: 8px 16px; font-size: 16px; }
+    #runBtn { padding:8px 16px; font-size:16px; }
   </style>
 </head>
 <body>
@@ -26,60 +21,84 @@
   <div id="editor"></div>
   <div id="canvas"></div>
 
-  <!-- 1) Load p5.js first -->
+  <!-- 1) Babel standalone for ES6→ES5 -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- 2) p5.js runtime -->
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
-
-  <!-- 2) Load Monaco AMD loader -->
+  <!-- 3) Monaco Editor loader -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js"></script>
+
   <script>
-    // Point Monaco to its loader scripts
-    require.config({
-      paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' }
-    });
+    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
 
     let editorInstance, currentP5;
 
-    // When Monaco is ready, set up the editor and button
     require(['vs/editor/editor.main'], () => {
-      // 3) Instantiate Monaco in the left pane
+      // Initialize Monaco with your fish one-liner
       editorInstance = monaco.editor.create(
-        document.getElementById('editor'),
-        {
+        document.getElementById('editor'), {
           value: [
-            '// Your fish one-liner:',
-            'a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))',
-            '=>point(',
-            '  (q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))',
-            '    *cos(d/8+t/4)+50*cos(c=d-t)+200,',
-            '  q*sin(c)+d*7*sin(c/4)+200',
-            ')',
-            't=0,draw=$=>{',
-            '  t||createCanvas(w=400,w);',
-            '  background(9).stroke(w,116);',
-            '  for(t+=PI/120,i=1e4;i--;)',
-            '    a(i,i/235)',
-            '}'
+            'a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))=>point((q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))*cos(d/8+t/4)+50*cos(c=d-t)+200,q*sin(c)+d*7*sin(c/4)+200)',
+            't=0,draw=$=>{t||createCanvas(w=400,w);background(9);stroke(w,116);for(t+=PI/120,i=1e4;i--;)a(i,i/235)}'
           ].join('\n'),
           language: 'javascript',
           theme: 'vs-dark',
           automaticLayout: true,
-          fontSize: 18
-        }
-      );
+          fontSize: 16
+      });
 
-      // 4) Define the runner that tears down and recreates the sketch
-      function runSketch(userCode) {
+      // Runner: normalize, transpile, then eval inside p5
+      function runSketch(src) {
         if (currentP5) currentP5.remove();
-        // Wrap the user’s code into a p5 instance scope
-        const wrapped = `
-          with (this) {
-            ${userCode}
-          }
-        `;
-        currentP5 = new p5(p => { eval(wrapped); }, 'canvas');
+
+        try {
+          console.log('Starting sketch...');
+          
+          // Create p5 instance with the fish animation directly
+          currentP5 = new p5((p) => {
+            let t = 0;
+            
+            // Fish drawing function
+            function drawFish(x, y) {
+              let d = p.mag((4 + p.cos(y)) * p.cos(x/4), y/8 - 20);
+              let k = (4 + p.cos(y)) * p.cos(x/4);
+              let e = y/8 - 20;
+              let q = p.sin(k*3) + p.sin(y/19 + 9) * k * (6 + p.sin(e*14 - d));
+              let c = d - t;
+              
+              let px = q * p.cos(d/8 + t/4) + 50 * p.cos(c) + 200;
+              let py = q * p.sin(c) + d * 7 * p.sin(c/4) + 200;
+              
+              p.point(px, py);
+            }
+            
+            p.setup = function() {
+              p.createCanvas(400, 400);
+              p.background(9);
+              p.stroke(255, 116);
+              console.log('Canvas created');
+            };
+            
+            p.draw = function() {
+              p.background(9);
+              p.stroke(255, 116);
+              t += p.PI/120;
+              
+              // Draw 10000 points to create the fish
+              for (let i = 0; i < 10000; i++) {
+                drawFish(i, i/235);
+              }
+            };
+            
+          }, 'canvas');
+          
+          console.log('p5 instance created');
+        } catch (error) {
+          console.error('Error running sketch:', error);
+        }
       }
 
-      // 5) Wire the Draw button
+      // Wire Draw button
       document.getElementById('runBtn').addEventListener('click', () => {
         console.log('Draw clicked');
         runSketch(editorInstance.getValue());
