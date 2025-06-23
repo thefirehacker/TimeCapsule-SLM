@@ -47,48 +47,61 @@
           fontSize: 16
       });
 
-      // Runner: normalize, transpile, then eval inside p5
+      // Runner: execute user code in p5 context
       function runSketch(src) {
         if (currentP5) currentP5.remove();
 
         try {
-          console.log('Starting sketch...');
+          console.log('Starting sketch with code:', src);
           
-          // Create p5 instance with the fish animation directly
+          // Create p5 instance and execute the user's code
           currentP5 = new p5((p) => {
-            let t = 0;
             
-            // Fish drawing function
-            function drawFish(x, y) {
-              let d = p.mag((4 + p.cos(y)) * p.cos(x/4), y/8 - 20);
-              let k = (4 + p.cos(y)) * p.cos(x/4);
-              let e = y/8 - 20;
-              let q = p.sin(k*3) + p.sin(y/19 + 9) * k * (6 + p.sin(e*14 - d));
-              let c = d - t;
-              
-              let px = q * p.cos(d/8 + t/4) + 50 * p.cos(c) + 200;
-              let py = q * p.sin(c) + d * 7 * p.sin(c/4) + 200;
-              
-              p.point(px, py);
-            }
+            // Make p5 functions available in global scope for user code
+            const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve'];
             
-            p.setup = function() {
-              p.createCanvas(400, 400);
-              p.background(9);
-              p.stroke(255, 116);
-              console.log('Canvas created');
-            };
-            
-            p.draw = function() {
-              p.background(9);
-              p.stroke(255, 116);
-              t += p.PI/120;
-              
-              // Draw 10000 points to create the fish
-              for (let i = 0; i < 10000; i++) {
-                drawFish(i, i/235);
+            p5Functions.forEach(fn => {
+              if (p[fn]) {
+                window[fn] = p[fn].bind(p);
               }
-            };
+            });
+            
+            // Constants
+            window.PI = p.PI;
+            window.TWO_PI = p.TWO_PI;
+            window.HALF_PI = p.HALF_PI;
+            window.PIE = p.PIE;
+            window.CHORD = p.CHORD;
+            window.OPEN = p.OPEN;
+            
+            // Common variables
+            window.w = 400;
+            window.W = 720;
+            
+            try {
+              // Execute user code directly
+              eval(src);
+              
+              // If draw function was created globally, use it
+              if (window.draw && typeof window.draw === 'function') {
+                p.draw = window.draw;
+                console.log('Using global draw function');
+              }
+              
+              console.log('User code executed successfully');
+              
+            } catch (evalError) {
+              console.error('Error executing user code:', evalError);
+              // Fallback to a simple sketch
+              p.setup = function() {
+                p.createCanvas(400, 400);
+                p.background(50);
+              };
+              p.draw = function() {
+                p.stroke(255);
+                p.text('Code Error: Check Console', 10, 20);
+              };
+            }
             
           }, 'canvas');
           
