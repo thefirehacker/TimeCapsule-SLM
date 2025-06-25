@@ -830,34 +830,34 @@ When user asks for something, generate creative, compact p5.js code that creates
           let lastProgress = 0;
           let progressStuckTime = Date.now();
           
-          model = await loadWithTimeout(
-            () => AutoModelForCausalLM.from_pretrained(MODEL, {
-              device: 'webgpu',
-              dtype: 'q4',
-              progress_callback: (progress) => {
-                try {
-                  if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                    const percent = 50 + (progress.progress * 40);
-                    const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                    updateLoadingProgress(percent, `Loading model (WebGPU): ${fileName}`);
-                    
-                    // Detect stuck progress
-                    if (Math.abs(progress.progress - lastProgress) > 0.01) {
-                      lastProgress = progress.progress;
-                      progressStuckTime = Date.now();
-                    } else if (Date.now() - progressStuckTime > 60000) {
-                      // Progress stuck for 60 seconds
-                      throw new Error('Download progress stuck - likely network or memory issue');
+                      model = await loadWithTimeout(
+              () => AutoModelForCausalLM.from_pretrained(MODEL, {
+                device: 'webgpu',
+                dtype: 'q4',
+                progress_callback: (progress) => {
+                  try {
+                    if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                      const percent = 50 + (progress.progress * 40);
+                      const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                      updateLoadingProgress(percent, `Loading model (WebGPU): ${fileName}`);
+                      
+                      // Detect stuck progress
+                      if (Math.abs(progress.progress - lastProgress) > 0.01) {
+                        lastProgress = progress.progress;
+                        progressStuckTime = Date.now();
+                      } else if (Date.now() - progressStuckTime > 120000) {
+                        // Progress stuck for 2 minutes (increased from 60 seconds)
+                        throw new Error('Download progress stuck - likely network or memory issue');
+                      }
                     }
+                  } catch (e) {
+                    console.warn('Progress callback error:', e);
                   }
-                } catch (e) {
-                  console.warn('Progress callback error:', e);
                 }
-              }
-            }),
-            300000, // 5 minute timeout
-            'WebGPU model loading'
-          );
+              }),
+              600000, // 10 minute timeout (increased from 5 minutes)
+              'WebGPU model loading'
+            );
           
           addChatMessage('system', '🚀 WebGPU acceleration enabled! GPU-only mode active.');
         } catch (webgpuError) {
@@ -891,7 +891,7 @@ When user asks for something, generate creative, compact p5.js code that creates
                   }
                 }
               }),
-              180000, // 3 minute timeout for fallback
+              600000, // 10 minute timeout for fallback (increased from 3 minutes)
               'Basic GPU model loading'
             );
             
