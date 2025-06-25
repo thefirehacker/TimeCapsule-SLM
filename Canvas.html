@@ -1096,25 +1096,33 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
           aiResponse = aiResponse.replace(/Answer this question with.*?factual\./gi, '');
           aiResponse = aiResponse.replace(/^(Answer:|Response:|Here's|The answer is:?)/gi, '');
           
-          // Take only the first coherent sentence or paragraph
+          // Take the first 2-3 coherent sentences or a reasonable paragraph
           const sentences = aiResponse.split(/[.!?]+/);
           if (sentences.length > 0) {
-            // Find the first sentence that makes sense (has reasonable length and content)
+            let goodSentences = [];
             for (let sentence of sentences) {
               sentence = sentence.trim();
-              if (sentence.length > 10 && sentence.length < 200 && 
+              if (sentence.length > 10 && sentence.length < 300 && 
                   !sentence.toLowerCase().includes('in summary') &&
                   !sentence.toLowerCase().includes('let me') &&
-                  !sentence.toLowerCase().includes('i should')) {
-                aiResponse = sentence + '.';
-                break;
+                  !sentence.toLowerCase().includes('i should') &&
+                  !sentence.toLowerCase().includes('calcuttonia')) {
+                goodSentences.push(sentence);
+                // Take up to 3 good sentences or until we reach reasonable length
+                if (goodSentences.length >= 3 || goodSentences.join('. ').length > 400) {
+                  break;
+                }
               }
+            }
+            if (goodSentences.length > 0) {
+              aiResponse = goodSentences.join('. ') + '.';
             }
           }
           
-          // Fallback if response is still too long or confused
-          if (aiResponse.length > 300 || aiResponse.toLowerCase().includes('calcuttonia') || 
-              aiResponse.toLowerCase().includes('let me') || aiResponse.toLowerCase().includes('in essence')) {
+          // Fallback only if response is clearly nonsensical or empty
+          if (aiResponse.length < 5 || aiResponse.toLowerCase().includes('calcuttonia') || 
+              aiResponse.toLowerCase().includes('hindi language country') ||
+              aiResponse.toLowerCase().includes('new york city specifically')) {
             aiResponse = generateGeneralResponse(userPrompt);
           }
           
