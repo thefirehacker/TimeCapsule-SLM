@@ -1,6 +1,10 @@
-# SketchPad-SLM
-
-> A live p5.js code editor with Monaco Editor and AI World Generator.
+<div align="center">
+  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/SketchPad-SLM.png" alt="SketchPad-SLM Logo" width="200" height="200">
+  
+  # SketchPad-SLM
+  
+  > A live p5.js code editor with Monaco Editor and AI World Generator.
+</div>
 
 SketchPad-SLM provides a split-view p5.js live editor where you can write compact JavaScript code and see it execute immediately. It also includes an AI-powered world generator using modern Small Language Models that run directly in your browser.
 
@@ -116,16 +120,29 @@ draw=_=>{
 
 ## 💾 Getting Started
 
+### For Basic Usage (Templates)
 1. **Clone or download the repository**
 2. **Open Canvas.html** in your browser for the live editor
-3. **Open WorldGenerator.html** for the AI world generator
+3. **Choose "Smart Templates"** when prompted (works instantly)
 4. **Start coding!** - No build step required
 
+### For DeepSeek Janus-Pro-1B (Local AI)
+1. **Run a local server** (required for large model downloads):
+   ```bash
+   npm i -g live-server
+   live-server .
+   ```
+   Or use Python: `python -m http.server 8000`
+2. **Open http://localhost:8080/Canvas.html**
+3. **Select "DeepSeek Janus-Pro-1B"** when prompted
+4. **Wait for model download** (~640MB, cached after first use)
+
 ### Quick Start
-1. Open `Canvas.html`
-2. Type or paste p5.js code in the left editor
-3. Click "Draw" to execute
-4. Modify code and click "Draw" again to see changes
+1. Open `Canvas.html` (or via local server for Janus)
+2. Choose your AI engine: **Janus-Pro-1B** (real AI) or **Templates** (instant)
+3. Type or paste p5.js code in the left editor
+4. Click "Draw" to execute
+5. Use AI chat to generate new creative patterns
 
 ---
 
@@ -146,4 +163,4 @@ draw=_=>{
 - `WorldGenerator-v2.html` - Enhanced world generator
 - `Script01.js` - Utility scripts
 - `CREDITS` - Attribution for algorithms
-- `LICENSE.md` - Apache 2.0 License
+- `LICENSE` - Apache 2.0 License

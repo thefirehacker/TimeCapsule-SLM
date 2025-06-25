@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>SketchPad-SLM - Live p5.js Editor</title>
+  <link rel="icon" type="image/png" href="lib/Media/SketchPad-SLM.png">
+  <link rel="shortcut icon" type="image/png" href="lib/Media/SketchPad-SLM.png">
   <style>
     * {
       margin: 0;
@@ -20,10 +22,11 @@
     .container {
       display: grid;
       grid-template-columns: 250px 1fr 2fr;
-      grid-template-rows: 60px 1fr;
+      grid-template-rows: 120px 1fr;
       height: 100vh;
       gap: 10px;
       padding: 10px;
+      position: relative;
     }
     
     .header {
@@ -141,13 +144,53 @@
       border: 1px solid rgba(255, 255, 255, 0.18);
       display: flex;
       flex-direction: column;
+      transition: all 0.3s ease;
+    }
+    
+    .editor-container.expanded {
+      grid-column: 2 / -1;
+      z-index: 100;
+    }
+    
+    .editor-container.minimized {
+      height: 60px;
+      overflow: hidden;
     }
     
     .editor-header {
       color: white;
       margin-bottom: 10px;
       font-weight: 600;
-      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .editor-controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .editor-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.2s ease;
+      min-width: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .editor-btn:hover {
+      background: rgba(255, 255, 255, 0.4);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: translateY(-1px);
     }
     
     #editor { 
@@ -166,6 +209,11 @@
       border: 1px solid rgba(255, 255, 255, 0.18);
       display: flex;
       flex-direction: column;
+      transition: all 0.3s ease;
+    }
+    
+    .canvas-container.hidden {
+      display: none;
     }
     
     .canvas-header {
@@ -213,14 +261,249 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.5);
     }
+    
+    /* Logo hover effect */
+    .header img:hover {
+      transform: scale(1.05) rotate(2deg);
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5)) brightness(1.2);
+      border-color: rgba(255,255,255,0.5);
+    }
+    
+    /* Floating AI Panel (Cursor-style) */
+    .ai-floating-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 400px;
+      height: 500px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .ai-floating-panel.minimized {
+      height: 60px;
+      width: 300px;
+    }
+    
+    .ai-floating-panel.hidden {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    /* AI Toggle Button (always visible) */
+    .ai-toggle-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(79, 172, 254, 0.4);
+      transition: all 0.3s ease;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .ai-toggle-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .ai-toggle-btn.active {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      box-shadow: 0 4px 20px rgba(250, 112, 154, 0.4);
+    }
+    
+    .ai-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      color: white;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .ai-panel-controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .panel-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 5px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s ease;
+    }
+    
+    .panel-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .ai-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      overflow: hidden;
+    }
+    
+    .ai-content.minimized {
+      display: none;
+    }
+    
+    .chat-history {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      min-height: 150px;
+    }
+    
+    .ai-input-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .ai-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .ai-prompt-input {
+      width: 100%;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 60px;
+    }
+    
+    .ai-prompt-input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .ai-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .ai-btn {
+      flex: 1;
+      padding: 10px 16px;
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .ai-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+    }
+    
+    .ai-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .ai-btn.secondary {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .chat-message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .chat-message.user {
+      background: rgba(79, 172, 254, 0.2);
+      color: #e6f3ff;
+      margin-left: 20px;
+    }
+    
+    .chat-message.ai {
+      background: rgba(250, 112, 154, 0.2);
+      color: #ffe6f0;
+      margin-right: 20px;
+    }
+    
+    .chat-message.system {
+      background: rgba(168, 237, 234, 0.2);
+      color: #e6fffe;
+      font-style: italic;
+      text-align: center;
+    }
+    
+    .message-header {
+      font-weight: bold;
+      margin-bottom: 5px;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .code-preview {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 8px;
+      border-left: 3px solid #4facfe;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🎨 SketchPad-SLM</h1>
-      <div style="margin-left: auto; color: rgba(255,255,255,0.8);">
-        Creative Coding Studio with AI Integration
+      <div style="display: flex; align-items: center; gap: 25px;">
+        <img src="lib/Media/SketchPad-SLM.png" alt="SketchPad-SLM" style="width: 160px; height: 160px; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5)) brightness(1.1); border-radius: 16px; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); padding: 16px; border: 3px solid rgba(255,255,255,0.3); transition: all 0.3s ease;">
+        <div style="display: flex; flex-direction: column;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">SketchPad-SLM</h1>
+          <div style="font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 2px;">Creative Coding Studio</div>
+        </div>
+      </div>
+      <div style="margin-left: auto; color: rgba(255,255,255,0.8); font-size: 16px; font-weight: 500;">
+        🤖 AI Integration
       </div>
     </div>
     
@@ -248,6 +531,8 @@
         <button id="saveFileBtn" class="btn secondary">💾 Save JS File</button>
       </div>
       
+
+      
       <div class="control-group">
         <label>🎯 Quick Actions:</label>
         <button id="clearBtn" class="btn">🗑️ Clear Canvas</button>
@@ -259,14 +544,59 @@
       </div>
     </div>
     
-    <div class="editor-container">
-      <div class="editor-header">📝 Code Editor</div>
+    <div class="editor-container" id="editorContainer">
+      <div class="editor-header">
+        <span>📝 Code Editor</span>
+        <div class="editor-controls">
+          <button class="editor-btn" id="minimizeEditorBtn" title="Minimize Editor">−</button>
+          <button class="editor-btn" id="expandEditorBtn" title="Expand Editor">⤢</button>
+        </div>
+      </div>
       <div id="editor"></div>
     </div>
     
     <div class="canvas-container">
       <div class="canvas-header">🖼️ Canvas Output</div>
       <div id="canvas"></div>
+    </div>
+  </div>
+
+  <!-- Floating AI Toggle Button -->
+  <button class="ai-toggle-btn" id="aiToggleBtn">🤖</button>
+
+  <!-- Floating AI Panel -->
+  <div class="ai-floating-panel hidden" id="aiFloatingPanel">
+    <div class="ai-panel-header">
+      <span>🤖 AI Assistant</span>
+      <div class="ai-panel-controls">
+        <button class="panel-btn" id="minimizeBtn">−</button>
+        <button class="panel-btn" id="closeBtn">×</button>
+      </div>
+    </div>
+    
+    <div class="ai-content" id="aiContent">
+      <div class="ai-status-bar">
+        <div id="aiStatus">AI: Not connected</div>
+        <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
+      </div>
+      
+      <div class="chat-history" id="chatHistory">
+        <div class="chat-message system">
+          <div class="message-header">⚙️ System</div>
+          Welcome to AI-powered creative coding! Connect AI and start chatting to generate amazing p5.js art.
+        </div>
+      </div>
+      
+      <div class="ai-input-section">
+        <textarea 
+          id="aiPrompt" 
+          class="ai-prompt-input"
+          placeholder="Describe what you want to create... e.g., 'colorful spinning triangles' or 'particle system with gravity'"
+        ></textarea>
+        <div class="ai-actions">
+          <button id="generateBtn" class="ai-btn" disabled>✨ Generate Code</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -278,7 +608,8 @@
   <script>
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
 
-    let editorInstance, currentP5;
+    let editorInstance, currentP5, aiSession = null;
+    let chatHistory = [];
     
     // Design files mapping
     const designs = {
@@ -287,12 +618,995 @@
       spiral: 'lib/Designs/spiral.js'
     };
 
+    // AI System Prompt - Teaches Gemini Nano about SketchPad-SLM
+    const SYSTEM_PROMPT = `You are an AI assistant for SketchPad-SLM, a creative coding studio that uses p5.js with compact JavaScript syntax.
+
+IMPORTANT RULES:
+1. Always generate COMPACT p5.js code that works in our editor
+2. Use the specific syntax patterns shown below
+3. Keep code concise and creative
+4. Focus on visual/generative art patterns
+
+REQUIRED CODE STRUCTURE:
+- Use compact syntax: t=0,draw=_=>{...}
+- Always include: t||createCanvas(w,h) for setup
+- Use global variables: t (time), w/h (dimensions)
+- Animation: increment t each frame
+- Drawing: use p5.js functions like point(), ellipse(), stroke(), fill()
+
+EXAMPLES OF GOOD CODE:
+1. Simple animation:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0)
+  t+=0.05
+  fill(sin(t)*127+128,cos(t)*127+128,255)
+  ellipse(w/2+sin(t)*100,h/2+cos(t)*100,50,50)
+}
+
+2. Particle system:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.02
+  for(i=0;i<100;i++){
+    x=w/2+sin(t+i)*i*2
+    y=h/2+cos(t+i*0.1)*i*2
+    fill(i*2,255-i*2,255)
+    ellipse(x,y,5,5)
+  }
+}
+
+AVAILABLE FUNCTIONS:
+- Drawing: point(), line(), ellipse(), rect(), arc(), triangle()
+- Color: fill(), stroke(), noFill(), noStroke(), background()
+- Math: sin(), cos(), noise(), random(), mag(), PI, TWO_PI
+- Canvas: createCanvas(), strokeWeight()
+
+When user asks for something, generate creative, compact p5.js code that creates visual art matching their request.`;
+
+    // Initialize AI with Multiple Options
+    async function initializeAI() {
+      try {
+        updateStatus('🤖 Initializing AI system...');
+        document.getElementById('aiStatus').textContent = 'AI: Checking...';
+        
+        // Show AI selection modal
+        showAISelectionModal();
+        
+      } catch (error) {
+        console.error('AI initialization error:', error);
+        fallbackToTemplates();
+      }
+    }
+
+    // Show AI selection modal
+    function showAISelectionModal() {
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); z-index: 2000; display: flex;
+        align-items: center; justify-content: center;
+      `;
+      
+      modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+          <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Choose AI Engine</h2>
+          
+          <div style="margin-bottom: 20px;">
+            <button id="selectJanus" class="ai-option-btn">
+              🚀 DeepSeek Janus-Pro-1B (Local) - AI Powered
+            </button>
+            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+              Downloads ~640MB model, runs in browser. Auto-fallback to templates if WebGPU issues occur.
+            </p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <button id="selectTemplates" class="ai-option-btn">
+              ⚡ Smart Templates - Instant & Reliable
+            </button>
+            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+              Pattern-based code generation, always works
+            </p>
+          </div>
+          
+          <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                  color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                  float: right; margin-top: 10px;">Cancel</button>
+        </div>
+      `;
+      
+      const style = document.createElement('style');
+      style.textContent = `
+        .ai-option-btn {
+          width: 100%; padding: 15px; margin: 5px 0; background: rgba(255,255,255,0.1);
+          border: 2px solid rgba(255,255,255,0.3); border-radius: 10px; color: white;
+          font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+        }
+        .ai-option-btn:hover {
+          background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.5);
+          transform: translateY(-2px);
+        }
+      `;
+      document.head.appendChild(style);
+      document.body.appendChild(modal);
+      
+      // Event listeners
+      document.getElementById('selectJanus').onclick = () => {
+        document.body.removeChild(modal);
+        initializeJanus();
+      };
+      
+      document.getElementById('selectTemplates').onclick = () => {
+        document.body.removeChild(modal);
+        fallbackToTemplates();
+      };
+      
+      document.getElementById('closeModal').onclick = () => {
+        document.body.removeChild(modal);
+        fallbackToTemplates();
+      };
+    }
+
+
+
+    // Initialize DeepSeek Janus
+    async function initializeJanus() {
+      try {
+        updateStatus('🚀 Loading DeepSeek Janus-Pro-1B (~640MB)...');
+        document.getElementById('aiStatus').textContent = 'AI: Loading Janus...';
+        
+        // Check browser compatibility
+        const hasFloat16 = typeof Float16Array !== 'undefined';
+        if (!hasFloat16) {
+          addChatMessage('system', '⚠️ Your browser lacks Float16Array support. Using q4 quantization instead of q4f16 for better compatibility.');
+        }
+        
+        // Show loading screen
+        showLoadingScreen();
+        
+        // Import Transformers.js
+        updateLoadingProgress(10, 'Importing Transformers.js...');
+        
+        // Temporarily suppress verbose ONNX warnings during loading
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+          const message = args.join(' ');
+          if (message.includes('VerifyEachNodeIsAssignedToAnEp') || 
+              message.includes('Some nodes were not assigned') ||
+              message.includes('Rerunning with verbose output')) {
+            return; // Suppress these specific warnings
+          }
+          originalWarn.apply(console, args);
+        };
+        
+        const { AutoTokenizer, AutoModelForCausalLM } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0');
+        
+        const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct-ONNX';
+        
+        // Load tokenizer first
+        updateLoadingProgress(20, 'Loading tokenizer...');
+        const tokenizer = await AutoTokenizer.from_pretrained(MODEL, {
+          progress_callback: (progress) => {
+            try {
+              if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                const percent = 20 + (progress.progress * 30);
+                const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                updateLoadingProgress(percent, `Loading tokenizer: ${fileName}`);
+              }
+            } catch (e) {
+              console.warn('Progress callback error:', e);
+            }
+          }
+        });
+        
+        // WebGPU-only loading with timeout handling
+        let model;
+        
+        // Timeout wrapper function
+        const loadWithTimeout = async (loadFn, timeoutMs, description) => {
+          return Promise.race([
+            loadFn(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(`${description} timed out after ${timeoutMs/1000}s`)), timeoutMs)
+            )
+          ]);
+        };
+        
+        try {
+          updateLoadingProgress(50, 'Loading with WebGPU acceleration...');
+          addChatMessage('system', '🚀 Starting WebGPU model download (~640MB). Using text-only mode to avoid vision model errors. This may take 2-5 minutes...');
+          
+          // Add progress timeout detection
+          let lastProgress = 0;
+          let progressStuckTime = Date.now();
+          
+          model = await loadWithTimeout(
+            () => AutoModelForCausalLM.from_pretrained(MODEL, {
+              device: 'webgpu',
+              dtype: 'q4',
+              progress_callback: (progress) => {
+                try {
+                  if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                    const percent = 50 + (progress.progress * 40);
+                    const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                    updateLoadingProgress(percent, `Loading model (WebGPU): ${fileName}`);
+                    
+                    // Detect stuck progress
+                    if (Math.abs(progress.progress - lastProgress) > 0.01) {
+                      lastProgress = progress.progress;
+                      progressStuckTime = Date.now();
+                    } else if (Date.now() - progressStuckTime > 60000) {
+                      // Progress stuck for 60 seconds
+                      throw new Error('Download progress stuck - likely network or memory issue');
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Progress callback error:', e);
+                }
+              }
+            }),
+            300000, // 5 minute timeout
+            'WebGPU model loading'
+          );
+          
+          addChatMessage('system', '🚀 WebGPU acceleration enabled! GPU-only mode active.');
+        } catch (webgpuError) {
+          console.warn('WebGPU loading failed:', webgpuError);
+          
+          // Check if it's a timeout or memory issue
+          if (webgpuError.message.includes('timed out') || webgpuError.message.includes('stuck')) {
+            addChatMessage('system', '⚠️ Large model download timed out. This is common with 640MB models. Falling back to templates...');
+            hideLoadingScreen();
+            fallbackToTemplates();
+            return;
+          }
+          
+          // Only one fallback: basic WebGPU without device specification
+          try {
+            updateLoadingProgress(70, 'WebGPU failed, trying basic GPU mode...');
+            addChatMessage('system', '⚠️ WebGPU failed, trying basic GPU configuration...');
+            
+            model = await loadWithTimeout(
+              () => AutoModelForCausalLM.from_pretrained(MODEL, {
+                dtype: 'q4',
+                progress_callback: (progress) => {
+                  try {
+                    if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                      const percent = 70 + (progress.progress * 25);
+                      const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                      updateLoadingProgress(percent, `Loading model (basic): ${fileName}`);
+                    }
+                  } catch (e) {
+                    console.warn('Progress callback error:', e);
+                  }
+                }
+              }),
+              180000, // 3 minute timeout for fallback
+              'Basic GPU model loading'
+            );
+            
+            addChatMessage('system', '✅ Basic GPU mode successful! Model loaded.');
+          } catch (finalError) {
+            console.error('All GPU loading attempts failed:', finalError);
+            
+            // If both attempts failed, fall back to templates
+            addChatMessage('system', '❌ GPU model loading failed completely. Using smart templates instead.');
+            hideLoadingScreen();
+            fallbackToTemplates();
+            return;
+          }
+        }
+        
+        updateLoadingProgress(95, 'Finalizing model setup...');
+        aiSession = { type: 'qwen', model, tokenizer };
+        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B ✅';
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = '🚀 Qwen Ready';
+        
+        // Restore console.warn
+        console.warn = originalWarn;
+        
+        updateLoadingProgress(100, 'Model loaded successfully!');
+        setTimeout(() => {
+          hideLoadingScreen();
+          updateStatus('🚀 Qwen2.5-0.5B loaded successfully!');
+          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded! Ready to generate creative p5.js code. This text-only model avoids all vision-related errors.');
+        }, 500);
+        
+      } catch (error) {
+        console.error('Janus initialization error:', error);
+        
+        // Restore console.warn in case of error
+        if (typeof originalWarn !== 'undefined') {
+          console.warn = originalWarn;
+        }
+        
+        hideLoadingScreen();
+        addChatMessage('system', `❌ Failed to load Janus model: ${error.message}. Falling back to templates.`);
+        fallbackToTemplates();
+      }
+    }
+
+    // Show loading screen
+    function showLoadingScreen() {
+      const loadingScreen = document.createElement('div');
+      loadingScreen.id = 'loadingScreen';
+      loadingScreen.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8); z-index: 3000; display: flex;
+        align-items: center; justify-content: center; backdrop-filter: blur(5px);
+      `;
+      
+      loadingScreen.innerHTML = `
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    border-radius: 20px; padding: 40px; max-width: 500px; width: 90%;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center;">
+          <div style="color: white; font-size: 24px; font-weight: 600; margin-bottom: 20px;">
+            🚀 Loading DeepSeek Janus-Pro-1B
+          </div>
+          <div style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
+            First time download: ~640MB • Cached for future use
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; 
+                      margin-bottom: 15px; overflow: hidden;">
+            <div id="progressBar" style="background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); 
+                                        height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+          </div>
+          
+          <div id="progressText" style="color: rgba(255,255,255,0.9); font-size: 14px;">
+            Initializing...
+          </div>
+          <div id="progressPercent" style="color: white; font-size: 18px; font-weight: 600; margin-top: 10px;">
+            0%
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(loadingScreen);
+    }
+
+    // Update loading progress
+    function updateLoadingProgress(percent, message) {
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      const progressPercent = document.getElementById('progressPercent');
+      
+      // Validate and clamp percentage
+      const validPercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+      
+      if (progressBar) progressBar.style.width = validPercent + '%';
+      if (progressText) progressText.textContent = message || 'Loading...';
+      if (progressPercent) progressPercent.textContent = validPercent + '%';
+      
+      // Log progress for debugging
+      console.log(`Loading progress: ${validPercent}% - ${message}`);
+    }
+
+    // Hide loading screen
+    function hideLoadingScreen() {
+      const loadingScreen = document.getElementById('loadingScreen');
+      if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        loadingScreen.style.transform = 'scale(0.9)';
+        loadingScreen.style.transition = 'all 0.3s ease';
+        setTimeout(() => {
+          if (loadingScreen.parentNode) {
+            loadingScreen.parentNode.removeChild(loadingScreen);
+          }
+        }, 300);
+      }
+    }
+
+    // Fallback to templates
+    function fallbackToTemplates() {
+      aiSession = 'template';
+      document.getElementById('aiStatus').textContent = 'AI: Smart Templates ⚡';
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('initAIBtn').textContent = '⚡ Templates Ready';
+      updateStatus('⚡ Smart Templates ready!');
+      addChatMessage('system', '⚡ Smart Template system activated! Uses pattern matching for instant code generation. Works for: "particle explosion", "rainbow spiral", "ocean waves", "geometric patterns", etc.');
+    }
+
+    // Generate code using AI (Janus or Smart Templates)
+    async function generateAICode(userPrompt) {
+      if (!aiSession) {
+        updateStatus('❌ AI not connected. Click "Connect AI" first.');
+        return;
+      }
+
+      try {
+        updateStatus('🤖 AI is generating code...');
+        
+        // Add user message to chat
+        addChatMessage('user', userPrompt);
+        
+        let code = '';
+        let aiResponse = '';
+        
+        // Template mode (Smart pattern matching)
+        if (aiSession === 'template') {
+          code = generateTemplateCode(userPrompt);
+          aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart template matching. The code creates an animated visual based on your description.`;
+          updateStatus('⚡ Generated code using smart templates!');
+        }
+        // Qwen2.5 mode - Pure text-only generation (no vision components)
+        else if (aiSession.type === 'qwen') {
+          let generationAttempts = 0;
+          const maxGenerationAttempts = 3;
+          let janusSuccess = false;
+          
+          // Strategy: Text-only generation (no vision components)
+          while (!janusSuccess && generationAttempts < maxGenerationAttempts) {
+            try {
+              generationAttempts++;
+              
+              const fullPrompt = `Generate ONLY executable p5.js code for: "${userPrompt}"
+
+STRICT FORMAT - Return EXACTLY this structure with NO explanations:
+
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.05
+  fill(255,100,150)
+  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
+}
+
+RULES:
+- FIRST line must be: t=0
+- SECOND line must be: draw=_=>{
+- Include: t||createCanvas(w=800,h=600)
+- Include: background() call
+- Include: t+=0.05 (or similar)
+- Use p5.js functions: fill(), stroke(), ellipse(), rect(), point()
+- NO explanations, NO markdown, NO comments
+- ONLY executable JavaScript code
+- End with closing brace }
+
+Example for "spinning circles":
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.08
+  for(i=0;i<8;i++){
+    x=400+sin(t+i)*150
+    y=300+cos(t+i)*150
+    fill(sin(i)*127+128,cos(i)*127+128,255)
+    ellipse(x,y,40,40)
+  }
+}`;
+
+              // Use proper Qwen2.5 chat format
+              const messages = [
+                { role: 'system', content: 'You are a helpful assistant that generates p5.js code.' },
+                { role: 'user', content: fullPrompt }
+              ];
+              
+              // Apply chat template and tokenize
+              const textInput = aiSession.tokenizer.apply_chat_template(messages, { 
+                tokenize: false, 
+                add_generation_prompt: true 
+              });
+              
+              const inputs = await aiSession.tokenizer(textInput, {
+                return_tensors: 'pt',
+                padding: true
+              });
+              
+              // Try with different generation parameters based on attempt
+              let genParams = { 
+                input_ids: inputs.input_ids,
+                attention_mask: inputs.attention_mask,
+                max_new_tokens: 256,
+                temperature: 0.7,
+                do_sample: true
+              };
+              
+              if (generationAttempts === 2) {
+                // Second attempt: More conservative parameters
+                genParams.temperature = 0.5;
+                genParams.max_new_tokens = 128;
+              } else if (generationAttempts === 3) {
+                // Third attempt: Very conservative
+                genParams.temperature = 0.3;
+                genParams.max_new_tokens = 64;
+                genParams.do_sample = false;
+              }
+              
+              const out = await aiSession.model.generate(genParams);
+              const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
+              const rawCode = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
+              
+              // Show raw AI output in chat for debugging
+              console.log('Raw AI Output:', rawCode);
+              addChatMessage('system', `🔍 Raw AI Output (attempt ${generationAttempts}):`, rawCode);
+              
+              // Clean up the response thoroughly
+              code = rawCode.trim();
+              
+              // Remove code blocks and explanatory text
+              code = code.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
+              code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+              
+              // AGGRESSIVE EXTRACTION: Look for our exact pattern first
+              // Strategy 1: Extract from t=0 to closing brace
+              let codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
+              if (codeMatch) {
+                code = codeMatch[1];
+              } else {
+                // Strategy 2: Look for just the draw function
+                codeMatch = code.match(/(draw\s*=\s*[^{]*{[\s\S]*?})/);
+                if (codeMatch) {
+                  code = 't=0\n' + codeMatch[1]; // Add t=0 if missing
+                } else {
+                  // Strategy 3: Look for t=0 pattern anywhere
+                  codeMatch = code.match(/(t\s*=\s*0[\s\S]*)/);
+                  if (codeMatch) {
+                    code = codeMatch[1];
+                  }
+                }
+              }
+              
+              // Remove any remaining HTML/markdown artifacts
+              code = code.replace(/<[^>]*>/g, ''); // Remove HTML tags
+              code = code.replace(/&[a-zA-Z0-9#]+;/g, ''); // Remove HTML entities
+              
+              // AGGRESSIVE TEXT REMOVAL: Remove explanatory sentences
+              const lines = code.split('\n');
+              const codeLines = [];
+              let inCodeBlock = false;
+              
+              for (let line of lines) {
+                const trimmed = line.trim();
+                
+                // Start of code block
+                if (trimmed.startsWith('t=') || trimmed.startsWith('draw=')) {
+                  inCodeBlock = true;
+                }
+                
+                // Skip explanatory text
+                if (!inCodeBlock) continue;
+                
+                // Skip lines that look like explanations
+                if (trimmed && 
+                    !trimmed.startsWith('//') &&
+                    !trimmed.startsWith('*') &&
+                    !trimmed.startsWith('#') &&
+                    !trimmed.match(/^\d+\.?\s/) && // Skip numbered lists
+                    !trimmed.toLowerCase().includes('this example') &&
+                    !trimmed.toLowerCase().includes('to further') &&
+                    !trimmed.toLowerCase().includes('note:') &&
+                    !trimmed.toLowerCase().includes('represents') &&
+                    !trimmed.toLowerCase().includes('defines what') &&
+                    !trimmed.toLowerCase().includes('we keep track') &&
+                    !trimmed.toLowerCase().includes('assumes all') &&
+                    !trimmed.toLowerCase().includes('elaborat') &&
+                    !/^(the|this|you|we|i|it|here|above|below)\s+/i.test(trimmed) &&
+                    (trimmed.includes('=') || trimmed.includes('{') || trimmed.includes('}') || 
+                     trimmed.includes('(') || trimmed.includes('for') || trimmed.includes('if'))) {
+                  codeLines.push(line);
+                }
+                
+                // End of code block
+                if (trimmed === '}' && inCodeBlock) {
+                  break;
+                }
+              }
+              
+              code = codeLines.join('\n').trim();
+              
+              // If no valid code found, throw error to trigger template fallback
+              if (!code || code.length < 10) {
+                addChatMessage('system', `⚠️ Extracted code too short: "${code}"`);
+                throw new Error('No valid JavaScript code extracted from AI response');
+              }
+              
+              // Show cleaned code before validation
+              console.log('Cleaned Code:', code);
+              addChatMessage('system', `🧹 Cleaned Code:`, code);
+              
+              // Validate code syntax before using
+              try {
+                new Function(code);
+                console.log('✅ Code syntax validation passed');
+              } catch (syntaxError) {
+                console.error('❌ Syntax Error Details:', syntaxError);
+                console.error('❌ Problematic Code:', code);
+                console.warn('Generated code has syntax errors, using template instead');
+                
+                // Show detailed error info in chat
+                addChatMessage('system', `❌ Syntax Error: ${syntaxError.message}`);
+                addChatMessage('system', `🐛 Problematic Code: "${code.substring(0, 100)}${code.length > 100 ? '...' : ''}"`);
+                addChatMessage('system', `🔧 Falling back to smart templates...`);
+                
+                // Don't retry AI, go straight to templates for this request
+                code = generateTemplateCode(userPrompt);
+                aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (AI generated invalid syntax: ${syntaxError.message}).`;
+                updateStatus('⚡ Generated code using templates (AI syntax error)');
+                janusSuccess = true; // Stop retrying
+                break;
+              }
+              aiResponse = `I've created a custom p5.js animation for "${userPrompt}" using Qwen2.5-0.5B (attempt ${generationAttempts}). Pure text model with no vision components.`;
+              updateStatus(`🚀 Qwen2.5-0.5B generated code (attempt ${generationAttempts})!`);
+              janusSuccess = true;
+              
+            } catch (janusError) {
+              console.error(`Janus generation attempt ${generationAttempts} failed:`, janusError);
+              
+              // If this is the last attempt, provide detailed error feedback
+              if (generationAttempts >= maxGenerationAttempts) {
+                // Provide specific feedback for different error types
+                let errorMessage = janusError.message;
+                if (errorMessage.includes('WebGPU') && errorMessage.includes('Unsupported data type')) {
+                  errorMessage = 'WebGPU compatibility issue with model data types';
+                } else if (errorMessage.includes('ReduceMean')) {
+                  errorMessage = 'ONNX runtime execution error';
+                } else if (errorMessage.includes('Float16Array')) {
+                  errorMessage = 'Browser lacks Float16Array support';
+                } else if (errorMessage.includes('float16 tensor')) {
+                  errorMessage = 'Float16 data type not supported';
+                } else if (errorMessage.includes('out of memory')) {
+                  errorMessage = 'Insufficient memory for model execution';
+                }
+                
+                // Final fallback to templates
+                addChatMessage('ai', `⚠️ Qwen2.5 failed after ${generationAttempts} attempts: ${errorMessage}. Using smart templates instead...`);
+                code = generateTemplateCode(userPrompt);
+                aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (Qwen2.5 had persistent runtime errors).`;
+                updateStatus('⚡ Generated code using templates (Qwen2.5 failed multiple attempts)');
+                break;
+              } else {
+                // Try again with different parameters
+                addChatMessage('system', `⚠️ Qwen2.5 attempt ${generationAttempts} failed, trying again with different parameters...`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
+              }
+            }
+          }
+        }
+        
+        if (code.length > 10) {
+          editorInstance.setValue(code);
+          
+          // Execute the code safely
+          try {
+            window.runSketch(code);
+            updateStatus('✅ Code generated and executed successfully!');
+          } catch (runError) {
+            console.error('Error running generated code:', runError);
+            updateStatus('⚠️ Code generated but execution failed. Check the code editor.');
+            addChatMessage('ai', `⚠️ Generated code but execution failed: ${runError.message}. You can still edit and run it manually.`);
+          }
+          
+          // Add AI response to chat with code preview
+          const codePreview = code.split('\n').slice(0, 3).join('\n') + (code.split('\n').length > 3 ? '\n...' : '');
+          addChatMessage('ai', aiResponse, codePreview);
+          
+        } else {
+          addChatMessage('ai', 'Sorry, I couldn\'t generate valid code for that prompt. Could you try describing it differently?');
+          updateStatus('❌ Generated invalid code. Try a different prompt.');
+        }
+        
+      } catch (error) {
+        console.error('AI generation error:', error);
+        updateStatus('❌ AI generation failed: ' + error.message);
+        addChatMessage('ai', `Error generating code: ${error.message}. Please try again.`);
+      }
+    }
+
+    // Smart Template System - Pattern-based code generation
+    function generateTemplateCode(prompt) {
+      const lower = prompt.toLowerCase();
+      
+      // Particle systems & explosions
+      if (lower.includes('particle') || lower.includes('explosion') || lower.includes('dots') || lower.includes('stars')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.02
+  for(i=0;i<300;i++){
+    x=w/2+sin(t+i*0.1)*i*2
+    y=h/2+cos(t+i*0.1)*i*2
+    fill(sin(i)*127+128,cos(i)*127+128,255,200)
+    ellipse(x,y,5,5)
+  }
+}`;
+      }
+      
+      // Spirals & galaxies
+      if (lower.includes('spiral') || lower.includes('galaxy') || lower.includes('swirl') || lower.includes('twist')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.03
+  for(i=0;i<150;i++){
+    a=t+i*0.3
+    r=i*4
+    x=w/2+cos(a)*r
+    y=h/2+sin(a)*r
+    fill(sin(a)*127+128,cos(a+1)*127+128,255)
+    ellipse(x,y,8,8)
+  }
+}`;
+      }
+      
+      // Waves & ocean
+      if (lower.includes('wave') || lower.includes('ocean') || lower.includes('water') || lower.includes('sine')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,50)
+  t+=0.1
+  for(i=0;i<w;i+=8){
+    y=h/2+sin(i*0.02+t)*80
+    fill(0,150,255,180)
+    ellipse(i,y,12,12)
+  }
+}`;
+      }
+      
+      // Geometric patterns
+      if (lower.includes('geometric') || lower.includes('triangle') || lower.includes('square') || lower.includes('polygon')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,40)
+  t+=0.04
+  for(i=0;i<10;i++)for(j=0;j<8;j++){
+    x=i*80+40
+    y=j*75+40
+    fill(sin(t+i+j)*127+128,cos(t+i-j)*127+128,255)
+    ellipse(x+sin(t)*20,y+cos(t)*20,30,30)
+  }
+}`;
+      }
+      
+      // Kaleidoscope
+      if (lower.includes('kaleidoscope') || lower.includes('mandala') || lower.includes('symmetry')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.05
+  for(i=0;i<12;i++){
+    a=i*PI/6+t
+    x=w/2+cos(a)*200
+    y=h/2+sin(a)*200
+    fill(sin(a+t)*127+128,cos(a+t)*127+128,255)
+    for(j=0;j<5;j++){
+      ellipse(x+cos(a+j)*j*10,y+sin(a+j)*j*10,15,15)
+    }
+  }
+}`;
+      }
+      
+      // Colorful/rainbow
+      if (lower.includes('colorful') || lower.includes('rainbow') || lower.includes('color')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.06
+  for(i=0;i<100;i++){
+    x=w/2+sin(t+i*0.2)*i*3
+    y=h/2+cos(t+i*0.2)*i*3
+    fill(sin(i+t)*127+128,cos(i+t*2)*127+128,sin(i+t*3)*127+128)
+    ellipse(x,y,10,10)
+  }
+}`;
+      }
+      
+      // Default creative pattern
+      return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.04
+  for(i=0;i<80;i++){
+    x=w/2+sin(t+i*0.1)*i*2.5
+    y=h/2+cos(t+i*0.15)*i*2.5
+    fill(sin(t+i)*127+128,cos(t+i*0.5)*127+128,255)
+    ellipse(x,y,8,8)
+  }
+}`;
+    }
+
     function updateStatus(message) {
       document.getElementById('statusBar').textContent = message;
       setTimeout(() => {
         document.getElementById('statusBar').textContent = 'Ready to create amazing p5.js art! 🚀';
       }, 3000);
     }
+
+    // Chat Functions
+    function addChatMessage(type, content, codePreview = null) {
+      const chatHistoryEl = document.getElementById('chatHistory');
+      const messageEl = document.createElement('div');
+      messageEl.className = `chat-message ${type}`;
+      
+      let headerText = '';
+      switch(type) {
+        case 'user': headerText = '👤 You'; break;
+        case 'ai': headerText = aiSession === 'template' ? '🤖 Smart Templates' : '🧠 Gemini Nano'; break;
+        case 'system': headerText = '⚙️ System'; break;
+      }
+      
+      messageEl.innerHTML = `
+        <div class="message-header">${headerText}</div>
+        <div>${content}</div>
+        ${codePreview ? `<div class="code-preview">${codePreview}</div>` : ''}
+      `;
+      
+      chatHistoryEl.appendChild(messageEl);
+      chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+      
+      // Store in history
+      chatHistory.push({ type, content, codePreview, timestamp: Date.now() });
+    }
+
+    // AI Panel Functions
+    function toggleAIPanel() {
+      const panel = document.getElementById('aiFloatingPanel');
+      const toggleBtn = document.getElementById('aiToggleBtn');
+      
+      if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        panel.classList.add('hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+
+    function minimizeAIPanel() {
+      const panel = document.getElementById('aiFloatingPanel');
+      const content = document.getElementById('aiContent');
+      
+      if (panel.classList.contains('minimized')) {
+        panel.classList.remove('minimized');
+        content.classList.remove('minimized');
+      } else {
+        panel.classList.add('minimized');
+        content.classList.add('minimized');
+      }
+    }
+
+    function closeAIPanel() {
+      const panel = document.getElementById('aiFloatingPanel');
+      const toggleBtn = document.getElementById('aiToggleBtn');
+      
+      panel.classList.add('hidden');
+      toggleBtn.classList.remove('active');
+    }
+
+    // Editor expand/minimize functions
+    function expandEditor() {
+      const editorContainer = document.getElementById('editorContainer');
+      const canvasContainer = document.querySelector('.canvas-container');
+      const expandBtn = document.getElementById('expandEditorBtn');
+      
+      if (editorContainer.classList.contains('expanded')) {
+        // Restore normal view
+        editorContainer.classList.remove('expanded');
+        canvasContainer.classList.remove('hidden');
+        expandBtn.textContent = '⤢';
+        expandBtn.title = 'Expand Editor';
+        updateStatus('📝 Editor restored to normal view');
+      } else {
+        // Expand editor
+        editorContainer.classList.add('expanded');
+        canvasContainer.classList.add('hidden');
+        expandBtn.textContent = '⤡';
+        expandBtn.title = 'Restore Editor';
+        updateStatus('📝 Editor expanded for full-screen coding');
+      }
+      
+      // Trigger Monaco editor resize
+      setTimeout(() => {
+        if (editorInstance) {
+          editorInstance.layout();
+        }
+      }, 300);
+    }
+
+    function minimizeEditor() {
+      const editorContainer = document.getElementById('editorContainer');
+      const minimizeBtn = document.getElementById('minimizeEditorBtn');
+      
+      if (editorContainer.classList.contains('minimized')) {
+        // Restore editor
+        editorContainer.classList.remove('minimized');
+        minimizeBtn.textContent = '−';
+        minimizeBtn.title = 'Minimize Editor';
+        updateStatus('📝 Editor restored');
+      } else {
+        // Minimize editor
+        editorContainer.classList.add('minimized');
+        minimizeBtn.textContent = '+';
+        minimizeBtn.title = 'Restore Editor';
+        updateStatus('📝 Editor minimized');
+      }
+      
+      // Trigger Monaco editor resize
+      setTimeout(() => {
+        if (editorInstance) {
+          editorInstance.layout();
+        }
+      }, 300);
+    }
+
+    // Runner: execute user code in p5 context (Global scope)
+    window.runSketch = function(src) {
+      if (currentP5) currentP5.remove();
+
+      try {
+        updateStatus('🎨 Running your code...');
+        
+        // Create p5 instance and execute the user's code
+        currentP5 = new p5((p) => {
+          
+          // Make p5 functions available in global scope for user code
+          const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random'];
+          
+          p5Functions.forEach(fn => {
+            if (p[fn]) {
+              window[fn] = p[fn].bind(p);
+            }
+          });
+          
+          // Constants
+          window.PI = p.PI;
+          window.TWO_PI = p.TWO_PI;
+          window.HALF_PI = p.HALF_PI;
+          window.PIE = p.PIE;
+          window.CHORD = p.CHORD;
+          window.OPEN = p.OPEN;
+          
+          // Common variables
+          window.w = 400;
+          window.W = 720;
+          
+          try {
+            // Execute user code directly
+            eval(src);
+            
+            // If draw function was created globally, use it
+            if (window.draw && typeof window.draw === 'function') {
+              p.draw = window.draw;
+              updateStatus('✅ Code executed successfully!');
+            }
+            
+          } catch (evalError) {
+            console.error('Error executing user code:', evalError);
+            updateStatus('❌ Code error: ' + evalError.message);
+            // Fallback to a simple sketch
+            p.setup = function() {
+              p.createCanvas(400, 400);
+              p.background(50);
+            };
+            p.draw = function() {
+              p.stroke(255);
+              p.text('Code Error: Check Console', 10, 20);
+            };
+          }
+          
+        }, 'canvas');
+        
+      } catch (error) {
+        console.error('Error running sketch:', error);
+        updateStatus('❌ Failed to run sketch');
+      }
+    };
 
     require(['vs/editor/editor.main'], () => {
       // Initialize Monaco with default fish code
@@ -315,69 +1629,6 @@
           wordWrap: 'on'
       });
 
-      // Runner: execute user code in p5 context
-      function runSketch(src) {
-        if (currentP5) currentP5.remove();
-
-        try {
-          updateStatus('🎨 Running your code...');
-          
-          // Create p5 instance and execute the user's code
-          currentP5 = new p5((p) => {
-            
-            // Make p5 functions available in global scope for user code
-            const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random'];
-            
-            p5Functions.forEach(fn => {
-              if (p[fn]) {
-                window[fn] = p[fn].bind(p);
-              }
-            });
-            
-            // Constants
-            window.PI = p.PI;
-            window.TWO_PI = p.TWO_PI;
-            window.HALF_PI = p.HALF_PI;
-            window.PIE = p.PIE;
-            window.CHORD = p.CHORD;
-            window.OPEN = p.OPEN;
-            
-            // Common variables
-            window.w = 400;
-            window.W = 720;
-            
-            try {
-              // Execute user code directly
-              eval(src);
-              
-              // If draw function was created globally, use it
-              if (window.draw && typeof window.draw === 'function') {
-                p.draw = window.draw;
-                updateStatus('✅ Code executed successfully!');
-              }
-              
-            } catch (evalError) {
-              console.error('Error executing user code:', evalError);
-              updateStatus('❌ Code error: ' + evalError.message);
-              // Fallback to a simple sketch
-              p.setup = function() {
-                p.createCanvas(400, 400);
-                p.background(50);
-              };
-              p.draw = function() {
-                p.stroke(255);
-                p.text('Code Error: Check Console', 10, 20);
-              };
-            }
-            
-          }, 'canvas');
-          
-        } catch (error) {
-          console.error('Error running sketch:', error);
-          updateStatus('❌ Failed to run sketch');
-        }
-      }
-
       // Load design from lib/Designs folder
       async function loadDesign(designName) {
         if (!designName) return;
@@ -388,7 +1639,7 @@
           if (response.ok) {
             const code = await response.text();
             editorInstance.setValue(code);
-            runSketch(code);
+            window.runSketch(code);
             updateStatus(`✅ Loaded ${designName} successfully!`);
           } else {
             updateStatus(`❌ Failed to load ${designName}`);
@@ -401,7 +1652,7 @@
 
       // Event Listeners
       document.getElementById('runBtn').addEventListener('click', () => {
-        runSketch(editorInstance.getValue());
+        window.runSketch(editorInstance.getValue());
       });
 
       document.getElementById('designSelect').addEventListener('change', (e) => {
@@ -419,7 +1670,7 @@
           reader.onload = (e) => {
             const code = e.target.result;
             editorInstance.setValue(code);
-            runSketch(code);
+            window.runSketch(code);
             updateStatus(`✅ Loaded ${file.name}`);
           };
           reader.readAsText(file);
@@ -467,9 +1718,47 @@
         updateStatus('🔄 Code reset to template');
       });
 
+      // AI Event Listeners
+      document.getElementById('initAIBtn').addEventListener('click', initializeAI);
+      
+      document.getElementById('generateBtn').addEventListener('click', () => {
+        const prompt = document.getElementById('aiPrompt').value.trim();
+        if (prompt) {
+          generateAICode(prompt);
+        } else {
+          updateStatus('❌ Please enter a prompt first');
+        }
+      });
+
+      // Allow Enter key in prompt textarea to generate
+      document.getElementById('aiPrompt').addEventListener('keydown', (e) => {
+        // Enter (without Shift) generates code
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault(); // Prevent new line
+          const prompt = e.target.value.trim();
+          if (prompt && !document.getElementById('generateBtn').disabled) {
+            generateAICode(prompt);
+            // Clear the input after generating
+            setTimeout(() => {
+              e.target.value = '';
+            }, 100);
+          }
+        }
+        // Shift+Enter allows new lines for multi-line prompts
+      });
+
+      // AI Panel event listeners
+      document.getElementById('aiToggleBtn').addEventListener('click', toggleAIPanel);
+      document.getElementById('minimizeBtn').addEventListener('click', minimizeAIPanel);
+      document.getElementById('closeBtn').addEventListener('click', closeAIPanel);
+
+      // Editor control event listeners
+      document.getElementById('expandEditorBtn').addEventListener('click', expandEditor);
+      document.getElementById('minimizeEditorBtn').addEventListener('click', minimizeEditor);
+
       // Auto-run fish animation on load
       setTimeout(() => {
-        runSketch(editorInstance.getValue());
+        window.runSketch(editorInstance.getValue());
       }, 1000);
 
       updateStatus('🚀 SketchPad-SLM loaded successfully!');
