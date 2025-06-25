@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Canvas3D-LLM - Live p5.js Editor</title>
+  <title>SketchPad-SLM - Live p5.js Editor</title>
   <style>
     * {
       margin: 0;
@@ -218,7 +218,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🎨 Canvas3D-LLM</h1>
+      <h1>🎨 SketchPad-SLM</h1>
       <div style="margin-left: auto; color: rgba(255,255,255,0.8);">
         Creative Coding Studio with AI Integration
       </div>
@@ -299,7 +299,7 @@
       editorInstance = monaco.editor.create(
         document.getElementById('editor'), {
           value: [
-            '// Welcome to Canvas3D-LLM!',
+            '// Welcome to SketchPad-SLM!',
             '// Edit this code and click "Draw" to see magic happen ✨',
             '',
             '// Fish animation scaled to full canvas size',
@@ -450,7 +450,7 @@
 
       document.getElementById('resetBtn').addEventListener('click', () => {
         editorInstance.setValue([
-          '// Welcome to Canvas3D-LLM!',
+          '// Welcome to SketchPad-SLM!',
           '// Edit this code and click "Draw" to see magic happen ✨',
           '',
           't=0',
@@ -472,7 +472,7 @@
         runSketch(editorInstance.getValue());
       }, 1000);
 
-      updateStatus('🚀 Canvas3D-LLM loaded successfully!');
+      updateStatus('🚀 SketchPad-SLM loaded successfully!');
     });
   </script>
 </body>
