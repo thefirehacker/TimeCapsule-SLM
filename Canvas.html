@@ -2,49 +2,317 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>p5.js + Monaco + Babel Live Editor (Fixed)</title>
+  <title>Canvas3D-LLM - Live p5.js Editor</title>
   <style>
-    body { margin:0; display:flex; height:100vh; overflow:hidden; }
-    #editor { width:50%; height:100%; }
-    #canvas { width:50%; height:100%; background:#111; }
-    #controls {
-      position:absolute; top:10px; left:50%; transform:translateX(-50%);
-      z-index:10;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    #runBtn { padding:8px 16px; font-size:16px; }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh; 
+      overflow: hidden;
+    }
+    
+    .container {
+      display: grid;
+      grid-template-columns: 250px 1fr 2fr;
+      grid-template-rows: 60px 1fr;
+      height: 100vh;
+      gap: 10px;
+      padding: 10px;
+    }
+    
+    .header {
+      grid-column: 1 / -1;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      background: linear-gradient(45deg, #fff, #f0f8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .controls-panel {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      overflow-y: auto;
+    }
+    
+    .controls-panel h3 {
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: #fff;
+      text-align: center;
+    }
+    
+    .control-group {
+      margin-bottom: 20px;
+    }
+    
+    .control-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      margin: 8px 0;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn.primary {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+    }
+    
+    .btn.primary:hover {
+      box-shadow: 0 8px 25px rgba(250, 112, 154, 0.6);
+    }
+    
+    .btn.secondary {
+      background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+      color: #333;
+      box-shadow: 0 4px 15px rgba(168, 237, 234, 0.4);
+    }
+    
+    select, input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+    }
+    
+    select option {
+      background: #333;
+      color: white;
+    }
+    
+    .editor-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 15px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .editor-header {
+      color: white;
+      margin-bottom: 10px;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    #editor { 
+      flex: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .canvas-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 15px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .canvas-header {
+      color: white;
+      margin-bottom: 10px;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    #canvas { 
+      flex: 1;
+      background: #111; 
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .status-bar {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 8px 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
   </style>
 </head>
 <body>
-  <div id="controls">
-    <button id="runBtn">Draw</button>
+  <div class="container">
+    <div class="header">
+      <h1>🎨 Canvas3D-LLM</h1>
+      <div style="margin-left: auto; color: rgba(255,255,255,0.8);">
+        Creative Coding Studio with AI Integration
+      </div>
+    </div>
+    
+    <div class="controls-panel">
+      <h3>🎮 Controls</h3>
+      
+      <div class="control-group">
+        <button id="runBtn" class="btn primary">▶️ Draw</button>
+      </div>
+      
+      <div class="control-group">
+        <label>📁 Load Design:</label>
+        <select id="designSelect">
+          <option value="">Choose a design...</option>
+          <option value="fish">🐟 Fish Animation</option>
+          <option value="rabbit">🐰 Rabbit Bounce</option>
+          <option value="spiral">🌀 Rainbow Spiral</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label>📂 File Operations:</label>
+        <input type="file" id="fileInput" accept=".js" class="hidden">
+        <button id="loadFileBtn" class="btn secondary">📁 Load JS File</button>
+        <button id="saveFileBtn" class="btn secondary">💾 Save JS File</button>
+      </div>
+      
+      <div class="control-group">
+        <label>🎯 Quick Actions:</label>
+        <button id="clearBtn" class="btn">🗑️ Clear Canvas</button>
+        <button id="resetBtn" class="btn">🔄 Reset Code</button>
+      </div>
+      
+      <div class="status-bar" id="statusBar">
+        Ready to create amazing p5.js art! 🚀
+      </div>
+    </div>
+    
+    <div class="editor-container">
+      <div class="editor-header">📝 Code Editor</div>
+      <div id="editor"></div>
+    </div>
+    
+    <div class="canvas-container">
+      <div class="canvas-header">🖼️ Canvas Output</div>
+      <div id="canvas"></div>
+    </div>
   </div>
-  <div id="editor"></div>
-  <div id="canvas"></div>
 
-  <!-- 1) Babel standalone for ES6→ES5 -->
+  <!-- Dependencies -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- 2) p5.js runtime -->
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
-  <!-- 3) Monaco Editor loader -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js"></script>
 
   <script>
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
 
     let editorInstance, currentP5;
+    
+    // Design files mapping
+    const designs = {
+      fish: 'lib/Designs/fish.js',
+      rabbit: 'lib/Designs/rabbit.js',
+      spiral: 'lib/Designs/spiral.js'
+    };
+
+    function updateStatus(message) {
+      document.getElementById('statusBar').textContent = message;
+      setTimeout(() => {
+        document.getElementById('statusBar').textContent = 'Ready to create amazing p5.js art! 🚀';
+      }, 3000);
+    }
 
     require(['vs/editor/editor.main'], () => {
-      // Initialize Monaco with your fish one-liner
+      // Initialize Monaco with default fish code
       editorInstance = monaco.editor.create(
         document.getElementById('editor'), {
           value: [
-            'a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))=>point((q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))*cos(d/8+t/4)+50*cos(c=d-t)+200,q*sin(c)+d*7*sin(c/4)+200)',
-            't=0,draw=$=>{t||createCanvas(w=400,w);background(9);stroke(w,116);for(t+=PI/120,i=1e4;i--;)a(i,i/235)}'
+            '// Welcome to Canvas3D-LLM!',
+            '// Edit this code and click "Draw" to see magic happen ✨',
+            '',
+            '// Fish animation scaled to full canvas size',
+            'a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))=>point((q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))*cos(d/8+t/4)+50*cos(c=d-t)+w/2,q*sin(c)+d*7*sin(c/4)+h/2)',
+            't=0,draw=$=>{if(!t){w=800;h=600;createCanvas(w,h)}background(9);stroke(255,116);for(t+=PI/120,i=1e4;i--;)a(i,i/235)}'
           ].join('\n'),
           language: 'javascript',
           theme: 'vs-dark',
           automaticLayout: true,
-          fontSize: 16
+          fontSize: 14,
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          wordWrap: 'on'
       });
 
       // Runner: execute user code in p5 context
@@ -52,13 +320,13 @@
         if (currentP5) currentP5.remove();
 
         try {
-          console.log('Starting sketch with code:', src);
+          updateStatus('🎨 Running your code...');
           
           // Create p5 instance and execute the user's code
           currentP5 = new p5((p) => {
             
             // Make p5 functions available in global scope for user code
-            const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve'];
+            const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random'];
             
             p5Functions.forEach(fn => {
               if (p[fn]) {
@@ -85,13 +353,12 @@
               // If draw function was created globally, use it
               if (window.draw && typeof window.draw === 'function') {
                 p.draw = window.draw;
-                console.log('Using global draw function');
+                updateStatus('✅ Code executed successfully!');
               }
-              
-              console.log('User code executed successfully');
               
             } catch (evalError) {
               console.error('Error executing user code:', evalError);
+              updateStatus('❌ Code error: ' + evalError.message);
               // Fallback to a simple sketch
               p.setup = function() {
                 p.createCanvas(400, 400);
@@ -105,17 +372,107 @@
             
           }, 'canvas');
           
-          console.log('p5 instance created');
         } catch (error) {
           console.error('Error running sketch:', error);
+          updateStatus('❌ Failed to run sketch');
         }
       }
 
-      // Wire Draw button
+      // Load design from lib/Designs folder
+      async function loadDesign(designName) {
+        if (!designName) return;
+        
+        try {
+          updateStatus(`📁 Loading ${designName}...`);
+          const response = await fetch(designs[designName]);
+          if (response.ok) {
+            const code = await response.text();
+            editorInstance.setValue(code);
+            runSketch(code);
+            updateStatus(`✅ Loaded ${designName} successfully!`);
+          } else {
+            updateStatus(`❌ Failed to load ${designName}`);
+          }
+        } catch (error) {
+          console.error('Error loading design:', error);
+          updateStatus(`❌ Error loading ${designName}`);
+        }
+      }
+
+      // Event Listeners
       document.getElementById('runBtn').addEventListener('click', () => {
-        console.log('Draw clicked');
         runSketch(editorInstance.getValue());
       });
+
+      document.getElementById('designSelect').addEventListener('change', (e) => {
+        loadDesign(e.target.value);
+      });
+
+      document.getElementById('loadFileBtn').addEventListener('click', () => {
+        document.getElementById('fileInput').click();
+      });
+
+      document.getElementById('fileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && file.name.endsWith('.js')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const code = e.target.result;
+            editorInstance.setValue(code);
+            runSketch(code);
+            updateStatus(`✅ Loaded ${file.name}`);
+          };
+          reader.readAsText(file);
+        } else {
+          updateStatus('❌ Please select a .js file');
+        }
+      });
+
+      document.getElementById('saveFileBtn').addEventListener('click', () => {
+        const code = editorInstance.getValue();
+        const blob = new Blob([code], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sketch_${Date.now()}.js`;
+        a.click();
+        URL.revokeObjectURL(url);
+        updateStatus('💾 File saved successfully!');
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        if (currentP5) {
+          currentP5.remove();
+          currentP5 = null;
+          updateStatus('🗑️ Canvas cleared');
+        }
+      });
+
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        editorInstance.setValue([
+          '// Welcome to Canvas3D-LLM!',
+          '// Edit this code and click "Draw" to see magic happen ✨',
+          '',
+          't=0',
+          'draw=_=>{',
+          '  t||createCanvas(400,400)',
+          '  background(0)',
+          '  t+=0.05',
+          '  ',
+          '  // Your creative code here!',
+          '  fill(sin(t)*127+128,cos(t)*127+128,255)',
+          '  ellipse(200+sin(t)*100,200+cos(t)*100,50,50)',
+          '}'
+        ].join('\n'));
+        updateStatus('🔄 Code reset to template');
+      });
+
+      // Auto-run fish animation on load
+      setTimeout(() => {
+        runSketch(editorInstance.getValue());
+      }, 1000);
+
+      updateStatus('🚀 Canvas3D-LLM loaded successfully!');
     });
   </script>
 </body>
