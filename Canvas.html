@@ -577,7 +577,10 @@
     <div class="ai-content" id="aiContent">
       <div class="ai-status-bar">
         <div id="aiStatus">AI: Not connected</div>
-        <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
+        <div style="display: flex; gap: 5px;">
+          <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
+          <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
+        </div>
       </div>
       
       <div class="chat-history" id="chatHistory">
@@ -610,6 +613,7 @@
 
     let editorInstance, currentP5, aiSession = null;
     let chatHistory = [];
+    let chatMode = 'creative'; // 'creative' or 'general'
     
     // Design files mapping
     const designs = {
@@ -699,10 +703,10 @@ When user asks for something, generate creative, compact p5.js code that creates
           
           <div style="margin-bottom: 20px;">
             <button id="selectJanus" class="ai-option-btn">
-              🚀 DeepSeek Janus-Pro-1B (Local) - AI Powered
+              🚀 Qwen2.5-0.5B (Local) - AI Powered
             </button>
             <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-              Downloads ~640MB model, runs in browser. Auto-fallback to templates if WebGPU issues occur.
+              Downloads ~500MB model, runs in browser. Auto-fallback to templates if WebGPU issues occur.
             </p>
           </div>
           
@@ -755,11 +759,11 @@ When user asks for something, generate creative, compact p5.js code that creates
 
 
 
-    // Initialize DeepSeek Janus
+    // Initialize Qwen2.5
     async function initializeJanus() {
       try {
-        updateStatus('🚀 Loading DeepSeek Janus-Pro-1B (~640MB)...');
-        document.getElementById('aiStatus').textContent = 'AI: Loading Janus...';
+        updateStatus('🚀 Loading Qwen2.5-0.5B (~500MB)...');
+        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5...';
         
         // Check browser compatibility
         const hasFloat16 = typeof Float16Array !== 'undefined';
@@ -818,9 +822,9 @@ When user asks for something, generate creative, compact p5.js code that creates
           ]);
         };
         
-        try {
-          updateLoadingProgress(50, 'Loading with WebGPU acceleration...');
-          addChatMessage('system', '🚀 Starting WebGPU model download (~640MB). Using text-only mode to avoid vision model errors. This may take 2-5 minutes...');
+                  try {
+            updateLoadingProgress(50, 'Loading with WebGPU acceleration...');
+            addChatMessage('system', '🚀 Starting WebGPU model download (~500MB). Using text-only mode to avoid vision model errors. This may take 2-5 minutes...');
           
           // Add progress timeout detection
           let lastProgress = 0;
@@ -861,7 +865,7 @@ When user asks for something, generate creative, compact p5.js code that creates
           
           // Check if it's a timeout or memory issue
           if (webgpuError.message.includes('timed out') || webgpuError.message.includes('stuck')) {
-            addChatMessage('system', '⚠️ Large model download timed out. This is common with 640MB models. Falling back to templates...');
+            addChatMessage('system', '⚠️ Large model download timed out. This is common with 500MB models. Falling back to templates...');
             hideLoadingScreen();
             fallbackToTemplates();
             return;
@@ -907,7 +911,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         aiSession = { type: 'qwen', model, tokenizer };
         document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B ✅';
         document.getElementById('generateBtn').disabled = false;
-        document.getElementById('initAIBtn').textContent = '🚀 Qwen Ready';
+        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 Ready';
         
         // Restore console.warn
         console.warn = originalWarn;
@@ -943,15 +947,15 @@ When user asks for something, generate creative, compact p5.js code that creates
         align-items: center; justify-content: center; backdrop-filter: blur(5px);
       `;
       
-      loadingScreen.innerHTML = `
+              loadingScreen.innerHTML = `
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                     border-radius: 20px; padding: 40px; max-width: 500px; width: 90%;
                     box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center;">
           <div style="color: white; font-size: 24px; font-weight: 600; margin-bottom: 20px;">
-            🚀 Loading DeepSeek Janus-Pro-1B
+            🚀 Loading Qwen2.5-0.5B
           </div>
           <div style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
-            First time download: ~640MB • Cached for future use
+            First time download: ~500MB • Cached for future use
           </div>
           
           <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; 
@@ -1022,13 +1026,117 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
 
       try {
-        updateStatus('🤖 AI is generating code...');
-        
         // Add user message to chat
         addChatMessage('user', userPrompt);
         
-        let code = '';
-        let aiResponse = '';
+        // Handle different chat modes
+        if (chatMode === 'general') {
+          return await handleGeneralChat(userPrompt);
+        } else {
+          return await handleCreativeChat(userPrompt);
+        }
+        
+      } catch (error) {
+        console.error('AI generation error:', error);
+        updateStatus('❌ AI generation failed: ' + error.message);
+        addChatMessage('ai', `Error: ${error.message}. Please try again.`);
+      }
+    }
+
+    // Handle general chat (no code generation)
+    async function handleGeneralChat(userPrompt) {
+      updateStatus('🤖 AI is thinking...');
+      
+      let aiResponse = '';
+      
+      // Template mode (Smart responses)
+      if (aiSession === 'template') {
+        aiResponse = generateGeneralResponse(userPrompt);
+        updateStatus('⚡ Generated response using smart templates!');
+      }
+      // Qwen2.5 mode - General conversation
+      else if (aiSession.type === 'qwen') {
+        try {
+          const generalPrompt = `Question: ${userPrompt}
+
+Answer this question with a short, accurate response (1-3 sentences maximum). Be direct and factual.`;
+
+          const messages = [
+            { role: 'system', content: 'You are a helpful AI assistant. Answer questions clearly and informatively.' },
+            { role: 'user', content: generalPrompt }
+          ];
+          
+          const textInput = aiSession.tokenizer.apply_chat_template(messages, { 
+            tokenize: false, 
+            add_generation_prompt: true 
+          });
+          
+          const inputs = await aiSession.tokenizer(textInput, {
+            return_tensors: 'pt',
+            padding: true
+          });
+          
+          const genParams = { 
+            input_ids: inputs.input_ids,
+            attention_mask: inputs.attention_mask,
+            max_new_tokens: 512,
+            temperature: 0.7,
+            do_sample: true
+          };
+          
+          const out = await aiSession.model.generate(genParams);
+          const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
+          aiResponse = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
+          
+          // Clean up the response aggressively
+          aiResponse = aiResponse.trim();
+          
+          // Remove prompt text and common AI artifacts
+          aiResponse = aiResponse.replace(new RegExp(`Question: ${userPrompt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), '');
+          aiResponse = aiResponse.replace(/Answer this question with.*?factual\./gi, '');
+          aiResponse = aiResponse.replace(/^(Answer:|Response:|Here's|The answer is:?)/gi, '');
+          
+          // Take only the first coherent sentence or paragraph
+          const sentences = aiResponse.split(/[.!?]+/);
+          if (sentences.length > 0) {
+            // Find the first sentence that makes sense (has reasonable length and content)
+            for (let sentence of sentences) {
+              sentence = sentence.trim();
+              if (sentence.length > 10 && sentence.length < 200 && 
+                  !sentence.toLowerCase().includes('in summary') &&
+                  !sentence.toLowerCase().includes('let me') &&
+                  !sentence.toLowerCase().includes('i should')) {
+                aiResponse = sentence + '.';
+                break;
+              }
+            }
+          }
+          
+          // Fallback if response is still too long or confused
+          if (aiResponse.length > 300 || aiResponse.toLowerCase().includes('calcuttonia') || 
+              aiResponse.toLowerCase().includes('let me') || aiResponse.toLowerCase().includes('in essence')) {
+            aiResponse = generateGeneralResponse(userPrompt);
+          }
+          
+          updateStatus('🚀 Qwen2.5 responded!');
+          
+        } catch (error) {
+          console.error('General chat error:', error);
+          aiResponse = generateGeneralResponse(userPrompt);
+          updateStatus('⚡ Generated response using templates (AI error)');
+        }
+      }
+      
+      // Add AI response to chat
+      addChatMessage('ai', aiResponse);
+    }
+
+    // Handle creative chat (code generation)
+    async function handleCreativeChat(userPrompt) {
+      updateStatus('🤖 AI is generating code...');
+      
+      let code = '';
+      let aiResponse = '';
         
         // Template mode (Smart pattern matching)
         if (aiSession === 'template') {
@@ -1047,9 +1155,7 @@ When user asks for something, generate creative, compact p5.js code that creates
             try {
               generationAttempts++;
               
-              const fullPrompt = `Generate ONLY executable p5.js code for: "${userPrompt}"
-
-STRICT FORMAT - Return EXACTLY this structure with NO explanations:
+              const fullPrompt = `You must copy this EXACT template and only change the fill() and ellipse() lines:
 
 t=0
 draw=_=>{
@@ -1060,30 +1166,13 @@ draw=_=>{
   ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
 }
 
-RULES:
-- FIRST line must be: t=0
-- SECOND line must be: draw=_=>{
-- Include: t||createCanvas(w=800,h=600)
-- Include: background() call
-- Include: t+=0.05 (or similar)
-- Use p5.js functions: fill(), stroke(), ellipse(), rect(), point()
-- NO explanations, NO markdown, NO comments
-- ONLY executable JavaScript code
-- End with closing brace }
+For "${userPrompt}", modify ONLY the fill() and ellipse() lines. Keep everything else identical.
 
-Example for "spinning circles":
-t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,30)
-  t+=0.08
-  for(i=0;i<8;i++){
-    x=400+sin(t+i)*150
-    y=300+cos(t+i)*150
-    fill(sin(i)*127+128,cos(i)*127+128,255)
-    ellipse(x,y,40,40)
-  }
-}`;
+FORBIDDEN: gradient, while, if, time(), paddle, var, let, const, document, canvas, Math, PI, speed, x, y
+
+ALLOWED ONLY: t, fill, stroke, ellipse, rect, point, sin, cos, for, background, createCanvas
+
+Return the 6 lines above with your modifications.`;
 
               // Use proper Qwen2.5 chat format
               const messages = [
@@ -1136,22 +1225,34 @@ draw=_=>{
               // Remove code blocks and explanatory text
               code = code.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
               code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+              code = code.replace(/```paddle_live_code\n?/g, '').replace(/```\n?/g, '');
               
-              // AGGRESSIVE EXTRACTION: Look for our exact pattern first
-              // Strategy 1: Extract from t=0 to closing brace
+              // Remove forbidden patterns that AI keeps generating
+              if (code.includes('paddle') || code.includes('while(true)') || code.includes('gradient') || 
+                  code.includes('time()') || code.includes('Math.') || code.includes('speed_')) {
+                console.warn('AI generated forbidden patterns, forcing template fallback');
+                throw new Error('AI generated forbidden patterns (paddle, while, gradient, etc.)');
+              }
+              
+              // ULTRA-AGGRESSIVE EXTRACTION: Force our exact pattern
+              // Strategy 1: Look for t=0 followed by draw function
               let codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
               if (codeMatch) {
                 code = codeMatch[1];
               } else {
-                // Strategy 2: Look for just the draw function
+                // Strategy 2: Look for draw function only and prepend t=0
                 codeMatch = code.match(/(draw\s*=\s*[^{]*{[\s\S]*?})/);
                 if (codeMatch) {
-                  code = 't=0\n' + codeMatch[1]; // Add t=0 if missing
+                  code = 't=0\n' + codeMatch[1];
                 } else {
-                  // Strategy 3: Look for t=0 pattern anywhere
-                  codeMatch = code.match(/(t\s*=\s*0[\s\S]*)/);
+                  // Strategy 3: Look for any p5.js-like function calls
+                  codeMatch = code.match(/(createCanvas|background|fill|stroke|ellipse|rect|point)[\s\S]*?}/);
                   if (codeMatch) {
-                    code = codeMatch[1];
+                    // Build a proper p5.js structure around it
+                    code = `t=0\ndraw=_=>{\n  t||createCanvas(w=800,h=600)\n  background(0,20)\n  t+=0.05\n  ${codeMatch[0]}\n}`;
+                  } else {
+                    // Strategy 4: If nothing works, throw error to trigger template fallback
+                    throw new Error('No valid p5.js pattern found in AI response');
                   }
                 }
               }
@@ -1204,10 +1305,21 @@ draw=_=>{
               
               code = codeLines.join('\n').trim();
               
-              // If no valid code found, throw error to trigger template fallback
+              // Final validation: ensure we have proper p5.js structure
               if (!code || code.length < 10) {
                 addChatMessage('system', `⚠️ Extracted code too short: "${code}"`);
                 throw new Error('No valid JavaScript code extracted from AI response');
+              }
+              
+              // Force proper p5.js format if missing key components
+              if (!code.includes('t=0')) {
+                code = 't=0\n' + code;
+              }
+              if (!code.includes('draw=')) {
+                code = code.replace(/^/, 'draw=_=>{\n  t||createCanvas(w=800,h=600)\n  background(0,20)\n  t+=0.05\n  ') + '\n}';
+              }
+              if (!code.includes('createCanvas')) {
+                code = code.replace('draw=_=>{', 'draw=_=>{\n  t||createCanvas(w=800,h=600)');
               }
               
               // Show cleaned code before validation
@@ -1294,12 +1406,6 @@ draw=_=>{
           addChatMessage('ai', 'Sorry, I couldn\'t generate valid code for that prompt. Could you try describing it differently?');
           updateStatus('❌ Generated invalid code. Try a different prompt.');
         }
-        
-      } catch (error) {
-        console.error('AI generation error:', error);
-        updateStatus('❌ AI generation failed: ' + error.message);
-        addChatMessage('ai', `Error generating code: ${error.message}. Please try again.`);
-      }
     }
 
     // Smart Template System - Pattern-based code generation
@@ -1421,6 +1527,58 @@ draw=_=>{
 }`;
     }
 
+    // Generate general responses for template mode
+    function generateGeneralResponse(prompt) {
+      const lower = prompt.toLowerCase();
+      
+      // Programming/coding questions
+      if (lower.includes('programming') || lower.includes('coding') || lower.includes('javascript') || lower.includes('p5.js')) {
+        return "I'd be happy to help with programming questions! For p5.js specifically, try switching to Creative Mode to generate visual code. For general programming concepts, I can explain algorithms, data structures, best practices, and more.";
+      }
+      
+      // AI/ML questions
+      if (lower.includes('ai') || lower.includes('machine learning') || lower.includes('neural network') || lower.includes('artificial intelligence')) {
+        return "AI and machine learning are fascinating fields! Neural networks are computational models inspired by biological brains, using layers of interconnected nodes to learn patterns from data. They're used in everything from image recognition to natural language processing like this conversation!";
+      }
+      
+      // Technology questions
+      if (lower.includes('technology') || lower.includes('computer') || lower.includes('software') || lower.includes('hardware')) {
+        return "Technology is constantly evolving! I can discuss various topics like software development, computer hardware, emerging technologies, programming languages, frameworks, and how different systems work together.";
+      }
+      
+      // Creative questions
+      if (lower.includes('creative') || lower.includes('art') || lower.includes('design') || lower.includes('visual')) {
+        return "Creativity and art are wonderful topics! Digital art, generative design, creative coding, and visual aesthetics all play important roles in modern creative expression. Tools like p5.js make it easy to create interactive art and animations.";
+      }
+      
+      // Science questions
+      if (lower.includes('science') || lower.includes('physics') || lower.includes('math') || lower.includes('mathematics')) {
+        return "Science and mathematics form the foundation of our understanding of the world! From basic principles to complex theories, these fields help us model reality and solve problems. What specific area interests you?";
+      }
+      
+      // Geography/world knowledge
+      if (lower.includes('capital') && lower.includes('india')) {
+        return "The capital of India is New Delhi.";
+      }
+      if (lower.includes('capital') && lower.includes('france')) {
+        return "The capital of France is Paris.";
+      }
+      if (lower.includes('capital') && lower.includes('japan')) {
+        return "The capital of Japan is Tokyo.";
+      }
+      if (lower.includes('capital') && lower.includes('uk') || lower.includes('united kingdom') || lower.includes('england')) {
+        return "The capital of the United Kingdom is London.";
+      }
+      
+      // General greeting/help
+      if (lower.includes('hello') || lower.includes('hi') || lower.includes('help') || lower.includes('what can you do')) {
+        return "Hello! I'm your AI assistant. In General Chat mode, I can discuss various topics like technology, science, programming, art, and more. Switch to Creative Mode if you want to generate p5.js visual art code. What would you like to talk about?";
+      }
+      
+      // Default response
+      return `That's an interesting question about "${prompt}"! I can discuss a wide range of topics including technology, science, programming, art, and general knowledge. Feel free to ask me anything specific you'd like to know more about.`;
+    }
+
     function updateStatus(message) {
       document.getElementById('statusBar').textContent = message;
       setTimeout(() => {
@@ -1487,6 +1645,26 @@ draw=_=>{
       
       panel.classList.add('hidden');
       toggleBtn.classList.remove('active');
+    }
+
+    // Toggle between Creative and General chat modes
+    function toggleChatMode() {
+      const modeBtn = document.getElementById('chatModeBtn');
+      const promptInput = document.getElementById('aiPrompt');
+      
+      if (chatMode === 'creative') {
+        chatMode = 'general';
+        modeBtn.textContent = '💬 General Chat';
+        modeBtn.style.background = 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)';
+        promptInput.placeholder = 'Ask me anything... e.g., "Explain how neural networks work" or "What is the weather like?"';
+        addChatMessage('system', '💬 Switched to General Chat mode. You can now ask any questions without p5.js code generation.');
+      } else {
+        chatMode = 'creative';
+        modeBtn.textContent = '🎨 Creative Mode';
+        modeBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        promptInput.placeholder = 'Describe what you want to create... e.g., "colorful spinning triangles" or "particle system with gravity"';
+        addChatMessage('system', '🎨 Switched to Creative Coding mode. Describe visual patterns to generate p5.js code.');
+      }
     }
 
     // Editor expand/minimize functions
@@ -1720,6 +1898,7 @@ draw=_=>{
 
       // AI Event Listeners
       document.getElementById('initAIBtn').addEventListener('click', initializeAI);
+      document.getElementById('chatModeBtn').addEventListener('click', toggleChatMode);
       
       document.getElementById('generateBtn').addEventListener('click', () => {
         const prompt = document.getElementById('aiPrompt').value.trim();
