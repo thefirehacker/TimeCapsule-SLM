@@ -22,7 +22,7 @@
     .container {
       display: grid;
       grid-template-columns: 250px 1fr 2fr;
-      grid-template-rows: 60px 1fr;
+      grid-template-rows: 120px 1fr;
       height: 100vh;
       gap: 10px;
       padding: 10px;
@@ -262,6 +262,13 @@
       background: rgba(255, 255, 255, 0.5);
     }
     
+    /* Logo hover effect */
+    .header img:hover {
+      transform: scale(1.05) rotate(2deg);
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5)) brightness(1.2);
+      border-color: rgba(255,255,255,0.5);
+    }
+    
     /* Floating AI Panel (Cursor-style) */
     .ai-floating-panel {
       position: fixed;
@@ -488,12 +495,15 @@
 <body>
   <div class="container">
     <div class="header">
-      <div style="display: flex; align-items: center; gap: 20px;">
-        <img src="lib/Media/SketchPad-SLM.png" alt="SketchPad-SLM" style="width: 60px; height: 60px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); border-radius: 8px; background: rgba(255,255,255,0.1); padding: 8px;">
-        <h1>SketchPad-SLM</h1>
+      <div style="display: flex; align-items: center; gap: 25px;">
+        <img src="lib/Media/SketchPad-SLM.png" alt="SketchPad-SLM" style="width: 160px; height: 160px; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5)) brightness(1.1); border-radius: 16px; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); padding: 16px; border: 3px solid rgba(255,255,255,0.3); transition: all 0.3s ease;">
+        <div style="display: flex; flex-direction: column;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">SketchPad-SLM</h1>
+          <div style="font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 2px;">Creative Coding Studio</div>
+        </div>
       </div>
-      <div style="margin-left: auto; color: rgba(255,255,255,0.8);">
-        Creative Coding Studio with AI Integration
+      <div style="margin-left: auto; color: rgba(255,255,255,0.8); font-size: 16px; font-weight: 500;">
+        🤖 AI Integration
       </div>
     </div>
     

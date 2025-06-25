@@ -1,6 +1,10 @@
-# SketchPad-SLM
-
-> A live p5.js code editor with Monaco Editor and AI World Generator.
+<div align="center">
+  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/SketchPad-SLM.png" alt="SketchPad-SLM Logo" width="200" height="200">
+  
+  # SketchPad-SLM
+  
+  > A live p5.js code editor with Monaco Editor and AI World Generator.
+</div>
 
 SketchPad-SLM provides a split-view p5.js live editor where you can write compact JavaScript code and see it execute immediately. It also includes an AI-powered world generator using modern Small Language Models that run directly in your browser.
 
