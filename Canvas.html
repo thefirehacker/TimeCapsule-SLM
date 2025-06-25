@@ -1595,7 +1595,15 @@ draw=_=>{
       let headerText = '';
       switch(type) {
         case 'user': headerText = '👤 You'; break;
-        case 'ai': headerText = aiSession === 'template' ? '🤖 Smart Templates' : '🧠 Gemini Nano'; break;
+        case 'ai': 
+          if (aiSession === 'template') {
+            headerText = '🤖 Smart Templates';
+          } else if (aiSession.type === 'qwen') {
+            headerText = '🧠 Qwen2.5-0.5B';
+          } else {
+            headerText = '🤖 AI Assistant';
+          }
+          break;
         case 'system': headerText = '⚙️ System'; break;
       }
       
