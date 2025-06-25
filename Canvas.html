@@ -24,6 +24,7 @@
       height: 100vh;
       gap: 10px;
       padding: 10px;
+      position: relative;
     }
     
     .header {
@@ -213,6 +214,228 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.5);
     }
+    
+    /* Floating AI Panel (Cursor-style) */
+    .ai-floating-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 400px;
+      height: 500px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .ai-floating-panel.minimized {
+      height: 60px;
+      width: 300px;
+    }
+    
+    .ai-floating-panel.hidden {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    /* AI Toggle Button (always visible) */
+    .ai-toggle-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(79, 172, 254, 0.4);
+      transition: all 0.3s ease;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .ai-toggle-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .ai-toggle-btn.active {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      box-shadow: 0 4px 20px rgba(250, 112, 154, 0.4);
+    }
+    
+    .ai-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      color: white;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .ai-panel-controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .panel-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 5px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s ease;
+    }
+    
+    .panel-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .ai-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      overflow: hidden;
+    }
+    
+    .ai-content.minimized {
+      display: none;
+    }
+    
+    .chat-history {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      min-height: 150px;
+    }
+    
+    .ai-input-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .ai-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .ai-prompt-input {
+      width: 100%;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 60px;
+    }
+    
+    .ai-prompt-input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .ai-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .ai-btn {
+      flex: 1;
+      padding: 10px 16px;
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .ai-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+    }
+    
+    .ai-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .ai-btn.secondary {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .chat-message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .chat-message.user {
+      background: rgba(79, 172, 254, 0.2);
+      color: #e6f3ff;
+      margin-left: 20px;
+    }
+    
+    .chat-message.ai {
+      background: rgba(250, 112, 154, 0.2);
+      color: #ffe6f0;
+      margin-right: 20px;
+    }
+    
+    .chat-message.system {
+      background: rgba(168, 237, 234, 0.2);
+      color: #e6fffe;
+      font-style: italic;
+      text-align: center;
+    }
+    
+    .message-header {
+      font-weight: bold;
+      margin-bottom: 5px;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .code-preview {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 8px;
+      border-left: 3px solid #4facfe;
+    }
   </style>
 </head>
 <body>
@@ -248,18 +471,7 @@
         <button id="saveFileBtn" class="btn secondary">💾 Save JS File</button>
       </div>
       
-      <div class="control-group">
-        <label>🤖 AI Assistant:</label>
-        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-          <button id="initAIBtn" class="btn secondary">🔌 Connect AI</button>
-          <div id="aiStatus" style="padding: 8px; font-size: 12px; color: rgba(255,255,255,0.7);">
-            AI: Not connected
-          </div>
-        </div>
-        <textarea id="aiPrompt" placeholder="Describe what you want to create... e.g., 'colorful spinning triangles' or 'particle system with gravity'" 
-                  style="width: 100%; height: 60px; margin: 5px 0; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; color: white; resize: vertical;"></textarea>
-        <button id="generateBtn" class="btn primary" disabled>✨ Generate Code</button>
-      </div>
+
       
       <div class="control-group">
         <label>🎯 Quick Actions:</label>
@@ -283,6 +495,45 @@
     </div>
   </div>
 
+  <!-- Floating AI Toggle Button -->
+  <button class="ai-toggle-btn" id="aiToggleBtn">🤖</button>
+
+  <!-- Floating AI Panel -->
+  <div class="ai-floating-panel hidden" id="aiFloatingPanel">
+    <div class="ai-panel-header">
+      <span>🤖 AI Assistant</span>
+      <div class="ai-panel-controls">
+        <button class="panel-btn" id="minimizeBtn">−</button>
+        <button class="panel-btn" id="closeBtn">×</button>
+      </div>
+    </div>
+    
+    <div class="ai-content" id="aiContent">
+      <div class="ai-status-bar">
+        <div id="aiStatus">AI: Not connected</div>
+        <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
+      </div>
+      
+      <div class="chat-history" id="chatHistory">
+        <div class="chat-message system">
+          <div class="message-header">⚙️ System</div>
+          Welcome to AI-powered creative coding! Connect AI and start chatting to generate amazing p5.js art.
+        </div>
+      </div>
+      
+      <div class="ai-input-section">
+        <textarea 
+          id="aiPrompt" 
+          class="ai-prompt-input"
+          placeholder="Describe what you want to create... e.g., 'colorful spinning triangles' or 'particle system with gravity'"
+        ></textarea>
+        <div class="ai-actions">
+          <button id="generateBtn" class="ai-btn" disabled>✨ Generate Code</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Dependencies -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
@@ -292,6 +543,7 @@
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
 
     let editorInstance, currentP5, aiSession = null;
+    let chatHistory = [];
     
     // Design files mapping
     const designs = {
@@ -357,11 +609,30 @@ When user asks for something, generate creative, compact p5.js code that creates
         
         // Try Gemini Nano first (most robust check)
         try {
+          console.log('🔍 Checking if window.ai exists:', 'ai' in window);
+          console.log('🔍 All window properties:', Object.keys(window).filter(k => k.includes('ai') || k.includes('AI')));
+          console.log('🔍 Chrome version:', navigator.userAgent.match(/Chrome\/(\d+)/)?.[1]);
+          console.log('🔍 User agent:', navigator.userAgent);
+          console.log('🔍 Platform:', navigator.platform);
+          
+          // Force wait for API to be available
+          let retries = 0;
+          while (!('ai' in window) && retries < 10) {
+            console.log(`🔄 Waiting for window.ai... attempt ${retries + 1}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retries++;
+          }
+          
+          console.log('🔍 After wait - window.ai exists:', 'ai' in window);
+          console.log('🔍 Checking if languageModel exists:', 'ai' in window && 'languageModel' in window.ai);
+          
           if ('ai' in window && 'languageModel' in window.ai) {
             updateStatus('🤖 Checking Gemini Nano availability...');
+            addChatMessage('system', '🔍 Found window.ai API! Checking Gemini Nano capabilities...');
             
             const capabilities = await window.ai.languageModel.capabilities();
-            console.log('Gemini Nano capabilities:', capabilities);
+            console.log('🤖 Gemini Nano capabilities:', capabilities);
+            addChatMessage('system', `🔍 Gemini Nano status: ${capabilities.available}`);
             
             if (capabilities.available === 'readily') {
               updateStatus('🤖 Connecting to Gemini Nano...');
@@ -373,6 +644,10 @@ When user asks for something, generate creative, compact p5.js code that creates
               document.getElementById('generateBtn').disabled = false;
               document.getElementById('initAIBtn').textContent = '🤖 Gemini Ready';
               updateStatus('🤖 Gemini Nano connected!');
+              
+              // Add to chat
+              addChatMessage('system', 'Gemini Nano AI connected successfully! I\'m ready to generate creative p5.js code. Describe what you want to create and I\'ll generate the code for you.');
+              
               return true;
             } 
             else if (capabilities.available === 'after-download') {
@@ -388,11 +663,31 @@ When user asks for something, generate creative, compact p5.js code that creates
               document.getElementById('generateBtn').disabled = false;
               document.getElementById('initAIBtn').textContent = '🤖 Gemini Ready';
               updateStatus('🤖 Gemini Nano downloaded & connected!');
+              
+              // Add to chat
+              addChatMessage('system', 'Gemini Nano model downloaded and connected! Ready to generate amazing p5.js art based on your creative prompts.');
+              
               return true;
             }
+          } else {
+            console.log('❌ window.ai or window.ai.languageModel not found');
+            console.log('❌ Required flags missing. Check chrome://flags for:');
+            console.log('   1. Prompt API for Gemini Nano → Enabled');
+            console.log('   2. Enables optimization guide on device → Enabled');
+            addChatMessage('system', `❌ GEMINI NANO FAILED TO LOAD! Your Chrome ${navigator.userAgent.match(/Chrome\/(\d+)/)?.[1]} should support it. 
+
+REQUIRED FLAGS (copy these exact URLs):
+1. chrome://flags/#prompt-api-for-gemini-nano → ENABLED
+2. chrome://flags/#optimization-guide-on-device-model → ENABLED  
+3. chrome://flags/#optimization-guide-model-downloading → ENABLED
+
+AFTER ENABLING: Quit Chrome completely (Cmd+Q) → Reopen → Try again.
+
+If still fails: Try Chrome Canary or check if your region blocks Gemini Nano.`);
           }
         } catch (geminiError) {
-          console.log('Gemini Nano failed:', geminiError.message);
+          console.log('❌ Gemini Nano failed:', geminiError.message);
+          addChatMessage('system', `❌ Gemini Nano error: ${geminiError.message}`);
         }
 
         // Fallback to Smart Template System (Always Works)
@@ -403,6 +698,9 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = '🤖 Templates Ready';
         updateStatus('🤖 Smart AI Templates loaded! Try: "particle explosion" or "rainbow spiral"');
+        
+        // Add to chat
+        addChatMessage('system', '⚠️ Gemini Nano not available - using Smart Template System instead. This generates code using pattern matching, not actual AI. Templates work for: "particle explosion", "rainbow spiral", "ocean waves", "geometric patterns", etc.');
         
         return true;
         
@@ -429,11 +727,16 @@ When user asks for something, generate creative, compact p5.js code that creates
       try {
         updateStatus('🤖 AI is generating code...');
         
+        // Add user message to chat
+        addChatMessage('user', userPrompt);
+        
         let code = '';
+        let aiResponse = '';
         
         // Template mode (Smart pattern matching)
         if (aiSession === 'template') {
           code = generateTemplateCode(userPrompt);
+          aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart template matching. The code creates an animated visual based on your description.`;
           updateStatus('⚡ Generated code using smart templates!');
         }
         // Gemini Nano mode
@@ -467,14 +770,21 @@ Generate ONLY the JavaScript code, no explanations:`;
           );
           
           code = codeLines.join('\n');
+          aiResponse = `I've created a custom p5.js animation for "${userPrompt}". The code uses creative algorithms to generate the visual pattern you requested.`;
           updateStatus('🤖 Gemini Nano generated code!');
         }
         
         if (code.length > 10) {
           editorInstance.setValue(code);
           runSketch(code);
+          
+          // Add AI response to chat with code preview
+          const codePreview = code.split('\n').slice(0, 3).join('\n') + (code.split('\n').length > 3 ? '\n...' : '');
+          addChatMessage('ai', aiResponse, codePreview);
+          
           updateStatus('✅ Code generated and executed successfully!');
         } else {
+          addChatMessage('ai', 'Sorry, I couldn\'t generate valid code for that prompt. Could you try describing it differently?');
           updateStatus('❌ Generated invalid code. Try a different prompt.');
         }
         
@@ -608,6 +918,67 @@ draw=_=>{
       setTimeout(() => {
         document.getElementById('statusBar').textContent = 'Ready to create amazing p5.js art! 🚀';
       }, 3000);
+    }
+
+    // Chat Functions
+    function addChatMessage(type, content, codePreview = null) {
+      const chatHistoryEl = document.getElementById('chatHistory');
+      const messageEl = document.createElement('div');
+      messageEl.className = `chat-message ${type}`;
+      
+      let headerText = '';
+      switch(type) {
+        case 'user': headerText = '👤 You'; break;
+        case 'ai': headerText = aiSession === 'template' ? '🤖 Smart Templates' : '🧠 Gemini Nano'; break;
+        case 'system': headerText = '⚙️ System'; break;
+      }
+      
+      messageEl.innerHTML = `
+        <div class="message-header">${headerText}</div>
+        <div>${content}</div>
+        ${codePreview ? `<div class="code-preview">${codePreview}</div>` : ''}
+      `;
+      
+      chatHistoryEl.appendChild(messageEl);
+      chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+      
+      // Store in history
+      chatHistory.push({ type, content, codePreview, timestamp: Date.now() });
+    }
+
+    // AI Panel Functions
+    function toggleAIPanel() {
+      const panel = document.getElementById('aiFloatingPanel');
+      const toggleBtn = document.getElementById('aiToggleBtn');
+      
+      if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        panel.classList.add('hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+
+    function minimizeAIPanel() {
+      const panel = document.getElementById('aiFloatingPanel');
+      const content = document.getElementById('aiContent');
+      
+      if (panel.classList.contains('minimized')) {
+        panel.classList.remove('minimized');
+        content.classList.remove('minimized');
+      } else {
+        panel.classList.add('minimized');
+        content.classList.add('minimized');
+      }
+    }
+
+    function closeAIPanel() {
+      const panel = document.getElementById('aiFloatingPanel');
+      const toggleBtn = document.getElementById('aiToggleBtn');
+      
+      panel.classList.add('hidden');
+      toggleBtn.classList.remove('active');
     }
 
     require(['vs/editor/editor.main'], () => {
@@ -796,14 +1167,26 @@ draw=_=>{
       });
 
       // Allow Enter key in prompt textarea to generate
-      document.getElementById('aiPrompt').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) {
+      document.getElementById('aiPrompt').addEventListener('keydown', (e) => {
+        // Enter (without Shift) generates code
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault(); // Prevent new line
           const prompt = e.target.value.trim();
           if (prompt && !document.getElementById('generateBtn').disabled) {
             generateAICode(prompt);
+            // Clear the input after generating
+            setTimeout(() => {
+              e.target.value = '';
+            }, 100);
           }
         }
+        // Shift+Enter allows new lines for multi-line prompts
       });
+
+      // AI Panel event listeners
+      document.getElementById('aiToggleBtn').addEventListener('click', toggleAIPanel);
+      document.getElementById('minimizeBtn').addEventListener('click', minimizeAIPanel);
+      document.getElementById('closeBtn').addEventListener('click', closeAIPanel);
 
       // Auto-run fish animation on load
       setTimeout(() => {
@@ -812,6 +1195,10 @@ draw=_=>{
 
       updateStatus('🚀 SketchPad-SLM loaded successfully!');
     });
+
+    console.log('Available APIs:', Object.keys(window));
+    console.log('AI in window:', 'ai' in window);
+    console.log('Chrome version:', navigator.userAgent);
   </script>
 </body>
 </html>
