@@ -249,6 +249,19 @@
       </div>
       
       <div class="control-group">
+        <label>🤖 AI Assistant:</label>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+          <button id="initAIBtn" class="btn secondary">🔌 Connect AI</button>
+          <div id="aiStatus" style="padding: 8px; font-size: 12px; color: rgba(255,255,255,0.7);">
+            AI: Not connected
+          </div>
+        </div>
+        <textarea id="aiPrompt" placeholder="Describe what you want to create... e.g., 'colorful spinning triangles' or 'particle system with gravity'" 
+                  style="width: 100%; height: 60px; margin: 5px 0; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; color: white; resize: vertical;"></textarea>
+        <button id="generateBtn" class="btn primary" disabled>✨ Generate Code</button>
+      </div>
+      
+      <div class="control-group">
         <label>🎯 Quick Actions:</label>
         <button id="clearBtn" class="btn">🗑️ Clear Canvas</button>
         <button id="resetBtn" class="btn">🔄 Reset Code</button>
@@ -278,7 +291,7 @@
   <script>
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
 
-    let editorInstance, currentP5;
+    let editorInstance, currentP5, aiSession = null;
     
     // Design files mapping
     const designs = {
@@ -286,6 +299,309 @@
       rabbit: 'lib/Designs/rabbit.js',
       spiral: 'lib/Designs/spiral.js'
     };
+
+    // AI System Prompt - Teaches Gemini Nano about SketchPad-SLM
+    const SYSTEM_PROMPT = `You are an AI assistant for SketchPad-SLM, a creative coding studio that uses p5.js with compact JavaScript syntax.
+
+IMPORTANT RULES:
+1. Always generate COMPACT p5.js code that works in our editor
+2. Use the specific syntax patterns shown below
+3. Keep code concise and creative
+4. Focus on visual/generative art patterns
+
+REQUIRED CODE STRUCTURE:
+- Use compact syntax: t=0,draw=_=>{...}
+- Always include: t||createCanvas(w,h) for setup
+- Use global variables: t (time), w/h (dimensions)
+- Animation: increment t each frame
+- Drawing: use p5.js functions like point(), ellipse(), stroke(), fill()
+
+EXAMPLES OF GOOD CODE:
+1. Simple animation:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0)
+  t+=0.05
+  fill(sin(t)*127+128,cos(t)*127+128,255)
+  ellipse(w/2+sin(t)*100,h/2+cos(t)*100,50,50)
+}
+
+2. Particle system:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.02
+  for(i=0;i<100;i++){
+    x=w/2+sin(t+i)*i*2
+    y=h/2+cos(t+i*0.1)*i*2
+    fill(i*2,255-i*2,255)
+    ellipse(x,y,5,5)
+  }
+}
+
+AVAILABLE FUNCTIONS:
+- Drawing: point(), line(), ellipse(), rect(), arc(), triangle()
+- Color: fill(), stroke(), noFill(), noStroke(), background()
+- Math: sin(), cos(), noise(), random(), mag(), PI, TWO_PI
+- Canvas: createCanvas(), strokeWeight()
+
+When user asks for something, generate creative, compact p5.js code that creates visual art matching their request.`;
+
+    // Initialize AI with Smart Fallback System
+    async function initializeAI() {
+      try {
+        updateStatus('🤖 Initializing AI system...');
+        document.getElementById('aiStatus').textContent = 'AI: Checking...';
+        
+        // Try Gemini Nano first (most robust check)
+        try {
+          if ('ai' in window && 'languageModel' in window.ai) {
+            updateStatus('🤖 Checking Gemini Nano availability...');
+            
+            const capabilities = await window.ai.languageModel.capabilities();
+            console.log('Gemini Nano capabilities:', capabilities);
+            
+            if (capabilities.available === 'readily') {
+              updateStatus('🤖 Connecting to Gemini Nano...');
+              aiSession = await window.ai.languageModel.create({
+                systemPrompt: SYSTEM_PROMPT
+              });
+              
+              document.getElementById('aiStatus').textContent = 'AI: Gemini Nano ✅';
+              document.getElementById('generateBtn').disabled = false;
+              document.getElementById('initAIBtn').textContent = '🤖 Gemini Ready';
+              updateStatus('🤖 Gemini Nano connected!');
+              return true;
+            } 
+            else if (capabilities.available === 'after-download') {
+              updateStatus('🤖 Downloading Gemini Nano (~22MB)...');
+              document.getElementById('aiStatus').textContent = 'AI: Downloading...';
+              
+              // Attempt to create session (this triggers download)
+              aiSession = await window.ai.languageModel.create({
+                systemPrompt: SYSTEM_PROMPT
+              });
+              
+              document.getElementById('aiStatus').textContent = 'AI: Gemini Nano ✅';
+              document.getElementById('generateBtn').disabled = false;
+              document.getElementById('initAIBtn').textContent = '🤖 Gemini Ready';
+              updateStatus('🤖 Gemini Nano downloaded & connected!');
+              return true;
+            }
+          }
+        } catch (geminiError) {
+          console.log('Gemini Nano failed:', geminiError.message);
+        }
+
+        // Fallback to Smart Template System (Always Works)
+        updateStatus('🤖 Using Smart Template System...');
+        document.getElementById('aiStatus').textContent = 'AI: Template Mode ⚡';
+        
+        aiSession = 'template';
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = '🤖 Templates Ready';
+        updateStatus('🤖 Smart AI Templates loaded! Try: "particle explosion" or "rainbow spiral"');
+        
+        return true;
+        
+      } catch (error) {
+        console.error('AI initialization error:', error);
+        
+        // Final fallback - always works
+        aiSession = 'template';
+        document.getElementById('aiStatus').textContent = 'AI: Template Mode ⚡';
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = '🤖 Templates Ready';
+        updateStatus('🤖 Using template system - always works!');
+        return true;
+      }
+    }
+
+    // Generate code using AI (Gemini Nano or Smart Templates)
+    async function generateAICode(userPrompt) {
+      if (!aiSession) {
+        updateStatus('❌ AI not connected. Click "Connect AI" first.');
+        return;
+      }
+
+      try {
+        updateStatus('🤖 AI is generating code...');
+        
+        let code = '';
+        
+        // Template mode (Smart pattern matching)
+        if (aiSession === 'template') {
+          code = generateTemplateCode(userPrompt);
+          updateStatus('⚡ Generated code using smart templates!');
+        }
+        // Gemini Nano mode
+        else if (aiSession.prompt) {
+          const fullPrompt = `Create p5.js code for: "${userPrompt}"
+
+Requirements:
+- Use compact syntax with t=0,draw=_=>{...}
+- Make it visually interesting and animated
+- Use canvas size w=800,h=600
+- Include colors and movement
+- Keep it creative and artistic
+
+Generate ONLY the JavaScript code, no explanations:`;
+
+          const response = await aiSession.prompt(fullPrompt);
+          
+          // Clean up the response to extract just the code
+          code = response.trim();
+          
+          // Remove any markdown code blocks
+          code = code.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
+          
+          // Remove any explanatory text before/after code
+          const lines = code.split('\n');
+          const codeLines = lines.filter(line => 
+            line.trim() && 
+            !line.toLowerCase().includes('here') && 
+            !line.toLowerCase().includes('this code') &&
+            !line.toLowerCase().includes('explanation')
+          );
+          
+          code = codeLines.join('\n');
+          updateStatus('🤖 Gemini Nano generated code!');
+        }
+        
+        if (code.length > 10) {
+          editorInstance.setValue(code);
+          runSketch(code);
+          updateStatus('✅ Code generated and executed successfully!');
+        } else {
+          updateStatus('❌ Generated invalid code. Try a different prompt.');
+        }
+        
+      } catch (error) {
+        console.error('AI generation error:', error);
+        updateStatus('❌ AI generation failed: ' + error.message);
+      }
+    }
+
+    // Smart Template System - Pattern-based code generation
+    function generateTemplateCode(prompt) {
+      const lower = prompt.toLowerCase();
+      
+      // Particle systems & explosions
+      if (lower.includes('particle') || lower.includes('explosion') || lower.includes('dots') || lower.includes('stars')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.02
+  for(i=0;i<300;i++){
+    x=w/2+sin(t+i*0.1)*i*2
+    y=h/2+cos(t+i*0.1)*i*2
+    fill(sin(i)*127+128,cos(i)*127+128,255,200)
+    ellipse(x,y,5,5)
+  }
+}`;
+      }
+      
+      // Spirals & galaxies
+      if (lower.includes('spiral') || lower.includes('galaxy') || lower.includes('swirl') || lower.includes('twist')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.03
+  for(i=0;i<150;i++){
+    a=t+i*0.3
+    r=i*4
+    x=w/2+cos(a)*r
+    y=h/2+sin(a)*r
+    fill(sin(a)*127+128,cos(a+1)*127+128,255)
+    ellipse(x,y,8,8)
+  }
+}`;
+      }
+      
+      // Waves & ocean
+      if (lower.includes('wave') || lower.includes('ocean') || lower.includes('water') || lower.includes('sine')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,50)
+  t+=0.1
+  for(i=0;i<w;i+=8){
+    y=h/2+sin(i*0.02+t)*80
+    fill(0,150,255,180)
+    ellipse(i,y,12,12)
+  }
+}`;
+      }
+      
+      // Geometric patterns
+      if (lower.includes('geometric') || lower.includes('triangle') || lower.includes('square') || lower.includes('polygon')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,40)
+  t+=0.04
+  for(i=0;i<10;i++)for(j=0;j<8;j++){
+    x=i*80+40
+    y=j*75+40
+    fill(sin(t+i+j)*127+128,cos(t+i-j)*127+128,255)
+    ellipse(x+sin(t)*20,y+cos(t)*20,30,30)
+  }
+}`;
+      }
+      
+      // Kaleidoscope
+      if (lower.includes('kaleidoscope') || lower.includes('mandala') || lower.includes('symmetry')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.05
+  for(i=0;i<12;i++){
+    a=i*PI/6+t
+    x=w/2+cos(a)*200
+    y=h/2+sin(a)*200
+    fill(sin(a+t)*127+128,cos(a+t)*127+128,255)
+    for(j=0;j<5;j++){
+      ellipse(x+cos(a+j)*j*10,y+sin(a+j)*j*10,15,15)
+    }
+  }
+}`;
+      }
+      
+      // Colorful/rainbow
+      if (lower.includes('colorful') || lower.includes('rainbow') || lower.includes('color')) {
+        return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.06
+  for(i=0;i<100;i++){
+    x=w/2+sin(t+i*0.2)*i*3
+    y=h/2+cos(t+i*0.2)*i*3
+    fill(sin(i+t)*127+128,cos(i+t*2)*127+128,sin(i+t*3)*127+128)
+    ellipse(x,y,10,10)
+  }
+}`;
+      }
+      
+      // Default creative pattern
+      return `t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,30)
+  t+=0.04
+  for(i=0;i<80;i++){
+    x=w/2+sin(t+i*0.1)*i*2.5
+    y=h/2+cos(t+i*0.15)*i*2.5
+    fill(sin(t+i)*127+128,cos(t+i*0.5)*127+128,255)
+    ellipse(x,y,8,8)
+  }
+}`;
+    }
 
     function updateStatus(message) {
       document.getElementById('statusBar').textContent = message;
@@ -465,6 +781,28 @@
           '}'
         ].join('\n'));
         updateStatus('🔄 Code reset to template');
+      });
+
+      // AI Event Listeners
+      document.getElementById('initAIBtn').addEventListener('click', initializeAI);
+      
+      document.getElementById('generateBtn').addEventListener('click', () => {
+        const prompt = document.getElementById('aiPrompt').value.trim();
+        if (prompt) {
+          generateAICode(prompt);
+        } else {
+          updateStatus('❌ Please enter a prompt first');
+        }
+      });
+
+      // Allow Enter key in prompt textarea to generate
+      document.getElementById('aiPrompt').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) {
+          const prompt = e.target.value.trim();
+          if (prompt && !document.getElementById('generateBtn').disabled) {
+            generateAICode(prompt);
+          }
+        }
       });
 
       // Auto-run fish animation on load

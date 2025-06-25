@@ -146,4 +146,4 @@ draw=_=>{
 - `WorldGenerator-v2.html` - Enhanced world generator
 - `Script01.js` - Utility scripts
 - `CREDITS` - Attribution for algorithms
-- `LICENSE.md` - Apache 2.0 License
+- `LICENSE` - Apache 2.0 License
