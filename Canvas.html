@@ -1026,6 +1026,9 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
 
       try {
+        // Console log user input (pretty formatted)
+        console.log('%c📝 USER INPUT', 'background: #4facfe; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', userPrompt);
+        
         // Add user message to chat
         addChatMessage('user', userPrompt);
         
@@ -1051,7 +1054,11 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       // Template mode (Smart responses)
       if (aiSession === 'template') {
+        // Log the actual query being processed
+        console.log('%c🔍 ACTUAL QUERY (Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `General question: "${userPrompt}"`);
+        
         aiResponse = generateGeneralResponse(userPrompt);
+        console.log('%c🤖 RAW AI RESPONSE (Templates)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
         updateStatus('⚡ Generated response using smart templates!');
       }
       // Qwen2.5 mode - General conversation
@@ -1059,7 +1066,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         try {
           const generalPrompt = `Question: ${userPrompt}
 
-Answer this question with a short, accurate response (1-3 sentences maximum). Be direct and factual.`;
+Answer this question clearly and informatively (maximum 10 lines). Be direct and helpful.`;
 
           const messages = [
             { role: 'system', content: 'You are a helpful AI assistant. Answer questions clearly and informatively.' },
@@ -1070,6 +1077,10 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
             tokenize: false, 
             add_generation_prompt: true 
           });
+          
+          // Log the actual formatted prompt being sent to AI
+          console.log('%c🔍 ACTUAL QUERY (Qwen2.5 General)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+          console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', textInput);
           
           const inputs = await aiSession.tokenizer(textInput, {
             return_tensors: 'pt',
@@ -1088,6 +1099,9 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
           const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
           aiResponse = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
           
+          // Console log raw AI response before cleanup
+          console.log('%c🤖 RAW AI RESPONSE (Qwen2.5 General)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
+          
           // Clean up the response aggressively
           aiResponse = aiResponse.trim();
           
@@ -1096,26 +1110,22 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
           aiResponse = aiResponse.replace(/Answer this question with.*?factual\./gi, '');
           aiResponse = aiResponse.replace(/^(Answer:|Response:|Here's|The answer is:?)/gi, '');
           
-          // Take the first 2-3 coherent sentences or a reasonable paragraph
-          const sentences = aiResponse.split(/[.!?]+/);
-          if (sentences.length > 0) {
-            let goodSentences = [];
-            for (let sentence of sentences) {
-              sentence = sentence.trim();
-              if (sentence.length > 10 && sentence.length < 300 && 
-                  !sentence.toLowerCase().includes('in summary') &&
-                  !sentence.toLowerCase().includes('let me') &&
-                  !sentence.toLowerCase().includes('i should') &&
-                  !sentence.toLowerCase().includes('calcuttonia')) {
-                goodSentences.push(sentence);
-                // Take up to 3 good sentences or until we reach reasonable length
-                if (goodSentences.length >= 3 || goodSentences.join('. ').length > 400) {
-                  break;
-                }
+          // Take up to 10 lines or reasonable paragraph length
+          const lines = aiResponse.split(/\n/);
+          if (lines.length > 10) {
+            // If more than 10 lines, take first 10 good lines
+            let goodLines = [];
+            for (let line of lines) {
+              line = line.trim();
+              if (line.length > 5 && line.length < 500 && 
+                  !line.toLowerCase().includes('calcuttonia') &&
+                  !line.toLowerCase().includes('hindi language country')) {
+                goodLines.push(line);
+                if (goodLines.length >= 10) break;
               }
             }
-            if (goodSentences.length > 0) {
-              aiResponse = goodSentences.join('. ') + '.';
+            if (goodLines.length > 0) {
+              aiResponse = goodLines.join('\n');
             }
           }
           
@@ -1124,6 +1134,7 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
               aiResponse.toLowerCase().includes('hindi language country') ||
               aiResponse.toLowerCase().includes('new york city specifically')) {
             aiResponse = generateGeneralResponse(userPrompt);
+            console.log('%c🤖 RAW AI RESPONSE (Fallback Templates)', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           }
           
           updateStatus('🚀 Qwen2.5 responded!');
@@ -1131,6 +1142,7 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
         } catch (error) {
           console.error('General chat error:', error);
           aiResponse = generateGeneralResponse(userPrompt);
+          console.log('%c🤖 RAW AI RESPONSE (Error Fallback)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           updateStatus('⚡ Generated response using templates (AI error)');
         }
       }
@@ -1148,8 +1160,15 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
         
         // Template mode (Smart pattern matching)
         if (aiSession === 'template') {
+          // Log the actual query being processed
+          console.log('%c🔍 ACTUAL QUERY (Creative Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `Creative prompt: "${userPrompt}"`);
+          
           code = generateTemplateCode(userPrompt);
+          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Code)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+          console.log('%cGenerated Code:', 'color: #666; font-weight: bold;', code);
+          
           aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart template matching. The code creates an animated visual based on your description.`;
+          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Message)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           updateStatus('⚡ Generated code using smart templates!');
         }
         // Qwen2.5 mode - Pure text-only generation (no vision components)
@@ -1163,8 +1182,9 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
             try {
               generationAttempts++;
               
-              const fullPrompt = `You must copy this EXACT template and only change the fill() and ellipse() lines:
+              const fullPrompt = `Generate p5.js code for: ${userPrompt}
 
+Use this exact structure:
 t=0
 draw=_=>{
   t||createCanvas(w=800,h=600)
@@ -1174,13 +1194,7 @@ draw=_=>{
   ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
 }
 
-For "${userPrompt}", modify ONLY the fill() and ellipse() lines. Keep everything else identical.
-
-FORBIDDEN: gradient, while, if, time(), paddle, var, let, const, document, canvas, Math, PI, speed, x, y
-
-ALLOWED ONLY: t, fill, stroke, ellipse, rect, point, sin, cos, for, background, createCanvas
-
-Return the 6 lines above with your modifications.`;
+Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
 
               // Use proper Qwen2.5 chat format
               const messages = [
@@ -1193,6 +1207,10 @@ Return the 6 lines above with your modifications.`;
                 tokenize: false, 
                 add_generation_prompt: true 
               });
+              
+              // Log the actual formatted prompt being sent to AI
+              console.log('%c🔍 ACTUAL QUERY (Qwen2.5 Creative - Attempt ' + generationAttempts + ')', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+              console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', textInput);
               
               const inputs = await aiSession.tokenizer(textInput, {
                 return_tensors: 'pt',
@@ -1223,8 +1241,10 @@ Return the 6 lines above with your modifications.`;
               const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
               const rawCode = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
               
+              // Console log raw AI output
+              console.log('%c🤖 RAW AI RESPONSE (Qwen2.5 Creative - Attempt ' + generationAttempts + ')', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', rawCode);
+              
               // Show raw AI output in chat for debugging
-              console.log('Raw AI Output:', rawCode);
               addChatMessage('system', `🔍 Raw AI Output (attempt ${generationAttempts}):`, rawCode);
               
               // Clean up the response thoroughly
@@ -1350,7 +1370,10 @@ Return the 6 lines above with your modifications.`;
                 
                 // Don't retry AI, go straight to templates for this request
                 code = generateTemplateCode(userPrompt);
+                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+                console.log('%cFallback Code:', 'color: #666; font-weight: bold;', code);
                 aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (AI generated invalid syntax: ${syntaxError.message}).`;
+                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
                 updateStatus('⚡ Generated code using templates (AI syntax error)');
                 janusSuccess = true; // Stop retrying
                 break;
@@ -1381,7 +1404,10 @@ Return the 6 lines above with your modifications.`;
                 // Final fallback to templates
                 addChatMessage('ai', `⚠️ Qwen2.5 failed after ${generationAttempts} attempts: ${errorMessage}. Using smart templates instead...`);
                 code = generateTemplateCode(userPrompt);
+                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+                console.log('%cFinal Fallback Code:', 'color: #666; font-weight: bold;', code);
                 aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (Qwen2.5 had persistent runtime errors).`;
+                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
                 updateStatus('⚡ Generated code using templates (Qwen2.5 failed multiple attempts)');
                 break;
               } else {
