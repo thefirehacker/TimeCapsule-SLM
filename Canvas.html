@@ -502,8 +502,80 @@
           <div style="font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 2px;">Creative Coding Studio</div>
         </div>
       </div>
-      <div style="margin-left: auto; color: rgba(255,255,255,0.8); font-size: 16px; font-weight: 500;">
-        🤖 AI Integration
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
+        <a href="https://github.com/thefirehacker/SketchPad-SLM" target="_blank" class="github-link" style="
+          color: rgba(255,255,255,0.9); 
+          text-decoration: none; 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center; 
+          gap: 4px; 
+          padding: 10px 12px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.15);
+          border-radius: 10px;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+          min-width: 70px;
+        " 
+        onmouseover="
+          this.style.transform='translateY(-2px) scale(1.05)'; 
+          this.style.background='rgba(255,255,255,0.15)';
+          this.style.borderColor='rgba(255,255,255,0.3)';
+          this.style.boxShadow='0 8px 30px rgba(0,0,0,0.25)';
+          this.style.color='white';
+          this.querySelector('.shimmer').style.left='100%';
+        " 
+        onmouseout="
+          this.style.transform='translateY(0) scale(1)'; 
+          this.style.background='rgba(255,255,255,0.08)';
+          this.style.borderColor='rgba(255,255,255,0.15)';
+          this.style.boxShadow='0 4px 20px rgba(0,0,0,0.15)';
+          this.style.color='rgba(255,255,255,0.9)';
+          this.querySelector('.shimmer').style.left='-100%';
+        ">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="
+            filter: drop-shadow(0 3px 8px rgba(0,0,0,0.4));
+            transition: all 0.3s ease;
+          ">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.30.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <span style="
+            font-size: 10px; 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #fff, #f0f8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          ">GitHub</span>
+          <div style="
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
+          " class="shimmer"></div>
+        </a>
+        <div style="
+          color: rgba(255,255,255,0.85); 
+          font-size: 16px; 
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        ">
+          <span style="font-size: 20px;">🤖</span>
+          <span>AI Integration</span>
+        </div>
       </div>
     </div>
     
@@ -1026,6 +1098,9 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
 
       try {
+        // Console log user input (pretty formatted)
+        console.log('%c📝 USER INPUT', 'background: #4facfe; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', userPrompt);
+        
         // Add user message to chat
         addChatMessage('user', userPrompt);
         
@@ -1051,7 +1126,11 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       // Template mode (Smart responses)
       if (aiSession === 'template') {
+        // Log the actual query being processed
+        console.log('%c🔍 ACTUAL QUERY (Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `General question: "${userPrompt}"`);
+        
         aiResponse = generateGeneralResponse(userPrompt);
+        console.log('%c🤖 RAW AI RESPONSE (Templates)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
         updateStatus('⚡ Generated response using smart templates!');
       }
       // Qwen2.5 mode - General conversation
@@ -1059,7 +1138,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         try {
           const generalPrompt = `Question: ${userPrompt}
 
-Answer this question with a short, accurate response (1-3 sentences maximum). Be direct and factual.`;
+Answer this question clearly and informatively (maximum 10 lines). Be direct and helpful.`;
 
           const messages = [
             { role: 'system', content: 'You are a helpful AI assistant. Answer questions clearly and informatively.' },
@@ -1070,6 +1149,10 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
             tokenize: false, 
             add_generation_prompt: true 
           });
+          
+          // Log the actual formatted prompt being sent to AI
+          console.log('%c🔍 ACTUAL QUERY (Qwen2.5 General)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+          console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', textInput);
           
           const inputs = await aiSession.tokenizer(textInput, {
             return_tensors: 'pt',
@@ -1088,6 +1171,9 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
           const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
           aiResponse = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
           
+          // Console log raw AI response before cleanup
+          console.log('%c🤖 RAW AI RESPONSE (Qwen2.5 General)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
+          
           // Clean up the response aggressively
           aiResponse = aiResponse.trim();
           
@@ -1096,26 +1182,22 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
           aiResponse = aiResponse.replace(/Answer this question with.*?factual\./gi, '');
           aiResponse = aiResponse.replace(/^(Answer:|Response:|Here's|The answer is:?)/gi, '');
           
-          // Take the first 2-3 coherent sentences or a reasonable paragraph
-          const sentences = aiResponse.split(/[.!?]+/);
-          if (sentences.length > 0) {
-            let goodSentences = [];
-            for (let sentence of sentences) {
-              sentence = sentence.trim();
-              if (sentence.length > 10 && sentence.length < 300 && 
-                  !sentence.toLowerCase().includes('in summary') &&
-                  !sentence.toLowerCase().includes('let me') &&
-                  !sentence.toLowerCase().includes('i should') &&
-                  !sentence.toLowerCase().includes('calcuttonia')) {
-                goodSentences.push(sentence);
-                // Take up to 3 good sentences or until we reach reasonable length
-                if (goodSentences.length >= 3 || goodSentences.join('. ').length > 400) {
-                  break;
-                }
+          // Take up to 10 lines or reasonable paragraph length
+          const lines = aiResponse.split(/\n/);
+          if (lines.length > 10) {
+            // If more than 10 lines, take first 10 good lines
+            let goodLines = [];
+            for (let line of lines) {
+              line = line.trim();
+              if (line.length > 5 && line.length < 500 && 
+                  !line.toLowerCase().includes('calcuttonia') &&
+                  !line.toLowerCase().includes('hindi language country')) {
+                goodLines.push(line);
+                if (goodLines.length >= 10) break;
               }
             }
-            if (goodSentences.length > 0) {
-              aiResponse = goodSentences.join('. ') + '.';
+            if (goodLines.length > 0) {
+              aiResponse = goodLines.join('\n');
             }
           }
           
@@ -1124,6 +1206,7 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
               aiResponse.toLowerCase().includes('hindi language country') ||
               aiResponse.toLowerCase().includes('new york city specifically')) {
             aiResponse = generateGeneralResponse(userPrompt);
+            console.log('%c🤖 RAW AI RESPONSE (Fallback Templates)', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           }
           
           updateStatus('🚀 Qwen2.5 responded!');
@@ -1131,6 +1214,7 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
         } catch (error) {
           console.error('General chat error:', error);
           aiResponse = generateGeneralResponse(userPrompt);
+          console.log('%c🤖 RAW AI RESPONSE (Error Fallback)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           updateStatus('⚡ Generated response using templates (AI error)');
         }
       }
@@ -1148,8 +1232,15 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
         
         // Template mode (Smart pattern matching)
         if (aiSession === 'template') {
+          // Log the actual query being processed
+          console.log('%c🔍 ACTUAL QUERY (Creative Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `Creative prompt: "${userPrompt}"`);
+          
           code = generateTemplateCode(userPrompt);
+          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Code)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+          console.log('%cGenerated Code:', 'color: #666; font-weight: bold;', code);
+          
           aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart template matching. The code creates an animated visual based on your description.`;
+          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Message)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           updateStatus('⚡ Generated code using smart templates!');
         }
         // Qwen2.5 mode - Pure text-only generation (no vision components)
@@ -1163,8 +1254,9 @@ Answer this question with a short, accurate response (1-3 sentences maximum). Be
             try {
               generationAttempts++;
               
-              const fullPrompt = `You must copy this EXACT template and only change the fill() and ellipse() lines:
+              const fullPrompt = `Generate p5.js code for: ${userPrompt}
 
+Use this exact structure:
 t=0
 draw=_=>{
   t||createCanvas(w=800,h=600)
@@ -1174,13 +1266,7 @@ draw=_=>{
   ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
 }
 
-For "${userPrompt}", modify ONLY the fill() and ellipse() lines. Keep everything else identical.
-
-FORBIDDEN: gradient, while, if, time(), paddle, var, let, const, document, canvas, Math, PI, speed, x, y
-
-ALLOWED ONLY: t, fill, stroke, ellipse, rect, point, sin, cos, for, background, createCanvas
-
-Return the 6 lines above with your modifications.`;
+Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
 
               // Use proper Qwen2.5 chat format
               const messages = [
@@ -1193,6 +1279,10 @@ Return the 6 lines above with your modifications.`;
                 tokenize: false, 
                 add_generation_prompt: true 
               });
+              
+              // Log the actual formatted prompt being sent to AI
+              console.log('%c🔍 ACTUAL QUERY (Qwen2.5 Creative - Attempt ' + generationAttempts + ')', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+              console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', textInput);
               
               const inputs = await aiSession.tokenizer(textInput, {
                 return_tensors: 'pt',
@@ -1223,8 +1313,10 @@ Return the 6 lines above with your modifications.`;
               const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
               const rawCode = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
               
+              // Console log raw AI output
+              console.log('%c🤖 RAW AI RESPONSE (Qwen2.5 Creative - Attempt ' + generationAttempts + ')', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', rawCode);
+              
               // Show raw AI output in chat for debugging
-              console.log('Raw AI Output:', rawCode);
               addChatMessage('system', `🔍 Raw AI Output (attempt ${generationAttempts}):`, rawCode);
               
               // Clean up the response thoroughly
@@ -1350,7 +1442,10 @@ Return the 6 lines above with your modifications.`;
                 
                 // Don't retry AI, go straight to templates for this request
                 code = generateTemplateCode(userPrompt);
+                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+                console.log('%cFallback Code:', 'color: #666; font-weight: bold;', code);
                 aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (AI generated invalid syntax: ${syntaxError.message}).`;
+                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
                 updateStatus('⚡ Generated code using templates (AI syntax error)');
                 janusSuccess = true; // Stop retrying
                 break;
@@ -1381,7 +1476,10 @@ Return the 6 lines above with your modifications.`;
                 // Final fallback to templates
                 addChatMessage('ai', `⚠️ Qwen2.5 failed after ${generationAttempts} attempts: ${errorMessage}. Using smart templates instead...`);
                 code = generateTemplateCode(userPrompt);
+                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+                console.log('%cFinal Fallback Code:', 'color: #666; font-weight: bold;', code);
                 aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (Qwen2.5 had persistent runtime errors).`;
+                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
                 updateStatus('⚡ Generated code using templates (Qwen2.5 failed multiple attempts)');
                 break;
               } else {
