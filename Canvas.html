@@ -675,12 +675,25 @@
     </div>
   </div>
 
+  <!-- Configuration and Analytics -->
+  <script src="config.js"></script>
+
   <!-- Dependencies -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js"></script>
 
   <script>
+    // Initialize Google Analytics
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.AppConfig) {
+        window.AppConfig.initializeGA4();
+        
+        // Track initial page view
+        window.AppConfig.trackPageView('SketchPad-SLM Canvas', window.location.href);
+      }
+    });
+
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
 
     let editorInstance, currentP5, aiSession = null;
@@ -993,6 +1006,11 @@ When user asks for something, generate creative, compact p5.js code that creates
           hideLoadingScreen();
           updateStatus('🚀 Qwen2.5-0.5B loaded successfully!');
           addChatMessage('system', '🚀 Qwen2.5-0.5B loaded! Ready to generate creative p5.js code. This text-only model avoids all vision-related errors.');
+          
+          // Track successful AI loading
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_success');
+          }
         }, 500);
         
       } catch (error) {
@@ -1088,6 +1106,11 @@ When user asks for something, generate creative, compact p5.js code that creates
       document.getElementById('initAIBtn').textContent = '⚡ Templates Ready';
       updateStatus('⚡ Smart Templates ready!');
       addChatMessage('system', '⚡ Smart Template system activated! Uses pattern matching for instant code generation. Works for: "particle explosion", "rainbow spiral", "ocean waves", "geometric patterns", etc.');
+      
+      // Track template fallback
+      if (window.AppConfig) {
+        window.AppConfig.trackEvent('ai_template_fallback', 'ai_interaction', 'template_system');
+      }
     }
 
     // Generate code using AI (Janus or Smart Templates)
@@ -1944,10 +1967,18 @@ draw=_=>{
 
       // Event Listeners
       document.getElementById('runBtn').addEventListener('click', () => {
+        // Track code execution
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('code_executed', 'user_interaction', 'run_button');
+        }
         window.runSketch(editorInstance.getValue());
       });
 
       document.getElementById('designSelect').addEventListener('change', (e) => {
+        // Track design selection
+        if (window.AppConfig && e.target.value) {
+          window.AppConfig.trackEvent('design_loaded', 'user_interaction', e.target.value);
+        }
         loadDesign(e.target.value);
       });
 
@@ -2011,12 +2042,29 @@ draw=_=>{
       });
 
       // AI Event Listeners
-      document.getElementById('initAIBtn').addEventListener('click', initializeAI);
-      document.getElementById('chatModeBtn').addEventListener('click', toggleChatMode);
+      document.getElementById('initAIBtn').addEventListener('click', () => {
+        // Track AI initialization
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('ai_init_clicked', 'ai_interaction', 'init_button');
+        }
+        initializeAI();
+      });
+      
+      document.getElementById('chatModeBtn').addEventListener('click', () => {
+        // Track chat mode toggle
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('chat_mode_toggled', 'ai_interaction', chatMode);
+        }
+        toggleChatMode();
+      });
       
       document.getElementById('generateBtn').addEventListener('click', () => {
         const prompt = document.getElementById('aiPrompt').value.trim();
         if (prompt) {
+          // Track AI code generation
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('ai_code_generated', 'ai_interaction', chatMode, prompt.length);
+          }
           generateAICode(prompt);
         } else {
           updateStatus('❌ Please enter a prompt first');
@@ -2041,9 +2089,29 @@ draw=_=>{
       });
 
       // AI Panel event listeners
-      document.getElementById('aiToggleBtn').addEventListener('click', toggleAIPanel);
-      document.getElementById('minimizeBtn').addEventListener('click', minimizeAIPanel);
-      document.getElementById('closeBtn').addEventListener('click', closeAIPanel);
+      document.getElementById('aiToggleBtn').addEventListener('click', () => {
+        // Track AI panel toggle
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('ai_panel_toggled', 'ui_interaction', 'toggle_button');
+        }
+        toggleAIPanel();
+      });
+      
+      document.getElementById('minimizeBtn').addEventListener('click', () => {
+        // Track AI panel minimize
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('ai_panel_minimized', 'ui_interaction', 'minimize_button');
+        }
+        minimizeAIPanel();
+      });
+      
+      document.getElementById('closeBtn').addEventListener('click', () => {
+        // Track AI panel close
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('ai_panel_closed', 'ui_interaction', 'close_button');
+        }
+        closeAIPanel();
+      });
 
       // Editor control event listeners
       document.getElementById('expandEditorBtn').addEventListener('click', expandEditor);
