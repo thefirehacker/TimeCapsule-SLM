@@ -784,24 +784,20 @@ When user asks for something, generate creative, compact p5.js code that creates
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                     border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
                     box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-          <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Choose AI Engine</h2>
+          <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 FP16 Qwen2.5 AI</h2>
           
           <div style="margin-bottom: 20px;">
             <button id="selectJanus" class="ai-option-btn">
-              🚀 Qwen2.5-0.5B (Local) - AI Powered
+              🚀 Load Qwen2.5-0.5B FP16 (~1GB)
             </button>
             <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-              Downloads ~500MB model, runs in browser. Auto-fallback to templates if WebGPU issues occur.
+              FP16 precision only. Maximum quality AI generation. No fallbacks - FP16 or nothing.
             </p>
           </div>
           
-          <div style="margin-bottom: 20px;">
-            <button id="selectTemplates" class="ai-option-btn">
-              ⚡ Smart Templates - Instant & Reliable
-            </button>
-            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-              Pattern-based code generation, always works
-            </p>
+          <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
+            ⚠️ Requires WebGPU support and 2GB+ RAM<br/>
+            Model cached after first download for instant future loading
           </div>
           
           <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
@@ -831,14 +827,10 @@ When user asks for something, generate creative, compact p5.js code that creates
         initializeJanus();
       };
       
-      document.getElementById('selectTemplates').onclick = () => {
-        document.body.removeChild(modal);
-        fallbackToTemplates();
-      };
-      
       document.getElementById('closeModal').onclick = () => {
         document.body.removeChild(modal);
-        fallbackToTemplates();
+        updateStatus('AI initialization cancelled');
+        addChatMessage('system', 'AI initialization cancelled. FP16 Qwen2.5 required for AI features.');
       };
     }
 
@@ -847,8 +839,8 @@ When user asks for something, generate creative, compact p5.js code that creates
     // Initialize Qwen2.5
     async function initializeJanus() {
       try {
-        updateStatus('🚀 Loading Qwen2.5-0.5B (~500MB)...');
-        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5...';
+        updateStatus('🚀 Loading Qwen2.5-0.5B FP16 (~1GB)...');
+        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5 FP16...';
         
         // Check browser compatibility
         const hasFloat16 = typeof Float16Array !== 'undefined';
@@ -918,21 +910,21 @@ When user asks for something, generate creative, compact p5.js code that creates
                       model = await loadWithTimeout(
               () => AutoModelForCausalLM.from_pretrained(MODEL, {
                 device: 'webgpu',
-                dtype: 'q4',
+                dtype: 'fp16',
                 progress_callback: (progress) => {
                   try {
                     if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                      const percent = 50 + (progress.progress * 40);
+                      const percent = 50 + (progress.progress * 45);
                       const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                      updateLoadingProgress(percent, `Loading model (WebGPU): ${fileName}`);
+                      updateLoadingProgress(percent, `Loading model (FP16): ${fileName}`);
                       
                       // Detect stuck progress
                       if (Math.abs(progress.progress - lastProgress) > 0.01) {
                         lastProgress = progress.progress;
                         progressStuckTime = Date.now();
-                      } else if (Date.now() - progressStuckTime > 120000) {
-                        // Progress stuck for 2 minutes (increased from 60 seconds)
-                        throw new Error('Download progress stuck - likely network or memory issue');
+                      } else if (Date.now() - progressStuckTime > 300000) {
+                        // Progress stuck for 5 minutes for FP16
+                        throw new Error('FP16 download progress stuck - likely network or memory issue');
                       }
                     }
                   } catch (e) {
@@ -940,63 +932,30 @@ When user asks for something, generate creative, compact p5.js code that creates
                   }
                 }
               }),
-              600000, // 10 minute timeout (increased from 5 minutes)
-              'WebGPU model loading'
+              1200000, // 20 minute timeout for FP16 (larger download)
+              'FP16 WebGPU model loading'
             );
           
-          addChatMessage('system', '🚀 WebGPU acceleration enabled! GPU-only mode active.');
+          addChatMessage('system', '🎉 FP16 precision loaded successfully! Maximum quality WebGPU acceleration active.');
         } catch (webgpuError) {
           console.warn('WebGPU loading failed:', webgpuError);
           
-          // Check if it's a timeout or memory issue
-          if (webgpuError.message.includes('timed out') || webgpuError.message.includes('stuck')) {
-            addChatMessage('system', '⚠️ Large model download timed out. This is common with 500MB models. Falling back to templates...');
-            hideLoadingScreen();
-            fallbackToTemplates();
-            return;
-          }
-          
-          // Only one fallback: basic WebGPU without device specification
-          try {
-            updateLoadingProgress(70, 'WebGPU failed, trying basic GPU mode...');
-            addChatMessage('system', '⚠️ WebGPU failed, trying basic GPU configuration...');
-            
-            model = await loadWithTimeout(
-              () => AutoModelForCausalLM.from_pretrained(MODEL, {
-                dtype: 'q4',
-                progress_callback: (progress) => {
-                  try {
-                    if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                      const percent = 70 + (progress.progress * 25);
-                      const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                      updateLoadingProgress(percent, `Loading model (basic): ${fileName}`);
-                    }
-                  } catch (e) {
-                    console.warn('Progress callback error:', e);
-                  }
-                }
-              }),
-              600000, // 10 minute timeout for fallback (increased from 3 minutes)
-              'Basic GPU model loading'
-            );
-            
-            addChatMessage('system', '✅ Basic GPU mode successful! Model loaded.');
-          } catch (finalError) {
-            console.error('All GPU loading attempts failed:', finalError);
-            
-            // If both attempts failed, fall back to templates
-            addChatMessage('system', '❌ GPU model loading failed completely. Using smart templates instead.');
-            hideLoadingScreen();
-            fallbackToTemplates();
-            return;
-          }
+          // FP16 failed - no fallbacks, AI disabled
+          console.error('FP16 WebGPU loading failed:', webgpuError);
+          addChatMessage('system', '❌ FP16 model loading failed. AI is disabled. FP16 precision required.');
+          document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
+          document.getElementById('generateBtn').disabled = true;
+          document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
+          hideLoadingScreen();
+          updateStatus('❌ FP16 model failed to load. AI disabled.');
+          return;
         }
         
         updateLoadingProgress(95, 'Finalizing model setup...');
         aiSession = { type: 'qwen', model, tokenizer };
-        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B ✅';
+        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B (FP16) ✅';
         document.getElementById('generateBtn').disabled = false;
-        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 Ready';
+        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 FP16 Ready';
         
         // Restore console.warn
         console.warn = originalWarn;
@@ -1004,17 +963,17 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateLoadingProgress(100, 'Model loaded successfully!');
         setTimeout(() => {
           hideLoadingScreen();
-          updateStatus('🚀 Qwen2.5-0.5B loaded successfully!');
-          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded! Ready to generate creative p5.js code. This text-only model avoids all vision-related errors.');
+          updateStatus('🚀 Qwen2.5-0.5B (FP16) loaded successfully!');
+          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded in FP16 precision! Ready to generate creative p5.js code with maximum quality. This text-only model avoids all vision-related errors.');
           
-          // Track successful AI loading
+          // Track successful AI loading with FP16 precision
           if (window.AppConfig) {
-            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_success');
+            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_fp16_success');
           }
         }, 500);
         
       } catch (error) {
-        console.error('Janus initialization error:', error);
+        console.error('Qwen2.5 FP16 initialization error:', error);
         
         // Restore console.warn in case of error
         if (typeof originalWarn !== 'undefined') {
@@ -1022,8 +981,11 @@ When user asks for something, generate creative, compact p5.js code that creates
         }
         
         hideLoadingScreen();
-        addChatMessage('system', `❌ Failed to load Janus model: ${error.message}. Falling back to templates.`);
-        fallbackToTemplates();
+        addChatMessage('system', `❌ Failed to load Qwen2.5 FP16: ${error.message}. AI is disabled.`);
+        document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
+        updateStatus('❌ FP16 model failed to load. AI disabled.');
       }
     }
 
@@ -1045,7 +1007,7 @@ When user asks for something, generate creative, compact p5.js code that creates
             🚀 Loading Qwen2.5-0.5B
           </div>
           <div style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
-            First time download: ~500MB • Cached for future use
+            FP16 precision: ~1GB • Maximum quality • Cached for future use
           </div>
           
           <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; 
@@ -1113,10 +1075,16 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
     }
 
-    // Generate code using AI (Janus or Smart Templates)
+    // Generate code using AI (FP16 Qwen2.5 only)
     async function generateAICode(userPrompt) {
       if (!aiSession) {
         updateStatus('❌ AI not connected. Click "Connect AI" first.');
+        return;
+      }
+      
+      if (aiSession !== 'template' && aiSession.type !== 'qwen') {
+        updateStatus('❌ Only FP16 Qwen2.5 AI is supported.');
+        addChatMessage('ai', 'AI is disabled. FP16 precision required for code generation.');
         return;
       }
 
@@ -1147,17 +1115,8 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       let aiResponse = '';
       
-      // Template mode (Smart responses)
-      if (aiSession === 'template') {
-        // Log the actual query being processed
-        console.log('%c🔍 ACTUAL QUERY (Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `General question: "${userPrompt}"`);
-        
-        aiResponse = generateGeneralResponse(userPrompt);
-        console.log('%c🤖 RAW AI RESPONSE (Templates)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-        updateStatus('⚡ Generated response using smart templates!');
-      }
-      // Qwen2.5 mode - General conversation
-      else if (aiSession.type === 'qwen') {
+      // FP16 Qwen2.5 mode only - General conversation  
+      if (aiSession.type === 'qwen') {
         try {
           const generalPrompt = `Question: ${userPrompt}
 
@@ -1224,22 +1183,25 @@ Answer this question clearly and informatively (maximum 10 lines). Be direct and
             }
           }
           
-          // Fallback only if response is clearly nonsensical or empty
+          // If response is clearly nonsensical or empty, show error
           if (aiResponse.length < 5 || aiResponse.toLowerCase().includes('calcuttonia') || 
               aiResponse.toLowerCase().includes('hindi language country') ||
               aiResponse.toLowerCase().includes('new york city specifically')) {
-            aiResponse = generateGeneralResponse(userPrompt);
-            console.log('%c🤖 RAW AI RESPONSE (Fallback Templates)', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
+            aiResponse = 'Sorry, the FP16 model generated an invalid response. Please try rephrasing your question.';
+            console.log('%c🤖 Invalid AI Response Detected', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', 'Nonsensical output detected');
           }
           
           updateStatus('🚀 Qwen2.5 responded!');
           
         } catch (error) {
           console.error('General chat error:', error);
-          aiResponse = generateGeneralResponse(userPrompt);
-          console.log('%c🤖 RAW AI RESPONSE (Error Fallback)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-          updateStatus('⚡ Generated response using templates (AI error)');
+          aiResponse = `FP16 model error: ${error.message}. Please try again or rephrase your question.`;
+          console.log('%c🤖 FP16 Generation Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', error);
+          updateStatus('❌ FP16 model error during generation');
         }
+      } else {
+        aiResponse = 'AI is not properly initialized. FP16 Qwen2.5 required.';
+        updateStatus('❌ AI not available - FP16 required');
       }
       
       // Add AI response to chat
@@ -1253,21 +1215,8 @@ Answer this question clearly and informatively (maximum 10 lines). Be direct and
       let code = '';
       let aiResponse = '';
         
-        // Template mode (Smart pattern matching)
-        if (aiSession === 'template') {
-          // Log the actual query being processed
-          console.log('%c🔍 ACTUAL QUERY (Creative Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `Creative prompt: "${userPrompt}"`);
-          
-          code = generateTemplateCode(userPrompt);
-          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Code)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-          console.log('%cGenerated Code:', 'color: #666; font-weight: bold;', code);
-          
-          aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart template matching. The code creates an animated visual based on your description.`;
-          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Message)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-          updateStatus('⚡ Generated code using smart templates!');
-        }
-        // Qwen2.5 mode - Pure text-only generation (no vision components)
-        else if (aiSession.type === 'qwen') {
+        // FP16 Qwen2.5 mode only - Pure text-only generation (no vision components)
+        if (aiSession.type === 'qwen') {
           let generationAttempts = 0;
           const maxGenerationAttempts = 3;
           let janusSuccess = false;
@@ -1461,15 +1410,13 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
                 // Show detailed error info in chat
                 addChatMessage('system', `❌ Syntax Error: ${syntaxError.message}`);
                 addChatMessage('system', `🐛 Problematic Code: "${code.substring(0, 100)}${code.length > 100 ? '...' : ''}"`);
-                addChatMessage('system', `🔧 Falling back to smart templates...`);
+                addChatMessage('system', `❌ FP16 model generated invalid syntax. No fallbacks available.`);
                 
-                // Don't retry AI, go straight to templates for this request
-                code = generateTemplateCode(userPrompt);
-                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-                console.log('%cFallback Code:', 'color: #666; font-weight: bold;', code);
-                aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (AI generated invalid syntax: ${syntaxError.message}).`;
-                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-                updateStatus('⚡ Generated code using templates (AI syntax error)');
+                // FP16-only: No fallbacks, show error
+                code = '';
+                aiResponse = `FP16 model generated invalid syntax: ${syntaxError.message}. Please try a different prompt.`;
+                console.log('%c🤖 FP16 Syntax Error - No Fallback', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', syntaxError);
+                updateStatus('❌ FP16 generated invalid syntax - no fallbacks available');
                 janusSuccess = true; // Stop retrying
                 break;
               }
@@ -1496,14 +1443,12 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
                   errorMessage = 'Insufficient memory for model execution';
                 }
                 
-                // Final fallback to templates
-                addChatMessage('ai', `⚠️ Qwen2.5 failed after ${generationAttempts} attempts: ${errorMessage}. Using smart templates instead...`);
-                code = generateTemplateCode(userPrompt);
-                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-                console.log('%cFinal Fallback Code:', 'color: #666; font-weight: bold;', code);
-                aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (Qwen2.5 had persistent runtime errors).`;
-                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-                updateStatus('⚡ Generated code using templates (Qwen2.5 failed multiple attempts)');
+                // FP16-only: No fallbacks, show error
+                addChatMessage('ai', `❌ Qwen2.5 FP16 failed after ${generationAttempts} attempts: ${errorMessage}. No fallbacks available.`);
+                code = '';
+                aiResponse = `FP16 model failed after ${generationAttempts} attempts: ${errorMessage}. Please try a different prompt or restart the AI.`;
+                console.log('%c🤖 FP16 Final Failure - No Fallback', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', errorMessage);
+                updateStatus('❌ FP16 failed all attempts - no fallbacks available');
                 break;
               } else {
                 // Try again with different parameters
@@ -1512,6 +1457,11 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
               }
             }
           }
+        } else {
+          // aiSession is not valid Qwen2.5
+          code = '';
+          aiResponse = 'AI is not properly initialized. FP16 Qwen2.5 required for code generation.';
+          updateStatus('❌ AI not available - FP16 required');
         }
         
         if (code.length > 10) {
