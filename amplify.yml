@@ -15,6 +15,7 @@ frontend:
               this.SITE_URL = '${SITE_URL}' || window.location.origin;
               this.GA4_DEBUG_MODE = ${GA4_DEBUG_MODE} || false;
               this.GA4_ANONYMIZE_IP = ${GA4_ANONYMIZE_IP} || true;
+              this.GA4_CONSOLE_LOGGING = ${GA4_CONSOLE_LOGGING} || false;
             }
 
             // Method to initialize Google Analytics
@@ -42,7 +43,9 @@ frontend:
                 site_name: this.SITE_NAME
               });
 
-              console.log(\`✅ Google Analytics 4 initialized with ID: \${this.GA4_MEASUREMENT_ID}\`);
+              if (this.GA4_CONSOLE_LOGGING) {
+                console.log(\`✅ Google Analytics 4 initialized with ID: \${this.GA4_MEASUREMENT_ID}\`);
+              }
             }
 
             // Method to track custom events
@@ -53,7 +56,9 @@ frontend:
                   event_label: label,
                   value: value
                 });
-                console.log(\`📊 GA4 Event tracked: \${action} (\${category})\`);
+                if (this.GA4_CONSOLE_LOGGING) {
+                  console.log(\`📊 GA4 Event tracked: \${action} (\${category})\`);
+                }
               }
             }
 

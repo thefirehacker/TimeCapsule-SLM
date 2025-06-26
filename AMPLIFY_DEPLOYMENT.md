@@ -15,6 +15,7 @@ Add these variables:
 | `SITE_URL` | `https://your-app.amplifyapp.com` | Your Amplify domain |
 | `GA4_DEBUG_MODE` | `false` | Debug mode (true/false) |
 | `GA4_ANONYMIZE_IP` | `true` | IP anonymization (true/false) |
+| `GA4_CONSOLE_LOGGING` | `false` | Show GA4 messages in console (true/false) |
 
 ### 2. **What Gets Maintained Automatically**
 

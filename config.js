@@ -9,6 +9,7 @@ class Config {
     this.SITE_URL = 'https://your-domain.com'; // Replace with your actual domain
     this.GA4_DEBUG_MODE = false;
     this.GA4_ANONYMIZE_IP = true;
+    this.GA4_CONSOLE_LOGGING = true; // Set to false to hide console messages in production
   }
 
   // Method to initialize Google Analytics
@@ -36,7 +37,9 @@ class Config {
       site_name: this.SITE_NAME
     });
 
-    console.log(`✅ Google Analytics 4 initialized with ID: ${this.GA4_MEASUREMENT_ID}`);
+    if (this.GA4_CONSOLE_LOGGING) {
+      console.log(`✅ Google Analytics 4 initialized with ID: ${this.GA4_MEASUREMENT_ID}`);
+    }
   }
 
   // Method to track custom events
@@ -47,7 +50,9 @@ class Config {
         event_label: label,
         value: value
       });
-      console.log(`📊 GA4 Event tracked: ${action} (${category})`);
+      if (this.GA4_CONSOLE_LOGGING) {
+        console.log(`📊 GA4 Event tracked: ${action} (${category})`);
+      }
     }
   }
 

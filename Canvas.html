@@ -847,13 +847,15 @@ When user asks for something, generate creative, compact p5.js code that creates
     // Initialize Qwen2.5
     async function initializeJanus() {
       try {
-        updateStatus('🚀 Loading Qwen2.5-0.5B (~500MB)...');
+        updateStatus('🚀 Loading Qwen2.5-0.5B (~1GB FP16)...');
         document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5...';
         
         // Check browser compatibility
         const hasFloat16 = typeof Float16Array !== 'undefined';
         if (!hasFloat16) {
-          addChatMessage('system', '⚠️ Your browser lacks Float16Array support. Using q4 quantization instead of q4f16 for better compatibility.');
+          addChatMessage('system', '⚠️ Your browser lacks Float16Array support. Will try FP16 anyway, with fallback to q4 quantization.');
+        } else {
+          addChatMessage('system', '✅ Float16Array supported! Attempting FP16 precision for better quality (~1GB download).');
         }
         
         // Show loading screen
@@ -907,32 +909,35 @@ When user asks for something, generate creative, compact p5.js code that creates
           ]);
         };
         
-                  try {
-            updateLoadingProgress(50, 'Loading with WebGPU acceleration...');
-            addChatMessage('system', '🚀 Starting WebGPU model download (~500MB). Using text-only mode to avoid vision model errors. This may take 2-5 minutes...');
+                  // Try FP16 first, then fallback to q4
+          try {
+            updateLoadingProgress(40, 'Attempting FP16 precision loading...');
+            addChatMessage('system', '🚀 Attempting FP16 model download (~1GB). Higher precision but larger download. This may take 3-8 minutes...');
           
           // Add progress timeout detection
           let lastProgress = 0;
           let progressStuckTime = Date.now();
           
-                      model = await loadWithTimeout(
+          try {
+            // First attempt: FP16 for maximum quality
+            model = await loadWithTimeout(
               () => AutoModelForCausalLM.from_pretrained(MODEL, {
                 device: 'webgpu',
-                dtype: 'q4',
+                dtype: 'fp16',
                 progress_callback: (progress) => {
                   try {
                     if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                      const percent = 50 + (progress.progress * 40);
+                      const percent = 40 + (progress.progress * 35);
                       const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                      updateLoadingProgress(percent, `Loading model (WebGPU): ${fileName}`);
+                      updateLoadingProgress(percent, `Loading model (FP16): ${fileName}`);
                       
                       // Detect stuck progress
                       if (Math.abs(progress.progress - lastProgress) > 0.01) {
                         lastProgress = progress.progress;
                         progressStuckTime = Date.now();
-                      } else if (Date.now() - progressStuckTime > 120000) {
-                        // Progress stuck for 2 minutes (increased from 60 seconds)
-                        throw new Error('Download progress stuck - likely network or memory issue');
+                      } else if (Date.now() - progressStuckTime > 180000) {
+                        // Progress stuck for 3 minutes for FP16
+                        throw new Error('FP16 download progress stuck - likely network or memory issue');
                       }
                     }
                   } catch (e) {
@@ -940,11 +945,55 @@ When user asks for something, generate creative, compact p5.js code that creates
                   }
                 }
               }),
-              600000, // 10 minute timeout (increased from 5 minutes)
-              'WebGPU model loading'
+              900000, // 15 minute timeout for FP16 (larger download)
+              'FP16 WebGPU model loading'
             );
+            
+            addChatMessage('system', '🎉 FP16 precision loaded successfully! Maximum quality mode active.');
+            
+          } catch (fp16Error) {
+            console.warn('FP16 loading failed, trying q4 fallback:', fp16Error);
+            addChatMessage('system', '⚠️ FP16 loading failed, falling back to q4 quantization (~500MB)...');
+            
+            // Reset progress indicators
+            updateLoadingProgress(75, 'FP16 failed, loading q4 quantization...');
+            lastProgress = 0;
+            progressStuckTime = Date.now();
+            
+            // Fallback to q4 quantization
+            model = await loadWithTimeout(
+              () => AutoModelForCausalLM.from_pretrained(MODEL, {
+                device: 'webgpu',
+                dtype: 'q4',
+                progress_callback: (progress) => {
+                  try {
+                    if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                      const percent = 75 + (progress.progress * 20);
+                      const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                      updateLoadingProgress(percent, `Loading model (q4): ${fileName}`);
+                      
+                      // Detect stuck progress
+                      if (Math.abs(progress.progress - lastProgress) > 0.01) {
+                        lastProgress = progress.progress;
+                        progressStuckTime = Date.now();
+                      } else if (Date.now() - progressStuckTime > 120000) {
+                        // Progress stuck for 2 minutes
+                        throw new Error('q4 download progress stuck - likely network or memory issue');
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('Progress callback error:', e);
+                  }
+                }
+              }),
+              600000, // 10 minute timeout for q4 fallback
+              'q4 quantized model loading'
+            );
+            
+            addChatMessage('system', '✅ q4 quantization loaded successfully! Good balance of quality and performance.');
+          }
           
-          addChatMessage('system', '🚀 WebGPU acceleration enabled! GPU-only mode active.');
+          addChatMessage('system', '🚀 WebGPU acceleration enabled! Model loaded successfully.');
         } catch (webgpuError) {
           console.warn('WebGPU loading failed:', webgpuError);
           
@@ -994,9 +1043,12 @@ When user asks for something, generate creative, compact p5.js code that creates
         
         updateLoadingProgress(95, 'Finalizing model setup...');
         aiSession = { type: 'qwen', model, tokenizer };
-        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B ✅';
+        
+        // Determine precision mode based on model configuration
+        const precisionMode = model.config && model.config.torch_dtype === 'float16' ? 'FP16' : 'q4';
+        document.getElementById('aiStatus').textContent = `AI: Qwen2.5-0.5B (${precisionMode}) ✅`;
         document.getElementById('generateBtn').disabled = false;
-        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 Ready';
+        document.getElementById('initAIBtn').textContent = `🚀 Qwen2.5 ${precisionMode} Ready`;
         
         // Restore console.warn
         console.warn = originalWarn;
@@ -1004,12 +1056,13 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateLoadingProgress(100, 'Model loaded successfully!');
         setTimeout(() => {
           hideLoadingScreen();
-          updateStatus('🚀 Qwen2.5-0.5B loaded successfully!');
-          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded! Ready to generate creative p5.js code. This text-only model avoids all vision-related errors.');
+          const precisionMode = model.config && model.config.torch_dtype === 'float16' ? 'FP16' : 'q4';
+          updateStatus(`🚀 Qwen2.5-0.5B (${precisionMode}) loaded successfully!`);
+          addChatMessage('system', `🚀 Qwen2.5-0.5B loaded in ${precisionMode} precision! Ready to generate creative p5.js code. This text-only model avoids all vision-related errors.`);
           
-          // Track successful AI loading
+          // Track successful AI loading with precision info
           if (window.AppConfig) {
-            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_success');
+            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', `qwen2.5_${precisionMode.toLowerCase()}_success`);
           }
         }, 500);
         
@@ -1045,7 +1098,7 @@ When user asks for something, generate creative, compact p5.js code that creates
             🚀 Loading Qwen2.5-0.5B
           </div>
           <div style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
-            First time download: ~500MB • Cached for future use
+            Trying FP16 precision (~1GB) • Falls back to q4 (~500MB) • Cached for future use
           </div>
           
           <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; 
