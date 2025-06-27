@@ -1035,9 +1035,104 @@
       height: 18px;
       margin: 0;
     }
+    
+    /* BubblSpace Navigation Styles - Professional Match */
+    .bubblspace-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      z-index: 1000;
+      padding: 16px 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    }
+    
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    
+    .nav-logo img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+    
+    .nav-logo span {
+      font-size: 20px;
+      font-weight: 600;
+      color: #ff5757;
+      letter-spacing: -0.02em;
+    }
+    
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    
+    .nav-links a {
+      color: #0a0a0a80;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      letter-spacing: -0.01em;
+    }
+    
+    .nav-links a:hover {
+      color: #0a0a0a;
+      background: rgba(10, 10, 10, 0.06);
+      transform: translateY(-1px);
+    }
+    
+    .nav-links a:active {
+      transform: translateY(0);
+    }
+    
+    /* Adjust body padding to account for fixed nav */
+    body {
+      padding-top: 60px;
+    }
+    
+    .container {
+      height: calc(100vh - 60px);
+    }
   </style>
 </head>
 <body>
+  <!-- BubblSpace Navigation -->
+  <div class="bubblspace-nav">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <img src="lib/Media/BubblLogZoomed.png" alt="BubblSpace">
+        <span>BubblSpace</span>
+      </div>
+      <div class="nav-links">
+        <a href="https://www.bubblspace.com/" target="_blank" rel="noopener">Home</a>
+        <a href="https://www.bubblspace.com/about-aiedx" target="_blank" rel="noopener">About AIEdx</a>
+        <a href="https://www.bubblspace.com/contact" target="_blank" rel="noopener">Contact Us</a>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <div class="header">
       <div style="display: flex; align-items: center; gap: 25px;">
