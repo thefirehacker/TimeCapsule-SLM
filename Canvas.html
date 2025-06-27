@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Content Security Policy - Ultra-permissive for testing -->
+  <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
+  <!-- Note: Amplify server headers take precedence when deployed -->
   <meta http-equiv="Content-Security-Policy" content="
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
     style-src 'self' 'unsafe-inline' https: data:;
