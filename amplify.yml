@@ -1,13 +1,4 @@
 version: 1
-env:
-  variables:
-    # Google Analytics 4 Configuration
-    GA4_MEASUREMENT_ID: G-XXXXXXXXXX
-    GA4_CONSOLE_LOGGING: false
-    SITE_NAME: SketchPad-SLM
-    SITE_URL: window.location.origin
-    GA4_DEBUG_MODE: false
-    GA4_ANONYMIZE_IP: true
 frontend:
   phases:
     preBuild:
@@ -83,10 +74,6 @@ frontend:
     build:
       commands:
         - echo "Build completed - config.js generated with environment variables"
-    postBuild:
-      commands:
-        - echo "Post-build: Optimizing assets..."
-        - echo "✅ SketchPad-SLM build completed!"
   artifacts:
     baseDirectory: .
     files:
