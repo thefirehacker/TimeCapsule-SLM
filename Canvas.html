@@ -231,7 +231,59 @@
       color: white;
       margin-bottom: 10px;
       font-weight: 600;
-      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .canvas-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .canvas-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      min-width: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .canvas-btn:hover {
+      background: rgba(255, 255, 255, 0.4);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: translateY(-1px);
+    }
+    
+    .canvas-btn.active {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      border-color: rgba(79, 172, 254, 0.5);
+    }
+    
+    .speed-btn {
+      min-width: 50px;
+      font-size: 11px;
+    }
+    
+    .speed-btn.slow {
+      background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%);
+    }
+    
+    .speed-btn.fast {
+      background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+    }
+    
+    .speed-btn.very-fast {
+      background: linear-gradient(45deg, #ffecd2 0%, #fcb69f 100%);
     }
     
     #canvas { 
@@ -526,9 +578,7 @@
     }
     
     .dev-logger-window.minimized {
-      height: 60px;
-      width: 300px;
-      resize: none;
+      display: none;
     }
     
     .dev-logger-window.hidden {
@@ -544,8 +594,12 @@
       padding: 15px 20px;
       background: rgba(255, 255, 255, 0.1);
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      cursor: move;
+      cursor: grab;
       user-select: none;
+    }
+    
+    .dev-logger-header:active {
+      cursor: grabbing;
     }
     
     .dev-logger-title {
@@ -1247,7 +1301,13 @@
     </div>
     
     <div class="canvas-container">
-      <div class="canvas-header">🖼️ Canvas Output</div>
+      <div class="canvas-header">
+        <span>🖼️ Canvas Output</span>
+        <div class="canvas-controls">
+          <button class="canvas-btn" id="pausePlayBtn" title="Pause/Play Animation">⏸️</button>
+          <button class="canvas-btn speed-btn slow" id="speedBtn" title="Animation Speed">SLOW</button>
+        </div>
+      </div>
       <div id="canvas"></div>
     </div>
   </div>
@@ -1335,6 +1395,7 @@
           <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
           <button id="contextBtn" class="panel-btn">⚙️ Context</button>
           <button id="devModeBtn" class="panel-btn">🔧 Dev Mode</button>
+          <button id="devLoggerToggle" class="panel-btn" style="display: none; background: rgba(255,152,0,0.3); border-color: rgba(255,152,0,0.5);">📊 Logger</button>
           <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.8);">
             <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
           </label>
@@ -1392,6 +1453,11 @@
     let chatMode = 'creative'; // 'creative' or 'general'
     let apiMode = false; // false = local LLM, true = API mode
     let openaiApiKey = ''; // Session API key
+    
+    // Canvas animation controls
+    let animationPaused = false;
+    let animationSpeed = 'slow'; // 'slow', 'fast', 'very-fast'
+    let speedMultiplier = 0.5; // Default slow speed
     let userAgreementAccepted = false; // Track if user accepted terms
     let agreementTimestamp = null; // Track when user accepted agreement
     let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
@@ -1446,19 +1512,22 @@
       
       minimize() {
         const window = document.getElementById('devLoggerWindow');
-        const content = document.getElementById('devLoggerContent');
         const btn = document.getElementById('devMinimizeBtn');
         
         if (this.isMinimized) {
           window.classList.remove('minimized');
-          content.classList.remove('minimized');
           btn.textContent = '−';
           this.isMinimized = false;
+          this.isVisible = true;
+          document.getElementById('devModeStatus').textContent = 'ACTIVE';
+          document.getElementById('devModeStatus').style.color = '#4CAF50';
         } else {
           window.classList.add('minimized');
-          content.classList.add('minimized');
           btn.textContent = '+';
           this.isMinimized = true;
+          this.isVisible = false;
+          document.getElementById('devModeStatus').textContent = 'MINIMIZED';
+          document.getElementById('devModeStatus').style.color = '#ff9800';
         }
       }
       
@@ -1672,8 +1741,39 @@
       }
       
       toggleData(id) {
-        const element = document.getElementById(`data-${id}`) || document.getElementById(`req-${id}`) || document.getElementById(`res-${id}`);
-        const button = element.nextElementSibling;
+        // Handle different ID patterns
+        let element = null;
+        let buttonSelector = null;
+        
+        if (id.startsWith('data-')) {
+          element = document.getElementById(id);
+          buttonSelector = `button[onclick*="${id}"]`;
+        } else if (id.startsWith('req-')) {
+          element = document.getElementById(id);
+          buttonSelector = `button[onclick*="${id}"]`;
+        } else if (id.startsWith('res-')) {
+          element = document.getElementById(id);
+          buttonSelector = `button[onclick*="${id}"]`;
+        } else {
+          // Try all patterns
+          element = document.getElementById(`data-${id}`) || 
+                   document.getElementById(`req-${id}`) || 
+                   document.getElementById(`res-${id}`);
+          buttonSelector = `button[onclick*="${id}"]`;
+        }
+        
+        if (!element) {
+          console.warn('DevLogger: Element not found for ID:', id);
+          return;
+        }
+        
+        // Find button by onclick attribute instead of DOM position
+        const button = document.querySelector(buttonSelector);
+        
+        if (!button) {
+          console.warn('DevLogger: Button not found for ID:', id);
+          return;
+        }
         
         if (element.style.display === 'none') {
           element.style.display = 'block';
@@ -1715,11 +1815,19 @@
         let yOffset = 0;
         
         header.addEventListener('mousedown', (e) => {
-          if (e.target.tagName === 'BUTTON') return;
+          // Don't drag if clicking on buttons
+          if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
           
           initialX = e.clientX - xOffset;
           initialY = e.clientY - yOffset;
           isDragging = true;
+          
+          // Add visual feedback
+          window.style.opacity = '0.9';
+          window.style.zIndex = '2000';
+          header.style.cursor = 'grabbing';
+          
+          e.preventDefault();
         });
         
         document.addEventListener('mousemove', (e) => {
@@ -1730,12 +1838,23 @@
             xOffset = currentX;
             yOffset = currentY;
             
+            // Constrain to viewport
+            const maxX = window.innerWidth - window.offsetWidth;
+            const maxY = window.innerHeight - window.offsetHeight;
+            currentX = Math.max(0, Math.min(currentX, maxX));
+            currentY = Math.max(0, Math.min(currentY, maxY));
+            
             window.style.transform = `translate(${currentX}px, ${currentY}px)`;
           }
         });
         
         document.addEventListener('mouseup', () => {
-          isDragging = false;
+          if (isDragging) {
+            isDragging = false;
+            window.style.opacity = '1';
+            window.style.zIndex = '1500';
+            header.style.cursor = 'grab';
+          }
         });
       }
     }
@@ -3542,6 +3661,7 @@ Return response as JSON:
         
         // Create p5 instance and execute the user's code
         currentP5 = new p5((p) => {
+          let originalDraw = null;
           
           // Make p5 functions available in global scope for user code
           const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random'];
@@ -3570,7 +3690,24 @@ Return response as JSON:
             
             // If draw function was created globally, use it
             if (window.draw && typeof window.draw === 'function') {
-              p.draw = window.draw;
+              originalDraw = window.draw;
+              
+              // Store original frameRate
+              const originalFrameRate = p.frameRate;
+              
+              // Wrap the draw function with pause/play and speed control
+              p.draw = function() {
+                if (animationPaused) {
+                  return; // Skip drawing when paused
+                }
+                
+                // Apply speed control by adjusting frameRate
+                const targetFrameRate = 60 * speedMultiplier;
+                p.frameRate(targetFrameRate);
+                
+                originalDraw();
+              };
+              
               updateStatus('✅ Code executed successfully!');
             }
             
@@ -3873,12 +4010,15 @@ Return response as JSON:
           devLogger = new DevLogger();
         }
         
+        const loggerToggle = document.getElementById('devLoggerToggle');
+        
         if (devModeActive) {
           devModeActive = false;
           window.devModeActive = false;
           devLogger.hide();
           document.getElementById('devModeBtn').textContent = '🔧 Dev Mode';
           document.getElementById('devModeBtn').style.background = 'rgba(255, 255, 255, 0.2)';
+          loggerToggle.style.display = 'none';
           console.log('🔧 Dev Mode: DISABLED');
         } else {
           devModeActive = true;
@@ -3887,12 +4027,26 @@ Return response as JSON:
           devLogger.show();
           document.getElementById('devModeBtn').textContent = '🔧 Dev Active';
           document.getElementById('devModeBtn').style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+          loggerToggle.style.display = 'inline-block';
           console.log('🔧 Dev Mode: ENABLED - Full agent pipeline logging active');
         }
         
         // Track dev mode toggle
         if (window.AppConfig) {
           window.AppConfig.trackEvent('dev_mode_toggled', 'debug', devModeActive ? 'enabled' : 'disabled');
+        }
+      });
+      
+      // Dev logger toggle button
+      document.getElementById('devLoggerToggle').addEventListener('click', () => {
+        if (devLogger) {
+          if (devLogger.isMinimized) {
+            devLogger.minimize(); // This will expand it
+          } else if (!devLogger.isVisible) {
+            devLogger.show();
+          } else {
+            devLogger.minimize(); // This will minimize it
+          }
         }
       });
       
@@ -3951,6 +4105,62 @@ Return response as JSON:
         }
         disconnectAI();
       });
+      
+      // Canvas control buttons
+      const pausePlayBtn = document.getElementById('pausePlayBtn');
+      const speedBtn = document.getElementById('speedBtn');
+      
+      if (pausePlayBtn) {
+        pausePlayBtn.addEventListener('click', () => {
+          animationPaused = !animationPaused;
+          
+          if (animationPaused) {
+            pausePlayBtn.textContent = '▶️';
+            pausePlayBtn.title = 'Play Animation';
+            pausePlayBtn.classList.add('active');
+            updateStatus('⏸️ Animation paused');
+          } else {
+            pausePlayBtn.textContent = '⏸️';
+            pausePlayBtn.title = 'Pause Animation';
+            pausePlayBtn.classList.remove('active');
+            updateStatus('▶️ Animation resumed');
+          }
+          
+          // Track pause/play usage
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('animation_control', 'canvas_interaction', animationPaused ? 'paused' : 'resumed');
+          }
+        });
+      }
+      
+      if (speedBtn) {
+        speedBtn.addEventListener('click', () => {
+          // Cycle through speed levels
+          if (animationSpeed === 'slow') {
+            animationSpeed = 'fast';
+            speedMultiplier = 1.0;
+            speedBtn.textContent = 'FAST';
+            speedBtn.className = 'canvas-btn speed-btn fast';
+          } else if (animationSpeed === 'fast') {
+            animationSpeed = 'very-fast';
+            speedMultiplier = 2.0;
+            speedBtn.textContent = 'V-FAST';
+            speedBtn.className = 'canvas-btn speed-btn very-fast';
+          } else {
+            animationSpeed = 'slow';
+            speedMultiplier = 0.5;
+            speedBtn.textContent = 'SLOW';
+            speedBtn.className = 'canvas-btn speed-btn slow';
+          }
+          
+          updateStatus(`🚀 Animation speed: ${animationSpeed.toUpperCase()}`);
+          
+          // Track speed changes
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('animation_speed_changed', 'canvas_interaction', animationSpeed);
+          }
+        });
+      }
 
       // Auto-run bird animation on load
       setTimeout(() => {
