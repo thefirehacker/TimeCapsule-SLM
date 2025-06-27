@@ -762,12 +762,28 @@
       <div class="status-bar" id="statusBar">
         Ready to create amazing p5.js art! 🚀
       </div>
+      
+      <!-- API Key Section (hidden by default) -->
+      <div class="control-group" id="apiKeySection" style="display: none; margin-top: 15px;">
+        <label>🔑 API Configuration:</label>
+        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+          <input type="text" id="openaiApiKey" placeholder="OpenAI_API_KEY" 
+                 style="flex: 1; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); 
+                        border-radius: 6px; color: white; font-size: 12px;" type="password">
+          <button id="toggleApiKeyVisibility" class="editor-btn" title="Toggle API Key Visibility" 
+                  style="min-width: 35px; padding: 6px;">👁️</button>
+        </div>
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 5px;">
+          API key is stored for this session only. Not saved permanently.
+        </div>
+      </div>
     </div>
     
     <div class="editor-container" id="editorContainer">
       <div class="editor-header">
         <span>📝 Code Editor</span>
         <div class="editor-controls">
+          <button class="editor-btn" id="copyCodeBtn" title="Copy Code">📋</button>
           <button class="editor-btn" id="minimizeEditorBtn" title="Minimize Editor">−</button>
           <button class="editor-btn" id="expandEditorBtn" title="Expand Editor">⤢</button>
         </div>
@@ -797,9 +813,12 @@
     <div class="ai-content" id="aiContent">
       <div class="ai-status-bar">
         <div id="aiStatus">AI: Not connected</div>
-        <div style="display: flex; gap: 5px;">
+        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
           <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
           <button id="contextBtn" class="panel-btn">⚙️ Context</button>
+          <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.8);">
+            <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
+          </label>
           <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
         </div>
       </div>
@@ -848,6 +867,8 @@
     let editorInstance, currentP5, aiSession = null;
     let chatHistory = [];
     let chatMode = 'creative'; // 'creative' or 'general'
+    let apiMode = false; // false = local LLM, true = API mode
+    let openaiApiKey = ''; // Session API key
     
     // Context Templates (customizable by user)
     let customContexts = {
@@ -953,31 +974,72 @@ When user asks for something, generate creative, compact p5.js code that creates
         align-items: center; justify-content: center;
       `;
       
-      modal.innerHTML = `
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-          <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 FP16 Qwen2.5 AI</h2>
-          
-          <div style="margin-bottom: 20px;">
-            <button id="selectJanus" class="ai-option-btn">
-              🚀 Load Qwen2.5-0.5B FP16 (~1GB)
-            </button>
-            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-              FP16 precision only. Maximum quality AI generation. No fallbacks - FP16 or nothing.
-            </p>
+      const isApiMode = apiMode;
+      
+      if (isApiMode) {
+        // API Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🚀 Advanced API Models</h2>
+            
+            <div style="margin-bottom: 20px;">
+              <label style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 10px; display: block;">Select Model:</label>
+              <select id="apiModelSelect" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); 
+                                                 border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; 
+                                                 color: white; font-size: 14px;">
+                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Efficient)</option>
+                <option value="gpt-4o">GPT-4o (Most Capable)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo (Balanced)</option>
+                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget-Friendly)</option>
+              </select>
+            </div>
+            
+            <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 20px; text-align: center;">
+              📝 Requires valid OpenAI API key<br/>
+              💰 API usage charges apply based on your OpenAI plan
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+              <button id="connectApiModel" class="ai-option-btn" style="flex: 1;">
+                🔌 Connect API Model
+              </button>
+            </div>
+            
+            <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                    color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                    float: right; margin-top: 10px;">Cancel</button>
           </div>
-          
-          <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
-            ⚠️ Requires WebGPU support and 2GB+ RAM<br/>
-            Model cached after first download for instant future loading
+        `;
+      } else {
+        // Local FP16 Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Local FP16 Qwen2.5</h2>
+            
+            <div style="margin-bottom: 20px;">
+              <button id="selectJanus" class="ai-option-btn">
+                🚀 Load Qwen2.5-0.5B FP16 (~1GB)
+              </button>
+              <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+                FP16 precision only. Maximum quality local AI. No API costs.
+              </p>
+            </div>
+            
+            <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
+              ⚠️ Requires WebGPU support and 2GB+ RAM<br/>
+              Model cached after first download for instant future loading
+            </div>
+            
+            <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                    color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                    float: right; margin-top: 10px;">Cancel</button>
           </div>
-          
-          <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
-                  color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
-                  float: right; margin-top: 10px;">Cancel</button>
-        </div>
-      `;
+        `;
+      }
       
       const style = document.createElement('style');
       style.textContent = `
@@ -995,19 +1057,81 @@ When user asks for something, generate creative, compact p5.js code that creates
       document.body.appendChild(modal);
       
       // Event listeners
-      document.getElementById('selectJanus').onclick = () => {
-        document.body.removeChild(modal);
-        initializeJanus();
-      };
+      if (isApiMode) {
+        document.getElementById('connectApiModel').onclick = () => {
+          const selectedModel = document.getElementById('apiModelSelect').value;
+          document.body.removeChild(modal);
+          initializeApiModel(selectedModel);
+        };
+      } else {
+        document.getElementById('selectJanus').onclick = () => {
+          document.body.removeChild(modal);
+          initializeJanus();
+        };
+      }
       
       document.getElementById('closeModal').onclick = () => {
         document.body.removeChild(modal);
         updateStatus('AI initialization cancelled');
-        addChatMessage('system', 'AI initialization cancelled. FP16 Qwen2.5 required for AI features.');
+        addChatMessage('system', 'AI initialization cancelled.');
       };
     }
 
 
+
+    // Initialize API Model (OpenAI)
+    async function initializeApiModel(modelName) {
+      try {
+        updateStatus('🚀 Connecting to OpenAI API...');
+        document.getElementById('aiStatus').textContent = 'AI: Connecting to API...';
+        
+        // Check if API key is provided
+        const apiKey = document.getElementById('openaiApiKey').value.trim();
+        if (!apiKey) {
+          addChatMessage('system', '❌ OpenAI API Key required. Please enter your API key in the left panel.');
+          document.getElementById('aiStatus').textContent = 'AI: API Key Required ❌';
+          updateStatus('❌ API Key required');
+          return;
+        }
+        
+        // Store API key for session
+        openaiApiKey = apiKey;
+        
+        // Test API connection with a simple request
+        const testResponse = await fetch('https://api.openai.com/v1/models', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`API Key validation failed: ${testResponse.status} ${testResponse.statusText}`);
+        }
+        
+        aiSession = { type: 'openai', model: modelName, apiKey: apiKey };
+        document.getElementById('aiStatus').textContent = `AI: ${modelName} ✅`;
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = `🚀 ${modelName} Ready`;
+        
+        updateStatus(`🚀 ${modelName} connected successfully!`);
+        addChatMessage('system', `🚀 ${modelName} connected! Advanced AI capabilities are now available. API usage charges apply.`);
+        
+        // Track API model connection
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('api_model_connected', 'ai_interaction', modelName);
+        }
+        
+      } catch (error) {
+        console.error('API Model initialization error:', error);
+        addChatMessage('system', `❌ Failed to connect to OpenAI API: ${error.message}`);
+        document.getElementById('aiStatus').textContent = 'AI: API Failed ❌';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '❌ API Failed';
+        updateStatus('❌ API connection failed');
+      }
+    }
 
     // Initialize Qwen2.5
     async function initializeJanus() {
@@ -1248,16 +1372,16 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
     }
 
-    // Generate code using AI (FP16 Qwen2.5 only)
+    // Generate code using AI (FP16 Qwen2.5 or OpenAI API)
     async function generateAICode(userPrompt) {
       if (!aiSession) {
         updateStatus('❌ AI not connected. Click "Connect AI" first.');
         return;
       }
       
-      if (aiSession !== 'template' && aiSession.type !== 'qwen') {
-        updateStatus('❌ Only FP16 Qwen2.5 AI is supported.');
-        addChatMessage('ai', 'AI is disabled. FP16 precision required for code generation.');
+      if (aiSession !== 'template' && aiSession.type !== 'qwen' && aiSession.type !== 'openai') {
+        updateStatus('❌ Invalid AI session type.');
+        addChatMessage('ai', 'AI session error. Please reconnect.');
         return;
       }
 
@@ -1288,7 +1412,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       let aiResponse = '';
       
-      // FP16 Qwen2.5 mode only - General conversation  
+      // AI Model handling - General conversation  
       if (aiSession.type === 'qwen') {
         try {
           // Use custom context template
@@ -1371,10 +1495,43 @@ When user asks for something, generate creative, compact p5.js code that creates
           console.log('%c🤖 FP16 Generation Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', error);
           updateStatus('❌ FP16 model error during generation');
         }
-      } else {
-        aiResponse = 'AI is not properly initialized. FP16 Qwen2.5 required.';
-        updateStatus('❌ AI not available - FP16 required');
-      }
+              } else if (aiSession.type === 'openai') {
+          try {
+            // OpenAI API call for general chat
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${aiSession.apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: aiSession.model,
+                messages: [
+                  { role: 'system', content: customContexts.general.systemPrompt },
+                  { role: 'user', content: customContexts.general.userTemplate.replace('{prompt}', userPrompt) }
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            aiResponse = data.choices[0].message.content.trim();
+            updateStatus(`🚀 ${aiSession.model} responded!`);
+            
+          } catch (error) {
+            console.error('OpenAI API error:', error);
+            aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
+            updateStatus('❌ OpenAI API error');
+          }
+        } else {
+          aiResponse = 'AI is not properly initialized. Please connect an AI model.';
+          updateStatus('❌ AI not available');
+        }
       
       // Add AI response to chat
       addChatMessage('ai', aiResponse);
@@ -1387,7 +1544,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       let code = '';
       let aiResponse = '';
         
-        // FP16 Qwen2.5 mode only - Pure text-only generation (no vision components)
+        // AI Model handling - Code generation
         if (aiSession.type === 'qwen') {
           let generationAttempts = 0;
           const maxGenerationAttempts = 3;
@@ -1618,11 +1775,57 @@ When user asks for something, generate creative, compact p5.js code that creates
               }
             }
           }
+        } else if (aiSession.type === 'openai') {
+          try {
+            // OpenAI API call for creative coding
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${aiSession.apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: aiSession.model,
+                messages: [
+                  { role: 'system', content: customContexts.creative.systemPrompt },
+                  { role: 'user', content: customContexts.creative.userTemplate.replace('{prompt}', userPrompt) }
+                ],
+                max_tokens: 800,
+                temperature: 0.7
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const rawCode = data.choices[0].message.content.trim();
+            
+            // Extract p5.js code from API response
+            code = rawCode.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
+            code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+            
+            // Try to extract just the code if there's explanatory text
+            const codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
+            if (codeMatch) {
+              code = codeMatch[1];
+            }
+            
+            aiResponse = `I've created a p5.js animation for "${userPrompt}" using ${aiSession.model}. Advanced AI model with superior code generation!`;
+            updateStatus(`🚀 ${aiSession.model} generated code!`);
+            
+          } catch (error) {
+            console.error('OpenAI API error:', error);
+            code = '';
+            aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
+            updateStatus('❌ OpenAI API error');
+          }
         } else {
-          // aiSession is not valid Qwen2.5
+          // aiSession is not valid
           code = '';
-          aiResponse = 'AI is not properly initialized. FP16 Qwen2.5 required for code generation.';
-          updateStatus('❌ AI not available - FP16 required');
+          aiResponse = 'AI is not properly initialized. Please connect an AI model.';
+          updateStatus('❌ AI not available');
         }
         
         if (code.length > 10) {
@@ -2375,6 +2578,59 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
       // Editor control event listeners
       document.getElementById('expandEditorBtn').addEventListener('click', expandEditor);
       document.getElementById('minimizeEditorBtn').addEventListener('click', minimizeEditor);
+      
+      // Copy code button
+      document.getElementById('copyCodeBtn').addEventListener('click', () => {
+        const code = editorInstance.getValue();
+        navigator.clipboard.writeText(code).then(() => {
+          updateStatus('📋 Code copied to clipboard!');
+        }).catch(err => {
+          console.error('Failed to copy code:', err);
+          updateStatus('❌ Failed to copy code');
+        });
+      });
+      
+      // API mode toggle
+      document.getElementById('apiModeToggle').addEventListener('change', (e) => {
+        apiMode = e.target.checked;
+        const apiKeySection = document.getElementById('apiKeySection');
+        
+        if (apiMode) {
+          apiKeySection.style.display = 'block';
+          document.getElementById('initAIBtn').textContent = '🚀 Connect API';
+          updateStatus('🔑 API mode enabled. Enter your OpenAI API key.');
+        } else {
+          apiKeySection.style.display = 'none';
+          document.getElementById('initAIBtn').textContent = '🔌 Connect';
+          updateStatus('🤖 Local mode enabled. Use FP16 Qwen2.5.');
+        }
+        
+        // Reset AI session when switching modes
+        aiSession = null;
+        document.getElementById('aiStatus').textContent = 'AI: Not connected';
+        document.getElementById('generateBtn').disabled = true;
+        
+        // Track mode toggle
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('api_mode_toggled', 'ai_interaction', apiMode ? 'api' : 'local');
+        }
+      });
+      
+      // API key visibility toggle
+      document.getElementById('toggleApiKeyVisibility').addEventListener('click', () => {
+        const apiKeyInput = document.getElementById('openaiApiKey');
+        const toggleBtn = document.getElementById('toggleApiKeyVisibility');
+        
+        if (apiKeyInput.type === 'password') {
+          apiKeyInput.type = 'text';
+          toggleBtn.textContent = '🙈';
+          toggleBtn.title = 'Hide API Key';
+        } else {
+          apiKeyInput.type = 'password';
+          toggleBtn.textContent = '👁️';
+          toggleBtn.title = 'Show API Key';
+        }
+      });
 
       // Auto-run fish animation on load
       setTimeout(() => {
