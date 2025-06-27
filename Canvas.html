@@ -1091,6 +1091,7 @@
     let agreementTimestamp = null; // Track when user accepted agreement
     let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
     let agreementRecurringTimer = null; // Timer for recurring reminders (30 seconds)
+    let agreementModalOpen = false; // Track if agreement modal is currently open
     
     // Context Templates (customizable by user)
     let customContexts = {
@@ -1174,6 +1175,15 @@ When user asks for something, generate creative, compact p5.js code that creates
 
     // Show User Agreement Modal
     function showUserAgreement() {
+      // Don't show modal if one is already open
+      if (agreementModalOpen) {
+        console.log('⚠️ Agreement modal already open - skipping duplicate');
+        return;
+      }
+      
+      // Mark modal as open
+      agreementModalOpen = true;
+      
       const modal = document.createElement('div');
       modal.className = 'user-agreement-modal';
       modal.id = 'userAgreementModal';
@@ -1263,6 +1273,14 @@ When user asks for something, generate creative, compact p5.js code that creates
       document.getElementById('agreementCheckbox').addEventListener('change', (e) => {
         document.getElementById('acceptAgreementBtn').disabled = !e.target.checked;
       });
+      
+      // Handle modal close when clicking outside (but keep modal persistent for legal compliance)
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          // Don't allow closing by clicking outside - user must actively accept or decline
+          console.log('⚠️ Agreement must be accepted or declined - cannot close by clicking outside');
+        }
+      });
     }
 
     // Accept User Agreement
@@ -1272,6 +1290,9 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       // Stop all agreement reminders
       stopAgreementReminders();
+      
+      // Mark modal as closed
+      agreementModalOpen = false;
       
       const modal = document.getElementById('userAgreementModal');
       if (modal) {
@@ -1298,6 +1319,9 @@ When user asks for something, generate creative, compact p5.js code that creates
 
     // Decline User Agreement
     function declineAgreement() {
+      // Mark modal as closed
+      agreementModalOpen = false;
+      
       const modal = document.getElementById('userAgreementModal');
       if (modal) {
         modal.style.opacity = '0';
@@ -1365,7 +1389,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       // Set initial 2-minute reminder
       agreementReminderTimer = setTimeout(() => {
-        if (!userAgreementAccepted) {
+        if (!userAgreementAccepted && !agreementModalOpen) {
           console.log('⏰ Showing 2-minute agreement reminder');
           showUserAgreement();
           
@@ -1376,6 +1400,10 @@ When user asks for something, generate creative, compact p5.js code that creates
           if (window.AppConfig) {
             window.AppConfig.trackEvent('agreement_auto_reminder', 'legal', '2_minute_reminder');
           }
+        } else if (agreementModalOpen) {
+          console.log('⏰ 2-minute reminder skipped - modal already open');
+          // Start recurring reminders anyway since modal is open
+          startRecurringReminders();
         }
       }, 120000); // 2 minutes = 120,000ms
     }
@@ -1389,7 +1417,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       // Set recurring 30-second reminders
       agreementRecurringTimer = setInterval(() => {
-        if (!userAgreementAccepted) {
+        if (!userAgreementAccepted && !agreementModalOpen) {
           console.log('🔄 Showing 30-second recurring agreement reminder');
           showUserAgreement();
           
@@ -1397,6 +1425,8 @@ When user asks for something, generate creative, compact p5.js code that creates
           if (window.AppConfig) {
             window.AppConfig.trackEvent('agreement_recurring_reminder', 'legal', '30_second_reminder');
           }
+        } else if (!userAgreementAccepted && agreementModalOpen) {
+          console.log('🔄 30-second reminder skipped - modal already open');
         } else {
           // Stop recurring reminders if agreement accepted
           console.log('✅ Agreement accepted - stopping recurring reminders');
