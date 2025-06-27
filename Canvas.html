@@ -502,6 +502,230 @@
       border-left: 3px solid #4facfe;
     }
     
+    /* Dev Mode Logger */
+    .dev-logger-window {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 600px;
+      height: 500px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 15px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      z-index: 1500;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+      resize: both;
+      overflow: hidden;
+      min-width: 400px;
+      min-height: 300px;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+    
+    .dev-logger-window.minimized {
+      height: 60px;
+      width: 300px;
+      resize: none;
+    }
+    
+    .dev-logger-window.hidden {
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .dev-logger-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: move;
+      user-select: none;
+    }
+    
+    .dev-logger-title {
+      color: white;
+      font-weight: 600;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dev-logger-controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .dev-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+    
+    .dev-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    
+    .dev-logger-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .dev-logger-content.minimized {
+      display: none;
+    }
+    
+    .dev-logger-tabs {
+      display: flex;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .dev-tab {
+      padding: 10px 15px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      border-bottom: 2px solid transparent;
+    }
+    
+    .dev-tab.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      border-bottom-color: #4facfe;
+    }
+    
+    .dev-tab:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .dev-tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    
+    .dev-log-entry {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border-left: 4px solid #4facfe;
+    }
+    
+    .dev-log-entry.error {
+      border-left-color: #f44336;
+      background: rgba(244, 67, 54, 0.1);
+    }
+    
+    .dev-log-entry.warning {
+      border-left-color: #ff9800;
+      background: rgba(255, 152, 0, 0.1);
+    }
+    
+    .dev-log-entry.success {
+      border-left-color: #4caf50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+    
+    .dev-log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .dev-log-timestamp {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 10px;
+    }
+    
+    .dev-log-stage {
+      color: #4facfe;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    
+    .dev-log-message {
+      color: white;
+      margin-bottom: 8px;
+    }
+    
+    .dev-log-data {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      border-radius: 5px;
+      color: #e0e0e0;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .dev-log-expand {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #4facfe;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      margin-top: 5px;
+    }
+    
+    .dev-log-expand:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .dev-stats {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+    
+    .dev-stat {
+      text-align: center;
+    }
+    
+    .dev-stat-value {
+      color: #4facfe;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    
+    .dev-stat-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
     /* Context Editor Modal */
     .context-editor-modal {
       position: fixed;
@@ -923,8 +1147,10 @@
         <select id="designSelect">
           <option value="">Choose a design...</option>
           <option value="fish">🐟 Fish Animation</option>
+          <option value="bird">🦅 Bird Flight</option>
           <option value="rabbit">🐰 Rabbit Bounce</option>
           <option value="spiral">🌀 Rainbow Spiral</option>
+          <option value="cosmic-spiral">✨ Cosmic Spiral</option>
         </select>
       </div>
       
@@ -1029,6 +1255,69 @@
   <!-- Floating AI Toggle Button -->
   <button class="ai-toggle-btn" id="aiToggleBtn">🤖</button>
 
+  <!-- Dev Mode Logger Window -->
+  <div class="dev-logger-window hidden" id="devLoggerWindow">
+    <div class="dev-logger-header" id="devLoggerHeader">
+      <div class="dev-logger-title">
+        <span>🔧</span>
+        <span>Dev Mode Logger</span>
+        <span id="devModeStatus" style="font-size: 10px; color: rgba(255,255,255,0.6);">INACTIVE</span>
+      </div>
+      <div class="dev-logger-controls">
+        <button class="dev-btn" id="devClearBtn" title="Clear Logs">🗑️</button>
+        <button class="dev-btn" id="devMinimizeBtn" title="Minimize">−</button>
+        <button class="dev-btn" id="devCloseBtn" title="Close">×</button>
+      </div>
+    </div>
+    
+    <div class="dev-logger-content" id="devLoggerContent">
+      <div class="dev-logger-tabs">
+        <button class="dev-tab active" data-tab="pipeline">🎯 Pipeline</button>
+        <button class="dev-tab" data-tab="requests">🚀 API Calls</button>
+        <button class="dev-tab" data-tab="responses">📥 Responses</button>
+        <button class="dev-tab" data-tab="stats">📊 Stats</button>
+      </div>
+      
+      <div class="dev-tab-content" id="devTabPipeline">
+        <div class="dev-stats">
+          <div class="dev-stat">
+            <div class="dev-stat-value" id="devStatPipelines">0</div>
+            <div class="dev-stat-label">Pipelines</div>
+          </div>
+          <div class="dev-stat">
+            <div class="dev-stat-value" id="devStatApiCalls">0</div>
+            <div class="dev-stat-label">API Calls</div>
+          </div>
+          <div class="dev-stat">
+            <div class="dev-stat-value" id="devStatSuccess">0</div>
+            <div class="dev-stat-label">Success</div>
+          </div>
+          <div class="dev-stat">
+            <div class="dev-stat-value" id="devStatErrors">0</div>
+            <div class="dev-stat-label">Errors</div>
+          </div>
+        </div>
+        <div id="devPipelineLogs"></div>
+      </div>
+      
+      <div class="dev-tab-content" id="devTabRequests" style="display: none;">
+        <div id="devRequestLogs"></div>
+      </div>
+      
+      <div class="dev-tab-content" id="devTabResponses" style="display: none;">
+        <div id="devResponseLogs"></div>
+      </div>
+      
+      <div class="dev-tab-content" id="devTabStats" style="display: none;">
+        <div id="devStatsContent">
+          <div style="color: rgba(255,255,255,0.8); text-align: center; padding: 20px;">
+            📊 Detailed statistics will appear here during dev mode sessions
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating AI Panel -->
   <div class="ai-floating-panel hidden" id="aiFloatingPanel">
     <div class="ai-panel-header">
@@ -1045,6 +1334,7 @@
         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
           <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
           <button id="contextBtn" class="panel-btn">⚙️ Context</button>
+          <button id="devModeBtn" class="panel-btn">🔧 Dev Mode</button>
           <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.8);">
             <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
           </label>
@@ -1075,6 +1365,9 @@
 
   <!-- Configuration and Analytics -->
   <script src="config.js"></script>
+  
+  <!-- AI Agent System -->
+  <script src="lib/agent/canvas.js"></script>
 
   <!-- Dependencies -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1105,6 +1398,347 @@
     let agreementRecurringTimer = null; // Timer for recurring reminders (30 seconds)
     let agreementModalOpen = false; // Track if agreement modal is currently open
     let pendingAIInitialization = false; // Track if user explicitly wants to initialize AI
+    
+    // Initialize AI Agent System
+    let canvaCore = null;
+    
+    // Dev Mode Logger System
+    let devModeActive = false;
+    let devLogger = null;
+    
+    // Dev Logger Class
+    class DevLogger {
+      constructor() {
+        this.logs = {
+          pipeline: [],
+          requests: [],
+          responses: [],
+          stats: {
+            pipelines: 0,
+            apiCalls: 0,
+            success: 0,
+            errors: 0,
+            startTime: Date.now()
+          }
+        };
+        this.isVisible = false;
+        this.isMinimized = false;
+        this.currentTab = 'pipeline';
+        this.setupEventListeners();
+        this.makeDraggable();
+      }
+      
+      show() {
+        const window = document.getElementById('devLoggerWindow');
+        window.classList.remove('hidden');
+        this.isVisible = true;
+        document.getElementById('devModeStatus').textContent = 'ACTIVE';
+        document.getElementById('devModeStatus').style.color = '#4CAF50';
+      }
+      
+      hide() {
+        const window = document.getElementById('devLoggerWindow');
+        window.classList.add('hidden');
+        this.isVisible = false;
+        document.getElementById('devModeStatus').textContent = 'INACTIVE';
+        document.getElementById('devModeStatus').style.color = 'rgba(255,255,255,0.6)';
+      }
+      
+      minimize() {
+        const window = document.getElementById('devLoggerWindow');
+        const content = document.getElementById('devLoggerContent');
+        const btn = document.getElementById('devMinimizeBtn');
+        
+        if (this.isMinimized) {
+          window.classList.remove('minimized');
+          content.classList.remove('minimized');
+          btn.textContent = '−';
+          this.isMinimized = false;
+        } else {
+          window.classList.add('minimized');
+          content.classList.add('minimized');
+          btn.textContent = '+';
+          this.isMinimized = true;
+        }
+      }
+      
+      clear() {
+        this.logs.pipeline = [];
+        this.logs.requests = [];
+        this.logs.responses = [];
+        this.logs.stats = {
+          pipelines: 0,
+          apiCalls: 0,
+          success: 0,
+          errors: 0,
+          startTime: Date.now()
+        };
+        this.updateDisplay();
+      }
+      
+      logPipeline(stage, message, data = null, level = 'info') {
+        const entry = {
+          timestamp: Date.now(),
+          stage: stage,
+          message: message,
+          data: data,
+          level: level,
+          id: Date.now() + Math.random()
+        };
+        
+        this.logs.pipeline.push(entry);
+        
+        if (level === 'error') this.logs.stats.errors++;
+        if (level === 'success') this.logs.stats.success++;
+        
+        this.updateDisplay();
+      }
+      
+      logRequest(url, method, headers, body, stage) {
+        const entry = {
+          timestamp: Date.now(),
+          url: url,
+          method: method,
+          headers: headers,
+          body: body,
+          stage: stage,
+          id: Date.now() + Math.random()
+        };
+        
+        this.logs.requests.push(entry);
+        this.logs.stats.apiCalls++;
+        this.updateDisplay();
+      }
+      
+      logResponse(requestId, status, headers, body, stage) {
+        const entry = {
+          timestamp: Date.now(),
+          requestId: requestId,
+          status: status,
+          headers: headers,
+          body: body,
+          stage: stage,
+          id: Date.now() + Math.random()
+        };
+        
+        this.logs.responses.push(entry);
+        this.updateDisplay();
+      }
+      
+      startPipeline(userPrompt) {
+        this.logs.stats.pipelines++;
+        this.logPipeline('INIT', `Starting pipeline for: "${userPrompt}"`, { userPrompt }, 'info');
+      }
+      
+      updateDisplay() {
+        this.updateStats();
+        this.updateCurrentTab();
+      }
+      
+      updateStats() {
+        document.getElementById('devStatPipelines').textContent = this.logs.stats.pipelines;
+        document.getElementById('devStatApiCalls').textContent = this.logs.stats.apiCalls;
+        document.getElementById('devStatSuccess').textContent = this.logs.stats.success;
+        document.getElementById('devStatErrors').textContent = this.logs.stats.errors;
+      }
+      
+      updateCurrentTab() {
+        if (this.currentTab === 'pipeline') {
+          this.renderPipelineLogs();
+        } else if (this.currentTab === 'requests') {
+          this.renderRequestLogs();
+        } else if (this.currentTab === 'responses') {
+          this.renderResponseLogs();
+        } else if (this.currentTab === 'stats') {
+          this.renderStatsTab();
+        }
+      }
+      
+      renderPipelineLogs() {
+        const container = document.getElementById('devPipelineLogs');
+        const logs = this.logs.pipeline.slice(-20); // Show last 20 entries
+        
+        container.innerHTML = logs.map(log => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          const dataPreview = log.data ? JSON.stringify(log.data).substring(0, 100) + '...' : '';
+          
+          return `
+            <div class="dev-log-entry ${log.level}">
+              <div class="dev-log-header">
+                <span class="dev-log-stage">${log.stage}</span>
+                <span class="dev-log-timestamp">${time}</span>
+              </div>
+              <div class="dev-log-message">${log.message}</div>
+              ${log.data ? `
+                <div class="dev-log-data" id="data-${log.id}" style="display: none;">
+                  ${JSON.stringify(log.data, null, 2)}
+                </div>
+                <button class="dev-log-expand" onclick="devLogger.toggleData('${log.id}')">
+                  📄 Show Data
+                </button>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+      
+      renderRequestLogs() {
+        const container = document.getElementById('devRequestLogs');
+        const logs = this.logs.requests.slice(-10);
+        
+        container.innerHTML = logs.map(log => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          
+          return `
+            <div class="dev-log-entry">
+              <div class="dev-log-header">
+                <span class="dev-log-stage">${log.stage}</span>
+                <span class="dev-log-timestamp">${time}</span>
+              </div>
+              <div class="dev-log-message">${log.method} ${log.url}</div>
+              <div class="dev-log-data" id="req-${log.id}" style="display: none;">
+                <strong>Headers:</strong>
+                ${JSON.stringify(log.headers, null, 2)}
+                
+                <strong>Body:</strong>
+                ${typeof log.body === 'string' ? log.body : JSON.stringify(log.body, null, 2)}
+              </div>
+              <button class="dev-log-expand" onclick="devLogger.toggleData('req-${log.id}')">
+                📄 Show Request
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      renderResponseLogs() {
+        const container = document.getElementById('devResponseLogs');
+        const logs = this.logs.responses.slice(-10);
+        
+        container.innerHTML = logs.map(log => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          
+          return `
+            <div class="dev-log-entry ${log.status >= 400 ? 'error' : 'success'}">
+              <div class="dev-log-header">
+                <span class="dev-log-stage">${log.stage}</span>
+                <span class="dev-log-timestamp">${time}</span>
+              </div>
+              <div class="dev-log-message">Status: ${log.status}</div>
+              <div class="dev-log-data" id="res-${log.id}" style="display: none;">
+                <strong>Headers:</strong>
+                ${JSON.stringify(log.headers, null, 2)}
+                
+                <strong>Body:</strong>
+                ${typeof log.body === 'string' ? log.body.substring(0, 2000) + (log.body.length > 2000 ? '...' : '') : JSON.stringify(log.body, null, 2)}
+              </div>
+              <button class="dev-log-expand" onclick="devLogger.toggleData('res-${log.id}')">
+                📄 Show Response
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      renderStatsTab() {
+        const container = document.getElementById('devStatsContent');
+        const uptime = Math.round((Date.now() - this.logs.stats.startTime) / 1000);
+        
+        container.innerHTML = `
+          <div class="dev-stats">
+            <div class="dev-stat">
+              <div class="dev-stat-value">${uptime}s</div>
+              <div class="dev-stat-label">Uptime</div>
+            </div>
+            <div class="dev-stat">
+              <div class="dev-stat-value">${this.logs.pipeline.length}</div>
+              <div class="dev-stat-label">Total Logs</div>
+            </div>
+            <div class="dev-stat">
+              <div class="dev-stat-value">${this.logs.stats.success > 0 ? Math.round((this.logs.stats.success / this.logs.stats.pipelines) * 100) : 0}%</div>
+              <div class="dev-stat-label">Success Rate</div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 20px;">
+            <h4 style="color: white; margin-bottom: 10px;">📈 Performance Metrics</h4>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px;">
+              • Average pipeline time: ${this.logs.stats.pipelines > 0 ? Math.round(uptime / this.logs.stats.pipelines) : 0}s<br/>
+              • API calls per pipeline: ${this.logs.stats.pipelines > 0 ? Math.round(this.logs.stats.apiCalls / this.logs.stats.pipelines * 100) / 100 : 0}<br/>
+              • Error rate: ${this.logs.stats.pipelines > 0 ? Math.round((this.logs.stats.errors / this.logs.stats.pipelines) * 100) : 0}%
+            </div>
+          </div>
+        `;
+      }
+      
+      toggleData(id) {
+        const element = document.getElementById(`data-${id}`) || document.getElementById(`req-${id}`) || document.getElementById(`res-${id}`);
+        const button = element.nextElementSibling;
+        
+        if (element.style.display === 'none') {
+          element.style.display = 'block';
+          button.textContent = '📄 Hide Data';
+        } else {
+          element.style.display = 'none';
+          button.textContent = '📄 Show Data';
+        }
+      }
+      
+      setupEventListeners() {
+        document.getElementById('devMinimizeBtn').addEventListener('click', () => this.minimize());
+        document.getElementById('devCloseBtn').addEventListener('click', () => this.hide());
+        document.getElementById('devClearBtn').addEventListener('click', () => this.clear());
+        
+        // Tab switching
+        document.querySelectorAll('.dev-tab').forEach(tab => {
+          tab.addEventListener('click', (e) => {
+            document.querySelectorAll('.dev-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.dev-tab-content').forEach(c => c.style.display = 'none');
+            
+            e.target.classList.add('active');
+            this.currentTab = e.target.dataset.tab;
+            document.getElementById(`devTab${this.currentTab.charAt(0).toUpperCase() + this.currentTab.slice(1)}`).style.display = 'block';
+            this.updateCurrentTab();
+          });
+        });
+      }
+      
+      makeDraggable() {
+        const header = document.getElementById('devLoggerHeader');
+        const window = document.getElementById('devLoggerWindow');
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+        
+        header.addEventListener('mousedown', (e) => {
+          if (e.target.tagName === 'BUTTON') return;
+          
+          initialX = e.clientX - xOffset;
+          initialY = e.clientY - yOffset;
+          isDragging = true;
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            xOffset = currentX;
+            yOffset = currentY;
+            
+            window.style.transform = `translate(${currentX}px, ${currentY}px)`;
+          }
+        });
+        
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+      }
+    }
     
     // Context Templates (customizable by user)
     let customContexts = {
@@ -1141,8 +1775,10 @@ Return response as JSON:
     // Design files mapping
     const designs = {
       fish: 'lib/Designs/fish.js',
+      bird: 'lib/Designs/bird.js',
       rabbit: 'lib/Designs/rabbit.js',
-      spiral: 'lib/Designs/spiral.js'
+      spiral: 'lib/Designs/spiral.js',
+      'cosmic-spiral': 'lib/Designs/cosmic-spiral.js'
     };
 
     // AI System Prompt - Teaches Gemini Nano about SketchPad-SLM
@@ -1413,7 +2049,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       const connectBtn = document.getElementById('initAIBtn');
       const disconnectBtn = document.getElementById('disconnectAIBtn');
       
-      if (aiSession && aiSession !== 'template') {
+      if (aiSession) {
         if (aiSession.type === 'qwen') {
           headerStatus.textContent = '🧠 Qwen2.5 Connected';
           headerStatus.style.color = '#4CAF50';
@@ -1421,11 +2057,6 @@ When user asks for something, generate creative, compact p5.js code that creates
           headerStatus.textContent = `🚀 ${aiSession.model} Connected`;
           headerStatus.style.color = '#4CAF50';
         }
-        connectBtn.style.display = 'none';
-        disconnectBtn.style.display = 'inline-block';
-      } else if (aiSession === 'template') {
-        headerStatus.textContent = '⚡ Smart Templates Active';
-        headerStatus.style.color = '#FF9800';
         connectBtn.style.display = 'none';
         disconnectBtn.style.display = 'inline-block';
       } else {
@@ -1440,25 +2071,28 @@ When user asks for something, generate creative, compact p5.js code that creates
     function disconnectAI() {
       if (aiSession) {
         const wasConnected = aiSession !== null;
-        const aiType = aiSession.type || 'template';
+        const aiType = aiSession.type || 'unknown';
         
-        // Clear AI session
-        aiSession = null;
-        
-        // Reset UI elements
-        document.getElementById('aiStatus').textContent = 'AI: Disconnected';
-        document.getElementById('generateBtn').disabled = true;
-        document.getElementById('initAIBtn').textContent = '🔌 Connect';
-        
-        // Update header status
-        updateHeaderAIStatus();
-        
-        // Clear API key from memory
-        openaiApiKey = '';
-        
-        // Add chat message
-        addChatMessage('system', `🔌 AI disconnected. ${aiType === 'qwen' ? 'Qwen2.5' : aiType === 'openai' ? 'OpenAI API' : 'Smart Templates'} session ended.`);
-        updateStatus('🔌 AI disconnected successfully');
+              // Clear AI session
+      aiSession = null;
+      
+      // Clear agent system
+      canvaCore = null;
+      
+      // Reset UI elements
+      document.getElementById('aiStatus').textContent = 'AI: Disconnected';
+      document.getElementById('generateBtn').disabled = true;
+      document.getElementById('initAIBtn').textContent = '🔌 Connect';
+      
+      // Update header status
+      updateHeaderAIStatus();
+      
+      // Clear API key from memory
+      openaiApiKey = '';
+      
+      // Add chat message
+      addChatMessage('system', `🔌 AI disconnected. ${aiType === 'qwen' ? 'Qwen2.5' : aiType === 'openai' ? 'OpenAI API + Agent System' : 'AI'} session ended.`);
+      updateStatus('🔌 AI disconnected successfully');
         
         // Track disconnection
         if (window.AppConfig && wasConnected) {
@@ -1630,10 +2264,6 @@ When user asks for something, generate creative, compact p5.js code that creates
                                                  border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; 
                                                  color: white; font-size: 14px;">
                 <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast & Efficient)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Efficient)</option>
-                <option value="gpt-4o">GPT-4o (Most Capable)</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo (Balanced)</option>
-                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget-Friendly)</option>
               </select>
             </div>
             
@@ -1761,6 +2391,22 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('aiStatus').textContent = `AI: ${modelName} ✅`;
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = `🚀 ${modelName} Ready`;
+        
+        // Initialize CanvaCore agent system
+        try {
+          if (window.CanvaCore) {
+            canvaCore = new window.CanvaCore();
+            console.log('🎯 CanvaCore: Multi-agent system initialized');
+            addChatMessage('system', '🎯 CanvaCore: Advanced multi-agent system activated! CanvaScan + CanvaArtist ready for enhanced code generation.');
+          } else {
+            console.warn('CanvaCore not available, using standard generation');
+            addChatMessage('system', '⚠️ Agent system not loaded, using standard OpenAI generation');
+          }
+        } catch (agentError) {
+          console.error('Agent system initialization failed:', agentError);
+          addChatMessage('system', '⚠️ Agent system initialization failed, using standard generation');
+          canvaCore = null;
+        }
         
         // Update header status
         updateHeaderAIStatus();
@@ -2011,24 +2657,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
     }
 
-    // Fallback to templates
-    function fallbackToTemplates() {
-      aiSession = 'template';
-      document.getElementById('aiStatus').textContent = 'AI: Smart Templates ⚡';
-      document.getElementById('generateBtn').disabled = false;
-      document.getElementById('initAIBtn').textContent = '⚡ Templates Ready';
-      
-      // Update header status
-      updateHeaderAIStatus();
-      
-      updateStatus('⚡ Smart Templates ready!');
-      addChatMessage('system', '⚡ Smart Template system activated! Uses pattern matching for instant code generation. Works for: "particle explosion", "rainbow spiral", "ocean waves", "geometric patterns", etc.');
-      
-      // Track template fallback
-      if (window.AppConfig) {
-        window.AppConfig.trackEvent('ai_template_fallback', 'ai_interaction', 'template_system');
-      }
-    }
+
 
     // Generate code using AI (FP16 Qwen2.5 or OpenAI API)
     async function generateAICode(userPrompt) {
@@ -2209,7 +2838,42 @@ When user asks for something, generate creative, compact p5.js code that creates
       let aiResponse = '';
         
         // AI Model handling - Code generation
-        if (aiSession.type === 'qwen') {
+        if (aiSession.type === 'openai' && canvaCore) {
+          // Use advanced agent system for OpenAI
+          try {
+            updateStatus('🎯 CanvaCore: Multi-agent system activated...');
+            addChatMessage('system', '🎯 CanvaCore: Starting advanced multi-agent code generation pipeline...');
+            
+            const result = await canvaCore.generateCode(userPrompt, aiSession);
+            
+            code = result.code;
+            aiResponse = result.description;
+            
+            // Add metadata information to chat
+            if (result.metadata) {
+              const metaInfo = [];
+              if (result.metadata.scanPassed === false) metaInfo.push('🔍 CanvaScan: Code repair applied');
+              if (result.metadata.creativityEnhanced) metaInfo.push('🎨 CanvaArtist: Creativity enhanced');
+              if (result.metadata.agentTries > 0) metaInfo.push(`🔄 Agent tries: ${result.metadata.agentTries}`);
+              if (result.metadata.runtimeTested) metaInfo.push('🧪 Runtime execution tested');
+              if (result.metadata.visualOutput) metaInfo.push('🎨 Visual output verified');
+              if (result.metadata.executionVerified) metaInfo.push('✅ Execution verified');
+
+              
+              if (metaInfo.length > 0) {
+                addChatMessage('system', metaInfo.join(' • '));
+              }
+            }
+            
+            updateStatus('✅ CanvaCore: Multi-agent generation completed!');
+            
+          } catch (error) {
+            console.error('CanvaCore error:', error);
+            addChatMessage('system', `❌ CanvaCore error: ${error.message}. Code generation failed.`);
+            updateStatus('❌ CanvaCore pipeline failed');
+            return; // Exit without generating code
+          }
+        } else if (aiSession.type === 'qwen') {
           let generationAttempts = 0;
           const maxGenerationAttempts = 3;
           let janusSuccess = false;
@@ -2392,15 +3056,12 @@ When user asks for something, generate creative, compact p5.js code that creates
                 // Show detailed error info in chat
                 addChatMessage('system', `❌ Syntax Error: ${syntaxError.message}`);
                 addChatMessage('system', `🐛 Problematic Code: "${code.substring(0, 100)}${code.length > 100 ? '...' : ''}"`);
-                addChatMessage('system', `❌ FP16 model generated invalid syntax. No fallbacks available.`);
+                addChatMessage('system', `❌ FP16 model generated invalid syntax. Code generation failed.`);
                 
-                // FP16-only: No fallbacks, show error
-                code = '';
-                aiResponse = `FP16 model generated invalid syntax: ${syntaxError.message}. Please try a different prompt.`;
-                console.log('%c🤖 FP16 Syntax Error - No Fallback', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', syntaxError);
-                updateStatus('❌ FP16 generated invalid syntax - no fallbacks available');
-                janusSuccess = true; // Stop retrying
-                break;
+                // FP16-only: No fallbacks, complete failure
+                console.log('%c🤖 FP16 Syntax Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', syntaxError);
+                updateStatus('❌ FP16 generated invalid syntax - code generation failed');
+                return; // Exit without generating code
               }
               aiResponse = `I've created a custom p5.js animation for "${userPrompt}" using Qwen2.5-0.5B (attempt ${generationAttempts}). Pure text model with no vision components.`;
               updateStatus(`🚀 Qwen2.5-0.5B generated code (attempt ${generationAttempts})!`);
@@ -2425,13 +3086,11 @@ When user asks for something, generate creative, compact p5.js code that creates
                   errorMessage = 'Insufficient memory for model execution';
                 }
                 
-                // FP16-only: No fallbacks, show error
-                addChatMessage('ai', `❌ Qwen2.5 FP16 failed after ${generationAttempts} attempts: ${errorMessage}. No fallbacks available.`);
-                code = '';
-                aiResponse = `FP16 model failed after ${generationAttempts} attempts: ${errorMessage}. Please try a different prompt or restart the AI.`;
-                console.log('%c🤖 FP16 Final Failure - No Fallback', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', errorMessage);
-                updateStatus('❌ FP16 failed all attempts - no fallbacks available');
-                break;
+                // FP16-only: No fallbacks, complete failure
+                addChatMessage('ai', `❌ Qwen2.5 FP16 failed after ${generationAttempts} attempts: ${errorMessage}. Code generation failed.`);
+                console.log('%c🤖 FP16 Final Failure', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', errorMessage);
+                updateStatus('❌ FP16 failed all attempts - code generation failed');
+                return; // Exit without generating code
               } else {
                 // Try again with different parameters
                 addChatMessage('system', `⚠️ Qwen2.5 attempt ${generationAttempts} failed, trying again with different parameters...`);
@@ -2440,93 +3099,10 @@ When user asks for something, generate creative, compact p5.js code that creates
             }
           }
         } else if (aiSession.type === 'openai') {
-          try {
-            // OpenAI API call for creative coding with JSON response format
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${aiSession.apiKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                model: aiSession.model,
-                messages: [
-                  { role: 'system', content: customContexts.creative.systemPrompt },
-                  { role: 'user', content: customContexts.creative.userTemplate.replace('{prompt}', userPrompt) }
-                ],
-                max_tokens: 1200,
-                temperature: 0.7,
-                response_format: { type: "json_object" }
-              })
-            });
-            
-            if (!response.ok) {
-              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            const rawContent = data.choices[0].message.content.trim();
-            
-            // Console log raw OpenAI API response
-            console.log('%c🚀 RAW OPENAI API RESPONSE (Creative Chat)', 'background: #00a67d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-            console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
-            console.log('%cRaw Content:', 'color: #666; font-weight: bold;', rawContent);
-            
-            // Parse JSON response
-            let jsonResponse;
-            try {
-              jsonResponse = JSON.parse(rawContent);
-              console.log('%cParsed JSON:', 'color: #666; font-weight: bold;', jsonResponse);
-            } catch (jsonError) {
-              console.warn('Failed to parse JSON, falling back to text extraction:', jsonError);
-              // Fallback: try to extract code from raw text
-              code = rawContent.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
-              code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
-              
-              const codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
-              if (codeMatch) {
-                code = codeMatch[1];
-              }
-              
-              aiResponse = `I've created a p5.js animation for "${userPrompt}" using ${aiSession.model} (text fallback).`;
-              updateStatus(`🚀 ${aiSession.model} generated code (text fallback)!`);
-              console.log('%cUsing text fallback code:', 'color: #666; font-weight: bold;', code);
-              return;
-            }
-            
-            // Extract code and description from JSON
-            if (jsonResponse && jsonResponse.code) {
-              code = jsonResponse.code;
-              
-              // Handle escaped newlines in JSON
-              code = code.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-              
-              // Validate and clean the code
-              if (!code.includes('t=0')) {
-                code = 't=0\n' + code;
-              }
-              if (!code.includes('createCanvas')) {
-                code = code.replace('draw=_=>{', 'draw=_=>{\n  t||createCanvas(w=800,h=600)');
-              }
-              
-              const description = jsonResponse.description || `Animation for "${userPrompt}"`;
-              aiResponse = `🎨 ${description} Generated using ${aiSession.model} with structured JSON response!`;
-              
-              console.log('%cExtracted Code from JSON:', 'color: #666; font-weight: bold;', code);
-              console.log('%cDescription:', 'color: #666; font-weight: bold;', description);
-              
-            } else {
-              throw new Error('JSON response missing required "code" field');
-            }
-            
-            updateStatus(`🚀 ${aiSession.model} generated structured code!`);
-            
-          } catch (error) {
-            console.error('OpenAI API error:', error);
-            code = '';
-            aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
-            updateStatus('❌ OpenAI API error');
-          }
+          // Standard OpenAI generation (fallback when agent system not available)
+          const result = await handleStandardOpenAIGeneration(userPrompt);
+          code = result.code;
+          aiResponse = result.aiResponse;
         } else {
           // aiSession is not valid
           code = '';
@@ -2557,176 +3133,105 @@ When user asks for something, generate creative, compact p5.js code that creates
         }
     }
 
-    // Smart Template System - Pattern-based code generation
-    function generateTemplateCode(prompt) {
-      const lower = prompt.toLowerCase();
+    // Standard OpenAI Generation (fallback function)
+    async function handleStandardOpenAIGeneration(userPrompt) {
+      let code = '';
+      let aiResponse = '';
       
-      // Particle systems & explosions
-      if (lower.includes('particle') || lower.includes('explosion') || lower.includes('dots') || lower.includes('stars')) {
-        return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,30)
-  t+=0.02
-  for(i=0;i<300;i++){
-    x=w/2+sin(t+i*0.1)*i*2
-    y=h/2+cos(t+i*0.1)*i*2
-    fill(sin(i)*127+128,cos(i)*127+128,255,200)
-    ellipse(x,y,5,5)
-  }
-}`;
+      try {
+        // OpenAI API call for creative coding with JSON response format
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${aiSession.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: aiSession.model,
+            messages: [
+              { role: 'system', content: customContexts.creative.systemPrompt },
+              { role: 'user', content: customContexts.creative.userTemplate.replace('{prompt}', userPrompt) }
+            ],
+            max_tokens: 1200,
+            temperature: 0.7,
+            response_format: { type: "json_object" }
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const rawContent = data.choices[0].message.content.trim();
+        
+        // Console log raw OpenAI API response
+        console.log('%c🚀 RAW OPENAI API RESPONSE (Standard)', 'background: #00a67d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+        console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+        console.log('%cRaw Content:', 'color: #666; font-weight: bold;', rawContent);
+        
+        // Parse JSON response
+        let jsonResponse;
+        try {
+          jsonResponse = JSON.parse(rawContent);
+          console.log('%cParsed JSON:', 'color: #666; font-weight: bold;', jsonResponse);
+        } catch (jsonError) {
+          console.warn('Failed to parse JSON, falling back to text extraction:', jsonError);
+          // Fallback: try to extract code from raw text
+          code = rawContent.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
+          code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+          
+          const codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
+          if (codeMatch) {
+            code = codeMatch[1];
+          }
+          
+          aiResponse = `I've created a p5.js animation for "${userPrompt}" using ${aiSession.model} (text fallback).`;
+          updateStatus(`🚀 ${aiSession.model} generated code (text fallback)!`);
+          console.log('%cUsing text fallback code:', 'color: #666; font-weight: bold;', code);
+          return { code, aiResponse };
+        }
+        
+        // Extract code and description from JSON
+        if (jsonResponse && jsonResponse.code) {
+          code = jsonResponse.code;
+          
+          // Handle escaped newlines in JSON
+          code = code.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+          
+          // Validate and clean the code
+          if (!code.includes('t=0')) {
+            code = 't=0\n' + code;
+          }
+          if (!code.includes('createCanvas')) {
+            code = code.replace('draw=_=>{', 'draw=_=>{\n  t||createCanvas(w=800,h=600)');
+          }
+          
+          const description = jsonResponse.description || `Animation for "${userPrompt}"`;
+          aiResponse = `🎨 ${description} Generated using ${aiSession.model} with structured JSON response!`;
+          
+          console.log('%cExtracted Code from JSON:', 'color: #666; font-weight: bold;', code);
+          console.log('%cDescription:', 'color: #666; font-weight: bold;', description);
+          
+        } else {
+          throw new Error('JSON response missing required "code" field');
+        }
+        
+        updateStatus(`🚀 ${aiSession.model} generated structured code!`);
+        
+      } catch (error) {
+        console.error('OpenAI API error:', error);
+        code = '';
+        aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
+        updateStatus('❌ OpenAI API error');
       }
       
-      // Spirals & galaxies
-      if (lower.includes('spiral') || lower.includes('galaxy') || lower.includes('swirl') || lower.includes('twist')) {
-        return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,20)
-  t+=0.03
-  for(i=0;i<150;i++){
-    a=t+i*0.3
-    r=i*4
-    x=w/2+cos(a)*r
-    y=h/2+sin(a)*r
-    fill(sin(a)*127+128,cos(a+1)*127+128,255)
-    ellipse(x,y,8,8)
-  }
-}`;
-      }
-      
-      // Waves & ocean
-      if (lower.includes('wave') || lower.includes('ocean') || lower.includes('water') || lower.includes('sine')) {
-        return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,50)
-  t+=0.1
-  for(i=0;i<w;i+=8){
-    y=h/2+sin(i*0.02+t)*80
-    fill(0,150,255,180)
-    ellipse(i,y,12,12)
-  }
-}`;
-      }
-      
-      // Geometric patterns
-      if (lower.includes('geometric') || lower.includes('triangle') || lower.includes('square') || lower.includes('polygon')) {
-        return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,40)
-  t+=0.04
-  for(i=0;i<10;i++)for(j=0;j<8;j++){
-    x=i*80+40
-    y=j*75+40
-    fill(sin(t+i+j)*127+128,cos(t+i-j)*127+128,255)
-    ellipse(x+sin(t)*20,y+cos(t)*20,30,30)
-  }
-}`;
-      }
-      
-      // Kaleidoscope
-      if (lower.includes('kaleidoscope') || lower.includes('mandala') || lower.includes('symmetry')) {
-        return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,30)
-  t+=0.05
-  for(i=0;i<12;i++){
-    a=i*PI/6+t
-    x=w/2+cos(a)*200
-    y=h/2+sin(a)*200
-    fill(sin(a+t)*127+128,cos(a+t)*127+128,255)
-    for(j=0;j<5;j++){
-      ellipse(x+cos(a+j)*j*10,y+sin(a+j)*j*10,15,15)
-    }
-  }
-}`;
-      }
-      
-      // Colorful/rainbow
-      if (lower.includes('colorful') || lower.includes('rainbow') || lower.includes('color')) {
-        return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,20)
-  t+=0.06
-  for(i=0;i<100;i++){
-    x=w/2+sin(t+i*0.2)*i*3
-    y=h/2+cos(t+i*0.2)*i*3
-    fill(sin(i+t)*127+128,cos(i+t*2)*127+128,sin(i+t*3)*127+128)
-    ellipse(x,y,10,10)
-  }
-}`;
-      }
-      
-      // Default creative pattern
-      return `t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,30)
-  t+=0.04
-  for(i=0;i<80;i++){
-    x=w/2+sin(t+i*0.1)*i*2.5
-    y=h/2+cos(t+i*0.15)*i*2.5
-    fill(sin(t+i)*127+128,cos(t+i*0.5)*127+128,255)
-    ellipse(x,y,8,8)
-  }
-}`;
+      return { code, aiResponse };
     }
 
-    // Generate general responses for template mode
-    function generateGeneralResponse(prompt) {
-      const lower = prompt.toLowerCase();
-      
-      // Programming/coding questions
-      if (lower.includes('programming') || lower.includes('coding') || lower.includes('javascript') || lower.includes('p5.js')) {
-        return "I'd be happy to help with programming questions! For p5.js specifically, try switching to Creative Mode to generate visual code. For general programming concepts, I can explain algorithms, data structures, best practices, and more.";
-      }
-      
-      // AI/ML questions
-      if (lower.includes('ai') || lower.includes('machine learning') || lower.includes('neural network') || lower.includes('artificial intelligence')) {
-        return "AI and machine learning are fascinating fields! Neural networks are computational models inspired by biological brains, using layers of interconnected nodes to learn patterns from data. They're used in everything from image recognition to natural language processing like this conversation!";
-      }
-      
-      // Technology questions
-      if (lower.includes('technology') || lower.includes('computer') || lower.includes('software') || lower.includes('hardware')) {
-        return "Technology is constantly evolving! I can discuss various topics like software development, computer hardware, emerging technologies, programming languages, frameworks, and how different systems work together.";
-      }
-      
-      // Creative questions
-      if (lower.includes('creative') || lower.includes('art') || lower.includes('design') || lower.includes('visual')) {
-        return "Creativity and art are wonderful topics! Digital art, generative design, creative coding, and visual aesthetics all play important roles in modern creative expression. Tools like p5.js make it easy to create interactive art and animations.";
-      }
-      
-      // Science questions
-      if (lower.includes('science') || lower.includes('physics') || lower.includes('math') || lower.includes('mathematics')) {
-        return "Science and mathematics form the foundation of our understanding of the world! From basic principles to complex theories, these fields help us model reality and solve problems. What specific area interests you?";
-      }
-      
-      // Geography/world knowledge
-      if (lower.includes('capital') && lower.includes('india')) {
-        return "The capital of India is New Delhi.";
-      }
-      if (lower.includes('capital') && lower.includes('france')) {
-        return "The capital of France is Paris.";
-      }
-      if (lower.includes('capital') && lower.includes('japan')) {
-        return "The capital of Japan is Tokyo.";
-      }
-      if (lower.includes('capital') && lower.includes('uk') || lower.includes('united kingdom') || lower.includes('england')) {
-        return "The capital of the United Kingdom is London.";
-      }
-      
-      // General greeting/help
-      if (lower.includes('hello') || lower.includes('hi') || lower.includes('help') || lower.includes('what can you do')) {
-        return "Hello! I'm your AI assistant. In General Chat mode, I can discuss various topics like technology, science, programming, art, and more. Switch to Creative Mode if you want to generate p5.js visual art code. What would you like to talk about?";
-      }
-      
-      // Default response
-      return `That's an interesting question about "${prompt}"! I can discuss a wide range of topics including technology, science, programming, art, and general knowledge. Feel free to ask me anything specific you'd like to know more about.`;
-    }
+
+
+
 
     function updateStatus(message) {
       document.getElementById('statusBar').textContent = message;
@@ -2745,10 +3250,10 @@ draw=_=>{
       switch(type) {
         case 'user': headerText = '👤 You'; break;
         case 'ai': 
-          if (aiSession === 'template') {
-            headerText = '🤖 Smart Templates';
-          } else if (aiSession.type === 'qwen') {
+          if (aiSession && aiSession.type === 'qwen') {
             headerText = '🧠 Qwen2.5-0.5B';
+          } else if (aiSession && aiSession.type === 'openai') {
+            headerText = '🤖 AI Assistant';
           } else {
             headerText = '🤖 AI Assistant';
           }
@@ -3091,18 +3596,40 @@ Return response as JSON:
       }
     };
 
-    require(['vs/editor/editor.main'], () => {
-      // Initialize Monaco with default fish code
+    require(['vs/editor/editor.main'], async () => {
+      // Initialize Monaco with bird.js as default
+      let defaultCode = [
+        '// Welcome to SketchPad-SLM!',
+        '// Loading default bird animation...',
+        '',
+        't=0',
+        'draw=_=>{',
+        '  t||createCanvas(400,400)',
+        '  background(0)',
+        '  t+=0.05',
+        '  ',
+        '  fill(255)',
+        '  text("Loading bird animation...", 20, 200)',
+        '}'
+      ].join('\n');
+      
+      // Try to load bird.js as default
+      try {
+        const response = await fetch('lib/Designs/bird.js');
+        if (response.ok) {
+          defaultCode = await response.text();
+          updateStatus('🦅 Loaded bird.js as default animation');
+        } else {
+          updateStatus('⚠️ Using fallback code - bird.js not found');
+        }
+      } catch (error) {
+        console.warn('Could not load bird.js as default:', error);
+        updateStatus('⚠️ Using fallback code - bird.js load failed');
+      }
+      
       editorInstance = monaco.editor.create(
         document.getElementById('editor'), {
-          value: [
-            '// Welcome to SketchPad-SLM!',
-            '// Edit this code and click "Draw" to see magic happen ✨',
-            '',
-            '// Fish animation scaled to full canvas size',
-            'a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))=>point((q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))*cos(d/8+t/4)+50*cos(c=d-t)+w/2,q*sin(c)+d*7*sin(c/4)+h/2)',
-            't=0,draw=$=>{if(!t){w=800;h=600;createCanvas(w,h)}background(9);stroke(255,116);for(t+=PI/120,i=1e4;i--;)a(i,i/235)}'
-          ].join('\n'),
+          value: defaultCode,
           language: 'javascript',
           theme: 'vs-dark',
           automaticLayout: true,
@@ -3340,6 +3867,36 @@ Return response as JSON:
       });
       
       // API mode toggle
+      // Dev mode toggle
+      document.getElementById('devModeBtn').addEventListener('click', () => {
+        if (!devLogger) {
+          devLogger = new DevLogger();
+        }
+        
+        if (devModeActive) {
+          devModeActive = false;
+          window.devModeActive = false;
+          devLogger.hide();
+          document.getElementById('devModeBtn').textContent = '🔧 Dev Mode';
+          document.getElementById('devModeBtn').style.background = 'rgba(255, 255, 255, 0.2)';
+          console.log('🔧 Dev Mode: DISABLED');
+        } else {
+          devModeActive = true;
+          window.devModeActive = true;
+          window.devLogger = devLogger;
+          devLogger.show();
+          document.getElementById('devModeBtn').textContent = '🔧 Dev Active';
+          document.getElementById('devModeBtn').style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+          console.log('🔧 Dev Mode: ENABLED - Full agent pipeline logging active');
+        }
+        
+        // Track dev mode toggle
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('dev_mode_toggled', 'debug', devModeActive ? 'enabled' : 'disabled');
+        }
+      });
+      
+      // API mode toggle
       document.getElementById('apiModeToggle').addEventListener('change', (e) => {
         apiMode = e.target.checked;
         const apiKeySection = document.getElementById('apiKeySection');
@@ -3395,7 +3952,7 @@ Return response as JSON:
         disconnectAI();
       });
 
-      // Auto-run fish animation on load
+      // Auto-run bird animation on load
       setTimeout(() => {
         window.runSketch(editorInstance.getValue());
       }, 1000);
@@ -3408,6 +3965,10 @@ Return response as JSON:
       
       // Start agreement reminder system
       startAgreementReminders();
+      
+      // Make dev logger globally available
+      window.devModeActive = devModeActive;
+      window.devLogger = devLogger;
 
       updateStatus('🚀 SketchPad-SLM loaded successfully!');
     });
