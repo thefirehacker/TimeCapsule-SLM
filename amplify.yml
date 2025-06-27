@@ -77,4 +77,24 @@ frontend:
   artifacts:
     baseDirectory: .
     files:
-      - '**/*' 
+      - '**/*'
+  cache:
+    paths: []
+  headers:
+    - pattern: '**/*'
+      headers:
+        # Content Security Policy - Allow unsafe-eval for Monaco Editor and p5.js code execution
+        Content-Security-Policy: >
+          script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com;
+          style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+          connect-src 'self' https://api.openai.com https://www.googletagmanager.com https://www.google-analytics.com;
+          img-src 'self' data: https: blob:;
+          font-src 'self' data: https://cdn.jsdelivr.net;
+          worker-src 'self' blob: data:;
+          object-src 'none';
+          base-uri 'self';
+        # Additional security headers
+        X-Frame-Options: DENY
+        X-Content-Type-Options: nosniff
+        Referrer-Policy: strict-origin-when-cross-origin
+        Permissions-Policy: "camera=(), microphone=(), geolocation=()" 
