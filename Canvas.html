@@ -1089,6 +1089,8 @@
     let openaiApiKey = ''; // Session API key
     let userAgreementAccepted = false; // Track if user accepted terms
     let agreementTimestamp = null; // Track when user accepted agreement
+    let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
+    let agreementRecurringTimer = null; // Timer for recurring reminders (30 seconds)
     
     // Context Templates (customizable by user)
     let customContexts = {
@@ -1268,6 +1270,9 @@ When user asks for something, generate creative, compact p5.js code that creates
       userAgreementAccepted = true;
       agreementTimestamp = new Date(); // Record acceptance timestamp
       
+      // Stop all agreement reminders
+      stopAgreementReminders();
+      
       const modal = document.getElementById('userAgreementModal');
       if (modal) {
         modal.style.opacity = '0';
@@ -1349,6 +1354,69 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       // Show the same agreement modal
       showUserAgreement();
+    }
+
+    // Start Agreement Reminder System
+    function startAgreementReminders() {
+      // Clear any existing timers
+      stopAgreementReminders();
+      
+      console.log('🔔 Agreement reminder system started: 2-minute initial reminder, then 30-second recurring');
+      
+      // Set initial 2-minute reminder
+      agreementReminderTimer = setTimeout(() => {
+        if (!userAgreementAccepted) {
+          console.log('⏰ Showing 2-minute agreement reminder');
+          showUserAgreement();
+          
+          // Start recurring 30-second reminders
+          startRecurringReminders();
+          
+          // Track automatic reminder
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('agreement_auto_reminder', 'legal', '2_minute_reminder');
+          }
+        }
+      }, 120000); // 2 minutes = 120,000ms
+    }
+
+    // Start Recurring 30-second Reminders
+    function startRecurringReminders() {
+      // Clear any existing recurring timer
+      if (agreementRecurringTimer) {
+        clearInterval(agreementRecurringTimer);
+      }
+      
+      // Set recurring 30-second reminders
+      agreementRecurringTimer = setInterval(() => {
+        if (!userAgreementAccepted) {
+          console.log('🔄 Showing 30-second recurring agreement reminder');
+          showUserAgreement();
+          
+          // Track recurring reminder
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('agreement_recurring_reminder', 'legal', '30_second_reminder');
+          }
+        } else {
+          // Stop recurring reminders if agreement accepted
+          console.log('✅ Agreement accepted - stopping recurring reminders');
+          clearInterval(agreementRecurringTimer);
+          agreementRecurringTimer = null;
+        }
+      }, 30000); // 30 seconds = 30,000ms
+    }
+
+    // Stop All Agreement Reminders
+    function stopAgreementReminders() {
+      if (agreementReminderTimer) {
+        clearTimeout(agreementReminderTimer);
+        agreementReminderTimer = null;
+      }
+      
+      if (agreementRecurringTimer) {
+        clearInterval(agreementRecurringTimer);
+        agreementRecurringTimer = null;
+      }
     }
 
     // Initialize AI with Multiple Options
@@ -3086,6 +3154,9 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
 
       // Initialize agreement status display
       updateAgreementStatusDisplay();
+      
+      // Start agreement reminder system
+      startAgreementReminders();
 
       updateStatus('🚀 SketchPad-SLM loaded successfully!');
     });
