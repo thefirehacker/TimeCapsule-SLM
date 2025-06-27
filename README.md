@@ -1,27 +1,103 @@
 <div align="center">
-  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/SketchPad-SLM.png" alt="SketchPad-SLM Logo" width="200" height="200">
   
-  # SketchPad-SLM
+  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/SketchPad-SLM.png" alt="SketchPad-SLM Logo" width="180" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
   
-  > A live p5.js code editor with Monaco Editor and AI World Generator.
+  # 🎨 SketchPad-SLM
+  
+  ### *AI-powered creative coding studio for generating stunning p5.js visual art and animations*
+  
+  [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://sketchpad.bubblspace.com)
+  [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
+  [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://sketchpad.bubblspace.com)
+  [![Made with Love](https://img.shields.io/badge/Made_with-❤️-red?style=for-the-badge)](https://x.com/thefirehacker)
+  
+  ---
+  
+  ## 🌐 **✨ Experience Live Now! ✨**
+  
+  ### **🎯 [Launch SketchPad-SLM →](https://sketchpad.bubblspace.com)**
+  
+  <table>
+  <tr>
+  <td width="50%" align="center">
+    
+  **🚀 Instant Access**
+  
+  No downloads, no setup - just click and create!
+  Professional-grade creative coding in your browser.
+    
+  </td>
+  <td width="50%" align="center">
+    
+  **🤖 AI-Powered**
+  
+  Local FP16 AI & OpenAI integration for intelligent code generation and creative assistance.
+    
+  </td>
+  </tr>
+  </table>
+  
+  ### 🎨 **What You Get:**
+  
+  <div align="left" style="margin: 20px 0;">
+  
+  💻 **Real-time Monaco Editor** with p5.js integration  
+  🧠 **Dual AI Modes**: Local Qwen2.5 FP16 + OpenAI API  
+  ⚙️ **Custom Context Templates** for personalized AI behavior  
+  📱 **Responsive Design** that works on all devices  
+  🎯 **One-Click Execution** with instant visual feedback  
+  🔒 **Privacy First** with local AI processing option  
+  
+  </div>
+  
+  ---
+  
 </div>
 
-SketchPad-SLM provides a split-view p5.js live editor where you can write compact JavaScript code and see it execute immediately. It also includes an AI-powered world generator using modern Small Language Models that run directly in your browser.
+## 🎯 **What is SketchPad-SLM?**
+
+SketchPad-SLM is a **revolutionary creative coding platform** that combines the power of **p5.js**, **Monaco Editor**, and **cutting-edge AI** to create an unparalleled digital art creation experience. Write code, see instant results, and let AI amplify your creativity!
+
+<div align="center">
+
+### 🎨 **Create → Generate → Visualize**
+
+</div>
 
 ---
 
-## 🚀 Features
+## 🚀 **Core Features**
 
-- **Canvas.html**: Live p5.js editor with Monaco
-  - Split-view: code editor on left, canvas on right
-  - Execute code from editor with "Draw" button
-  - Supports compact JavaScript and creative coding patterns
-  
-- **WorldGenerator.html**: AI-powered world creator
-  - 5 modern SLMs (Phi-3, Gemma, Qwen2, TinyLlama, SmolLM)
-  - Visual world maps with interactive locations
-  - Custom code editor for world generation logic
-  - Save/load functionality for persistent worlds
+<table>
+<tr>
+<td width="50%">
+
+### 🎨 **Canvas Studio**
+- **Monaco Editor Integration** - Professional code editing
+- **Real-time Execution** - Instant visual feedback  
+- **Split-view Design** - Code left, canvas right
+- **Compact JavaScript** - Optimized for creative coding
+- **Copy & Share** - Export your creations easily
+
+</td>
+<td width="50%">
+
+### 🤖 **AI Powerhouse**
+- **Local FP16 Qwen2.5** - Privacy-focused AI (1GB model)
+- **OpenAI Integration** - GPT-4o, GPT-4o Mini support
+- **Custom Templates** - Personalize AI behavior
+- **Smart Suggestions** - Context-aware code generation
+- **Dual Mode Support** - Local + Cloud AI options
+
+</td>
+</tr>
+</table>
+
+### 🌍 **World Generator** *(Bonus Feature)*
+- **5 Modern SLMs** - Phi-3, Gemma, Qwen2, TinyLlama, SmolLM
+- **Interactive Maps** - Visual world exploration
+- **Persistent Worlds** - Save and load your creations
+- **Custom Logic** - Advanced world generation scripting
 
 ---
 
@@ -118,31 +194,75 @@ draw=_=>{
 
 ---
 
-## 💾 Getting Started
+## 🚀 **Getting Started**
 
-### For Basic Usage (Templates)
-1. **Clone or download the repository**
-2. **Open Canvas.html** in your browser for the live editor
-3. **Choose "Smart Templates"** when prompted (works instantly)
-4. **Start coding!** - No build step required
+<div align="center">
 
-### For DeepSeek Janus-Pro-1B (Local AI)
-1. **Run a local server** (required for large model downloads):
-   ```bash
-   npm i -g live-server
-   live-server .
-   ```
-   Or use Python: `python -m http.server 8000`
-2. **Open http://localhost:8080/Canvas.html**
-3. **Select "DeepSeek Janus-Pro-1B"** when prompted
-4. **Wait for model download** (~640MB, cached after first use)
+### 🎯 **Choose Your Adventure!**
 
-### Quick Start
-1. Open `Canvas.html` (or via local server for Janus)
-2. Choose your AI engine: **Janus-Pro-1B** (real AI) or **Templates** (instant)
-3. Type or paste p5.js code in the left editor
-4. Click "Draw" to execute
-5. Use AI chat to generate new creative patterns
+</div>
+
+<table>
+<tr>
+<td width="50%" align="center">
+
+### 🌐 **Instant Online** *(Recommended)*
+
+**🎯 [Launch Now →](https://sketchpad.bubblspace.com)**
+
+✅ **Zero Setup** - Works immediately  
+✅ **Full AI Features** - Local FP16 + OpenAI  
+✅ **Professional Grade** - Production ready  
+✅ **Always Updated** - Latest features  
+
+</td>
+<td width="50%" align="center">
+
+### 💻 **Local Development**
+
+**📁 Clone & Code**
+
+```bash
+git clone https://github.com/thefirehacker/SketchPad-SLM
+cd SketchPad-SLM
+# Open Canvas.html in browser
+```
+
+✅ **Full Source Access**  
+✅ **Customization Ready**  
+✅ **Offline Capable**  
+✅ **Development Mode**
+
+</td>
+</tr>
+</table>
+
+---
+
+### 🎯 **Quick Start Guide**
+
+<div align="left">
+
+**Step 1:** 🌐 **[Open SketchPad-SLM](https://sketchpad.bubblspace.com)** in your browser  
+**Step 2:** 🤖 **Choose AI Mode** - Local FP16 (privacy) or OpenAI API (power)  
+**Step 3:** 🎨 **Start Creating** - Type code or chat with AI for generation  
+**Step 4:** ▶️ **Hit "Draw"** - See your art come to life instantly!  
+**Step 5:** 🎊 **Share & Enjoy** - Copy, save, and show off your creations  
+
+</div>
+
+### 🛠️ **Development Setup** *(For Contributors)*
+
+```bash
+# Install dependencies
+npm i -g live-server
+
+# Start local server
+live-server .
+
+# Open http://localhost:8080/Canvas.html
+# Select AI model and start coding!
+```
 
 ---
 
@@ -156,11 +276,62 @@ draw=_=>{
 
 ---
 
-## 📄 Files
+## 📄 **Project Structure**
 
-- `Canvas.html` - Live p5.js code editor
-- `WorldGenerator.html` - AI world generator  
+<table>
+<tr>
+<td width="50%">
+
+### 🎨 **Core Files**
+- `Canvas.html` - Main creative coding studio
+- `WorldGenerator.html` - AI world creator
 - `WorldGenerator-v2.html` - Enhanced world generator
-- `Script01.js` - Utility scripts
-- `CREDITS` - Attribution for algorithms
+- `Script01.js` - Utility functions and helpers
+
+</td>
+<td width="50%">
+
+### 📋 **Documentation**
+- `README.md` - This comprehensive guide
+- `CREDITS` - Algorithm attributions
 - `LICENSE` - Apache 2.0 License
+- `lib/` - Assets and design templates
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 **Powered By**
+
+<div align="center">
+  
+  <a href="https://bubblspace.com" target="_blank">
+    <img src="lib/Media/BubblLogZoomed.png" alt="BubblSpace" width="120" style="margin: 20px;">
+  </a>
+  
+  ### **Proudly Supported by [BubblSpace](https://bubblspace.com)**
+  
+  *Building the future of AI-powered creativity and collaboration*
+  
+  [![Visit BubblSpace](https://img.shields.io/badge/🌐_Visit-BubblSpace.com-4285f4?style=for-the-badge)](https://bubblspace.com)
+  
+</div>
+
+---
+
+<div align="center">
+
+### 🧙‍♂️ **Created with ❤️ by [FireHacker](https://x.com/thefirehacker)**
+
+**Made for creators, developers, and digital artists worldwide**
+
+[![Twitter Follow](https://img.shields.io/twitter/follow/thefirehacker?style=social)](https://x.com/thefirehacker)
+[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/SketchPad-SLM?style=social)](https://github.com/thefirehacker/SketchPad-SLM)
+
+---
+
+*⭐ If you found this project helpful, please give it a star! ⭐*
+
+</div>
