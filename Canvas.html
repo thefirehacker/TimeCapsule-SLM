@@ -490,6 +490,154 @@
       margin-top: 8px;
       border-left: 3px solid #4facfe;
     }
+    
+    /* Context Editor Modal */
+    .context-editor-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    .context-editor-content {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 15px;
+      padding: 25px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      color: white;
+    }
+    
+    .context-editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .context-editor-header h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+    
+    .model-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .model-selector select {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    
+    .context-sections {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .context-section {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .context-section h3 {
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      color: #fff;
+    }
+    
+    .context-input-group {
+      margin-bottom: 15px;
+    }
+    
+    .context-input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 600;
+    }
+    
+    .context-textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      padding: 10px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .context-textarea::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .context-textarea.large {
+      min-height: 120px;
+    }
+    
+    .context-editor-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .context-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .context-btn.primary {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      color: white;
+    }
+    
+    .context-btn.secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .context-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .context-template-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 5px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -651,6 +799,7 @@
         <div id="aiStatus">AI: Not connected</div>
         <div style="display: flex; gap: 5px;">
           <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
+          <button id="contextBtn" class="panel-btn">⚙️ Context</button>
           <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
         </div>
       </div>
@@ -699,6 +848,30 @@
     let editorInstance, currentP5, aiSession = null;
     let chatHistory = [];
     let chatMode = 'creative'; // 'creative' or 'general'
+    
+    // Context Templates (customizable by user)
+    let customContexts = {
+      general: {
+        systemPrompt: 'You are a helpful AI assistant. Answer questions clearly and informatively.',
+        userTemplate: 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.'
+      },
+      creative: {
+        systemPrompt: 'You are a helpful assistant that generates p5.js code.',
+        userTemplate: `Generate p5.js code for: {prompt}
+
+Use this exact structure:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.05
+  fill(255,100,150)
+  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
+}
+
+Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`
+      }
+    };
     
     // Design files mapping
     const designs = {
@@ -1118,12 +1291,11 @@ When user asks for something, generate creative, compact p5.js code that creates
       // FP16 Qwen2.5 mode only - General conversation  
       if (aiSession.type === 'qwen') {
         try {
-          const generalPrompt = `Question: ${userPrompt}
-
-Answer this question clearly and informatively (maximum 10 lines). Be direct and helpful.`;
+          // Use custom context template
+          const generalPrompt = customContexts.general.userTemplate.replace('{prompt}', userPrompt);
 
           const messages = [
-            { role: 'system', content: 'You are a helpful AI assistant. Answer questions clearly and informatively.' },
+            { role: 'system', content: customContexts.general.systemPrompt },
             { role: 'user', content: generalPrompt }
           ];
           
@@ -1226,23 +1398,12 @@ Answer this question clearly and informatively (maximum 10 lines). Be direct and
             try {
               generationAttempts++;
               
-              const fullPrompt = `Generate p5.js code for: ${userPrompt}
-
-Use this exact structure:
-t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,20)
-  t+=0.05
-  fill(255,100,150)
-  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
-}
-
-Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
+              // Use custom context template
+              const fullPrompt = customContexts.creative.userTemplate.replace('{prompt}', userPrompt);
 
               // Use proper Qwen2.5 chat format
               const messages = [
-                { role: 'system', content: 'You are a helpful assistant that generates p5.js code.' },
+                { role: 'system', content: customContexts.creative.systemPrompt },
                 { role: 'user', content: fullPrompt }
               ];
               
@@ -1754,6 +1915,146 @@ draw=_=>{
       }
     }
 
+    // Show Context Editor Modal
+    function showContextEditor() {
+      const modal = document.createElement('div');
+      modal.className = 'context-editor-modal';
+      modal.id = 'contextEditorModal';
+      
+      modal.innerHTML = `
+        <div class="context-editor-content">
+          <div class="context-editor-header">
+            <h2>⚙️ Context Editor</h2>
+            <button class="context-btn secondary" onclick="closeContextEditor()">×</button>
+          </div>
+          
+          <div class="model-selector">
+            <label style="color: rgba(255,255,255,0.8); font-weight: 600;">Model:</label>
+            <select id="modelSelect">
+              <option value="qwen">Qwen2.5-0.5B FP16</option>
+            </select>
+          </div>
+          
+          <div class="context-sections">
+            <div class="context-section">
+              <h3>💬 General Chat Context</h3>
+              
+              <div class="context-input-group">
+                <label>System Prompt:</label>
+                <textarea id="generalSystemPrompt" class="context-textarea" placeholder="Define the AI's role and behavior for general conversations...">${customContexts.general.systemPrompt}</textarea>
+                <div class="context-template-hint">Sets the AI's personality and behavior for general questions</div>
+              </div>
+              
+              <div class="context-input-group">
+                <label>User Message Template:</label>
+                <textarea id="generalUserTemplate" class="context-textarea large" placeholder="Template for user messages... Use {prompt} as placeholder">${customContexts.general.userTemplate}</textarea>
+                <div class="context-template-hint">Use {prompt} where user input should be inserted</div>
+              </div>
+            </div>
+            
+            <div class="context-section">
+              <h3>🎨 Creative Chat Context</h3>
+              
+              <div class="context-input-group">
+                <label>System Prompt:</label>
+                <textarea id="creativeSystemPrompt" class="context-textarea" placeholder="Define the AI's role for code generation...">${customContexts.creative.systemPrompt}</textarea>
+                <div class="context-template-hint">Sets the AI's behavior for p5.js code generation</div>
+              </div>
+              
+              <div class="context-input-group">
+                <label>User Message Template:</label>
+                <textarea id="creativeUserTemplate" class="context-textarea large" placeholder="Template for creative prompts... Use {prompt} as placeholder">${customContexts.creative.userTemplate}</textarea>
+                <div class="context-template-hint">Include instructions and examples for p5.js code generation</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="context-editor-actions">
+            <div>
+              <button class="context-btn secondary" onclick="resetContexts()">🔄 Reset to Defaults</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="context-btn secondary" onclick="closeContextEditor()">Cancel</button>
+              <button class="context-btn primary" onclick="saveContexts()">💾 Save & Apply</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+    }
+
+    // Close Context Editor
+    function closeContextEditor() {
+      const modal = document.getElementById('contextEditorModal');
+      if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+        }, 200);
+      }
+    }
+
+    // Save custom contexts
+    function saveContexts() {
+      const generalSystem = document.getElementById('generalSystemPrompt').value.trim();
+      const generalUser = document.getElementById('generalUserTemplate').value.trim();
+      const creativeSystem = document.getElementById('creativeSystemPrompt').value.trim();
+      const creativeUser = document.getElementById('creativeUserTemplate').value.trim();
+      
+      // Validate inputs
+      if (!generalSystem || !generalUser || !creativeSystem || !creativeUser) {
+        alert('All fields are required. Please fill in all context templates.');
+        return;
+      }
+      
+      if (!generalUser.includes('{prompt}') || !creativeUser.includes('{prompt}')) {
+        alert('User templates must contain {prompt} placeholder for user input.');
+        return;
+      }
+      
+      // Save to custom contexts
+      customContexts.general.systemPrompt = generalSystem;
+      customContexts.general.userTemplate = generalUser;
+      customContexts.creative.systemPrompt = creativeSystem;
+      customContexts.creative.userTemplate = creativeUser;
+      
+      closeContextEditor();
+      addChatMessage('system', '✅ Custom contexts saved and applied! Your chat templates are now active for this session.');
+      updateStatus('✅ Custom contexts applied successfully!');
+      
+      // Track context customization
+      if (window.AppConfig) {
+        window.AppConfig.trackEvent('context_customized', 'ai_interaction', 'custom_templates');
+      }
+    }
+
+    // Reset contexts to defaults
+    function resetContexts() {
+      if (confirm('Reset all contexts to default values? This will overwrite your current changes.')) {
+        // Reset to original defaults
+        document.getElementById('generalSystemPrompt').value = 'You are a helpful AI assistant. Answer questions clearly and informatively.';
+        document.getElementById('generalUserTemplate').value = 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.';
+        document.getElementById('creativeSystemPrompt').value = 'You are a helpful assistant that generates p5.js code.';
+        document.getElementById('creativeUserTemplate').value = `Generate p5.js code for: {prompt}
+
+Use this exact structure:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.05
+  fill(255,100,150)
+  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
+}
+
+Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
+      }
+    }
+
     // Editor expand/minimize functions
     function expandEditor() {
       const editorContainer = document.getElementById('editorContainer');
@@ -2006,6 +2307,14 @@ draw=_=>{
           window.AppConfig.trackEvent('chat_mode_toggled', 'ai_interaction', chatMode);
         }
         toggleChatMode();
+      });
+      
+      document.getElementById('contextBtn').addEventListener('click', () => {
+        // Track context editor open
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('context_editor_opened', 'ai_interaction', 'context_button');
+        }
+        showContextEditor();
       });
       
       document.getElementById('generateBtn').addEventListener('click', () => {
