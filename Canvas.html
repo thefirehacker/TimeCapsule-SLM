@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Content Security Policy - Ultra-permissive for testing -->
+  <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
+  <!-- Note: Amplify server headers take precedence when deployed -->
   <meta http-equiv="Content-Security-Policy" content="
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
     style-src 'self' 'unsafe-inline' https: data:;
@@ -656,12 +657,12 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      z-index: 3000;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(15px);
     }
     
     .user-agreement-content {
@@ -1102,6 +1103,7 @@
     let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
     let agreementRecurringTimer = null; // Timer for recurring reminders (30 seconds)
     let agreementModalOpen = false; // Track if agreement modal is currently open
+    let pendingAIInitialization = false; // Track if user explicitly wants to initialize AI
     
     // Context Templates (customizable by user)
     let customContexts = {
@@ -1189,6 +1191,13 @@ When user asks for something, generate creative, compact p5.js code that creates
       if (agreementModalOpen) {
         console.log('⚠️ Agreement modal already open - skipping duplicate');
         return;
+      }
+      
+      // Close any existing AI selection modals first
+      const existingAIModal = document.querySelector('[style*="position: fixed"][style*="z-index: 2000"]');
+      if (existingAIModal) {
+        existingAIModal.remove();
+        console.log('🔄 Closed existing AI modal before showing agreement');
       }
       
       // Mark modal as open
@@ -1289,6 +1298,9 @@ When user asks for something, generate creative, compact p5.js code that creates
         if (e.target === modal) {
           // Don't allow closing by clicking outside - user must actively accept or decline
           console.log('⚠️ Agreement must be accepted or declined - cannot close by clicking outside');
+          // Prevent any background AI modal from showing
+          e.stopPropagation();
+          e.preventDefault();
         }
       });
     }
@@ -1323,8 +1335,15 @@ When user asks for something, generate creative, compact p5.js code that creates
         window.AppConfig.trackEvent('user_agreement_accepted', 'legal', 'ai_terms');
       }
       
-      // Proceed with AI initialization
-      showAISelectionModal();
+      // Only proceed with AI initialization if user explicitly requested it
+      if (pendingAIInitialization) {
+        console.log('✅ Agreement accepted - proceeding with requested AI initialization');
+        pendingAIInitialization = false; // Reset flag
+        showAISelectionModal();
+      } else {
+        console.log('✅ Agreement accepted - no AI initialization requested');
+        addChatMessage('system', '✅ User Agreement accepted. You can now use AI features by clicking "Connect AI".');
+      }
     }
 
     // Decline User Agreement
@@ -1386,6 +1405,10 @@ When user asks for something, generate creative, compact p5.js code that creates
         window.AppConfig.trackEvent('agreement_viewed_from_status', 'legal', 'status_button');
       }
       
+      // This is just for review - not for AI initialization
+      pendingAIInitialization = false;
+      console.log('📋 Showing agreement for review (not AI initialization)');
+      
       // Show the same agreement modal
       showUserAgreement();
     }
@@ -1400,7 +1423,9 @@ When user asks for something, generate creative, compact p5.js code that creates
       // Set initial 2-minute reminder
       agreementReminderTimer = setTimeout(() => {
         if (!userAgreementAccepted && !agreementModalOpen) {
-          console.log('⏰ Showing 2-minute agreement reminder');
+          console.log('⏰ Showing 2-minute agreement reminder (not for AI initialization)');
+          // This is just a reminder - not for AI initialization
+          pendingAIInitialization = false;
           showUserAgreement();
           
           // Start recurring 30-second reminders
@@ -1428,7 +1453,9 @@ When user asks for something, generate creative, compact p5.js code that creates
       // Set recurring 30-second reminders
       agreementRecurringTimer = setInterval(() => {
         if (!userAgreementAccepted && !agreementModalOpen) {
-          console.log('🔄 Showing 30-second recurring agreement reminder');
+          console.log('🔄 Showing 30-second recurring agreement reminder (not for AI initialization)');
+          // This is just a reminder - not for AI initialization
+          pendingAIInitialization = false;
           showUserAgreement();
           
           // Track recurring reminder
@@ -1465,24 +1492,51 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateStatus('🤖 Initializing AI system...');
         document.getElementById('aiStatus').textContent = 'AI: Checking...';
         
+        // Mark that user explicitly wants to initialize AI
+        pendingAIInitialization = true;
+        
         // Check if user has accepted agreement
         if (!userAgreementAccepted) {
+          console.log('🔒 User explicitly requested AI - showing agreement first');
           showUserAgreement();
           return;
         }
         
-        // Show AI selection modal
+        // Additional safety check - don't show AI modal if agreement modal is open
+        if (agreementModalOpen) {
+          console.log('⚠️ Agreement modal is open - deferring AI initialization');
+          return;
+        }
+        
+        // User has accepted agreement and explicitly wants AI - show selection modal
+        console.log('✅ User explicitly requested AI and agreement is accepted - showing AI selection');
+        pendingAIInitialization = false; // Reset flag since we're proceeding
         showAISelectionModal();
         
       } catch (error) {
         console.error('AI initialization error:', error);
+        pendingAIInitialization = false; // Reset flag on error
         fallbackToTemplates();
       }
     }
 
     // Show AI selection modal
     function showAISelectionModal() {
+      // Don't show AI modal if agreement modal is open
+      if (agreementModalOpen) {
+        console.log('⚠️ Agreement modal is open - cannot show AI selection modal');
+        return;
+      }
+      
+      // Don't show if user hasn't accepted agreement
+      if (!userAgreementAccepted) {
+        console.log('⚠️ User agreement not accepted - cannot show AI selection modal');
+        showUserAgreement();
+        return;
+      }
+      
       const modal = document.createElement('div');
+      modal.className = 'ai-selection-modal';
       modal.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.7); z-index: 2000; display: flex;
