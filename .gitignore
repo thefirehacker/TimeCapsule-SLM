@@ -60,3 +60,6 @@ pids
 *.pid
 *.seed
 *.pid.lock 
+
+#MAC
+.DS_Store

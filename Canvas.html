@@ -180,7 +180,7 @@
       cursor: pointer;
       font-size: 14px;
       font-weight: bold;
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
       min-width: 30px;
       display: flex;
       align-items: center;
@@ -490,6 +490,262 @@
       margin-top: 8px;
       border-left: 3px solid #4facfe;
     }
+    
+    /* Context Editor Modal */
+    .context-editor-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    .context-editor-content {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 15px;
+      padding: 25px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      color: white;
+    }
+    
+    .context-editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .context-editor-header h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+    
+    .model-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .model-selector select {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    
+    .context-sections {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .context-section {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .context-section h3 {
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      color: #fff;
+    }
+    
+    .context-input-group {
+      margin-bottom: 15px;
+    }
+    
+    .context-input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 600;
+    }
+    
+    .context-textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      padding: 10px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .context-textarea::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .context-textarea.large {
+      min-height: 120px;
+    }
+    
+    .context-editor-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .context-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .context-btn.primary {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      color: white;
+    }
+    
+    .context-btn.secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .context-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .context-template-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 5px;
+      font-style: italic;
+    }
+    
+    /* User Agreement Modal */
+    .user-agreement-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 3000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+    
+    .user-agreement-content {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 15px;
+      padding: 30px;
+      width: 90%;
+      max-width: 700px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .agreement-header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 15px;
+    }
+    
+    .agreement-header h2 {
+      margin: 0;
+      font-size: 24px;
+      color: #fff;
+    }
+    
+    .agreement-section {
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 15px;
+      border-left: 4px solid #fa709a;
+    }
+    
+    .agreement-section h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #fee140;
+    }
+    
+    .agreement-section p, .agreement-section ul {
+      margin: 8px 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .agreement-section ul {
+      padding-left: 20px;
+    }
+    
+    .agreement-section li {
+      margin: 5px 0;
+    }
+    
+    .warning-box {
+      background: rgba(255, 69, 0, 0.2);
+      border: 2px solid rgba(255, 69, 0, 0.5);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    
+    .warning-box h4 {
+      margin: 0 0 8px 0;
+      color: #ff6b35;
+      font-size: 16px;
+    }
+    
+    .agreement-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-top: 25px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .agreement-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .agreement-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -503,6 +759,71 @@
         </div>
       </div>
             <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
+        <!-- FireHacker Attribution -->
+        <a href="https://x.com/thefirehacker" target="_blank" class="firehacker-link" style="
+          color: rgba(255,255,255,0.9); 
+          text-decoration: none; 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center; 
+          gap: 4px; 
+          padding: 8px 10px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.15);
+          border-radius: 10px;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+          min-width: 60px;
+        " 
+        onmouseover="
+          this.style.transform='translateY(-2px) scale(1.05)'; 
+          this.style.background='rgba(255,255,255,0.15)';
+          this.style.borderColor='rgba(255,255,255,0.3)';
+          this.style.boxShadow='0 8px 30px rgba(0,0,0,0.25)';
+          this.style.color='white';
+          this.querySelector('.wizard-shimmer').style.left='100%';
+        " 
+        onmouseout="
+          this.style.transform='translateY(0) scale(1)'; 
+          this.style.background='rgba(255,255,255,0.08)';
+          this.style.borderColor='rgba(255,255,255,0.15)';
+          this.style.boxShadow='0 4px 20px rgba(0,0,0,0.15)';
+          this.style.color='rgba(255,255,255,0.9)';
+          this.querySelector('.wizard-shimmer').style.left='-100%';
+        ">
+          <img src="lib/Media/Firehacker_Wizard01.jpg" alt="FireHacker" style="
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            object-fit: cover;
+            filter: drop-shadow(0 3px 8px rgba(0,0,0,0.4));
+            transition: all 0.3s ease;
+          ">
+          <span style="
+            font-size: 9px; 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          ">FireHacker</span>
+          <div style="
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,165,0,0.2), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
+          " class="wizard-shimmer"></div>
+        </a>
+        
         <a href="https://github.com/thefirehacker/SketchPad-SLM" target="_blank" class="github-link" style="
           color: rgba(255,255,255,0.9); 
           text-decoration: none; 
@@ -614,12 +935,73 @@
       <div class="status-bar" id="statusBar">
         Ready to create amazing p5.js art! 🚀
       </div>
+      
+      <!-- Usage Agreement & Terms Section -->
+      <div class="control-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <button id="agreementStatusBtn" class="btn secondary" style="padding: 8px 12px; font-size: 12px; cursor: pointer;">
+          📋 Usage Agreement & Terms
+        </button>
+        <div id="agreementStatus" style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 5px; text-align: center;">
+          Status: Not Reviewed
+        </div>
+      </div>
+      
+      <!-- Creator Attribution -->
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center;">
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">
+          Created by
+        </div>
+        <a href="https://x.com/thefirehacker" target="_blank" style="
+          color: rgba(255,255,255,0.8); 
+          text-decoration: none; 
+          font-size: 12px; 
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: all 0.3s ease;
+        " 
+        onmouseover="
+          this.style.background='rgba(255,255,255,0.1)'; 
+          this.style.borderColor='rgba(255,255,255,0.2)';
+          this.style.color='white';
+          this.style.transform='translateY(-1px)';
+        " 
+        onmouseout="
+          this.style.background='rgba(255,255,255,0.05)'; 
+          this.style.borderColor='rgba(255,255,255,0.1)';
+          this.style.color='rgba(255,255,255,0.8)';
+          this.style.transform='translateY(0)';
+        ">
+          🧙‍♂️ FireHacker
+        </a>
+      </div>
+      
+      <!-- API Key Section (hidden by default) -->
+      <div class="control-group" id="apiKeySection" style="display: none; margin-top: 15px;">
+        <label>🔑 API Configuration:</label>
+        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+          <input type="text" id="openaiApiKey" placeholder="OpenAI_API_KEY" 
+                 style="flex: 1; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); 
+                        border-radius: 6px; color: white; font-size: 12px;" type="password">
+          <button id="toggleApiKeyVisibility" class="editor-btn" title="Toggle API Key Visibility" 
+                  style="min-width: 35px; padding: 6px;">👁️</button>
+        </div>
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 5px;">
+          API key is stored for this session only. Not saved permanently.
+        </div>
+      </div>
     </div>
     
     <div class="editor-container" id="editorContainer">
       <div class="editor-header">
         <span>📝 Code Editor</span>
         <div class="editor-controls">
+          <button class="editor-btn" id="copyCodeBtn" title="Copy Code">📄</button>
           <button class="editor-btn" id="minimizeEditorBtn" title="Minimize Editor">−</button>
           <button class="editor-btn" id="expandEditorBtn" title="Expand Editor">⤢</button>
         </div>
@@ -649,8 +1031,12 @@
     <div class="ai-content" id="aiContent">
       <div class="ai-status-bar">
         <div id="aiStatus">AI: Not connected</div>
-        <div style="display: flex; gap: 5px;">
+        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
           <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
+          <button id="contextBtn" class="panel-btn">⚙️ Context</button>
+          <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.8);">
+            <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
+          </label>
           <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
         </div>
       </div>
@@ -699,6 +1085,37 @@
     let editorInstance, currentP5, aiSession = null;
     let chatHistory = [];
     let chatMode = 'creative'; // 'creative' or 'general'
+    let apiMode = false; // false = local LLM, true = API mode
+    let openaiApiKey = ''; // Session API key
+    let userAgreementAccepted = false; // Track if user accepted terms
+    let agreementTimestamp = null; // Track when user accepted agreement
+    let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
+    let agreementRecurringTimer = null; // Timer for recurring reminders (30 seconds)
+    let agreementModalOpen = false; // Track if agreement modal is currently open
+    
+    // Context Templates (customizable by user)
+    let customContexts = {
+      general: {
+        systemPrompt: 'You are a helpful AI assistant. Answer questions clearly and informatively.',
+        userTemplate: 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.'
+      },
+      creative: {
+        systemPrompt: 'You are a helpful assistant that generates p5.js code.',
+        userTemplate: `Generate p5.js code for: {prompt}
+
+Use this exact structure:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.05
+  fill(255,100,150)
+  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
+}
+
+Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`
+      }
+    };
     
     // Design files mapping
     const designs = {
@@ -756,11 +1173,293 @@ AVAILABLE FUNCTIONS:
 
 When user asks for something, generate creative, compact p5.js code that creates visual art matching their request.`;
 
+    // Show User Agreement Modal
+    function showUserAgreement() {
+      // Don't show modal if one is already open
+      if (agreementModalOpen) {
+        console.log('⚠️ Agreement modal already open - skipping duplicate');
+        return;
+      }
+      
+      // Mark modal as open
+      agreementModalOpen = true;
+      
+      const modal = document.createElement('div');
+      modal.className = 'user-agreement-modal';
+      modal.id = 'userAgreementModal';
+      
+      modal.innerHTML = `
+        <div class="user-agreement-content">
+          <div class="agreement-header">
+            <h2>📋 Usage Agreement & Terms</h2>
+            <p style="font-size: 14px; color: rgba(255,255,255,0.8); margin: 10px 0 0 0;">
+              Please review these important terms before using AI features
+            </p>
+          </div>
+          
+          <div class="agreement-section">
+            <h3>🤖 AI Technology Usage</h3>
+            <p>SketchPad-SLM integrates artificial intelligence for <strong>workflow automation and creative assistance</strong>. AI features include:</p>
+            <ul>
+              <li>Local FP16 Qwen2.5 language model for offline code generation</li>
+              <li>OpenAI API integration for advanced AI capabilities</li>
+              <li>Automated p5.js code generation and creative coding assistance</li>
+              <li>Context-aware chat and programming help</li>
+            </ul>
+          </div>
+          
+          <div class="warning-box">
+            <h4>⚠️ IMPORTANT AI ACCURACY DISCLAIMER</h4>
+            <p><strong>AI is NOT a fully accurate tool.</strong> Generated code, responses, and suggestions may contain errors, bugs, or inaccuracies. All AI output should be thoroughly reviewed, tested, and validated by the end user before implementation or reliance.</p>
+          </div>
+          
+          <div class="agreement-section">
+            <h3>👤 User Responsibilities</h3>
+            <p>By using AI features, you acknowledge and agree to:</p>
+            <ul>
+              <li><strong>Review all AI-generated content</strong> for accuracy and appropriateness</li>
+              <li><strong>Test generated code</strong> before using in production environments</li>
+              <li><strong>Verify AI responses</strong> against authoritative sources when needed</li>
+              <li><strong>Use AI as an assistant tool</strong>, not as a replacement for human judgment</li>
+              <li><strong>Comply with OpenAI's usage policies</strong> when using API features</li>
+            </ul>
+          </div>
+          
+          <div class="agreement-section">
+            <h3>🛡️ Liability Limitation</h3>
+            <p><strong>AIEDX Private Limited or any of its employees</strong> provides AI features "as-is" and makes no warranties regarding:</p>
+            <ul>
+              <li>Accuracy, completeness, or reliability of AI-generated content</li>
+              <li>Suitability for any particular purpose or use case</li>
+              <li>Absence of errors, bugs, or security vulnerabilities in generated code</li>
+              <li>Compliance with any specific standards or requirements</li>
+            </ul>
+            <p><strong>AIEDX Private Limited or any of its employees shall not be liable</strong> for any direct, indirect, incidental, consequential, or punitive damages arising from or related to the use of AI features, including but not limited to:</p>
+            <ul>
+              <li>Data loss or corruption</li>
+              <li>System failures or security breaches</li>
+              <li>Business interruption or financial losses</li>
+              <li>Any damages caused by reliance on AI-generated content</li>
+            </ul>
+          </div>
+          
+          <div class="agreement-section">
+            <h3>🔒 Data & Privacy</h3>
+            <p>When using AI features:</p>
+            <ul>
+              <li><strong>Local AI:</strong> Processing happens on your device, no data sent to external servers</li>
+              <li><strong>API Mode:</strong> Your prompts and responses are sent to OpenAI according to their privacy policy</li>
+              <li><strong>Session Data:</strong> API keys are stored temporarily in browser memory only</li>
+              <li><strong>No Persistent Storage:</strong> We do not permanently store your AI interactions</li>
+            </ul>
+          </div>
+          
+          <div class="agreement-actions">
+            <div class="agreement-checkbox">
+              <input type="checkbox" id="agreementCheckbox">
+              <label for="agreementCheckbox">I have read, understood, and agree to these terms</label>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="context-btn secondary" onclick="declineAgreement()">Decline</button>
+              <button class="context-btn primary" id="acceptAgreementBtn" disabled onclick="acceptAgreement()">Accept & Continue</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Enable accept button only when checkbox is checked
+      document.getElementById('agreementCheckbox').addEventListener('change', (e) => {
+        document.getElementById('acceptAgreementBtn').disabled = !e.target.checked;
+      });
+      
+      // Handle modal close when clicking outside (but keep modal persistent for legal compliance)
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          // Don't allow closing by clicking outside - user must actively accept or decline
+          console.log('⚠️ Agreement must be accepted or declined - cannot close by clicking outside');
+        }
+      });
+    }
+
+    // Accept User Agreement
+    function acceptAgreement() {
+      userAgreementAccepted = true;
+      agreementTimestamp = new Date(); // Record acceptance timestamp
+      
+      // Stop all agreement reminders
+      stopAgreementReminders();
+      
+      // Mark modal as closed
+      agreementModalOpen = false;
+      
+      const modal = document.getElementById('userAgreementModal');
+      if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+        }, 300);
+      }
+      
+      // Update agreement status display
+      updateAgreementStatusDisplay();
+      
+      // Track agreement acceptance
+      if (window.AppConfig) {
+        window.AppConfig.trackEvent('user_agreement_accepted', 'legal', 'ai_terms');
+      }
+      
+      // Proceed with AI initialization
+      showAISelectionModal();
+    }
+
+    // Decline User Agreement
+    function declineAgreement() {
+      // Mark modal as closed
+      agreementModalOpen = false;
+      
+      const modal = document.getElementById('userAgreementModal');
+      if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+        }, 300);
+      }
+      
+      updateStatus('❌ AI features unavailable without agreement acceptance');
+      addChatMessage('system', '❌ AI features are disabled. You must accept the User Agreement to use AI capabilities.');
+      
+      // Track agreement decline
+      if (window.AppConfig) {
+        window.AppConfig.trackEvent('user_agreement_declined', 'legal', 'ai_terms');
+      }
+    }
+
+    // Update Agreement Status Display
+    function updateAgreementStatusDisplay() {
+      const statusDiv = document.getElementById('agreementStatus');
+      const statusBtn = document.getElementById('agreementStatusBtn');
+      
+      if (userAgreementAccepted && agreementTimestamp) {
+        const dateStr = agreementTimestamp.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+        const timeStr = agreementTimestamp.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        statusDiv.innerHTML = `Status: ✅ Agreed<br/><span style="font-size: 10px; color: rgba(255,255,255,0.6);">${dateStr} at ${timeStr}</span>`;
+        statusBtn.style.background = 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)';
+        statusBtn.style.color = 'white';
+      } else {
+        statusDiv.textContent = 'Status: Not Reviewed';
+        statusBtn.style.background = 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)';
+        statusBtn.style.color = '#333';
+      }
+    }
+
+    // Show Agreement from Status Button
+    function showAgreementFromStatus() {
+      // Track agreement view from status button
+      if (window.AppConfig) {
+        window.AppConfig.trackEvent('agreement_viewed_from_status', 'legal', 'status_button');
+      }
+      
+      // Show the same agreement modal
+      showUserAgreement();
+    }
+
+    // Start Agreement Reminder System
+    function startAgreementReminders() {
+      // Clear any existing timers
+      stopAgreementReminders();
+      
+      console.log('🔔 Agreement reminder system started: 2-minute initial reminder, then 30-second recurring');
+      
+      // Set initial 2-minute reminder
+      agreementReminderTimer = setTimeout(() => {
+        if (!userAgreementAccepted && !agreementModalOpen) {
+          console.log('⏰ Showing 2-minute agreement reminder');
+          showUserAgreement();
+          
+          // Start recurring 30-second reminders
+          startRecurringReminders();
+          
+          // Track automatic reminder
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('agreement_auto_reminder', 'legal', '2_minute_reminder');
+          }
+        } else if (agreementModalOpen) {
+          console.log('⏰ 2-minute reminder skipped - modal already open');
+          // Start recurring reminders anyway since modal is open
+          startRecurringReminders();
+        }
+      }, 120000); // 2 minutes = 120,000ms
+    }
+
+    // Start Recurring 30-second Reminders
+    function startRecurringReminders() {
+      // Clear any existing recurring timer
+      if (agreementRecurringTimer) {
+        clearInterval(agreementRecurringTimer);
+      }
+      
+      // Set recurring 30-second reminders
+      agreementRecurringTimer = setInterval(() => {
+        if (!userAgreementAccepted && !agreementModalOpen) {
+          console.log('🔄 Showing 30-second recurring agreement reminder');
+          showUserAgreement();
+          
+          // Track recurring reminder
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('agreement_recurring_reminder', 'legal', '30_second_reminder');
+          }
+        } else if (!userAgreementAccepted && agreementModalOpen) {
+          console.log('🔄 30-second reminder skipped - modal already open');
+        } else {
+          // Stop recurring reminders if agreement accepted
+          console.log('✅ Agreement accepted - stopping recurring reminders');
+          clearInterval(agreementRecurringTimer);
+          agreementRecurringTimer = null;
+        }
+      }, 30000); // 30 seconds = 30,000ms
+    }
+
+    // Stop All Agreement Reminders
+    function stopAgreementReminders() {
+      if (agreementReminderTimer) {
+        clearTimeout(agreementReminderTimer);
+        agreementReminderTimer = null;
+      }
+      
+      if (agreementRecurringTimer) {
+        clearInterval(agreementRecurringTimer);
+        agreementRecurringTimer = null;
+      }
+    }
+
     // Initialize AI with Multiple Options
     async function initializeAI() {
       try {
         updateStatus('🤖 Initializing AI system...');
         document.getElementById('aiStatus').textContent = 'AI: Checking...';
+        
+        // Check if user has accepted agreement
+        if (!userAgreementAccepted) {
+          showUserAgreement();
+          return;
+        }
         
         // Show AI selection modal
         showAISelectionModal();
@@ -780,35 +1479,72 @@ When user asks for something, generate creative, compact p5.js code that creates
         align-items: center; justify-content: center;
       `;
       
-      modal.innerHTML = `
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-          <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Choose AI Engine</h2>
-          
-          <div style="margin-bottom: 20px;">
-            <button id="selectJanus" class="ai-option-btn">
-              🚀 Qwen2.5-0.5B (Local) - AI Powered
-            </button>
-            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-              Downloads ~500MB model, runs in browser. Auto-fallback to templates if WebGPU issues occur.
-            </p>
+      const isApiMode = apiMode;
+      
+      if (isApiMode) {
+        // API Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🚀 Advanced API Models</h2>
+            
+            <div style="margin-bottom: 20px;">
+              <label style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 10px; display: block;">Select Model:</label>
+              <select id="apiModelSelect" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); 
+                                                 border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; 
+                                                 color: white; font-size: 14px;">
+                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Efficient)</option>
+                <option value="gpt-4o">GPT-4o (Most Capable)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo (Balanced)</option>
+                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget-Friendly)</option>
+              </select>
+            </div>
+            
+            <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 20px; text-align: center;">
+              📝 Requires valid OpenAI API key<br/>
+              💰 API usage charges apply based on your OpenAI plan
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+              <button id="connectApiModel" class="ai-option-btn" style="flex: 1;">
+                🔌 Connect API Model
+              </button>
+            </div>
+            
+            <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                    color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                    float: right; margin-top: 10px;">Cancel</button>
           </div>
-          
-          <div style="margin-bottom: 20px;">
-            <button id="selectTemplates" class="ai-option-btn">
-              ⚡ Smart Templates - Instant & Reliable
-            </button>
-            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-              Pattern-based code generation, always works
-            </p>
+        `;
+      } else {
+        // Local FP16 Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Local FP16 Qwen2.5</h2>
+            
+            <div style="margin-bottom: 20px;">
+              <button id="selectJanus" class="ai-option-btn">
+                🚀 Load Qwen2.5-0.5B FP16 (~1GB)
+              </button>
+              <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+                FP16 precision only. Maximum quality local AI. No API costs.
+              </p>
+            </div>
+            
+            <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
+              ⚠️ Requires WebGPU support and 2GB+ RAM<br/>
+              Model cached after first download for instant future loading
+            </div>
+            
+            <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                    color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                    float: right; margin-top: 10px;">Cancel</button>
           </div>
-          
-          <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
-                  color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
-                  float: right; margin-top: 10px;">Cancel</button>
-        </div>
-      `;
+        `;
+      }
       
       const style = document.createElement('style');
       style.textContent = `
@@ -826,29 +1562,87 @@ When user asks for something, generate creative, compact p5.js code that creates
       document.body.appendChild(modal);
       
       // Event listeners
-      document.getElementById('selectJanus').onclick = () => {
-        document.body.removeChild(modal);
-        initializeJanus();
-      };
-      
-      document.getElementById('selectTemplates').onclick = () => {
-        document.body.removeChild(modal);
-        fallbackToTemplates();
-      };
+      if (isApiMode) {
+        document.getElementById('connectApiModel').onclick = () => {
+          const selectedModel = document.getElementById('apiModelSelect').value;
+          document.body.removeChild(modal);
+          initializeApiModel(selectedModel);
+        };
+      } else {
+        document.getElementById('selectJanus').onclick = () => {
+          document.body.removeChild(modal);
+          initializeJanus();
+        };
+      }
       
       document.getElementById('closeModal').onclick = () => {
         document.body.removeChild(modal);
-        fallbackToTemplates();
+        updateStatus('AI initialization cancelled');
+        addChatMessage('system', 'AI initialization cancelled.');
       };
     }
 
 
 
+    // Initialize API Model (OpenAI)
+    async function initializeApiModel(modelName) {
+      try {
+        updateStatus('🚀 Connecting to OpenAI API...');
+        document.getElementById('aiStatus').textContent = 'AI: Connecting to API...';
+        
+        // Check if API key is provided
+        const apiKey = document.getElementById('openaiApiKey').value.trim();
+        if (!apiKey) {
+          addChatMessage('system', '❌ OpenAI API Key required. Please enter your API key in the left panel.');
+          document.getElementById('aiStatus').textContent = 'AI: API Key Required ❌';
+          updateStatus('❌ API Key required');
+          return;
+        }
+        
+        // Store API key for session
+        openaiApiKey = apiKey;
+        
+        // Test API connection with a simple request
+        const testResponse = await fetch('https://api.openai.com/v1/models', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`API Key validation failed: ${testResponse.status} ${testResponse.statusText}`);
+        }
+        
+        aiSession = { type: 'openai', model: modelName, apiKey: apiKey };
+        document.getElementById('aiStatus').textContent = `AI: ${modelName} ✅`;
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = `🚀 ${modelName} Ready`;
+        
+        updateStatus(`🚀 ${modelName} connected successfully!`);
+        addChatMessage('system', `🚀 ${modelName} connected! Advanced AI capabilities are now available. API usage charges apply.`);
+        
+        // Track API model connection
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('api_model_connected', 'ai_interaction', modelName);
+        }
+        
+      } catch (error) {
+        console.error('API Model initialization error:', error);
+        addChatMessage('system', `❌ Failed to connect to OpenAI API: ${error.message}`);
+        document.getElementById('aiStatus').textContent = 'AI: API Failed ❌';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '❌ API Failed';
+        updateStatus('❌ API connection failed');
+      }
+    }
+
     // Initialize Qwen2.5
     async function initializeJanus() {
       try {
-        updateStatus('🚀 Loading Qwen2.5-0.5B (~500MB)...');
-        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5...';
+        updateStatus('🚀 Loading Qwen2.5-0.5B FP16 (~1GB)...');
+        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5 FP16...';
         
         // Check browser compatibility
         const hasFloat16 = typeof Float16Array !== 'undefined';
@@ -918,21 +1712,21 @@ When user asks for something, generate creative, compact p5.js code that creates
                       model = await loadWithTimeout(
               () => AutoModelForCausalLM.from_pretrained(MODEL, {
                 device: 'webgpu',
-                dtype: 'q4',
+                dtype: 'fp16',
                 progress_callback: (progress) => {
                   try {
                     if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                      const percent = 50 + (progress.progress * 40);
+                      const percent = 50 + (progress.progress * 45);
                       const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                      updateLoadingProgress(percent, `Loading model (WebGPU): ${fileName}`);
+                      updateLoadingProgress(percent, `Loading model (FP16): ${fileName}`);
                       
                       // Detect stuck progress
                       if (Math.abs(progress.progress - lastProgress) > 0.01) {
                         lastProgress = progress.progress;
                         progressStuckTime = Date.now();
-                      } else if (Date.now() - progressStuckTime > 120000) {
-                        // Progress stuck for 2 minutes (increased from 60 seconds)
-                        throw new Error('Download progress stuck - likely network or memory issue');
+                      } else if (Date.now() - progressStuckTime > 300000) {
+                        // Progress stuck for 5 minutes for FP16
+                        throw new Error('FP16 download progress stuck - likely network or memory issue');
                       }
                     }
                   } catch (e) {
@@ -940,63 +1734,30 @@ When user asks for something, generate creative, compact p5.js code that creates
                   }
                 }
               }),
-              600000, // 10 minute timeout (increased from 5 minutes)
-              'WebGPU model loading'
+              1200000, // 20 minute timeout for FP16 (larger download)
+              'FP16 WebGPU model loading'
             );
           
-          addChatMessage('system', '🚀 WebGPU acceleration enabled! GPU-only mode active.');
+          addChatMessage('system', '🎉 FP16 precision loaded successfully! Maximum quality WebGPU acceleration active.');
         } catch (webgpuError) {
           console.warn('WebGPU loading failed:', webgpuError);
           
-          // Check if it's a timeout or memory issue
-          if (webgpuError.message.includes('timed out') || webgpuError.message.includes('stuck')) {
-            addChatMessage('system', '⚠️ Large model download timed out. This is common with 500MB models. Falling back to templates...');
-            hideLoadingScreen();
-            fallbackToTemplates();
-            return;
-          }
-          
-          // Only one fallback: basic WebGPU without device specification
-          try {
-            updateLoadingProgress(70, 'WebGPU failed, trying basic GPU mode...');
-            addChatMessage('system', '⚠️ WebGPU failed, trying basic GPU configuration...');
-            
-            model = await loadWithTimeout(
-              () => AutoModelForCausalLM.from_pretrained(MODEL, {
-                dtype: 'q4',
-                progress_callback: (progress) => {
-                  try {
-                    if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                      const percent = 70 + (progress.progress * 25);
-                      const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                      updateLoadingProgress(percent, `Loading model (basic): ${fileName}`);
-                    }
-                  } catch (e) {
-                    console.warn('Progress callback error:', e);
-                  }
-                }
-              }),
-              600000, // 10 minute timeout for fallback (increased from 3 minutes)
-              'Basic GPU model loading'
-            );
-            
-            addChatMessage('system', '✅ Basic GPU mode successful! Model loaded.');
-          } catch (finalError) {
-            console.error('All GPU loading attempts failed:', finalError);
-            
-            // If both attempts failed, fall back to templates
-            addChatMessage('system', '❌ GPU model loading failed completely. Using smart templates instead.');
-            hideLoadingScreen();
-            fallbackToTemplates();
-            return;
-          }
+          // FP16 failed - no fallbacks, AI disabled
+          console.error('FP16 WebGPU loading failed:', webgpuError);
+          addChatMessage('system', '❌ FP16 model loading failed. AI is disabled. FP16 precision required.');
+          document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
+          document.getElementById('generateBtn').disabled = true;
+          document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
+          hideLoadingScreen();
+          updateStatus('❌ FP16 model failed to load. AI disabled.');
+          return;
         }
         
         updateLoadingProgress(95, 'Finalizing model setup...');
         aiSession = { type: 'qwen', model, tokenizer };
-        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B ✅';
+        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B (FP16) ✅';
         document.getElementById('generateBtn').disabled = false;
-        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 Ready';
+        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 FP16 Ready';
         
         // Restore console.warn
         console.warn = originalWarn;
@@ -1004,17 +1765,17 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateLoadingProgress(100, 'Model loaded successfully!');
         setTimeout(() => {
           hideLoadingScreen();
-          updateStatus('🚀 Qwen2.5-0.5B loaded successfully!');
-          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded! Ready to generate creative p5.js code. This text-only model avoids all vision-related errors.');
+          updateStatus('🚀 Qwen2.5-0.5B (FP16) loaded successfully!');
+          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded in FP16 precision! Ready to generate creative p5.js code with maximum quality. This text-only model avoids all vision-related errors.');
           
-          // Track successful AI loading
+          // Track successful AI loading with FP16 precision
           if (window.AppConfig) {
-            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_success');
+            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_fp16_success');
           }
         }, 500);
         
       } catch (error) {
-        console.error('Janus initialization error:', error);
+        console.error('Qwen2.5 FP16 initialization error:', error);
         
         // Restore console.warn in case of error
         if (typeof originalWarn !== 'undefined') {
@@ -1022,8 +1783,11 @@ When user asks for something, generate creative, compact p5.js code that creates
         }
         
         hideLoadingScreen();
-        addChatMessage('system', `❌ Failed to load Janus model: ${error.message}. Falling back to templates.`);
-        fallbackToTemplates();
+        addChatMessage('system', `❌ Failed to load Qwen2.5 FP16: ${error.message}. AI is disabled.`);
+        document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
+        updateStatus('❌ FP16 model failed to load. AI disabled.');
       }
     }
 
@@ -1045,7 +1809,7 @@ When user asks for something, generate creative, compact p5.js code that creates
             🚀 Loading Qwen2.5-0.5B
           </div>
           <div style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
-            First time download: ~500MB • Cached for future use
+            FP16 precision: ~1GB • Maximum quality • Cached for future use
           </div>
           
           <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; 
@@ -1113,10 +1877,16 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
     }
 
-    // Generate code using AI (Janus or Smart Templates)
+    // Generate code using AI (FP16 Qwen2.5 or OpenAI API)
     async function generateAICode(userPrompt) {
       if (!aiSession) {
         updateStatus('❌ AI not connected. Click "Connect AI" first.');
+        return;
+      }
+      
+      if (aiSession !== 'template' && aiSession.type !== 'qwen' && aiSession.type !== 'openai') {
+        updateStatus('❌ Invalid AI session type.');
+        addChatMessage('ai', 'AI session error. Please reconnect.');
         return;
       }
 
@@ -1147,24 +1917,14 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       let aiResponse = '';
       
-      // Template mode (Smart responses)
-      if (aiSession === 'template') {
-        // Log the actual query being processed
-        console.log('%c🔍 ACTUAL QUERY (Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `General question: "${userPrompt}"`);
-        
-        aiResponse = generateGeneralResponse(userPrompt);
-        console.log('%c🤖 RAW AI RESPONSE (Templates)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-        updateStatus('⚡ Generated response using smart templates!');
-      }
-      // Qwen2.5 mode - General conversation
-      else if (aiSession.type === 'qwen') {
+      // AI Model handling - General conversation  
+      if (aiSession.type === 'qwen') {
         try {
-          const generalPrompt = `Question: ${userPrompt}
-
-Answer this question clearly and informatively (maximum 10 lines). Be direct and helpful.`;
+          // Use custom context template
+          const generalPrompt = customContexts.general.userTemplate.replace('{prompt}', userPrompt);
 
           const messages = [
-            { role: 'system', content: 'You are a helpful AI assistant. Answer questions clearly and informatively.' },
+            { role: 'system', content: customContexts.general.systemPrompt },
             { role: 'user', content: generalPrompt }
           ];
           
@@ -1224,23 +1984,59 @@ Answer this question clearly and informatively (maximum 10 lines). Be direct and
             }
           }
           
-          // Fallback only if response is clearly nonsensical or empty
+          // If response is clearly nonsensical or empty, show error
           if (aiResponse.length < 5 || aiResponse.toLowerCase().includes('calcuttonia') || 
               aiResponse.toLowerCase().includes('hindi language country') ||
               aiResponse.toLowerCase().includes('new york city specifically')) {
-            aiResponse = generateGeneralResponse(userPrompt);
-            console.log('%c🤖 RAW AI RESPONSE (Fallback Templates)', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
+            aiResponse = 'Sorry, the FP16 model generated an invalid response. Please try rephrasing your question.';
+            console.log('%c🤖 Invalid AI Response Detected', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', 'Nonsensical output detected');
           }
           
           updateStatus('🚀 Qwen2.5 responded!');
           
         } catch (error) {
           console.error('General chat error:', error);
-          aiResponse = generateGeneralResponse(userPrompt);
-          console.log('%c🤖 RAW AI RESPONSE (Error Fallback)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-          updateStatus('⚡ Generated response using templates (AI error)');
+          aiResponse = `FP16 model error: ${error.message}. Please try again or rephrase your question.`;
+          console.log('%c🤖 FP16 Generation Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', error);
+          updateStatus('❌ FP16 model error during generation');
         }
-      }
+              } else if (aiSession.type === 'openai') {
+          try {
+            // OpenAI API call for general chat
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${aiSession.apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: aiSession.model,
+                messages: [
+                  { role: 'system', content: customContexts.general.systemPrompt },
+                  { role: 'user', content: customContexts.general.userTemplate.replace('{prompt}', userPrompt) }
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            aiResponse = data.choices[0].message.content.trim();
+            updateStatus(`🚀 ${aiSession.model} responded!`);
+            
+          } catch (error) {
+            console.error('OpenAI API error:', error);
+            aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
+            updateStatus('❌ OpenAI API error');
+          }
+        } else {
+          aiResponse = 'AI is not properly initialized. Please connect an AI model.';
+          updateStatus('❌ AI not available');
+        }
       
       // Add AI response to chat
       addChatMessage('ai', aiResponse);
@@ -1253,21 +2049,8 @@ Answer this question clearly and informatively (maximum 10 lines). Be direct and
       let code = '';
       let aiResponse = '';
         
-        // Template mode (Smart pattern matching)
-        if (aiSession === 'template') {
-          // Log the actual query being processed
-          console.log('%c🔍 ACTUAL QUERY (Creative Templates)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', `Creative prompt: "${userPrompt}"`);
-          
-          code = generateTemplateCode(userPrompt);
-          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Code)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-          console.log('%cGenerated Code:', 'color: #666; font-weight: bold;', code);
-          
-          aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart template matching. The code creates an animated visual based on your description.`;
-          console.log('%c🤖 RAW AI RESPONSE (Creative Templates - Message)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-          updateStatus('⚡ Generated code using smart templates!');
-        }
-        // Qwen2.5 mode - Pure text-only generation (no vision components)
-        else if (aiSession.type === 'qwen') {
+        // AI Model handling - Code generation
+        if (aiSession.type === 'qwen') {
           let generationAttempts = 0;
           const maxGenerationAttempts = 3;
           let janusSuccess = false;
@@ -1277,23 +2060,12 @@ Answer this question clearly and informatively (maximum 10 lines). Be direct and
             try {
               generationAttempts++;
               
-              const fullPrompt = `Generate p5.js code for: ${userPrompt}
-
-Use this exact structure:
-t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,20)
-  t+=0.05
-  fill(255,100,150)
-  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
-}
-
-Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
+              // Use custom context template
+              const fullPrompt = customContexts.creative.userTemplate.replace('{prompt}', userPrompt);
 
               // Use proper Qwen2.5 chat format
               const messages = [
-                { role: 'system', content: 'You are a helpful assistant that generates p5.js code.' },
+                { role: 'system', content: customContexts.creative.systemPrompt },
                 { role: 'user', content: fullPrompt }
               ];
               
@@ -1461,15 +2233,13 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
                 // Show detailed error info in chat
                 addChatMessage('system', `❌ Syntax Error: ${syntaxError.message}`);
                 addChatMessage('system', `🐛 Problematic Code: "${code.substring(0, 100)}${code.length > 100 ? '...' : ''}"`);
-                addChatMessage('system', `🔧 Falling back to smart templates...`);
+                addChatMessage('system', `❌ FP16 model generated invalid syntax. No fallbacks available.`);
                 
-                // Don't retry AI, go straight to templates for this request
-                code = generateTemplateCode(userPrompt);
-                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-                console.log('%cFallback Code:', 'color: #666; font-weight: bold;', code);
-                aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (AI generated invalid syntax: ${syntaxError.message}).`;
-                console.log('%c🤖 RAW AI RESPONSE (Syntax Error Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-                updateStatus('⚡ Generated code using templates (AI syntax error)');
+                // FP16-only: No fallbacks, show error
+                code = '';
+                aiResponse = `FP16 model generated invalid syntax: ${syntaxError.message}. Please try a different prompt.`;
+                console.log('%c🤖 FP16 Syntax Error - No Fallback', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', syntaxError);
+                updateStatus('❌ FP16 generated invalid syntax - no fallbacks available');
                 janusSuccess = true; // Stop retrying
                 break;
               }
@@ -1496,14 +2266,12 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
                   errorMessage = 'Insufficient memory for model execution';
                 }
                 
-                // Final fallback to templates
-                addChatMessage('ai', `⚠️ Qwen2.5 failed after ${generationAttempts} attempts: ${errorMessage}. Using smart templates instead...`);
-                code = generateTemplateCode(userPrompt);
-                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Code)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-                console.log('%cFinal Fallback Code:', 'color: #666; font-weight: bold;', code);
-                aiResponse = `I've generated a creative p5.js pattern for "${userPrompt}" using smart templates (Qwen2.5 had persistent runtime errors).`;
-                console.log('%c🤖 RAW AI RESPONSE (Final Fallback - Message)', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
-                updateStatus('⚡ Generated code using templates (Qwen2.5 failed multiple attempts)');
+                // FP16-only: No fallbacks, show error
+                addChatMessage('ai', `❌ Qwen2.5 FP16 failed after ${generationAttempts} attempts: ${errorMessage}. No fallbacks available.`);
+                code = '';
+                aiResponse = `FP16 model failed after ${generationAttempts} attempts: ${errorMessage}. Please try a different prompt or restart the AI.`;
+                console.log('%c🤖 FP16 Final Failure - No Fallback', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', errorMessage);
+                updateStatus('❌ FP16 failed all attempts - no fallbacks available');
                 break;
               } else {
                 // Try again with different parameters
@@ -1512,6 +2280,57 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
               }
             }
           }
+        } else if (aiSession.type === 'openai') {
+          try {
+            // OpenAI API call for creative coding
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${aiSession.apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: aiSession.model,
+                messages: [
+                  { role: 'system', content: customContexts.creative.systemPrompt },
+                  { role: 'user', content: customContexts.creative.userTemplate.replace('{prompt}', userPrompt) }
+                ],
+                max_tokens: 800,
+                temperature: 0.7
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const rawCode = data.choices[0].message.content.trim();
+            
+            // Extract p5.js code from API response
+            code = rawCode.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
+            code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+            
+            // Try to extract just the code if there's explanatory text
+            const codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
+            if (codeMatch) {
+              code = codeMatch[1];
+            }
+            
+            aiResponse = `I've created a p5.js animation for "${userPrompt}" using ${aiSession.model}. Advanced AI model with superior code generation!`;
+            updateStatus(`🚀 ${aiSession.model} generated code!`);
+            
+          } catch (error) {
+            console.error('OpenAI API error:', error);
+            code = '';
+            aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
+            updateStatus('❌ OpenAI API error');
+          }
+        } else {
+          // aiSession is not valid
+          code = '';
+          aiResponse = 'AI is not properly initialized. Please connect an AI model.';
+          updateStatus('❌ AI not available');
         }
         
         if (code.length > 10) {
@@ -1804,6 +2623,146 @@ draw=_=>{
       }
     }
 
+    // Show Context Editor Modal
+    function showContextEditor() {
+      const modal = document.createElement('div');
+      modal.className = 'context-editor-modal';
+      modal.id = 'contextEditorModal';
+      
+      modal.innerHTML = `
+        <div class="context-editor-content">
+          <div class="context-editor-header">
+            <h2>⚙️ Context Editor</h2>
+            <button class="context-btn secondary" onclick="closeContextEditor()">×</button>
+          </div>
+          
+          <div class="model-selector">
+            <label style="color: rgba(255,255,255,0.8); font-weight: 600;">Model:</label>
+            <select id="modelSelect">
+              <option value="qwen">Qwen2.5-0.5B FP16</option>
+            </select>
+          </div>
+          
+          <div class="context-sections">
+            <div class="context-section">
+              <h3>💬 General Chat Context</h3>
+              
+              <div class="context-input-group">
+                <label>System Prompt:</label>
+                <textarea id="generalSystemPrompt" class="context-textarea" placeholder="Define the AI's role and behavior for general conversations...">${customContexts.general.systemPrompt}</textarea>
+                <div class="context-template-hint">Sets the AI's personality and behavior for general questions</div>
+              </div>
+              
+              <div class="context-input-group">
+                <label>User Message Template:</label>
+                <textarea id="generalUserTemplate" class="context-textarea large" placeholder="Template for user messages... Use {prompt} as placeholder">${customContexts.general.userTemplate}</textarea>
+                <div class="context-template-hint">Use {prompt} where user input should be inserted</div>
+              </div>
+            </div>
+            
+            <div class="context-section">
+              <h3>🎨 Creative Chat Context</h3>
+              
+              <div class="context-input-group">
+                <label>System Prompt:</label>
+                <textarea id="creativeSystemPrompt" class="context-textarea" placeholder="Define the AI's role for code generation...">${customContexts.creative.systemPrompt}</textarea>
+                <div class="context-template-hint">Sets the AI's behavior for p5.js code generation</div>
+              </div>
+              
+              <div class="context-input-group">
+                <label>User Message Template:</label>
+                <textarea id="creativeUserTemplate" class="context-textarea large" placeholder="Template for creative prompts... Use {prompt} as placeholder">${customContexts.creative.userTemplate}</textarea>
+                <div class="context-template-hint">Include instructions and examples for p5.js code generation</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="context-editor-actions">
+            <div>
+              <button class="context-btn secondary" onclick="resetContexts()">🔄 Reset to Defaults</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="context-btn secondary" onclick="closeContextEditor()">Cancel</button>
+              <button class="context-btn primary" onclick="saveContexts()">💾 Save & Apply</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+    }
+
+    // Close Context Editor
+    function closeContextEditor() {
+      const modal = document.getElementById('contextEditorModal');
+      if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+        }, 200);
+      }
+    }
+
+    // Save custom contexts
+    function saveContexts() {
+      const generalSystem = document.getElementById('generalSystemPrompt').value.trim();
+      const generalUser = document.getElementById('generalUserTemplate').value.trim();
+      const creativeSystem = document.getElementById('creativeSystemPrompt').value.trim();
+      const creativeUser = document.getElementById('creativeUserTemplate').value.trim();
+      
+      // Validate inputs
+      if (!generalSystem || !generalUser || !creativeSystem || !creativeUser) {
+        alert('All fields are required. Please fill in all context templates.');
+        return;
+      }
+      
+      if (!generalUser.includes('{prompt}') || !creativeUser.includes('{prompt}')) {
+        alert('User templates must contain {prompt} placeholder for user input.');
+        return;
+      }
+      
+      // Save to custom contexts
+      customContexts.general.systemPrompt = generalSystem;
+      customContexts.general.userTemplate = generalUser;
+      customContexts.creative.systemPrompt = creativeSystem;
+      customContexts.creative.userTemplate = creativeUser;
+      
+      closeContextEditor();
+      addChatMessage('system', '✅ Custom contexts saved and applied! Your chat templates are now active for this session.');
+      updateStatus('✅ Custom contexts applied successfully!');
+      
+      // Track context customization
+      if (window.AppConfig) {
+        window.AppConfig.trackEvent('context_customized', 'ai_interaction', 'custom_templates');
+      }
+    }
+
+    // Reset contexts to defaults
+    function resetContexts() {
+      if (confirm('Reset all contexts to default values? This will overwrite your current changes.')) {
+        // Reset to original defaults
+        document.getElementById('generalSystemPrompt').value = 'You are a helpful AI assistant. Answer questions clearly and informatively.';
+        document.getElementById('generalUserTemplate').value = 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.';
+        document.getElementById('creativeSystemPrompt').value = 'You are a helpful assistant that generates p5.js code.';
+        document.getElementById('creativeUserTemplate').value = `Generate p5.js code for: {prompt}
+
+Use this exact structure:
+t=0
+draw=_=>{
+  t||createCanvas(w=800,h=600)
+  background(0,20)
+  t+=0.05
+  fill(255,100,150)
+  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
+}
+
+Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
+      }
+    }
+
     // Editor expand/minimize functions
     function expandEditor() {
       const editorContainer = document.getElementById('editorContainer');
@@ -2058,7 +3017,21 @@ draw=_=>{
         toggleChatMode();
       });
       
+      document.getElementById('contextBtn').addEventListener('click', () => {
+        // Track context editor open
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('context_editor_opened', 'ai_interaction', 'context_button');
+        }
+        showContextEditor();
+      });
+      
       document.getElementById('generateBtn').addEventListener('click', () => {
+        // Check if user has accepted agreement first
+        if (!userAgreementAccepted) {
+          showUserAgreement();
+          return;
+        }
+        
         const prompt = document.getElementById('aiPrompt').value.trim();
         if (prompt) {
           // Track AI code generation
@@ -2116,11 +3089,104 @@ draw=_=>{
       // Editor control event listeners
       document.getElementById('expandEditorBtn').addEventListener('click', expandEditor);
       document.getElementById('minimizeEditorBtn').addEventListener('click', minimizeEditor);
+      
+      // Copy code button
+      document.getElementById('copyCodeBtn').addEventListener('click', () => {
+        const copyBtn = document.getElementById('copyCodeBtn');
+        const originalText = copyBtn.textContent;
+        const originalTitle = copyBtn.title;
+        
+        const code = editorInstance.getValue();
+        navigator.clipboard.writeText(code).then(() => {
+          // Show success feedback
+          copyBtn.textContent = '✅';
+          copyBtn.title = 'Code Copied!';
+          copyBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+          copyBtn.style.transform = 'scale(1.1)';
+          updateStatus('📄 Code copied to clipboard successfully!');
+          
+          // Restore original button after 2 seconds
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.title = originalTitle;
+            copyBtn.style.background = '';
+            copyBtn.style.transform = '';
+          }, 2000);
+          
+        }).catch(err => {
+          console.error('Failed to copy code:', err);
+          // Show error feedback
+          copyBtn.textContent = '❌';
+          copyBtn.title = 'Copy Failed!';
+          copyBtn.style.background = 'linear-gradient(45deg, #f44336, #d32f2f)';
+          updateStatus('❌ Failed to copy code to clipboard');
+          
+          // Restore original button after 2 seconds
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.title = originalTitle;
+            copyBtn.style.background = '';
+          }, 2000);
+        });
+      });
+      
+      // API mode toggle
+      document.getElementById('apiModeToggle').addEventListener('change', (e) => {
+        apiMode = e.target.checked;
+        const apiKeySection = document.getElementById('apiKeySection');
+        
+        if (apiMode) {
+          apiKeySection.style.display = 'block';
+          document.getElementById('initAIBtn').textContent = '🚀 Connect API';
+          updateStatus('🔑 API mode enabled. Enter your OpenAI API key.');
+        } else {
+          apiKeySection.style.display = 'none';
+          document.getElementById('initAIBtn').textContent = '🔌 Connect';
+          updateStatus('🤖 Local mode enabled. Use FP16 Qwen2.5.');
+        }
+        
+        // Reset AI session when switching modes
+        aiSession = null;
+        document.getElementById('aiStatus').textContent = 'AI: Not connected';
+        document.getElementById('generateBtn').disabled = true;
+        
+        // Track mode toggle
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('api_mode_toggled', 'ai_interaction', apiMode ? 'api' : 'local');
+        }
+      });
+      
+      // API key visibility toggle
+      document.getElementById('toggleApiKeyVisibility').addEventListener('click', () => {
+        const apiKeyInput = document.getElementById('openaiApiKey');
+        const toggleBtn = document.getElementById('toggleApiKeyVisibility');
+        
+        if (apiKeyInput.type === 'password') {
+          apiKeyInput.type = 'text';
+          toggleBtn.textContent = '🙈';
+          toggleBtn.title = 'Hide API Key';
+        } else {
+          apiKeyInput.type = 'password';
+          toggleBtn.textContent = '👁️';
+          toggleBtn.title = 'Show API Key';
+        }
+      });
+      
+      // Agreement status button
+      document.getElementById('agreementStatusBtn').addEventListener('click', () => {
+        showAgreementFromStatus();
+      });
 
       // Auto-run fish animation on load
       setTimeout(() => {
         window.runSketch(editorInstance.getValue());
       }, 1000);
+
+      // Initialize agreement status display
+      updateAgreementStatusDisplay();
+      
+      // Start agreement reminder system
+      startAgreementReminders();
 
       updateStatus('🚀 SketchPad-SLM loaded successfully!');
     });
