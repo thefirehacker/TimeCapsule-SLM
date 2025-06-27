@@ -14,114 +14,113 @@ frontend:
       commands:
         - echo "Building SketchPad-SLM with AI integration..."
         # Inject environment variables into config.js
-        - |
-          cat > config.js << EOF
-          // Auto-generated configuration file
-          // This file is automatically created during build process
-          
-          class AppConfig {
-            static GA4_MEASUREMENT_ID = '$GA4_MEASUREMENT_ID';
-            static GA4_CONSOLE_LOGGING = $GA4_CONSOLE_LOGGING;
-            
-            // Initialize Google Analytics 4
-            static initializeGA4() {
-              if (!this.GA4_MEASUREMENT_ID || this.GA4_MEASUREMENT_ID === 'G-XXXXXXXXXX') {
-                if (this.GA4_CONSOLE_LOGGING) {
-                  console.warn('⚠️ GA4 not configured - using placeholder measurement ID');
-                }
-                return;
-              }
-              
-              // Load GA4 script
-              const script1 = document.createElement('script');
-              script1.async = true;
-              script1.src = \`https://www.googletagmanager.com/gtag/js?id=\${this.GA4_MEASUREMENT_ID}\`;
-              document.head.appendChild(script1);
-              
-              // Initialize GA4
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', this.GA4_MEASUREMENT_ID, {
-                page_title: 'SketchPad-SLM Canvas',
-                page_location: window.location.href,
-                custom_map: {
-                  'custom_dimension_1': 'ai_interaction_type',
-                  'custom_dimension_2': 'user_session_id'
-                }
-              });
-              
-              window.gtag = gtag;
-              
-              if (this.GA4_CONSOLE_LOGGING) {
-                console.log('✅ GA4 initialized with ID:', this.GA4_MEASUREMENT_ID);
-              }
-            }
-            
-            // Track page views
-            static trackPageView(page_title, page_location) {
-              if (window.gtag && this.GA4_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {
-                gtag('config', this.GA4_MEASUREMENT_ID, {
-                  page_title: page_title,
-                  page_location: page_location
-                });
-                
-                if (this.GA4_CONSOLE_LOGGING) {
-                  console.log('📊 GA4 Page View:', page_title, page_location);
-                }
-              }
-            }
-            
-            // Track events
-            static trackEvent(action, category, label = '', value = 0) {
-              if (window.gtag && this.GA4_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {
-                gtag('event', action, {
-                  event_category: category,
-                  event_label: label,
-                  value: value,
-                  custom_dimension_1: category,
-                  custom_dimension_2: this.getSessionId()
-                });
-                
-                if (this.GA4_CONSOLE_LOGGING) {
-                  console.log('📊 GA4 Event:', action, category, label, value);
-                }
-              }
-            }
-            
-            // Generate or retrieve session ID
-            static getSessionId() {
-              let sessionId = sessionStorage.getItem('sketchpad_session_id');
-              if (!sessionId) {
-                sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                sessionStorage.setItem('sketchpad_session_id', sessionId);
-              }
-              return sessionId;
-            }
-            
-            // Track AI interactions specifically
-            static trackAIInteraction(action, details = {}) {
-              this.trackEvent('ai_' + action, 'ai_interaction', JSON.stringify(details));
-            }
-            
-            // Track user interface interactions
-            static trackUIInteraction(element, action) {
-              this.trackEvent('ui_' + action, 'user_interface', element);
-            }
-          }
-          
-          // Make available globally
-          window.AppConfig = AppConfig;
-          
-          // Auto-initialize on load
-          if (typeof document !== 'undefined') {
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', () => AppConfig.initializeGA4());
-            } else {
-              AppConfig.initializeGA4();
-            }
-          }
-          EOF
+        - "cat > config.js << 'EOF'"
+        - "// Auto-generated configuration file"
+        - "// This file is automatically created during build process"
+        - ""
+        - "class AppConfig {"
+        - "  static GA4_MEASUREMENT_ID = '$GA4_MEASUREMENT_ID';"
+        - "  static GA4_CONSOLE_LOGGING = $GA4_CONSOLE_LOGGING;"
+        - ""
+        - "  // Initialize Google Analytics 4"
+        - "  static initializeGA4() {"
+        - "    if (!this.GA4_MEASUREMENT_ID || this.GA4_MEASUREMENT_ID === 'G-XXXXXXXXXX') {"
+        - "      if (this.GA4_CONSOLE_LOGGING) {"
+        - "        console.warn('⚠️ GA4 not configured - using placeholder measurement ID');"
+        - "      }"
+        - "      return;"
+        - "    }"
+        - ""
+        - "    // Load GA4 script"
+        - "    const script1 = document.createElement('script');"
+        - "    script1.async = true;"
+        - "    script1.src = \\`https://www.googletagmanager.com/gtag/js?id=\\${this.GA4_MEASUREMENT_ID}\\`;"
+        - "    document.head.appendChild(script1);"
+        - ""
+        - "    // Initialize GA4"
+        - "    window.dataLayer = window.dataLayer || [];"
+        - "    function gtag(){dataLayer.push(arguments);}"
+        - "    gtag('js', new Date());"
+        - "    gtag('config', this.GA4_MEASUREMENT_ID, {"
+        - "      page_title: 'SketchPad-SLM Canvas',"
+        - "      page_location: window.location.href,"
+        - "      custom_map: {"
+        - "        'custom_dimension_1': 'ai_interaction_type',"
+        - "        'custom_dimension_2': 'user_session_id'"
+        - "      }"
+        - "    });"
+        - ""
+        - "    window.gtag = gtag;"
+        - ""
+        - "    if (this.GA4_CONSOLE_LOGGING) {"
+        - "      console.log('✅ GA4 initialized with ID:', this.GA4_MEASUREMENT_ID);"
+        - "    }"
+        - "  }"
+        - ""
+        - "  // Track page views"
+        - "  static trackPageView(page_title, page_location) {"
+        - "    if (window.gtag && this.GA4_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {"
+        - "      gtag('config', this.GA4_MEASUREMENT_ID, {"
+        - "        page_title: page_title,"
+        - "        page_location: page_location"
+        - "      });"
+        - ""
+        - "      if (this.GA4_CONSOLE_LOGGING) {"
+        - "        console.log('📊 GA4 Page View:', page_title, page_location);"
+        - "      }"
+        - "    }"
+        - "  }"
+        - ""
+        - "  // Track events"
+        - "  static trackEvent(action, category, label = '', value = 0) {"
+        - "    if (window.gtag && this.GA4_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {"
+        - "      gtag('event', action, {"
+        - "        event_category: category,"
+        - "        event_label: label,"
+        - "        value: value,"
+        - "        custom_dimension_1: category,"
+        - "        custom_dimension_2: this.getSessionId()"
+        - "      });"
+        - ""
+        - "      if (this.GA4_CONSOLE_LOGGING) {"
+        - "        console.log('📊 GA4 Event:', action, category, label, value);"
+        - "      }"
+        - "    }"
+        - "  }"
+        - ""
+        - "  // Generate or retrieve session ID"
+        - "  static getSessionId() {"
+        - "    let sessionId = sessionStorage.getItem('sketchpad_session_id');"
+        - "    if (!sessionId) {"
+        - "      sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);"
+        - "      sessionStorage.setItem('sketchpad_session_id', sessionId);"
+        - "    }"
+        - "    return sessionId;"
+        - "  }"
+        - ""
+        - "  // Track AI interactions specifically"
+        - "  static trackAIInteraction(action, details = {}) {"
+        - "    this.trackEvent('ai_' + action, 'ai_interaction', JSON.stringify(details));"
+        - "  }"
+        - ""
+        - "  // Track user interface interactions"
+        - "  static trackUIInteraction(element, action) {"
+        - "    this.trackEvent('ui_' + action, 'user_interface', element);"
+        - "  }"
+        - "}"
+        - ""
+        - "// Make available globally"
+        - "window.AppConfig = AppConfig;"
+        - ""
+        - "// Auto-initialize on load"
+        - "if (typeof document !== 'undefined') {"
+        - "  if (document.readyState === 'loading') {"
+        - "    document.addEventListener('DOMContentLoaded', () => AppConfig.initializeGA4());"
+        - "  } else {"
+        - "    AppConfig.initializeGA4();"
+        - "  }"
+        - "}"
+        - "EOF"
         - echo "✅ Configuration file generated successfully"
         - echo "Build completed successfully!"
     postBuild:
