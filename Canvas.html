@@ -906,7 +906,7 @@
           text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         ">
           <span style="font-size: 20px;">🤖</span>
-          <span>AI Integration</span>
+          <span id="headerAIStatus">AI Integration</span>
         </div>
       </div>
     </div>
@@ -1049,6 +1049,7 @@
             <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
           </label>
           <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
+          <button id="disconnectAIBtn" class="panel-btn" style="display: none; background: rgba(255,69,0,0.3); border-color: rgba(255,69,0,0.5);">🔌 Disconnect</button>
         </div>
       </div>
       
@@ -1112,20 +1113,28 @@
         userTemplate: 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.'
       },
       creative: {
-        systemPrompt: 'You are a helpful assistant that generates p5.js code.',
-        userTemplate: `Generate p5.js code for: {prompt}
+        systemPrompt: 'You are a p5.js creative coding assistant. Generate compact, creative p5.js code that creates visual art and animations. Always respond in JSON format.',
+        userTemplate: `Create p5.js code for: {prompt}
 
-Use this exact structure:
-t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,20)
-  t+=0.05
-  fill(255,100,150)
-  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
-}
+REQUIREMENTS:
+1. Use compact syntax with t=0 and draw=_=>{...} pattern
+2. Always include t||createCanvas(w=800,h=600) for setup
+3. Use t+=0.01 to 0.1 for animation timing
+4. Create visually interesting patterns using sin(), cos(), loops
+5. Use fill() and stroke() for colors
+6. Available functions: ellipse(), rect(), line(), point(), triangle(), arc()
+7. Use mathematical patterns: sin(t+i), cos(t*2+i*0.1), etc.
 
-Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`
+EXAMPLES:
+- Spiral: for(i=0;i<100;i++){x=400+cos(t+i*0.1)*i*2; y=300+sin(t+i*0.1)*i*2; ellipse(x,y,5)}
+- Particles: for(i=0;i<50;i++){ellipse(400+sin(t+i)*100, 300+cos(t+i*0.5)*100, 8)}
+- Waves: for(i=0;i<800;i+=10){ellipse(i, 300+sin(i*0.02+t)*50, 6)}
+
+Return response as JSON:
+{
+  "code": "t=0\\ndraw=_=>{\\n  t||createCanvas(w=800,h=600)\\n  background(0,20)\\n  t+=0.05\\n  // your creative code here\\n}",
+  "description": "Brief description of the animation"
+}`
       }
     };
     
@@ -1398,6 +1407,68 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
     }
 
+    // Update AI Connection Status in Header
+    function updateHeaderAIStatus() {
+      const headerStatus = document.getElementById('headerAIStatus');
+      const connectBtn = document.getElementById('initAIBtn');
+      const disconnectBtn = document.getElementById('disconnectAIBtn');
+      
+      if (aiSession && aiSession !== 'template') {
+        if (aiSession.type === 'qwen') {
+          headerStatus.textContent = '🧠 Qwen2.5 Connected';
+          headerStatus.style.color = '#4CAF50';
+        } else if (aiSession.type === 'openai') {
+          headerStatus.textContent = `🚀 ${aiSession.model} Connected`;
+          headerStatus.style.color = '#4CAF50';
+        }
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = 'inline-block';
+      } else if (aiSession === 'template') {
+        headerStatus.textContent = '⚡ Smart Templates Active';
+        headerStatus.style.color = '#FF9800';
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = 'inline-block';
+      } else {
+        headerStatus.textContent = 'AI Integration';
+        headerStatus.style.color = 'rgba(255,255,255,0.85)';
+        connectBtn.style.display = 'inline-block';
+        disconnectBtn.style.display = 'none';
+      }
+    }
+
+    // Disconnect AI
+    function disconnectAI() {
+      if (aiSession) {
+        const wasConnected = aiSession !== null;
+        const aiType = aiSession.type || 'template';
+        
+        // Clear AI session
+        aiSession = null;
+        
+        // Reset UI elements
+        document.getElementById('aiStatus').textContent = 'AI: Disconnected';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '🔌 Connect';
+        
+        // Update header status
+        updateHeaderAIStatus();
+        
+        // Clear API key from memory
+        openaiApiKey = '';
+        
+        // Add chat message
+        addChatMessage('system', `🔌 AI disconnected. ${aiType === 'qwen' ? 'Qwen2.5' : aiType === 'openai' ? 'OpenAI API' : 'Smart Templates'} session ended.`);
+        updateStatus('🔌 AI disconnected successfully');
+        
+        // Track disconnection
+        if (window.AppConfig && wasConnected) {
+          window.AppConfig.trackEvent('ai_disconnected', 'ai_interaction', aiType);
+        }
+        
+        console.log('🔌 AI Session Disconnected:', aiType);
+      }
+    }
+
     // Show Agreement from Status Button
     function showAgreementFromStatus() {
       // Track agreement view from status button
@@ -1547,17 +1618,18 @@ When user asks for something, generate creative, compact p5.js code that creates
       
       if (isApiMode) {
         // API Mode Modal
-        modal.innerHTML = `
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
-                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+      modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
             <h2 style="color: white; margin-bottom: 20px; text-align: center;">🚀 Advanced API Models</h2>
-            
-            <div style="margin-bottom: 20px;">
+          
+          <div style="margin-bottom: 20px;">
               <label style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 10px; display: block;">Select Model:</label>
               <select id="apiModelSelect" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); 
                                                  border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; 
                                                  color: white; font-size: 14px;">
+                <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast & Efficient)</option>
                 <option value="gpt-4o-mini">GPT-4o Mini (Fast & Efficient)</option>
                 <option value="gpt-4o">GPT-4o (Most Capable)</option>
                 <option value="gpt-4-turbo">GPT-4 Turbo (Balanced)</option>
@@ -1573,8 +1645,8 @@ When user asks for something, generate creative, compact p5.js code that creates
             <div style="display: flex; gap: 10px; justify-content: center;">
               <button id="connectApiModel" class="ai-option-btn" style="flex: 1;">
                 🔌 Connect API Model
-              </button>
-            </div>
+            </button>
+          </div>
             
             <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
                     color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
@@ -1588,26 +1660,26 @@ When user asks for something, generate creative, compact p5.js code that creates
                       border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
                       box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
             <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Local FP16 Qwen2.5</h2>
-            
-            <div style="margin-bottom: 20px;">
+          
+          <div style="margin-bottom: 20px;">
               <button id="selectJanus" class="ai-option-btn">
                 🚀 Load Qwen2.5-0.5B FP16 (~1GB)
-              </button>
-              <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+            </button>
+            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
                 FP16 precision only. Maximum quality local AI. No API costs.
-              </p>
-            </div>
+            </p>
+          </div>
             
             <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
               ⚠️ Requires WebGPU support and 2GB+ RAM<br/>
               Model cached after first download for instant future loading
             </div>
-            
-            <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
-                    color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
-                    float: right; margin-top: 10px;">Cancel</button>
-          </div>
-        `;
+          
+          <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                  color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                  float: right; margin-top: 10px;">Cancel</button>
+        </div>
+      `;
       }
       
       const style = document.createElement('style');
@@ -1633,10 +1705,10 @@ When user asks for something, generate creative, compact p5.js code that creates
           initializeApiModel(selectedModel);
         };
       } else {
-        document.getElementById('selectJanus').onclick = () => {
-          document.body.removeChild(modal);
-          initializeJanus();
-        };
+      document.getElementById('selectJanus').onclick = () => {
+        document.body.removeChild(modal);
+        initializeJanus();
+      };
       }
       
       document.getElementById('closeModal').onclick = () => {
@@ -1667,6 +1739,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         openaiApiKey = apiKey;
         
         // Test API connection with a simple request
+        console.log('🔍 Testing OpenAI API connection...');
         const testResponse = await fetch('https://api.openai.com/v1/models', {
           method: 'GET',
           headers: {
@@ -1676,14 +1749,23 @@ When user asks for something, generate creative, compact p5.js code that creates
         });
         
         if (!testResponse.ok) {
+          console.error('❌ API connection test failed:', testResponse.status, testResponse.statusText);
           throw new Error(`API Key validation failed: ${testResponse.status} ${testResponse.statusText}`);
-        }
+    }
+
+        const modelsData = await testResponse.json();
+        console.log('✅ API connection test passed! Available models:', modelsData.data?.length || 'Unknown count');
+        console.log('🔑 API Key validated successfully');
         
         aiSession = { type: 'openai', model: modelName, apiKey: apiKey };
         document.getElementById('aiStatus').textContent = `AI: ${modelName} ✅`;
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = `🚀 ${modelName} Ready`;
         
+        // Update header status
+        updateHeaderAIStatus();
+        
+        console.log(`🚀 ${modelName} session initialized successfully`);
         updateStatus(`🚀 ${modelName} connected successfully!`);
         addChatMessage('system', `🚀 ${modelName} connected! Advanced AI capabilities are now available. API usage charges apply.`);
         
@@ -1812,9 +1894,9 @@ When user asks for something, generate creative, compact p5.js code that creates
           document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
           document.getElementById('generateBtn').disabled = true;
           document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
-          hideLoadingScreen();
+            hideLoadingScreen();
           updateStatus('❌ FP16 model failed to load. AI disabled.');
-          return;
+            return;
         }
         
         updateLoadingProgress(95, 'Finalizing model setup...');
@@ -1822,6 +1904,9 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B (FP16) ✅';
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 FP16 Ready';
+        
+        // Update header status
+        updateHeaderAIStatus();
         
         // Restore console.warn
         console.warn = originalWarn;
@@ -1932,6 +2017,10 @@ When user asks for something, generate creative, compact p5.js code that creates
       document.getElementById('aiStatus').textContent = 'AI: Smart Templates ⚡';
       document.getElementById('generateBtn').disabled = false;
       document.getElementById('initAIBtn').textContent = '⚡ Templates Ready';
+      
+      // Update header status
+      updateHeaderAIStatus();
+      
       updateStatus('⚡ Smart Templates ready!');
       addChatMessage('system', '⚡ Smart Template system activated! Uses pattern matching for instant code generation. Works for: "particle explosion", "rainbow spiral", "ocean waves", "geometric patterns", etc.');
       
@@ -2090,17 +2179,23 @@ When user asks for something, generate creative, compact p5.js code that creates
             
             const data = await response.json();
             aiResponse = data.choices[0].message.content.trim();
+            
+            // Console log raw OpenAI API response
+            console.log('%c🚀 RAW OPENAI API RESPONSE (General Chat)', 'background: #00a67d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+            console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+            console.log('%cExtracted Content:', 'color: #666; font-weight: bold;', aiResponse);
+            
             updateStatus(`🚀 ${aiSession.model} responded!`);
             
           } catch (error) {
             console.error('OpenAI API error:', error);
             aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
             updateStatus('❌ OpenAI API error');
-          }
+        }
         } else {
           aiResponse = 'AI is not properly initialized. Please connect an AI model.';
           updateStatus('❌ AI not available');
-        }
+      }
       
       // Add AI response to chat
       addChatMessage('ai', aiResponse);
@@ -2346,7 +2441,7 @@ When user asks for something, generate creative, compact p5.js code that creates
           }
         } else if (aiSession.type === 'openai') {
           try {
-            // OpenAI API call for creative coding
+            // OpenAI API call for creative coding with JSON response format
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST',
               headers: {
@@ -2359,8 +2454,9 @@ When user asks for something, generate creative, compact p5.js code that creates
                   { role: 'system', content: customContexts.creative.systemPrompt },
                   { role: 'user', content: customContexts.creative.userTemplate.replace('{prompt}', userPrompt) }
                 ],
-                max_tokens: 800,
-                temperature: 0.7
+                max_tokens: 1200,
+                temperature: 0.7,
+                response_format: { type: "json_object" }
               })
             });
             
@@ -2369,20 +2465,61 @@ When user asks for something, generate creative, compact p5.js code that creates
             }
             
             const data = await response.json();
-            const rawCode = data.choices[0].message.content.trim();
+            const rawContent = data.choices[0].message.content.trim();
             
-            // Extract p5.js code from API response
-            code = rawCode.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
-            code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+            // Console log raw OpenAI API response
+            console.log('%c🚀 RAW OPENAI API RESPONSE (Creative Chat)', 'background: #00a67d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+            console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+            console.log('%cRaw Content:', 'color: #666; font-weight: bold;', rawContent);
             
-            // Try to extract just the code if there's explanatory text
-            const codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
-            if (codeMatch) {
-              code = codeMatch[1];
+            // Parse JSON response
+            let jsonResponse;
+            try {
+              jsonResponse = JSON.parse(rawContent);
+              console.log('%cParsed JSON:', 'color: #666; font-weight: bold;', jsonResponse);
+            } catch (jsonError) {
+              console.warn('Failed to parse JSON, falling back to text extraction:', jsonError);
+              // Fallback: try to extract code from raw text
+              code = rawContent.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
+              code = code.replace(/```js\n?/g, '').replace(/```\n?/g, '');
+              
+              const codeMatch = code.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
+              if (codeMatch) {
+                code = codeMatch[1];
+              }
+              
+              aiResponse = `I've created a p5.js animation for "${userPrompt}" using ${aiSession.model} (text fallback).`;
+              updateStatus(`🚀 ${aiSession.model} generated code (text fallback)!`);
+              console.log('%cUsing text fallback code:', 'color: #666; font-weight: bold;', code);
+              return;
             }
             
-            aiResponse = `I've created a p5.js animation for "${userPrompt}" using ${aiSession.model}. Advanced AI model with superior code generation!`;
-            updateStatus(`🚀 ${aiSession.model} generated code!`);
+            // Extract code and description from JSON
+            if (jsonResponse && jsonResponse.code) {
+              code = jsonResponse.code;
+              
+              // Handle escaped newlines in JSON
+              code = code.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+              
+              // Validate and clean the code
+              if (!code.includes('t=0')) {
+                code = 't=0\n' + code;
+              }
+              if (!code.includes('createCanvas')) {
+                code = code.replace('draw=_=>{', 'draw=_=>{\n  t||createCanvas(w=800,h=600)');
+              }
+              
+              const description = jsonResponse.description || `Animation for "${userPrompt}"`;
+              aiResponse = `🎨 ${description} Generated using ${aiSession.model} with structured JSON response!`;
+              
+              console.log('%cExtracted Code from JSON:', 'color: #666; font-weight: bold;', code);
+              console.log('%cDescription:', 'color: #666; font-weight: bold;', description);
+              
+            } else {
+              throw new Error('JSON response missing required "code" field');
+            }
+            
+            updateStatus(`🚀 ${aiSession.model} generated structured code!`);
             
           } catch (error) {
             console.error('OpenAI API error:', error);
@@ -2810,20 +2947,28 @@ draw=_=>{
         // Reset to original defaults
         document.getElementById('generalSystemPrompt').value = 'You are a helpful AI assistant. Answer questions clearly and informatively.';
         document.getElementById('generalUserTemplate').value = 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.';
-        document.getElementById('creativeSystemPrompt').value = 'You are a helpful assistant that generates p5.js code.';
-        document.getElementById('creativeUserTemplate').value = `Generate p5.js code for: {prompt}
+        document.getElementById('creativeSystemPrompt').value = 'You are a p5.js creative coding assistant. Generate compact, creative p5.js code that creates visual art and animations. Always respond in JSON format.';
+        document.getElementById('creativeUserTemplate').value = `Create p5.js code for: {prompt}
 
-Use this exact structure:
-t=0
-draw=_=>{
-  t||createCanvas(w=800,h=600)
-  background(0,20)
-  t+=0.05
-  fill(255,100,150)
-  ellipse(400+sin(t)*100,300+cos(t)*100,50,50)
-}
+REQUIREMENTS:
+1. Use compact syntax with t=0 and draw=_=>{...} pattern
+2. Always include t||createCanvas(w=800,h=600) for setup
+3. Use t+=0.01 to 0.1 for animation timing
+4. Create visually interesting patterns using sin(), cos(), loops
+5. Use fill() and stroke() for colors
+6. Available functions: ellipse(), rect(), line(), point(), triangle(), arc()
+7. Use mathematical patterns: sin(t+i), cos(t*2+i*0.1), etc.
 
-Only modify the fill() and ellipse() lines to create the requested animation. Return just the 6-line code block.`;
+EXAMPLES:
+- Spiral: for(i=0;i<100;i++){x=400+cos(t+i*0.1)*i*2; y=300+sin(t+i*0.1)*i*2; ellipse(x,y,5)}
+- Particles: for(i=0;i<50;i++){ellipse(400+sin(t+i)*100, 300+cos(t+i*0.5)*100, 8)}
+- Waves: for(i=0;i<800;i+=10){ellipse(i, 300+sin(i*0.02+t)*50, 6)}
+
+Return response as JSON:
+{
+  "code": "t=0\\ndraw=_=>{\\n  t||createCanvas(w=800,h=600)\\n  background(0,20)\\n  t+=0.05\\n  // your creative code here\\n}",
+  "description": "Brief description of the animation"
+}`;
       }
     }
 
@@ -3240,6 +3385,15 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
       document.getElementById('agreementStatusBtn').addEventListener('click', () => {
         showAgreementFromStatus();
       });
+      
+      // Disconnect AI button
+      document.getElementById('disconnectAIBtn').addEventListener('click', () => {
+        // Track AI disconnection
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('ai_disconnected_manually', 'ai_interaction', 'disconnect_button');
+        }
+        disconnectAI();
+      });
 
       // Auto-run fish animation on load
       setTimeout(() => {
@@ -3248,6 +3402,9 @@ Only modify the fill() and ellipse() lines to create the requested animation. Re
 
       // Initialize agreement status display
       updateAgreementStatusDisplay();
+      
+      // Initialize header AI status
+      updateHeaderAIStatus();
       
       // Start agreement reminder system
       startAgreementReminders();
