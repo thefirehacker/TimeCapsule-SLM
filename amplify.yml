@@ -2,8 +2,8 @@ version: 1
 env:
   variables:
     # Google Analytics 4 Configuration
-    GA4_MEASUREMENT_ID: G-XXXXXXXXXX  # Replace with your actual GA4 Measurement ID
-    GA4_CONSOLE_LOGGING: false         # Set to true for debugging
+    GA4_MEASUREMENT_ID: G-XXXXXXXXXX
+    GA4_CONSOLE_LOGGING: false
 frontend:
   phases:
     preBuild:
@@ -13,122 +13,14 @@ frontend:
     build:
       commands:
         - echo "Building SketchPad-SLM with AI integration..."
-        # Inject environment variables into config.js
-        - "cat > config.js << 'EOF'"
-        - "// Auto-generated configuration file"
-        - "// This file is automatically created during build process"
-        - ""
-        - "class AppConfig {"
-        - "  static GA4_MEASUREMENT_ID = '$GA4_MEASUREMENT_ID';"
-        - "  static GA4_CONSOLE_LOGGING = $GA4_CONSOLE_LOGGING;"
-        - ""
-        - "  // Initialize Google Analytics 4"
-        - "  static initializeGA4() {"
-        - "    if (!this.GA4_MEASUREMENT_ID || this.GA4_MEASUREMENT_ID === 'G-XXXXXXXXXX') {"
-        - "      if (this.GA4_CONSOLE_LOGGING) {"
-        - "        console.warn('⚠️ GA4 not configured - using placeholder measurement ID');"
-        - "      }"
-        - "      return;"
-        - "    }"
-        - ""
-        - "    // Load GA4 script"
-        - "    const script1 = document.createElement('script');"
-        - "    script1.async = true;"
-        - "    script1.src = \\`https://www.googletagmanager.com/gtag/js?id=\\${this.GA4_MEASUREMENT_ID}\\`;"
-        - "    document.head.appendChild(script1);"
-        - ""
-        - "    // Initialize GA4"
-        - "    window.dataLayer = window.dataLayer || [];"
-        - "    function gtag(){dataLayer.push(arguments);}"
-        - "    gtag('js', new Date());"
-        - "    gtag('config', this.GA4_MEASUREMENT_ID, {"
-        - "      page_title: 'SketchPad-SLM Canvas',"
-        - "      page_location: window.location.href,"
-        - "      custom_map: {"
-        - "        'custom_dimension_1': 'ai_interaction_type',"
-        - "        'custom_dimension_2': 'user_session_id'"
-        - "      }"
-        - "    });"
-        - ""
-        - "    window.gtag = gtag;"
-        - ""
-        - "    if (this.GA4_CONSOLE_LOGGING) {"
-        - "      console.log('✅ GA4 initialized with ID:', this.GA4_MEASUREMENT_ID);"
-        - "    }"
-        - "  }"
-        - ""
-        - "  // Track page views"
-        - "  static trackPageView(page_title, page_location) {"
-        - "    if (window.gtag && this.GA4_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {"
-        - "      gtag('config', this.GA4_MEASUREMENT_ID, {"
-        - "        page_title: page_title,"
-        - "        page_location: page_location"
-        - "      });"
-        - ""
-        - "      if (this.GA4_CONSOLE_LOGGING) {"
-        - "        console.log('📊 GA4 Page View:', page_title, page_location);"
-        - "      }"
-        - "    }"
-        - "  }"
-        - ""
-        - "  // Track events"
-        - "  static trackEvent(action, category, label = '', value = 0) {"
-        - "    if (window.gtag && this.GA4_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {"
-        - "      gtag('event', action, {"
-        - "        event_category: category,"
-        - "        event_label: label,"
-        - "        value: value,"
-        - "        custom_dimension_1: category,"
-        - "        custom_dimension_2: this.getSessionId()"
-        - "      });"
-        - ""
-        - "      if (this.GA4_CONSOLE_LOGGING) {"
-        - "        console.log('📊 GA4 Event:', action, category, label, value);"
-        - "      }"
-        - "    }"
-        - "  }"
-        - ""
-        - "  // Generate or retrieve session ID"
-        - "  static getSessionId() {"
-        - "    let sessionId = sessionStorage.getItem('sketchpad_session_id');"
-        - "    if (!sessionId) {"
-        - "      sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);"
-        - "      sessionStorage.setItem('sketchpad_session_id', sessionId);"
-        - "    }"
-        - "    return sessionId;"
-        - "  }"
-        - ""
-        - "  // Track AI interactions specifically"
-        - "  static trackAIInteraction(action, details = {}) {"
-        - "    this.trackEvent('ai_' + action, 'ai_interaction', JSON.stringify(details));"
-        - "  }"
-        - ""
-        - "  // Track user interface interactions"
-        - "  static trackUIInteraction(element, action) {"
-        - "    this.trackEvent('ui_' + action, 'user_interface', element);"
-        - "  }"
-        - "}"
-        - ""
-        - "// Make available globally"
-        - "window.AppConfig = AppConfig;"
-        - ""
-        - "// Auto-initialize on load"
-        - "if (typeof document !== 'undefined') {"
-        - "  if (document.readyState === 'loading') {"
-        - "    document.addEventListener('DOMContentLoaded', () => AppConfig.initializeGA4());"
-        - "  } else {"
-        - "    AppConfig.initializeGA4();"
-        - "  }"
-        - "}"
-        - "EOF"
-        - echo "✅ Configuration file generated successfully"
+        - echo "Creating basic config.js file..."
+        - echo 'window.AppConfig = {};' > config.js
         - echo "Build completed successfully!"
     postBuild:
       commands:
         - echo "Post-build: Optimizing assets..."
         - echo "✅ SketchPad-SLM build completed!"
   artifacts:
-    # Deploy all files in the project
     baseDirectory: .
     files:
       - '**/*'
@@ -138,47 +30,13 @@ frontend:
   customHeaders:
     - pattern: '**/*'
       headers:
-        # Enhanced Content Security Policy for p5.js and Monaco Editor
-        Content-Security-Policy: >-
-          default-src 'self';
-          script-src 'self' 'unsafe-eval' 'unsafe-inline' 
-            https://cdn.jsdelivr.net 
-            https://unpkg.com 
-            https://www.googletagmanager.com
-            data: blob:;
-          style-src 'self' 'unsafe-inline' 
-            https://cdn.jsdelivr.net 
-            https://fonts.googleapis.com
-            data:;
-          connect-src 'self' 
-            https://api.openai.com
-            https://www.google-analytics.com
-            https://analytics.google.com
-            https://cdn.jsdelivr.net
-            https://unpkg.com
-            wss:;
-          img-src 'self' 
-            https://www.google-analytics.com
-            data: blob:;
-          font-src 'self' 
-            https://cdn.jsdelivr.net
-            https://fonts.gstatic.com
-            data:;
-          worker-src 'self' blob: data:;
-          object-src 'none';
-          base-uri 'self';
-          form-action 'self';
-        # Security headers
+        Content-Security-Policy: "script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:; style-src 'self' 'unsafe-inline' https: data:; connect-src 'self' https: wss:; img-src 'self' data: https: blob:; font-src 'self' data: https:; worker-src 'self' blob: data:; object-src 'none';"
         X-Frame-Options: SAMEORIGIN
         X-Content-Type-Options: nosniff
         Referrer-Policy: strict-origin-when-cross-origin
-        # Cache control
         Cache-Control: public, max-age=31536000
-        # Debug header to verify deployment
-        X-SketchPad-Version: "2.1.0-CSP-Fixed"
+        X-SketchPad-Version: "2.2.0-Simplified"
     - pattern: '*.html'
       headers:
-        # Shorter cache for HTML files
         Cache-Control: public, max-age=3600
-        # Debug header for HTML specifically  
         X-SketchPad-HTML: "CSP-Managed" 
