@@ -231,7 +231,59 @@
       color: white;
       margin-bottom: 10px;
       font-weight: 600;
-      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .canvas-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .canvas-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      min-width: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .canvas-btn:hover {
+      background: rgba(255, 255, 255, 0.4);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: translateY(-1px);
+    }
+    
+    .canvas-btn.active {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      border-color: rgba(79, 172, 254, 0.5);
+    }
+    
+    .speed-btn {
+      min-width: 50px;
+      font-size: 11px;
+    }
+    
+    .speed-btn.slow {
+      background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%);
+    }
+    
+    .speed-btn.fast {
+      background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+    }
+    
+    .speed-btn.very-fast {
+      background: linear-gradient(45deg, #ffecd2 0%, #fcb69f 100%);
     }
     
     #canvas { 
@@ -1247,7 +1299,13 @@
     </div>
     
     <div class="canvas-container">
-      <div class="canvas-header">🖼️ Canvas Output</div>
+      <div class="canvas-header">
+        <span>🖼️ Canvas Output</span>
+        <div class="canvas-controls">
+          <button class="canvas-btn" id="pausePlayBtn" title="Pause/Play Animation">⏸️</button>
+          <button class="canvas-btn speed-btn slow" id="speedBtn" title="Animation Speed">SLOW</button>
+        </div>
+      </div>
       <div id="canvas"></div>
     </div>
   </div>
@@ -1392,6 +1450,11 @@
     let chatMode = 'creative'; // 'creative' or 'general'
     let apiMode = false; // false = local LLM, true = API mode
     let openaiApiKey = ''; // Session API key
+    
+    // Canvas animation controls
+    let animationPaused = false;
+    let animationSpeed = 'slow'; // 'slow', 'fast', 'very-fast'
+    let speedMultiplier = 0.5; // Default slow speed
     let userAgreementAccepted = false; // Track if user accepted terms
     let agreementTimestamp = null; // Track when user accepted agreement
     let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
@@ -3542,6 +3605,7 @@ Return response as JSON:
         
         // Create p5 instance and execute the user's code
         currentP5 = new p5((p) => {
+          let originalDraw = null;
           
           // Make p5 functions available in global scope for user code
           const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random'];
@@ -3570,7 +3634,24 @@ Return response as JSON:
             
             // If draw function was created globally, use it
             if (window.draw && typeof window.draw === 'function') {
-              p.draw = window.draw;
+              originalDraw = window.draw;
+              
+              // Store original frameRate
+              const originalFrameRate = p.frameRate;
+              
+              // Wrap the draw function with pause/play and speed control
+              p.draw = function() {
+                if (animationPaused) {
+                  return; // Skip drawing when paused
+                }
+                
+                // Apply speed control by adjusting frameRate
+                const targetFrameRate = 60 * speedMultiplier;
+                p.frameRate(targetFrameRate);
+                
+                originalDraw();
+              };
+              
               updateStatus('✅ Code executed successfully!');
             }
             
@@ -3951,6 +4032,62 @@ Return response as JSON:
         }
         disconnectAI();
       });
+      
+      // Canvas control buttons
+      const pausePlayBtn = document.getElementById('pausePlayBtn');
+      const speedBtn = document.getElementById('speedBtn');
+      
+      if (pausePlayBtn) {
+        pausePlayBtn.addEventListener('click', () => {
+          animationPaused = !animationPaused;
+          
+          if (animationPaused) {
+            pausePlayBtn.textContent = '▶️';
+            pausePlayBtn.title = 'Play Animation';
+            pausePlayBtn.classList.add('active');
+            updateStatus('⏸️ Animation paused');
+          } else {
+            pausePlayBtn.textContent = '⏸️';
+            pausePlayBtn.title = 'Pause Animation';
+            pausePlayBtn.classList.remove('active');
+            updateStatus('▶️ Animation resumed');
+          }
+          
+          // Track pause/play usage
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('animation_control', 'canvas_interaction', animationPaused ? 'paused' : 'resumed');
+          }
+        });
+      }
+      
+      if (speedBtn) {
+        speedBtn.addEventListener('click', () => {
+          // Cycle through speed levels
+          if (animationSpeed === 'slow') {
+            animationSpeed = 'fast';
+            speedMultiplier = 1.0;
+            speedBtn.textContent = 'FAST';
+            speedBtn.className = 'canvas-btn speed-btn fast';
+          } else if (animationSpeed === 'fast') {
+            animationSpeed = 'very-fast';
+            speedMultiplier = 2.0;
+            speedBtn.textContent = 'V-FAST';
+            speedBtn.className = 'canvas-btn speed-btn very-fast';
+          } else {
+            animationSpeed = 'slow';
+            speedMultiplier = 0.5;
+            speedBtn.textContent = 'SLOW';
+            speedBtn.className = 'canvas-btn speed-btn slow';
+          }
+          
+          updateStatus(`🚀 Animation speed: ${animationSpeed.toUpperCase()}`);
+          
+          // Track speed changes
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('animation_speed_changed', 'canvas_interaction', animationSpeed);
+          }
+        });
+      }
 
       // Auto-run bird animation on load
       setTimeout(() => {
