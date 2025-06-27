@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!-- Content Security Policy - Ultra-permissive for testing -->
+  <meta http-equiv="Content-Security-Policy" content="
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
+    style-src 'self' 'unsafe-inline' https: data:;
+    connect-src 'self' https: wss:;
+    img-src 'self' data: https: blob:;
+    font-src 'self' data: https:;
+    worker-src 'self' blob: data:;
+    object-src 'none';
+  ">
   <title>SketchPad-SLM - Live p5.js Editor</title>
   <link rel="icon" type="image/png" href="lib/Media/SketchPad-SLM.png">
   <link rel="shortcut icon" type="image/png" href="lib/Media/SketchPad-SLM.png">
