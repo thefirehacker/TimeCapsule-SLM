@@ -578,9 +578,7 @@
     }
     
     .dev-logger-window.minimized {
-      height: 60px;
-      width: 300px;
-      resize: none;
+      display: none;
     }
     
     .dev-logger-window.hidden {
@@ -596,8 +594,12 @@
       padding: 15px 20px;
       background: rgba(255, 255, 255, 0.1);
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      cursor: move;
+      cursor: grab;
       user-select: none;
+    }
+    
+    .dev-logger-header:active {
+      cursor: grabbing;
     }
     
     .dev-logger-title {
@@ -1393,6 +1395,7 @@
           <button id="chatModeBtn" class="panel-btn">🎨 Creative Mode</button>
           <button id="contextBtn" class="panel-btn">⚙️ Context</button>
           <button id="devModeBtn" class="panel-btn">🔧 Dev Mode</button>
+          <button id="devLoggerToggle" class="panel-btn" style="display: none; background: rgba(255,152,0,0.3); border-color: rgba(255,152,0,0.5);">📊 Logger</button>
           <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.8);">
             <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
           </label>
@@ -1509,19 +1512,22 @@
       
       minimize() {
         const window = document.getElementById('devLoggerWindow');
-        const content = document.getElementById('devLoggerContent');
         const btn = document.getElementById('devMinimizeBtn');
         
         if (this.isMinimized) {
           window.classList.remove('minimized');
-          content.classList.remove('minimized');
           btn.textContent = '−';
           this.isMinimized = false;
+          this.isVisible = true;
+          document.getElementById('devModeStatus').textContent = 'ACTIVE';
+          document.getElementById('devModeStatus').style.color = '#4CAF50';
         } else {
           window.classList.add('minimized');
-          content.classList.add('minimized');
           btn.textContent = '+';
           this.isMinimized = true;
+          this.isVisible = false;
+          document.getElementById('devModeStatus').textContent = 'MINIMIZED';
+          document.getElementById('devModeStatus').style.color = '#ff9800';
         }
       }
       
@@ -1735,8 +1741,39 @@
       }
       
       toggleData(id) {
-        const element = document.getElementById(`data-${id}`) || document.getElementById(`req-${id}`) || document.getElementById(`res-${id}`);
-        const button = element.nextElementSibling;
+        // Handle different ID patterns
+        let element = null;
+        let buttonSelector = null;
+        
+        if (id.startsWith('data-')) {
+          element = document.getElementById(id);
+          buttonSelector = `button[onclick*="${id}"]`;
+        } else if (id.startsWith('req-')) {
+          element = document.getElementById(id);
+          buttonSelector = `button[onclick*="${id}"]`;
+        } else if (id.startsWith('res-')) {
+          element = document.getElementById(id);
+          buttonSelector = `button[onclick*="${id}"]`;
+        } else {
+          // Try all patterns
+          element = document.getElementById(`data-${id}`) || 
+                   document.getElementById(`req-${id}`) || 
+                   document.getElementById(`res-${id}`);
+          buttonSelector = `button[onclick*="${id}"]`;
+        }
+        
+        if (!element) {
+          console.warn('DevLogger: Element not found for ID:', id);
+          return;
+        }
+        
+        // Find button by onclick attribute instead of DOM position
+        const button = document.querySelector(buttonSelector);
+        
+        if (!button) {
+          console.warn('DevLogger: Button not found for ID:', id);
+          return;
+        }
         
         if (element.style.display === 'none') {
           element.style.display = 'block';
@@ -1778,11 +1815,19 @@
         let yOffset = 0;
         
         header.addEventListener('mousedown', (e) => {
-          if (e.target.tagName === 'BUTTON') return;
+          // Don't drag if clicking on buttons
+          if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
           
           initialX = e.clientX - xOffset;
           initialY = e.clientY - yOffset;
           isDragging = true;
+          
+          // Add visual feedback
+          window.style.opacity = '0.9';
+          window.style.zIndex = '2000';
+          header.style.cursor = 'grabbing';
+          
+          e.preventDefault();
         });
         
         document.addEventListener('mousemove', (e) => {
@@ -1793,12 +1838,23 @@
             xOffset = currentX;
             yOffset = currentY;
             
+            // Constrain to viewport
+            const maxX = window.innerWidth - window.offsetWidth;
+            const maxY = window.innerHeight - window.offsetHeight;
+            currentX = Math.max(0, Math.min(currentX, maxX));
+            currentY = Math.max(0, Math.min(currentY, maxY));
+            
             window.style.transform = `translate(${currentX}px, ${currentY}px)`;
           }
         });
         
         document.addEventListener('mouseup', () => {
-          isDragging = false;
+          if (isDragging) {
+            isDragging = false;
+            window.style.opacity = '1';
+            window.style.zIndex = '1500';
+            header.style.cursor = 'grab';
+          }
         });
       }
     }
@@ -3954,12 +4010,15 @@ Return response as JSON:
           devLogger = new DevLogger();
         }
         
+        const loggerToggle = document.getElementById('devLoggerToggle');
+        
         if (devModeActive) {
           devModeActive = false;
           window.devModeActive = false;
           devLogger.hide();
           document.getElementById('devModeBtn').textContent = '🔧 Dev Mode';
           document.getElementById('devModeBtn').style.background = 'rgba(255, 255, 255, 0.2)';
+          loggerToggle.style.display = 'none';
           console.log('🔧 Dev Mode: DISABLED');
         } else {
           devModeActive = true;
@@ -3968,12 +4027,26 @@ Return response as JSON:
           devLogger.show();
           document.getElementById('devModeBtn').textContent = '🔧 Dev Active';
           document.getElementById('devModeBtn').style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+          loggerToggle.style.display = 'inline-block';
           console.log('🔧 Dev Mode: ENABLED - Full agent pipeline logging active');
         }
         
         // Track dev mode toggle
         if (window.AppConfig) {
           window.AppConfig.trackEvent('dev_mode_toggled', 'debug', devModeActive ? 'enabled' : 'disabled');
+        }
+      });
+      
+      // Dev logger toggle button
+      document.getElementById('devLoggerToggle').addEventListener('click', () => {
+        if (devLogger) {
+          if (devLogger.isMinimized) {
+            devLogger.minimize(); // This will expand it
+          } else if (!devLogger.isVisible) {
+            devLogger.show();
+          } else {
+            devLogger.minimize(); // This will minimize it
+          }
         }
       });
       
