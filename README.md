@@ -253,12 +253,12 @@ cd SketchPad-SLM
 
 ### 🛠️ **Development Setup** *(For Contributors)*
 
-```bash
+   ```bash
 # Install dependencies
-npm i -g live-server
+   npm i -g live-server
 
 # Start local server
-live-server .
+   live-server .
 
 # Open http://localhost:8080/Canvas.html
 # Select AI model and start coding!
