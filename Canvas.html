@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy" content="
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
     style-src 'self' 'unsafe-inline' https: data:;
-    connect-src 'self' https: wss:;
+    connect-src 'self' https: wss: http://localhost:1234;
     img-src 'self' data: https: blob:;
     font-src 'self' data: https:;
     worker-src 'self' blob: data:;
@@ -1651,7 +1651,7 @@
       
       <!-- API Key Section (hidden by default) -->
       <div class="control-group" id="apiKeySection" style="display: none; margin-top: 15px;">
-        <label>🔑 API Configuration:</label>
+        <label>🔑 OpenAI API Configuration:</label>
         <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
           <input type="text" id="openaiApiKey" placeholder="OpenAI_API_KEY" 
                  style="flex: 1; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); 
@@ -1775,9 +1775,11 @@
           <button id="contextBtn" class="panel-btn">⚙️ Context</button>
           <button id="devModeBtn" class="panel-btn">🔧 Dev Mode</button>
           <button id="devLoggerToggle" class="panel-btn" style="display: none; background: rgba(255,152,0,0.3); border-color: rgba(255,152,0,0.5);">📊 Logger</button>
-          <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.8);">
-            <input type="checkbox" id="apiModeToggle" style="margin: 0;"> API
-          </label>
+          <select id="aiProviderSelect" style="padding: 4px 8px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; font-size: 11px;">
+            <option value="local" style="background: #2a2a2a; color: white;">🧠 Local Qwen</option>
+            <option value="openai" style="background: #2a2a2a; color: white;">🤖 OpenAI API</option>
+            <option value="lmstudio" style="background: #2a2a2a; color: white;">🏠 LM Studio</option>
+          </select>
           <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
           <button id="disconnectAIBtn" class="panel-btn" style="display: none; background: rgba(255,69,0,0.3); border-color: rgba(255,69,0,0.5);">🔌 Disconnect</button>
         </div>
@@ -1830,7 +1832,7 @@
     let editorInstance, currentP5, aiSession = null;
     let chatHistory = [];
     let chatMode = 'creative'; // 'creative' or 'general'
-    let apiMode = false; // false = local LLM, true = API mode
+    let aiProvider = 'local'; // 'local' = Qwen, 'openai' = OpenAI API, 'lmstudio' = LM Studio
     let openaiApiKey = ''; // Session API key
     
     // Canvas animation controls
@@ -2589,7 +2591,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       openaiApiKey = '';
       
       // Add chat message
-      addChatMessage('system', `🔌 AI disconnected. ${aiType === 'qwen' ? 'Qwen2.5' : aiType === 'openai' ? 'OpenAI API + Agent System' : 'AI'} session ended.`);
+      addChatMessage('system', `🔌 AI disconnected. ${aiType === 'qwen' ? 'Qwen2.5' : aiType === 'openai' ? 'OpenAI API + Agent System' : aiType === 'lmstudio' ? 'LM Studio' : 'AI'} session ended.`);
       updateStatus('🔌 AI disconnected successfully');
         
         // Track disconnection
@@ -2746,35 +2748,63 @@ When user asks for something, generate creative, compact p5.js code that creates
         align-items: center; justify-content: center;
       `;
       
-      const isApiMode = apiMode;
-      
-      if (isApiMode) {
-        // API Mode Modal
-      modal.innerHTML = `
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🚀 Advanced API Models</h2>
-          
-          <div style="margin-bottom: 20px;">
-              <label style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 10px; display: block;">Select Model:</label>
-              <select id="apiModelSelect" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); 
-                                                 border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; 
-                                                 color: white; font-size: 14px;">
-                <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast & Efficient)</option>
-              </select>
-            </div>
+      if (aiProvider === 'openai') {
+        // OpenAI API Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+              <h2 style="color: white; margin-bottom: 20px; text-align: center;">🚀 OpenAI API Models</h2>
             
-            <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 20px; text-align: center;">
-              📝 Requires valid OpenAI API key<br/>
-              💰 API usage charges apply based on your OpenAI plan
+            <div style="margin-bottom: 20px;">
+                <label style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 10px; display: block;">Select Model:</label>
+                <select id="apiModelSelect" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); 
+                                                   border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; 
+                                                   color: white; font-size: 14px;">
+                  <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast & Efficient)</option>
+                </select>
+              </div>
+              
+              <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 20px; text-align: center;">
+                📝 Requires valid OpenAI API key<br/>
+                💰 API usage charges apply based on your OpenAI plan
+              </div>
+              
+              <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="connectApiModel" class="ai-option-btn" style="flex: 1;">
+                  🔌 Connect OpenAI API
+              </button>
             </div>
+              
+              <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                      color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                      float: right; margin-top: 10px;">Cancel</button>
+            </div>
+          `;
+      } else if (aiProvider === 'lmstudio') {
+        // LM Studio Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+              <h2 style="color: white; margin-bottom: 20px; text-align: center;">🏠 LM Studio Connection</h2>
             
-            <div style="display: flex; gap: 10px; justify-content: center;">
-              <button id="connectApiModel" class="ai-option-btn" style="flex: 1;">
-                🔌 Connect API Model
-            </button>
-          </div>
+            <div style="margin-bottom: 20px;">
+                <button id="connectLMStudio" class="ai-option-btn">
+                  🔌 Connect to LM Studio
+              </button>
+              <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+                  Connects to LM Studio running on localhost:1234
+              </p>
+            </div>
+              
+              <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
+                📋 Requirements:<br/>
+                • LM Studio must be running on port 1234<br/>
+                • A model must be loaded in LM Studio<br/>
+                • CORS must be enabled in LM Studio settings<br/>
+                • No API key required - fully local
+              </div>
             
             <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
                     color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
@@ -2826,17 +2856,22 @@ When user asks for something, generate creative, compact p5.js code that creates
       document.body.appendChild(modal);
       
       // Event listeners
-      if (isApiMode) {
+      if (aiProvider === 'openai') {
         document.getElementById('connectApiModel').onclick = () => {
           const selectedModel = document.getElementById('apiModelSelect').value;
           document.body.removeChild(modal);
           initializeApiModel(selectedModel);
         };
+      } else if (aiProvider === 'lmstudio') {
+        document.getElementById('connectLMStudio').onclick = () => {
+          document.body.removeChild(modal);
+          initializeLMStudio();
+        };
       } else {
-      document.getElementById('selectJanus').onclick = () => {
-        document.body.removeChild(modal);
-        initializeJanus();
-      };
+        document.getElementById('selectJanus').onclick = () => {
+          document.body.removeChild(modal);
+          initializeJanus();
+        };
       }
       
       document.getElementById('closeModal').onclick = () => {
@@ -2925,6 +2960,66 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('generateBtn').disabled = true;
         document.getElementById('initAIBtn').textContent = '❌ API Failed';
         updateStatus('❌ API connection failed');
+      }
+    }
+
+    // Initialize LM Studio
+    async function initializeLMStudio() {
+      try {
+        updateStatus('🏠 Connecting to LM Studio...');
+        document.getElementById('aiStatus').textContent = 'AI: Connecting to LM Studio...';
+        
+        // Test LM Studio connection by fetching models
+        console.log('🔍 Testing LM Studio connection...');
+        const testResponse = await fetch('http://localhost:1234/v1/models', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors'
+        });
+        
+        if (!testResponse.ok) {
+          console.error('❌ LM Studio connection test failed:', testResponse.status, testResponse.statusText);
+          throw new Error(`LM Studio connection failed: ${testResponse.status} ${testResponse.statusText}. Make sure LM Studio is running on port 1234 and CORS is enabled.`);
+        }
+
+        const modelsData = await testResponse.json();
+        console.log('✅ LM Studio connection test passed! Available models:', modelsData.data?.length || 'Unknown count');
+        
+        // Get the first available model
+        const availableModel = modelsData.data?.[0]?.id || 'lm-studio-model';
+        
+        aiSession = { type: 'lmstudio', model: availableModel, baseURL: 'http://localhost:1234/v1' };
+        document.getElementById('aiStatus').textContent = `AI: LM Studio (${availableModel}) ✅`;
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = `🏠 LM Studio Ready`;
+        
+        // Update header status
+        updateHeaderAIStatus();
+        
+        console.log(`🏠 LM Studio session initialized successfully with model: ${availableModel}`);
+        updateStatus(`🏠 LM Studio connected successfully!`);
+        addChatMessage('system', `🏠 LM Studio connected! Using model: ${availableModel}. Fully local processing - no API costs.`);
+        
+        // Track LM Studio connection
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('lmstudio_connected', 'ai_interaction', availableModel);
+        }
+        
+      } catch (error) {
+        console.error('LM Studio initialization error:', error);
+        
+        let errorMessage = `❌ Failed to connect to LM Studio: ${error.message}`;
+        if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+          errorMessage += `\n\n💡 CORS Fix: In LM Studio, go to Settings → Server → Enable CORS, then restart the server.`;
+        }
+        
+        addChatMessage('system', errorMessage);
+        document.getElementById('aiStatus').textContent = 'AI: LM Studio Failed ❌';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '❌ LM Studio Failed';
+        updateStatus('❌ LM Studio connection failed - Check CORS settings');
       }
     }
 
@@ -3145,7 +3240,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         return;
       }
       
-      if (aiSession !== 'template' && aiSession.type !== 'qwen' && aiSession.type !== 'openai') {
+      if (aiSession !== 'template' && aiSession.type !== 'qwen' && aiSession.type !== 'openai' && aiSession.type !== 'lmstudio') {
         updateStatus('❌ Invalid AI session type.');
         addChatMessage('ai', 'AI session error. Please reconnect.');
         return;
@@ -3264,15 +3359,54 @@ When user asks for something, generate creative, compact p5.js code that creates
             
             updateStatus(`🚀 ${aiSession.model} responded!`);
             
-          } catch (error) {
+                    } catch (error) {
             console.error('OpenAI API error:', error);
             aiResponse = `OpenAI API error: ${error.message}. Please check your API key and try again.`;
             updateStatus('❌ OpenAI API error');
-        }
+          }
+        } else if (aiSession.type === 'lmstudio') {
+          try {
+            // LM Studio API call for general chat
+            const response = await fetch(`${aiSession.baseURL}/chat/completions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              mode: 'cors',
+              body: JSON.stringify({
+                model: aiSession.model,
+                messages: [
+                  { role: 'system', content: customContexts.general.systemPrompt },
+                  { role: 'user', content: customContexts.general.userTemplate.replace('{prompt}', userPrompt) }
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`LM Studio API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            aiResponse = data.choices[0].message.content.trim();
+            
+            // Console log raw LM Studio API response
+            console.log('%c🏠 RAW LM STUDIO RESPONSE (General Chat)', 'background: #4facfe; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+            console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+            console.log('%cExtracted Content:', 'color: #666; font-weight: bold;', aiResponse);
+            
+            updateStatus(`🏠 ${aiSession.model} responded!`);
+            
+          } catch (error) {
+            console.error('LM Studio API error:', error);
+            aiResponse = `LM Studio API error: ${error.message}. Please check that LM Studio is running on port 1234.`;
+            updateStatus('❌ LM Studio API error');
+          }
         } else {
           aiResponse = 'AI is not properly initialized. Please connect an AI model.';
           updateStatus('❌ AI not available');
-      }
+        }
       
       // Add AI response to chat
       addChatMessage('ai', aiResponse);
@@ -3532,6 +3666,11 @@ When user asks for something, generate creative, compact p5.js code that creates
           const result = await handleStandardOpenAIGeneration(userPrompt);
           code = result.code;
           aiResponse = result.aiResponse;
+        } else if (aiSession.type === 'lmstudio') {
+          // LM Studio generation
+          const result = await handleLMStudioGeneration(userPrompt);
+          code = result.code;
+          aiResponse = result.aiResponse;
         } else {
           // aiSession is not valid
           code = '';
@@ -3658,9 +3797,82 @@ When user asks for something, generate creative, compact p5.js code that creates
       return { code, aiResponse };
     }
 
-
-
-
+    // LM Studio Generation
+    async function handleLMStudioGeneration(userPrompt) {
+      let code = '';
+      let aiResponse = '';
+      
+      try {
+        // LM Studio API call for creative coding with JSON response format
+        const response = await fetch(`${aiSession.baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            model: aiSession.model,
+            messages: [
+              { role: 'system', content: customContexts.creative.systemPrompt },
+              { role: 'user', content: customContexts.creative.userTemplate.replace('{prompt}', userPrompt) }
+            ],
+            max_tokens: 1200,
+            temperature: 0.7
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`LM Studio API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const rawContent = data.choices[0].message.content.trim();
+        
+        // Console log raw LM Studio API response
+        console.log('%c🏠 RAW LM STUDIO RESPONSE (Creative)', 'background: #4facfe; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+        console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+        console.log('%cRaw Content:', 'color: #666; font-weight: bold;', rawContent);
+        
+        // Parse JSON response
+        let jsonResponse;
+        try {
+          jsonResponse = JSON.parse(rawContent);
+          console.log('%cParsed JSON:', 'color: #666; font-weight: bold;', jsonResponse);
+          
+          code = jsonResponse.code?.replace(/\\n/g, '\n').replace(/\\t/g, '\t') || '';
+          aiResponse = jsonResponse.description || 'LM Studio generated creative code!';
+          
+        } catch (parseError) {
+          console.log('%cJSON Parse Failed, trying fallback extraction:', 'color: #orange; font-weight: bold;', parseError);
+          
+          // Fallback: Try to extract code between backticks or other patterns
+          const codeMatch = rawContent.match(/```(?:javascript|js)?\n?([\s\S]*?)\n?```/);
+          if (codeMatch) {
+            code = codeMatch[1].trim();
+            aiResponse = 'Code extracted from LM Studio response';
+          } else {
+            // Last resort: treat entire response as code if it looks like code
+            if (rawContent.includes('createCanvas') || rawContent.includes('draw=') || rawContent.includes('background(')) {
+              code = rawContent;
+              aiResponse = 'Raw code from LM Studio';
+            } else {
+              code = '';
+              aiResponse = rawContent || 'LM Studio response could not be parsed';
+            }
+          }
+        }
+        
+        updateStatus(`🏠 ${aiSession.model} generated code!`);
+        
+      } catch (error) {
+        console.error('LM Studio API error:', error);
+        code = '';
+        aiResponse = `LM Studio API error: ${error.message}. Please check that LM Studio is running on port 1234.`;
+        updateStatus('❌ LM Studio API error');
+      }
+      
+      return { code, aiResponse };
+    }
 
     function updateStatus(message) {
       document.getElementById('statusBar').textContent = message;
@@ -3683,6 +3895,8 @@ When user asks for something, generate creative, compact p5.js code that creates
             headerText = '🧠 Qwen2.5-0.5B';
           } else if (aiSession && aiSession.type === 'openai') {
             headerText = '🤖 AI Assistant';
+          } else if (aiSession && aiSession.type === 'lmstudio') {
+            headerText = '🏠 LM Studio';
           } else {
             headerText = '🤖 AI Assistant';
           }
@@ -4609,29 +4823,33 @@ Return response as JSON:
         }
       });
       
-      // API mode toggle
-      document.getElementById('apiModeToggle').addEventListener('change', (e) => {
-        apiMode = e.target.checked;
+      // AI provider selection
+      document.getElementById('aiProviderSelect').addEventListener('change', (e) => {
+        aiProvider = e.target.value;
         const apiKeySection = document.getElementById('apiKeySection');
         
-        if (apiMode) {
+        if (aiProvider === 'openai') {
           apiKeySection.style.display = 'block';
-          document.getElementById('initAIBtn').textContent = '🚀 Connect API';
-          updateStatus('🔑 API mode enabled. Enter your OpenAI API key.');
+          document.getElementById('initAIBtn').textContent = '🚀 Connect OpenAI';
+          updateStatus('🔑 OpenAI API mode enabled. Enter your API key.');
+        } else if (aiProvider === 'lmstudio') {
+          apiKeySection.style.display = 'none';
+          document.getElementById('initAIBtn').textContent = '🏠 Connect LM Studio';
+          updateStatus('🏠 LM Studio mode enabled. Make sure LM Studio is running on port 1234.');
         } else {
           apiKeySection.style.display = 'none';
-          document.getElementById('initAIBtn').textContent = '🔌 Connect';
-          updateStatus('🤖 Local mode enabled. Use Qwen2.5.');
+          document.getElementById('initAIBtn').textContent = '🔌 Connect Qwen';
+          updateStatus('🧠 Local mode enabled. Use Qwen2.5.');
         }
         
-        // Reset AI session when switching modes
+        // Reset AI session when switching providers
         aiSession = null;
         document.getElementById('aiStatus').textContent = 'AI: Not connected';
         document.getElementById('generateBtn').disabled = true;
         
-        // Track mode toggle
+        // Track provider change
         if (window.AppConfig) {
-          window.AppConfig.trackEvent('api_mode_toggled', 'ai_interaction', apiMode ? 'api' : 'local');
+          window.AppConfig.trackEvent('ai_provider_changed', 'ai_interaction', aiProvider);
         }
       });
       
