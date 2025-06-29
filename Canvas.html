@@ -1519,7 +1519,7 @@
           <option value="bird">🦅 Bird Flight</option>
           <option value="rabbit">🐰 Rabbit Bounce</option>
           <option value="spiral">🌀 Rainbow Spiral</option>
-          <option value="cosmic-spiral">✨ Cosmic Spiral</option>
+          <option value="cosmic-spiral">🌊 Dancing Sine Wave</option>
         </select>
       </div>
       
@@ -2299,7 +2299,7 @@ When user asks for something, generate creative, compact p5.js code that creates
             <h3>🤖 AI Technology Usage</h3>
             <p>SketchPad-SLM integrates artificial intelligence for <strong>workflow automation and creative assistance</strong>. AI features include:</p>
             <ul>
-              <li>Local FP16 Qwen2.5 language model for offline code generation</li>
+              <li>Local Qwen2.5 language model with optimized inference for offline code generation</li>
               <li>OpenAI API integration for advanced AI capabilities</li>
               <li>Automated p5.js code generation and creative coding assistance</li>
               <li>Context-aware chat and programming help</li>
@@ -2718,19 +2718,19 @@ When user asks for something, generate creative, compact p5.js code that creates
           </div>
         `;
       } else {
-        // Local FP16 Mode Modal
+        // Local Qwen2.5 Mode Modal
         modal.innerHTML = `
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                       border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
                       box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Local FP16 Qwen2.5</h2>
+            <h2 style="color: white; margin-bottom: 20px; text-align: center;">🤖 Local Qwen2.5</h2>
           
           <div style="margin-bottom: 20px;">
               <button id="selectJanus" class="ai-option-btn">
-                🚀 Load Qwen2.5-0.5B FP16 (~1GB)
+                🚀 Load Qwen2.5-0.5B (~500MB)
             </button>
             <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-                FP16 precision only. Maximum quality local AI. No API costs.
+                Optimized inference with proper generation parameters. No API costs.
             </p>
           </div>
             
@@ -2867,8 +2867,8 @@ When user asks for something, generate creative, compact p5.js code that creates
     // Initialize Qwen2.5
     async function initializeJanus() {
       try {
-        updateStatus('🚀 Loading Qwen2.5-0.5B FP16 (~1GB)...');
-        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5 FP16...';
+        updateStatus('🚀 Loading Qwen2.5-0.5B (~500MB)...');
+        document.getElementById('aiStatus').textContent = 'AI: Loading Qwen2.5...';
         
         // Check browser compatibility
         const hasFloat16 = typeof Float16Array !== 'undefined';
@@ -2894,96 +2894,77 @@ When user asks for something, generate creative, compact p5.js code that creates
           originalWarn.apply(console, args);
         };
         
-        const { AutoTokenizer, AutoModelForCausalLM } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0');
+        const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0');
         
-        const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct-ONNX';
+        const MODEL = 'Qwen/Qwen2-0.5B-Instruct';
         
-        // Load tokenizer first
-        updateLoadingProgress(20, 'Loading tokenizer...');
-        const tokenizer = await AutoTokenizer.from_pretrained(MODEL, {
-          progress_callback: (progress) => {
-            try {
-              if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                const percent = 20 + (progress.progress * 30);
-                const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                updateLoadingProgress(percent, `Loading tokenizer: ${fileName}`);
-              }
-            } catch (e) {
-              console.warn('Progress callback error:', e);
-            }
-          }
-        });
+        // Use pipeline approach for better reliability
+        updateLoadingProgress(20, 'Loading Qwen2.5 model...');
         
-        // WebGPU-only loading with timeout handling
-        let model;
+        let generator;
         
-        // Timeout wrapper function
-        const loadWithTimeout = async (loadFn, timeoutMs, description) => {
-          return Promise.race([
-            loadFn(),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error(`${description} timed out after ${timeoutMs/1000}s`)), timeoutMs)
-            )
-          ]);
-        };
-        
-                  try {
-            updateLoadingProgress(50, 'Loading with WebGPU acceleration...');
-            addChatMessage('system', '🚀 Starting WebGPU model download (~500MB). Using text-only mode to avoid vision model errors. This may take 2-5 minutes...');
+        try {
+          updateLoadingProgress(50, 'Loading with WebGPU acceleration...');
+          addChatMessage('system', '🚀 Starting Qwen2.5 model download (~500MB). This may take 2-5 minutes...');
           
-          // Add progress timeout detection
-          let lastProgress = 0;
-          let progressStuckTime = Date.now();
-          
-                      model = await loadWithTimeout(
-              () => AutoModelForCausalLM.from_pretrained(MODEL, {
-                device: 'webgpu',
-                dtype: 'fp16',
-                progress_callback: (progress) => {
-                  try {
-                    if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
-                      const percent = 50 + (progress.progress * 45);
-                      const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
-                      updateLoadingProgress(percent, `Loading model (FP16): ${fileName}`);
-                      
-                      // Detect stuck progress
-                      if (Math.abs(progress.progress - lastProgress) > 0.01) {
-                        lastProgress = progress.progress;
-                        progressStuckTime = Date.now();
-                      } else if (Date.now() - progressStuckTime > 300000) {
-                        // Progress stuck for 5 minutes for FP16
-                        throw new Error('FP16 download progress stuck - likely network or memory issue');
-                      }
-                    }
-                  } catch (e) {
-                    console.warn('Progress callback error:', e);
-                  }
+          generator = await pipeline('text-generation', MODEL, {
+            dtype: 'q4',
+            device: 'webgpu',
+            progress_callback: (progress) => {
+              try {
+                if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                  const percent = 50 + (progress.progress * 45);
+                  const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                  updateLoadingProgress(percent, `Loading model: ${fileName}`);
                 }
-              }),
-              1200000, // 20 minute timeout for FP16 (larger download)
-              'FP16 WebGPU model loading'
-            );
+              } catch (e) {
+                console.warn('Progress callback error:', e);
+              }
+            }
+          });
           
-          addChatMessage('system', '🎉 FP16 precision loaded successfully! Maximum quality WebGPU acceleration active.');
+          addChatMessage('system', '🎉 Qwen2.5 loaded successfully! WebGPU acceleration active.');
         } catch (webgpuError) {
-          console.warn('WebGPU loading failed:', webgpuError);
+          console.warn('WebGPU loading failed, trying CPU fallback:', webgpuError);
           
-          // FP16 failed - no fallbacks, AI disabled
-          console.error('FP16 WebGPU loading failed:', webgpuError);
-          addChatMessage('system', '❌ FP16 model loading failed. AI is disabled. FP16 precision required.');
-          document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
-          document.getElementById('generateBtn').disabled = true;
-          document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
+          try {
+            updateLoadingProgress(50, 'WebGPU failed, loading with CPU...');
+            addChatMessage('system', '⚠️ WebGPU failed, falling back to CPU...');
+            
+            generator = await pipeline('text-generation', MODEL, {
+              dtype: 'q8',
+              device: 'cpu',
+              progress_callback: (progress) => {
+                try {
+                  if (progress && typeof progress.progress === 'number' && progress.progress >= 0 && progress.progress <= 1) {
+                    const percent = 50 + (progress.progress * 45);
+                    const fileName = progress.file ? progress.file.split('/').pop() : 'processing...';
+                    updateLoadingProgress(percent, `Loading model (CPU): ${fileName}`);
+                  }
+                } catch (e) {
+                  console.warn('Progress callback error:', e);
+                }
+              }
+            });
+            
+            addChatMessage('system', '🎉 Qwen2.5 loaded successfully on CPU!');
+          } catch (cpuError) {
+            console.error('Both WebGPU and CPU loading failed:', cpuError);
+            addChatMessage('system', '❌ Model loading failed. AI is disabled.');
+            document.getElementById('aiStatus').textContent = 'AI: Load Failed ❌';
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('initAIBtn').textContent = '❌ Load Failed';
             hideLoadingScreen();
-          updateStatus('❌ FP16 model failed to load. AI disabled.');
+            updateStatus('❌ Model failed to load. AI disabled.');
             return;
+          }
         }
         
         updateLoadingProgress(95, 'Finalizing model setup...');
-        aiSession = { type: 'qwen', model, tokenizer };
-        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B (FP16) ✅';
+        aiSession = { type: 'qwen', generator };
+        document.getElementById('aiStatus').textContent = 'AI: Qwen2.5-0.5B ✅';
         document.getElementById('generateBtn').disabled = false;
-        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 FP16 Ready';
+        document.getElementById('initAIBtn').textContent = '🚀 Qwen2.5 Ready';
         
         // Update header status
         updateHeaderAIStatus();
@@ -2994,17 +2975,17 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateLoadingProgress(100, 'Model loaded successfully!');
         setTimeout(() => {
           hideLoadingScreen();
-          updateStatus('🚀 Qwen2.5-0.5B (FP16) loaded successfully!');
-          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded in FP16 precision! Ready to generate creative p5.js code with maximum quality. This text-only model avoids all vision-related errors.');
+          updateStatus('🚀 Qwen2.5-0.5B loaded successfully!');
+          addChatMessage('system', '🚀 Qwen2.5-0.5B loaded successfully! Ready to generate creative p5.js code with optimized inference parameters.');
           
-          // Track successful AI loading with FP16 precision
+          // Track successful AI loading
           if (window.AppConfig) {
-            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_fp16_success');
+            window.AppConfig.trackEvent('ai_model_loaded', 'ai_interaction', 'qwen2.5_success');
           }
         }, 500);
         
       } catch (error) {
-        console.error('Qwen2.5 FP16 initialization error:', error);
+        console.error('Qwen2.5 initialization error:', error);
         
         // Restore console.warn in case of error
         if (typeof originalWarn !== 'undefined') {
@@ -3012,11 +2993,11 @@ When user asks for something, generate creative, compact p5.js code that creates
         }
         
         hideLoadingScreen();
-        addChatMessage('system', `❌ Failed to load Qwen2.5 FP16: ${error.message}. AI is disabled.`);
-        document.getElementById('aiStatus').textContent = 'AI: FP16 Failed ❌';
+        addChatMessage('system', `❌ Failed to load Qwen2.5: ${error.message}. AI is disabled.`);
+        document.getElementById('aiStatus').textContent = 'AI: Load Failed ❌';
         document.getElementById('generateBtn').disabled = true;
-        document.getElementById('initAIBtn').textContent = '❌ FP16 Required';
-        updateStatus('❌ FP16 model failed to load. AI disabled.');
+        document.getElementById('initAIBtn').textContent = '❌ Load Failed';
+        updateStatus('❌ Model failed to load. AI disabled.');
       }
     }
 
@@ -3038,7 +3019,7 @@ When user asks for something, generate creative, compact p5.js code that creates
             🚀 Loading Qwen2.5-0.5B
           </div>
           <div style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
-            FP16 precision: ~1GB • Maximum quality • Cached for future use
+            Optimized inference: ~500MB • High quality • Cached for future use
           </div>
           
           <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 20px; 
@@ -3093,7 +3074,7 @@ When user asks for something, generate creative, compact p5.js code that creates
 
 
 
-    // Generate code using AI (FP16 Qwen2.5 or OpenAI API)
+    // Generate code using AI (Qwen2.5 or OpenAI API)
     async function generateAICode(userPrompt) {
       if (!aiSession) {
         updateStatus('❌ AI not connected. Click "Connect AI" first.');
@@ -3136,75 +3117,44 @@ When user asks for something, generate creative, compact p5.js code that creates
       // AI Model handling - General conversation  
       if (aiSession.type === 'qwen') {
         try {
-          // Use custom context template
-          const generalPrompt = customContexts.general.userTemplate.replace('{prompt}', userPrompt);
-
-          const messages = [
-            { role: 'system', content: customContexts.general.systemPrompt },
-            { role: 'user', content: generalPrompt }
-          ];
+          // Create proper Qwen2 chat format
+          const systemPrompt = customContexts.general.systemPrompt;
+          const userMessage = customContexts.general.userTemplate.replace('{prompt}', userPrompt);
           
-          const textInput = aiSession.tokenizer.apply_chat_template(messages, { 
-            tokenize: false, 
-            add_generation_prompt: true 
-          });
+          const fullPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${userMessage}<|im_end|>\n<|im_start|>assistant\n`;
           
           // Log the actual formatted prompt being sent to AI
           console.log('%c🔍 ACTUAL QUERY (Qwen2.5 General)', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-          console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', textInput);
+          console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', fullPrompt);
           
-          const inputs = await aiSession.tokenizer(textInput, {
-            return_tensors: 'pt',
-            padding: true
+          const result = await aiSession.generator(fullPrompt, {
+            max_new_tokens: 200,
+            temperature: 0.7,
+            do_sample: true,
+            top_p: 0.9,
+            repetition_penalty: 1.1
           });
           
-          const genParams = { 
-            input_ids: inputs.input_ids,
-            attention_mask: inputs.attention_mask,
-            max_new_tokens: 512,
-            temperature: 0.7,
-            do_sample: true
-          };
-          
-          const out = await aiSession.model.generate(genParams);
-          const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
-          aiResponse = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
+          // Extract generated text and clean it up
+          aiResponse = result[0].generated_text.replace(fullPrompt, '').trim();
           
           // Console log raw AI response before cleanup
           console.log('%c🤖 RAW AI RESPONSE (Qwen2.5 General)', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', aiResponse);
           
-          // Clean up the response aggressively
-          aiResponse = aiResponse.trim();
+          // Clean up response
+          aiResponse = aiResponse.replace(/<\|im_end\|>/g, '').trim();
           
-          // Remove prompt text and common AI artifacts
-          aiResponse = aiResponse.replace(new RegExp(`Question: ${userPrompt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), '');
-          aiResponse = aiResponse.replace(/Answer this question with.*?factual\./gi, '');
-          aiResponse = aiResponse.replace(/^(Answer:|Response:|Here's|The answer is:?)/gi, '');
-          
-          // Take up to 10 lines or reasonable paragraph length
-          const lines = aiResponse.split(/\n/);
-          if (lines.length > 10) {
-            // If more than 10 lines, take first 10 good lines
-            let goodLines = [];
-            for (let line of lines) {
-              line = line.trim();
-              if (line.length > 5 && line.length < 500 && 
-                  !line.toLowerCase().includes('calcuttonia') &&
-                  !line.toLowerCase().includes('hindi language country')) {
-                goodLines.push(line);
-                if (goodLines.length >= 10) break;
-              }
-            }
-            if (goodLines.length > 0) {
-              aiResponse = goodLines.join('\n');
-            }
+          // Take first reasonable paragraph if response is too long
+          const sentences = aiResponse.split(/[.!?]+/);
+          if (sentences.length > 5) {
+            aiResponse = sentences.slice(0, 5).join('.') + '.';
           }
           
-          // If response is clearly nonsensical or empty, show error
-          if (aiResponse.length < 5 || aiResponse.toLowerCase().includes('calcuttonia') || 
-              aiResponse.toLowerCase().includes('hindi language country') ||
+          // Validate response quality
+          if (aiResponse.length < 5 || aiResponse.includes('calcuttonia') || 
+              aiResponse.includes('hindi language country') ||
               aiResponse.toLowerCase().includes('new york city specifically')) {
-            aiResponse = 'Sorry, the FP16 model generated an invalid response. Please try rephrasing your question.';
+            aiResponse = 'Sorry, the model generated an invalid response. Please try rephrasing your question.';
             console.log('%c🤖 Invalid AI Response Detected', 'background: #fed6e3; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;', 'Nonsensical output detected');
           }
           
@@ -3212,9 +3162,9 @@ When user asks for something, generate creative, compact p5.js code that creates
           
         } catch (error) {
           console.error('General chat error:', error);
-          aiResponse = `FP16 model error: ${error.message}. Please try again or rephrase your question.`;
-          console.log('%c🤖 FP16 Generation Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', error);
-          updateStatus('❌ FP16 model error during generation');
+          aiResponse = `Model error: ${error.message}. Please try again or rephrase your question.`;
+          console.log('%c🤖 Generation Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', error);
+          updateStatus('❌ Model error during generation');
         }
               } else if (aiSession.type === 'openai') {
           try {
@@ -3310,69 +3260,54 @@ When user asks for something, generate creative, compact p5.js code that creates
         } else if (aiSession.type === 'qwen') {
           let generationAttempts = 0;
           const maxGenerationAttempts = 3;
-          let janusSuccess = false;
+          let qwenSuccess = false;
           
-          // Strategy: Text-only generation (no vision components)
-          while (!janusSuccess && generationAttempts < maxGenerationAttempts) {
+          // Strategy: Clean pipeline-based generation
+          while (!qwenSuccess && generationAttempts < maxGenerationAttempts) {
             try {
               generationAttempts++;
               
-              // Use custom context template
-              const fullPrompt = customContexts.creative.userTemplate.replace('{prompt}', userPrompt);
-
-              // Use proper Qwen2.5 chat format
-              const messages = [
-                { role: 'system', content: customContexts.creative.systemPrompt },
-                { role: 'user', content: fullPrompt }
-              ];
+              // Create proper Qwen2 chat format  
+              const systemPrompt = customContexts.creative.systemPrompt;
+              const userMessage = customContexts.creative.userTemplate.replace('{prompt}', userPrompt);
               
-              // Apply chat template and tokenize
-              const textInput = aiSession.tokenizer.apply_chat_template(messages, { 
-                tokenize: false, 
-                add_generation_prompt: true 
-              });
+              const fullPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${userMessage}<|im_end|>\n<|im_start|>assistant\n`;
               
               // Log the actual formatted prompt being sent to AI
               console.log('%c🔍 ACTUAL QUERY (Qwen2.5 Creative - Attempt ' + generationAttempts + ')', 'background: #a8edea; color: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
-              console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', textInput);
-              
-              const inputs = await aiSession.tokenizer(textInput, {
-                return_tensors: 'pt',
-                padding: true
-              });
+              console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', fullPrompt);
               
               // Try with different generation parameters based on attempt
-              let genParams = { 
-                input_ids: inputs.input_ids,
-                attention_mask: inputs.attention_mask,
-                max_new_tokens: 256,
-                temperature: 0.7,
-                do_sample: true
+              let genParams = {
+                max_new_tokens: 300,
+                temperature: 0.8,
+                do_sample: true,
+                top_p: 0.9,
+                repetition_penalty: 1.1
               };
               
               if (generationAttempts === 2) {
                 // Second attempt: More conservative parameters
-                genParams.temperature = 0.5;
-                genParams.max_new_tokens = 128;
+                genParams.temperature = 0.6;
+                genParams.max_new_tokens = 250;
               } else if (generationAttempts === 3) {
                 // Third attempt: Very conservative
-                genParams.temperature = 0.3;
-                genParams.max_new_tokens = 64;
+                genParams.temperature = 0.4;
+                genParams.max_new_tokens = 200;
                 genParams.do_sample = false;
               }
               
-              const out = await aiSession.model.generate(genParams);
-              const newTok = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
-              const rawCode = aiSession.tokenizer.batch_decode(newTok, { skip_special_tokens: true })[0];
+              const result = await aiSession.generator(fullPrompt, genParams);
+              const rawCode = result[0].generated_text.replace(fullPrompt, '').trim();
               
               // Console log raw AI output
               console.log('%c🤖 RAW AI RESPONSE (Qwen2.5 Creative - Attempt ' + generationAttempts + ')', 'background: #fa709a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;', rawCode);
               
               // Show raw AI output in chat for debugging
-              addChatMessage('system', `🔍 Raw AI Output (attempt ${generationAttempts}):`, rawCode);
+              addChatMessage('system', `🔍 Raw AI Output (attempt ${generationAttempts}):`, rawCode.substring(0, 200) + '...');
               
               // Clean up the response thoroughly
-              code = rawCode.trim();
+              code = rawCode.replace(/<\|im_end\|>/g, '').trim();
               
               // Remove code blocks and explanatory text
               code = code.replace(/```javascript\n?/g, '').replace(/```\n?/g, '');
@@ -3490,40 +3425,36 @@ When user asks for something, generate creative, compact p5.js code that creates
                 // Show detailed error info in chat
                 addChatMessage('system', `❌ Syntax Error: ${syntaxError.message}`);
                 addChatMessage('system', `🐛 Problematic Code: "${code.substring(0, 100)}${code.length > 100 ? '...' : ''}"`);
-                addChatMessage('system', `❌ FP16 model generated invalid syntax. Code generation failed.`);
+                addChatMessage('system', `❌ Qwen2.5 model generated invalid syntax. Code generation failed.`);
                 
-                // FP16-only: No fallbacks, complete failure
-                console.log('%c🤖 FP16 Syntax Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', syntaxError);
-                updateStatus('❌ FP16 generated invalid syntax - code generation failed');
+                console.log('%c🤖 Qwen Syntax Error', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', syntaxError);
+                updateStatus('❌ Qwen generated invalid syntax - code generation failed');
                 return; // Exit without generating code
               }
-              aiResponse = `I've created a custom p5.js animation for "${userPrompt}" using Qwen2.5-0.5B (attempt ${generationAttempts}). Pure text model with no vision components.`;
+              aiResponse = `I've created a custom p5.js animation for "${userPrompt}" using Qwen2.5-0.5B (attempt ${generationAttempts}) with optimized inference parameters.`;
               updateStatus(`🚀 Qwen2.5-0.5B generated code (attempt ${generationAttempts})!`);
-              janusSuccess = true;
+              qwenSuccess = true;
               
-            } catch (janusError) {
-              console.error(`Janus generation attempt ${generationAttempts} failed:`, janusError);
+            } catch (qwenError) {
+              console.error(`Qwen generation attempt ${generationAttempts} failed:`, qwenError);
               
               // If this is the last attempt, provide detailed error feedback
               if (generationAttempts >= maxGenerationAttempts) {
                 // Provide specific feedback for different error types
-                let errorMessage = janusError.message;
+                let errorMessage = qwenError.message;
                 if (errorMessage.includes('WebGPU') && errorMessage.includes('Unsupported data type')) {
                   errorMessage = 'WebGPU compatibility issue with model data types';
                 } else if (errorMessage.includes('ReduceMean')) {
                   errorMessage = 'ONNX runtime execution error';
-                } else if (errorMessage.includes('Float16Array')) {
-                  errorMessage = 'Browser lacks Float16Array support';
-                } else if (errorMessage.includes('float16 tensor')) {
-                  errorMessage = 'Float16 data type not supported';
                 } else if (errorMessage.includes('out of memory')) {
                   errorMessage = 'Insufficient memory for model execution';
+                } else if (errorMessage.includes('pipeline')) {
+                  errorMessage = 'Pipeline execution error';
                 }
                 
-                // FP16-only: No fallbacks, complete failure
-                addChatMessage('ai', `❌ Qwen2.5 FP16 failed after ${generationAttempts} attempts: ${errorMessage}. Code generation failed.`);
-                console.log('%c🤖 FP16 Final Failure', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', errorMessage);
-                updateStatus('❌ FP16 failed all attempts - code generation failed');
+                addChatMessage('ai', `❌ Qwen2.5 failed after ${generationAttempts} attempts: ${errorMessage}. Code generation failed.`);
+                console.log('%c🤖 Qwen Final Failure', 'background: #ffcccc; color: #cc0000; padding: 4px 8px; border-radius: 4px; font-weight: bold;', errorMessage);
+                updateStatus('❌ Qwen failed all attempts - code generation failed');
                 return; // Exit without generating code
               } else {
                 // Try again with different parameters
@@ -3779,7 +3710,7 @@ When user asks for something, generate creative, compact p5.js code that creates
           <div class="model-selector">
             <label style="color: rgba(255,255,255,0.8); font-weight: 600;">Model:</label>
             <select id="modelSelect">
-              <option value="qwen">Qwen2.5-0.5B FP16</option>
+              <option value="qwen">Qwen2.5-0.5B</option>
             </select>
           </div>
           
@@ -4377,7 +4308,7 @@ Return response as JSON:
         } else {
           apiKeySection.style.display = 'none';
           document.getElementById('initAIBtn').textContent = '🔌 Connect';
-          updateStatus('🤖 Local mode enabled. Use FP16 Qwen2.5.');
+          updateStatus('🤖 Local mode enabled. Use Qwen2.5.');
         }
         
         // Reset AI session when switching modes
