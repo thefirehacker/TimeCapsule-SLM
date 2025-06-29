@@ -4017,9 +4017,105 @@ Return response as JSON:
           theme: 'vs-dark',
           automaticLayout: true,
           fontSize: 14,
-          minimap: { enabled: false },
+          fontFamily: 'Consolas, "Courier New", monospace',
+          fontWeight: '400',
+          lineHeight: 21,
+          letterSpacing: 0.5,
+          
+          // Line numbers and gutter
+          lineNumbers: 'on',
+          lineNumbersMinChars: 3,
+          glyphMargin: true,
+          folding: true,
+          foldingStrategy: 'indentation',
+          
+          // Scrolling and viewport
           scrollBeyondLastLine: false,
-          wordWrap: 'on'
+          smoothScrolling: true,
+          mouseWheelZoom: true,
+          
+          // Word wrapping
+          wordWrap: 'on',
+          wordWrapColumn: 80,
+          wrappingIndent: 'indent',
+          
+          // Minimap
+          minimap: { 
+            enabled: true,
+            side: 'right',
+            showSlider: 'always',
+            scale: 1
+          },
+          
+          // Suggestions and IntelliSense
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnCommitCharacter: true,
+          acceptSuggestionOnEnter: 'on',
+          tabCompletion: 'on',
+          wordBasedSuggestions: true,
+          quickSuggestions: {
+            other: true,
+            comments: true,
+            strings: true
+          },
+          parameterHints: {
+            enabled: true,
+            cycle: true
+          },
+          
+          // Editor behavior
+          autoIndent: 'full',
+          formatOnPaste: true,
+          formatOnType: true,
+          insertSpaces: true,
+          tabSize: 2,
+          detectIndentation: true,
+          trimAutoWhitespace: true,
+          
+          // Selection and cursors
+          selectOnLineNumbers: true,
+          multiCursorModifier: 'ctrlCmd',
+          cursorBlinking: 'smooth',
+          cursorSmoothCaretAnimation: true,
+          cursorWidth: 2,
+          
+          // Bracket matching
+          matchBrackets: 'always',
+          autoClosingBrackets: 'always',
+          autoClosingQuotes: 'always',
+          autoSurround: 'languageDefined',
+          
+          // Find and replace
+          find: {
+            autoFindInSelection: 'never',
+            seedSearchStringFromSelection: 'always'
+          },
+          
+          // Advanced features
+          codeLens: false,
+          contextmenu: true,
+          links: true,
+          colorDecorators: true,
+          lightbulb: {
+            enabled: true
+          },
+          
+          // Performance
+          renderWhitespace: 'selection',
+          renderControlCharacters: false,
+          renderLineHighlight: 'line',
+          highlightActiveIndentGuide: true,
+          
+          // Scrollbar
+          scrollbar: {
+            useShadows: true,
+            verticalHasArrows: false,
+            horizontalHasArrows: false,
+            vertical: 'visible',
+            horizontal: 'visible',
+            verticalScrollbarSize: 14,
+            horizontalScrollbarSize: 14
+          }
       });
 
       // Load design from lib/Designs folder
