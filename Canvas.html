@@ -32,7 +32,7 @@
     
     .container {
       display: grid;
-      grid-template-columns: 250px 1fr 2fr;
+      grid-template-columns: 250px 1fr 6px 2fr;
       grid-template-rows: 120px 1fr;
       height: 100vh;
       gap: 10px;
@@ -226,6 +226,52 @@
     .canvas-container.hidden {
       display: none;
     }
+
+    /* Resize Handle */
+    .resize-handle {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      cursor: col-resize;
+      position: relative;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    
+    .resize-handle:hover {
+      background: rgba(255, 255, 255, 0.4);
+      transform: scaleX(1.2);
+    }
+    
+    .resize-handle:active {
+      background: rgba(79, 172, 254, 0.6);
+      transform: scaleX(1.5);
+    }
+    
+    .resize-handle::after {
+      content: '';
+      width: 2px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 1px;
+    }
+    
+    .resize-handle:hover::after {
+      background: rgba(255, 255, 255, 0.8);
+      height: 60px;
+    }
+    
+    .resize-handle.dragging {
+      background: rgba(79, 172, 254, 0.8);
+      transform: scaleX(2);
+    }
+    
+    .resize-handle.dragging::after {
+      background: rgba(255, 255, 255, 1);
+      height: 80px;
+    }
     
     .canvas-header {
       color: white;
@@ -351,8 +397,15 @@
     }
     
     .ai-floating-panel.minimized {
-      height: 60px;
+      height: auto; /* Let header determine height */
+      min-height: 60px;
       width: 300px;
+      overflow: hidden; /* Hide content that goes beyond minimized state */
+    }
+    
+    .ai-floating-panel.minimized .ai-panel-header {
+      border-bottom: none; /* Remove bottom border when minimized */
+      border-radius: 15px; /* Match panel border radius */
     }
     
     .ai-floating-panel.hidden {
@@ -432,6 +485,15 @@
     
     .ai-content.minimized {
       display: none;
+    }
+    
+    .ai-floating-panel.minimized .ai-panel-header {
+      display: flex; /* Keep header visible when minimized */
+      cursor: pointer; /* Make it clear you can click to restore */
+    }
+    
+    .ai-floating-panel.minimized .ai-panel-header:hover {
+      background: rgba(255, 255, 255, 0.1); /* Hover effect when minimized */
     }
     
     .chat-history {
@@ -1614,6 +1676,8 @@
       </div>
       <div id="editor"></div>
     </div>
+    
+    <div class="resize-handle" id="resizeHandle" title="Drag to resize editor and canvas | Double-click to reset to default"></div>
     
     <div class="canvas-container">
       <div class="canvas-header">
@@ -3656,13 +3720,22 @@ When user asks for something, generate creative, compact p5.js code that creates
     function minimizeAIPanel() {
       const panel = document.getElementById('aiFloatingPanel');
       const content = document.getElementById('aiContent');
+      const minimizeBtn = document.getElementById('minimizeBtn');
       
       if (panel.classList.contains('minimized')) {
+        // Restore panel
         panel.classList.remove('minimized');
         content.classList.remove('minimized');
+        minimizeBtn.textContent = '−';
+        minimizeBtn.title = 'Minimize Panel';
+        updateStatus('🤖 AI panel restored');
       } else {
+        // Minimize panel - keep header visible
         panel.classList.add('minimized');
         content.classList.add('minimized');
+        minimizeBtn.textContent = '+';
+        minimizeBtn.title = 'Restore Panel';
+        updateStatus('📦 AI panel minimized');
       }
     }
 
@@ -3896,6 +3969,135 @@ Return response as JSON:
           editorInstance.layout();
         }
       }, 300);
+    }
+
+    // Resizable Editor/Canvas Functionality
+    function initializeResizeHandle() {
+      const resizeHandle = document.getElementById('resizeHandle');
+      const container = document.querySelector('.container');
+      
+      let isResizing = false;
+      let currentEditorFr = 1.2; // Track current fr values
+      let currentCanvasFr = 2.4;
+      
+      // Double-click to reset to default sizes
+      resizeHandle.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        currentEditorFr = 1.2;
+        currentCanvasFr = 2.4;
+        container.style.gridTemplateColumns = '250px 1.2fr 6px 2.4fr';
+        updateStatus('🔄 Layout reset to default (1:2 ratio)');
+        
+        // Visual feedback
+        resizeHandle.style.background = 'rgba(76, 175, 80, 0.8)';
+        setTimeout(() => {
+          resizeHandle.style.background = '';
+          if (editorInstance) editorInstance.layout();
+        }, 300);
+      });
+      
+      let startX = 0;
+      let startEditorFr = 0;
+      let startCanvasFr = 0;
+      
+      resizeHandle.addEventListener('mousedown', (e) => {
+        if (e.detail === 2) return; // Skip if double-click
+        
+        isResizing = true;
+        startX = e.clientX;
+        
+        // Use current fr values as starting point
+        startEditorFr = currentEditorFr;
+        startCanvasFr = currentCanvasFr;
+        
+        console.log(`Starting resize - Editor: ${startEditorFr}fr, Canvas: ${startCanvasFr}fr`);
+        
+        resizeHandle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+        
+        updateStatus('🔧 Resizing... (Double-click to reset)');
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = e.clientX - startX;
+        
+        // Increased sensitivity for more noticeable movement
+        const sensitivity = 0.008; // More responsive
+        const frChange = deltaX * sensitivity;
+        
+        // Calculate new fr values from the ACTUAL starting values
+        let newEditorFr = startEditorFr + frChange;
+        let newCanvasFr = startCanvasFr - frChange;
+        
+        // Maintain proper inverse relationship with constraints
+        const minFr = 0.4;
+        const maxFr = 3.5;
+        
+        // If one panel hits its limit, stop both from changing further
+        if (newEditorFr < minFr) {
+          newEditorFr = minFr;
+          newCanvasFr = startEditorFr + startCanvasFr - minFr; // Maintain total
+        } else if (newEditorFr > maxFr) {
+          newEditorFr = maxFr;
+          newCanvasFr = startEditorFr + startCanvasFr - maxFr;
+        }
+        
+        if (newCanvasFr < minFr) {
+          newCanvasFr = minFr;
+          newEditorFr = startEditorFr + startCanvasFr - minFr;
+        } else if (newCanvasFr > maxFr) {
+          newCanvasFr = maxFr;
+          newEditorFr = startEditorFr + startCanvasFr - maxFr;
+        }
+        
+        // Update current values
+        currentEditorFr = newEditorFr;
+        currentCanvasFr = newCanvasFr;
+        
+        console.log(`Delta: ${deltaX}, FrChange: ${frChange.toFixed(3)}, Editor: ${newEditorFr.toFixed(2)}fr, Canvas: ${newCanvasFr.toFixed(2)}fr, Total: ${(newEditorFr + newCanvasFr).toFixed(2)}fr`);
+        
+        // Apply directly to grid
+        container.style.gridTemplateColumns = `250px ${newEditorFr}fr 6px ${newCanvasFr}fr`;
+        
+        // Trigger editor resize
+        if (editorInstance) {
+          editorInstance.layout();
+        }
+      });
+      
+      document.addEventListener('mouseup', () => {
+        if (isResizing) {
+          isResizing = false;
+          
+          resizeHandle.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          
+          const ratio = (currentEditorFr / currentCanvasFr).toFixed(1);
+          updateStatus(`✅ Resized - Editor:Canvas ratio is ${ratio}:1`);
+          
+          console.log(`Final state - Editor: ${currentEditorFr.toFixed(2)}fr, Canvas: ${currentCanvasFr.toFixed(2)}fr`);
+          
+          // Final editor layout
+          setTimeout(() => {
+            if (editorInstance) editorInstance.layout();
+          }, 100);
+        }
+      });
+      
+      // Window resize handler
+      window.addEventListener('resize', () => {
+        if (editorInstance) {
+          setTimeout(() => editorInstance.layout(), 100);
+        }
+      });
+      
+      // Initialize with proper default values
+      container.style.gridTemplateColumns = '250px 1.2fr 6px 2.4fr';
     }
 
     // Runner: execute user code in p5 context (Global scope)
@@ -4300,6 +4502,21 @@ Return response as JSON:
         }
         closeAIPanel();
       });
+      
+      // Click on header to restore minimized panel
+      document.querySelector('.ai-panel-header').addEventListener('click', (e) => {
+        const panel = document.getElementById('aiFloatingPanel');
+        
+        // Only restore if panel is minimized and we're not clicking on control buttons
+        if (panel.classList.contains('minimized') && 
+            !e.target.closest('.ai-panel-controls')) {
+          // Track header click restore
+          if (window.AppConfig) {
+            window.AppConfig.trackEvent('ai_panel_restored', 'ui_interaction', 'header_click');
+          }
+          minimizeAIPanel(); // This will toggle from minimized to restored
+        }
+      });
 
       // Editor control event listeners
       document.getElementById('expandEditorBtn').addEventListener('click', expandEditor);
@@ -4521,6 +4738,9 @@ Return response as JSON:
       // Make dev logger globally available
       window.devModeActive = devModeActive;
       window.devLogger = devLogger;
+
+      // Initialize resize handle functionality
+      initializeResizeHandle();
 
       updateStatus('🚀 SketchPad-SLM loaded successfully!');
     });
