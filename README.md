@@ -31,7 +31,7 @@
     
   **🤖 AI-Powered**
   
-  Local FP16 AI & OpenAI integration for intelligent code generation and creative assistance.
+  Local FP16 AI, LM Studio & OpenAI integration for intelligent code generation and creative assistance.
     
   </td>
   </tr>
@@ -42,11 +42,11 @@
   <div align="left" style="margin: 20px 0;">
   
   💻 **Real-time Monaco Editor** with p5.js integration  
-  🧠 **Dual AI Modes**: Local Qwen2.5 FP16 + OpenAI API  
+  🧠 **Triple AI Modes**: Local Qwen2.5 FP16 + LM Studio + OpenAI API  
   ⚙️ **Custom Context Templates** for personalized AI behavior  
   📱 **Responsive Design** that works on all devices  
   🎯 **One-Click Execution** with instant visual feedback  
-  🔒 **Privacy First** with local AI processing option  
+  🔒 **Privacy First** with multiple local AI options  
   
   </div>
   
@@ -84,10 +84,11 @@ SketchPad-SLM is a **revolutionary creative coding platform** that combines the 
 
 ### 🤖 **AI Powerhouse**
 - **Local FP16 Qwen2.5** - Privacy-focused AI (1GB model)
+- **LM Studio Integration** - Connect to local LM Studio server
 - **OpenAI Integration** - GPT-4o, GPT-4o Mini support
 - **Custom Templates** - Personalize AI behavior
 - **Smart Suggestions** - Context-aware code generation
-- **Dual Mode Support** - Local + Cloud AI options
+- **Triple Mode Support** - Local + LM Studio + Cloud AI options
 
 </td>
 </tr>
@@ -98,6 +99,89 @@ SketchPad-SLM is a **revolutionary creative coding platform** that combines the 
 - **Interactive Maps** - Visual world exploration
 - **Persistent Worlds** - Save and load your creations
 - **Custom Logic** - Advanced world generation scripting
+
+---
+
+## 🏠 **LM Studio Integration**
+
+SketchPad-SLM now supports **LM Studio** for running local AI models with full creative coding capabilities!
+
+<div align="center">
+
+### 🎯 **Local AI Power + No API Costs**
+
+</div>
+
+<table>
+<tr>
+<td width="50%">
+
+### 🚀 **Why LM Studio?**
+- **🔒 Fully Private** - All processing happens locally
+- **💰 Zero API Costs** - No usage fees or limits
+- **⚡ Fast Response** - Direct local connection
+- **🎛️ Model Control** - Use any compatible model
+- **🌐 OpenAI Compatible** - Standard API format
+
+</td>
+<td width="50%">
+
+### 🛠️ **Setup Requirements**
+- **LM Studio App** - Download from [lmstudio.ai](https://lmstudio.ai)
+- **Compatible Model** - Any chat-capable model
+- **Local Server** - LM Studio server on port 1234
+- **CORS Enabled** - Allow cross-origin requests
+
+</td>
+</tr>
+</table>
+
+### 📋 **Quick Setup Guide**
+
+> **🚨 KEY REQUIREMENT**: You **MUST** enable CORS in LM Studio for SketchPad-SLM to connect. See Step 4 below.
+
+<div align="left">
+
+**Step 1:** 📥 **Download LM Studio** from [lmstudio.ai](https://lmstudio.ai) and install it  
+**Step 2:** 🤖 **Download a Model** - Search for models like `Qwen2.5`, `Llama`, `Phi-3`, or `Gemma`  
+**Step 3:** 🚀 **Start Local Server** - Click "Start Server" in LM Studio (port 1234)  
+**Step 4:** ⚙️ **Enable CORS** - **IMPORTANT**: In LM Studio → Settings → Server → Enable "CORS (Cross-Origin Resource Sharing)"  
+**Step 5:** 🔄 **Restart Server** - Stop and restart the LM Studio server for CORS to take effect  
+**Step 6:** 🎨 **Connect in SketchPad** - Select "🏠 LM Studio" from AI provider dropdown  
+**Step 7:** 🔌 **Click Connect** - SketchPad will auto-detect your model  
+
+</div>
+
+### 🎯 **Recommended Models for Creative Coding**
+
+| Model | Size | Best For | Performance |
+|-------|------|----------|-------------|
+| **Qwen2.5-7B-Instruct** | ~4GB | General coding, detailed responses | 🌟🌟🌟🌟🌟 |
+| **Phi-3-mini-4k** | ~2GB | Fast responses, compact code | 🌟🌟🌟🌟⭐ |
+| **Llama-3.2-3B** | ~2GB | Creative patterns, good balance | 🌟🌟🌟🌟⭐ |
+| **Gemma-2-2b** | ~1.5GB | Lightweight, quick generation | 🌟🌟🌟⭐⭐ |
+
+### 🔧 **Troubleshooting**
+
+**❌ "CORS Policy Error" or "Failed to fetch"** *(Most Common Issue)*
+- ✅ **Enable CORS**: LM Studio → Settings → Server → Enable "CORS (Cross-Origin Resource Sharing)"
+- ✅ **Restart Server**: Stop and restart LM Studio server after enabling CORS
+- ✅ **Verify**: Look for "Server listening on port 1234" in LM Studio logs
+
+**❌ "Failed to connect to LM Studio"**
+- ✅ Make sure LM Studio server is running on port 1234
+- ✅ Check that a model is loaded in LM Studio
+- ✅ Ensure CORS is enabled (see above)
+
+**❌ "Connection refused"**
+- ✅ Verify LM Studio shows "Server listening on port 1234"
+- ✅ Try restarting LM Studio server
+- ✅ Check firewall isn't blocking localhost connections
+
+**❌ "Model not responding"**
+- ✅ Ensure model is fully loaded (not just downloaded)
+- ✅ Try a smaller model if running out of memory
+- ✅ Restart LM Studio if model seems stuck
 
 ---
 
@@ -244,7 +328,7 @@ cd SketchPad-SLM
 <div align="left">
 
 **Step 1:** 🌐 **[Open SketchPad-SLM](https://sketchpad.bubblspace.com)** in your browser  
-**Step 2:** 🤖 **Choose AI Mode** - Local FP16 (privacy) or OpenAI API (power)  
+**Step 2:** 🤖 **Choose AI Mode** - Local FP16 (privacy), LM Studio (local server), or OpenAI API (cloud power)  
 **Step 3:** 🎨 **Start Creating** - Type code or chat with AI for generation  
 **Step 4:** ▶️ **Hit "Draw"** - See your art come to life instantly!  
 **Step 5:** 🎊 **Share & Enjoy** - Copy, save, and show off your creations  
@@ -263,6 +347,12 @@ cd SketchPad-SLM
 # Open http://localhost:8080/Canvas.html
 # Select AI model and start coding!
 ```
+
+**🔧 Optional: LM Studio for Local AI Testing**
+1. Download [LM Studio](https://lmstudio.ai) 
+2. Install a model (e.g., `Qwen2.5-7B-Instruct`)
+3. Start server on port 1234 with CORS enabled
+4. Select "🏠 LM Studio" in SketchPad for local AI testing
 
 ---
 
