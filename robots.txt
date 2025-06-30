@@ -1,0 +1,34 @@
+# Robots.txt for SketchPad-SLM
+# AI-Powered Research & TimeCapsule Platform
+
+User-agent: *
+Allow: /
+
+# Allow access to main application pages
+Allow: /index.html
+Allow: /DeepResearch.html
+Allow: /Canvas.html
+Allow: /WorldGenerator.html
+Allow: /WorldGenerator-v2.html
+
+# Allow access to assets and libraries
+Allow: /lib/
+Allow: /config.js
+
+# Disallow sensitive or administrative files
+Disallow: /.git/
+Disallow: /.DS_Store
+Disallow: /amplify.yml
+Disallow: /AMPLIFY_DEPLOYMENT.md
+Disallow: /ANALYTICS_SETUP.md
+
+# Crawl delay (be respectful)
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://sketchpad-slm.bubblspace.com/sitemap.xml
+
+# Contact information
+# Website: https://sketchpad-slm.bubblspace.com
+# Platform: BubblSpace by AIEdx
+# Developer: FireHacker (@thefirehacker) 

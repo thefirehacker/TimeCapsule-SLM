@@ -374,92 +374,204 @@
       }
     }
     
-    .splash-container {
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    .hero-section {
       text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 60px 40px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      margin-bottom: 40px;
+    }
+    
+    .logo {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 30px;
+      border-radius: 20px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+    
+    .hero-title {
+      font-size: 3em;
+      margin-bottom: 15px;
+      background: linear-gradient(45deg, #fff, #f0f8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+    }
+    
+    .hero-subtitle {
+      font-size: 1.3em;
+      margin-bottom: 20px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
+    
+    .hero-description {
+      font-size: 1.1em;
+      color: rgba(255, 255, 255, 0.8);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+    
+    .feature-card {
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
       border-radius: 20px;
       padding: 40px;
       box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
       border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
     
-    .logo {
-      width: 120px;
-      height: 120px;
-      margin: 0 auto 20px;
-      border-radius: 20px;
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(31, 38, 135, 0.5);
+    }
+    
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .feature-card.research::before {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    .feature-icon {
+      font-size: 3em;
+      margin-bottom: 20px;
+      display: block;
+    }
+    
+    .feature-icon img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
     }
     
-    h1 {
-      font-size: 2.5em;
-      margin-bottom: 10px;
-      background: linear-gradient(45deg, #fff, #f0f8ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .subtitle {
-      font-size: 1.2em;
-      margin-bottom: 30px;
-      color: rgba(255, 255, 255, 0.8);
-    }
-    
-    .nav-buttons {
-      display: flex;
-      gap: 20px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    
-    .nav-btn {
-      padding: 15px 30px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
+    .feature-title {
+      font-size: 2em;
+      margin-bottom: 15px;
       color: white;
-      text-decoration: none;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      font-weight: 700;
+    }
+    
+    .feature-subtitle {
+      font-size: 1.1em;
+      margin-bottom: 20px;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+    }
+    
+    .feature-description {
+      font-size: 1em;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.6;
+      margin-bottom: 25px;
+    }
+    
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+    }
+    
+    .feature-list li {
+      padding: 8px 0;
+      color: rgba(255, 255, 255, 0.8);
       display: flex;
       align-items: center;
       gap: 10px;
     }
     
-    .nav-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    .feature-list li::before {
+      content: '✓';
+      color: #4facfe;
+      font-weight: bold;
+      font-size: 1.2em;
     }
     
-    .nav-btn.primary {
+    .feature-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 30px;
       background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
-      border-color: rgba(79, 172, 254, 0.5);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
     }
     
-    .loading-text {
-      margin-top: 20px;
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.6);
+    .feature-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
     }
     
-    .spinner {
+    .feature-cta.research {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+    }
+    
+    .feature-cta.research:hover {
+      box-shadow: 0 8px 25px rgba(250, 112, 154, 0.6);
+    }
+    
+    .timecapsule-highlight {
       display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top-color: #4facfe;
-      animation: spin 1s linear infinite;
-      margin-left: 10px;
+      background: linear-gradient(45deg, #ffd700, #ffed4e);
+      color: #1a202c;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.9em;
     }
     
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    @media (max-width: 768px) {
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .feature-card {
+        padding: 30px 20px;
+      }
+      
+      .hero-section {
+        padding: 40px 20px;
+      }
+      
+      .hero-title {
+        font-size: 2.2em;
+      }
     }
   </style>
 </head>
@@ -497,8 +609,8 @@
                 <span>Deep Research Studio</span>
               </a>
               <a href="Canvas.html" class="mode-nav-btn">
-                <span>🎨</span>
-                <span>Creative Studio</span>
+                <span>💊</span>
+                <span>TimeCapsule</span>
               </a>
             </div>
           </div>
@@ -506,35 +618,95 @@
     </div>
   </div>
 
-  <div class="splash-container">
-    <img src="lib/Media/SketchPad-SLM.png" alt="SketchPad-SLM" class="logo">
-    <h1>SketchPad-SLM</h1>
-    <p class="subtitle">AI Research & Creative Platform</p>
-    
-    <div class="nav-buttons">
-      <a href="DeepResearch.html" class="nav-btn primary">
-        🔬 Deep Research Studio
-      </a>
-      <a href="Canvas.html" class="nav-btn">
-        🎨 Creative Canvas
-      </a>
+  <div class="main-container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+      <img src="lib/Media/SketchPad-SLM.png" alt="SketchPad-SLM" class="logo">
+      <h1 class="hero-title">SketchPad-SLM</h1>
+      <p class="hero-subtitle">AI-Powered Research & Workflow Platform</p>
+      <p class="hero-description">
+        Unlock the power of AI to mine knowledge, create TimeCapsules, and orchestrate intelligent workflows. 
+        Transform data into insights and ideas into execution.
+      </p>
     </div>
-    
-    <!-- <div class="loading-text">
-      Redirecting to Deep Research Studio<span class="spinner"></span>
-    </div> -->
+
+    <!-- Features Grid -->
+    <div class="features-grid">
+      <!-- Deep Research Studio Card -->
+      <div class="feature-card research">
+        <span class="feature-icon">🔬</span>
+        <h2 class="feature-title">Deep Research Studio</h2>
+        <p class="feature-subtitle">Extract Intelligence. Create TimeCapsules</p>
+        <p class="feature-description">
+          Discover novel insights by mining documents, code, reports, and existing research. 
+          Create comprehensive composite reports called <span class="timecapsule-highlight">TimeCapsules</span> 
+          that capture knowledge, skills, and processes.
+        </p>
+        
+        <ul class="feature-list">
+          <li>Mine documents, code, and research reports</li>
+          <li>Extract novel knowledge, skills, and processes</li>
+          <li>Generate comprehensive TimeCapsule reports</li>
+          <li>AI-powered analysis and synthesis</li>
+          <li>Cross-reference and validate findings</li>
+        </ul>
+        
+        <a href="DeepResearch.html" class="feature-cta research">
+          <span>🔬</span>
+          Start Deep Research
+        </a>
+      </div>
+
+      <!-- TimeCapsule Card -->
+      <div class="feature-card creative">
+        <img src="lib/Media/TimeCapsule_Logo.png" alt="TimeCapsule" class="feature-icon" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 20px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />
+        <h2 class="feature-title">TimeCapsule</h2>
+        <p class="feature-subtitle">Preserve Genius. Replay Anytime</p>
+        <p class="feature-description">
+          Design and execute intelligent workflows using your personal or community 
+          <span class="timecapsule-highlight">TimeCapsules</span>. Build sophisticated 
+          automation pipelines that transform ideas into actionable results.
+        </p>
+        
+        <ul class="feature-list">
+          <li>Design custom AI workflows</li>
+          <li>Use personal & community TimeCapsules</li>
+          <li>Visual workflow orchestration</li>
+          <li>Real-time execution monitoring</li>
+          <li>Share and collaborate on workflows</li>
+        </ul>
+        
+        <a href="Canvas.html" class="feature-cta">
+          <span>💊</span>
+          Launch TimeCapsule
+        </a>
+      </div>
+    </div>
   </div>
 
   <script>
-    // Auto-redirect to Deep Research page after 2 seconds - DISABLED
-    // setTimeout(() => {
-    //   window.location.href = 'DeepResearch.html';
-    // }, 2000);
-    
-    // Add keyboard navigation
+    // Enhanced keyboard navigation
     document.addEventListener('keydown', (e) => {
-      if (e.key === '1') window.location.href = 'DeepResearch.html';
-      if (e.key === '2') window.location.href = 'Canvas.html';
+      if (e.key === '1' || e.key === 'r' || e.key === 'R') {
+        window.location.href = 'DeepResearch.html';
+      }
+      if (e.key === '2' || e.key === 'c' || e.key === 'C') {
+        window.location.href = 'Canvas.html';
+      }
+    });
+    
+    // Add smooth scroll behavior for better UX
+    document.documentElement.style.scrollBehavior = 'smooth';
+    
+    // Add feature card interaction feedback
+    document.querySelectorAll('.feature-card').forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-8px)';
+      });
+      
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+      });
     });
   </script>
 </body>
