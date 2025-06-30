@@ -6,7 +6,7 @@
   <meta http-equiv="Content-Security-Policy" content="
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
     style-src 'self' 'unsafe-inline' https: data:;
-    connect-src 'self' https: wss: http://localhost:1234;
+    connect-src 'self' https: wss: http://localhost:1234 http://localhost:11434;
     img-src 'self' data: https: blob:;
     font-src 'self' data: https:;
     worker-src 'self' blob: data:;
@@ -716,7 +716,7 @@
         </select>
       </div>
       
-      <button id="connectAI" class="btn primary">🔌 Connect AI</button>
+      <button id="connectAI" class="btn primary">🦙 Connect Ollama</button>
       
       <div class="control-group">
         <label>📊 Research Type:</label>
@@ -858,7 +858,7 @@
 
   <!-- Status Bar -->
   <div class="status-bar" id="statusBar">
-    Ready to start research - Connect AI and add topics
+    🦙 Ollama mode enabled - Ready to start research
   </div>
 
   <!-- Scripts -->
@@ -868,8 +868,10 @@
   <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
   
   <script>
-    // Initialize Deep Research application
+    // Initialize Deep Research application with proper loading checks
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 DeepResearch: DOM Content Loaded');
+      
       // Initialize Google Analytics
       if (window.AppConfig) {
         window.AppConfig.initializeGA4();
@@ -883,12 +885,20 @@
         window.userAgreement.initializeForPage();
       }
       
-      if (window.DeepResearchApp) {
-        window.deepResearch = new DeepResearchApp();
-        console.log('✅ Deep Research Studio initialized');
-      } else {
-        console.error('❌ DeepResearchApp not found');
-      }
+      // Add a small delay to ensure all scripts are loaded
+      setTimeout(() => {
+        console.log('🔍 Script loading check:');
+        console.log('  - DeepResearchApp:', !!window.DeepResearchApp);
+        console.log('  - AIAssistant:', !!window.AIAssistant);
+        console.log('  - AIAssistantBackend:', !!window.AIAssistantBackend);
+        
+        if (window.DeepResearchApp) {
+          window.deepResearch = new DeepResearchApp();
+          console.log('✅ Deep Research Studio initialized');
+        } else {
+          console.error('❌ DeepResearchApp not found - script loading issue');
+        }
+      }, 100); // Small delay to ensure script execution order
     });
   </script>
 </body>
