@@ -573,6 +573,18 @@
         font-size: 2.2em;
       }
     }
+    
+    /* TimeCapsule Glow Animation */
+    @keyframes capsuleGlow {
+      0%, 100% { 
+        opacity: 0.6;
+        transform: scale(1);
+      }
+      50% { 
+        opacity: 1;
+        transform: scale(1.1);
+      }
+    }
   </style>
 </head>
 <body>
@@ -659,7 +671,12 @@
 
       <!-- TimeCapsule Card -->
       <div class="feature-card creative">
-        <img src="lib/Media/TimeCapsule_Logo.png" alt="TimeCapsule" class="feature-icon" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 20px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 100px; height: 100px; margin: 0 auto 20px auto;">
+          <!-- Capsule Glow Effect -->
+          <div style="position: absolute; width: 80px; height: 80px; background: linear-gradient(135deg, rgba(79, 172, 254, 0.3), rgba(0, 242, 254, 0.2)); border-radius: 50%; filter: blur(15px); animation: capsuleGlow 3s ease-in-out infinite;"></div>
+          <!-- Main Capsule Logo -->
+          <img src="lib/Media/TimeCapsule_Logo.png" alt="TimeCapsule" style="width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 6px 15px rgba(79, 172, 254, 0.5)) drop-shadow(0 3px 8px rgba(0, 242, 254, 0.3)) brightness(1.15) contrast(1.1); position: relative; z-index: 2; transition: all 0.5s ease;" />
+        </div>
         <h2 class="feature-title">TimeCapsule</h2>
         <p class="feature-subtitle">Preserve Genius. Replay Anytime</p>
         <p class="feature-description">
