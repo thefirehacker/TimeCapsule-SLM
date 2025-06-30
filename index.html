@@ -309,14 +309,33 @@
     </div>
   </div>
 
+  <script src="config.js"></script>
   <script>
+    // Initialize Google Analytics
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.AppConfig) {
+        window.AppConfig.initializeGA4();
+        
+        // Track page view with correct page name
+        window.AppConfig.trackPageView('TimeCapsule-SLM - AI Research & Creative Platform', window.location.href);
+      }
+    });
+    
     // Enhanced keyboard navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === '1' || e.key === 'r' || e.key === 'R') {
         window.location.href = 'DeepResearch.html';
+        // Track navigation event
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'deepresearch');
+        }
       }
       if (e.key === '2' || e.key === 'c' || e.key === 'C') {
         window.location.href = 'Canvas.html';
+        // Track navigation event
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'playground');
+        }
       }
     });
     
@@ -331,6 +350,16 @@
       
       card.addEventListener('mouseleave', () => {
         card.style.transform = 'translateY(0)';
+      });
+    });
+    
+    // Track feature card clicks
+    document.querySelectorAll('.feature-cta').forEach((cta, index) => {
+      cta.addEventListener('click', () => {
+        if (window.AppConfig) {
+          const feature = index === 0 ? 'deepresearch' : 'playground';
+          window.AppConfig.trackEvent('feature_clicked', 'navigation', feature);
+        }
       });
     });
   </script>

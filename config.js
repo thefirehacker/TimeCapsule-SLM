@@ -1,14 +1,65 @@
-// Configuration loader for SketchPad-SLM
+// Configuration loader for TimeCapsule-SLM
 // This file loads environment variables for client-side use
+//
+// 🌍 ENVIRONMENT VARIABLE OPTIONS:
+// 
+// 1. 📄 Meta Tags (HTML): Add to your HTML <head>
+//    <meta name="GA4_MEASUREMENT_ID" content="G-ABC123DEF4">
+//
+// 2. 🪟 Window Variables (Server-side): Set on window object
+//    window.ENV = { GA4_MEASUREMENT_ID: 'G-ABC123DEF4' };
+//    window.GA4_MEASUREMENT_ID = 'G-ABC123DEF4';
+//
+// 3. 🏗️ Build Process (Vite/React/Next): Use build-time injection
+//    process.env.VITE_GA4_MEASUREMENT_ID (Vite)
+//    process.env.REACT_APP_GA4_MEASUREMENT_ID (Create React App)
+//    process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID (Next.js)
+//
+// 4. 🚀 Amplify Environment Variables: 
+//    Set in Amplify Console → App Settings → Environment Variables
+//    Then inject via build process or server-side rendering
 
 class Config {
   constructor() {
-    // Default configuration - Replace G-XXXXXXXXXX with your actual GA4 Measurement ID
-    this.GA4_MEASUREMENT_ID = 'G-XXXXXXXXXX'; // Replace with your actual measurement ID from GA4
-    this.SITE_NAME = 'SketchPad-SLM';
-    this.SITE_URL = 'https://your-domain.com'; // Replace with your actual domain
-    this.GA4_DEBUG_MODE = false;
-    this.GA4_ANONYMIZE_IP = true;
+    // Load from environment variables (multiple sources)
+    this.GA4_MEASUREMENT_ID = this.getEnvVar('GA4_MEASUREMENT_ID') || 
+                              this.getEnvVar('VITE_GA4_MEASUREMENT_ID') || 
+                              this.getEnvVar('REACT_APP_GA4_MEASUREMENT_ID') ||
+                              this.getEnvVar('NEXT_PUBLIC_GA4_MEASUREMENT_ID') ||
+                              'G-XXXXXXXXXX'; // Fallback placeholder
+    
+    this.SITE_NAME = this.getEnvVar('SITE_NAME') || 'TimeCapsule-SLM';
+    this.SITE_URL = this.getEnvVar('SITE_URL') || 'https://timecapsule.bubblspace.com';
+    this.GA4_DEBUG_MODE = this.getEnvVar('GA4_DEBUG_MODE') === 'true' || false;
+    this.GA4_ANONYMIZE_IP = this.getEnvVar('GA4_ANONYMIZE_IP') !== 'false'; // Default true
+  }
+
+  // Method to get environment variables from multiple sources
+  getEnvVar(name) {
+    // Check window-level variables (set by server-side rendering)
+    if (typeof window !== 'undefined' && window.ENV && window.ENV[name]) {
+      return window.ENV[name];
+    }
+    
+    // Check window-level direct variables
+    if (typeof window !== 'undefined' && window[name]) {
+      return window[name];
+    }
+    
+    // Check process.env (if available in build process)
+    if (typeof process !== 'undefined' && process.env && process.env[name]) {
+      return process.env[name];
+    }
+    
+    // Check meta tags (common pattern)
+    if (typeof document !== 'undefined') {
+      const metaTag = document.querySelector(`meta[name="${name}"]`);
+      if (metaTag) {
+        return metaTag.getAttribute('content');
+      }
+    }
+    
+    return null;
   }
 
   // Method to initialize Google Analytics

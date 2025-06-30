@@ -1068,7 +1068,7 @@
             </div>
             
             <!-- SketchPad Home -->
-            <a href="index.html">🏠 Home</a>
+            <a href="/">🏠 Home</a>
           </div>
         
           <!-- Studio Section Group -->
@@ -1406,6 +1406,7 @@
   </div>
 
   <!-- Scripts -->
+  <script src="config.js"></script>
   <script src="lib/useragreement/agreement.js"></script>
   <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
   <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
@@ -1413,6 +1414,14 @@
   <script>
     // Initialize Deep Research application
     document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Google Analytics
+      if (window.AppConfig) {
+        window.AppConfig.initializeGA4();
+        
+        // Track page view with correct page name
+        window.AppConfig.trackPageView('DeepResearch TimeCapsule - TimeCapsule-SLM', window.location.href);
+      }
+      
       // Initialize the modular agreement system
       if (window.userAgreement) {
         window.userAgreement.initializeForPage();
