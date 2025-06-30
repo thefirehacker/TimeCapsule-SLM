@@ -1,6 +1,6 @@
 <div align="center">
   
-  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/TimeCapsule_Logo.png" alt="TimeCapsule-SLM Logo" width="180" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/TimeCapsule_03.png" alt="TimeCapsule-SLM Logo" width="180" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
   
   # 💊 TimeCapsule-SLM
   

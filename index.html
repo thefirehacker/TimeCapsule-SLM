@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TimeCapsule-SLM - AI Research & Creative Platform</title>
-  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_Logo_02.png">
+  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_03.png">
   
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       margin: 0;
-      padding: 96px 0 0 0;
-      height: 100vh;
+      padding: 120px 0 0 0;
+      min-height: 100vh;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       color: white;
       box-sizing: border-box;
     }
@@ -40,10 +40,13 @@
     
     .logo {
       width: 120px;
-      height: 120px;
+      height: auto;
+      max-height: 120px;
       margin: 0 auto 30px;
       border-radius: 20px;
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+      object-fit: contain;
+      display: block;
     }
     
     .hero-title {
@@ -241,7 +244,7 @@
   <div class="main-container">
     <!-- Hero Section -->
     <div class="hero-section">
-              <img src="lib/Media/TimeCapsule_Logo_02.png" alt="TimeCapsule-SLM" class="logo">
+              <img src="lib/Media/TimeCapsule_04.png" alt="TimeCapsule-SLM" class="logo">
         <h1 class="hero-title">TimeCapsule-SLM</h1>
       <p class="hero-subtitle">AI-Powered Research & Workflow Platform</p>
       <p class="hero-description">
@@ -283,7 +286,7 @@
           <!-- Capsule Glow Effect -->
           <div style="position: absolute; width: 80px; height: 80px; background: linear-gradient(135deg, rgba(79, 172, 254, 0.3), rgba(0, 242, 254, 0.2)); border-radius: 50%; filter: blur(15px); animation: capsuleGlow 3s ease-in-out infinite;"></div>
           <!-- Main Capsule Logo -->
-          <img src="lib/Media/TimeCapsule_Logo_02.png" alt="TimeCapsule-SLM" style="width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 6px 15px rgba(79, 172, 254, 0.5)) drop-shadow(0 3px 8px rgba(0, 242, 254, 0.3)) brightness(1.15) contrast(1.1); position: relative; z-index: 2; transition: all 0.5s ease;" />
+          <img src="lib/Media/TimeCapsule_04.png" alt="TimeCapsule-SLM" style="width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 6px 15px rgba(79, 172, 254, 0.5)) drop-shadow(0 3px 8px rgba(0, 242, 254, 0.3)) brightness(1.15) contrast(1.1); position: relative; z-index: 2; transition: all 0.5s ease;" />
         </div>
         <h2 class="feature-title">Playground</h2>
         <p class="feature-subtitle">Creative Coding Environment</p>
