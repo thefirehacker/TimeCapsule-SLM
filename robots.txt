@@ -8,8 +8,7 @@ Allow: /
 Allow: /index.html
 Allow: /DeepResearch.html
 Allow: /Canvas.html
-Allow: /WorldGenerator.html
-Allow: /WorldGenerator-v2.html
+
 
 # Allow access to assets and libraries
 Allow: /lib/
@@ -26,9 +25,9 @@ Disallow: /ANALYTICS_SETUP.md
 Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://timecapsule-slm.bubblspace.com/sitemap.xml
+Sitemap: https://timecapsule.bubblspace.com/sitemap.xml
 
 # Contact information
-# Website: https://timecapsule-slm.bubblspace.com
+# Website: https://timecapsule.bubblspace.com
 # Platform: BubblSpace by AIEdx
 # Developer: FireHacker (@thefirehacker) 
