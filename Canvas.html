@@ -1227,12 +1227,12 @@
           <button id="devModeBtn" class="panel-btn">🔧 Dev Mode</button>
           <button id="devLoggerToggle" class="panel-btn" style="display: none; background: rgba(255,152,0,0.3); border-color: rgba(255,152,0,0.5);">📊 Logger</button>
           <select id="aiProviderSelect" style="padding: 4px 8px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; font-size: 11px;">
-            <option value="local" style="background: #2a2a2a; color: white;">🧠 Local Qwen</option>
-            <option value="openai" style="background: #2a2a2a; color: white;">🤖 OpenAI API</option>
-            <option value="lmstudio" style="background: #2a2a2a; color: white;">🏠 LM Studio</option>
             <option value="ollama" style="background: #2a2a2a; color: white;">🦙 Ollama</option>
+            <option value="lmstudio" style="background: #2a2a2a; color: white;">🏠 LM Studio</option>
+            <option value="openai" style="background: #2a2a2a; color: white;">🤖 OpenAI API</option>
+            <option value="local" style="background: #2a2a2a; color: white;">🧠 Local Qwen</option>
           </select>
-          <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
+          <button id="initAIBtn" class="panel-btn">🦙 Connect Ollama</button>
           <button id="disconnectAIBtn" class="panel-btn" style="display: none; background: rgba(255,69,0,0.3); border-color: rgba(255,69,0,0.5);">🔌 Disconnect</button>
         </div>
       </div>
@@ -1285,6 +1285,13 @@
         // Track initial page view
         window.AppConfig.trackPageView('Playground - TimeCapsule-SLM', window.location.href);
       }
+      
+      // Set initial status message for Ollama default
+      setTimeout(() => {
+        if (typeof updateStatus === 'function') {
+          updateStatus('🦙 Ollama mode enabled. Make sure Ollama is running on port 11434.');
+        }
+      }, 500);
     });
 
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } });
@@ -1292,7 +1299,7 @@
     let editorInstance, currentP5, aiSession = null;
     let chatHistory = [];
     let chatMode = 'creative'; // 'creative' or 'general'
-    let aiProvider = 'local'; // 'local' = Qwen, 'openai' = OpenAI API, 'lmstudio' = LM Studio
+    let aiProvider = 'ollama'; // 'ollama' = Ollama, 'lmstudio' = LM Studio, 'openai' = OpenAI API, 'local' = Local Qwen
     let openaiApiKey = ''; // Session API key
     
     // Canvas animation controls
