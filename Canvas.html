@@ -1230,6 +1230,7 @@
             <option value="local" style="background: #2a2a2a; color: white;">🧠 Local Qwen</option>
             <option value="openai" style="background: #2a2a2a; color: white;">🤖 OpenAI API</option>
             <option value="lmstudio" style="background: #2a2a2a; color: white;">🏠 LM Studio</option>
+            <option value="ollama" style="background: #2a2a2a; color: white;">🦙 Ollama</option>
           </select>
           <button id="initAIBtn" class="panel-btn">🔌 Connect</button>
           <button id="disconnectAIBtn" class="panel-btn" style="display: none; background: rgba(255,69,0,0.3); border-color: rgba(255,69,0,0.5);">🔌 Disconnect</button>
@@ -1702,7 +1703,7 @@
         userTemplate: 'Question: {prompt}\n\nAnswer this question clearly and informatively (maximum 10 lines). Be direct and helpful.'
       },
       creative: {
-        systemPrompt: 'You are a p5.js creative coding assistant. Generate compact, creative p5.js code that creates visual art and animations. Always respond in JSON format.',
+        systemPrompt: 'You are a p5.js creative coding assistant specialized in generating compact, creative p5.js code that creates visual art and animations. Always respond in JSON format with working code.',
         userTemplate: `Create p5.js code for: {prompt}
 
 REQUIREMENTS:
@@ -1724,6 +1725,17 @@ Return response as JSON:
   "code": "t=0\\ndraw=_=>{\\n  t||createCanvas(w=800,h=600)\\n  background(0,20)\\n  t+=0.05\\n  // your creative code here\\n}",
   "description": "Brief description of the animation"
 }`
+      },
+      // Qwen-specific chat templates
+      qwen: {
+        general: {
+          buildPrompt: (systemPrompt, userMessage) => `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${userMessage}<|im_end|>\n<|im_start|>assistant\n`,
+          parseResponse: (response, fullPrompt) => response.replace(fullPrompt, '').replace(/<\|im_end\|>/g, '').trim()
+        },
+        creative: {
+          buildPrompt: (systemPrompt, userMessage) => `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${userMessage}<|im_end|>\n<|im_start|>assistant\n`,
+          parseResponse: (response, fullPrompt) => response.replace(fullPrompt, '').replace(/<\|im_end\|>/g, '').trim()
+        }
       }
     };
     
@@ -1803,6 +1815,12 @@ When user asks for something, generate creative, compact p5.js code that creates
           headerStatus.style.color = '#4CAF50';
         } else if (aiSession.type === 'openai') {
           headerStatus.textContent = `🚀 ${aiSession.model} Connected`;
+          headerStatus.style.color = '#4CAF50';
+        } else if (aiSession.type === 'lmstudio') {
+          headerStatus.textContent = `🏠 LM Studio Connected`;
+          headerStatus.style.color = '#4CAF50';
+        } else if (aiSession.type === 'ollama') {
+          headerStatus.textContent = `🦙 Ollama Connected`;
           headerStatus.style.color = '#4CAF50';
         }
         connectBtn.style.display = 'none';
@@ -1961,6 +1979,36 @@ When user asks for something, generate creative, compact p5.js code that creates
                     float: right; margin-top: 10px;">Cancel</button>
           </div>
         `;
+      } else if (aiProvider === 'ollama') {
+        // Ollama Mode Modal
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, #00d4aa 0%, #00a67d 100%); 
+                      border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+              <h2 style="color: white; margin-bottom: 20px; text-align: center;">🦙 Ollama Connection</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <button id="connectOllama" class="ai-option-btn">
+                  🔌 Connect to Ollama
+              </button>
+              <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
+                  Connects to Ollama running on localhost:11434
+              </p>
+            </div>
+              
+              <div style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px; text-align: center;">
+                📋 Requirements:<br/>
+                • Ollama must be installed and running<br/>
+                • Qwen 2.5:0.5b or Qwen 3:0.6b model must be pulled<br/>
+                • Example: <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;">ollama pull qwen2.5:0.5b</code><br/>
+                • No API key required - fully local
+              </div>
+            
+            <button id="closeModal" style="background: rgba(255,255,255,0.2); border: none; 
+                    color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; 
+                    float: right; margin-top: 10px;">Cancel</button>
+          </div>
+        `;
       } else {
         // Local Qwen2.5 Mode Modal
         modal.innerHTML = `
@@ -2016,6 +2064,11 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('connectLMStudio').onclick = () => {
           document.body.removeChild(modal);
           initializeLMStudio();
+        };
+      } else if (aiProvider === 'ollama') {
+        document.getElementById('connectOllama').onclick = () => {
+          document.body.removeChild(modal);
+          initializeOllama();
         };
       } else {
         document.getElementById('selectJanus').onclick = () => {
@@ -2170,6 +2223,80 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('generateBtn').disabled = true;
         document.getElementById('initAIBtn').textContent = '❌ LM Studio Failed';
         updateStatus('❌ LM Studio connection failed - Check CORS settings');
+      }
+    }
+
+    // Initialize Ollama
+    async function initializeOllama() {
+      try {
+        updateStatus('🦙 Connecting to Ollama...');
+        document.getElementById('aiStatus').textContent = 'AI: Connecting to Ollama...';
+        
+        // Test Ollama connection by fetching models
+        console.log('🔍 Testing Ollama connection...');
+        const testResponse = await fetch('http://localhost:11434/api/tags', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors'
+        });
+        
+        if (!testResponse.ok) {
+          console.error('❌ Ollama connection test failed:', testResponse.status, testResponse.statusText);
+          throw new Error(`Ollama connection failed: ${testResponse.status} ${testResponse.statusText}. Make sure Ollama is running on port 11434.`);
+        }
+
+        const modelsData = await testResponse.json();
+        console.log('✅ Ollama connection test passed! Available models:', modelsData.models?.length || 'Unknown count');
+        
+        // Find the best available Qwen model (prioritize newer versions)
+        let selectedModel = null;
+        const modelPriority = ['qwen2.5:7b', 'qwen2.5:3b', 'qwen2.5:1.5b', 'qwen2.5:0.5b', 'qwen:7b', 'qwen:4b', 'qwen:1.8b'];
+        
+        for (const priority of modelPriority) {
+          const found = modelsData.models?.find(m => m.name.includes(priority.split(':')[0]));
+          if (found) {
+            selectedModel = found.name;
+            break;
+          }
+        }
+        
+        // Fallback to first available model or default
+        if (!selectedModel) {
+          selectedModel = modelsData.models?.[0]?.name || 'qwen2.5:0.5b';
+        }
+        
+        aiSession = { type: 'ollama', model: selectedModel, baseURL: 'http://localhost:11434' };
+        document.getElementById('aiStatus').textContent = `AI: Ollama (${selectedModel}) ✅`;
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('initAIBtn').textContent = `🦙 Ollama Ready`;
+        
+        // Update header status
+        updateHeaderAIStatus();
+        
+        console.log(`🦙 Ollama session initialized successfully with model: ${selectedModel}`);
+        updateStatus(`🦙 Ollama connected successfully!`);
+        addChatMessage('system', `🦙 Ollama connected! Using model: ${selectedModel}. Fully local processing with GGUF models - no API costs.`);
+        
+        // Track Ollama connection
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('ollama_connected', 'ai_interaction', selectedModel);
+        }
+        
+      } catch (error) {
+        console.error('Ollama initialization error:', error);
+        
+        let errorMessage = `❌ Failed to connect to Ollama: ${error.message}`;
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage += `\n\n💡 Make sure Ollama is installed and running: \n1. Install Ollama from https://ollama.ai\n2. Run: ollama serve\n3. Pull a Qwen model: ollama pull qwen2.5:0.5b`;
+        }
+        
+        addChatMessage('system', errorMessage);
+        document.getElementById('aiStatus').textContent = 'AI: Ollama Failed ❌';
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('initAIBtn').textContent = '❌ Ollama Failed';
+        updateStatus('❌ Ollama connection failed - Check installation and model');
       }
     }
 
@@ -2390,7 +2517,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         return;
       }
       
-      if (aiSession !== 'template' && aiSession.type !== 'qwen' && aiSession.type !== 'openai' && aiSession.type !== 'lmstudio') {
+      if (aiSession !== 'template' && aiSession.type !== 'qwen' && aiSession.type !== 'openai' && aiSession.type !== 'lmstudio' && aiSession.type !== 'ollama') {
         updateStatus('❌ Invalid AI session type.');
         addChatMessage('ai', 'AI session error. Please reconnect.');
         return;
@@ -2552,6 +2679,59 @@ When user asks for something, generate creative, compact p5.js code that creates
             console.error('LM Studio API error:', error);
             aiResponse = `LM Studio API error: ${error.message}. Please check that LM Studio is running on port 1234.`;
             updateStatus('❌ LM Studio API error');
+          }
+        } else if (aiSession.type === 'ollama') {
+          try {
+            // Build Qwen chat prompt using proper template
+            const systemPrompt = customContexts.general.systemPrompt;
+            const userMessage = customContexts.general.userTemplate.replace('{prompt}', userPrompt);
+            const chatPrompt = customContexts.qwen.general.buildPrompt(systemPrompt, userMessage);
+            
+            // Console log the formatted prompt
+            console.log('%c🦙 OLLAMA QUERY (General Chat)', 'background: #00d4aa; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+            console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', chatPrompt);
+            
+            // Ollama API call for general chat
+            const response = await fetch(`${aiSession.baseURL}/api/generate`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              mode: 'cors',
+              body: JSON.stringify({
+                model: aiSession.model,
+                prompt: chatPrompt,
+                stream: false,
+                options: {
+                  temperature: 0.7,
+                  top_p: 0.9,
+                  max_tokens: 500,
+                  stop: ['<|im_end|>']
+                }
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const rawResponse = data.response || '';
+            
+            // Parse response using Qwen template
+            aiResponse = customContexts.qwen.general.parseResponse(rawResponse, '');
+            
+            // Console log raw Ollama API response
+            console.log('%c🦙 RAW OLLAMA RESPONSE (General Chat)', 'background: #00d4aa; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+            console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+            console.log('%cParsed Content:', 'color: #666; font-weight: bold;', aiResponse);
+            
+            updateStatus(`🦙 ${aiSession.model} responded!`);
+            
+          } catch (error) {
+            console.error('Ollama API error:', error);
+            aiResponse = `Ollama API error: ${error.message}. Please check that Ollama is running on port 11434.`;
+            updateStatus('❌ Ollama API error');
           }
         } else {
           aiResponse = 'AI is not properly initialized. Please connect an AI model.';
@@ -2821,6 +3001,11 @@ When user asks for something, generate creative, compact p5.js code that creates
           const result = await handleLMStudioGeneration(userPrompt);
           code = result.code;
           aiResponse = result.aiResponse;
+        } else if (aiSession.type === 'ollama') {
+          // Ollama generation
+          const result = await handleOllamaGeneration(userPrompt);
+          code = result.code;
+          aiResponse = result.aiResponse;
         } else {
           // aiSession is not valid
           code = '';
@@ -3019,6 +3204,101 @@ When user asks for something, generate creative, compact p5.js code that creates
         code = '';
         aiResponse = `LM Studio API error: ${error.message}. Please check that LM Studio is running on port 1234.`;
         updateStatus('❌ LM Studio API error');
+      }
+      
+      return { code, aiResponse };
+    }
+
+    // Ollama Generation
+    async function handleOllamaGeneration(userPrompt) {
+      let code = '';
+      let aiResponse = '';
+      
+      try {
+        // Build Qwen chat prompt using proper template
+        const systemPrompt = customContexts.creative.systemPrompt;
+        const userMessage = customContexts.creative.userTemplate.replace('{prompt}', userPrompt);
+        const chatPrompt = customContexts.qwen.creative.buildPrompt(systemPrompt, userMessage);
+        
+        // Console log the formatted prompt
+        console.log('%c🦙 OLLAMA QUERY (Creative)', 'background: #00d4aa; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+        console.log('%cFormatted Prompt:', 'color: #666; font-weight: bold;', chatPrompt);
+        
+        // Ollama API call for creative coding
+        const response = await fetch(`${aiSession.baseURL}/api/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            model: aiSession.model,
+            prompt: chatPrompt,
+            stream: false,
+            options: {
+              temperature: 0.7,
+              top_p: 0.9,
+              max_tokens: 1200,
+              stop: ['<|im_end|>']
+            }
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const rawContent = data.response || '';
+        
+        // Parse response using Qwen template
+        let parsedContent = customContexts.qwen.creative.parseResponse(rawContent, '');
+        
+        // Console log raw Ollama API response
+        console.log('%c🦙 RAW OLLAMA RESPONSE (Creative)', 'background: #00d4aa; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+        console.log('%cFull API Response:', 'color: #666; font-weight: bold;', data);
+        console.log('%cParsed Content:', 'color: #666; font-weight: bold;', parsedContent);
+        
+        // Try to parse as JSON first
+        let jsonResponse;
+        try {
+          jsonResponse = JSON.parse(parsedContent);
+          console.log('%cParsed JSON:', 'color: #666; font-weight: bold;', jsonResponse);
+          
+          code = jsonResponse.code?.replace(/\\n/g, '\n').replace(/\\t/g, '\t') || '';
+          aiResponse = jsonResponse.description || 'Ollama generated creative code!';
+          
+        } catch (parseError) {
+          console.log('%cJSON Parse Failed, trying fallback extraction:', 'color: #orange; font-weight: bold;', parseError);
+          
+          // Fallback: Try to extract code between backticks or other patterns
+          const codeMatch = parsedContent.match(/```(?:javascript|js)?\n?([\s\S]*?)\n?```/);
+          if (codeMatch) {
+            code = codeMatch[1].trim();
+            aiResponse = 'Code extracted from Ollama response';
+          } else if (parsedContent.includes('createCanvas') || parsedContent.includes('draw=') || parsedContent.includes('background(')) {
+            // Try to extract p5.js code patterns directly
+            const p5Match = parsedContent.match(/(t\s*=\s*0[\s\S]*?draw\s*=\s*[^{]*{[\s\S]*?})/);
+            if (p5Match) {
+              code = p5Match[1].trim();
+              aiResponse = 'P5.js pattern extracted from Ollama response';
+            } else {
+              code = parsedContent;
+              aiResponse = 'Raw code from Ollama';
+            }
+          } else {
+            code = '';
+            aiResponse = parsedContent || 'Ollama response could not be parsed as code';
+          }
+        }
+        
+        updateStatus(`🦙 ${aiSession.model} generated code!`);
+        
+      } catch (error) {
+        console.error('Ollama API error:', error);
+        code = '';
+        aiResponse = `Ollama API error: ${error.message}. Please check that Ollama is running on port 11434.`;
+        updateStatus('❌ Ollama API error');
       }
       
       return { code, aiResponse };
@@ -3986,6 +4266,10 @@ Return response as JSON:
           apiKeySection.style.display = 'none';
           document.getElementById('initAIBtn').textContent = '🏠 Connect LM Studio';
           updateStatus('🏠 LM Studio mode enabled. Make sure LM Studio is running on port 1234.');
+        } else if (aiProvider === 'ollama') {
+          apiKeySection.style.display = 'none';
+          document.getElementById('initAIBtn').textContent = '🦙 Connect Ollama';
+          updateStatus('🦙 Ollama mode enabled. Make sure Ollama is running on port 11434.');
         } else {
           apiKeySection.style.display = 'none';
           document.getElementById('initAIBtn').textContent = '🔌 Connect Qwen';
