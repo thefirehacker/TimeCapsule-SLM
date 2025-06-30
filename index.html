@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SketchPad-SLM - AI Research & Creative Platform</title>
+  <link rel="icon" type="image/png" href="lib/Media/SketchPad-SLM.png">
+  
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 96px 0 0 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      box-sizing: border-box;
+    }
+    
+    /* SketchPad-SLM Navigation Styles */
+    .sketchpad-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, 
+        rgba(255, 255, 255, 0.98) 0%, 
+        rgba(255, 255, 255, 0.92) 60%, 
+        rgba(255, 255, 255, 0.75) 85%, 
+        rgba(255, 255, 255, 0.4) 95%, 
+        transparent 100%
+      );
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      box-shadow: none;
+      border-bottom: none;
+      z-index: 1000;
+      padding: 18px 0 40px 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 32px;
+    }
+    
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      text-decoration: none;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 14px 28px;
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, 
+        rgba(255, 87, 87, 0.12) 0%, 
+        rgba(255, 138, 128, 0.08) 50%, 
+        rgba(255, 87, 87, 0.12) 100%
+      );
+      border: 3px solid transparent;
+      background-clip: padding-box;
+      box-shadow: 
+        0 8px 32px rgba(255, 87, 87, 0.2), 
+        0 4px 16px rgba(255, 87, 87, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      animation: logoGlow 4s ease-in-out infinite;
+    }
+    
+    @keyframes logoGlow {
+      0%, 100% { 
+        box-shadow: 
+          0 8px 32px rgba(255, 87, 87, 0.2), 
+          0 4px 16px rgba(255, 87, 87, 0.15),
+          inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
+      50% { 
+        box-shadow: 
+          0 12px 48px rgba(255, 87, 87, 0.3), 
+          0 6px 24px rgba(255, 87, 87, 0.25),
+          inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      }
+    }
+    
+    .nav-logo img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      filter: 
+        drop-shadow(0 6px 16px rgba(255, 87, 87, 0.4)) 
+        drop-shadow(0 3px 8px rgba(255, 87, 87, 0.3))
+        brightness(1.1)
+        contrast(1.1);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: iconFloat 3s ease-in-out infinite;
+    }
+    
+    @keyframes iconFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-2px); }
+    }
+    
+    .nav-logo span {
+      font-size: 26px;
+      font-weight: 900;
+      color: white;
+      letter-spacing: -0.05em;
+      text-shadow: 
+        0 6px 12px rgba(255, 87, 87, 0.6),
+        0 3px 6px rgba(255, 87, 87, 0.4),
+        0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: all 0.5s ease;
+      position: relative;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+
+    
+    .nav-links a {
+      color: #1a202c;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 24px;
+      border-radius: 14px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      letter-spacing: -0.02em;
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid rgba(45, 55, 72, 0.12);
+      backdrop-filter: blur(15px);
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .nav-links a::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 87, 87, 0.15), transparent);
+      transition: left 0.6s ease;
+    }
+    
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(135deg, rgba(255, 87, 87, 0.3), rgba(255, 138, 128, 0.2));
+      border-radius: 16px;
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .nav-links a:hover::before {
+      left: 100%;
+    }
+    
+    .nav-links a:hover::after {
+      opacity: 1;
+    }
+    
+    .nav-links a:hover {
+      color: #0f1419;
+      background: rgba(255, 255, 255, 0.95);
+      border-color: rgba(255, 87, 87, 0.3);
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15), 0 6px 15px rgba(255, 87, 87, 0.2), 0 0 0 1px rgba(255, 87, 87, 0.1);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      font-weight: 700;
+    }
+    
+    .nav-links a:active {
+      transform: translateY(-2px) scale(1.03);
+    }
+    
+    /* Navigation buttons for switching between modes */
+    .mode-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .mode-nav-btn {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .mode-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Responsive design for mode navigation */
+    @media (max-width: 1024px) {
+      .mode-nav {
+        margin-left: 15px;
+        padding-left: 15px;
+      }
+      
+      .mode-nav-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+      
+      .mode-nav-btn span:last-child {
+        display: none;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .nav-container {
+        padding: 0 20px;
+      }
+      
+      .nav-links {
+        gap: 8px;
+      }
+      
+      .nav-links a {
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+      
+      .mode-nav {
+        margin-left: 10px;
+        padding-left: 10px;
+      }
+    }
+    
+    .splash-container {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .logo {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      border-radius: 20px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+    
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      background: linear-gradient(45deg, #fff, #f0f8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      font-size: 1.2em;
+      margin-bottom: 30px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .nav-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .nav-btn {
+      padding: 15px 30px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    
+    .nav-btn.primary {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      border-color: rgba(79, 172, 254, 0.5);
+    }
+    
+    .loading-text {
+      margin-top: 20px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #4facfe;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+      <!-- SketchPad-SLM Navigation -->
+    <div class="sketchpad-nav">
+      <div class="nav-container">
+        <a href="https://www.bubblspace.com/" target="_blank" rel="noopener" class="nav-logo">
+          <img src="lib/Media/BubblLogZoomed.png" alt="BubblSpace">
+          <span>BubblSpace</span>
+        </a>
+        <div class="nav-links">
+          <a href="https://www.bubblspace.com/" target="_blank" rel="noopener">Home</a>
+          <a href="https://www.bubblspace.com/about-aiedx" target="_blank" rel="noopener">About AIEdx</a>
+          <a href="https://www.bubblspace.com/contact" target="_blank" rel="noopener">Contact Us</a>
+        
+        <div class="mode-nav">
+          <a href="DeepResearch.html" class="mode-nav-btn">
+            <span>🔬</span>
+            <span>Deep Research</span>
+          </a>
+          <a href="Canvas.html" class="mode-nav-btn">
+            <span>🎨</span>
+            <span>Creative Canvas</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="splash-container">
+    <img src="lib/Media/SketchPad-SLM.png" alt="SketchPad-SLM" class="logo">
+    <h1>SketchPad-SLM</h1>
+    <p class="subtitle">AI Research & Creative Platform</p>
+    
+    <div class="nav-buttons">
+      <a href="DeepResearch.html" class="nav-btn primary">
+        🔬 Deep Research Studio
+      </a>
+      <a href="Canvas.html" class="nav-btn">
+        🎨 Creative Canvas
+      </a>
+    </div>
+    
+    <div class="loading-text">
+      Redirecting to Deep Research Studio<span class="spinner"></span>
+    </div>
+  </div>
+
+  <script>
+    // Auto-redirect to Deep Research page after 2 seconds
+    setTimeout(() => {
+      window.location.href = 'DeepResearch.html';
+    }, 2000);
+    
+    // Add keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '1') window.location.href = 'DeepResearch.html';
+      if (e.key === '2') window.location.href = 'Canvas.html';
+    });
+  </script>
+</body>
+</html> 

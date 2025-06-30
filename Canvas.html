@@ -1098,8 +1098,8 @@
       margin: 0;
     }
     
-    /* BubblSpace Navigation Styles - Cool & Modern */
-    .bubblspace-nav {
+    /* SketchPad-SLM Navigation Styles - Cool & Modern */
+    .sketchpad-nav {
       position: fixed;
       top: 0;
       left: 0;
@@ -1386,6 +1386,88 @@
       transform: translateY(-2px) scale(1.03);
     }
     
+    /* Navigation buttons for switching between modes */
+    .mode-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .mode-nav-btn {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .mode-nav-btn.active {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      border-color: rgba(79, 172, 254, 0.5);
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    }
+    
+    .mode-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.2);
+    }
+    
+    .mode-nav-btn:not(.active):hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    /* Responsive design for mode navigation */
+    @media (max-width: 1024px) {
+      .mode-nav {
+        margin-left: 15px;
+        padding-left: 15px;
+      }
+      
+      .mode-nav-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+      
+      .mode-nav-btn span:last-child {
+        display: none;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .nav-container {
+        padding: 0 20px;
+      }
+      
+      .nav-links {
+        gap: 8px;
+      }
+      
+      .nav-links a {
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+      
+      .mode-nav {
+        margin-left: 10px;
+        padding-left: 10px;
+      }
+    }
+    
     /* Adjust body padding to account for fixed nav */
     body {
       padding-top: 98px;
@@ -1400,17 +1482,28 @@
   </style>
 </head>
 <body>
-  <!-- BubblSpace Navigation -->
-  <div class="bubblspace-nav">
-    <div class="nav-container">
-      <a href="https://www.bubblspace.com/" target="_blank" rel="noopener" class="nav-logo">
-        <img src="lib/Media/BubblLogZoomed.png" alt="BubblSpace">
-        <span>BubblSpace</span>
-      </a>
-      <div class="nav-links">
-        <a href="https://www.bubblspace.com/" target="_blank" rel="noopener">Home</a>
-        <a href="https://www.bubblspace.com/about-aiedx" target="_blank" rel="noopener">About AIEdx</a>
-        <a href="https://www.bubblspace.com/contact" target="_blank" rel="noopener">Contact Us</a>
+      <!-- SketchPad-SLM Navigation -->
+    <div class="sketchpad-nav">
+      <div class="nav-container">
+        <a href="https://www.bubblspace.com/" target="_blank" rel="noopener" class="nav-logo">
+          <img src="lib/Media/BubblLogZoomed.png" alt="BubblSpace">
+          <span>BubblSpace</span>
+        </a>
+        <div class="nav-links">
+          <a href="https://www.bubblspace.com/" target="_blank" rel="noopener">Home</a>
+          <a href="https://www.bubblspace.com/about-aiedx" target="_blank" rel="noopener">About AIEdx</a>
+          <a href="https://www.bubblspace.com/contact" target="_blank" rel="noopener">Contact Us</a>
+        
+        <div class="mode-nav">
+          <a href="DeepResearch.html" class="mode-nav-btn">
+            <span>🔬</span>
+            <span>Deep Research</span>
+          </a>
+          <a href="Canvas.html" class="mode-nav-btn active">
+            <span>🎨</span>
+            <span>Creative Canvas</span>
+          </a>
+        </div>
       </div>
     </div>
   </div>
