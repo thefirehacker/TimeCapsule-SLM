@@ -1174,6 +1174,51 @@
       <button id="generateResearch" class="btn primary" disabled>🚀 Generate Research</button>
       <button id="exportResearch" class="btn secondary">📥 Export Results</button>
       <button id="clearAll" class="btn secondary">🗑️ Clear All</button>
+      
+      <!-- Usage Agreement & Terms Section -->
+      <div class="control-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <button id="agreementStatusBtn" class="btn secondary" style="padding: 8px 12px; font-size: 12px; cursor: pointer;">
+          📋 Usage Agreement & Terms
+        </button>
+        <div id="agreementStatus" style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 5px; text-align: center;">
+          Status: Not Reviewed
+        </div>
+      </div>
+      
+      <!-- Creator Attribution -->
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center;">
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">
+          Created by
+        </div>
+        <a href="https://x.com/thefirehacker" target="_blank" style="
+          color: rgba(255,255,255,0.8); 
+          text-decoration: none; 
+          font-size: 12px; 
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: all 0.3s ease;
+        " 
+        onmouseover="
+          this.style.background='rgba(255,255,255,0.1)'; 
+          this.style.borderColor='rgba(255,255,255,0.2)';
+          this.style.color='white';
+          this.style.transform='translateY(-1px)';
+        " 
+        onmouseout="
+          this.style.background='rgba(255,255,255,0.05)'; 
+          this.style.borderColor='rgba(255,255,255,0.1)';
+          this.style.color='rgba(255,255,255,0.8)';
+          this.style.transform='translateY(0)';
+        ">
+          🧙‍♂️ FireHacker
+        </a>
+      </div>
     </div>
 
     <!-- Topic Structure Builder -->
@@ -1242,12 +1287,18 @@
   </div>
 
   <!-- Scripts -->
+  <script src="lib/useragreement/agreement.js"></script>
   <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
   <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
   
   <script>
     // Initialize Deep Research application
     document.addEventListener('DOMContentLoaded', () => {
+      // Initialize the modular agreement system
+      if (window.userAgreement) {
+        window.userAgreement.initializeForPage();
+      }
+      
       if (window.DeepResearchApp) {
         window.deepResearch = new DeepResearchApp();
         console.log('✅ Deep Research Studio initialized');

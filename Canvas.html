@@ -990,113 +990,7 @@
       font-style: italic;
     }
     
-    /* User Agreement Modal */
-    .user-agreement-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.95);
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(15px);
-    }
-    
-    .user-agreement-content {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 15px;
-      padding: 30px;
-      width: 90%;
-      max-width: 700px;
-      max-height: 85vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      color: white;
-      border: 2px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .agreement-header {
-      text-align: center;
-      margin-bottom: 25px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-      padding-bottom: 15px;
-    }
-    
-    .agreement-header h2 {
-      margin: 0;
-      font-size: 24px;
-      color: #fff;
-    }
-    
-    .agreement-section {
-      margin-bottom: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      padding: 15px;
-      border-left: 4px solid #fa709a;
-    }
-    
-    .agreement-section h3 {
-      margin: 0 0 10px 0;
-      font-size: 16px;
-      color: #fee140;
-    }
-    
-    .agreement-section p, .agreement-section ul {
-      margin: 8px 0;
-      font-size: 14px;
-      line-height: 1.6;
-      color: rgba(255, 255, 255, 0.9);
-    }
-    
-    .agreement-section ul {
-      padding-left: 20px;
-    }
-    
-    .agreement-section li {
-      margin: 5px 0;
-    }
-    
-    .warning-box {
-      background: rgba(255, 69, 0, 0.2);
-      border: 2px solid rgba(255, 69, 0, 0.5);
-      border-radius: 8px;
-      padding: 15px;
-      margin: 15px 0;
-    }
-    
-    .warning-box h4 {
-      margin: 0 0 8px 0;
-      color: #ff6b35;
-      font-size: 16px;
-    }
-    
-    .agreement-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      margin-top: 25px;
-      padding-top: 15px;
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .agreement-checkbox {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.9);
-    }
-    
-    .agreement-checkbox input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      margin: 0;
-    }
+
     
     /* SketchPad-SLM Navigation Styles - Cool & Modern */
     .sketchpad-nav {
@@ -1908,10 +1802,18 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js"></script>
+  
+  <!-- Load User Agreement Module -->
+  <script src="lib/useragreement/agreement.js"></script>
 
   <script>
-    // Initialize Google Analytics
+    // Initialize Google Analytics and Agreement Status
     document.addEventListener('DOMContentLoaded', function() {
+      // Initialize the modular agreement system
+      if (window.userAgreement) {
+        window.userAgreement.initializeForPage();
+      }
+      
       if (window.AppConfig) {
         window.AppConfig.initializeGA4();
         
@@ -1932,11 +1834,7 @@
     let animationPaused = false;
     let animationSpeed = 'slow'; // 'slow', 'fast', 'very-fast'
     let speedMultiplier = 0.5; // Default slow speed
-    let userAgreementAccepted = false; // Track if user accepted terms
-    let agreementTimestamp = null; // Track when user accepted agreement
-    let agreementReminderTimer = null; // Timer for first reminder (2 minutes)
-    let agreementRecurringTimer = null; // Timer for recurring reminders (30 seconds)
-    let agreementModalOpen = false; // Track if agreement modal is currently open
+
     let pendingAIInitialization = false; // Track if user explicitly wants to initialize AI
     
     // Initialize AI Agent System
@@ -2423,218 +2321,11 @@ AVAILABLE FUNCTIONS:
 
 When user asks for something, generate creative, compact p5.js code that creates visual art matching their request.`;
 
-    // Show User Agreement Modal
-    function showUserAgreement() {
-      // Don't show modal if one is already open
-      if (agreementModalOpen) {
-        console.log('⚠️ Agreement modal already open - skipping duplicate');
-        return;
-      }
-      
-      // Close any existing AI selection modals first
-      const existingAIModal = document.querySelector('[style*="position: fixed"][style*="z-index: 2000"]');
-      if (existingAIModal) {
-        existingAIModal.remove();
-        console.log('🔄 Closed existing AI modal before showing agreement');
-      }
-      
-      // Mark modal as open
-      agreementModalOpen = true;
-      
-      const modal = document.createElement('div');
-      modal.className = 'user-agreement-modal';
-      modal.id = 'userAgreementModal';
-      
-      modal.innerHTML = `
-        <div class="user-agreement-content">
-          <div class="agreement-header">
-            <h2>📋 Usage Agreement & Terms</h2>
-            <p style="font-size: 14px; color: rgba(255,255,255,0.8); margin: 10px 0 0 0;">
-              Please review these important terms before using AI features
-            </p>
-          </div>
-          
-          <div class="agreement-section">
-            <h3>🤖 AI Technology Usage</h3>
-            <p>SketchPad-SLM integrates artificial intelligence for <strong>workflow automation and creative assistance</strong>. AI features include:</p>
-            <ul>
-              <li>Local Qwen2.5 language model with optimized inference for offline code generation</li>
-              <li>OpenAI API integration for advanced AI capabilities</li>
-              <li>Automated p5.js code generation and creative coding assistance</li>
-              <li>Context-aware chat and programming help</li>
-            </ul>
-          </div>
-          
-          <div class="warning-box">
-            <h4>⚠️ IMPORTANT AI ACCURACY DISCLAIMER</h4>
-            <p><strong>AI is NOT a fully accurate tool.</strong> Generated code, responses, and suggestions may contain errors, bugs, or inaccuracies. All AI output should be thoroughly reviewed, tested, and validated by the end user before implementation or reliance.</p>
-          </div>
-          
-          <div class="agreement-section">
-            <h3>👤 User Responsibilities</h3>
-            <p>By using AI features, you acknowledge and agree to:</p>
-            <ul>
-              <li><strong>Review all AI-generated content</strong> for accuracy and appropriateness</li>
-              <li><strong>Test generated code</strong> before using in production environments</li>
-              <li><strong>Verify AI responses</strong> against authoritative sources when needed</li>
-              <li><strong>Use AI as an assistant tool</strong>, not as a replacement for human judgment</li>
-              <li><strong>Comply with OpenAI's usage policies</strong> when using API features</li>
-            </ul>
-          </div>
-          
-          <div class="agreement-section">
-            <h3>🛡️ Liability Limitation</h3>
-            <p><strong>AIEDX Private Limited or any of its employees</strong> provides AI features "as-is" and makes no warranties regarding:</p>
-            <ul>
-              <li>Accuracy, completeness, or reliability of AI-generated content</li>
-              <li>Suitability for any particular purpose or use case</li>
-              <li>Absence of errors, bugs, or security vulnerabilities in generated code</li>
-              <li>Compliance with any specific standards or requirements</li>
-            </ul>
-            <p><strong>AIEDX Private Limited or any of its employees shall not be liable</strong> for any direct, indirect, incidental, consequential, or punitive damages arising from or related to the use of AI features, including but not limited to:</p>
-            <ul>
-              <li>Data loss or corruption</li>
-              <li>System failures or security breaches</li>
-              <li>Business interruption or financial losses</li>
-              <li>Any damages caused by reliance on AI-generated content</li>
-            </ul>
-          </div>
-          
-          <div class="agreement-section">
-            <h3>🔒 Data & Privacy</h3>
-            <p>When using AI features:</p>
-            <ul>
-              <li><strong>Local AI:</strong> Processing happens on your device, no data sent to external servers</li>
-              <li><strong>API Mode:</strong> Your prompts and responses are sent to OpenAI according to their privacy policy</li>
-              <li><strong>Session Data:</strong> API keys are stored temporarily in browser memory only</li>
-              <li><strong>No Persistent Storage:</strong> We do not permanently store your AI interactions</li>
-            </ul>
-          </div>
-          
-          <div class="agreement-actions">
-            <div class="agreement-checkbox">
-              <input type="checkbox" id="agreementCheckbox">
-              <label for="agreementCheckbox">I have read, understood, and agree to these terms</label>
-            </div>
-            <div style="display: flex; gap: 10px;">
-              <button class="context-btn secondary" onclick="declineAgreement()">Decline</button>
-              <button class="context-btn primary" id="acceptAgreementBtn" disabled onclick="acceptAgreement()">Accept & Continue</button>
-            </div>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      // Enable accept button only when checkbox is checked
-      document.getElementById('agreementCheckbox').addEventListener('change', (e) => {
-        document.getElementById('acceptAgreementBtn').disabled = !e.target.checked;
-      });
-      
-      // Handle modal close when clicking outside (but keep modal persistent for legal compliance)
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          // Don't allow closing by clicking outside - user must actively accept or decline
-          console.log('⚠️ Agreement must be accepted or declined - cannot close by clicking outside');
-          // Prevent any background AI modal from showing
-          e.stopPropagation();
-          e.preventDefault();
-        }
-      });
-    }
 
-    // Accept User Agreement
-    function acceptAgreement() {
-      userAgreementAccepted = true;
-      agreementTimestamp = new Date(); // Record acceptance timestamp
-      
-      // Stop all agreement reminders
-      stopAgreementReminders();
-      
-      // Mark modal as closed
-      agreementModalOpen = false;
-      
-      const modal = document.getElementById('userAgreementModal');
-      if (modal) {
-        modal.style.opacity = '0';
-        modal.style.transform = 'scale(0.9)';
-        setTimeout(() => {
-          if (modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-          }
-        }, 300);
-      }
-      
-      // Update agreement status display
-      updateAgreementStatusDisplay();
-      
-      // Track agreement acceptance
-      if (window.AppConfig) {
-        window.AppConfig.trackEvent('user_agreement_accepted', 'legal', 'ai_terms');
-      }
-      
-      // Only proceed with AI initialization if user explicitly requested it
-      if (pendingAIInitialization) {
-        console.log('✅ Agreement accepted - proceeding with requested AI initialization');
-        pendingAIInitialization = false; // Reset flag
-        showAISelectionModal();
-      } else {
-        console.log('✅ Agreement accepted - no AI initialization requested');
-        addChatMessage('system', '✅ User Agreement accepted. You can now use AI features by clicking "Connect AI".');
-      }
-    }
 
-    // Decline User Agreement
-    function declineAgreement() {
-      // Mark modal as closed
-      agreementModalOpen = false;
-      
-      const modal = document.getElementById('userAgreementModal');
-      if (modal) {
-        modal.style.opacity = '0';
-        modal.style.transform = 'scale(0.9)';
-        setTimeout(() => {
-          if (modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-          }
-        }, 300);
-      }
-      
-      updateStatus('❌ AI features unavailable without agreement acceptance');
-      addChatMessage('system', '❌ AI features are disabled. You must accept the User Agreement to use AI capabilities.');
-      
-      // Track agreement decline
-      if (window.AppConfig) {
-        window.AppConfig.trackEvent('user_agreement_declined', 'legal', 'ai_terms');
-      }
-    }
 
-    // Update Agreement Status Display
-    function updateAgreementStatusDisplay() {
-      const statusDiv = document.getElementById('agreementStatus');
-      const statusBtn = document.getElementById('agreementStatusBtn');
-      
-      if (userAgreementAccepted && agreementTimestamp) {
-        const dateStr = agreementTimestamp.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
-        const timeStr = agreementTimestamp.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        
-        statusDiv.innerHTML = `Status: ✅ Agreed<br/><span style="font-size: 10px; color: rgba(255,255,255,0.6);">${dateStr} at ${timeStr}</span>`;
-        statusBtn.style.background = 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)';
-        statusBtn.style.color = 'white';
-      } else {
-        statusDiv.textContent = 'Status: Not Reviewed';
-        statusBtn.style.background = 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)';
-        statusBtn.style.color = '#333';
-      }
-    }
+
+
 
     // Update AI Connection Status in Header
     function updateHeaderAIStatus() {
@@ -2696,93 +2387,7 @@ When user asks for something, generate creative, compact p5.js code that creates
       }
     }
 
-    // Show Agreement from Status Button
-    function showAgreementFromStatus() {
-      // Track agreement view from status button
-      if (window.AppConfig) {
-        window.AppConfig.trackEvent('agreement_viewed_from_status', 'legal', 'status_button');
-      }
-      
-      // This is just for review - not for AI initialization
-      pendingAIInitialization = false;
-      console.log('📋 Showing agreement for review (not AI initialization)');
-      
-      // Show the same agreement modal
-      showUserAgreement();
-    }
 
-    // Start Agreement Reminder System
-    function startAgreementReminders() {
-      // Clear any existing timers
-      stopAgreementReminders();
-      
-      console.log('🔔 Agreement reminder system started: 2-minute initial reminder, then 30-second recurring');
-      
-      // Set initial 2-minute reminder
-      agreementReminderTimer = setTimeout(() => {
-        if (!userAgreementAccepted && !agreementModalOpen) {
-          console.log('⏰ Showing 2-minute agreement reminder (not for AI initialization)');
-          // This is just a reminder - not for AI initialization
-          pendingAIInitialization = false;
-          showUserAgreement();
-          
-          // Start recurring 30-second reminders
-          startRecurringReminders();
-          
-          // Track automatic reminder
-          if (window.AppConfig) {
-            window.AppConfig.trackEvent('agreement_auto_reminder', 'legal', '2_minute_reminder');
-          }
-        } else if (agreementModalOpen) {
-          console.log('⏰ 2-minute reminder skipped - modal already open');
-          // Start recurring reminders anyway since modal is open
-          startRecurringReminders();
-        }
-      }, 120000); // 2 minutes = 120,000ms
-    }
-
-    // Start Recurring 30-second Reminders
-    function startRecurringReminders() {
-      // Clear any existing recurring timer
-      if (agreementRecurringTimer) {
-        clearInterval(agreementRecurringTimer);
-      }
-      
-      // Set recurring 30-second reminders
-      agreementRecurringTimer = setInterval(() => {
-        if (!userAgreementAccepted && !agreementModalOpen) {
-          console.log('🔄 Showing 30-second recurring agreement reminder (not for AI initialization)');
-          // This is just a reminder - not for AI initialization
-          pendingAIInitialization = false;
-          showUserAgreement();
-          
-          // Track recurring reminder
-          if (window.AppConfig) {
-            window.AppConfig.trackEvent('agreement_recurring_reminder', 'legal', '30_second_reminder');
-          }
-        } else if (!userAgreementAccepted && agreementModalOpen) {
-          console.log('🔄 30-second reminder skipped - modal already open');
-        } else {
-          // Stop recurring reminders if agreement accepted
-          console.log('✅ Agreement accepted - stopping recurring reminders');
-          clearInterval(agreementRecurringTimer);
-          agreementRecurringTimer = null;
-        }
-      }, 30000); // 30 seconds = 30,000ms
-    }
-
-    // Stop All Agreement Reminders
-    function stopAgreementReminders() {
-      if (agreementReminderTimer) {
-        clearTimeout(agreementReminderTimer);
-        agreementReminderTimer = null;
-      }
-      
-      if (agreementRecurringTimer) {
-        clearInterval(agreementRecurringTimer);
-        agreementRecurringTimer = null;
-      }
-    }
 
     // Initialize AI with Multiple Options
     async function initializeAI() {
@@ -2794,15 +2399,9 @@ When user asks for something, generate creative, compact p5.js code that creates
         pendingAIInitialization = true;
         
         // Check if user has accepted agreement
-        if (!userAgreementAccepted) {
+        if (!window.userAgreement.isAgreementAccepted()) {
           console.log('🔒 User explicitly requested AI - showing agreement first');
-          showUserAgreement();
-          return;
-        }
-        
-        // Additional safety check - don't show AI modal if agreement modal is open
-        if (agreementModalOpen) {
-          console.log('⚠️ Agreement modal is open - deferring AI initialization');
+          window.userAgreement.showUserAgreement();
           return;
         }
         
@@ -2820,16 +2419,10 @@ When user asks for something, generate creative, compact p5.js code that creates
 
     // Show AI selection modal
     function showAISelectionModal() {
-      // Don't show AI modal if agreement modal is open
-      if (agreementModalOpen) {
-        console.log('⚠️ Agreement modal is open - cannot show AI selection modal');
-        return;
-      }
-      
       // Don't show if user hasn't accepted agreement
-      if (!userAgreementAccepted) {
+      if (!window.userAgreement.isAgreementAccepted()) {
         console.log('⚠️ User agreement not accepted - cannot show AI selection modal');
-        showUserAgreement();
+        window.userAgreement.showUserAgreement();
         return;
       }
       
@@ -4962,10 +4555,7 @@ Return response as JSON:
         }
       });
       
-      // Agreement status button
-      document.getElementById('agreementStatusBtn').addEventListener('click', () => {
-        showAgreementFromStatus();
-      });
+      // Agreement status button - now handled by the modular system
       
       // Disconnect AI button
       document.getElementById('disconnectAIBtn').addEventListener('click', () => {
@@ -5037,14 +4627,8 @@ Return response as JSON:
         window.runSketch(editorInstance.getValue());
       }, 1000);
 
-      // Initialize agreement status display
-      updateAgreementStatusDisplay();
-      
       // Initialize header AI status
       updateHeaderAIStatus();
-      
-      // Start agreement reminder system
-      startAgreementReminders();
       
       // Make dev logger globally available
       window.devModeActive = devModeActive;
