@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TimeCapsule-SLM - AI Research & Creative Platform</title>
-  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_Logo_02.png">
+  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_03.png">
   
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       margin: 0;
-      padding: 96px 0 0 0;
-      height: 100vh;
+      padding: 120px 0 0 0;
+      min-height: 100vh;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       color: white;
       box-sizing: border-box;
     }
@@ -40,10 +40,13 @@
     
     .logo {
       width: 120px;
-      height: 120px;
+      height: auto;
+      max-height: 120px;
       margin: 0 auto 30px;
       border-radius: 20px;
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+      object-fit: contain;
+      display: block;
     }
     
     .hero-title {
@@ -203,6 +206,143 @@
       font-size: 0.9em;
     }
     
+    /* GitHub Section Styles */
+    .github-section {
+      margin-top: 60px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 45px 40px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .github-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(45deg, #333 0%, #24292e 50%, #6f42c1 100%);
+    }
+    
+    .github-title {
+      font-size: 2.5em;
+      margin-bottom: 15px;
+      color: white;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      line-height: 1.2;
+    }
+    
+    .github-subtitle {
+      font-size: 1.2em;
+      margin-bottom: 25px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
+    
+    .github-description {
+      font-size: 1.2em;
+      color: rgba(255, 255, 255, 0.85);
+      max-width: 500px;
+      margin: 0 auto 40px;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+    
+    .github-stats {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 35px 0;
+      flex-wrap: wrap;
+    }
+    
+    .github-stat {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px 25px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      min-width: 120px;
+    }
+    
+    .github-stat-number {
+      font-size: 2.2em;
+      font-weight: 900;
+      color: #4facfe;
+      display: block;
+    }
+    
+    .github-stat-label {
+      font-size: 0.9em;
+      color: rgba(255, 255, 255, 0.8);
+      margin-top: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .github-actions {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 35px;
+      flex-wrap: wrap;
+    }
+    
+    .github-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 30px;
+      background: linear-gradient(45deg, #24292e 0%, #333 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(36, 41, 46, 0.4);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .github-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(36, 41, 46, 0.6);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: linear-gradient(45deg, #333 0%, #444 100%);
+    }
+    
+    .github-cta.star {
+      background: linear-gradient(45deg, #ffd700 0%, #ffed4e 100%);
+      color: #1a202c;
+      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    }
+    
+    .github-cta.star:hover {
+      box-shadow: 0 8px 25px rgba(255, 215, 0, 0.6);
+      background: linear-gradient(45deg, #ffed4e 0%, #fff200 100%);
+    }
+    
+    .github-icon {
+      width: 50px;
+      height: 50px;
+      margin: 0;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+      flex-shrink: 0;
+    }
+    
+
+    
     @media (max-width: 768px) {
       .features-grid {
         grid-template-columns: 1fr;
@@ -218,6 +358,36 @@
       
       .hero-title {
         font-size: 2.2em;
+      }
+      
+      .github-section {
+        margin-top: 40px;
+        padding: 40px 20px;
+      }
+      
+      .github-title {
+        font-size: 2em;
+        gap: 15px;
+      }
+      
+      .github-icon {
+        width: 40px;
+        height: 40px;
+      }
+      
+      .github-stats {
+        gap: 20px;
+      }
+      
+      .github-actions {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .github-cta {
+        width: 100%;
+        max-width: 300px;
+        justify-content: center;
       }
     }
     
@@ -236,12 +406,12 @@
 </head>
 <body>
   <!-- Common Navigation Component -->
-  <script src="lib/Pages/components/navbar.js"></script>
+  <script src="lib/Pages/components/bubblspace-navbar.js"></script>
 
   <div class="main-container">
     <!-- Hero Section -->
     <div class="hero-section">
-              <img src="lib/Media/TimeCapsule_Logo_02.png" alt="TimeCapsule-SLM" class="logo">
+              <img src="lib/Media/TimeCapsule_04.png" alt="TimeCapsule-SLM" class="logo">
         <h1 class="hero-title">TimeCapsule-SLM</h1>
       <p class="hero-subtitle">AI-Powered Research & Workflow Platform</p>
       <p class="hero-description">
@@ -283,7 +453,7 @@
           <!-- Capsule Glow Effect -->
           <div style="position: absolute; width: 80px; height: 80px; background: linear-gradient(135deg, rgba(79, 172, 254, 0.3), rgba(0, 242, 254, 0.2)); border-radius: 50%; filter: blur(15px); animation: capsuleGlow 3s ease-in-out infinite;"></div>
           <!-- Main Capsule Logo -->
-          <img src="lib/Media/TimeCapsule_Logo_02.png" alt="TimeCapsule-SLM" style="width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 6px 15px rgba(79, 172, 254, 0.5)) drop-shadow(0 3px 8px rgba(0, 242, 254, 0.3)) brightness(1.15) contrast(1.1); position: relative; z-index: 2; transition: all 0.5s ease;" />
+          <img src="lib/Media/TimeCapsule_04.png" alt="TimeCapsule-SLM" style="width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 6px 15px rgba(79, 172, 254, 0.5)) drop-shadow(0 3px 8px rgba(0, 242, 254, 0.3)) brightness(1.15) contrast(1.1); position: relative; z-index: 2; transition: all 0.5s ease;" />
         </div>
         <h2 class="feature-title">Playground</h2>
         <p class="feature-subtitle">Creative Coding Environment</p>
@@ -304,6 +474,58 @@
         <a href="Canvas.html" class="feature-cta">
           <span>🎮</span>
           Launch Playground
+        </a>
+      </div>
+    </div>
+
+    <!-- GitHub Section -->
+    <div class="github-section">
+      <div class="github-title">
+        <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+        Open Source Project
+      </div>
+      <p class="github-subtitle">Built with ❤️ for the AI & Developer Community</p>
+      <p class="github-description">
+        An open-source AI research and workflow platform for the community.
+      </p>
+      
+      <div class="github-stats">
+        <div class="github-stat">
+          <span class="github-stat-number">🌟</span>
+          <span class="github-stat-label">Open Source</span>
+        </div>
+        <div class="github-stat">
+          <span class="github-stat-number">🔬</span>
+          <span class="github-stat-label">AI Research</span>
+        </div>
+        <div class="github-stat">
+          <span class="github-stat-number">🎮</span>
+          <span class="github-stat-label">Creative Tools</span>
+        </div>
+        <div class="github-stat">
+          <span class="github-stat-number">🤝</span>
+          <span class="github-stat-label">Community</span>
+        </div>
+      </div>
+      
+      <div class="github-actions">
+        <a href="https://github.com/thefirehacker/TimeCapsule-SLM" target="_blank" rel="noopener" class="github-cta">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          View on GitHub
+        </a>
+        <a href="https://github.com/thefirehacker/TimeCapsule-SLM/stargazers" target="_blank" rel="noopener" class="github-cta star">
+          <span>⭐</span>
+          Star Project
+        </a>
+        <a href="https://github.com/thefirehacker/TimeCapsule-SLM/fork" target="_blank" rel="noopener" class="github-cta">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-2 17v-3.5c0-.828.672-1.5 1.5-1.5s1.5.672 1.5 1.5v3.5c0 .828-.672 1.5-1.5 1.5s-1.5-.672-1.5-1.5zm-3-7v-3.5c0-.828.672-1.5 1.5-1.5s1.5.672 1.5 1.5v3.5c0 .828-.672 1.5-1.5 1.5s-1.5-.672-1.5-1.5zm8 0v-3.5c0-.828.672-1.5 1.5-1.5s1.5.672 1.5 1.5v3.5c0 .828-.672 1.5-1.5 1.5s-1.5-.672-1.5-1.5z"/>
+          </svg>
+          Fork Project
         </a>
       </div>
     </div>
@@ -359,6 +581,17 @@
         if (window.AppConfig) {
           const feature = index === 0 ? 'deepresearch' : 'playground';
           window.AppConfig.trackEvent('feature_clicked', 'navigation', feature);
+        }
+      });
+    });
+    
+    // Track GitHub section interactions
+    document.querySelectorAll('.github-cta').forEach((cta) => {
+      cta.addEventListener('click', () => {
+        if (window.AppConfig) {
+          const action = cta.href.includes('stargazers') ? 'star' : 
+                        cta.href.includes('fork') ? 'fork' : 'view';
+          window.AppConfig.trackEvent('github_interaction', 'click', action);
         }
       });
     });
