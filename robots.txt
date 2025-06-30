@@ -1,5 +1,5 @@
-# Robots.txt for SketchPad-SLM
-# AI-Powered Research & TimeCapsule Platform
+# Robots.txt for TimeCapsule-SLM
+# AI-Powered Research & Creative Platform
 
 User-agent: *
 Allow: /
@@ -26,9 +26,9 @@ Disallow: /ANALYTICS_SETUP.md
 Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://sketchpad-slm.bubblspace.com/sitemap.xml
+Sitemap: https://timecapsule-slm.bubblspace.com/sitemap.xml
 
 # Contact information
-# Website: https://sketchpad-slm.bubblspace.com
+# Website: https://timecapsule-slm.bubblspace.com
 # Platform: BubblSpace by AIEdx
 # Developer: FireHacker (@thefirehacker) 

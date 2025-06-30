@@ -6,23 +6,23 @@
   
   <!-- Homepage -->
   <url>
-    <loc>https://sketchpad-slm.bubblspace.com/</loc>
+    <loc>https://timecapsule-slm.bubblspace.com/</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   
-  <!-- Deep Research Studio -->
+  <!-- DeepResearch TimeCapsule -->
   <url>
-    <loc>https://sketchpad-slm.bubblspace.com/DeepResearch.html</loc>
+    <loc>https://timecapsule-slm.bubblspace.com/DeepResearch.html</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   
-  <!-- TimeCapsule Studio -->
+  <!-- Playground -->
   <url>
-    <loc>https://sketchpad-slm.bubblspace.com/Canvas.html</loc>
+    <loc>https://timecapsule-slm.bubblspace.com/Canvas.html</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -30,7 +30,7 @@
   
   <!-- World Generator -->
   <url>
-    <loc>https://sketchpad-slm.bubblspace.com/WorldGenerator.html</loc>
+    <loc>https://timecapsule-slm.bubblspace.com/WorldGenerator.html</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -38,7 +38,7 @@
   
   <!-- World Generator v2 -->
   <url>
-    <loc>https://sketchpad-slm.bubblspace.com/WorldGenerator-v2.html</loc>
+    <loc>https://timecapsule-slm.bubblspace.com/WorldGenerator-v2.html</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
