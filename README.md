@@ -1,21 +1,21 @@
 <div align="center">
   
-  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/SketchPad-SLM.png" alt="SketchPad-SLM Logo" width="180" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+  <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/TimeCapsule_Logo.png" alt="TimeCapsule-SLM Logo" width="180" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
   
-  # 🎨 SketchPad-SLM
+  # 💊 TimeCapsule-SLM
   
-  ### *Complete AI-powered creative studio with Deep Research and Canvas components*
+  ### *Complete AI-powered research & creative platform with DeepResearch TimeCapsule and Playground components*
   
-  [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://sketchpad.bubblspace.com)
+  [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://timecapsule-slm.bubblspace.com)
   [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
-  [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://sketchpad.bubblspace.com)
+  [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://timecapsule-slm.bubblspace.com)
   [![Made with Love](https://img.shields.io/badge/Made_with-❤️-red?style=for-the-badge)](https://x.com/thefirehacker)
   
   ---
   
   ## 🌐 **✨ Experience Live Now! ✨**
   
-  ### **🎯 [Launch SketchPad-SLM →](https://sketchpad.bubblspace.com)**
+  ### **🎯 [Launch TimeCapsule-SLM →](https://timecapsule-slm.bubblspace.com)**
   
   <table>
   <tr>
@@ -24,25 +24,25 @@
   **🚀 Instant Access**
   
   No downloads, no setup - just click and create!
-  Professional-grade creative coding in your browser.
+  Professional-grade research and creative coding in your browser.
     
   </td>
   <td width="50%" align="center">
     
   **🤖 AI-Powered**
   
-  Local FP16 AI, LM Studio & OpenAI integration for intelligent code generation and creative assistance.
+  Local FP16 AI, LM Studio & OpenAI integration for intelligent research analysis and creative code generation.
     
   </td>
   </tr>
   </table>
   
-  ### 🎨 **What You Get:**
+  ### 💊 **What You Get:**
   
   <div align="left" style="margin: 20px 0;">
   
-  🔬 **Deep Research Studio** - Comprehensive AI-powered research platform  
-  🎨 **Creative Canvas** - Real-time p5.js coding with Monaco Editor  
+  🔬 **DeepResearch TimeCapsule** - Comprehensive AI-powered research platform  
+  🎮 **Playground** - Real-time p5.js coding with Monaco Editor  
   🧠 **Triple AI Modes**: Local Qwen2.5 FP16 + LM Studio + OpenAI API  
   ⚙️ **Custom Context Templates** for personalized AI behavior  
   📱 **Responsive Design** that works on all devices  
@@ -55,18 +55,18 @@
   
 </div>
 
-## 🎯 **What is SketchPad-SLM?**
+## 🎯 **What is TimeCapsule-SLM?**
 
-SketchPad-SLM is a **comprehensive AI-powered creative studio** featuring two integrated components:
+TimeCapsule-SLM is a **comprehensive AI-powered research & creative platform** featuring two integrated components:
 
-🔬 **Deep Research Studio** - AI-powered research and analysis platform for comprehensive topic exploration  
-🎨 **Creative Canvas** - Real-time p5.js coding environment with AI assistance for visual art creation
+🔬 **DeepResearch TimeCapsule** - AI-powered research and analysis platform for comprehensive topic exploration and intelligence extraction  
+🎮 **Playground** - Real-time p5.js coding environment with AI assistance for visual art creation and creative workflows
 
-Built with **Monaco Editor**, **cutting-edge AI**, and modern web technologies to provide an unparalleled creative and research experience.
+Built with **Monaco Editor**, **cutting-edge AI**, and modern web technologies to provide an unparalleled research and creative experience.
 
 <div align="center">
 
-### 🔬 **Research → Create → Generate → Visualize**
+### 🔬 **Research → Extract → Generate → Create**
 
 </div>
 
@@ -74,14 +74,14 @@ Built with **Monaco Editor**, **cutting-edge AI**, and modern web technologies t
 
 ## 🏗️ **Two-Component Architecture**
 
-SketchPad-SLM features an integrated dual-component design that combines research and creative workflows:
+TimeCapsule-SLM features an integrated dual-component design that combines research intelligence extraction and creative workflows:
 
 <div align="center">
 
 | Component | Purpose | Key Features |
 |-----------|---------|--------------|
-| 🔬 **Deep Research Studio** | Research & Analysis | AI-powered research, multiple formats, markdown export |
-| 🎨 **Creative Canvas** | Visual Art Creation | Real-time p5.js coding, Monaco editor, instant visualization |
+| 🔬 **DeepResearch TimeCapsule** | Research & Intelligence Extraction | AI-powered research, TimeCapsule generation, markdown export |
+| 🎮 **Playground** | Creative Coding Environment | Real-time p5.js coding, Monaco editor, instant visualization |
 
 </div>
 
@@ -99,10 +99,11 @@ SketchPad-SLM features an integrated dual-component design that combines researc
 <tr>
 <td width="50%">
 
-### 🔬 **Deep Research Studio**
+### 🔬 **DeepResearch TimeCapsule**
 - **AI-Powered Research** - Comprehensive topic analysis
 - **Multiple Research Types** - Academic, Market, Technology, Competitive
 - **Research Depth Control** - Overview, Detailed, Comprehensive
+- **TimeCapsule Generation** - Extract intelligence and create knowledge capsules
 - **Markdown Export** - Professional formatted outputs
 - **Source Management** - Track and organize research sources
 - **Interactive Interface** - Tabbed research, sources, and notes views
@@ -110,7 +111,7 @@ SketchPad-SLM features an integrated dual-component design that combines researc
 </td>
 <td width="50%">
 
-### 🎨 **Creative Canvas**
+### 🎮 **Playground**
 - **Monaco Editor Integration** - Professional code editing
 - **Real-time Execution** - Instant visual feedback  
 - **Split-view Design** - Resizable code and canvas panels
@@ -135,13 +136,13 @@ SketchPad-SLM features an integrated dual-component design that combines researc
 - **📄 Markdown Export** - Professional research report generation
 - **🎨 Design Library** - Pre-built animations, patterns, and templates  
 - **📱 Responsive Interface** - Optimized for desktop and mobile
-- **🔄 Component Switching** - Seamless navigation between Research and Canvas
+- **🔄 Component Switching** - Seamless navigation between Research and Playground
 
 ---
 
 ## 🏠 **LM Studio Integration**
 
-SketchPad-SLM now supports **LM Studio** for running local AI models with full creative coding capabilities!
+TimeCapsule-SLM now supports **LM Studio** for running local AI models with full research and creative coding capabilities!
 
 <div align="center">
 
@@ -175,7 +176,7 @@ SketchPad-SLM now supports **LM Studio** for running local AI models with full c
 
 ### 📋 **Quick Setup Guide**
 
-> **🚨 KEY REQUIREMENT**: You **MUST** enable CORS in LM Studio for SketchPad-SLM to connect. See Step 4 below.
+> **🚨 KEY REQUIREMENT**: You **MUST** enable CORS in LM Studio for TimeCapsule-SLM to connect. See Step 4 below.
 
 <div align="left">
 
@@ -184,18 +185,18 @@ SketchPad-SLM now supports **LM Studio** for running local AI models with full c
 **Step 3:** 🚀 **Start Local Server** - Click "Start Server" in LM Studio (port 1234)  
 **Step 4:** ⚙️ **Enable CORS** - **IMPORTANT**: In LM Studio → Settings → Server → Enable "CORS (Cross-Origin Resource Sharing)"  
 **Step 5:** 🔄 **Restart Server** - Stop and restart the LM Studio server for CORS to take effect  
-**Step 6:** 🎨 **Connect in SketchPad** - Select "🏠 LM Studio" from AI provider dropdown  
-**Step 7:** 🔌 **Click Connect** - SketchPad will auto-detect your model  
+**Step 6:** 💊 **Connect in TimeCapsule** - Select "🏠 LM Studio" from AI provider dropdown  
+**Step 7:** 🔌 **Click Connect** - TimeCapsule will auto-detect your model  
 
 </div>
 
-### 🎯 **Recommended Models for Creative Coding**
+### 🎯 **Recommended Models for Research & Creative Coding**
 
 | Model | Size | Best For | Performance |
 |-------|------|----------|-------------|
-| **Qwen2.5-7B-Instruct** | ~4GB | General coding, detailed responses | 🌟🌟🌟🌟🌟 |
-| **Phi-3-mini-4k** | ~2GB | Fast responses, compact code | 🌟🌟🌟🌟⭐ |
-| **Llama-3.2-3B** | ~2GB | Creative patterns, good balance | 🌟🌟🌟🌟⭐ |
+| **Qwen2.5-7B-Instruct** | ~4GB | Research analysis, detailed coding responses | 🌟🌟🌟🌟🌟 |
+| **Phi-3-mini-4k** | ~2GB | Fast responses, compact code generation | 🌟🌟🌟🌟⭐ |
+| **Llama-3.2-3B** | ~2GB | Creative patterns, research synthesis | 🌟🌟🌟🌟⭐ |
 | **Gemma-2-2b** | ~1.5GB | Lightweight, quick generation | 🌟🌟🌟⭐⭐ |
 
 ### 🔧 **Troubleshooting**
@@ -222,13 +223,13 @@ SketchPad-SLM now supports **LM Studio** for running local AI models with full c
 
 ---
 
-## 🔬 **Deep Research Studio Usage**
+## 🔬 **DeepResearch TimeCapsule Usage**
 
 ### Research Workflow
 1. **Add Topics** - Define research areas with descriptions
 2. **Select Type** - Choose from Academic, Market, Technology, Competitive, Trend, Literature
 3. **Set Depth** - Pick Overview, Detailed, or Comprehensive analysis  
-4. **Generate Research** - AI creates structured, professional reports
+4. **Generate Research** - AI creates structured, professional reports and TimeCapsules
 5. **Export Results** - Download as markdown files for documentation
 
 ### Research Types Explained
@@ -241,7 +242,7 @@ SketchPad-SLM now supports **LM Studio** for running local AI models with full c
 
 ---
 
-## 🎨 **Creative Canvas Usage**
+## 🎮 **Playground Usage**
 
 ### Compact JavaScript Patterns
 
@@ -348,7 +349,7 @@ draw=_=>{
 
 ### 🌐 **Instant Online** *(Recommended)*
 
-**🎯 [Launch Now →](https://sketchpad.bubblspace.com)**
+**🎯 [Launch Now →](https://timecapsule-slm.bubblspace.com)**
 
 ✅ **Zero Setup** - Works immediately  
 ✅ **Full AI Features** - Local FP16 + OpenAI  
@@ -363,8 +364,8 @@ draw=_=>{
 **📁 Clone & Code**
 
 ```bash
-git clone https://github.com/thefirehacker/SketchPad-SLM
-cd SketchPad-SLM
+git clone https://github.com/thefirehacker/TimeCapsule-SLM
+cd TimeCapsule-SLM
 # Open Canvas.html in browser
 ```
 
@@ -383,11 +384,12 @@ cd SketchPad-SLM
 
 <div align="left">
 
-**Step 1:** 🌐 **[Open SketchPad-SLM](https://sketchpad.bubblspace.com)** in your browser  
+**Step 1:** 🌐 **[Open TimeCapsule-SLM](https://timecapsule-slm.bubblspace.com)** in your browser  
 **Step 2:** 🤖 **Choose AI Mode** - Local FP16 (privacy), LM Studio (local server), or OpenAI API (cloud power)  
-**Step 3:** 🎨 **Start Creating** - Type code or chat with AI for generation  
-**Step 4:** ▶️ **Hit "Draw"** - See your art come to life instantly!  
-**Step 5:** 🎊 **Share & Enjoy** - Copy, save, and show off your creations  
+**Step 3:** 🔬 **Start Researching** - Use DeepResearch TimeCapsule for intelligence extraction  
+**Step 4:** 🎮 **Create in Playground** - Type code or chat with AI for generation  
+**Step 5:** ▶️ **Hit "Draw"** - See your art come to life instantly!  
+**Step 6:** 🎊 **Share & Enjoy** - Copy, save, and show off your creations  
 
 </div>
 
@@ -408,7 +410,7 @@ cd SketchPad-SLM
 1. Download [LM Studio](https://lmstudio.ai) 
 2. Install a model (e.g., `Qwen2.5-7B-Instruct`)
 3. Start server on port 1234 with CORS enabled
-4. Select "🏠 LM Studio" in SketchPad for local AI testing
+4. Select "🏠 LM Studio" in TimeCapsule for local AI testing
 
 ---
 
@@ -428,8 +430,10 @@ cd SketchPad-SLM
 <tr>
 <td width="50%">
 
-### 🎨 **Core Files**
-- `Canvas.html` - Main creative coding studio
+### 💊 **Core Files**
+- `DeepResearch.html` - DeepResearch TimeCapsule studio
+- `Canvas.html` - Playground creative coding environment
+- `index.html` - Main platform homepage
 - `WorldGenerator.html` - AI world creator
 - `WorldGenerator-v2.html` - Enhanced world generator
 - `Script01.js` - Utility functions and helpers
@@ -471,10 +475,10 @@ cd SketchPad-SLM
 
 ### 🧙‍♂️ **Created with ❤️ by [FireHacker](https://x.com/thefirehacker)**
 
-**Made for creators, developers, and digital artists worldwide**
+**Made for researchers, creators, developers, and digital artists worldwide**
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/thefirehacker?style=social)](https://x.com/thefirehacker)
-[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/SketchPad-SLM?style=social)](https://github.com/thefirehacker/SketchPad-SLM)
+[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/TimeCapsule-SLM?style=social)](https://github.com/thefirehacker/TimeCapsule-SLM)
 
 ---
 
