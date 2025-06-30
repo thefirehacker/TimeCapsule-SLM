@@ -70,6 +70,40 @@ connect-src 'self'
 - `https://api.huggingface.co` - Hugging Face Inference API
 - `https://generativelanguage.googleapis.com` - Google Gemini API
 
+#### Local AI Services (Localhost):
+- `http://localhost:11434` - Ollama API (requires CORS configuration)
+- `http://localhost:1234` - LM Studio API (CORS enabled by default)
+
+### 🔥 **CRITICAL: Ollama CORS Configuration**
+
+**Problem**: Ollama blocks requests from deployed domains by default
+**Solution**: Configure CORS origins before starting Ollama
+
+#### Method 1: Environment Variable (Recommended)
+```bash
+export OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000,http://localhost:8000"
+ollama serve
+```
+
+#### Method 2: Inline Environment Variable
+```bash
+OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000" ollama serve
+```
+
+#### Method 3: Persistent Setup (Add to ~/.zshrc)
+```bash
+echo 'export OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Verify CORS is Working:
+```bash
+curl -H "Origin: https://timecapsule.bubblspace.com" \
+     -H "Access-Control-Request-Method: GET" \
+     -X OPTIONS http://localhost:11434/api/tags -v
+```
+**Expected**: `HTTP/1.1 204 No Content` with `Access-Control-Allow-Origin` header
+
 #### WebSocket Services:
 - `wss://api.openai.com` - OpenAI streaming
 - `wss://api.anthropic.com` - Claude streaming
