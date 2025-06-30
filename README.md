@@ -4,7 +4,7 @@
   
   # 🎨 SketchPad-SLM
   
-  ### *AI-powered creative coding studio for generating stunning p5.js visual art and animations*
+  ### *Complete AI-powered creative studio with Deep Research and Canvas components*
   
   [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://sketchpad.bubblspace.com)
   [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
@@ -41,11 +41,12 @@
   
   <div align="left" style="margin: 20px 0;">
   
-  💻 **Real-time Monaco Editor** with p5.js integration  
+  🔬 **Deep Research Studio** - Comprehensive AI-powered research platform  
+  🎨 **Creative Canvas** - Real-time p5.js coding with Monaco Editor  
   🧠 **Triple AI Modes**: Local Qwen2.5 FP16 + LM Studio + OpenAI API  
   ⚙️ **Custom Context Templates** for personalized AI behavior  
   📱 **Responsive Design** that works on all devices  
-  🎯 **One-Click Execution** with instant visual feedback  
+  🔄 **Seamless Navigation** between research and creative modes  
   🔒 **Privacy First** with multiple local AI options  
   
   </div>
@@ -56,49 +57,85 @@
 
 ## 🎯 **What is SketchPad-SLM?**
 
-SketchPad-SLM is a **revolutionary creative coding platform** that combines the power of **p5.js**, **Monaco Editor**, and **cutting-edge AI** to create an unparalleled digital art creation experience. Write code, see instant results, and let AI amplify your creativity!
+SketchPad-SLM is a **comprehensive AI-powered creative studio** featuring two integrated components:
+
+🔬 **Deep Research Studio** - AI-powered research and analysis platform for comprehensive topic exploration  
+🎨 **Creative Canvas** - Real-time p5.js coding environment with AI assistance for visual art creation
+
+Built with **Monaco Editor**, **cutting-edge AI**, and modern web technologies to provide an unparalleled creative and research experience.
 
 <div align="center">
 
-### 🎨 **Create → Generate → Visualize**
+### 🔬 **Research → Create → Generate → Visualize**
 
 </div>
 
 ---
 
-## 🚀 **Core Features**
+## 🏗️ **Two-Component Architecture**
+
+SketchPad-SLM features an integrated dual-component design that combines research and creative workflows:
+
+<div align="center">
+
+| Component | Purpose | Key Features |
+|-----------|---------|--------------|
+| 🔬 **Deep Research Studio** | Research & Analysis | AI-powered research, multiple formats, markdown export |
+| 🎨 **Creative Canvas** | Visual Art Creation | Real-time p5.js coding, Monaco editor, instant visualization |
+
+</div>
+
+### 🔄 **Seamless Integration**
+- **Unified Navigation** - Switch between components with a single click
+- **Shared AI Backend** - Same AI models and templates work across both components  
+- **Cross-Component Workflow** - Research insights can inspire creative coding projects
+- **Consistent Interface** - Familiar UI patterns and responsive design throughout
+
+---
+
+## 🚀 **Core Components**
 
 <table>
 <tr>
 <td width="50%">
 
-### 🎨 **Canvas Studio**
-- **Monaco Editor Integration** - Professional code editing
-- **Real-time Execution** - Instant visual feedback  
-- **Split-view Design** - Code left, canvas right
-- **Compact JavaScript** - Optimized for creative coding
-- **Copy & Share** - Export your creations easily
+### 🔬 **Deep Research Studio**
+- **AI-Powered Research** - Comprehensive topic analysis
+- **Multiple Research Types** - Academic, Market, Technology, Competitive
+- **Research Depth Control** - Overview, Detailed, Comprehensive
+- **Markdown Export** - Professional formatted outputs
+- **Source Management** - Track and organize research sources
+- **Interactive Interface** - Tabbed research, sources, and notes views
 
 </td>
 <td width="50%">
 
-### 🤖 **AI Powerhouse**
-- **Local FP16 Qwen2.5** - Privacy-focused AI (1GB model)
-- **LM Studio Integration** - Connect to local LM Studio server
-- **OpenAI Integration** - GPT-4o, GPT-4o Mini support
-- **Custom Templates** - Personalize AI behavior
-- **Smart Suggestions** - Context-aware code generation
-- **Triple Mode Support** - Local + LM Studio + Cloud AI options
+### 🎨 **Creative Canvas**
+- **Monaco Editor Integration** - Professional code editing
+- **Real-time Execution** - Instant visual feedback  
+- **Split-view Design** - Resizable code and canvas panels
+- **p5.js Integration** - Optimized for creative coding
+- **Copy & Share** - Export your visual creations
+- **Design Library** - Pre-built animations and patterns
 
 </td>
 </tr>
 </table>
 
-### 🌍 **World Generator** *(Bonus Feature)*
-- **5 Modern SLMs** - Phi-3, Gemma, Qwen2, TinyLlama, SmolLM
-- **Interactive Maps** - Visual world exploration
-- **Persistent Worlds** - Save and load your creations
-- **Custom Logic** - Advanced world generation scripting
+### 🤖 **Unified AI Integration** *(Available in both components)*
+- **Local FP16 Qwen2.5** - Privacy-focused AI (1GB model)
+- **LM Studio Support** - Connect to local LM Studio server
+- **OpenAI Integration** - GPT-4o, GPT-4o Mini support
+- **Custom Templates** - Personalize AI behavior for research or coding
+- **Smart Context** - Research-aware or code-aware AI assistance
+- **Triple Mode Support** - Local + LM Studio + Cloud AI options
+
+### 🌐 **Additional Features**
+- **🌍 World Generator** - Interactive world creation with 5 modern SLMs
+- **📄 Markdown Export** - Professional research report generation
+- **🎨 Design Library** - Pre-built animations, patterns, and templates  
+- **📱 Responsive Interface** - Optimized for desktop and mobile
+- **🔄 Component Switching** - Seamless navigation between Research and Canvas
 
 ---
 
@@ -185,7 +222,26 @@ SketchPad-SLM now supports **LM Studio** for running local AI models with full c
 
 ---
 
-## 🎨 Code Editor Usage
+## 🔬 **Deep Research Studio Usage**
+
+### Research Workflow
+1. **Add Topics** - Define research areas with descriptions
+2. **Select Type** - Choose from Academic, Market, Technology, Competitive, Trend, Literature
+3. **Set Depth** - Pick Overview, Detailed, or Comprehensive analysis  
+4. **Generate Research** - AI creates structured, professional reports
+5. **Export Results** - Download as markdown files for documentation
+
+### Research Types Explained
+- **📚 Academic** - Scholarly analysis with citations and methodology
+- **📈 Market** - Industry trends, competition, and market analysis
+- **🔧 Technology** - Technical deep-dives and implementation insights  
+- **🏢 Competitive** - Competitor analysis and market positioning
+- **📊 Trend** - Emerging patterns and future predictions
+- **📖 Literature** - Comprehensive literature reviews and surveys
+
+---
+
+## 🎨 **Creative Canvas Usage**
 
 ### Compact JavaScript Patterns
 
