@@ -7,9 +7,9 @@
   ### *Complete AI-powered research & creative platform with DeepResearch*
   ### **Generate Novel Ideas • Build AI Content • Enable Collaborative Knowledge Discovery**
   
-  [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://timecapsule-slm.bubblspace.com)
+  [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://timecapsule.bubblspace.com/)
   [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
-  [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://timecapsule-slm.bubblspace.com)
+  [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://timecapsule.bubblspace.com/)
   [![Made with Love](https://img.shields.io/badge/Made_with-❤-red?style=for-the-badge)](https://x.com/thefirehacker)
   
 </div>
@@ -67,7 +67,7 @@ Use **Ollama**, **LM Studio**, **OpenAI**, and **Anthropic**—privacy-first, co
 
 <div align="center">
 
-### **🎯 [Launch TimeCapsule-SLM →](https://timecapsule-slm.bubblspace.com)**
+### **🎯 [Launch TimeCapsule-SLM →](https://timecapsule.bubblspace.com/)**
 
 <table>
 <tr>
@@ -116,7 +116,7 @@ Professional-grade research and creative coding in your browser.
 <td width="50%">
 
 ### 🌐 **Option 1: Instant Online** *(Recommended)*
-1. 🎯 **Go to** [timecapsule-slm.bubblspace.com](https://timecapsule-slm.bubblspace.com)
+1. 🎯 **Go to** [timecapsule-slm.bubblspace.com](https://timecapsule.bubblspace.com/)
 2. 🔬 **Click "DeepResearch"**
 3. 🦙 **Start Ollama** (see setup below)
 4. 🤖 **Pull a model:** `ollama pull qwen3:0.6b`
@@ -146,7 +146,7 @@ Professional-grade research and creative coding in your browser.
 ollama pull qwen3:0.6b
 
 # 3. Start with CORS enabled (CRITICAL)
-OLLAMA_ORIGINS="https://timecapsule-slm.bubblspace.com,http://localhost:3000" ollama serve
+OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollama serve
 
 # 4. Connect in TimeCapsule-SLM
 ```
@@ -253,10 +253,10 @@ ollama pull qwen3:0.6b
 **Step 3:** 🔧 **Start Ollama with CORS** (**CRITICAL STEP**)
 ```bash
 # Method 1: Inline configuration (recommended)
-OLLAMA_ORIGINS="https://timecapsule-slm.bubblspace.com,http://localhost:3000" ollama serve
+OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollama serve
 
 # Method 2: Export then serve
-export OLLAMA_ORIGINS="https://timecapsule-slm.bubblspace.com,http://localhost:3000"
+export OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000"
 ollama serve
 ```
 
