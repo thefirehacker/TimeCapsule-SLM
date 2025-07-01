@@ -87,7 +87,7 @@ frontend:
         Content-Security-Policy: >
           script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com;
           style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-          connect-src 'self' https://api.openai.com https://www.googletagmanager.com https://www.google-analytics.com http://localhost:1234;
+          connect-src 'self' https://api.openai.com https://www.googletagmanager.com https://www.google-analytics.com https://beluga.bubblspace.com http://localhost:1234 http://localhost:11434;
           img-src 'self' data: https: blob:;
           font-src 'self' data: https://cdn.jsdelivr.net;
           worker-src 'self' blob: data:;

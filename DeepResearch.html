@@ -6,7 +6,7 @@
   <meta http-equiv="Content-Security-Policy" content="
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
     style-src 'self' 'unsafe-inline' https: data:;
-    connect-src 'self' https: wss: http://localhost:1234 http://localhost:11434;
+    connect-src 'self' https: wss: https://beluga.bubblspace.com http://localhost:1234 http://localhost:11434;
     img-src 'self' data: https: blob:;
     font-src 'self' data: https:;
     worker-src 'self' blob: data:;
@@ -747,6 +747,13 @@
       </div>
       
       <button id="generateResearch" class="btn primary" disabled>🚀 Generate Research</button>
+      
+      <div class="control-group">
+        <label>📸 Add Images to Research:</label>
+        <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
+        <button id="uploadImageBtn" class="btn secondary">📷 Upload Image</button>
+      </div>
+      
       <button id="exportResearch" class="btn secondary">📥 Export Results</button>
       <button id="clearAll" class="btn secondary">🗑️ Clear All</button>
       
