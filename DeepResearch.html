@@ -949,7 +949,8 @@
       
       <button id="generateResearch" class="btn primary" disabled>🚀 Generate Research</button>
       <button id="exportResearch" class="btn secondary">📥 Export Results</button>
-      <button id="clearAll" class="btn secondary">🗑️ Clear All</button>
+      <button id="clearResearchOutput" class="btn secondary">🗑️ Clear Output</button>
+      <button id="clearAll" class="btn secondary">🧹 Clear All</button>
       
       <!-- Usage Agreement & Terms Section -->
       <div class="control-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
@@ -1006,6 +1007,25 @@
           <button class="structure-btn" onclick="collapseStructure()">−</button>
         </div>
       </div>
+      
+      <!-- Document Integration Status -->
+      <div class="document-status" id="documentStatus" style="
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        text-align: center;
+      ">
+        <div id="docStatusIcon">📂</div>
+        <div id="docStatusText">No documents uploaded</div>
+        <div id="docStatusDetails" style="font-size: 10px; color: rgba(255, 255, 255, 0.6); margin-top: 4px;">
+          Upload documents to enhance research with your content
+        </div>
+      </div>
+      
       <div class="structure-list" id="structureList">
         <div class="empty-state">
           <h3>📝 No Topics Yet</h3>
