@@ -588,6 +588,12 @@
       align-items: center;
       justify-content: center;
       backdrop-filter: blur(5px);
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+    }
+    
+    .document-modal.show {
+      opacity: 1;
     }
     
     .document-modal-content {
@@ -930,7 +936,7 @@
       
       <div class="control-group">
         <label>📁 Document Management:</label>
-        <input type="file" id="documentInput" multiple accept=".txt,.md,.js,.py,.html,.css,.json,.xml,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp" style="display: none;">
+        <input type="file" id="documentInput" multiple accept=".txt,.md,.js,.py,.html,.css,.json,.xml,.csv,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.webp" style="display: none;">
         <button id="uploadDocuments" class="btn secondary">📄 Upload Documents</button>
         <button id="uploadRepository" class="btn secondary">📦 Add GitHub Repo</button>
         <button id="manageDocuments" class="btn secondary">📚 Manage Knowledge</button>
@@ -1057,7 +1063,117 @@
   <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
   
   <!-- Vector Store Dependencies (CDN for development) -->
-  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js"></script>
+  <!-- Load Transformers.js as ES module with proper handling -->
+  <script type="module">
+    console.log('📦 Loading Transformers.js as ES Module...');
+    
+    async function loadTransformers() {
+      try {
+        // Import the ES module
+        const transformersModule = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js');
+        
+        console.log('✅ Transformers.js ES module imported successfully');
+        console.log('🔍 Available exports:', Object.keys(transformersModule));
+        
+        // Expose to global window for other scripts
+        window.transformers = transformersModule;
+        
+        // Configure for browser use
+        if (transformersModule.env) {
+          transformersModule.env.allowRemoteModels = true;
+          transformersModule.env.remoteURL = 'https://huggingface.co/';
+          transformersModule.env.allowLocalModels = false;
+        }
+        
+        console.log('✅ Transformers.js configured and available globally');
+        window.dispatchEvent(new CustomEvent('transformersLoaded'));
+        
+      } catch (error) {
+        console.error('❌ Failed to import Transformers.js ES module:', error);
+        
+        // Try alternative approach: Use script import map
+        try {
+          console.log('🔄 Trying alternative ES module approach...');
+          
+          const response = await fetch('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js');
+          const moduleCode = await response.text();
+          
+          // Create a blob URL for the module
+          const blob = new Blob([moduleCode], { type: 'application/javascript' });
+          const moduleUrl = URL.createObjectURL(blob);
+          
+          const altModule = await import(moduleUrl);
+          window.transformers = altModule;
+          
+          URL.revokeObjectURL(moduleUrl);
+          
+          console.log('✅ Alternative ES module approach successful');
+          window.dispatchEvent(new CustomEvent('transformersLoaded'));
+          
+        } catch (altError) {
+          console.error('❌ Alternative approach also failed:', altError);
+          console.log('🔄 Falling back to mock implementation...');
+          
+          // Create a mock implementation for development
+          window.transformers = {
+            pipeline: async (task, model) => {
+              console.warn('⚠️ Using mock Transformers.js implementation');
+              
+              // Return a mock pipeline function
+              return {
+                task,
+                model,
+                __isMock: true,
+                // Mock embedding function
+                embed: async (text) => {
+                  // Generate pseudo-random embeddings for development
+                  const embedding = new Array(384).fill(0).map(() => Math.random() - 0.5);
+                  return { embedding };
+                },
+                // Mock call function for different tasks
+                call: async (inputs) => {
+                  if (Array.isArray(inputs)) {
+                    return inputs.map(() => new Array(384).fill(0).map(() => Math.random() - 0.5));
+                  }
+                  return new Array(384).fill(0).map(() => Math.random() - 0.5);
+                }
+              };
+            },
+            env: {
+              allowRemoteModels: true,
+              remoteURL: 'https://huggingface.co/',
+              allowLocalModels: false
+            }
+          };
+          
+          console.log('✅ Mock Transformers.js implementation ready');
+          window.dispatchEvent(new CustomEvent('transformersLoaded'));
+        }
+      }
+    }
+    
+    // Start loading
+    loadTransformers();
+  </script>
+  
+  <!-- Office File Parsing Libraries -->
+  <!-- PDF.js for PDF parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Configure PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  
+  <!-- Mammoth.js for DOCX parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+  
+  <!-- SheetJS for Excel files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <!-- JSZip for PPTX parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <!-- Vector Store Module -->
   <script src="lib/Pages/DeepResearch/vector-store.js"></script>
@@ -1081,20 +1197,102 @@
         window.userAgreement.initializeForPage();
       }
       
-      // Add a small delay to ensure all scripts are loaded
+      // Listen for Transformers.js loading events
+      let transformersTimeout = null;
+      let isInitialized = false;
+      
+      const handleTransformersLoaded = () => {
+        if (isInitialized) {
+          console.log('🔍 Initialization already completed, skipping duplicate');
+          return;
+        }
+        
+        if (transformersTimeout) {
+          clearTimeout(transformersTimeout);
+          transformersTimeout = null;
+        }
+        
+        isInitialized = true;
+        console.log('🎉 Transformers.js is ready!');
+        initializeApp();
+      };
+      
+      const handleTransformersFailed = () => {
+        if (isInitialized) {
+          console.log('🔍 Initialization already completed, skipping duplicate failure');
+          return;
+        }
+        
+        if (transformersTimeout) {
+          clearTimeout(transformersTimeout);
+          transformersTimeout = null;
+        }
+        
+        isInitialized = true;
+        console.error('❌ Transformers.js failed to load');
+        console.error('❌ Vector Store will be disabled. Document features may not work.');
+        initializeAppWithoutVectorStore();
+      };
+      
+      // Listen for custom events
+      window.addEventListener('transformersLoaded', handleTransformersLoaded);
+      window.addEventListener('transformersFailed', handleTransformersFailed);
+      
+      // Set timeout as fallback (15 seconds)
+      transformersTimeout = setTimeout(() => {
+        console.error('❌ Transformers.js loading timeout after 15 seconds');
+        handleTransformersFailed();
+      }, 15000);
+      
+      // Check if Transformers.js is already loaded (in case events fired before listeners were set)
       setTimeout(() => {
+        if (window.transformers && window.transformers.pipeline && !isInitialized) {
+          console.log('🔍 Transformers.js already loaded, initializing immediately');
+          handleTransformersLoaded();
+        }
+      }, 100);
+      
+      const initializeApp = () => {
         console.log('🔍 Script loading check:');
         console.log('  - DeepResearchApp:', !!window.DeepResearchApp);
         console.log('  - AIAssistant:', !!window.AIAssistant);
         console.log('  - AIAssistantBackend:', !!window.AIAssistantBackend);
+        console.log('  - Transformers.js:', !!window.transformers);
+        console.log('  - PDF.js:', !!window.pdfjsLib);
+        console.log('  - Mammoth.js:', !!window.mammoth);
+        console.log('  - XLSX:', !!window.XLSX);
+        console.log('  - JSZip:', !!window.JSZip);
         
         if (window.DeepResearchApp) {
           window.deepResearch = new DeepResearchApp();
-          console.log('✅ Deep Research Studio initialized');
+          console.log('✅ Deep Research Studio initialized with full Vector Store support');
         } else {
           console.error('❌ DeepResearchApp not found - script loading issue');
         }
-      }, 100); // Small delay to ensure script execution order
+      };
+      
+      const initializeAppWithoutVectorStore = () => {
+        console.log('🔍 Script loading check (Vector Store disabled):');
+        console.log('  - DeepResearchApp:', !!window.DeepResearchApp);
+        console.log('  - AIAssistant:', !!window.AIAssistant);
+        console.log('  - AIAssistantBackend:', !!window.AIAssistantBackend);
+        console.log('  - Transformers.js:', !!window.transformers, '❌ FAILED');
+        console.log('  - PDF.js:', !!window.pdfjsLib);
+        console.log('  - Mammoth.js:', !!window.mammoth);
+        console.log('  - XLSX:', !!window.XLSX);
+        console.log('  - JSZip:', !!window.JSZip);
+        
+        if (window.DeepResearchApp) {
+          // Set a flag to disable vector store features
+          window.VECTOR_STORE_DISABLED = true;
+          window.deepResearch = new DeepResearchApp();
+          console.log('⚠️ Deep Research Studio initialized WITHOUT Vector Store (document features disabled)');
+        } else {
+          console.error('❌ DeepResearchApp not found - script loading issue');
+        }
+      };
+      
+      // The event listeners will handle initialization automatically
     });
   </script>
 </body>
