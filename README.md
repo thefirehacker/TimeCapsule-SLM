@@ -10,7 +10,21 @@
   [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://timecapsule-slm.bubblspace.com)
   [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
   [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://timecapsule-slm.bubblspace.com)
-  [![Made with Love](https://img.shields.io/badge/Made_with-❤️-red?style=for-the-badge)](https://x.com/thefirehacker)
+  [![Made with Love](https://img.shields.io/badge/Made_with-❤-red?style=for-the-badge)](https://x.com/thefirehacker)
+  
+  ## 🚀 Key Features (2024)
+  
+  - 🧠 **In-Browser RAG:**  
+    Semantic search and Retrieval-Augmented Generation with your own documents—directly in your browser. No server, no data leaves your device.
+  
+  - 🔗 **TimeCapsule Sharing:**  
+    Export and load full research sessions as `.timecapsule.json` files. Instantly share, restore, or collaborate on research with anyone.
+  
+  - 📚 **Knowledge Base Integration:**  
+    Upload PDFs, text, and images to build a private, searchable research knowledge base.
+  
+  - 🤖 **Local LLM Support:**  
+    Use Ollama, LM Studio, OpenAI, and more—privacy-first, cost-effective, and fast.
   
   ---
   
