@@ -116,7 +116,7 @@ Professional-grade research and creative coding in your browser.
 <td width="50%">
 
 ### 🌐 **Option 1: Instant Online** *(Recommended)*
-1. 🎯 **Go to** [timecapsule-slm.bubblspace.com](https://timecapsule.bubblspace.com/)
+1. 🎯 **Go to** [timecapsule.bubblspace.com](https://timecapsule.bubblspace.com/)
 2. 🔬 **Click "DeepResearch"**
 3. 🦙 **Start Ollama** (see setup below)
 4. 🤖 **Pull a model:** `ollama pull qwen3:0.6b`
@@ -320,7 +320,7 @@ ollama serve
 > **🚨 KEY REQUIREMENT**: You **MUST** enable CORS in LM Studio for TimeCapsule-SLM to connect.
 
 **Step 1:** 📥 **Download LM Studio** from [lmstudio.ai](https://lmstudio.ai) and install it  
-**Step 2:** 🤖 **Download a Model** - Search for models like `Qwen2.5`, `Llama`, `Phi-3`, or `Gemma`  
+**Step 2:** 🤖 **Download a Model** - Search for models like `Qwen3 0.6B`
 **Step 3:** 🚀 **Start Local Server** - Click "Start Server" in LM Studio (port 1234)  
 **Step 4:** ⚙️ **Enable CORS** - **IMPORTANT**: In LM Studio → Settings → Server → Enable "CORS"  
 **Step 5:** 🔄 **Restart Server** - Stop and restart the LM Studio server  
@@ -332,9 +332,6 @@ ollama serve
 | Model | Size | Best For | Performance |
 |-------|------|----------|-------------|
 | **Qwen2.5-7B-Instruct** | ~4GB | Research analysis, detailed coding responses | 🌟🌟🌟🌟🌟 |
-| **Phi-3-mini-4k** | ~2GB | Fast responses, compact code generation | 🌟🌟🌟🌟⭐ |
-| **Llama-3.2-3B** | ~2GB | Creative patterns, research synthesis | 🌟🌟🌟🌟⭐ |
-| **Gemma-2-2b** | ~1.5GB | Lightweight, quick generation | 🌟🌟🌟⭐⭐ |
 
 ---
 
@@ -371,34 +368,7 @@ ollama serve
 
 </div>
 
-### ⚡ **Compact JavaScript Patterns**
 
-The editor supports **compact JavaScript syntax** for creative coding:
-
-**Fish Animation** (Parametric curve with trigonometric functions):
-```javascript
-a=(x,y,d=mag(k=(4+cos(y))*cos(x/4),e=y/8-20))=>point((q=sin(k*3)+sin(y/19+9)*k*(6+sin(e*14-d)))*cos(d/8+t/4)+50*cos(c=d-t)+200,q*sin(c)+d*7*sin(c/4)+200)
-t=0,draw=$=>{t||createCanvas(w=400,w);background(9);stroke(w,116);for(t+=PI/120,i=1e4;i--;)a(i,i/235)}
-```
-
-**Noise-based Pattern** (Perlin noise with arcs):
-```javascript
-t=0
-draw=_=>{t++||createCanvas(W=720,W)
-background(0)
-noFill()
-F=p=>noise(p/W-t/W)*35
-X=cos(A=F(0)+PI)*99+360
-Y=sin(A)*99+360
-for(i=0;i<W;i++)stroke(W,255-i/3)+arc(X+=cos(A=F(i))*2,Y+=sin(A)*2,S=40-i/20,S,A-(D=i**2/W),A+D,PIE)}
-```
-
-### 🛠️ **Available p5.js Functions**
-
-- **Drawing**: `point()`, `line()`, `ellipse()`, `rect()`, `arc()`, `triangle()`
-- **Color**: `fill()`, `stroke()`, `noFill()`, `noStroke()`, `background()`
-- **Math**: `sin()`, `cos()`, `noise()`, `mag()`, `PI`, `TWO_PI`
-- **Canvas**: `createCanvas()`, `strokeWeight()`
 
 ---
 
