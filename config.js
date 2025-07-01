@@ -32,6 +32,31 @@ class Config {
     this.SITE_URL = this.getEnvVar('SITE_URL') || 'https://timecapsule.bubblspace.com';
     this.GA4_DEBUG_MODE = this.getEnvVar('GA4_DEBUG_MODE') === 'true' || false;
     this.GA4_ANONYMIZE_IP = this.getEnvVar('GA4_ANONYMIZE_IP') !== 'false'; // Default true
+    
+    // 🔐 GitHub OAuth Configuration (same pattern as GA4)
+    this.GITHUB_CLIENT_ID = this.getEnvVar('GITHUB_CLIENT_ID') || 
+                            this.getEnvVar('VITE_GITHUB_CLIENT_ID') || 
+                            this.getEnvVar('REACT_APP_GITHUB_CLIENT_ID') ||
+                            this.getEnvVar('NEXT_PUBLIC_GITHUB_CLIENT_ID') ||
+                            null;
+                            
+    this.LOCAL_GITHUB_CLIENT_ID = this.getEnvVar('LOCAL_GITHUB_CLIENT_ID') || 
+                                 this.getEnvVar('VITE_LOCAL_GITHUB_CLIENT_ID') || 
+                                 this.getEnvVar('REACT_APP_LOCAL_GITHUB_CLIENT_ID') ||
+                                 this.getEnvVar('NEXT_PUBLIC_LOCAL_GITHUB_CLIENT_ID') ||
+                                 null;
+                                 
+    this.ENV_MODE = this.getEnvVar('ENV_MODE') || 
+                   this.getEnvVar('VITE_ENV_MODE') || 
+                   this.getEnvVar('REACT_APP_ENV_MODE') ||
+                   this.getEnvVar('NEXT_PUBLIC_ENV_MODE') ||
+                   'dev'; // Default to development
+                   
+    this.BELUGA_API_BASE = this.getEnvVar('BELUGA_API_BASE') || 
+                          this.getEnvVar('VITE_BELUGA_API_BASE') || 
+                          this.getEnvVar('REACT_APP_BELUGA_API_BASE') ||
+                          this.getEnvVar('NEXT_PUBLIC_BELUGA_API_BASE') ||
+                          'https://beluga.bubblspace.com';
   }
 
   // Method to get environment variables from multiple sources

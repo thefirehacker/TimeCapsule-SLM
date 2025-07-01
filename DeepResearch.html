@@ -679,6 +679,22 @@
       }
     }
     
+    /* Pulse Animation for Auth Button */
+    @keyframes pulse {
+      0% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7);
+      }
+      50% { 
+        transform: scale(1.05); 
+        box-shadow: 0 0 0 10px rgba(74, 144, 226, 0);
+      }
+      100% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(74, 144, 226, 0);
+      }
+    }
+    
     /* Enhanced visual effects for improved panels */
     .controls-panel, .structure-builder, .research-output {
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -752,6 +768,38 @@
         <label>📸 Add Images to Research:</label>
         <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
         <button id="uploadImageBtn" class="btn secondary">📷 Upload Image</button>
+        <div id="authRequiredMessage" style="display: none; font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 5px;">
+          🔐 Sign in required for image uploads
+        </div>
+      </div>
+      
+      <!-- Authentication Section -->
+      <div class="control-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          🔐 Authentication
+        </label>
+        
+        <!-- Sign In Button (shown when not authenticated) -->
+        <button id="authSignInBtn" class="btn primary" style="display: none; width: 100%; font-size: 13px; padding: 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 8px;">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          Sign in with GitHub
+        </button>
+        
+        <!-- User Info (shown when authenticated) -->
+        <div id="authUserInfo" style="display: none; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+          <img id="authUserAvatar" src="" alt="" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);">
+          <div style="flex: 1;">
+            <div id="authUserName" style="color: white; font-size: 13px; font-weight: 600;"></div>
+            <div style="color: rgba(255,255,255,0.7); font-size: 11px;">Authenticated</div>
+          </div>
+          <button id="authSignOutBtn" class="btn secondary" style="display: none; padding: 6px 12px; font-size: 11px;">Sign Out</button>
+        </div>
+        
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 8px; text-align: center;">
+          🔒 Secure image uploads to Beluga S3
+        </div>
       </div>
       
       <button id="exportResearch" class="btn secondary">📥 Export Results</button>
@@ -871,6 +919,7 @@
   <!-- Scripts -->
   <script src="config.js"></script>
   <script src="lib/useragreement/agreement.js"></script>
+  <script src="lib/auth/auth.js"></script>
   <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
   <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
   
@@ -892,12 +941,56 @@
         window.userAgreement.initializeForPage();
       }
       
+      // Initialize authentication event listeners
+      setTimeout(() => {
+        const signInBtn = document.getElementById('authSignInBtn');
+        const signOutBtn = document.getElementById('authSignOutBtn');
+        
+        if (signInBtn) {
+          signInBtn.addEventListener('click', () => {
+            if (window.AuthManager) {
+              window.AuthManager.startGitHubAuth();
+            } else {
+              console.error('AuthManager not initialized');
+            }
+          });
+        }
+        
+        if (signOutBtn) {
+          signOutBtn.addEventListener('click', () => {
+            if (window.AuthManager) {
+              window.AuthManager.signOut();
+            }
+          });
+        }
+        
+        // Update auth UI on load
+        if (window.AuthManager) {
+          window.AuthManager.updateAuthUI();
+          
+          // Show sign in button if not authenticated
+          if (!window.AuthManager.isAuthenticated) {
+            if (signInBtn) signInBtn.style.display = 'inline-block';
+            const authMessage = document.getElementById('authRequiredMessage');
+            if (authMessage) authMessage.style.display = 'block';
+          }
+        }
+      }, 50);
+      
       // Add a small delay to ensure all scripts are loaded
       setTimeout(() => {
         console.log('🔍 Script loading check:');
         console.log('  - DeepResearchApp:', !!window.DeepResearchApp);
         console.log('  - AIAssistant:', !!window.AIAssistant);
         console.log('  - AIAssistantBackend:', !!window.AIAssistantBackend);
+        
+        // Initialize AuthManager first
+        if (window.AuthManager && typeof window.AuthManager === 'function') {
+          window.AuthManager = new window.AuthManager();
+          console.log('✅ AuthManager initialized');
+        } else {
+          console.warn('⚠️ AuthManager not found - authentication disabled');
+        }
         
         if (window.DeepResearchApp) {
           window.deepResearch = new DeepResearchApp();
