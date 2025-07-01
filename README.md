@@ -4,7 +4,8 @@
   
   # 💊 TimeCapsule-SLM
   
-  ### *Complete AI-powered research & creative platform with DeepResearch TimeCapsule and Playground components*
+  ### *Complete AI-powered research & creative platform with DeepResearch*
+  ### **Generate Novel Ideas • Build AI Content • Enable Collaborative Knowledge Discovery**
   
   [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Available-00C851?style=for-the-badge&logo=rocket)](https://timecapsule-slm.bubblspace.com)
   [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
@@ -42,8 +43,8 @@
   <div align="left" style="margin: 20px 0;">
   
   🔬 **DeepResearch TimeCapsule** - Comprehensive AI-powered research platform  
-  🎮 **Playground** - Real-time p5.js coding with Monaco Editor  
-  🧠 **Triple AI Modes**: Local Qwen2.5 FP16 + LM Studio + OpenAI API  
+  🎮 **Playground** - Execute TimeCapsules  
+  🧠 **Triple AI Mode**: Ollama, LM Studio and Your API (OpenAI) IN API Anthropic and OpenRouter coming soon  
   ⚙️ **Custom Context Templates** for personalized AI behavior  
   📱 **Responsive Design** that works on all devices  
   🔄 **Seamless Navigation** between research and creative modes  
@@ -57,86 +58,149 @@
 
 ## 🎯 **What is TimeCapsule-SLM?**
 
-TimeCapsule-SLM is a **comprehensive AI-powered research & creative platform** featuring two integrated components:
+TimeCapsule-SLM is a **complete AI-powered research & creative platform** that revolutionizes how we generate novel ideas, build AI content, and enable collaborative knowledge discovery.
 
-🔬 **DeepResearch TimeCapsule** - AI-powered research and analysis platform for comprehensive topic exploration and intelligence extraction  
-🎮 **Playground** - Real-time p5.js coding environment with AI assistance for visual art creation and creative workflows
+🔬 **DeepResearch TimeCapsule** - Advanced AI research platform that generates novel ideas, uncovers hidden insights, and facilitates collaborative knowledge discovery  
+🎮 **Playground** - AI-powered creative coding environment for building interactive content, visual narratives, and dynamic presentations
 
-Built with **Monaco Editor**, **cutting-edge AI**, and modern web technologies to provide an unparalleled research and creative experience.
+Built with **local LLMs**, **cutting-edge AI**, and modern web technologies to provide cost-effective, privacy-first research and creative workflows.
 
 <div align="center">
 
-### 🔬 **Research → Extract → Generate → Create**
+### 🧠 **Generate Ideas → Build Content → Discover Knowledge → Create Together**
 
 </div>
 
 ---
 
-## 🏗️ **Two-Component Architecture**
+## 🚀 **Strategic Vision & Goals**
 
-TimeCapsule-SLM features an integrated dual-component design that combines research intelligence extraction and creative workflows:
+TimeCapsule-SLM is designed around four core strategic objectives that redefine AI-powered research and content creation:
 
 <div align="center">
 
-| Component | Purpose | Key Features |
+### 🎯 **Our Four Pillars of Innovation**
+
+</div>
+
+<table>
+<tr>
+<td width="50%">
+
+### 💡 **1. Novelty in AI Content**
+**Get AI to build genuinely new ideas**
+- Generate breakthrough research concepts
+- Discover novel patterns and connections
+- Create innovative content approaches
+- Push beyond existing knowledge boundaries
+
+### 📝 **2. AI-First Content Revolution**
+**Replace traditional blogs with AI-generated content**
+- Community-assisted learning workflows
+- Offline collaboration capabilities
+- Real-time content generation
+- Intelligent content curation
+
+</td>
+<td width="50%">
+
+### 🎓 **3. Complex Topic Mastery**
+**Enable learning of complex subjects**
+- AI-guided learning pathways
+- Adaptive difficulty progression
+- Multi-modal knowledge representation
+- Collaborative understanding building
+
+### 🤖 **4. Intelligent TimeCapsule Agents**
+**AI agent triggers to activate TimeCapsules**
+- Capture critical events and insights
+- Real-time context awareness
+- Automated knowledge preservation
+- Dynamic learning direction guidance
+
+</td>
+</tr>
+</table>
+
+### 🔧 **Core Technical Principles**
+
+- **🔒 Privacy-First**: Local LLMs for sensitive research
+- **💰 Cost-Effective**: Minimize API costs with local processing
+- **⚡ Real-Time**: Instant context capture and response
+- **🤝 Collaborative**: Community-driven knowledge building
+- **🎯 Adaptive**: AI that learns from user interactions
+
+## 🏗️ **Revolutionary Two-Component Architecture**
+
+TimeCapsule-SLM features an integrated dual-component design that revolutionizes how we generate ideas, build content, and discover knowledge:
+
+<div align="center">
+
+| Component | Revolutionary Purpose | Strategic Features |
 |-----------|---------|--------------|
-| 🔬 **DeepResearch TimeCapsule** | Research & Intelligence Extraction | AI-powered research, TimeCapsule generation, markdown export |
-| 🎮 **Playground** | Creative Coding Environment | Real-time p5.js coding, Monaco editor, instant visualization |
+| 🔬 **DeepResearch TimeCapsule** | **Generate Novel Ideas & Enable Collaborative Discovery** | AI-powered novel idea generation, collaborative knowledge discovery, breakthrough research insights |
+| 🎮 **Playground** | **Build AI Content & Create Visual Stories** | AI-assisted content creation, visual narrative building, interactive experience design |
 
 </div>
 
-### 🔄 **Seamless Integration**
-- **Unified Navigation** - Switch between components with a single click
-- **Shared AI Backend** - Same AI models and templates work across both components  
-- **Cross-Component Workflow** - Research insights can inspire creative coding projects
-- **Consistent Interface** - Familiar UI patterns and responsive design throughout
+### 🚀 **Strategic Integration**
+- **Novel Idea Flow** - Research insights automatically inspire creative content generation
+- **AI Agent Coordination** - TimeCapsule agents trigger cross-component workflows  
+- **Real-Time Collaboration** - Community-driven knowledge building across both environments
+- **Cost-Effective Processing** - Shared local LLMs minimize API costs while maximizing privacy
+- **Context Preservation** - Critical events and learning directions captured in real-time
 
 ---
 
-## 🚀 **Core Components**
+## 🚀 **Revolutionary Core Components**
 
 <table>
 <tr>
 <td width="50%">
 
 ### 🔬 **DeepResearch TimeCapsule**
-- **AI-Powered Research** - Comprehensive topic analysis
-- **Multiple Research Types** - Academic, Market, Technology, Competitive
-- **Research Depth Control** - Overview, Detailed, Comprehensive
-- **TimeCapsule Generation** - Extract intelligence and create knowledge capsules
-- **Markdown Export** - Professional formatted outputs
-- **Source Management** - Track and organize research sources
-- **Interactive Interface** - Tabbed research, sources, and notes views
+**Generate Novel Ideas • Enable Collaborative Discovery**
+- **Novel Idea Generation** - AI builds genuinely new research concepts
+- **Collaborative Knowledge Discovery** - Community-assisted learning workflows
+- **Breakthrough Pattern Recognition** - Uncover hidden insights and connections
+- **TimeCapsule Agents** - AI agents capture critical events and learning directions
+- **Real-Time Context Awareness** - Dynamic adaptation to research contexts
+- **Complex Topic Mastery** - Enable learning of sophisticated subjects
+- **Community-Driven Insights** - Offline collaboration and knowledge sharing
 
 </td>
 <td width="50%">
 
 ### 🎮 **Playground**
-- **Monaco Editor Integration** - Professional code editing
-- **Real-time Execution** - Instant visual feedback  
-- **Split-view Design** - Resizable code and canvas panels
-- **p5.js Integration** - Optimized for creative coding
-- **Copy & Share** - Export your visual creations
-- **Design Library** - Pre-built animations and patterns
+**Build AI Content • Create Visual Stories**
+- **AI Content Generation** - Replace traditional blogs with AI-powered content
+- **Visual Narrative Creation** - Transform research into engaging stories
+- **Interactive Experience Design** - Build dynamic, responsive content
+- **Community Content Curation** - Collaborative content development
+- **Real-Time AI Assistance** - Instant coding support and creative guidance
+- **TimeCapsule Integration** - Transform research insights into visual experiences
+- **Adaptive Learning Interface** - AI-guided creative skill development
 
 </td>
 </tr>
 </table>
 
-### 🤖 **Unified AI Integration** *(Available in both components)*
-- **Local FP16 Qwen2.5** - Privacy-focused AI (1GB model)
-- **LM Studio Support** - Connect to local LM Studio server
-- **OpenAI Integration** - GPT-4o, GPT-4o Mini support
-- **Custom Templates** - Personalize AI behavior for research or coding
-- **Smart Context** - Research-aware or code-aware AI assistance
-- **Triple Mode Support** - Local + LM Studio + Cloud AI options
+### 🤖 **Strategic AI Integration** *(Powering all four pillars)*
+- **🔒 Local LLMs Priority** - Ollama, LM Studio, Local Qwen2.5 for privacy and cost control
+- **💰 Cost-Effective Processing** - Minimize API costs with local-first approach
+- **🧠 Novel Idea Generation** - AI specifically tuned for breakthrough concept creation
+- **⚡ Real-Time Context Capture** - Instant adaptation to research and creative contexts
+- **🤝 Community Intelligence** - Collaborative learning from offline and online interactions
+- **🎯 Adaptive Agent Triggers** - TimeCapsule agents activate based on context and events
+- **📈 Multi-Modal Support** - Text, visual, and interactive content generation
 
-### 🌐 **Additional Features**
-- **🌍 World Generator** - Interactive world creation with 5 modern SLMs
-- **📄 Markdown Export** - Professional research report generation
-- **🎨 Design Library** - Pre-built animations, patterns, and templates  
-- **📱 Responsive Interface** - Optimized for desktop and mobile
-- **🔄 Component Switching** - Seamless navigation between Research and Playground
+### 🌐 **Strategic Features**
+- **🤖 AI Agent Ecosystem** - TimeCapsule agents for automated knowledge preservation
+- **⚡ Real-Time Context Capture** - Critical events and learning directions preserved instantly
+- **🎓 Complex Learning Pathways** - AI-guided progression through sophisticated topics
+- **🤝 Community Knowledge Building** - Offline collaboration and assisted learning workflows
+- **💡 Breakthrough Discovery Engine** - Novel pattern recognition and idea generation
+- **📱 Universal Access** - Responsive interface optimized for all devices and contexts
 
 ---
 
@@ -220,6 +284,170 @@ TimeCapsule-SLM now supports **LM Studio** for running local AI models with full
 - ✅ Ensure model is fully loaded (not just downloaded)
 - ✅ Try a smaller model if running out of memory
 - ✅ Restart LM Studio if model seems stuck
+
+---
+
+## 🦙 **Ollama Integration**
+
+TimeCapsule-SLM now supports **Ollama** for running local AI models with powerful research and creative coding capabilities!
+
+<div align="center">
+
+### 🎯 **Local AI Power + Privacy First**
+
+</div>
+
+<table>
+<tr>
+<td width="50%">
+
+### 🚀 **Why Ollama?**
+- **🔒 Fully Private** - All processing happens locally
+- **💰 Zero API Costs** - No usage fees or limits
+- **⚡ Lightning Fast** - Optimized GGUF models
+- **🎛️ Model Library** - Easy model management
+- **🌐 REST API** - Simple integration
+
+</td>
+<td width="50%">
+
+### 🛠️ **Setup Requirements**
+- **Ollama App** - Download from [ollama.ai](https://ollama.ai)
+- **AI Model** - Any compatible GGUF model
+- **CORS Enabled** - **CRITICAL** for web access
+- **Port 11434** - Default Ollama server port
+
+</td>
+</tr>
+</table>
+
+### 📋 **Complete Setup Guide (Correct Order)**
+
+> **🚨 CRITICAL REQUIREMENT**: You **MUST** enable CORS for Ollama to work with the deployed TimeCapsule website.
+
+<div align="left">
+
+**Step 1:** 📥 **Install Ollama**
+```bash
+# Download from https://ollama.ai and install
+# Or use package manager:
+# macOS: brew install ollama
+# Linux: curl -fsSL https://ollama.ai/install.sh | sh
+```
+
+**Step 2:** 🤖 **Pull a Model** (Choose one)
+```bash
+# Recommended: Fast and efficient
+ollama pull qwen3:0.6b
+
+# Alternative models:
+ollama pull qwen2.5:7b    # Larger, more capable
+ollama pull llama3.2:3b   # Good balance
+ollama pull phi3:mini     # Compact
+```
+
+**Step 3:** ✋ **Stop any running Ollama** (if applicable)
+```bash
+pkill ollama
+# Wait a few seconds for cleanup
+```
+
+**Step 4:** 🔧 **Start Ollama with CORS** (**CRITICAL STEP**)
+```bash
+# Method 1: Inline configuration (recommended)
+OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000,http://localhost:8000" ollama serve
+
+# Method 2: Export then serve
+export OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000,http://localhost:8000"
+ollama serve
+```
+
+**Step 5:** ✅ **Verify Ollama is running**
+```bash
+# You should see: "Listening on 127.0.0.1:11434"
+# And OLLAMA_ORIGINS should include your domains
+```
+
+**Step 6:** 💊 **Connect in TimeCapsule** - Select "🦙 Ollama" from AI provider dropdown  
+**Step 7:** 🔌 **Click Connect** - TimeCapsule will auto-detect your model  
+
+</div>
+
+### 🔥 **CORS Configuration (CRITICAL)**
+
+Ollama blocks web requests by default. You **MUST** configure CORS origins:
+
+#### **Method 1: Environment Variable (Recommended)**
+```bash
+# For macOS/Linux - Add to ~/.zshrc or ~/.bash_profile
+export OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000"
+
+# Restart terminal or run:
+source ~/.zshrc
+
+# Start Ollama
+ollama serve
+```
+
+#### **Method 2: Inline Configuration**
+```bash
+# Set CORS and start in one command
+OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000" ollama serve
+```
+
+#### **Method 3: Windows Users**
+```cmd
+# Command Prompt
+set OLLAMA_ORIGINS=https://timecapsule.bubblspace.com,http://localhost:3000
+ollama serve
+
+# PowerShell
+$env:OLLAMA_ORIGINS="https://timecapsule.bubblspace.com,http://localhost:3000"
+ollama serve
+```
+
+### 🎯 **Recommended Models for Research & Creative Coding**
+
+| Model | Size | Best For | Performance |
+|-------|------|----------|-------------|
+| **qwen3:0.6b** | ~400MB | Fast responses, quick generation | 🌟🌟🌟🌟⭐ |
+| **qwen2.5:7b** | ~4GB | Research analysis, detailed coding | 🌟🌟🌟🌟🌟 |
+| **llama3.2:3b** | ~2GB | Creative patterns, balanced performance | 🌟🌟🌟🌟⭐ |
+| **phi3:mini** | ~2GB | Compact, efficient code generation | 🌟🌟🌟🌟⭐ |
+| **gemma2:2b** | ~1.5GB | Lightweight, memory efficient | 🌟🌟🌟⭐⭐ |
+
+### 🔧 **Troubleshooting**
+
+**❌ "CORS Policy Error" or "Failed to fetch"** *(Most Common Issue)*
+- ✅ **Enable CORS**: Set `OLLAMA_ORIGINS` environment variable (see above)
+- ✅ **Restart Ollama**: Stop (`pkill ollama`) and restart (`ollama serve`)
+- ✅ **Verify Origins**: Check your domain is included in `OLLAMA_ORIGINS`
+
+**❌ "Ollama connection failed"**
+- ✅ Make sure Ollama is running: `ollama serve`
+- ✅ Check port 11434 is available: `netstat -an | grep 11434`
+- ✅ Ensure CORS is configured (see above)
+
+**❌ "Connection timeout"**
+- ✅ Try a smaller model: `ollama pull qwen3:0.6b`
+- ✅ Check system resources (RAM/CPU)
+- ✅ Restart Ollama service
+
+**❌ "Model not responding"**
+- ✅ Verify model is pulled: `ollama list`
+- ✅ Test locally: `ollama run qwen3:0.6b "Hello"`
+- ✅ Try switching to a different model
+
+### 🧪 **Verify CORS is Working**
+
+Test your Ollama CORS configuration:
+```bash
+curl -H "Origin: https://timecapsule.bubblspace.com" \
+     -H "Access-Control-Request-Method: GET" \
+     -X OPTIONS http://localhost:11434/api/tags -v
+```
+
+**Expected output**: `HTTP/1.1 204 No Content` with `Access-Control-Allow-Origin` header
 
 ---
 
