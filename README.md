@@ -20,7 +20,9 @@
 - [🚀 Key Features](#-key-features-2024)
 - [🌐 Experience Live Now](#-experience-live-now)
 - [🚦 How to Start](#-how-to-start)
+- [🐳 Docker Support- In Progress](DOCKER.md)
 - [🔗 How to Share](#-how-to-share)
+- [💬 Join Discord Community](https://discord.gg/ExQ8fCv9)
 - [🦙 Ollama Integration](#-ollama-integration)
 - [🏠 LM Studio Integration](#-lm-studio-integration)
 - [🔬 DeepResearch Usage](#-deepresearch-timecapsule-usage)
@@ -113,7 +115,7 @@ Professional-grade research and creative coding in your browser.
 
 <table>
 <tr>
-<td width="50%">
+<td width="33%">
 
 ### 🌐 **Option 1: Instant Online** *(Recommended)*
 1. 🎯 **Go to** [timecapsule.bubblspace.com](https://timecapsule.bubblspace.com/)
@@ -124,9 +126,20 @@ Professional-grade research and creative coding in your browser.
 6. 📝 **Add research topics** and click **Generate**
 
 </td>
-<td width="50%">
+<td width="33%">
 
-### 💻 **Option 2: Local Development**
+### 🐳 **Option 2: Docker** *(Easy Deploy)*
+1. 📁 **Clone:** `git clone https://github.com/thefirehacker/TimeCapsule-SLM`
+2. 📂 **Navigate:** `cd TimeCapsule-SLM`
+3. 🐳 **Start:** `docker-compose --profile ai-enabled up -d`
+4. 🌐 **Access:** `http://localhost:3000`
+5. 🦙 **Pull model:** `docker exec timecapsule-ollama ollama pull qwen3:0.6b`
+6. 🚀 **Start researching!**
+
+</td>
+<td width="33%">
+
+### 💻 **Option 3: Local Development**
 1. 📁 **Clone:** `git clone https://github.com/thefirehacker/TimeCapsule-SLM`
 2. 📂 **Navigate:** `cd TimeCapsule-SLM`
 3. 🌐 **Open:** `DeepResearch.html` in browser
@@ -442,6 +455,24 @@ ollama serve
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/thefirehacker?style=social)](https://x.com/thefirehacker)
 [![GitHub stars](https://img.shields.io/github/stars/thefirehacker/TimeCapsule-SLM?style=social)](https://github.com/thefirehacker/TimeCapsule-SLM)
+[![Discord](https://img.shields.io/badge/💬_Join-Discord_Community-7289da?style=for-the-badge)](https://discord.gg/ExQ8fCv9)
+
+---
+
+## 💬 **Support & Community**
+
+<div align="center">
+
+**Need Help? We're Here for You!**
+
+🎧 **Join our Discord Community**: [discord.gg/ExQ8fCv9](https://discord.gg/ExQ8fCv9)  
+📧 **Email Support**: [support@bubblspace.com](mailto:support@bubblspace.com)  
+🐛 **Report Issues**: [GitHub Issues](https://github.com/thefirehacker/TimeCapsule-SLM/issues)  
+📚 **Documentation**: [Main README](README.md) • [Docker Guide](DOCKER.md)  
+
+*Get help with setup, AI integration, research workflows, and more!*
+
+</div>
 
 ---
 
