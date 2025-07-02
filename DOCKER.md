@@ -74,8 +74,13 @@ curl http://localhost:11434/api/version
 docker-compose up -d timecapsule-slm
 
 # Configure external AI in TimeCapsule-SLM UI:
-# - Ollama: http://host.docker.internal:11434
-# - LM Studio: http://host.docker.internal:1234
+# NEW: Custom URL Configuration Available!
+# 1. Click "🦙 Connect Ollama" or "🏠 Connect LM Studio"
+# 2. Modify the server URL in the modal:
+#    - Ollama: http://host.docker.internal:11434
+#    - LM Studio: http://host.docker.internal:1234
+#    - External: http://your-server:11434
+# 3. URLs persist across sessions in localStorage
 # - OpenAI API: Enter your API key
 ```
 
@@ -226,6 +231,20 @@ curl http://localhost:11434/api/version
 
 # Restart Ollama
 docker-compose restart ollama
+```
+
+**External Server Connection Issues**
+```bash
+# Test external Ollama server
+curl http://your-external-server:11434/api/tags
+
+# Verify CORS on external server
+OLLAMA_ORIGINS="http://localhost:3000,https://your-domain.com" ollama serve
+
+# Test external LM Studio
+curl http://your-external-server:1234/v1/models
+
+# Enable CORS in LM Studio: Settings → Server → Enable CORS
 ```
 
 **CORS Issues**

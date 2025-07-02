@@ -1260,6 +1260,9 @@
   <!-- Configuration and Analytics -->
   <script src="config.js"></script>
   
+  <!-- AI Assistant Backend for Custom URL Support -->
+  <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
+  
   <!-- AI Agent System -->
   <script src="lib/agent/canvas.js"></script>
 
@@ -1313,6 +1316,13 @@
     let chatMode = 'creative'; // 'creative' or 'general'
     let aiProvider = 'ollama'; // 'ollama' = Ollama, 'lmstudio' = LM Studio, 'openai' = OpenAI API, 'local' = Local Qwen
     let openaiApiKey = ''; // Session API key
+    
+    // Custom URLs for external AI services (using AIAssistant backend for consistency)
+    let aiAssistantBackend = null;
+    let customUrls = {
+      ollama: localStorage.getItem('timecapsule_ollama_url') || 'http://localhost:11434',
+      lmstudio: localStorage.getItem('timecapsule_lmstudio_url') || 'http://localhost:1234'
+    };
     
     // Canvas animation controls
     let animationPaused = false;
@@ -2198,8 +2208,9 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('aiStatus').textContent = 'AI: Connecting to LM Studio...';
         
         // Test LM Studio connection by fetching models
-        console.log('🔍 Testing LM Studio connection...');
-        const testResponse = await fetch('http://localhost:1234/v1/models', {
+        const lmstudioUrl = customUrls.lmstudio;
+        console.log('🔍 Testing LM Studio connection at:', lmstudioUrl);
+        const testResponse = await fetch(`${lmstudioUrl}/v1/models`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -2218,7 +2229,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         // Get the first available model
         const availableModel = modelsData.data?.[0]?.id || 'lm-studio-model';
         
-        aiSession = { type: 'lmstudio', model: availableModel, baseURL: 'http://localhost:1234/v1' };
+        aiSession = { type: 'lmstudio', model: availableModel, baseURL: `${lmstudioUrl}/v1` };
         document.getElementById('aiStatus').textContent = `AI: LM Studio (${availableModel}) ✅`;
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = `🏠 LM Studio Ready`;
@@ -2258,8 +2269,9 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('aiStatus').textContent = 'AI: Connecting to Ollama...';
         
         // Test Ollama connection by fetching models
-        console.log('🔍 Testing Ollama connection...');
-        const testResponse = await fetch('http://localhost:11434/api/tags', {
+        const ollamaUrl = customUrls.ollama;
+        console.log('🔍 Testing Ollama connection at:', ollamaUrl);
+        const testResponse = await fetch(`${ollamaUrl}/api/tags`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -2292,7 +2304,7 @@ When user asks for something, generate creative, compact p5.js code that creates
           selectedModel = modelsData.models?.[0]?.name || 'qwen2.5:0.5b';
         }
         
-        aiSession = { type: 'ollama', model: selectedModel, baseURL: 'http://localhost:11434' };
+        aiSession = { type: 'ollama', model: selectedModel, baseURL: ollamaUrl };
         document.getElementById('aiStatus').textContent = `AI: Ollama (${selectedModel}) ✅`;
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = `🦙 Ollama Ready`;

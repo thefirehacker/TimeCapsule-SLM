@@ -164,6 +164,16 @@ OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollam
 # 4. Connect in TimeCapsule-SLM
 ```
 
+### 🌐 **Custom Server URLs** *(NEW: External Server Support)*
+
+**🔧 Configure Custom URLs for External Servers:**
+- **Ollama**: Click "🦙 Connect Ollama" → Modify server URL field → Connect
+- **LM Studio**: Click "🏠 Connect LM Studio" → Modify server URL field → Connect
+- **Persistent Storage**: URLs automatically saved to browser localStorage
+- **Examples**: `http://192.168.1.100:11434`, `http://my-server.com:11434`
+
+📖 **Full Guide**: [Custom URL Configuration](lib/AIAssistant/custom-url-config.md)
+
 > **💡 Pro Tip:** For best results, use **Ollama** with the `qwen3:0.6b` model. **LM Studio** and **APIs** (OpenAI, Anthropic) are also fully supported.
 
 ---
