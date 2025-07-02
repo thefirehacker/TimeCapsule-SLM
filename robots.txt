@@ -8,6 +8,7 @@ Allow: /
 Allow: /index.html
 Allow: /DeepResearch.html
 Allow: /Canvas.html
+Allow: /Playground.html
 
 
 # Allow access to assets and libraries

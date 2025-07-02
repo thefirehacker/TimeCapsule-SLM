@@ -13,7 +13,7 @@
     worker-src 'self' blob: data:;
     object-src 'none';
   ">
-  <title>Playground - TimeCapsule-SLM</title>
+  <title>Canvas - TimeCapsule-SLM</title>
   <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
   <link rel="shortcut icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
   <style>
@@ -1283,8 +1283,20 @@
         window.AppConfig.initializeGA4();
         
         // Track initial page view
-        window.AppConfig.trackPageView('Playground - TimeCapsule-SLM', window.location.href);
+        window.AppConfig.trackPageView('Canvas Playground - TimeCapsule-SLM', window.location.href);
       }
+      
+      // Initialize second navbar for Canvas page
+      setTimeout(() => {
+        if (window.SecondNavbar) {
+          window.SecondNavbar.init('canvas', true); // Force reload to override auto-detection
+          
+          // Update header AI status after navbar is initialized
+          setTimeout(() => {
+            updateHeaderAIStatus();
+          }, 100);
+        }
+      }, 300);
       
       // Set initial status message for Ollama default
       setTimeout(() => {
@@ -1816,6 +1828,12 @@ When user asks for something, generate creative, compact p5.js code that creates
       const connectBtn = document.getElementById('initAIBtn');
       const disconnectBtn = document.getElementById('disconnectAIBtn');
       
+      // Check if header elements exist (second navbar may not be initialized yet)
+      if (!headerStatus) {
+        console.log('Header status element not found - second navbar may not be initialized yet');
+        return;
+      }
+      
       if (aiSession) {
         if (aiSession.type === 'qwen') {
           headerStatus.textContent = '🧠 Qwen2.5 Connected';
@@ -1830,13 +1848,13 @@ When user asks for something, generate creative, compact p5.js code that creates
           headerStatus.textContent = `🦙 Ollama Connected`;
           headerStatus.style.color = '#4CAF50';
         }
-        connectBtn.style.display = 'none';
-        disconnectBtn.style.display = 'inline-block';
+        if (connectBtn) connectBtn.style.display = 'none';
+        if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
       } else {
         headerStatus.textContent = 'AI Integration';
         headerStatus.style.color = 'rgba(255,255,255,0.85)';
-        connectBtn.style.display = 'inline-block';
-        disconnectBtn.style.display = 'none';
+        if (connectBtn) connectBtn.style.display = 'inline-block';
+        if (disconnectBtn) disconnectBtn.style.display = 'none';
       }
     }
 
@@ -4382,8 +4400,8 @@ Return response as JSON:
         window.runSketch(editorInstance.getValue());
       }, 1000);
 
-      // Initialize header AI status
-      updateHeaderAIStatus();
+      // Header AI status will be initialized after second navbar loads
+      // (moved to second navbar initialization to avoid null reference errors)
       
       // Make dev logger globally available
       window.devModeActive = devModeActive;

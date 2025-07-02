@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
+  <meta http-equiv="Content-Security-Policy" content="
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
+    style-src 'self' 'unsafe-inline' https: data:;
+    connect-src 'self' https: wss: http://localhost:1234 http://localhost:11434;
+    img-src 'self' data: https: blob:;
+    font-src 'self' data: https:;
+    worker-src 'self' blob: data:;
+    object-src 'none';
+  ">
+  <title>AI Playground - TimeCapsule-SLM</title>
+  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
+  <link rel="shortcut icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
+  
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Highlight.js for code syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  
+  <!-- Transformers.js for vector embeddings -->
+  <script type="module">
+    // Load Transformers.js with better error handling
+    async function loadTransformers() {
+      try {
+        if (!window.transformers) {
+          console.log('⏳ Loading Transformers.js for RAG system...');
+          window.transformers = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+          console.log('✅ Transformers.js loaded successfully');
+          
+          // Signal that Transformers.js is ready
+          window.dispatchEvent(new CustomEvent('transformersLoaded'));
+        }
+      } catch (error) {
+        console.error('❌ Failed to load Transformers.js:', error);
+        window.VECTOR_STORE_DISABLED = true;
+        window.dispatchEvent(new CustomEvent('transformersFailed', { detail: error }));
+      }
+    }
+    
+    // Load immediately
+    loadTransformers();
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; 
+      overflow: hidden;
+      padding-top: 120px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      grid-template-rows: 140px 1fr 80px;
+      height: calc(100vh - 120px);
+      gap: 15px;
+      padding: 15px;
+      position: relative;
+    }
+    
+    .sidebar {
+      grid-row: 2;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+    
+    .sidebar h3 {
+      margin-bottom: 25px;
+      font-size: 20px;
+      color: #fff;
+      text-align: center;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .control-group {
+      margin-bottom: 25px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .control-group label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 14px;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px 18px;
+      margin: 10px 0;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn.primary {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+    }
+    
+    .btn.primary:hover {
+      box-shadow: 0 8px 25px rgba(250, 112, 154, 0.6);
+    }
+    
+    .btn.secondary {
+      background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+      color: #333;
+      box-shadow: 0 4px 15px rgba(168, 237, 234, 0.4);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    select, input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      color: white;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+    
+    select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: rgba(79, 172, 254, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+    }
+    
+    select option {
+      background: #333;
+      color: white;
+    }
+    
+    .main-display {
+      grid-row: 2;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .chat-interface {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 20px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .chat-input {
+      flex: 1;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 15px;
+      color: white;
+      font-size: 16px;
+      font-family: inherit;
+      resize: none;
+      transition: all 0.3s ease;
+    }
+    
+    .chat-input:focus {
+      outline: none;
+      border-color: rgba(79, 172, 254, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+    }
+    
+    .chat-input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .chat-send {
+      padding: 15px 25px;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    .chat-send:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .chat-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* Display content styling */
+    .display-content {
+      height: 100%;
+      position: relative;
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .empty-state h2 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      color: white;
+    }
+    
+    .empty-state p {
+      font-size: 1.2em;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+    
+    /* Chat messages styling */
+    .chat-messages {
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    
+    .chat-message {
+      margin-bottom: 20px;
+      padding: 15px 20px;
+      border-radius: 15px;
+      position: relative;
+    }
+    
+    .chat-message.user {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      margin-left: 20%;
+    }
+    
+    .chat-message.assistant {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      margin-right: 20%;
+    }
+    
+    .chat-message.system {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      text-align: center;
+    }
+    
+    .message-content {
+      color: white;
+      line-height: 1.6;
+    }
+    
+    .message-content pre {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+    
+    .message-content code {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    /* Status indicators */
+    .status-indicator {
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 10px 0;
+      position: relative;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+    
+    .status-indicator.success {
+      background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
+      color: white;
+      border: 1px solid rgba(86, 171, 47, 0.3);
+    }
+    
+    .status-indicator.warning {
+      background: linear-gradient(45deg, #ffa751 0%, #ffe259 100%);
+      color: #333;
+      border: 1px solid rgba(255, 167, 81, 0.3);
+    }
+    
+    .status-indicator.error {
+      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%) !important;
+      color: white !important;
+      border: 1px solid rgba(255, 65, 108, 0.3) !important;
+      box-shadow: 0 2px 8px rgba(255, 65, 108, 0.2);
+    }
+    
+    .status-indicator.info {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: 1px solid rgba(79, 172, 254, 0.3);
+    }
+    
+    /* Loading animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+         /* Mobile responsiveness */
+     @media (max-width: 768px) {
+       body {
+         padding-top: 80px;
+       }
+       
+       .container {
+         grid-template-columns: 1fr;
+         grid-template-rows: auto auto 1fr auto;
+         height: calc(100vh - 80px);
+       }
+       
+       .sidebar {
+         order: 2;
+         grid-row: 2;
+         max-height: 200px;
+       }
+       
+       .main-display {
+         order: 3;
+         grid-row: 3;
+       }
+       
+       .chat-interface {
+         order: 4;
+         grid-row: 4;
+         grid-column: 1;
+       }
+       
+       .chat-message.user {
+         margin-left: 10%;
+       }
+       
+       .chat-message.assistant {
+         margin-right: 10%;
+       }
+     }
+    
+    /* Hidden file input */
+    .hidden {
+      display: none;
+    }
+    
+    /* Troubleshooting Modal Styles */
+    .troubleshooting-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 5000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+      opacity: 1;
+    }
+    
+    .troubleshooting-content {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      color: white;
+      position: relative;
+    }
+    
+    .troubleshooting-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .troubleshooting-header h2 {
+      margin: 0;
+      color: #ff6b6b;
+      font-size: 24px;
+    }
+    
+    .close-modal {
+      background: rgba(255, 69, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 35px;
+      height: 35px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    
+    .close-modal:hover {
+      background: rgba(255, 69, 0, 0.9);
+      transform: scale(1.1);
+    }
+    
+    .error-details {
+      background: rgba(255, 69, 0, 0.1);
+      border: 1px solid rgba(255, 69, 0, 0.3);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .error-details p {
+      margin: 0;
+      color: #ff6b6b;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    .troubleshooting-steps h3 {
+      color: #4facfe;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    
+    .command-group {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .command-group h4 {
+      color: #fff;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .command-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .command-box code {
+      flex: 1;
+      color: #00ff88;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 14px;
+      background: transparent;
+      padding: 0;
+    }
+    
+    .copy-btn {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .copy-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(79, 172, 254, 0.4);
+    }
+    
+    .command-note {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      margin: 5px 0;
+      font-style: italic;
+    }
+    
+    .troubleshooting-checklist {
+      margin: 20px 0;
+      padding: 15px;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      border-radius: 10px;
+    }
+    
+    .troubleshooting-checklist h3 {
+      color: #4caf50;
+      margin-bottom: 10px;
+    }
+    
+    .troubleshooting-checklist ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .troubleshooting-checklist li {
+      color: rgba(255, 255, 255, 0.8);
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    
+    .troubleshooting-checklist a {
+      color: #4facfe;
+      text-decoration: none;
+    }
+    
+    .troubleshooting-checklist a:hover {
+      text-decoration: underline;
+    }
+    
+    .troubleshooting-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .troubleshooting-actions .btn {
+      flex: 1;
+      min-width: 120px;
+      margin: 0;
+    }
+    
+    /* Connection Status Banner */
+    .connection-status-banner {
+      padding: 15px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .connection-status-banner.success {
+      background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
+      color: white;
+      border: 1px solid rgba(86, 171, 47, 0.3);
+      box-shadow: 0 4px 15px rgba(86, 171, 47, 0.2);
+    }
+    
+    .connection-status-banner.error {
+      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%);
+      color: white;
+      border: 1px solid rgba(255, 65, 108, 0.3);
+      box-shadow: 0 4px 15px rgba(255, 65, 108, 0.2);
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- BubblSpace Navigation Component -->
+  <div id="bubblspace-navbar"></div>
+  <script src="lib/Pages/components/bubblspace-navbar.js"></script>
+  
+  <!-- Second Navbar Component -->
+  <script src="lib/Pages/components/second-navbar.js"></script>
+  
+  <div class="container">
+    <!-- Sidebar Controls -->
+    <div class="sidebar">
+      <h3>🎮 AI Persona</h3>
+      
+      <!-- AI Connection -->
+      <div class="control-group">
+        <label>Persona Controls </label>
+        <button id="connectAI" class="btn primary">Connect AI</button>
+        <select id="aiProviderSelect">
+          <option value="ollama">🦙 Ollama (Local)</option>
+          <option value="lmstudio">🖥️ LM Studio</option>
+          <option value="openai">🤖 OpenAI API</option>
+        </select>
+        <div id="aiStatus" class="status-indicator info">Ready to Connect</div>
+      </div>
+      
+      <!-- Deep Research -->
+      <div class="control-group">
+        <label>Deep Research</label>
+        <input type="text" id="researchTopic" placeholder="Enter research topic...">
+        <button id="startResearch" class="btn secondary">Start Research</button>
+        <select id="researchDepth">
+          <option value="quick">Quick Analysis</option>
+          <option value="comprehensive">Comprehensive</option>
+          <option value="detailed">Detailed Study</option>
+        </select>
+      </div>
+      
+      <!-- Document Management -->
+      <div class="control-group">
+        <label>Document Store (RAG)</label>
+        <button id="uploadDocuments" class="btn" disabled>📄 Upload Documents</button>
+        <button id="manageDocuments" class="btn">📚 Manage Store</button>
+        <div id="vectorStatus" class="status-indicator info">Vector Store Ready</div>
+      </div>
+      
+      <!-- TimeCapsule Management -->
+      <div class="control-group">
+        <label>TimeCapsules</label>
+        <button id="exportTimeCapsule" class="btn secondary">💾 Export Session</button>
+        <button id="loadTimeCapsule" class="btn secondary">📂 Load Session</button>
+        <input type="file" id="loadTimeCapsuleInput" accept=".json" class="hidden">
+        <input type="file" id="documentInput" multiple accept=".txt,.md,.js,.py,.html,.css,.json,.pdf,.doc,.docx" class="hidden">
+      </div>
+      
+      <!-- Session Controls -->
+      <div class="control-group">
+        <label>Session</label>
+        <button id="clearChat" class="btn">🗑️ Clear Chat</button>
+        <button id="clearAll" class="btn">🔄 Reset All</button>
+      </div>
+      
+      <!-- Usage Agreement & Terms Section -->
+      <div class="control-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <button id="agreementStatusBtn" class="btn secondary" style="padding: 8px 12px; font-size: 12px; cursor: pointer;">
+          📋 Usage Agreement & Terms
+        </button>
+        <div id="agreementStatus" style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 5px; text-align: center;">
+          Status: Not Reviewed
+        </div>
+      </div>
+      
+      <!-- Creator Attribution -->
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center;">
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">
+          Created by
+        </div>
+        <a href="https://x.com/thefirehacker" target="_blank" style="
+          color: rgba(255,255,255,0.8); 
+          text-decoration: none; 
+          font-size: 12px; 
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: all 0.3s ease;
+        " 
+        onmouseover="
+          this.style.background='rgba(255,255,255,0.1)'; 
+          this.style.borderColor='rgba(255,255,255,0.2)';
+          this.style.color='white';
+          this.style.transform='translateY(-1px)';
+        " 
+        onmouseout="
+          this.style.background='rgba(255,255,255,0.05)'; 
+          this.style.borderColor='rgba(255,255,255,0.1)';
+          this.style.color='rgba(255,255,255,0.8)';
+          this.style.transform='translateY(0)';
+        ">
+          🧙‍♂️ FireHacker
+        </a>
+      </div>
+    </div>
+    
+    <!-- Main Display Area -->
+    <div class="main-display">
+      <div class="display-content" id="displayContent">
+        <div class="empty-state">
+          <h2>🚀 Welcome to AI Playground</h2>
+          <p>
+            This is your space to interact with AI Personas, conduct deep research, and chat with your documents using RAG.
+            <br><br>
+            <strong>Get Started:</strong>
+            <br>• Connect your AI assistant
+            <br>• Upload documents for RAG-powered chat
+            <br>• Start a research topic
+            <br>• Begin chatting below
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Chat Interface -->
+    <div class="chat-interface">
+      <textarea id="chatInput" class="chat-input" placeholder="Chat with AI, ask about your documents, or discuss research findings..." rows="1"></textarea>
+      <button id="chatSend" class="chat-send">Send</button>
+    </div>
+  </div>
+
+  <!-- Configuration and Analytics -->
+  <script src="config.js"></script>
+  
+  <!-- Load Dependencies -->
+  <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
+  <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
+  <script src="lib/Pages/DeepResearch/vector-store.js"></script>
+  
+  <!-- Load Shared RAG System -->
+  <script src="lib/Pages/shared/rag-system.js"></script>
+  
+  <!-- Load User Agreement Module -->
+  <script src="lib/useragreement/agreement.js"></script>
+  
+  <!-- Load Modular Playground Components -->
+  <script src="lib/Pages/Playground/search.js"></script>
+  <script src="lib/Pages/Playground/playground.js"></script>
+  
+  <!-- Initialize Application -->
+  <script>
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      window.playgroundApp = new PlaygroundApp();
+    });
+  </script>
+</body>
+</html>
