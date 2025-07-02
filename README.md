@@ -601,7 +601,7 @@ curl http://localhost:11434/api/tags
 
 | Model | Size | Best For | Performance |
 |-------|------|----------|-------------|
-| **Qwen2.5-7B-Instruct** | ~4GB | Research analysis, detailed coding responses | 🌟🌟🌟🌟🌟 |
+| **Qwen3 0.6B** | ~500MB | Research analysis, detailed coding responses | 🌟🌟🌟🌟🌟 |
 
 ---
 
@@ -707,33 +707,180 @@ curl http://localhost:11434/api/tags
 
 <div align="center">
 
+<img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=28&pause=1000&color=667EEA&background=FFFFFF00&center=true&vCenter=true&width=600&lines=Created+with+%E2%9D%A4%EF%B8%8F+by+FireHacker;AI-Powered+Research+%26+Creativity;Join+Our+Growing+Community!" alt="Typing SVG" />
+
 ### 🧙‍♂️ **Created with ❤️ by [FireHacker](https://x.com/thefirehacker)**
 
-**Made for researchers, creators, developers, and digital artists worldwide**
+**🌍 Made for researchers, creators, developers, and digital artists worldwide**
 
-[![Twitter Follow](https://img.shields.io/twitter/follow/thefirehacker?style=social)](https://x.com/thefirehacker)
-[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/TimeCapsule-SLM?style=social)](https://github.com/thefirehacker/TimeCapsule-SLM)
-[![Discord](https://img.shields.io/badge/💬_Join-Discord_Community-7289da?style=for-the-badge)](https://discord.gg/ExQ8fCv9)
+<table>
+<tr>
+<td align="center" width="33%">
 
----
+[![Twitter Follow](https://img.shields.io/twitter/follow/thefirehacker?style=for-the-badge&logo=twitter&logoColor=white&color=1DA1F2)](https://x.com/thefirehacker)
 
-## 💬 **Support & Community**
+**🐦 Follow @thefirehacker**
 
-<div align="center">
+</td>
+<td align="center" width="33%">
 
-**Need Help? We're Here for You!**
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 12px; border: 2px solid #FFD700;">
 
-🎧 **Join our Discord Community**: [discord.gg/ExQ8fCv9](https://discord.gg/ExQ8fCv9)  
-📧 **Email Support**: [support@bubblspace.com](mailto:support@bubblspace.com)  
-🐛 **Report Issues**: [GitHub Issues](https://github.com/thefirehacker/TimeCapsule-SLM/issues)  
-📚 **Documentation**: [Main README](README.md) • [Docker Guide](DOCKER.md)  
+[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/TimeCapsule-SLM?style=for-the-badge&logo=github&logoColor=white&color=gold&labelColor=333)](https://github.com/thefirehacker/TimeCapsule-SLM)
 
-*Get help with setup, AI integration, research workflows, and more!*
+**⭐ STAR THIS PROJECT ⭐**
+
+*Help us reach 100 stars!*
+
+</div>
+
+</td>
+<td align="center" width="33%">
+
+[![Discord](https://img.shields.io/badge/💬_Join-Discord_Community-7289da?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/ExQ8fCv9)
+
+**🎮 Discord Community**
+
+</td>
+</tr>
+</table>
 
 </div>
 
 ---
 
-*⭐ If you found this project helpful, please give it a star! ⭐*
+<div align="center">
+
+## 💬 **Support & Community**
+
+<img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=500&size=22&pause=1000&color=4FACFE&background=FFFFFF00&center=true&vCenter=true&width=500&lines=Need+Help%3F+We're+Here+for+You!;Join+Our+Amazing+Community!;Get+Expert+AI+Support!" alt="Support Typing SVG" />
+
+<table>
+<tr>
+<td width="25%" align="center">
+
+### 🎧 **Discord Community**
+
+[![Discord](https://img.shields.io/discord/1234567890?style=for-the-badge&logo=discord&logoColor=white&color=7289da&label=JOIN%20DISCORD)](https://discord.gg/ExQ8fCv9)
+
+**Real-time help & discussions**  
+Connect with fellow researchers!
+
+[💬 **discord.gg/ExQ8fCv9**](https://discord.gg/ExQ8fCv9)
+
+</td>
+<td width="25%" align="center">
+
+### 📧 **Email Support**
+
+[![Email](https://img.shields.io/badge/📧_Email-Support-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:support@bubblspace.com)
+
+**Direct technical assistance**  
+Professional support team
+
+[📧 **support@bubblspace.com**](mailto:support@bubblspace.com)
+
+</td>
+<td width="25%" align="center">
+
+### 🐛 **Report Issues**
+
+[![GitHub Issues](https://img.shields.io/github/issues/thefirehacker/TimeCapsule-SLM?style=for-the-badge&logo=github&logoColor=white&color=333)](https://github.com/thefirehacker/TimeCapsule-SLM/issues)
+
+**Bug reports & feature requests**  
+Help improve the platform
+
+[🔧 **GitHub Issues**](https://github.com/thefirehacker/TimeCapsule-SLM/issues)
+
+</td>
+<td width="25%" align="center">
+
+### 📚 **Documentation**
+
+[![Docs](https://img.shields.io/badge/📚_Full-Documentation-4285f4?style=for-the-badge&logo=readme&logoColor=white)](README.md)
+
+**Complete guides & tutorials**  
+Everything you need to know
+
+[📖 **View Docs**](README.md) • [🐳 **Docker**](DOCKER.md)
+
+</td>
+</tr>
+</table>
+
+### 🆘 **Get Help With:**
+🔧 **Setup & Installation** • 🤖 **AI Integration** • 🔬 **Research Workflows** • 📚 **Document Management** • 🎮 **Creative Coding** • 🔄 **TimeCapsule Sharing** • 🐛 **Troubleshooting**
+
+---
+
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; border: 3px solid #FFD700; margin: 20px 0;">
+
+### ⭐ **LOVE THIS PROJECT? GIVE IT A STAR!** ⭐
+
+<table>
+<tr>
+<td width="60%" align="center">
+
+[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/TimeCapsule-SLM?style=for-the-badge&logo=github&logoColor=white&color=gold&labelColor=333&label=⭐%20STARS)](https://github.com/thefirehacker/TimeCapsule-SLM)
+
+**🎯 Help us reach 100 stars and unlock new features!**
+
+</td>
+<td width="40%" align="center">
+
+[![Star on GitHub](https://img.shields.io/badge/🌟_Click_to-STAR_NOW-FFD700?style=for-the-badge&logo=github&logoColor=333)](https://github.com/thefirehacker/TimeCapsule-SLM)
+
+**⚡ Just one click makes a huge difference!**
+
+</td>
+</tr>
+</table>
+
+**🙏 Your star helps more developers discover TimeCapsule-SLM and supports continued development!**
+
+</div>
+
+### 🤝 **Join Our Growing Community**
+
+<table>
+<tr>
+<td width="33%" align="center">
+
+**🌟 Star Gazers**  
+Join our amazing community of developers
+
+[![GitHub stars](https://img.shields.io/github/stars/thefirehacker/TimeCapsule-SLM?style=for-the-badge&logo=github&logoColor=white&color=gold&labelColor=333&label=⭐%20STARGAZERS)](https://github.com/thefirehacker/TimeCapsule-SLM/stargazers)
+
+[![View Stargazers](https://img.shields.io/badge/👥_View-All_Stargazers-FFD700?style=for-the-badge&logo=github&logoColor=333)](https://github.com/thefirehacker/TimeCapsule-SLM/stargazers)
+
+</td>
+<td width="33%" align="center">
+
+**🍴 Contributors**  
+Be part of the development journey
+
+[![Contributors](https://img.shields.io/github/contributors/thefirehacker/TimeCapsule-SLM?style=for-the-badge&logo=github&logoColor=white&color=blue&labelColor=333)](https://github.com/thefirehacker/TimeCapsule-SLM/graphs/contributors)
+
+[![Contribute](https://img.shields.io/badge/🤝_Start-Contributing-4285f4?style=for-the-badge&logo=github&logoColor=white)](https://github.com/thefirehacker/TimeCapsule-SLM/contribute)
+
+</td>
+<td width="33%" align="center">
+
+**📈 Project Stats**  
+Growing stronger every day
+
+[![GitHub Activity](https://img.shields.io/github/commit-activity/m/thefirehacker/TimeCapsule-SLM?style=for-the-badge&logo=github&color=green&logoColor=white&labelColor=333)](https://github.com/thefirehacker/TimeCapsule-SLM/graphs/commit-activity)
+
+[![Issues & PRs](https://img.shields.io/badge/📊_View-Project_Stats-28a745?style=for-the-badge&logo=github&logoColor=white)](https://github.com/thefirehacker/TimeCapsule-SLM/pulse)
+
+</td>
+</tr>
+</table>
+
+</div>
+
+---
+
+**💫 Thank you for being part of the TimeCapsule-SLM community! Together, we're revolutionizing AI-powered research and creativity. 💫**
 
 </div>
