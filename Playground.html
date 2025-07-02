@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <!-- Load Common Meta Configuration -->
-  <script src="lib/common-meta.js"></script>
+  <script src="lib/common-meta.js?v=2025010302"></script>
   <script>
     document.write(`
     <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
@@ -29,6 +29,15 @@
           console.log('⏳ Loading Transformers.js for RAG system...');
           window.transformers = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
           console.log('✅ Transformers.js loaded successfully');
+          
+          // Configure Transformers.js environment for browser use
+          if (window.transformers.env) {
+            window.transformers.env.allowRemoteModels = true;
+            window.transformers.env.allowLocalModels = false;
+            window.transformers.env.remoteURL = 'https://huggingface.co/';
+            window.transformers.env.localURL = null; // Disable local models
+            console.log('🔧 Transformers.js configured for remote models only');
+          }
           
           // Signal that Transformers.js is ready
           window.dispatchEvent(new CustomEvent('transformersLoaded'));
@@ -371,10 +380,18 @@
     }
     
     .status-indicator.error {
-      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%) !important;
-      color: white !important;
-      border: 1px solid rgba(255, 65, 108, 0.3) !important;
-      box-shadow: 0 2px 8px rgba(255, 65, 108, 0.2);
+      background: linear-gradient(135deg, rgba(255, 152, 0, 0.2) 0%, rgba(255, 193, 7, 0.15) 100%) !important;
+      color: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid rgba(255, 152, 0, 0.4) !important;
+      box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15);
+      position: relative;
+    }
+    
+    .status-indicator.error::before {
+      content: '⚠️';
+      font-size: 16px;
+      margin-right: 6px;
+      vertical-align: middle;
     }
     
     .status-indicator.info {
@@ -803,7 +820,7 @@
   <script src="config.js"></script>
   
   <!-- Load Dependencies -->
-  <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
+  <script src="lib/AIAssistant/AIAssistant-Backend.js?v=2025010301"></script>
   <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
   <script src="lib/Pages/DeepResearch/vector-store.js"></script>
   
