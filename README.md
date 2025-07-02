@@ -217,6 +217,7 @@ OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollam
 <div align="center">
 
 ### 🎯 **Local AI Power + Privacy First**
+**Complete platform-specific setup guides for macOS, Linux & Windows**
 
 </div>
 
@@ -244,55 +245,311 @@ OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollam
 </tr>
 </table>
 
-### 📋 **Complete Setup Guide**
+---
 
-> **🚨 CRITICAL REQUIREMENT**: You **MUST** enable CORS for Ollama to work with TimeCapsule-SLM.
+## 🍎 **macOS Setup Guide**
 
-**Step 1:** 📥 **Install Ollama**
+### 📥 **Step 1: Install Ollama**
 ```bash
-# Download from https://ollama.ai and install
-# Or use package manager:
-# macOS: brew install ollama
-# Linux: curl -fsSL https://ollama.ai/install.sh | sh
+# Method 1: Direct download (recommended)
+# Download from https://ollama.ai and install .app
+
+# Method 2: Homebrew
+brew install ollama
 ```
 
-**Step 2:** 🤖 **Pull a Model** (Choose one)
+### 🤖 **Step 2: Pull a Model**
 ```bash
 # Recommended: Fast and efficient
 ollama pull qwen3:0.6b
-
 ```
 
-**Step 3:** 🔧 **Start Ollama with CORS** (**CRITICAL STEP**)
+### 🔧 **Step 3: Start with CORS** (**CRITICAL**)
 ```bash
-# Method 1: Inline configuration (recommended)
-OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollama serve
+# Kill any existing processes first
+pkill -f ollama
 
-# Method 2: Export then serve
-export OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000"
-ollama serve
+# Start with CORS enabled (for testing)
+OLLAMA_ORIGINS="*" ollama serve
+
+# For production (recommended)
+OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollama serve
 ```
 
-**Step 4:** 💊 **Connect in TimeCapsule** - Select "🦙 Ollama" from AI provider dropdown  
-**Step 5:** 🔌 **Click Connect** - TimeCapsule will auto-detect your model  
+### 🔧 **macOS Troubleshooting**
 
-### 🎯 **Recommended Models**
+**❌ "Operation not permitted" Error:**
+```bash
+# Method 1: Use sudo
+sudo pkill -f ollama
+
+# Method 2: Activity Monitor (GUI)
+# 1. Open Activity Monitor (Applications → Utilities)
+# 2. Search for "ollama"
+# 3. Select process and click "Force Quit"
+
+# Method 3: Homebrew service (if installed via brew)
+brew services stop ollama
+brew services start ollama
+```
+
+**❌ CORS Issues:**
+```bash
+# 1. Stop Ollama completely
+sudo pkill -f ollama
+
+# 2. Wait 3 seconds
+sleep 3
+
+# 3. Start with CORS
+OLLAMA_ORIGINS="*" ollama serve
+
+# 4. Test connection
+curl http://localhost:11434/api/tags
+```
+
+---
+
+## 🐧 **Linux Setup Guide**
+
+### 📥 **Step 1: Install Ollama**
+```bash
+# Official installer (recommended)
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Or download directly from https://ollama.ai
+```
+
+### 🤖 **Step 2: Pull a Model**
+```bash
+# Recommended model
+ollama pull qwen3:0.6b
+```
+
+### 🔧 **Step 3: Configure CORS with systemctl** (**CRITICAL**)
+
+**For systemd-based Linux distributions (Ubuntu, Debian, CentOS, etc.):**
+
+```bash
+# 1. Stop any running Ollama instances
+ps aux | grep ollama
+sudo pkill -f ollama
+
+# 2. Edit the ollama service configuration
+sudo systemctl edit ollama.service
+
+# 3. Add the following environment variables:
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0"
+Environment="OLLAMA_ORIGINS=*"
+
+# For production, use specific origins:
+# Environment="OLLAMA_ORIGINS=https://timecapsule.bubblspace.com/,http://localhost:3000"
+
+# 4. Save and exit the editor (Ctrl+X, then Y, then Enter)
+
+# 5. Reload systemd and restart ollama service
+sudo systemctl daemon-reload
+sudo systemctl restart ollama.service
+
+# 6. Enable auto-start on boot (optional)
+sudo systemctl enable ollama.service
+
+# 7. Verify the service is running
+sudo systemctl status ollama.service
+
+# 8. Test the connection
+curl http://localhost:11434/api/tags
+```
+
+**Alternative: Manual start (if not using systemd):**
+```bash
+# Stop any existing processes
+sudo pkill -f ollama
+
+# Start manually with CORS
+OLLAMA_ORIGINS="*" ollama serve
+
+# Or for production:
+# OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000" ollama serve
+```
+
+### 🔧 **Linux Troubleshooting**
+
+**❌ Service Issues:**
+```bash
+# Check service logs
+sudo journalctl -u ollama.service -f
+
+# Restart service
+sudo systemctl restart ollama.service
+
+# Check service status
+sudo systemctl status ollama.service
+```
+
+**❌ Permission Issues:**
+```bash
+# Stop with elevated permissions
+sudo pkill -f ollama
+
+# Check for lingering processes
+ps aux | grep ollama
+
+# Force kill if needed
+sudo kill -9 $(pgrep ollama)
+```
+
+**❌ CORS Configuration:**
+```bash
+# Verify environment variables are set
+sudo systemctl show ollama.service | grep Environment
+
+# If not set, re-edit the service:
+sudo systemctl edit ollama.service
+# Add Environment variables as shown above
+sudo systemctl daemon-reload
+sudo systemctl restart ollama.service
+```
+
+**📚 Reference:** [Ollama CORS Configuration Guide](https://objectgraph.com/blog/ollama-cors/)
+
+---
+
+## 🪟 **Windows Setup Guide**
+
+### 📥 **Step 1: Install Ollama**
+```powershell
+# Download from https://ollama.ai and install the .exe
+# Or use package manager (if available)
+```
+
+### 🤖 **Step 2: Pull a Model**
+```powershell
+# Open Command Prompt or PowerShell
+ollama pull qwen3:0.6b
+```
+
+### 🔧 **Step 3: Start with CORS** (**CRITICAL**)
+```powershell
+# Method 1: Stop existing processes
+taskkill /f /im ollama.exe
+
+# Method 2: Start with CORS (Command Prompt)
+set OLLAMA_ORIGINS=* && ollama serve
+
+# Method 3: Start with CORS (PowerShell)
+$env:OLLAMA_ORIGINS="*"; ollama serve
+
+# For production (specific origins):
+# $env:OLLAMA_ORIGINS="https://timecapsule.bubblspace.com/,http://localhost:3000"; ollama serve
+```
+
+### 🔧 **Windows Troubleshooting**
+
+**❌ Process Issues:**
+```powershell
+# Method 1: Task Manager (GUI)
+# 1. Open Task Manager (Ctrl+Shift+Esc)
+# 2. Look for "ollama.exe" in Processes tab
+# 3. Right-click and select "End task"
+
+# Method 2: Command line
+taskkill /f /im ollama.exe
+
+# Method 3: Find by port
+netstat -ano | findstr :11434
+# Note the PID and kill it:
+taskkill /f /pid <PID>
+```
+
+**❌ CORS Issues:**
+```powershell
+# 1. Stop all ollama processes
+taskkill /f /im ollama.exe
+
+# 2. Wait 3 seconds
+timeout /t 3
+
+# 3. Start with CORS
+$env:OLLAMA_ORIGINS="*"; ollama serve
+
+# 4. Test connection (if curl is available)
+curl http://localhost:11434/api/tags
+```
+
+**❌ Environment Variables:**
+```powershell
+# Set permanently (requires restart)
+setx OLLAMA_ORIGINS "*"
+
+# Set for current session only
+$env:OLLAMA_ORIGINS="*"
+```
+
+---
+
+## 🎯 **Universal Commands & Verification**
+
+### 🧪 **Test Your Setup**
+```bash
+# 1. Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# 2. List installed models
+ollama list
+
+# 3. Test model response
+curl http://localhost:11434/api/generate -d '{
+  "model": "qwen3:0.6b",
+  "prompt": "Hello",
+  "stream": false
+}'
+```
+
+### 📦 **Recommended Models**
 
 | Model | Size | Best For | Performance |
 |-------|------|----------|-------------|
-| **qwen3:0.6b** | ~400MB | Fast responses, quick generation | 🌟🌟🌟🌟⭐ |
+| **qwen3:0.6b** | ~400MB | Fast responses, testing | 🌟🌟🌟🌟⭐ |
+| **qwen2.5:3b** | ~2GB | Balanced quality/speed | 🌟🌟🌟🌟🌟 |
+| **llama3.2:3b** | ~2GB | General purpose | 🌟🌟🌟⭐⭐ |
 
-### 🔧 **Troubleshooting**
+```bash
+# Pull additional models:
+ollama pull qwen2.5:3b
+ollama pull llama3.2:3b
+```
 
-**❌ "CORS Policy Error"** *(Most Common Issue)*
-- ✅ **Enable CORS**: Set `OLLAMA_ORIGINS` environment variable
-- ✅ **Restart Ollama**: Stop and restart after enabling CORS
-- ✅ **Verify Origins**: Check your domain is included
+### 🆘 **Universal Reset (All Platforms)**
 
-**❌ "Connection failed"**
-- ✅ Make sure Ollama is running: `ollama serve`
-- ✅ Check port 11434 is available
-- ✅ Ensure CORS is configured
+**If everything fails, complete reset:**
+```bash
+# 1. Stop all Ollama processes
+# macOS/Linux: sudo pkill -f ollama
+# Windows: taskkill /f /im ollama.exe
+
+# 2. Wait 5 seconds
+sleep 5  # macOS/Linux
+# timeout /t 5  # Windows
+
+# 3. Start fresh with CORS
+OLLAMA_ORIGINS="*" ollama serve
+# Windows PowerShell: $env:OLLAMA_ORIGINS="*"; ollama serve
+
+# 4. Pull a model (in new terminal)
+ollama pull qwen3:0.6b
+
+# 5. Test setup
+curl http://localhost:11434/api/tags
+```
+
+> **💡 Pro Tips**: 
+> - **Linux Users:** Use systemctl for persistent CORS configuration
+> - **macOS Users:** Use Activity Monitor for stubborn processes
+> - **Windows Users:** Use Task Manager or PowerShell for process management
+> - **All Platforms:** Use `OLLAMA_ORIGINS="*"` for testing, then restrict to specific domains
+> - **Always verify** your setup with: `curl http://localhost:11434/api/tags`
 
 ---
 

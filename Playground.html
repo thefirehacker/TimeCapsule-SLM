@@ -357,26 +357,32 @@
       margin: 10px 0;
       position: relative;
       z-index: 1;
+      transition: all 0.3s ease;
     }
     
     .status-indicator.success {
       background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
       color: white;
+      border: 1px solid rgba(86, 171, 47, 0.3);
     }
     
     .status-indicator.warning {
       background: linear-gradient(45deg, #ffa751 0%, #ffe259 100%);
       color: #333;
+      border: 1px solid rgba(255, 167, 81, 0.3);
     }
     
     .status-indicator.error {
-      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%);
-      color: white;
+      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%) !important;
+      color: white !important;
+      border: 1px solid rgba(255, 65, 108, 0.3) !important;
+      box-shadow: 0 2px 8px rgba(255, 65, 108, 0.2);
     }
     
     .status-indicator.info {
       background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
       color: white;
+      border: 1px solid rgba(79, 172, 254, 0.3);
     }
     
     /* Loading animation */
@@ -435,6 +441,231 @@
     /* Hidden file input */
     .hidden {
       display: none;
+    }
+    
+    /* Troubleshooting Modal Styles */
+    .troubleshooting-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 5000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+      opacity: 1;
+    }
+    
+    .troubleshooting-content {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      color: white;
+      position: relative;
+    }
+    
+    .troubleshooting-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .troubleshooting-header h2 {
+      margin: 0;
+      color: #ff6b6b;
+      font-size: 24px;
+    }
+    
+    .close-modal {
+      background: rgba(255, 69, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 35px;
+      height: 35px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    
+    .close-modal:hover {
+      background: rgba(255, 69, 0, 0.9);
+      transform: scale(1.1);
+    }
+    
+    .error-details {
+      background: rgba(255, 69, 0, 0.1);
+      border: 1px solid rgba(255, 69, 0, 0.3);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .error-details p {
+      margin: 0;
+      color: #ff6b6b;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    .troubleshooting-steps h3 {
+      color: #4facfe;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    
+    .command-group {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .command-group h4 {
+      color: #fff;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .command-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .command-box code {
+      flex: 1;
+      color: #00ff88;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 14px;
+      background: transparent;
+      padding: 0;
+    }
+    
+    .copy-btn {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .copy-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(79, 172, 254, 0.4);
+    }
+    
+    .command-note {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      margin: 5px 0;
+      font-style: italic;
+    }
+    
+    .troubleshooting-checklist {
+      margin: 20px 0;
+      padding: 15px;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      border-radius: 10px;
+    }
+    
+    .troubleshooting-checklist h3 {
+      color: #4caf50;
+      margin-bottom: 10px;
+    }
+    
+    .troubleshooting-checklist ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .troubleshooting-checklist li {
+      color: rgba(255, 255, 255, 0.8);
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    
+    .troubleshooting-checklist a {
+      color: #4facfe;
+      text-decoration: none;
+    }
+    
+    .troubleshooting-checklist a:hover {
+      text-decoration: underline;
+    }
+    
+    .troubleshooting-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .troubleshooting-actions .btn {
+      flex: 1;
+      min-width: 120px;
+      margin: 0;
+    }
+    
+    /* Connection Status Banner */
+    .connection-status-banner {
+      padding: 15px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .connection-status-banner.success {
+      background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
+      color: white;
+      border: 1px solid rgba(86, 171, 47, 0.3);
+      box-shadow: 0 4px 15px rgba(86, 171, 47, 0.2);
+    }
+    
+    .connection-status-banner.error {
+      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%);
+      color: white;
+      border: 1px solid rgba(255, 65, 108, 0.3);
+      box-shadow: 0 4px 15px rgba(255, 65, 108, 0.2);
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   </style>
 </head>
