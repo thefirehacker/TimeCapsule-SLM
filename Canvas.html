@@ -2,20 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
-  <!-- Note: Amplify server headers take precedence when deployed -->
-  <meta http-equiv="Content-Security-Policy" content="
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
-    style-src 'self' 'unsafe-inline' https: data:;
-    connect-src 'self' https: wss: http://localhost:1234 http://localhost:11434;
-    img-src 'self' data: https: blob:;
-    font-src 'self' data: https:;
-    worker-src 'self' blob: data:;
-    object-src 'none';
-  ">
-  <title>Canvas - TimeCapsule-SLM</title>
-  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
-  <link rel="shortcut icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
+  <!-- Load Common Meta Configuration -->
+  <script src="lib/common-meta.js"></script>
+  <script>
+    document.write(`
+    <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
+    <meta http-equiv="Content-Security-Policy" content="${COMMON_META.csp}">
+    <title>Canvas - ${COMMON_META.appSuffix}</title>
+    <link rel="icon" type="image/png" href="${COMMON_META.favicon}">
+    <link rel="shortcut icon" type="image/png" href="${COMMON_META.favicon}">
+    `);
+  </script>
   <style>
     * {
       margin: 0;
@@ -2013,11 +2010,25 @@ When user asks for something, generate creative, compact p5.js code that creates
               <h2 style="color: white; margin-bottom: 20px; text-align: center;">🦙 Ollama Connection</h2>
             
             <div style="margin-bottom: 20px;">
-                <button id="connectOllama" class="ai-option-btn">
-                  🔌 Connect to Ollama
+              <label style="color: white; display: block; margin-bottom: 8px; font-weight: 600;">Ollama Server URL:</label>
+              <input 
+                type="text" 
+                id="ollamaUrl" 
+                value="http://localhost:11434"
+                placeholder="http://localhost:11434"
+                style="width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.3); 
+                       border-radius: 8px; background: rgba(255,255,255,0.1); color: white; 
+                       font-size: 14px; margin-bottom: 10px;"
+              />
+              <p style="color: rgba(255,255,255,0.7); font-size: 11px; margin-bottom: 15px;">
+                💡 Examples: http://localhost:11434, http://192.168.1.100:11434, https://my-ollama-server.com
+              </p>
+              
+              <button id="connectOllama" class="ai-option-btn">
+                🔌 Connect to Ollama
               </button>
               <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px;">
-                  Connects to Ollama running on localhost:11434
+                  Will connect to the URL specified above
               </p>
             </div>
               
@@ -2257,9 +2268,27 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateStatus('🦙 Connecting to Ollama...');
         document.getElementById('aiStatus').textContent = 'AI: Connecting to Ollama...';
         
+        // Get custom URL from input field, fallback to default
+        let ollamaUrl = 'http://localhost:11434';
+        const urlInput = document.getElementById('ollamaUrl');
+        if (urlInput && urlInput.value.trim()) {
+          ollamaUrl = urlInput.value.trim();
+          // Ensure URL doesn't end with slash
+          if (ollamaUrl.endsWith('/')) {
+            ollamaUrl = ollamaUrl.slice(0, -1);
+          }
+          // Validate URL format
+          try {
+            new URL(ollamaUrl);
+          } catch (e) {
+            throw new Error(`Invalid URL format: ${ollamaUrl}. Please use format like http://localhost:11434`);
+          }
+        }
+        
+        console.log(`🔍 Attempting to connect to Ollama at: ${ollamaUrl}`);
+        
         // Test Ollama connection by fetching models
-        console.log('🔍 Testing Ollama connection...');
-        const testResponse = await fetch('http://localhost:11434/api/tags', {
+        const testResponse = await fetch(`${ollamaUrl}/api/tags`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -2269,7 +2298,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         
         if (!testResponse.ok) {
           console.error('❌ Ollama connection test failed:', testResponse.status, testResponse.statusText);
-          throw new Error(`Ollama connection failed: ${testResponse.status} ${testResponse.statusText}. Make sure Ollama is running on port 11434.`);
+          throw new Error(`Ollama connection failed: ${testResponse.status} ${testResponse.statusText}. Make sure Ollama is running at ${ollamaUrl}.`);
         }
 
         const modelsData = await testResponse.json();
@@ -2292,7 +2321,7 @@ When user asks for something, generate creative, compact p5.js code that creates
           selectedModel = modelsData.models?.[0]?.name || 'qwen2.5:0.5b';
         }
         
-        aiSession = { type: 'ollama', model: selectedModel, baseURL: 'http://localhost:11434' };
+        aiSession = { type: 'ollama', model: selectedModel, baseURL: ollamaUrl };
         document.getElementById('aiStatus').textContent = `AI: Ollama (${selectedModel}) ✅`;
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = `🦙 Ollama Ready`;
@@ -2301,8 +2330,8 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateHeaderAIStatus();
         
         console.log(`🦙 Ollama session initialized successfully with model: ${selectedModel}`);
-        updateStatus(`🦙 Ollama connected successfully!`);
-        addChatMessage('system', `🦙 Ollama connected! Using model: ${selectedModel}. Fully local processing with GGUF models - no API costs.`);
+        updateStatus(`🦙 Ollama connected successfully at ${ollamaUrl}!`);
+        addChatMessage('system', `🦙 Ollama connected at ${ollamaUrl}! Using model: ${selectedModel}. Fully local processing with GGUF models - no API costs.`);
         
         // Track Ollama connection
         if (window.AppConfig) {
@@ -2314,7 +2343,7 @@ When user asks for something, generate creative, compact p5.js code that creates
         
         let errorMessage = `❌ Failed to connect to Ollama: ${error.message}`;
         if (error.message.includes('Failed to fetch')) {
-          errorMessage += `\n\n💡 Make sure Ollama is installed and running: \n1. Install Ollama from https://ollama.ai\n2. Run: ollama serve\n3. Pull a Qwen model: ollama pull qwen2.5:0.5b`;
+          errorMessage += `\n\n💡 Make sure Ollama is installed and running: \n1. Install Ollama from https://ollama.ai\n2. Run: ollama serve\n3. Pull a Qwen model: ollama pull qwen2.5:0.5b\n4. Ensure CORS is enabled with OLLAMA_ORIGINS`;
         }
         
         addChatMessage('system', errorMessage);

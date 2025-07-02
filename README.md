@@ -551,6 +551,22 @@ curl http://localhost:11434/api/tags
 > - **All Platforms:** Use `OLLAMA_ORIGINS="*"` for testing, then restrict to specific domains
 > - **Always verify** your setup with: `curl http://localhost:11434/api/tags`
 
+### 🌐 **Custom Ollama URL (Local Builds Only)**
+
+> **⚠️ Note**: Custom URLs only work in local builds, not hosted version.
+
+**Setup:**
+1. **Add URL to CSP**: Edit `/lib/common-meta.js` → add your URL to `connectSrc` array
+   ```javascript
+   'http://192.168.1.100:11434',  // Example: your Ollama server
+   ```
+
+2. **Use in App**: Click "Connect Ollama" → accept  agreement  → Enter custom URL in popup
+   - **DeepResearch**: Click "🦙 Connect Ollama" 
+   - **Playground**: Click "Connect AI" → Select Ollama
+
+**Examples**: `http://192.168.1.100:11434`, `http://localhost:9434`, `https://ollama.mydomain.com`
+
 ---
 
 ## 🏠 **LM Studio Integration**

@@ -2,19 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
-  <meta http-equiv="Content-Security-Policy" content="
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
-    style-src 'self' 'unsafe-inline' https: data:;
-    connect-src 'self' https: wss: http://localhost:1234 http://localhost:11434;
-    img-src 'self' data: https: blob:;
-    font-src 'self' data: https:;
-    worker-src 'self' blob: data:;
-    object-src 'none';
-  ">
-  <title>DeepResearch TimeCapsule - TimeCapsule-SLM</title>
-  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
-  <link rel="shortcut icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
+  <!-- Load Common Meta Configuration -->
+  <script src="lib/common-meta.js?v=2025010302"></script>
+  <script>
+    document.write(`
+    <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
+    <meta http-equiv="Content-Security-Policy" content="${COMMON_META.csp}">
+    <title>DeepResearch TimeCapsule - ${COMMON_META.appSuffix}</title>
+    <link rel="icon" type="image/png" href="${COMMON_META.favicon}">
+    <link rel="shortcut icon" type="image/png" href="${COMMON_META.favicon}">
+    `);
+  </script>
   
   <!-- Marked.js for Markdown rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -520,8 +518,17 @@
     }
     
     .ai-status.error {
-      background: rgba(244, 67, 54, 0.2);
-      border-color: rgba(244, 67, 54, 0.5);
+      background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%);
+      border: 1px solid rgba(255, 152, 0, 0.3);
+      color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+    }
+    
+    .ai-status.error::before {
+      content: '⚠️';
+      font-size: 18px;
+      margin-right: 8px;
+      vertical-align: middle;
     }
     
     .research-tabs {
@@ -1277,7 +1284,7 @@
   <!-- Scripts -->
   <script src="config.js"></script>
   <script src="lib/useragreement/agreement.js"></script>
-  <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
+  <script src="lib/AIAssistant/AIAssistant-Backend.js?v=2025010301"></script>
   
   <!-- Vector Store Dependencies (CDN for development) -->
   <!-- Load Transformers.js as ES module with proper handling -->
@@ -1298,8 +1305,9 @@
         // Configure for browser use
         if (transformersModule.env) {
           transformersModule.env.allowRemoteModels = true;
-          transformersModule.env.remoteURL = 'https://huggingface.co/';
           transformersModule.env.allowLocalModels = false;
+          transformersModule.env.remoteURL = 'https://huggingface.co/';
+          transformersModule.env.localURL = null; // Disable local models
         }
         
         console.log('✅ Transformers.js configured and available globally');
