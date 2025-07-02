@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Content Security Policy - Fallback for local development and non-Amplify deployments -->
+  <meta http-equiv="Content-Security-Policy" content="
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:;
+    style-src 'self' 'unsafe-inline' https: data:;
+    connect-src 'self' https: wss: http://localhost:1234 http://localhost:11434;
+    img-src 'self' data: https: blob:;
+    font-src 'self' data: https:;
+    worker-src 'self' blob: data:;
+    object-src 'none';
+  ">
+  <title>AI Playground - TimeCapsule-SLM</title>
+  <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
+  <link rel="shortcut icon" type="image/png" href="lib/Media/TimeCapsule_04.png">
+  
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Highlight.js for code syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  
+  <!-- Transformers.js for vector embeddings -->
+  <script type="module">
+    try {
+      window.transformers = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+      console.log('✅ Transformers.js loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to load Transformers.js:', error);
+      window.VECTOR_STORE_DISABLED = true;
+    }
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; 
+      overflow: hidden;
+      padding-top: 120px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      grid-template-rows: 140px 1fr 80px;
+      height: calc(100vh - 120px);
+      gap: 15px;
+      padding: 15px;
+      position: relative;
+    }
+    
+    .sidebar {
+      grid-row: 2;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+    
+    .sidebar h3 {
+      margin-bottom: 25px;
+      font-size: 20px;
+      color: #fff;
+      text-align: center;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .control-group {
+      margin-bottom: 25px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .control-group label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 14px;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px 18px;
+      margin: 10px 0;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn.primary {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+    }
+    
+    .btn.primary:hover {
+      box-shadow: 0 8px 25px rgba(250, 112, 154, 0.6);
+    }
+    
+    .btn.secondary {
+      background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+      color: #333;
+      box-shadow: 0 4px 15px rgba(168, 237, 234, 0.4);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    select, input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      color: white;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+    
+    select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: rgba(79, 172, 254, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+    }
+    
+    select option {
+      background: #333;
+      color: white;
+    }
+    
+    .main-display {
+      grid-row: 2;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .chat-interface {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 20px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .chat-input {
+      flex: 1;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 15px;
+      color: white;
+      font-size: 16px;
+      font-family: inherit;
+      resize: none;
+      transition: all 0.3s ease;
+    }
+    
+    .chat-input:focus {
+      outline: none;
+      border-color: rgba(79, 172, 254, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+    }
+    
+    .chat-input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .chat-send {
+      padding: 15px 25px;
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    .chat-send:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+    }
+    
+    .chat-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* Display content styling */
+    .display-content {
+      height: 100%;
+      position: relative;
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .empty-state h2 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      color: white;
+    }
+    
+    .empty-state p {
+      font-size: 1.2em;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+    
+    /* Chat messages styling */
+    .chat-messages {
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    
+    .chat-message {
+      margin-bottom: 20px;
+      padding: 15px 20px;
+      border-radius: 15px;
+      position: relative;
+    }
+    
+    .chat-message.user {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      margin-left: 20%;
+    }
+    
+    .chat-message.assistant {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      margin-right: 20%;
+    }
+    
+    .chat-message.system {
+      background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+      text-align: center;
+    }
+    
+    .message-content {
+      color: white;
+      line-height: 1.6;
+    }
+    
+    .message-content pre {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+    
+    .message-content code {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    /* Status indicators */
+    .status-indicator {
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 10px 0;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .status-indicator.success {
+      background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
+      color: white;
+    }
+    
+    .status-indicator.warning {
+      background: linear-gradient(45deg, #ffa751 0%, #ffe259 100%);
+      color: #333;
+    }
+    
+    .status-indicator.error {
+      background: linear-gradient(45deg, #ff416c 0%, #ff4b2b 100%);
+      color: white;
+    }
+    
+    .status-indicator.info {
+      background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+    }
+    
+    /* Loading animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+         /* Mobile responsiveness */
+     @media (max-width: 768px) {
+       body {
+         padding-top: 80px;
+       }
+       
+       .container {
+         grid-template-columns: 1fr;
+         grid-template-rows: auto auto 1fr auto;
+         height: calc(100vh - 80px);
+       }
+       
+       .sidebar {
+         order: 2;
+         grid-row: 2;
+         max-height: 200px;
+       }
+       
+       .main-display {
+         order: 3;
+         grid-row: 3;
+       }
+       
+       .chat-interface {
+         order: 4;
+         grid-row: 4;
+         grid-column: 1;
+       }
+       
+       .chat-message.user {
+         margin-left: 10%;
+       }
+       
+       .chat-message.assistant {
+         margin-right: 10%;
+       }
+     }
+    
+    /* Hidden file input */
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- BubblSpace Navigation Component -->
+  <div id="bubblspace-navbar"></div>
+  <script src="lib/Pages/components/bubblspace-navbar.js"></script>
+  
+  <!-- Second Navbar Component -->
+  <script src="lib/Pages/components/second-navbar.js"></script>
+  
+  <div class="container">
+    <!-- Sidebar Controls -->
+    <div class="sidebar">
+      <h3>🎮 AI Playground</h3>
+      
+      <!-- AI Connection -->
+      <div class="control-group">
+        <label>AI Assistant</label>
+        <button id="connectAI" class="btn primary">Connect AI</button>
+        <select id="aiProviderSelect">
+          <option value="ollama">🦙 Ollama (Local)</option>
+          <option value="lmstudio">🖥️ LM Studio</option>
+          <option value="openai">🤖 OpenAI API</option>
+        </select>
+        <div id="aiStatus" class="status-indicator info">Ready to Connect</div>
+      </div>
+      
+      <!-- Deep Research -->
+      <div class="control-group">
+        <label>Deep Research</label>
+        <input type="text" id="researchTopic" placeholder="Enter research topic...">
+        <button id="startResearch" class="btn secondary">Start Research</button>
+        <select id="researchDepth">
+          <option value="quick">Quick Analysis</option>
+          <option value="comprehensive">Comprehensive</option>
+          <option value="detailed">Detailed Study</option>
+        </select>
+      </div>
+      
+      <!-- Document Management -->
+      <div class="control-group">
+        <label>Document Store (RAG)</label>
+        <button id="uploadDocuments" class="btn">📄 Upload Documents</button>
+        <button id="manageDocuments" class="btn">📚 Manage Store</button>
+        <div id="vectorStatus" class="status-indicator info">Vector Store Ready</div>
+      </div>
+      
+      <!-- TimeCapsule Management -->
+      <div class="control-group">
+        <label>TimeCapsules</label>
+        <button id="exportTimeCapsule" class="btn secondary">💾 Export Session</button>
+        <button id="loadTimeCapsule" class="btn secondary">📂 Load Session</button>
+        <input type="file" id="loadTimeCapsuleInput" accept=".json" class="hidden">
+        <input type="file" id="documentInput" multiple accept=".txt,.md,.js,.py,.html,.css,.json,.pdf,.doc,.docx" class="hidden">
+      </div>
+      
+      <!-- Session Controls -->
+      <div class="control-group">
+        <label>Session</label>
+        <button id="clearChat" class="btn">🗑️ Clear Chat</button>
+        <button id="clearAll" class="btn">🔄 Reset All</button>
+      </div>
+      
+      <!-- Usage Agreement & Terms Section -->
+      <div class="control-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <button id="agreementStatusBtn" class="btn secondary" style="padding: 8px 12px; font-size: 12px; cursor: pointer;">
+          📋 Usage Agreement & Terms
+        </button>
+        <div id="agreementStatus" style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 5px; text-align: center;">
+          Status: Not Reviewed
+        </div>
+      </div>
+      
+      <!-- Creator Attribution -->
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center;">
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">
+          Created by
+        </div>
+        <a href="https://x.com/thefirehacker" target="_blank" style="
+          color: rgba(255,255,255,0.8); 
+          text-decoration: none; 
+          font-size: 12px; 
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: all 0.3s ease;
+        " 
+        onmouseover="
+          this.style.background='rgba(255,255,255,0.1)'; 
+          this.style.borderColor='rgba(255,255,255,0.2)';
+          this.style.color='white';
+          this.style.transform='translateY(-1px)';
+        " 
+        onmouseout="
+          this.style.background='rgba(255,255,255,0.05)'; 
+          this.style.borderColor='rgba(255,255,255,0.1)';
+          this.style.color='rgba(255,255,255,0.8)';
+          this.style.transform='translateY(0)';
+        ">
+          🧙‍♂️ FireHacker
+        </a>
+      </div>
+    </div>
+    
+    <!-- Main Display Area -->
+    <div class="main-display">
+      <div class="display-content" id="displayContent">
+        <div class="empty-state">
+          <h2>🚀 Welcome to AI Playground</h2>
+          <p>
+            This is your space to interact with AI Personas, conduct deep research, and chat with your documents using RAG.
+            <br><br>
+            <strong>Get Started:</strong>
+            <br>• Connect your AI assistant
+            <br>• Upload documents for RAG-powered chat
+            <br>• Start a research topic
+            <br>• Begin chatting below
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Chat Interface -->
+    <div class="chat-interface">
+      <textarea id="chatInput" class="chat-input" placeholder="Chat with AI, ask about your documents, or discuss research findings..." rows="1"></textarea>
+      <button id="chatSend" class="chat-send">Send</button>
+    </div>
+  </div>
+
+  <!-- Configuration and Analytics -->
+  <script src="config.js"></script>
+  
+  <!-- Load Dependencies -->
+  <!-- navbar.js removed - using bubblspace-navbar.js instead -->
+  <script src="lib/AIAssistant/AIAssistant-Backend.js"></script>
+  <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
+  <script src="lib/Pages/DeepResearch/vector-store.js"></script>
+  
+  <!-- Load User Agreement Module -->
+  <script src="lib/useragreement/agreement.js"></script>
+  
+  <script>
+    // Initialize Playground Application
+    class PlaygroundApp {
+      constructor() {
+        this.chatHistory = [];
+        this.currentSession = null;
+        this.aiAssistant = null;
+        this.deepResearch = null;
+        this.vectorStore = null;
+        this.isConnected = false;
+        this.isResearching = false;
+        
+        this.init();
+      }
+      
+      async init() {
+        console.log('🚀 Initializing AI Playground...');
+        
+        // Initialize User Agreement System
+        if (window.userAgreement) {
+          window.userAgreement.initializeForPage();
+        }
+        
+        // Initialize Google Analytics
+        if (window.AppConfig) {
+          window.AppConfig.initializeGA4();
+          // Track initial page view
+          window.AppConfig.trackPageView('AI Playground - TimeCapsule-SLM', window.location.href);
+        }
+        
+        // Initialize second navbar for Playground page
+        setTimeout(() => {
+          if (window.SecondNavbar) {
+            window.SecondNavbar.init('playground');
+          }
+        }, 300);
+        
+        // Render navigation
+        this.renderNavigation();
+        
+        // Setup event listeners
+        this.setupEventListeners();
+        
+        // Initialize components
+        await this.initializeComponents();
+        
+        console.log('✅ AI Playground initialized');
+      }
+      
+      renderNavigation() {
+        // Navigation is now handled automatically by bubblspace-navbar.js
+        // No manual rendering needed
+      }
+      
+      setupEventListeners() {
+        // AI Connection
+        document.getElementById('connectAI').addEventListener('click', () => this.connectAI());
+        document.getElementById('aiProviderSelect').addEventListener('change', () => this.updateAIProvider());
+        
+        // Deep Research
+        document.getElementById('startResearch').addEventListener('click', () => this.startDeepResearch());
+        document.getElementById('researchTopic').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') this.startDeepResearch();
+        });
+        
+        // Document Management
+        document.getElementById('uploadDocuments').addEventListener('click', () => this.uploadDocuments());
+        document.getElementById('manageDocuments').addEventListener('click', () => this.manageDocuments());
+        document.getElementById('documentInput').addEventListener('change', (e) => this.handleDocumentUpload(e));
+        
+        // TimeCapsule
+        document.getElementById('exportTimeCapsule').addEventListener('click', () => this.exportTimeCapsule());
+        document.getElementById('loadTimeCapsule').addEventListener('click', () => this.loadTimeCapsule());
+        document.getElementById('loadTimeCapsuleInput').addEventListener('change', (e) => this.handleTimeCapsuleLoad(e));
+        
+        // Session Controls
+        document.getElementById('clearChat').addEventListener('click', () => this.clearChat());
+        document.getElementById('clearAll').addEventListener('click', () => this.clearAll());
+        
+        // Chat
+        document.getElementById('chatSend').addEventListener('click', () => this.sendChatMessage());
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.sendChatMessage();
+          }
+        });
+        
+        // Auto-resize chat input
+        document.getElementById('chatInput').addEventListener('input', (e) => {
+          e.target.style.height = 'auto';
+          e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+        });
+        
+        // Agreement status button (handled by user agreement module)
+        // The user agreement module will automatically handle this button
+      }
+      
+      async initializeComponents() {
+        try {
+          // Initialize AI Assistant
+          if (window.AIAssistantBackend) {
+            this.aiAssistant = new AIAssistantBackend();
+            this.updateStatus('aiStatus', 'AI Assistant Ready', 'success');
+          }
+          
+          // Initialize Vector Store
+          if (window.VectorStore && !window.VECTOR_STORE_DISABLED) {
+            this.vectorStore = new VectorStore();
+            await this.vectorStore.init();
+            this.updateStatus('vectorStatus', 'Vector Store Ready', 'success');
+          } else {
+            this.updateStatus('vectorStatus', 'Vector Store Disabled', 'warning');
+          }
+          
+        } catch (error) {
+          console.error('❌ Component initialization failed:', error);
+          this.updateStatus('aiStatus', 'Initialization Failed', 'error');
+        }
+      }
+      
+      async connectAI() {
+        try {
+          if (!this.aiAssistant) {
+            throw new Error('AI Assistant not available');
+          }
+          
+          this.updateStatus('aiStatus', 'Connecting...', 'info');
+          
+          const provider = document.getElementById('aiProviderSelect').value;
+          await this.aiAssistant.initialize(provider);
+          
+          this.isConnected = true;
+          this.updateStatus('aiStatus', `Connected (${provider})`, 'success');
+          
+          // Add welcome message
+          this.addChatMessage('system', `🤖 AI Assistant connected using ${provider}. Ready to help!`);
+          
+        } catch (error) {
+          console.error('❌ AI connection failed:', error);
+          this.updateStatus('aiStatus', 'Connection Failed', 'error');
+          this.addChatMessage('system', `❌ Failed to connect AI: ${error.message}`);
+        }
+      }
+      
+      updateAIProvider() {
+        if (this.isConnected) {
+          this.addChatMessage('system', '⚠️ AI provider changed. Please reconnect.');
+          this.isConnected = false;
+          this.updateStatus('aiStatus', 'Ready to Connect', 'info');
+        }
+      }
+      
+      async startDeepResearch() {
+        const topic = document.getElementById('researchTopic').value.trim();
+        if (!topic) {
+          this.addChatMessage('system', '⚠️ Please enter a research topic');
+          return;
+        }
+        
+        if (this.isResearching) {
+          this.addChatMessage('system', '⚠️ Research already in progress');
+          return;
+        }
+        
+        try {
+          this.isResearching = true;
+          this.addChatMessage('system', `🔍 Starting deep research on: "${topic}"`);
+          
+          const depth = document.getElementById('researchDepth').value;
+          
+          // Simulate deep research (replace with actual implementation)
+          const research = await this.performDeepResearch(topic, depth);
+          
+          this.addChatMessage('assistant', `## 📊 Research Results: ${topic}\n\n${research}`);
+          
+          // Store research in session
+          this.currentSession = {
+            ...this.currentSession,
+            lastResearch: {
+              topic,
+              depth,
+              results: research,
+              timestamp: new Date().toISOString()
+            }
+          };
+          
+        } catch (error) {
+          console.error('❌ Research failed:', error);
+          this.addChatMessage('system', `❌ Research failed: ${error.message}`);
+        } finally {
+          this.isResearching = false;
+        }
+      }
+      
+      async performDeepResearch(topic, depth) {
+        // Simulate research process
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        return `### Summary
+Research topic: ${topic}
+Analysis depth: ${depth}
+
+### Key Findings
+- Finding 1: Relevant information about ${topic}
+- Finding 2: Important insights discovered
+- Finding 3: Additional research points
+
+### Sources
+- Academic papers and publications
+- Industry reports and analysis
+- Expert opinions and interviews
+
+### Recommendations
+Based on the research, here are the key recommendations:
+1. Continue investigation into specific aspects
+2. Consider related topics for further study
+3. Apply findings to practical applications
+
+*Note: This is a demo implementation. Real deep research would integrate with actual research APIs and databases.*`;
+      }
+      
+      uploadDocuments() {
+        document.getElementById('documentInput').click();
+      }
+      
+      async handleDocumentUpload(event) {
+        const files = Array.from(event.target.files);
+        if (!files.length) return;
+        
+        if (!this.vectorStore) {
+          this.addChatMessage('system', '❌ Vector store not available for document upload');
+          return;
+        }
+        
+        try {
+          this.addChatMessage('system', `📄 Uploading ${files.length} documents...`);
+          
+          for (const file of files) {
+            await this.vectorStore.addDocument(file);
+            this.addChatMessage('system', `✅ Uploaded: ${file.name}`);
+          }
+          
+          this.updateStatus('vectorStatus', `${files.length} docs added`, 'success');
+          
+        } catch (error) {
+          console.error('❌ Document upload failed:', error);
+          this.addChatMessage('system', `❌ Upload failed: ${error.message}`);
+        }
+        
+        // Clear input
+        event.target.value = '';
+      }
+      
+      manageDocuments() {
+        if (!this.vectorStore) {
+          this.addChatMessage('system', '❌ Vector store not available');
+          return;
+        }
+        
+        const docs = this.vectorStore.getAllDocuments();
+        if (!docs || docs.length === 0) {
+          this.addChatMessage('system', 'No documents in store. Upload some documents first.');
+          return;
+        }
+        
+        let docList = '## 📚 Document Store\n\n';
+        docs.forEach((doc, index) => {
+          docList += `${index + 1}. **${doc.name}** (${this.formatFileSize(doc.size)})\n`;
+        });
+        
+        this.addChatMessage('assistant', docList);
+      }
+      
+      async sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        // Add user message
+        this.addChatMessage('user', message);
+        input.value = '';
+        input.style.height = 'auto';
+        
+        // Check if AI is connected
+        if (!this.isConnected || !this.aiAssistant) {
+          this.addChatMessage('system', '⚠️ Please connect AI assistant first');
+          return;
+        }
+        
+        try {
+          // Check for document-related queries (RAG)
+          let response;
+          if (this.isDocumentQuery(message) && this.vectorStore) {
+            response = await this.handleRAGQuery(message);
+          } else {
+            response = await this.aiAssistant.generateContent(message, 'general');
+          }
+          
+          this.addChatMessage('assistant', response);
+          
+        } catch (error) {
+          console.error('❌ Chat failed:', error);
+          this.addChatMessage('system', `❌ Error: ${error.message}`);
+        }
+      }
+      
+      isDocumentQuery(message) {
+        const keywords = ['document', 'file', 'search', 'find', 'what does', 'according to', 'in the documents'];
+        return keywords.some(keyword => message.toLowerCase().includes(keyword));
+      }
+      
+      async handleRAGQuery(query) {
+        try {
+          // Search documents
+          const searchResults = await this.vectorStore.search(query, { limit: 5 });
+          
+          if (!searchResults || searchResults.length === 0) {
+            return "I couldn't find any relevant information in your documents. Try uploading some documents first or ask a different question.";
+          }
+          
+          // Build context from search results
+          let context = "Based on your documents:\n\n";
+          searchResults.forEach((result, index) => {
+            context += `**Document ${index + 1}**: ${result.document.name}\n`;
+            context += `${result.content.substring(0, 200)}...\n\n`;
+          });
+          
+          // Generate AI response with context
+          const prompt = `Answer this question based on the provided document context:
+
+Question: ${query}
+
+Context from documents:
+${context}
+
+Please provide a comprehensive answer based on the document context.`;
+          
+          const response = await this.aiAssistant.generateContent(prompt, 'general');
+          return response;
+          
+        } catch (error) {
+          console.error('❌ RAG query failed:', error);
+          return `❌ Failed to search documents: ${error.message}`;
+        }
+      }
+      
+      exportTimeCapsule() {
+        const timeCapsule = {
+          type: 'playground_session',
+          version: '1.0.0',
+          timestamp: new Date().toISOString(),
+          data: {
+            chatHistory: this.chatHistory,
+            currentSession: this.currentSession,
+            aiProvider: document.getElementById('aiProviderSelect').value,
+            lastResearchTopic: document.getElementById('researchTopic').value
+          }
+        };
+        
+        const blob = new Blob([JSON.stringify(timeCapsule, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `playground_session_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        this.addChatMessage('system', '💾 Session exported as TimeCapsule');
+      }
+      
+      loadTimeCapsule() {
+        document.getElementById('loadTimeCapsuleInput').click();
+      }
+      
+      async handleTimeCapsuleLoad(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          const timeCapsule = JSON.parse(text);
+          
+          if (timeCapsule.type !== 'playground_session') {
+            throw new Error('Invalid TimeCapsule type');
+          }
+          
+          // Restore session
+          this.chatHistory = timeCapsule.data.chatHistory || [];
+          this.currentSession = timeCapsule.data.currentSession || null;
+          
+          // Restore UI state
+          if (timeCapsule.data.aiProvider) {
+            document.getElementById('aiProviderSelect').value = timeCapsule.data.aiProvider;
+          }
+          if (timeCapsule.data.lastResearchTopic) {
+            document.getElementById('researchTopic').value = timeCapsule.data.lastResearchTopic;
+          }
+          
+          // Re-render chat
+          this.renderChatHistory();
+          
+          this.addChatMessage('system', `📂 Loaded session from ${new Date(timeCapsule.timestamp).toLocaleString()}`);
+          
+        } catch (error) {
+          console.error('❌ TimeCapsule load failed:', error);
+          this.addChatMessage('system', `❌ Failed to load TimeCapsule: ${error.message}`);
+        }
+        
+        event.target.value = '';
+      }
+      
+      clearChat() {
+        this.chatHistory = [];
+        this.renderChatHistory();
+        this.addChatMessage('system', '🗑️ Chat cleared');
+      }
+      
+      clearAll() {
+        this.chatHistory = [];
+        this.currentSession = null;
+        this.isConnected = false;
+        
+        // Reset UI
+        document.getElementById('researchTopic').value = '';
+        document.getElementById('chatInput').value = '';
+        
+        // Reset status
+        this.updateStatus('aiStatus', 'Ready to Connect', 'info');
+        this.updateStatus('vectorStatus', 'Vector Store Ready', 'info');
+        
+        // Show empty state
+        this.showEmptyState();
+        
+        this.addChatMessage('system', '🔄 All data reset');
+      }
+      
+      addChatMessage(type, content) {
+        const message = {
+          type,
+          content,
+          timestamp: new Date().toISOString()
+        };
+        
+        this.chatHistory.push(message);
+        this.renderChatHistory();
+        
+        // Scroll to bottom
+        const displayContent = document.getElementById('displayContent');
+        displayContent.scrollTop = displayContent.scrollHeight;
+      }
+      
+      renderChatHistory() {
+        const displayContent = document.getElementById('displayContent');
+        
+        if (this.chatHistory.length === 0) {
+          this.showEmptyState();
+          return;
+        }
+        
+        let html = '<div class="chat-messages">';
+        
+        this.chatHistory.forEach(message => {
+          html += `
+            <div class="chat-message ${message.type}">
+              <div class="message-content">
+                ${this.formatMessage(message.content)}
+              </div>
+            </div>
+          `;
+        });
+        
+        html += '</div>';
+        displayContent.innerHTML = html;
+        
+        // Highlight code blocks
+        if (window.hljs) {
+          displayContent.querySelectorAll('pre code').forEach(block => {
+            hljs.highlightElement(block);
+          });
+        }
+      }
+      
+      formatMessage(content) {
+        if (window.marked) {
+          return marked.parse(content);
+        }
+        return content.replace(/\n/g, '<br>');
+      }
+      
+      showEmptyState() {
+        const displayContent = document.getElementById('displayContent');
+        displayContent.innerHTML = `
+          <div class="empty-state">
+            <h2>🚀 Welcome to AI Playground</h2>
+            <p>
+              This is your space to interact with AI Personas, conduct deep research, and chat with your documents using RAG.
+              <br><br>
+              <strong>Get Started:</strong>
+              <br>• Connect your AI assistant
+              <br>• Upload documents for RAG-powered chat
+              <br>• Start a research topic
+              <br>• Begin chatting below
+            </p>
+          </div>
+        `;
+      }
+      
+      updateStatus(elementId, message, type) {
+        const element = document.getElementById(elementId);
+        if (element) {
+          element.textContent = message;
+          element.className = `status-indicator ${type}`;
+        }
+      }
+      
+      formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+    }
+    
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      window.playgroundApp = new PlaygroundApp();
+    });
+  </script>
+</body>
+</html>

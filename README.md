@@ -401,7 +401,8 @@ ollama serve
 | File | Description |
 |------|-------------|
 | `DeepResearch.html` | DeepResearch TimeCapsule studio |
-| `Canvas.html` | Playground creative coding environment |
+| `Playground.html` | Playground creative AI environment |
+| `Canvas.html` | Creative CodingEnvironment |
 | `index.html` | Main platform homepage |
 | `Script01.js` | Utility functions and helpers |
 
