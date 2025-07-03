@@ -27,7 +27,7 @@ frontend:
               // Load Google Analytics script
               const script1 = document.createElement('script');
               script1.async = true;
-              script1.src = \`https://www.googletagmanager.com/gtag/js?id=\${this.GA4_MEASUREMENT_ID}\`;
+              script1.src = 'https://www.googletagmanager.com/gtag/js?id=' + this.GA4_MEASUREMENT_ID;
               document.head.appendChild(script1);
 
               // Initialize gtag
@@ -42,7 +42,7 @@ frontend:
                 site_name: this.SITE_NAME
               });
 
-              console.log(\`â Google Analytics 4 initialized with ID: \${this.GA4_MEASUREMENT_ID}\`);
+              console.log('Google Analytics 4 initialized with ID: ' + this.GA4_MEASUREMENT_ID);
             }
 
             // Method to track custom events
@@ -53,7 +53,7 @@ frontend:
                   event_label: label,
                   value: value
                 });
-                console.log(\`ð GA4 Event tracked: \${action} (\${category})\`);
+                console.log('GA4 Event tracked: ' + action + ' (' + category + ')');
               }
             }
 
@@ -75,7 +75,7 @@ frontend:
                   custom_parameters: details,
                   ...details
                 });
-                console.log(\`🔑 Key Event tracked: \${action}\`, details);
+                console.log('Key Event tracked: ' + action, details);
               }
             }
 
@@ -86,17 +86,17 @@ frontend:
                   nav_item: item,
                   nav_location: location
                 });
-                console.log(\`🧭 Navigation tracked: \${item} at \${location}\`);
+                console.log('Navigation tracked: ' + item + ' at ' + location);
               }
             }
 
             trackModal(action, modalName) {
               if (window.gtag) {
-                gtag('event', \`modal_\${action}\`, {
+                gtag('event', 'modal_' + action, {
                   event_category: 'modal_interaction',
                   modal_name: modalName
                 });
-                console.log(\`📱 Modal tracked: \${action} - \${modalName}\`);
+                console.log('Modal tracked: ' + action + ' - ' + modalName);
               }
             }
 
@@ -108,7 +108,7 @@ frontend:
                   ai_action: action,
                   ...details
                 });
-                console.log(\`🤖 AI Interaction tracked: \${provider} - \${action}\`, details);
+                console.log('AI Interaction tracked: ' + provider + ' - ' + action, details);
               }
             }
 
@@ -119,7 +119,7 @@ frontend:
                   doc_operation: operation,
                   ...details
                 });
-                console.log(\`📄 Document Operation tracked: \${operation}\`, details);
+                console.log('Document Operation tracked: ' + operation, details);
               }
             }
 
@@ -130,7 +130,7 @@ frontend:
                   research_operation: operation,
                   ...details
                 });
-                console.log(\`🔬 Research Operation tracked: \${operation}\`, details);
+                console.log('Research Operation tracked: ' + operation, details);
               }
             }
 
@@ -141,7 +141,7 @@ frontend:
                   interaction_method: method,
                   ...details
                 });
-                console.log(\`💬 Chat Interaction tracked: \${method}\`, details);
+                console.log('Chat Interaction tracked: ' + method, details);
               }
             }
 
@@ -149,8 +149,8 @@ frontend:
             trackDeviceInfo() {
               if (window.gtag) {
                 const deviceInfo = {
-                  screen_resolution: \`\${screen.width}x\${screen.height}\`,
-                  viewport_size: \`\${window.innerWidth}x\${window.innerHeight}\`,
+                  screen_resolution: screen.width + 'x' + screen.height,
+                  viewport_size: window.innerWidth + 'x' + window.innerHeight,
                   user_agent: navigator.userAgent,
                   platform: navigator.platform,
                   language: navigator.language,
@@ -165,13 +165,13 @@ frontend:
                   ...deviceInfo
                 });
                 
-                console.log('📱 Device Info tracked:', deviceInfo);
+                console.log('Device Info tracked:', deviceInfo);
               }
             }
 
             // Debug helper
             debugAnalytics() {
-              console.log('🔍 Analytics Debug Info:');
+              console.log('Analytics Debug Info:');
               console.log('  - GA4 ID:', this.GA4_MEASUREMENT_ID);
               console.log('  - gtag available:', !!window.gtag);
               console.log('  - dataLayer length:', window.dataLayer ? window.dataLayer.length : 0);
