@@ -81,35 +81,266 @@ class Config {
     window.gtag = gtag;
     
     gtag('js', new Date());
+    
+    // Enhanced GA4 configuration with device and user tracking
     gtag('config', this.GA4_MEASUREMENT_ID, {
+      // Privacy settings
       anonymize_ip: this.GA4_ANONYMIZE_IP,
       debug_mode: this.GA4_DEBUG_MODE,
-      site_name: this.SITE_NAME
+      
+      // Site identification
+      site_name: this.SITE_NAME,
+      
+      // Enhanced tracking
+      send_page_view: true,
+      allow_google_signals: true,
+      allow_ad_personalization_signals: false, // Privacy-first
+      
+      // Enhanced ecommerce and engagement
+      enhanced_measurement: true,
+      
+      // Custom parameters for device tracking
+      custom_map: {
+        'custom_parameter_1': 'user_agent',
+        'custom_parameter_2': 'screen_resolution',
+        'custom_parameter_3': 'viewport_size',
+        'custom_parameter_4': 'connection_type'
+      }
     });
 
-    console.log(`✅ Google Analytics 4 initialized with ID: ${this.GA4_MEASUREMENT_ID}`);
+    // Set up enhanced device and user tracking
+    this.setupEnhancedTracking();
+
+    console.log(`✅ Google Analytics 4 initialized with enhanced tracking: ${this.GA4_MEASUREMENT_ID}`);
   }
 
-  // Method to track custom events
-  trackEvent(action, category = 'engagement', label = '', value = 0) {
-    if (window.gtag) {
-      gtag('event', action, {
-        event_category: category,
-        event_label: label,
-        value: value
-      });
-      console.log(`📊 GA4 Event tracked: ${action} (${category})`);
+  // Enhanced device and user tracking setup
+  setupEnhancedTracking() {
+    if (!window.gtag) return;
+
+    // Get detailed device information
+    const deviceInfo = this.getDeviceInfo();
+    
+    // Set user properties for enhanced tracking
+    gtag('set', {
+      user_agent: navigator.userAgent,
+      screen_resolution: `${screen.width}x${screen.height}`,
+      viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+      color_depth: screen.colorDepth,
+      pixel_ratio: window.devicePixelRatio || 1,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      platform: navigator.platform,
+      cookie_enabled: navigator.cookieEnabled,
+      java_enabled: navigator.javaEnabled ? navigator.javaEnabled() : false,
+      connection_type: this.getConnectionType()
+    });
+
+    // Track initial device info as event
+    this.trackDeviceInfo(deviceInfo);
+  }
+
+  // Get detailed device information
+  getDeviceInfo() {
+    const nav = navigator;
+    const screen_ = screen;
+    
+    return {
+      // Browser info
+      userAgent: nav.userAgent,
+      platform: nav.platform,
+      language: nav.language,
+      languages: nav.languages ? nav.languages.join(',') : nav.language,
+      cookieEnabled: nav.cookieEnabled,
+      onLine: nav.onLine,
+      
+      // Screen info
+      screenWidth: screen_.width,
+      screenHeight: screen_.height,
+      screenColorDepth: screen_.colorDepth,
+      screenPixelDepth: screen_.pixelDepth,
+      
+      // Viewport info
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      devicePixelRatio: window.devicePixelRatio || 1,
+      
+      // Time info
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneOffset: new Date().getTimezoneOffset(),
+      
+      // Connection info
+      connectionType: this.getConnectionType(),
+      
+      // Device capabilities
+      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      webGL: this.checkWebGLSupport(),
+      localStorage: this.checkLocalStorageSupport(),
+      sessionStorage: this.checkSessionStorageSupport()
+    };
+  }
+
+  // Get connection type
+  getConnectionType() {
+    if (navigator.connection) {
+      return navigator.connection.effectiveType || navigator.connection.type || 'unknown';
+    }
+    return 'unknown';
+  }
+
+  // Check WebGL support
+  checkWebGLSupport() {
+    try {
+      const canvas = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && canvas.getContext('webgl'));
+    } catch (e) {
+      return false;
     }
   }
 
-  // Method to track page views
-  trackPageView(page_title, page_location) {
-    if (window.gtag) {
-      gtag('event', 'page_view', {
-        page_title: page_title,
-        page_location: page_location
-      });
+  // Check localStorage support
+  checkLocalStorageSupport() {
+    try {
+      const test = 'test';
+      localStorage.setItem(test, test);
+      localStorage.removeItem(test);
+      return true;
+    } catch (e) {
+      return false;
     }
+  }
+
+  // Check sessionStorage support
+  checkSessionStorageSupport() {
+    try {
+      const test = 'test';
+      sessionStorage.setItem(test, test);
+      sessionStorage.removeItem(test);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Track device information as event
+  trackDeviceInfo(deviceInfo) {
+    if (!window.gtag) return;
+    
+    gtag('event', 'device_info', {
+      event_category: 'device_tracking',
+      event_label: 'initial_load',
+      custom_parameter_1: deviceInfo.userAgent.substring(0, 100), // Truncate for GA4
+      custom_parameter_2: `${deviceInfo.screenWidth}x${deviceInfo.screenHeight}`,
+      custom_parameter_3: `${deviceInfo.viewportWidth}x${deviceInfo.viewportHeight}`,
+      custom_parameter_4: deviceInfo.connectionType,
+      device_platform: deviceInfo.platform,
+      device_language: deviceInfo.language,
+      device_timezone: deviceInfo.timezone,
+      device_pixel_ratio: deviceInfo.devicePixelRatio,
+      device_touch_support: deviceInfo.touchSupport,
+      device_webgl_support: deviceInfo.webGL
+    });
+  }
+
+  // Enhanced event tracking with device context
+  trackEvent(action, category = 'engagement', label = '', value = 0, customParams = {}) {
+    if (!window.gtag) return;
+    
+    const eventData = {
+      event_category: category,
+      event_label: label,
+      value: value,
+      // Add current viewport info to every event
+      viewport_width: window.innerWidth,
+      viewport_height: window.innerHeight,
+      page_location: window.location.href,
+      page_title: document.title,
+      ...customParams
+    };
+
+    gtag('event', action, eventData);
+    console.log(`📊 GA4 Event tracked: ${action} (${category})`, eventData);
+  }
+
+  // Track page views with enhanced data
+  trackPageView(page_title, page_location, customParams = {}) {
+    if (!window.gtag) return;
+    
+    gtag('event', 'page_view', {
+      page_title: page_title,
+      page_location: page_location,
+      viewport_width: window.innerWidth,
+      viewport_height: window.innerHeight,
+      ...customParams
+    });
+  }
+
+  // Track key events (Connect buttons, etc.)
+  trackKeyEvent(eventName, location, additionalData = {}) {
+    this.trackEvent(eventName, 'key_events', location, 1, {
+      event_timestamp: Date.now(),
+      user_engagement: true,
+      ...additionalData
+    });
+  }
+
+  // Track navigation clicks
+  trackNavigation(navType, destination, clickLocation) {
+    this.trackEvent('navigation_click', 'navigation', `${navType}_${destination}`, 1, {
+      nav_type: navType, // 'navbar1' or 'navbar2'
+      destination: destination,
+      click_location: clickLocation,
+      source_page: window.location.pathname
+    });
+  }
+
+  // Track modal interactions
+  trackModal(modalName, action, details = '') {
+    this.trackEvent('modal_interaction', 'ui_interaction', `${modalName}_${action}`, 1, {
+      modal_name: modalName,
+      modal_action: action,
+      modal_details: details,
+      page_context: window.location.pathname
+    });
+  }
+
+  // Track AI interactions
+  trackAIInteraction(interactionType, provider, success = true, details = '') {
+    this.trackEvent('ai_interaction', 'ai_usage', interactionType, 1, {
+      ai_provider: provider,
+      interaction_success: success,
+      interaction_details: details,
+      page_context: window.location.pathname
+    });
+  }
+
+  // Track document operations
+  trackDocumentOperation(operation, documentType, success = true, details = '') {
+    this.trackEvent('document_operation', 'content_management', operation, 1, {
+      document_type: documentType,
+      operation_success: success,
+      operation_details: details,
+      page_context: window.location.pathname
+    });
+  }
+
+  // Track research operations
+  trackResearchOperation(operation, researchType, success = true, details = '') {
+    this.trackEvent('research_operation', 'research_usage', operation, 1, {
+      research_type: researchType,
+      operation_success: success,
+      operation_details: details,
+      page_context: window.location.pathname
+    });
+  }
+
+  // Track chat interactions
+  trackChatInteraction(messageType, success = true, details = '') {
+    this.trackEvent('chat_interaction', 'ai_chat', messageType, 1, {
+      chat_success: success,
+      chat_details: details,
+      page_context: window.location.pathname
+    });
   }
 }
 
