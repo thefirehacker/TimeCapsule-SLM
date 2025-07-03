@@ -42,7 +42,7 @@ frontend:
                 site_name: this.SITE_NAME
               });
 
-              console.log(\`✅ Google Analytics 4 initialized with ID: \${this.GA4_MEASUREMENT_ID}\`);
+              console.log(\`â Google Analytics 4 initialized with ID: \${this.GA4_MEASUREMENT_ID}\`);
             }
 
             // Method to track custom events
@@ -53,7 +53,7 @@ frontend:
                   event_label: label,
                   value: value
                 });
-                console.log(\`📊 GA4 Event tracked: \${action} (\${category})\`);
+                console.log(\`ð GA4 Event tracked: \${action} (\${category})\`);
               }
             }
 
@@ -65,6 +65,117 @@ frontend:
                   page_location: page_location
                 });
               }
+            }
+
+            // Enhanced tracking methods for comprehensive analytics
+            trackKeyEvent(action, details = {}) {
+              if (window.gtag) {
+                gtag('event', action, {
+                  event_category: 'key_interaction',
+                  custom_parameters: details,
+                  ...details
+                });
+                console.log(\`🔑 Key Event tracked: \${action}\`, details);
+              }
+            }
+
+            trackNavigation(item, location = '') {
+              if (window.gtag) {
+                gtag('event', 'navigation_click', {
+                  event_category: 'navigation',
+                  nav_item: item,
+                  nav_location: location
+                });
+                console.log(\`🧭 Navigation tracked: \${item} at \${location}\`);
+              }
+            }
+
+            trackModal(action, modalName) {
+              if (window.gtag) {
+                gtag('event', \`modal_\${action}\`, {
+                  event_category: 'modal_interaction',
+                  modal_name: modalName
+                });
+                console.log(\`📱 Modal tracked: \${action} - \${modalName}\`);
+              }
+            }
+
+            trackAIInteraction(provider, action, details = {}) {
+              if (window.gtag) {
+                gtag('event', 'ai_interaction', {
+                  event_category: 'ai_usage',
+                  ai_provider: provider,
+                  ai_action: action,
+                  ...details
+                });
+                console.log(\`🤖 AI Interaction tracked: \${provider} - \${action}\`, details);
+              }
+            }
+
+            trackDocumentOperation(operation, details = {}) {
+              if (window.gtag) {
+                gtag('event', 'document_operation', {
+                  event_category: 'document_management',
+                  doc_operation: operation,
+                  ...details
+                });
+                console.log(\`📄 Document Operation tracked: \${operation}\`, details);
+              }
+            }
+
+            trackResearchOperation(operation, details = {}) {
+              if (window.gtag) {
+                gtag('event', 'research_operation', {
+                  event_category: 'research_activity',
+                  research_operation: operation,
+                  ...details
+                });
+                console.log(\`🔬 Research Operation tracked: \${operation}\`, details);
+              }
+            }
+
+            trackChatInteraction(method, details = {}) {
+              if (window.gtag) {
+                gtag('event', 'chat_interaction', {
+                  event_category: 'chat_usage',
+                  interaction_method: method,
+                  ...details
+                });
+                console.log(\`💬 Chat Interaction tracked: \${method}\`, details);
+              }
+            }
+
+            // Device and capability tracking
+            trackDeviceInfo() {
+              if (window.gtag) {
+                const deviceInfo = {
+                  screen_resolution: \`\${screen.width}x\${screen.height}\`,
+                  viewport_size: \`\${window.innerWidth}x\${window.innerHeight}\`,
+                  user_agent: navigator.userAgent,
+                  platform: navigator.platform,
+                  language: navigator.language,
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  connection_type: navigator.connection ? navigator.connection.effectiveType : 'unknown',
+                  device_memory: navigator.deviceMemory || 'unknown',
+                  hardware_concurrency: navigator.hardwareConcurrency || 'unknown'
+                };
+
+                gtag('event', 'device_info', {
+                  event_category: 'device_analytics',
+                  ...deviceInfo
+                });
+                
+                console.log('📱 Device Info tracked:', deviceInfo);
+              }
+            }
+
+            // Debug helper
+            debugAnalytics() {
+              console.log('🔍 Analytics Debug Info:');
+              console.log('  - GA4 ID:', this.GA4_MEASUREMENT_ID);
+              console.log('  - gtag available:', !!window.gtag);
+              console.log('  - dataLayer length:', window.dataLayer ? window.dataLayer.length : 0);
+              console.log('  - Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this)));
             }
           }
 
