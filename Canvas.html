@@ -1259,6 +1259,9 @@
   <!-- Configuration and Analytics -->
   <script src="config.js"></script>
   
+  <!-- Shared Systems -->
+  <script src="lib/Pages/shared/ai-connection-manager.js"></script>
+  
   <!-- AI Agent System -->
   <script src="lib/agent/canvas.js"></script>
 
@@ -2270,6 +2273,32 @@ When user asks for something, generate creative, compact p5.js code that creates
         updateStatus('🦙 Connecting to Ollama...');
         document.getElementById('aiStatus').textContent = 'AI: Connecting to Ollama...';
         
+        // Check if we already have a shared AI connection
+        if (window.SharedAIConnection && window.SharedAIConnection.isAIConnected()) {
+          const currentProvider = window.SharedAIConnection.getProviderInfo();
+          console.log('✅ Shared AI connection already exists:', currentProvider);
+          
+          if (currentProvider.provider === 'ollama') {
+            // Use existing Ollama connection
+            const sharedAI = window.SharedAIConnection.getAIAssistant();
+            aiSession = { 
+              type: 'ollama', 
+              model: currentProvider.model,
+              baseURL: currentProvider.baseURL || 'http://localhost:11434'
+            };
+            
+            document.getElementById('aiStatus').textContent = `AI: Ollama (${currentProvider.model}) ✅`;
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('initAIBtn').textContent = `🦙 Ollama Ready`;
+            
+            updateHeaderAIStatus();
+            updateStatus(`🦙 Using existing Ollama connection (${currentProvider.model})!`);
+            addChatMessage('system', `🦙 Using existing Ollama connection! Model: ${currentProvider.model}. Fully local processing with GGUF models - no API costs.`);
+            
+            return;
+          }
+        }
+        
         // Get custom URL from input field, fallback to default
         let ollamaUrl = 'http://localhost:11434';
         const urlInput = document.getElementById('ollamaUrl');
@@ -2327,6 +2356,32 @@ When user asks for something, generate creative, compact p5.js code that creates
         document.getElementById('aiStatus').textContent = `AI: Ollama (${selectedModel}) ✅`;
         document.getElementById('generateBtn').disabled = false;
         document.getElementById('initAIBtn').textContent = `🦙 Ollama Ready`;
+        
+        // Store in shared AI connection manager for cross-environment use
+        if (window.SharedAIConnection) {
+          try {
+            // Create a mock AI assistant for Canvas's simpler needs
+            const canvasAI = {
+              type: 'ollama',
+              model: selectedModel,
+              baseURL: ollamaUrl,
+              generateContent: async (prompt, context) => {
+                // Canvas uses its own generation logic
+                return null;
+              }
+            };
+            
+            window.SharedAIConnection.setConnection('ollama', canvasAI, {
+              provider: 'ollama',
+              model: selectedModel,
+              baseURL: ollamaUrl
+            });
+            
+            console.log('✅ Ollama connection stored in shared manager');
+          } catch (sharedError) {
+            console.warn('⚠️ Failed to store in shared AI manager:', sharedError);
+          }
+        }
         
         // Update header status
         updateHeaderAIStatus();

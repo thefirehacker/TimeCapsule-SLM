@@ -223,6 +223,21 @@
       box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
     }
     
+    /* Launching Soon Button Style */
+    .feature-cta.launching-soon {
+      background: linear-gradient(45deg, #ff9800 0%, #ffc107 100%);
+      color: #333;
+      cursor: default;
+      pointer-events: none;
+      opacity: 0.8;
+      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+    }
+    
+    .feature-cta.launching-soon:hover {
+      transform: none;
+      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+    }
+    
     .feature-cta.research {
       background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
       box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
@@ -791,10 +806,10 @@
           <li>Interactive visualization tools</li>
         </ul>
         
-        <a href="Canvas.html" class="feature-cta">
-          <span>🎨</span>
-          Launch Canvas
-        </a>
+        <div class="feature-cta launching-soon">
+          <span>🚀</span>
+          Launching Soon
+        </div>
       </div>
     </div>
 
@@ -891,13 +906,14 @@
           window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'playground');
         }
       }
-      if (e.key === '3' || e.key === 'c' || e.key === 'C') {
-        window.location.href = 'Canvas.html';
-        // Track navigation event
-        if (window.AppConfig) {
-          window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'canvas');
-        }
-      }
+      // Canvas navigation temporarily disabled (launching soon)
+      // if (e.key === '3' || e.key === 'c' || e.key === 'C') {
+      //   window.location.href = 'Canvas.html';
+      //   // Track navigation event
+      //   if (window.AppConfig) {
+      //     window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'canvas');
+      //   }
+      // }
     });
     
     // Add smooth scroll behavior for better UX
@@ -914,13 +930,12 @@
       });
     });
     
-    // Track feature card clicks
-    document.querySelectorAll('.feature-cta').forEach((cta, index) => {
+    // Track feature card clicks (exclude launching-soon buttons)
+    document.querySelectorAll('.feature-cta:not(.launching-soon)').forEach((cta, index) => {
       cta.addEventListener('click', () => {
         if (window.AppConfig) {
           const feature = index === 0 ? 'deepresearch' : 
-                         index === 1 ? 'playground' : 
-                         index === 2 ? 'canvas' : 'unknown';
+                         index === 1 ? 'playground' : 'unknown';
           window.AppConfig.trackEvent('feature_clicked', 'navigation', feature);
         }
       });
