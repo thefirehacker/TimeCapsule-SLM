@@ -20,7 +20,7 @@ const OLLAMA_CUSTOM_CONFIG = {
   customIPs: [
     "http://10.0.1.69:11434",      // Replace with your first Ollama server
     "http://192.168.1.200:11434",  // Replace with your second Ollama server  
-    "http://127.0.0.1:9434"      // Replace with your third Ollama server
+    "http://172.16.0.50:9434"      // Replace with your third Ollama server
   ],
   
   // Optional: Add custom ports for localhost/127.0.0.1
