@@ -537,3 +537,108 @@
 #outputContent * {
   color: #2c3e50 !important;
 }
+
+/* Spell Check Toggle Button */
+.spell-check-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(5px);
+  user-select: none;
+}
+
+.spell-check-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.spell-check-toggle.active {
+  background: rgba(52, 152, 219, 0.3) !important;
+}
+
+.spell-check-toggle .spell-check-icon {
+  font-size: 14px;
+}
+
+.spell-check-toggle .spell-check-text {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Enhanced spell check styling */
+.ql-editor[spellcheck="true"] *::-webkit-spelling-error {
+  text-decoration: underline wavy #e53e3e !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 2px;
+}
+
+.ql-editor[spellcheck="true"] *::-webkit-grammar-error {
+  text-decoration: underline wavy #38a169 !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 2px;
+}
+
+.ql-editor[spellcheck="true"] *::-moz-spelling-error {
+  text-decoration: underline wavy #e53e3e !important;
+  text-decoration-thickness: 2px !important;
+}
+
+.ql-editor[spellcheck="true"] *::-moz-grammar-error {
+  text-decoration: underline wavy #38a169 !important;
+  text-decoration-thickness: 2px !important;
+}
+
+/* Firefox specific spell check support */
+.ql-editor[spellcheck="true"] {
+  -moz-user-select: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Spell check context menu enhancement */
+.ql-editor::-webkit-context-menu {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Spell check status indicator */
+.spell-check-status {
+  position: absolute;
+  bottom: 10px;
+  right: 15px;
+  font-size: 10px;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.spell-check-status.show {
+  opacity: 1;
+}
+
+/* Improve spell check detection for different text elements */
+.ql-editor p[spellcheck="true"],
+.ql-editor div[spellcheck="true"],
+.ql-editor span[spellcheck="true"],
+.ql-editor h1[spellcheck="true"],
+.ql-editor h2[spellcheck="true"],
+.ql-editor h3[spellcheck="true"],
+.ql-editor h4[spellcheck="true"],
+.ql-editor h5[spellcheck="true"],
+.ql-editor h6[spellcheck="true"] {
+  -webkit-text-decorations-in-effect: underline;
+}
