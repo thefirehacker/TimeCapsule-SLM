@@ -555,13 +555,19 @@ curl http://localhost:11434/api/tags
 
 > **⚠️ Note**: Custom URLs only work in local builds, not hosted version.
 
-**Setup:**
-1. **Add URL to CSP**: Edit `/lib/common-meta.js` → add your URL to `connectSrc` array
+**Easy Setup with ollama-custom.js:**
+1. **Edit Configuration File**: Open `ollama-custom.js` in the root directory
+2. **Add Your IPs**: Replace the example IPs with your actual Ollama servers
    ```javascript
-   'http://192.168.1.100:11434',  // Example: your Ollama server
+   customIPs: [
+     "http://10.0.1.69:11434",      // Your first Ollama server
+     "http://192.168.1.200:11434",  // Your second Ollama server  
+     "http://172.16.0.50:9434"      // Your third Ollama server
+   ]
    ```
+3. **Save and Refresh**: Save the file and hard refresh your browser (Ctrl+Shift+R)
 
-2. **Use in App**: Click "Connect Ollama" → accept  agreement  → Enter custom URL in popup
+**Use in App**: Click "Connect Ollama" → accept agreement → Enter custom URL in popup
    - **DeepResearch**: Click "🦙 Connect Ollama" 
    - **Playground**: Click "Connect AI" → Select Ollama
 
