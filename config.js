@@ -356,6 +356,7 @@ class Config {
 
   // Track key events (Connect buttons, etc.)
   trackKeyEvent(eventName, location, additionalData = {}) {
+    console.log('🔍 trackKeyEvent called:', eventName, location, additionalData);
     this.trackEvent(eventName, 'key_events', location, 1, {
       event_timestamp: Date.now(),
       user_engagement: true,
@@ -437,5 +438,24 @@ class Config {
   }
 }
 
-// Create global config instance
-window.AppConfig = new Config(); 
+// Create global config instance with error handling
+try {
+  window.AppConfig = new Config();
+  console.log('✅ Config instance created successfully');
+  console.log('🔍 Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(window.AppConfig)));
+} catch (error) {
+  console.error('❌ Error creating Config instance:', error);
+  // Create a fallback object
+  window.AppConfig = {
+    initializeGA4: () => console.log('📊 Fallback GA4 init'),
+    trackKeyEvent: () => console.log('📊 Fallback trackKeyEvent'),
+    trackEvent: () => console.log('📊 Fallback trackEvent'),
+    trackPageView: () => console.log('📊 Fallback trackPageView'),
+    trackNavigation: () => console.log('📊 Fallback trackNavigation'),
+    trackModal: () => console.log('📊 Fallback trackModal'),
+    trackAIInteraction: () => console.log('📊 Fallback trackAIInteraction'),
+    trackDocumentOperation: () => console.log('📊 Fallback trackDocumentOperation'),
+    trackResearchOperation: () => console.log('📊 Fallback trackResearchOperation'),
+    trackChatInteraction: () => console.log('📊 Fallback trackChatInteraction')
+  };
+} 
