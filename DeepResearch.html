@@ -1402,6 +1402,9 @@
   <!-- JSZip for PPTX parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
+  <!-- Shared Systems -->
+  <script src="lib/Pages/shared/ai-connection-manager.js"></script>
+  
   <!-- Vector Store Module -->
   <script src="lib/Pages/DeepResearch/vector-store.js"></script>
   <script src="lib/Pages/DeepResearch/deepresearch.js"></script>
@@ -1479,7 +1482,7 @@
         }
       }, 100);
       
-      const initializeApp = () => {
+      const initializeApp = async () => {
         console.log('🔍 Script loading check:');
         console.log('  - DeepResearchApp:', !!window.DeepResearchApp);
         console.log('  - AIAssistant:', !!window.AIAssistant);
@@ -1492,13 +1495,14 @@
         
         if (window.DeepResearchApp) {
           window.deepResearch = new DeepResearchApp();
+          await window.deepResearch.init();
           console.log('✅ Deep Research Studio initialized with full Vector Store support');
         } else {
           console.error('❌ DeepResearchApp not found - script loading issue');
         }
       };
       
-      const initializeAppWithoutVectorStore = () => {
+      const initializeAppWithoutVectorStore = async () => {
         console.log('🔍 Script loading check (Vector Store disabled):');
         console.log('  - DeepResearchApp:', !!window.DeepResearchApp);
         console.log('  - AIAssistant:', !!window.AIAssistant);
@@ -1513,6 +1517,7 @@
           // Set a flag to disable vector store features
           window.VECTOR_STORE_DISABLED = true;
           window.deepResearch = new DeepResearchApp();
+          await window.deepResearch.init();
           console.log('⚠️ Deep Research Studio initialized WITHOUT Vector Store (document features disabled)');
         } else {
           console.error('❌ DeepResearchApp not found - script loading issue');
