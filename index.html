@@ -83,9 +83,38 @@
     
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 30px;
       margin-top: 40px;
+    }
+    
+    /* DeepResearch and Playground take full width on first row */
+    .feature-card.research:first-child,
+    .feature-card.creative:not(.canvas) {
+      grid-column: span 1;
+    }
+    
+    /* Canvas card should be smaller and centered below */
+    .feature-card.canvas {
+      grid-column: span 2;
+      max-width: 400px;
+      padding: 25px;
+      justify-self: center;
+      margin-top: 20px;
+    }
+    
+    .feature-card.canvas .feature-title {
+      font-size: 1.5em;
+    }
+    
+    .feature-card.canvas .feature-description {
+      font-size: 0.9em;
+    }
+    
+    /* In-Browser RAG and TimeCapsule Sharing on same level */
+    .feature-card.rag-card,
+    .feature-card.timecapsule-card {
+      grid-column: span 1;
     }
     
     .feature-card {
@@ -716,8 +745,8 @@
         </a>
       </div>
 
-      <!-- New feature card -->
-      <div class="feature-card research">
+      <!-- In-Browser RAG Card -->
+      <div class="feature-card research rag-card">
         <div class="feature-icon">🧠</div>
         <div class="feature-title">In-Browser RAG</div>
         <div class="feature-subtitle">Retrieval-Augmented Generation, privacy-first</div>
@@ -731,8 +760,8 @@
         </ul>
       </div>
 
-      <!-- New feature card -->
-      <div class="feature-card">
+      <!-- TimeCapsule Sharing Card -->
+      <div class="feature-card timecapsule-card">
         <div class="feature-icon">🔗</div>
         <div class="feature-title">TimeCapsule Sharing</div>
         <div class="feature-subtitle">Export & Load Research Sessions</div>
@@ -744,6 +773,28 @@
           <li>Reproducible research sessions</li>
           <li>Easy knowledge transfer</li>
         </ul>
+      </div>
+
+      <!-- Canvas Creative Environment Card -->
+      <div class="feature-card creative canvas">
+        <span class="feature-icon">🎨</span>
+        <h2 class="feature-title">Canvas Creative Environment</h2>
+        <p class="feature-subtitle">Visual Storytelling • AI-Assisted Coding</p>
+        <p class="feature-description">
+          Creative coding environment with p5.js integration for building interactive visualizations 
+          and dynamic presentations. AI-assisted coding helps transform ideas into visual experiences.
+        </p>
+        
+        <ul class="feature-list">
+          <li>Visual storytelling capabilities using p5.js</li>
+          <li>AI-assisted coding guidance</li>
+          <li>Interactive visualization tools</li>
+        </ul>
+        
+        <a href="Canvas.html" class="feature-cta">
+          <span>🎨</span>
+          Launch Canvas
+        </a>
       </div>
     </div>
 
@@ -833,11 +884,18 @@
           window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'deepresearch');
         }
       }
-      if (e.key === '2' || e.key === 'c' || e.key === 'C') {
+      if (e.key === '2' || e.key === 'p' || e.key === 'P') {
         window.location.href = 'Playground.html';
         // Track navigation event
         if (window.AppConfig) {
           window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'playground');
+        }
+      }
+      if (e.key === '3' || e.key === 'c' || e.key === 'C') {
+        window.location.href = 'Canvas.html';
+        // Track navigation event
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'canvas');
         }
       }
     });
@@ -860,7 +918,9 @@
     document.querySelectorAll('.feature-cta').forEach((cta, index) => {
       cta.addEventListener('click', () => {
         if (window.AppConfig) {
-          const feature = index === 0 ? 'deepresearch' : 'playground';
+          const feature = index === 0 ? 'deepresearch' : 
+                         index === 1 ? 'playground' : 
+                         index === 2 ? 'canvas' : 'unknown';
           window.AppConfig.trackEvent('feature_clicked', 'navigation', feature);
         }
       });
