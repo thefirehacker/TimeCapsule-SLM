@@ -32,6 +32,11 @@ class Config {
     this.SITE_URL = this.getEnvVar('SITE_URL') || 'https://timecapsule.bubblspace.com';
     this.GA4_DEBUG_MODE = this.getEnvVar('GA4_DEBUG_MODE') === 'true' || false;
     this.GA4_ANONYMIZE_IP = this.getEnvVar('GA4_ANONYMIZE_IP') !== 'false'; // Default true
+    
+    // Analytics state tracking
+    this.analyticsReady = false;
+    this.eventQueue = [];
+    this.initializationPromise = null;
   }
 
   // Method to get environment variables from multiple sources
@@ -66,52 +71,117 @@ class Config {
   initializeGA4() {
     if (!this.GA4_MEASUREMENT_ID || this.GA4_MEASUREMENT_ID === 'G-XXXXXXXXXX') {
       console.warn('GA4_MEASUREMENT_ID not configured');
+      return Promise.resolve();
+    }
+
+    // Return existing promise if already initializing
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = new Promise((resolve) => {
+      // Load Google Analytics script
+      const script1 = document.createElement('script');
+      script1.async = true;
+      script1.src = `https://www.googletagmanager.com/gtag/js?id=${this.GA4_MEASUREMENT_ID}`;
+      
+      script1.onload = () => {
+        // Initialize gtag
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        
+        gtag('js', new Date());
+        
+        // Enhanced GA4 configuration with device and user tracking
+        gtag('config', this.GA4_MEASUREMENT_ID, {
+          // Privacy settings
+          anonymize_ip: this.GA4_ANONYMIZE_IP,
+          debug_mode: this.GA4_DEBUG_MODE,
+          
+          // Site identification
+          site_name: this.SITE_NAME,
+          
+          // Enhanced tracking
+          send_page_view: true,
+          allow_google_signals: true,
+          allow_ad_personalization_signals: false, // Privacy-first
+          
+          // Enhanced ecommerce and engagement
+          enhanced_measurement: true,
+          
+          // Custom parameters for device tracking
+          custom_map: {
+            'custom_parameter_1': 'user_agent',
+            'custom_parameter_2': 'screen_resolution',
+            'custom_parameter_3': 'viewport_size',
+            'custom_parameter_4': 'connection_type'
+          }
+        });
+
+        // Set up enhanced device and user tracking
+        this.setupEnhancedTracking();
+
+        // Mark analytics as ready
+        this.analyticsReady = true;
+        
+        // Process queued events
+        this.processEventQueue();
+
+        console.log(`✅ Google Analytics 4 initialized with enhanced tracking: ${this.GA4_MEASUREMENT_ID}`);
+        resolve();
+      };
+      
+      script1.onerror = () => {
+        console.error('❌ Failed to load Google Analytics script');
+        this.analyticsReady = false;
+        resolve();
+      };
+      
+      document.head.appendChild(script1);
+    });
+
+    return this.initializationPromise;
+  }
+
+  // Process queued events when analytics becomes ready
+  processEventQueue() {
+    if (!this.analyticsReady || !window.gtag) {
       return;
     }
 
-    // Load Google Analytics script
-    const script1 = document.createElement('script');
-    script1.async = true;
-    script1.src = `https://www.googletagmanager.com/gtag/js?id=${this.GA4_MEASUREMENT_ID}`;
-    document.head.appendChild(script1);
-
-    // Initialize gtag
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    window.gtag = gtag;
+    console.log(`🔄 Processing ${this.eventQueue.length} queued analytics events`);
     
-    gtag('js', new Date());
-    
-    // Enhanced GA4 configuration with device and user tracking
-    gtag('config', this.GA4_MEASUREMENT_ID, {
-      // Privacy settings
-      anonymize_ip: this.GA4_ANONYMIZE_IP,
-      debug_mode: this.GA4_DEBUG_MODE,
-      
-      // Site identification
-      site_name: this.SITE_NAME,
-      
-      // Enhanced tracking
-      send_page_view: true,
-      allow_google_signals: true,
-      allow_ad_personalization_signals: false, // Privacy-first
-      
-      // Enhanced ecommerce and engagement
-      enhanced_measurement: true,
-      
-      // Custom parameters for device tracking
-      custom_map: {
-        'custom_parameter_1': 'user_agent',
-        'custom_parameter_2': 'screen_resolution',
-        'custom_parameter_3': 'viewport_size',
-        'custom_parameter_4': 'connection_type'
+    while (this.eventQueue.length > 0) {
+      const queuedEvent = this.eventQueue.shift();
+      try {
+        // Execute the queued event
+        console.log(`📤 Processing queued event: ${queuedEvent.methodName}`);
+        queuedEvent.method.apply(this, queuedEvent.args);
+      } catch (error) {
+        console.error(`❌ Error processing queued event ${queuedEvent.methodName}:`, error);
       }
+    }
+  }
+
+  // Queue an event if analytics isn't ready yet
+  queueEvent(methodName, args) {
+    // Convert arguments object to array
+    const argsArray = Array.prototype.slice.call(args);
+    
+    this.eventQueue.push({
+      method: this[methodName],
+      args: argsArray,
+      methodName: methodName,
+      timestamp: Date.now()
     });
-
-    // Set up enhanced device and user tracking
-    this.setupEnhancedTracking();
-
-    console.log(`✅ Google Analytics 4 initialized with enhanced tracking: ${this.GA4_MEASUREMENT_ID}`);
+    
+    console.log(`📋 Queued analytics event: ${methodName} (Queue size: ${this.eventQueue.length})`);
+    
+    // Limit queue size to prevent memory issues
+    if (this.eventQueue.length > 100) {
+      this.eventQueue.shift(); // Remove oldest event
+    }
   }
 
   // Enhanced device and user tracking setup
@@ -224,7 +294,10 @@ class Config {
 
   // Track device information as event
   trackDeviceInfo(deviceInfo) {
-    if (!window.gtag) return;
+    if (!this.analyticsReady || !window.gtag) {
+      this.queueEvent('trackDeviceInfo', arguments);
+      return;
+    }
     
     gtag('event', 'device_info', {
       event_category: 'device_tracking',
@@ -244,7 +317,10 @@ class Config {
 
   // Enhanced event tracking with device context
   trackEvent(action, category = 'engagement', label = '', value = 0, customParams = {}) {
-    if (!window.gtag) return;
+    if (!this.analyticsReady || !window.gtag) {
+      this.queueEvent('trackEvent', arguments);
+      return;
+    }
     
     const eventData = {
       event_category: category,
@@ -264,7 +340,10 @@ class Config {
 
   // Track page views with enhanced data
   trackPageView(page_title, page_location, customParams = {}) {
-    if (!window.gtag) return;
+    if (!this.analyticsReady || !window.gtag) {
+      this.queueEvent('trackPageView', arguments);
+      return;
+    }
     
     gtag('event', 'page_view', {
       page_title: page_title,
@@ -341,6 +420,20 @@ class Config {
       chat_details: details,
       page_context: window.location.pathname
     });
+  }
+
+  // Debug helper to check analytics status
+  debugAnalytics() {
+    console.log('🔍 Analytics Debug Info:');
+    console.log('  - GA4 ID:', this.GA4_MEASUREMENT_ID);
+    console.log('  - Analytics Ready:', this.analyticsReady);
+    console.log('  - gtag Available:', !!window.gtag);
+    console.log('  - Queue Length:', this.eventQueue.length);
+    console.log('  - Initialization Promise:', !!this.initializationPromise);
+    
+    if (this.eventQueue.length > 0) {
+      console.log('  - Queued Events:', this.eventQueue.map(e => e.methodName));
+    }
   }
 }
 
