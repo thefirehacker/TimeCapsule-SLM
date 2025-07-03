@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, shrink-to-fit=no">
   <title>TimeCapsule-SLM - Complete AI-powered Research & Creative Platform</title>
   <link rel="icon" type="image/png" href="lib/Media/TimeCapsule_03.png">
   
@@ -18,12 +18,43 @@
       align-items: flex-start;
       color: white;
       box-sizing: border-box;
+      overflow-x: hidden;
+      width: 100%;
     }
     
     /* Mobile body padding adjustment */
-    @media screen and (max-width: 768px) {
+    @media screen and (max-width: 768px), 
+           screen and (max-device-width: 768px) {
       body {
         padding-top: 80px !important;
+      }
+    }
+    
+    /* Force mobile layout for medium mobile screens */
+    @media screen and (max-width: 500px) {
+      .main-container {
+        padding: 15px 10px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      .features-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+      }
+      
+      .feature-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 20px 15px !important;
+        margin: 0 !important;
+        grid-column: span 1 !important;
+      }
+      
+      .feature-card.canvas {
+        grid-column: span 1 !important;
+        justify-self: stretch !important;
+        max-width: 100% !important;
       }
     }
 
@@ -32,6 +63,8 @@
       max-width: 1200px;
       margin: 0 auto;
       padding: 40px 20px;
+      width: 100%;
+      box-sizing: border-box;
     }
     
     .hero-section {
@@ -101,6 +134,7 @@
       padding: 25px;
       justify-self: center;
       margin-top: 20px;
+      box-sizing: border-box;
     }
     
     .feature-card.canvas .feature-title {
@@ -395,19 +429,27 @@
 
     
     /* Mobile Optimization - Enhanced */
-    @media (max-width: 768px) {
+    @media screen and (max-width: 768px), 
+           screen and (max-device-width: 768px) {
       body {
         padding-top: 80px; /* Reduced top padding for mobile */
+        padding-bottom: 20px; /* Add bottom padding for mobile */
       }
       
       .main-container {
-        padding: 20px 15px; /* Better mobile padding */
+        padding: 20px 15px !important; /* Better mobile padding */
+        max-width: 100% !important; /* Ensure full width on mobile */
+        width: 100% !important;
+        box-sizing: border-box !important;
       }
       
       /* Hero Section Mobile */
       .hero-section {
-        padding: 30px 20px;
-        margin-bottom: 30px;
+        padding: 30px 20px !important;
+        margin-bottom: 30px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
       }
       
       .logo {
@@ -430,13 +472,15 @@
       
       .hero-description {
         font-size: 0.95em;
-        line-height: 1.5;
+        line-height: 1.6;
         padding: 0 10px;
+        text-align: left;
       }
       
       .hero-description strong {
         display: block;
         margin-bottom: 8px;
+        color: #4facfe;
       }
       
       .hero-description br {
@@ -447,14 +491,29 @@
       
       /* Features Grid Mobile */
       .features-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
-        margin-top: 30px;
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+        margin-top: 30px !important;
+        width: 100% !important;
+        max-width: 100% !important;
       }
       
       .feature-card {
-        padding: 25px 20px;
-        margin: 0;
+        padding: 25px 20px !important;
+        margin: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        max-width: 100% !important;
+        grid-column: span 1 !important;
+      }
+      
+      /* Canvas card mobile override */
+      .feature-card.canvas {
+        max-width: 100% !important;
+        padding: 20px 15px !important;
+        margin-top: 0 !important;
+        grid-column: span 1 !important;
+        justify-self: stretch !important;
       }
       
       .feature-icon {
@@ -567,6 +626,7 @@
         flex-direction: column;
         gap: 12px;
         align-items: stretch;
+        max-width: 100%;
       }
       
       .github-cta {
@@ -576,6 +636,7 @@
         font-size: 15px;
         justify-content: center;
         margin: 0;
+        box-sizing: border-box;
       }
       
       /* Improved touch targets */
@@ -587,16 +648,35 @@
         transform: scale(0.98);
         transition: transform 0.1s ease;
       }
+      
+      /* Disable hover effects on mobile for better touch experience */
+      .feature-card:hover {
+        transform: none;
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      }
+      
+      .feature-cta:hover {
+        transform: none;
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+      }
+      
+      .feature-cta:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+      }
     }
     
     /* Small Mobile Devices */
-    @media (max-width: 480px) {
+    @media screen and (max-width: 480px), 
+           screen and (max-device-width: 480px) {
       .main-container {
         padding: 15px 10px;
+        max-width: 100%;
       }
       
       .hero-section {
         padding: 25px 15px;
+        margin-bottom: 20px;
       }
       
       .hero-title {
@@ -610,10 +690,16 @@
       .hero-description {
         font-size: 0.9em;
         padding: 0 5px;
+        text-align: left;
+        line-height: 1.6;
       }
       
       .feature-card {
         padding: 20px 15px;
+      }
+      
+      .feature-card.canvas {
+        padding: 18px 12px;
       }
       
       .feature-title {
@@ -644,7 +730,7 @@
     }
     
     /* Large Mobile / Small Tablet */
-    @media (min-width: 769px) and (max-width: 1024px) {
+    @media screen and (min-width: 769px) and (max-width: 1024px) {
       .features-grid {
         grid-template-columns: 1fr;
         max-width: 600px;

@@ -50,7 +50,7 @@
     padding: 8px 0 !important;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
     z-index: 1000 !important;
-    border-bottom: 3px solid lime !important; /* DEBUG INDICATOR */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
   }
   
   html body .sketchpad-nav .nav-container,
