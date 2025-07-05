@@ -337,6 +337,17 @@
       background: #111; 
       border-radius: 10px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #canvas canvas {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 10px;
     }
     
     .status-bar {
@@ -1048,6 +1059,7 @@
         <label>🎯 Quick Actions:</label>
         <button id="clearBtn" class="btn">🗑️ Clear Canvas</button>
         <button id="resetBtn" class="btn">🔄 Reset Code</button>
+        <button id="formatBtn" class="btn">🔧 Format Help</button>
       </div>
       
       <div class="status-bar" id="statusBar">
@@ -3855,19 +3867,24 @@ Return response as JSON:
       container.style.gridTemplateColumns = '250px 1.2fr 6px 2.4fr';
     }
 
-    // Runner: execute user code in p5 context (Global scope)
+    // Runner: execute user code in p5 context (Supports multiple formats)
     window.runSketch = function(src) {
       if (currentP5) currentP5.remove();
 
       try {
         updateStatus('🎨 Running your code...');
         
+        // Detect code format
+        const codeFormat = detectCodeFormat(src);
+        updateStatus(`🔍 Detected format: ${codeFormat}`);
+        
         // Create p5 instance and execute the user's code
         currentP5 = new p5((p) => {
           let originalDraw = null;
+          let originalSetup = null;
           
           // Make p5 functions available in global scope for user code
-          const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random'];
+          const p5Functions = ['createCanvas', 'background', 'stroke', 'point', 'sin', 'cos', 'mag', 'noise', 'noFill', 'arc', 'fill', 'noStroke', 'strokeWeight', 'ellipse', 'rect', 'line', 'triangle', 'quad', 'bezier', 'curve', 'random', 'map', 'constrain', 'dist', 'lerp', 'norm', 'sq', 'sqrt', 'abs', 'ceil', 'floor', 'round', 'max', 'min', 'text', 'textAlign', 'textSize', 'textFont', 'textWidth', 'textAscent', 'textDescent', 'push', 'pop', 'translate', 'rotate', 'scale', 'resetMatrix', 'colorMode'];
           
           p5Functions.forEach(fn => {
             if (p[fn]) {
@@ -3883,35 +3900,128 @@ Return response as JSON:
           window.CHORD = p.CHORD;
           window.OPEN = p.OPEN;
           
+          // Text alignment constants
+          window.LEFT = p.LEFT;
+          window.RIGHT = p.RIGHT;
+          window.CENTER = p.CENTER;
+          window.TOP = p.TOP;
+          window.BOTTOM = p.BOTTOM;
+          window.BASELINE = p.BASELINE;
+          
           // Common variables
           window.w = 400;
           window.W = 720;
+          window.width = 400;
+          window.height = 400;
+          window.mouseX = 0;
+          window.mouseY = 0;
+          window.frameCount = 0;
+          
+          // Window dimensions for responsive canvas
+          window.windowWidth = window.innerWidth || 1200;
+          window.windowHeight = window.innerHeight || 800;
           
           try {
             // Execute user code directly
             eval(src);
             
-            // If draw function was created globally, use it
-            if (window.draw && typeof window.draw === 'function') {
-              originalDraw = window.draw;
+            // Handle different code formats
+            if (codeFormat === 'traditional') {
+              // Traditional p5.js with setup() and draw() functions
+              if (window.setup && typeof window.setup === 'function') {
+                originalSetup = window.setup;
+                p.setup = function() {
+                  originalSetup();
+                  // Update global variables after setup
+                  window.width = p.width;
+                  window.height = p.height;
+                };
+              }
               
-              // Store original frameRate
-              const originalFrameRate = p.frameRate;
+              if (window.draw && typeof window.draw === 'function') {
+                originalDraw = window.draw;
+                p.draw = function() {
+                  if (animationPaused) return;
+                  
+                  // Update global variables
+                  window.mouseX = p.mouseX;
+                  window.mouseY = p.mouseY;
+                  window.frameCount = p.frameCount;
+                  
+                  // Apply speed control
+                  const targetFrameRate = 60 * speedMultiplier;
+                  p.frameRate(targetFrameRate);
+                  
+                  originalDraw();
+                };
+              }
               
-              // Wrap the draw function with pause/play and speed control
-              p.draw = function() {
-                if (animationPaused) {
-                  return; // Skip drawing when paused
-                }
+              updateStatus('✅ Traditional p5.js code executed successfully!');
+              
+            } else if (codeFormat === 'compact') {
+              // Compact format with global draw function
+              if (window.draw && typeof window.draw === 'function') {
+                originalDraw = window.draw;
                 
-                // Apply speed control by adjusting frameRate
-                const targetFrameRate = 60 * speedMultiplier;
-                p.frameRate(targetFrameRate);
-                
-                originalDraw();
-              };
+                p.draw = function() {
+                  if (animationPaused) return;
+                  
+                  // Update global variables
+                  window.mouseX = p.mouseX;
+                  window.mouseY = p.mouseY;
+                  window.frameCount = p.frameCount;
+                  
+                  // Apply speed control
+                  const targetFrameRate = 60 * speedMultiplier;
+                  p.frameRate(targetFrameRate);
+                  
+                  originalDraw();
+                };
+              }
               
-              updateStatus('✅ Code executed successfully!');
+              updateStatus('✅ Compact format code executed successfully!');
+              
+            } else if (codeFormat === 'instance') {
+              // Instance mode - code should define sketch function
+              if (window.sketch && typeof window.sketch === 'function') {
+                // Re-create p5 instance with the sketch function
+                currentP5.remove();
+                currentP5 = new p5(window.sketch, 'canvas');
+                updateStatus('✅ Instance mode code executed successfully!');
+                return;
+              } else {
+                throw new Error('Instance mode requires a sketch function');
+              }
+              
+            } else if (codeFormat === 'class') {
+              // Class-based approach
+              if (window.MySketch && typeof window.MySketch === 'function') {
+                const sketchInstance = new window.MySketch();
+                if (sketchInstance.setup) p.setup = sketchInstance.setup.bind(sketchInstance);
+                if (sketchInstance.draw) p.draw = sketchInstance.draw.bind(sketchInstance);
+                updateStatus('✅ Class-based code executed successfully!');
+              } else {
+                throw new Error('Class mode requires a MySketch class');
+              }
+              
+            } else {
+              // Auto-detect fallback
+              if (window.setup && typeof window.setup === 'function') {
+                originalSetup = window.setup;
+                p.setup = originalSetup;
+              }
+              
+              if (window.draw && typeof window.draw === 'function') {
+                originalDraw = window.draw;
+                p.draw = function() {
+                  if (animationPaused) return;
+                  const targetFrameRate = 60 * speedMultiplier;
+                  p.frameRate(targetFrameRate);
+                  originalDraw();
+                };
+              }
+              
+              updateStatus('✅ Auto-detected format executed successfully!');
             }
             
           } catch (evalError) {
@@ -3925,6 +4035,7 @@ Return response as JSON:
             p.draw = function() {
               p.stroke(255);
               p.text('Code Error: Check Console', 10, 20);
+              p.text(evalError.message, 10, 40);
             };
           }
           
@@ -3935,6 +4046,40 @@ Return response as JSON:
         updateStatus('❌ Failed to run sketch');
       }
     };
+
+    // Function to detect code format
+    function detectCodeFormat(code) {
+      // Remove comments and strings for better detection
+      const cleanCode = code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').replace(/['"`].*?['"`]/g, '');
+      
+      // Check for instance mode (sketch function)
+      if (cleanCode.includes('function sketch(') || cleanCode.includes('sketch = function(') || cleanCode.includes('sketch=(')) {
+        return 'instance';
+      }
+      
+      // Check for class-based approach
+      if (cleanCode.includes('class ') && (cleanCode.includes('MySketch') || cleanCode.includes('Sketch'))) {
+        return 'class';
+      }
+      
+      // Check for traditional p5.js (setup and draw functions)
+      const hasSetup = cleanCode.includes('function setup(') || cleanCode.includes('setup = function(') || cleanCode.includes('setup=function');
+      const hasDrawFunction = cleanCode.includes('function draw(') || cleanCode.includes('draw = function(') || cleanCode.includes('draw=function');
+      
+      if (hasSetup || hasDrawFunction) {
+        return 'traditional';
+      }
+      
+      // Check for compact format (global draw with arrow function or assignment)
+      const hasCompactDraw = cleanCode.includes('draw=') && (cleanCode.includes('=>') || cleanCode.includes('function'));
+      
+      if (hasCompactDraw) {
+        return 'compact';
+      }
+      
+      // Default to auto-detect
+      return 'auto';
+    }
 
     require(['vs/editor/editor.main'], async () => {
       // Initialize Monaco with bird.js as default
@@ -3965,6 +4110,53 @@ Return response as JSON:
       } catch (error) {
         console.warn('Could not load bird.js as default:', error);
         updateStatus('⚠️ Using fallback code - bird.js load failed');
+      }
+      
+      // Add help text about supported formats
+      const helpText = `
+/*
+🎨 Canvas Editor - Supported Code Formats:
+
+1. COMPACT FORMAT (Current Default):
+   t=0
+   draw=_=>{
+     t||createCanvas(400,400)
+     background(0)
+     // your drawing code
+   }
+
+2. TRADITIONAL P5.JS:
+   function setup() {
+     createCanvas(400, 400);
+   }
+   function draw() {
+     // your drawing code
+   }
+
+3. INSTANCE MODE:
+   function sketch(p) {
+     p.setup = function() {
+       p.createCanvas(400, 400);
+     };
+     p.draw = function() {
+       // your drawing code
+     };
+   }
+
+4. CLASS-BASED:
+   class MySketch {
+     setup() { createCanvas(400, 400); }
+     draw() { /* your drawing code */ }
+   }
+
+The editor will auto-detect your format! 🚀
+*/
+
+`;
+      
+      // If using fallback, add help text
+      if (defaultCode.includes('Loading bird animation')) {
+        defaultCode = helpText + defaultCode;
       }
       
       editorInstance = monaco.editor.create(
@@ -4096,6 +4288,176 @@ Return response as JSON:
         }
       }
 
+      // Format templates for different coding styles
+      const formatTemplates = {
+        compact: `// COMPACT FORMAT (Original Canvas Style)
+t = 0
+draw = _ => {
+  t || createCanvas(400, 400)
+  background(0)
+  t += 0.02
+  
+  // Your drawing code here
+  stroke(255)
+  fill(255, 100, 100)
+  ellipse(200 + sin(t) * 100, 200, 50)
+}`,
+        
+        traditional: `// TRADITIONAL P5.JS FORMAT
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(0);
+  
+  // Your drawing code here
+  stroke(255);
+  fill(255, 100, 100);
+  ellipse(200 + sin(frameCount * 0.02) * 100, 200, 50);
+}`,
+        
+        instance: `// INSTANCE MODE FORMAT
+function sketch(p) {
+  p.setup = function() {
+    p.createCanvas(400, 400);
+  };
+  
+  p.draw = function() {
+    p.background(0);
+    
+    // Your drawing code here
+    p.stroke(255);
+    p.fill(255, 100, 100);
+    p.ellipse(200 + p.sin(p.frameCount * 0.02) * 100, 200, 50);
+  };
+}`,
+        
+        class: `// CLASS-BASED FORMAT
+class MySketch {
+  constructor() {
+    this.time = 0;
+  }
+  
+  setup() {
+    createCanvas(400, 400);
+  }
+  
+  draw() {
+    background(0);
+    this.time += 0.02;
+    
+    // Your drawing code here
+    stroke(255);
+    fill(255, 100, 100);
+    ellipse(200 + sin(this.time) * 100, 200, 50);
+  }
+}`
+      };
+
+      // Show format help dialog
+      function showFormatHelp() {
+        const helpModal = document.createElement('div');
+        helpModal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.8);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(5px);
+        `;
+        
+        const helpContent = document.createElement('div');
+        helpContent.style.cssText = `
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 20px;
+          padding: 30px;
+          max-width: 800px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+          color: white;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        `;
+        
+        helpContent.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: #4facfe;">🎨 Canvas Editor - Code Formats</h2>
+            <button id="closeFormatHelp" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 5px;">×</button>
+          </div>
+          
+          <p style="margin-bottom: 20px; color: rgba(255,255,255,0.9);">
+            The Canvas editor now supports multiple p5.js coding formats! Choose the style that works best for you:
+          </p>
+          
+          <div style="display: grid; gap: 15px;">
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+              <h3 style="color: #4facfe; margin-bottom: 10px;">1. Compact Format (Original)</h3>
+              <p style="margin-bottom: 10px; font-size: 14px;">Minimal syntax, perfect for quick sketches</p>
+              <button class="template-btn" data-template="compact" style="background: #4facfe; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">📝 Use Template</button>
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+              <h3 style="color: #4facfe; margin-bottom: 10px;">2. Traditional p5.js</h3>
+              <p style="margin-bottom: 10px; font-size: 14px;">Standard p5.js with setup() and draw() functions</p>
+              <button class="template-btn" data-template="traditional" style="background: #4facfe; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">📝 Use Template</button>
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+              <h3 style="color: #4facfe; margin-bottom: 10px;">3. Instance Mode</h3>
+              <p style="margin-bottom: 10px; font-size: 14px;">Uses sketch function, great for multiple sketches</p>
+              <button class="template-btn" data-template="instance" style="background: #4facfe; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">📝 Use Template</button>
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+              <h3 style="color: #4facfe; margin-bottom: 10px;">4. Class-Based</h3>
+              <p style="margin-bottom: 10px; font-size: 14px;">Object-oriented approach with class structure</p>
+              <button class="template-btn" data-template="class" style="background: #4facfe; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">📝 Use Template</button>
+            </div>
+          </div>
+          
+          <div style="margin-top: 20px; padding: 15px; background: rgba(76, 175, 80, 0.2); border-radius: 10px; border: 1px solid rgba(76, 175, 80, 0.5);">
+            <h4 style="color: #4caf50; margin-bottom: 10px;">✨ Auto-Detection</h4>
+            <p style="margin: 0; font-size: 14px;">The editor automatically detects your code format and runs it accordingly. No need to worry about compatibility!</p>
+          </div>
+        `;
+        
+        helpModal.appendChild(helpContent);
+        document.body.appendChild(helpModal);
+        
+        // Event handlers
+        document.getElementById('closeFormatHelp').addEventListener('click', () => {
+          document.body.removeChild(helpModal);
+        });
+        
+        helpModal.addEventListener('click', (e) => {
+          if (e.target === helpModal) {
+            document.body.removeChild(helpModal);
+          }
+        });
+        
+        // Template button handlers
+        document.querySelectorAll('.template-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const template = e.target.dataset.template;
+            if (editorInstance && formatTemplates[template]) {
+              editorInstance.setValue(formatTemplates[template]);
+              updateStatus(`✨ Loaded ${template} format template`);
+              // Track template usage
+              if (window.AppConfig) {
+                window.AppConfig.trackEvent('template_used', 'user_interaction', template);
+              }
+              document.body.removeChild(helpModal);
+            }
+          });
+        });
+      }
+
       // Event Listeners
       document.getElementById('runBtn').addEventListener('click', () => {
         // Track code execution
@@ -4170,6 +4532,14 @@ Return response as JSON:
           '}'
         ].join('\n'));
         updateStatus('🔄 Code reset to template');
+      });
+
+      document.getElementById('formatBtn').addEventListener('click', () => {
+        // Track format help button
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('format_help_opened', 'user_interaction', 'format_button');
+        }
+        showFormatHelp();
       });
 
       // AI Event Listeners
