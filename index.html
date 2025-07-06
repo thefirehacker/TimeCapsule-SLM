@@ -773,11 +773,9 @@
   </style>
 </head>
 <body>
-  <!-- Emergency Mobile Navigation Fix -->
-  <link rel="stylesheet" href="mobile-navbar-fix.css?v=2024">
+
   
   <!-- BubblSpace Navigation Component -->
-  <div id="bubblspace-navbar"></div>
   <script src="lib/Pages/components/bubblspace-navbar.js"></script>
 
   <div class="main-container">
@@ -1003,10 +1001,8 @@
         window.AppConfig.trackPageView('TimeCapsule-SLM - Complete AI-powered Research & Creative Platform', window.location.href);
       }
       
-      // Initialize BubblSpace Navbar with home active
-      if (window.BubblSpaceNavbar) {
-        window.BubblSpaceNavbar.init('home');
-      }
+      // BubblSpace Navbar will auto-initialize like DeepResearch and Vision
+      // No manual initialization needed
     });
     
     // Enhanced keyboard navigation

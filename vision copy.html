@@ -40,6 +40,7 @@
       position: relative;
     }
 
+
     .vision-header {
       text-align: center;
       background: rgba(255, 255, 255, 0.1);
@@ -709,13 +710,20 @@
   </style>
 </head>
 <body>
+  <!-- Emergency Mobile Navigation Fix -->
+  <link rel="stylesheet" href="mobile-navbar-fix.css?v=2024">
+  
   <!-- BubblSpace Navigation Component -->
+  <div id="bubblspace-navbar"></div>
   <script src="lib/Pages/components/bubblspace-navbar.js"></script>
   
   <!-- Second Navbar Component -->
   <script src="lib/Pages/components/second-navbar.js"></script>
 
   <div class="container">
+    <!-- Page Header (Second Navbar) -->
+    <div id="page-header"></div>
+    
     <!-- Vision Header -->
     <div class="vision-header">
       <img src="lib/Media/TimeCapsule_03.png" alt="TimeCapsule-SLM Vision" class="vision-logo">
@@ -1005,8 +1013,10 @@
 
   <script src="config.js?v=2025010401"></script>
   <script>
-    // Initialize Google Analytics
+    // Initialize Google Analytics and Navigation
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Vision Page: DOM Content Loaded');
+      
       if (window.AppConfig) {
         window.AppConfig.initializeGA4();
         
@@ -1014,10 +1024,65 @@
         window.AppConfig.trackPageView('Project Vision & Roadmap - TimeCapsule-SLM', window.location.href);
       }
       
-      // Initialize BubblSpace Navbar with vision active
-      if (window.BubblSpaceNavbar) {
-        window.BubblSpaceNavbar.init('vision');
-      }
+      // Initialize components with proper loading checks
+      const initializeComponents = () => {
+        console.log('🔍 Checking component availability:');
+        console.log('  - BubblSpaceNavbar:', !!window.BubblSpaceNavbar);
+        console.log('  - SecondNavbar:', !!window.SecondNavbar);
+        
+        // Initialize BubblSpace Navbar with vision active
+        if (window.BubblSpaceNavbar) {
+          try {
+            window.BubblSpaceNavbar.init('vision');
+            console.log('✅ BubblSpace Navbar initialized');
+          } catch (error) {
+            console.error('❌ BubblSpace Navbar initialization failed:', error);
+          }
+        }
+        
+        // Initialize Second Navbar (Page Header) with retry mechanism
+        if (window.SecondNavbar) {
+          try {
+            const headerContainer = document.getElementById('page-header');
+            if (headerContainer) {
+              headerContainer.innerHTML = window.SecondNavbar.render('vision');
+              
+              // Add the styles
+              const style = document.createElement('style');
+              style.textContent = window.SecondNavbar.styles;
+              document.head.appendChild(style);
+              
+              console.log('✅ Second Navbar initialized');
+            } else {
+              console.error('❌ Header container not found');
+            }
+          } catch (error) {
+            console.error('❌ Second Navbar initialization failed:', error);
+          }
+        } else {
+          // Retry after a short delay if SecondNavbar isn't loaded yet
+          console.log('⏳ SecondNavbar not ready, retrying in 100ms...');
+          setTimeout(() => {
+            if (window.SecondNavbar) {
+              const headerContainer = document.getElementById('page-header');
+              if (headerContainer) {
+                headerContainer.innerHTML = window.SecondNavbar.render('vision');
+                
+                const style = document.createElement('style');
+                style.textContent = window.SecondNavbar.styles;
+                document.head.appendChild(style);
+                
+                console.log('✅ Second Navbar initialized (retry)');
+              }
+            } else {
+              console.error('❌ SecondNavbar still not available after retry');
+            }
+          }, 100);
+        }
+      };
+      
+      // Initialize immediately
+      initializeComponents();
     });
     
     // Track CTA button clicks
