@@ -127,6 +127,12 @@
       grid-column: span 1;
     }
     
+    /* Vision card and RAG card on second row */
+    .feature-card.vision-card,
+    .feature-card.rag-card {
+      grid-column: span 1;
+    }
+    
     /* Canvas card should be smaller and centered below */
     .feature-card.canvas {
       grid-column: span 2;
@@ -767,10 +773,9 @@
   </style>
 </head>
 <body>
-  <!-- Emergency Mobile Navigation Fix -->
-  <link rel="stylesheet" href="mobile-navbar-fix.css?v=2024">
+
   
-  <!-- Common Navigation Component -->
+  <!-- BubblSpace Navigation Component -->
   <script src="lib/Pages/components/bubblspace-navbar.js"></script>
 
   <div class="main-container">
@@ -843,6 +848,27 @@
         <a href="Playground.html" class="feature-cta">
           <span>🎮</span>
           Launch Playground
+        </a>
+      </div>
+
+      <!-- Project Vision Card -->
+      <div class="feature-card research vision-card">
+        <div class="feature-icon">🔮</div>
+        <div class="feature-title">Project Vision & Roadmap</div>
+        <div class="feature-subtitle">Building the Future of AI Research</div>
+        <div class="feature-description">
+          Discover our comprehensive vision for the future of AI-powered research and creative collaboration. 
+          See our current priorities, upcoming features, and long-term roadmap for TimeCapsule-SLM.
+        </div>
+        <ul class="feature-list">
+          <li>Complete development roadmap and milestones</li>
+          <li>Current priority queue and active features</li>
+          <li>Upcoming showcase projects and demos</li>
+          <li>Agent philosophy and design principles</li>
+        </ul>
+        <a href="vision.html" class="feature-cta research">
+          <span>🔮</span>
+          View Vision
         </a>
       </div>
 
@@ -974,6 +1000,9 @@
         // Track page view with correct page name
         window.AppConfig.trackPageView('TimeCapsule-SLM - Complete AI-powered Research & Creative Platform', window.location.href);
       }
+      
+      // BubblSpace Navbar will auto-initialize like DeepResearch and Vision
+      // No manual initialization needed
     });
     
     // Enhanced keyboard navigation
@@ -992,8 +1021,15 @@
           window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'playground');
         }
       }
+      if (e.key === '3' || e.key === 'v' || e.key === 'V') {
+        window.location.href = 'vision.html';
+        // Track navigation event
+        if (window.AppConfig) {
+          window.AppConfig.trackEvent('keyboard_navigation', 'navigation', 'vision');
+        }
+      }
       // Canvas navigation temporarily disabled (launching soon)
-      // if (e.key === '3' || e.key === 'c' || e.key === 'C') {
+      // if (e.key === '4' || e.key === 'c' || e.key === 'C') {
       //   window.location.href = 'Canvas.html';
       //   // Track navigation event
       //   if (window.AppConfig) {
@@ -1021,7 +1057,8 @@
       cta.addEventListener('click', () => {
         if (window.AppConfig) {
           const feature = index === 0 ? 'deepresearch' : 
-                         index === 1 ? 'playground' : 'unknown';
+                         index === 1 ? 'playground' : 
+                         index === 2 ? 'vision' : 'unknown';
           window.AppConfig.trackEvent('feature_clicked', 'navigation', feature);
         }
       });

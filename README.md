@@ -12,11 +12,15 @@
   [![AI Powered](https://img.shields.io/badge/🤖_AI-Powered-ff6b35?style=for-the-badge)](https://timecapsule.bubblspace.com/)
   [![Made with Love](https://img.shields.io/badge/Made_with-❤-red?style=for-the-badge)](https://x.com/thefirehacker)
   
+  ### 🔮 **[🌟 View Our Complete Vision & Roadmap →](vision.md)**
+  *Discover the future of AI-powered research, our current priorities, and upcoming showcase projects*
+  
 </div>
 
 ---
 
 ## 🔗 **Quick Links**
+- [🔮 **Project Vision & Roadmap**](vision.md) - *Future of AI Research*
 - [🚀 Key Features](#-key-features-2024)
 - [🌐 Experience Live Now](#-experience-live-now)
 - [🚦 How to Start](#-how-to-start)
