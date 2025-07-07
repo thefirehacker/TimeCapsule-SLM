@@ -61,10 +61,17 @@ export class DeepResearchApp {
   async init() {
     console.log('🚀 DeepResearchApp.init() called');
     
-    this.loadFromStorage();
+    // Load basic data first (topics, research results)
+    this.loadBasicDataFromStorage();
     
     // Initialize AI Assistant
     this.initializeAIAssistant();
+    
+    // Now load AI connection state after AI assistant is initialized
+    // Add small delay to ensure everything is properly set up
+    setTimeout(() => {
+      this.loadAIConnectionFromStorage();
+    }, 100);
     
     // Initialize Vector Store
     await this.initializeVectorStore();
@@ -84,8 +91,12 @@ export class DeepResearchApp {
       
       if (status.connected) {
         this.updateStatus(`✅ Connected to ${status.provider}${status.model ? ` (${status.model})` : ''}`);
+        // Save connection state when successfully connected
+        this.saveToStorage();
       } else {
         this.updateStatus(`❌ AI connection failed: ${status.error || 'Unknown error'}`);
+        // Also save state when disconnected to persist the disconnection
+        this.saveToStorage();
       }
     });
     
@@ -223,6 +234,8 @@ export class DeepResearchApp {
       if (success) {
         this.setShowModelSelectionModal?.(false);
         this.updateStatus(`✅ Connected to ${modelName} successfully`);
+        // Save connection state to localStorage
+        this.saveToStorage();
       } else {
         this.updateStatus(`❌ Failed to connect to ${modelName}`);
       }
@@ -236,6 +249,15 @@ export class DeepResearchApp {
     this.setShowOllamaConnectionModal?.(false);
     this.setShowModelSelectionModal?.(false);
     this.updateStatus('🔄 Connection cancelled');
+  }
+
+  disconnectAI() {
+    if (this.aiAssistant && this.aiAssistant.isConnected()) {
+      console.log('🔌 Disconnecting AI...');
+      this.aiAssistant.disconnect();
+      this.updateStatus('🔌 AI disconnected');
+      // State will be saved automatically via the status change callback
+    }
   }
 
   async generateResearch(researchType: ResearchType, researchDepth: ResearchDepth) {
@@ -989,15 +1011,23 @@ export class DeepResearchApp {
     try {
       const data = {
         topics: this.topics,
-        researchResults: this.researchResults
+        researchResults: this.researchResults,
+        aiConnection: {
+          provider: this.aiAssistant?.getSession()?.provider || 'ollama',
+          connected: this.aiAssistant?.isConnected() || false,
+          model: this.aiAssistant?.getSession()?.model || null,
+          baseURL: this.aiAssistant?.getSession()?.baseURL || this.selectedOllamaURL,
+          ollamaURL: this.selectedOllamaURL
+        }
       };
       localStorage.setItem('deepresearch_data', JSON.stringify(data));
+      console.log('💾 Saved state to localStorage:', data.aiConnection);
     } catch (error) {
       console.error('Failed to save to storage:', error);
     }
   }
 
-  loadFromStorage() {
+  loadBasicDataFromStorage() {
     try {
       const data = localStorage.getItem('deepresearch_data');
       if (data) {
@@ -1008,9 +1038,85 @@ export class DeepResearchApp {
         // Update React state if setters are available
         this.setTopics?.(this.topics);
         this.setResearchResults?.(this.researchResults['current'] || '');
+        
+        console.log('📋 Loaded basic data from storage:', { 
+          topics: this.topics.length, 
+          hasResearchResults: Object.keys(this.researchResults).length > 0 
+        });
       }
     } catch (error) {
-      console.error('Failed to load from storage:', error);
+      console.error('Failed to load basic data from storage:', error);
+    }
+  }
+
+  loadAIConnectionFromStorage() {
+    try {
+      const data = localStorage.getItem('deepresearch_data');
+      if (data) {
+        const parsed = JSON.parse(data);
+        
+        // Restore AI connection state
+        if (parsed.aiConnection) {
+          console.log('🔄 Loading AI connection state from storage:', parsed.aiConnection);
+          this.restoreAIConnection(parsed.aiConnection);
+        } else {
+          console.log('📋 No saved AI connection state found');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load AI connection from storage:', error);
+    }
+  }
+
+  // Legacy method for backward compatibility
+  loadFromStorage() {
+    this.loadBasicDataFromStorage();
+    this.loadAIConnectionFromStorage();
+  }
+
+  private async restoreAIConnection(savedConnection: any) {
+    if (!savedConnection || !this.aiAssistant) return;
+    
+    try {
+      // Restore basic settings
+      if (savedConnection.ollamaURL) {
+        this.selectedOllamaURL = savedConnection.ollamaURL;
+        this.setSelectedOllamaURL?.(savedConnection.ollamaURL);
+      }
+      
+      // Set initial status to show the saved provider
+      const initialStatus = {
+        connected: false,
+        provider: savedConnection.provider || 'ollama',
+        model: undefined,
+        baseURL: undefined
+      };
+      this.setAIStatus?.(initialStatus);
+      
+      // If it was previously connected, attempt to reconnect
+      if (savedConnection.connected && savedConnection.model) {
+        console.log(`🔄 Attempting to restore connection to ${savedConnection.provider} with model ${savedConnection.model}`);
+        this.updateStatus(`🔄 Restoring AI connection to ${savedConnection.model}...`);
+        
+        if (savedConnection.provider === 'ollama') {
+          const baseURL = savedConnection.baseURL || savedConnection.ollamaURL || this.selectedOllamaURL;
+          const success = await this.aiAssistant.connectToOllama(baseURL, savedConnection.model);
+          
+          if (success) {
+            console.log('✅ AI connection restored successfully');
+            this.updateStatus(`✅ AI connection restored: ${savedConnection.model}`);
+          } else {
+            console.log('⚠️ Failed to restore AI connection - model may no longer be available');
+            this.updateStatus(`⚠️ Could not restore AI connection to ${savedConnection.model}`);
+          }
+        }
+      } else {
+        console.log('📋 AI was not previously connected, showing disconnected state');
+        this.updateStatus(`🤖 AI ready to connect (${savedConnection.provider})`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to restore AI connection:', error);
+      this.updateStatus(`❌ Failed to restore AI connection: ${(error as Error).message}`);
     }
   }
 
@@ -1343,7 +1449,12 @@ export function DeepResearchComponent() {
             </label>
             <select 
               value={aiStatus.provider}
-              onChange={(e) => setAIStatus({...aiStatus, provider: e.target.value as AIProvider})}
+              onChange={(e) => {
+                const newProvider = e.target.value as AIProvider;
+                setAIStatus({...aiStatus, provider: newProvider, connected: false});
+                // Save provider change to storage
+                app.saveToStorage();
+              }}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -1378,7 +1489,7 @@ export function DeepResearchComponent() {
             </button>
             {aiStatus.connected && (
               <button 
-                onClick={() => app.aiAssistant?.disconnect()}
+                onClick={() => app.disconnectAI()}
                 style={{
                   width: '100%',
                   padding: '12px',
