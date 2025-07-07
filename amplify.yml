@@ -1,10 +1,4 @@
 version: 1
-backend:
-  phases:
-    build:
-      commands:
-        - '# Execute Amplify CLI with the helper script'
-        - amplifyPush --simple
 frontend:
   phases:
     preBuild:
@@ -32,9 +26,13 @@ frontend:
         - ls -la .next/
         - echo "Build artifacts created successfully"
   artifacts:
-    baseDirectory: .next
+    baseDirectory: /
     files:
-      - '**/*'
+      - '.next/**/*'
+      - 'public/**/*'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'next.config.*'
   cache:
     paths:
       - node_modules/**/*
