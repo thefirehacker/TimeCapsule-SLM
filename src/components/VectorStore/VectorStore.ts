@@ -10,7 +10,7 @@ import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
-import { pipeline } from '@xenova/transformers';
+import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument } from '../../lib/workers/DocumentProcessor';
 
 // Add RxDB plugins
 addRxPlugin(RxDBDevModePlugin);
@@ -110,9 +110,8 @@ export interface SearchResult {
 export class VectorStore {
   private database: any = null;
   private documentsCollection: any = null;
-  private embeddingPipeline: any = null;
+  private documentProcessor: any = null;
   private isInitialized = false;
-  private readonly EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
   private readonly CHUNK_SIZE = 1000;
   private readonly CHUNK_OVERLAP = 200;
 
@@ -124,14 +123,15 @@ export class VectorStore {
     try {
       console.log('🗂️ Initializing RxDB Vector Store...');
 
-      // Initialize embedding pipeline
-      console.log('🤖 Loading embedding pipeline...');
-      this.embeddingPipeline = await pipeline(
-        'feature-extraction',
-        this.EMBEDDING_MODEL,
-        { revision: 'main' }
-      );
-      console.log('✅ Embedding pipeline initialized');
+      // Initialize document processor (Web Worker)
+      console.log('🤖 Loading document processor...');
+      this.documentProcessor = getDocumentProcessor();
+      
+      // Initialize in background - don't await to avoid blocking
+      this.documentProcessor.init().catch((error: any) => {
+        console.error('⚠️ Document processor initialization failed:', error);
+        console.log('📄 VectorStore will work without document processing');
+      });
 
       // Create RxDB database with validation wrapper
       console.log('📚 Creating RxDB database...');
@@ -167,165 +167,177 @@ export class VectorStore {
     }
   }
 
-  async addDocument(file: File, content: string): Promise<string> {
+  async addDocument(
+    file: File, 
+    content: string, 
+    onProgress?: (progress: ProcessingProgress) => void
+  ): Promise<string> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
     }
 
-    try {
-      // File size check (following reference implementation - 10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error(`File too large: ${file.name} (${this.formatFileSize(file.size)}). Please use files under 10MB.`);
-      }
-
-      console.log(`📄 Processing document: ${file.name}`);
-      console.log(`📄 File size: ${this.formatFileSize(file.size)}, Content length: ${content.length} characters`);
-      
-      // Generate document ID
-      const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Create chunks using word-based chunking (following reference implementation)
-      const chunks = this.createWordBasedChunks(content, 500); // 500 words per chunk
-      console.log(`🔄 Processing ${chunks.length} chunks for document ${docId}`);
-      
-      // Limit number of chunks to prevent memory issues (following reference implementation)
-      if (chunks.length > 50) {
-        console.warn(`⚠️ Large document with ${chunks.length} chunks, limiting to first 50 chunks`);
-        chunks.splice(50); // Keep only first 50 chunks
-      }
-
-      // Generate embeddings for chunks with detailed logging
-      const vectors = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        console.log(`📊 Processing chunk ${i + 1}/${chunks.length} for ${docId}`);
-        
-        // Yield control periodically to prevent UI freezing (every 5 chunks like reference)
-        if (i > 0 && i % 5 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-          console.log(`⏸️ Yielding control after chunk ${i + 1}`);
-        }
-        
-        try {
-          const embedding = await this.generateEmbedding(chunk.content);
-          vectors.push({
-            chunkId: chunk.id,
-            embedding: embedding
-          });
-        } catch (chunkError) {
-          console.error(`❌ Failed to process chunk ${i + 1}:`, chunkError);
-          // Continue with next chunk instead of failing entire document
-        }
-      }
-      
-      console.log(`✅ Generated ${vectors.length} embeddings for document ${docId}`);
-
-      // Create document data
-      const documentData: DocumentData = {
-        id: docId,
-        title: file.name,
-        content: content,
-        metadata: {
-          filename: file.name,
-          filesize: file.size,
-          filetype: file.type || 'unknown',
-          uploadedAt: new Date().toISOString(),
-          source: 'upload',
-          description: `Uploaded file: ${file.name}`,
-          isGenerated: false
-        },
-        chunks: chunks,
-        vectors: vectors
-      };
-
-      // Insert into RxDB
-      await this.documentsCollection.documents.insert(documentData);
-      console.log(`✅ Document stored with ID: ${docId}`);
-      console.log(`📊 Final stats: ${chunks.length} chunks, ${vectors.length} vectors`);
-
-      return docId;
-    } catch (error) {
-      console.error('❌ Failed to add document:', error);
-      throw error;
+    // File size check (following reference implementation - 10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error(`File too large: ${file.name} (${this.formatFileSize(file.size)}). Please use files under 10MB.`);
     }
+
+    console.log(`📄 Processing document: ${file.name}`);
+    console.log(`📄 File size: ${this.formatFileSize(file.size)}, Content length: ${content.length} characters`);
+    
+    // Generate document ID
+    const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Prepare document data for Web Worker
+    const documentData = {
+      id: docId,
+      title: file.name,
+      content: content,
+      metadata: {
+        filename: file.name,
+        filesize: file.size,
+        filetype: file.type || 'unknown',
+        uploadedAt: new Date().toISOString(),
+        source: 'upload',
+        description: `Uploaded file: ${file.name}`,
+        isGenerated: false
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      // Use Web Worker to process document
+      this.documentProcessor.processDocument(
+        documentData,
+        // Progress callback
+        (progress: ProcessingProgress) => {
+          console.log(`📊 Document processing: ${progress.message} (${progress.progress}%)`);
+          onProgress?.(progress);
+        },
+                 // Success callback
+         async (processedDoc: ProcessedDocument) => {
+           try {
+             // Convert chunks from Web Worker format to VectorStore format
+             const chunks = processedDoc.chunks.map((chunk, index) => ({
+               id: `chunk_${processedDoc.id}_${index}`,
+               content: chunk.content,
+               startIndex: index * 500, // Approximate start based on chunk index
+               endIndex: (index * 500) + chunk.content.length
+             }));
+
+             // Convert to our DocumentData format
+             const documentData: DocumentData = {
+               id: processedDoc.id,
+               title: processedDoc.title,
+               content: processedDoc.content,
+               metadata: processedDoc.metadata,
+               chunks: chunks,
+               vectors: processedDoc.vectors.map((embedding, index) => ({
+                 chunkId: chunks[index].id,
+                 embedding: embedding
+               }))
+             };
+
+            // Insert into RxDB
+            await this.documentsCollection.documents.insert(documentData);
+            console.log(`✅ Document stored with ID: ${docId}`);
+            console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
+            
+            resolve(docId);
+          } catch (error) {
+            console.error('❌ Failed to store processed document:', error);
+            reject(error);
+          }
+        },
+        // Error callback
+        (error: string) => {
+          console.error('❌ Document processing failed:', error);
+          reject(new Error(error));
+        }
+      );
+    });
   }
 
-  async addGeneratedDocument(title: string, content: string): Promise<string> {
+  async addGeneratedDocument(
+    title: string, 
+    content: string,
+    onProgress?: (progress: ProcessingProgress) => void
+  ): Promise<string> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
     }
 
-    try {
-      console.log(`📄 Processing generated document: ${title}`);
-      console.log(`📄 Content length: ${content.length} characters`);
-      
-      // Generate document ID
-      const docId = `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`📄 Processing generated document: ${title}`);
+    console.log(`📄 Content length: ${content.length} characters`);
+    
+    // Generate document ID
+    const docId = `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Create chunks using word-based chunking (following reference implementation)
-      const chunks = this.createWordBasedChunks(content, 500); // 500 words per chunk
-      console.log(`🔄 Processing ${chunks.length} chunks for generated document ${docId}`);
-      
-      // Limit number of chunks to prevent memory issues (following reference implementation)
-      if (chunks.length > 50) {
-        console.warn(`⚠️ Large document with ${chunks.length} chunks, limiting to first 50 chunks`);
-        chunks.splice(50); // Keep only first 50 chunks
+    // Prepare document data for Web Worker
+    const documentData = {
+      id: docId,
+      title: title,
+      content: content,
+      metadata: {
+        filename: title,
+        filesize: content.length,
+        filetype: 'text/markdown',
+        uploadedAt: new Date().toISOString(),
+        source: 'generated',
+        description: `Generated research: ${title}`,
+        isGenerated: true
       }
+    };
 
-      // Generate embeddings for chunks with detailed logging
-      const vectors = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        console.log(`📊 Processing chunk ${i + 1}/${chunks.length} for ${docId}`);
-        
-        // Yield control periodically to prevent UI freezing (every 5 chunks like reference)
-        if (i > 0 && i % 5 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-          console.log(`⏸️ Yielding control after chunk ${i + 1}`);
-        }
-        
-        try {
-          const embedding = await this.generateEmbedding(chunk.content);
-          vectors.push({
-            chunkId: chunk.id,
-            embedding: embedding
-          });
-        } catch (chunkError) {
-          console.error(`❌ Failed to process chunk ${i + 1}:`, chunkError);
-          // Continue with next chunk instead of failing entire document
-        }
-      }
-      
-      console.log(`✅ Generated ${vectors.length} embeddings for document ${docId}`);
-
-      // Create document data
-      const documentData: DocumentData = {
-        id: docId,
-        title: title,
-        content: content,
-        metadata: {
-          filename: title,
-          filesize: content.length,
-          filetype: 'text/markdown',
-          uploadedAt: new Date().toISOString(),
-          source: 'generated',
-          description: `Generated research: ${title}`,
-          isGenerated: true
+    return new Promise((resolve, reject) => {
+      // Use Web Worker to process document
+      this.documentProcessor.processDocument(
+        documentData,
+        // Progress callback
+        (progress: ProcessingProgress) => {
+          console.log(`📊 Generated document processing: ${progress.message} (${progress.progress}%)`);
+          onProgress?.(progress);
         },
-        chunks: chunks,
-        vectors: vectors
-      };
+        // Success callback
+        async (processedDoc: ProcessedDocument) => {
+          try {
+            // Convert chunks from Web Worker format to VectorStore format
+            const chunks = processedDoc.chunks.map((chunk, index) => ({
+              id: `chunk_${processedDoc.id}_${index}`,
+              content: chunk.content,
+              startIndex: index * 500, // Approximate start based on chunk index
+              endIndex: (index * 500) + chunk.content.length
+            }));
 
-      // Insert into RxDB
-      await this.documentsCollection.documents.insert(documentData);
-      console.log(`✅ Generated document stored with ID: ${docId}`);
-      console.log(`📊 Final stats: ${chunks.length} chunks, ${vectors.length} vectors`);
+            // Convert to our DocumentData format
+            const documentData: DocumentData = {
+              id: processedDoc.id,
+              title: processedDoc.title,
+              content: processedDoc.content,
+              metadata: processedDoc.metadata,
+              chunks: chunks,
+              vectors: processedDoc.vectors.map((embedding, index) => ({
+                chunkId: chunks[index].id,
+                embedding: embedding
+              }))
+            };
 
-      return docId;
-    } catch (error) {
-      console.error('❌ Failed to add generated document:', error);
-      throw error;
-    }
+            // Insert into RxDB
+            await this.documentsCollection.documents.insert(documentData);
+            console.log(`✅ Generated document stored with ID: ${docId}`);
+            console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
+            
+            resolve(docId);
+          } catch (error) {
+            console.error('❌ Failed to store processed generated document:', error);
+            reject(error);
+          }
+        },
+        // Error callback
+        (error: string) => {
+          console.error('❌ Generated document processing failed:', error);
+          reject(new Error(error));
+        }
+      );
+    });
   }
 
   async getAllDocuments(): Promise<DocumentData[]> {
@@ -384,8 +396,8 @@ export class VectorStore {
     try {
       console.log(`🔍 Searching for: "${query}" with threshold: ${threshold}`);
 
-      // Generate query embedding
-      const queryEmbedding = await this.generateEmbedding(query);
+      // Generate query embedding using Web Worker
+      const queryEmbedding = await this.documentProcessor.generateEmbedding(query);
 
       // Get all documents
       const documents = await this.getAllDocuments();
@@ -531,21 +543,7 @@ export class VectorStore {
   }
 
   private async generateEmbedding(text: string): Promise<number[]> {
-    try {
-      if (!this.embeddingPipeline) {
-        throw new Error('Embedding pipeline not initialized');
-      }
-
-      const result = await this.embeddingPipeline(text, {
-        pooling: 'mean',
-        normalize: true,
-      });
-
-      return Array.from(result.data);
-    } catch (error) {
-      console.error('❌ Failed to generate embedding:', error);
-      throw error;
-    }
+    throw new Error('Embedding generation is now handled by Web Worker - use DocumentProcessor');
   }
 
   private cosineSimilarity(a: number[], b: number[]): number {

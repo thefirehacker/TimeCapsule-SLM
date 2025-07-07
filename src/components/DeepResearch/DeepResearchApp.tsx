@@ -381,7 +381,14 @@ export class DeepResearchApp {
       
              // Step 5: Save to vector store with research metadata
        if (this.vectorStore) {
-         await this.vectorStore.addGeneratedDocument(researchMetadata.title, researchContent);
+         await this.vectorStore.addGeneratedDocument(
+           researchMetadata.title, 
+           researchContent,
+           // Progress callback for research document
+           (progress) => {
+             this.updateStatus(`💾 Saving research: ${progress.message} (${progress.progress}%)`);
+           }
+         );
          this.updateStatus('✅ Research saved to knowledge base');
          this.updateDocumentStatus();
        }
@@ -739,7 +746,14 @@ export class DeepResearchApp {
         
         try {
           const content = await this.readFileContent(file);
-          await this.vectorStore.addDocument(file, content);
+          await this.vectorStore.addDocument(
+            file, 
+            content,
+            // Progress callback for each file
+            (progress) => {
+              this.updateStatus(`📄 ${file.name}: ${progress.message} (${progress.progress}%)`);
+            }
+          );
           successCount++;
           console.log(`✅ Successfully processed: ${file.name}`);
         } catch (fileError) {
