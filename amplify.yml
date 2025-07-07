@@ -3,36 +3,39 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing dependencies..."
+        - echo "📦 Installing dependencies..."
         - npm ci
-        - echo "Environment check..."
-        - echo "Node version:" && node --version
-        - echo "NPM version:" && npm --version
-        - echo "Next.js version:" && npx next --version
-        - echo "GA4 Measurement ID:" && echo $NEXT_PUBLIC_GA4_MEASUREMENT_ID
+        - echo "🔧 Node.js version:"
+        - node --version
+        - echo "📦 npm version:"
+        - npm --version
+        - echo "🌍 Environment variables check..."
+        - echo "NEXT_PUBLIC_GA4_MEASUREMENT_ID is ${NEXT_PUBLIC_GA4_MEASUREMENT_ID:-'not set'}"
+        - echo "NEXT_PUBLIC_SITE_NAME is ${NEXT_PUBLIC_SITE_NAME:-'not set'}"
+        - echo "NEXT_PUBLIC_SITE_URL is ${NEXT_PUBLIC_SITE_URL:-'not set'}"
+        - echo "GA4_ANONYMIZE_IP is ${GA4_ANONYMIZE_IP:-'not set'}"
+        - echo "GA4_DEBUG_MODE is ${GA4_DEBUG_MODE:-'not set'}"
     build:
       commands:
-        - echo "Building Next.js application..."
-        - echo "Environment variables check:"
+        - echo "🔨 Building Next.js application..."
+        - echo "🌍 Final environment variables verification:"
         - echo "NEXT_PUBLIC_GA4_MEASUREMENT_ID=$NEXT_PUBLIC_GA4_MEASUREMENT_ID"
         - echo "NEXT_PUBLIC_SITE_NAME=$NEXT_PUBLIC_SITE_NAME"
         - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL"
+        - echo "GA4_ANONYMIZE_IP=$GA4_ANONYMIZE_IP"
+        - echo "GA4_DEBUG_MODE=$GA4_DEBUG_MODE"
         - npm run build
-        - echo "Build completed successfully"
+        - echo "✅ Build completed successfully!"
     postBuild:
       commands:
-        - echo "Post-build optimizations..."
-        - echo "Checking build output..."
+        - echo "📊 Post-build optimizations..."
+        - echo "🔍 Checking build output..."
         - ls -la .next/
-        - echo "Build artifacts created successfully"
+        - echo "✅ Build artifacts created successfully"
   artifacts:
-    baseDirectory: /
+    baseDirectory: .next
     files:
-      - '.next/**/*'
-      - 'public/**/*'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'next.config.*'
+      - '**/*'
   cache:
     paths:
       - node_modules/**/*
