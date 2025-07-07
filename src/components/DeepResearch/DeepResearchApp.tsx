@@ -16,9 +16,27 @@ export interface Topic {
   selected: boolean;
 }
 
+export interface ResearchMetadata {
+  id: string;
+  title: string;
+  type: ResearchType;
+  depth: ResearchDepth;
+  topics: string[];
+  generatedAt: string;
+  aiProvider: string;
+  model: string;
+  documentIntegration: boolean;
+}
+
+export interface ResearchItem {
+  content: string;
+  metadata: ResearchMetadata;
+  timestamp: string;
+}
+
 export class DeepResearchApp {
   topics: Topic[] = [];
-  researchResults: Record<string, string> = {};
+  researchResults: Record<string, string | ResearchItem | ResearchMetadata> = {};
   currentTab: 'research' | 'sources' | 'notes' = 'research';
   aiAssistant: AIAssistant | null = null;
   isGenerating = false;
@@ -294,16 +312,43 @@ export class DeepResearchApp {
       // Filter out <think> tags and any other unwanted content
       const researchContent = this.cleanResearchOutput(rawContent);
       
-      // Step 4: Save to vector store if available
-      if (this.vectorStore) {
-        const title = `Research: ${selectedTopics.map(t => t.title).join(', ')}`;
-        await this.vectorStore.addGeneratedDocument(title, researchContent);
-        this.updateStatus('✅ Research saved to knowledge base');
-        this.updateDocumentStatus();
-      }
+      // Step 4: Create research metadata
+      const researchId = `research-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const researchMetadata = {
+        id: researchId,
+        title: `${researchType.charAt(0).toUpperCase() + researchType.slice(1)} Research: ${selectedTopics.map(t => t.title).join(', ')}`,
+        type: researchType,
+        depth: researchDepth,
+        topics: selectedTopics.map(t => t.title),
+        generatedAt: new Date().toISOString(),
+        aiProvider: this.aiAssistant.getSession()?.provider || 'unknown',
+        model: this.aiAssistant.getSession()?.model || 'unknown',
+        documentIntegration: relevantDocuments.length > 0
+      };
       
+             // Step 5: Save to vector store with research metadata
+       if (this.vectorStore) {
+         await this.vectorStore.addGeneratedDocument(researchMetadata.title, researchContent);
+         this.updateStatus('✅ Research saved to knowledge base');
+         this.updateDocumentStatus();
+       }
+       
+       // Step 6: Store research results with metadata for persistence
+       this.researchResults[researchId] = {
+         content: researchContent,
+         metadata: researchMetadata,
+         timestamp: new Date().toISOString()
+       } as ResearchItem;
+       
+       // Set current research as the most recent one
+       this.researchResults['current'] = researchContent;
+       this.researchResults['currentMetadata'] = researchMetadata as ResearchMetadata;
+      
+      // Update React state and save to storage
       this.setResearchResults?.(researchContent);
-      this.updateStatus('✅ Research generated successfully');
+      this.saveToStorage();
+      
+      this.updateStatus('✅ Research generated and saved successfully');
       
     } catch (error) {
       console.error('❌ Research generation failed:', error);
@@ -311,7 +356,32 @@ export class DeepResearchApp {
       
       // Fall back to demo content on error
       const demoContent = this.generateDemoResearch(selectedTopics, researchType, researchDepth);
+      const demoId = `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const demoMetadata = {
+        id: demoId,
+        title: `Demo ${researchType.charAt(0).toUpperCase() + researchType.slice(1)} Research: ${selectedTopics.map(t => t.title).join(', ')}`,
+        type: researchType,
+        depth: researchDepth,
+        topics: selectedTopics.map(t => t.title),
+        generatedAt: new Date().toISOString(),
+        aiProvider: 'demo',
+        model: 'demo',
+        documentIntegration: false
+      };
+      
+             // Store demo content with metadata
+       this.researchResults[demoId] = {
+         content: demoContent,
+         metadata: demoMetadata,
+         timestamp: new Date().toISOString()
+       } as ResearchItem;
+       
+       this.researchResults['current'] = demoContent;
+       this.researchResults['currentMetadata'] = demoMetadata as ResearchMetadata;
+      
       this.setResearchResults?.(demoContent);
+      this.saveToStorage();
+      
       this.updateStatus('⚠️ Using demo content - AI generation failed');
     } finally {
       this.isGenerating = false;
@@ -909,7 +979,7 @@ export class DeepResearchApp {
       
       if (timeCapsuleData.research.researchResults) {
         this.researchResults = timeCapsuleData.research.researchResults;
-        this.setResearchResults?.(this.researchResults['current'] || '');
+        this.setResearchResults?.(this.getCurrentResearchContent());
       }
       
       // Restore vector store data
@@ -1037,7 +1107,7 @@ export class DeepResearchApp {
         
         // Update React state if setters are available
         this.setTopics?.(this.topics);
-        this.setResearchResults?.(this.researchResults['current'] || '');
+        this.setResearchResults?.(this.getCurrentResearchContent());
         
         console.log('📋 Loaded basic data from storage:', { 
           topics: this.topics.length, 
@@ -1072,6 +1142,39 @@ export class DeepResearchApp {
   loadFromStorage() {
     this.loadBasicDataFromStorage();
     this.loadAIConnectionFromStorage();
+  }
+
+  private getCurrentResearchContent(): string {
+    const current = this.researchResults['current'];
+    if (typeof current === 'string') {
+      return current;
+    }
+    return '';
+  }
+
+  getResearchHistory(): ResearchItem[] {
+    const history: ResearchItem[] = [];
+    
+    for (const [key, value] of Object.entries(this.researchResults)) {
+      if (key !== 'current' && key !== 'currentMetadata' && typeof value === 'object' && 'content' in value) {
+        history.push(value as ResearchItem);
+      }
+    }
+    
+    // Sort by timestamp (newest first)
+    return history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  loadResearchFromHistory(researchId: string) {
+    const research = this.researchResults[researchId];
+    if (research && typeof research === 'object' && 'content' in research) {
+      const researchItem = research as ResearchItem;
+      this.researchResults['current'] = researchItem.content;
+      this.researchResults['currentMetadata'] = researchItem.metadata;
+      this.setResearchResults?.(researchItem.content);
+      this.saveToStorage();
+      this.updateStatus(`✅ Loaded research: ${researchItem.metadata.title}`);
+    }
   }
 
   private async restoreAIConnection(savedConnection: any) {
@@ -1986,18 +2089,37 @@ export function DeepResearchComponent() {
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
-                    {formatFileSize(documentStatus.totalSize)}
+                    {documentStatus.vectorCount}
                   </div>
                   <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                    Total Size
+                    Embeddings
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
-                    {documentStatus.vectorCount}
+                    {(() => {
+                      const generatedDocs = documents.filter(doc => doc.metadata.isGenerated);
+                      return generatedDocs.length;
+                    })()}
                   </div>
                   <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                    Vector Count
+                    Images
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
+                    0
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Repositories
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
+                    {app.getResearchHistory().length}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Research Outputs
                   </div>
                 </div>
               </div>
@@ -2251,6 +2373,100 @@ export function DeepResearchComponent() {
                 ))}
               </div>
             )}
+
+            {/* Research History Section */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '10px',
+              padding: '20px',
+              marginBottom: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h3 style={{ color: '#4facfe', marginBottom: '15px', fontSize: '16px' }}>🔬 Generated Research Outputs</h3>
+              
+              {(() => {
+                const researchHistory = app.getResearchHistory();
+                return researchHistory.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '20px',
+                    color: 'rgba(255,255,255,0.7)',
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔬</div>
+                    <div style={{ fontSize: '14px' }}>No research outputs generated yet</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {researchHistory.map((research) => (
+                      <div key={research.metadata.id} style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: '600', marginBottom: '4px', color: '#4facfe', fontSize: '13px' }}>
+                            🔬 {research.metadata.title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                            <strong>Type:</strong> {research.metadata.type} | 
+                            <strong> Depth:</strong> {research.metadata.depth} | 
+                            <strong> Topics:</strong> {research.metadata.topics.length} | 
+                            <strong> Generated:</strong> {new Date(research.metadata.generatedAt).toLocaleDateString()} |
+                            <strong> AI:</strong> {research.metadata.aiProvider}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button 
+                            onClick={() => app.loadResearchFromHistory(research.metadata.id)}
+                            style={{
+                              background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                              border: 'none',
+                              color: 'white',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              fontWeight: '600'
+                            }}
+                          >
+                            📄 Load
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const blob = new Blob([research.content], { type: 'text/markdown' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `${research.metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.2)',
+                              border: 'none',
+                              color: 'white',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              fontWeight: '600'
+                            }}
+                          >
+                            📥 Download
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Modal Actions */}
             <div style={{
