@@ -7,6 +7,7 @@ import { AIAssistant, AIStatus as AIConnectionStatus } from '../../lib/AIAssista
 export type AIProvider = 'ollama' | 'lmstudio' | 'openai' | 'local';
 export type ResearchType = 'academic' | 'market' | 'technology' | 'competitive' | 'trend' | 'literature';
 export type ResearchDepth = 'overview' | 'detailed' | 'comprehensive';
+export type AIStatus = AIConnectionStatus;
 
 export interface Topic {
   id: string;
@@ -257,13 +258,18 @@ export class DeepResearchApp {
     this.updateStatus('🔄 Generating research with AI...');
 
     try {
-      // Build research prompt
-      const researchPrompt = this.buildResearchPrompt(selectedTopics, researchType, researchDepth);
+      // Step 1: Perform RAG - Search for relevant documents
+      this.updateStatus('🔍 Searching knowledge base for relevant documents...');
+      const relevantDocuments = await this.searchRelevantDocuments(selectedTopics);
       
-      // Generate research using AI
+      // Step 2: Build research prompt with RAG context
+      const researchPrompt = await this.buildResearchPrompt(selectedTopics, researchType, researchDepth, relevantDocuments);
+      
+      // Step 3: Generate research using AI with RAG context
+      this.updateStatus('🤖 Generating comprehensive research report...');
       const researchContent = await this.aiAssistant.generateContent(researchPrompt, 'research');
       
-      // Save to vector store if available
+      // Step 4: Save to vector store if available
       if (this.vectorStore) {
         const title = `Research: ${selectedTopics.map(t => t.title).join(', ')}`;
         await this.vectorStore.addGeneratedDocument(title, researchContent);
@@ -288,30 +294,120 @@ export class DeepResearchApp {
     }
   }
 
-  private buildResearchPrompt(selectedTopics: Topic[], type: ResearchType, depth: ResearchDepth): string {
+  // RAG Search for relevant documents
+  private async searchRelevantDocuments(selectedTopics: Topic[]): Promise<any[]> {
+    if (!this.vectorStore) {
+      console.log('⚠️ No vector store available for RAG search');
+      return [];
+    }
+
+    const allResults: any[] = [];
+    
+    try {
+      // Search for documents related to each topic
+      for (const topic of selectedTopics) {
+        const searchQuery = `${topic.title} ${topic.description}`;
+        console.log(`🔍 RAG Search: "${searchQuery}"`);
+        
+        const results = await this.vectorStore.searchSimilar(searchQuery, 0.1, 10);
+        console.log(`📊 Found ${results.length} relevant documents for "${topic.title}"`);
+        
+        // Add topic context to results
+        results.forEach(result => {
+          (result as any).relatedTopic = topic.title;
+        });
+        
+        allResults.push(...results);
+      }
+      
+      // Remove duplicates and sort by similarity
+      const uniqueResults = allResults.filter((result, index, self) => 
+        index === self.findIndex(r => r.document.id === result.document.id && r.chunk.index === result.chunk.index)
+      );
+      
+      const sortedResults = uniqueResults.sort((a, b) => b.similarity - a.similarity);
+      
+      console.log(`📊 RAG Search Summary: ${sortedResults.length} unique relevant documents found`);
+      return sortedResults.slice(0, 20); // Limit to top 20 results
+      
+    } catch (error) {
+      console.error('❌ RAG search failed:', error);
+      return [];
+    }
+  }
+
+  private async buildResearchPrompt(selectedTopics: Topic[], type: ResearchType, depth: ResearchDepth, relevantDocuments: any[]): Promise<string> {
     const topics = selectedTopics.map(t => `${t.title}: ${t.description}`).join('\n');
     
-    let prompt = `Generate a ${depth} ${type} research report on the following topics:\n\n${topics}\n\n`;
+    let prompt = `You are a professional researcher. Generate a comprehensive ${depth} ${type} research report based on the provided topics and supporting documents.\n\n`;
     
-    prompt += `Requirements:\n`;
+    prompt += `## Research Topics:\n${topics}\n\n`;
+    
+    // Add RAG context if documents are available
+    if (relevantDocuments.length > 0) {
+      prompt += `## Supporting Documents & Evidence:\n`;
+      prompt += `The following documents from the knowledge base are relevant to your research:\n\n`;
+      
+      relevantDocuments.forEach((result, index) => {
+        const matchPercentage = (result.similarity * 100).toFixed(1);
+        prompt += `### Document ${index + 1}: "${result.document.title}" (${matchPercentage}% match)\n`;
+        prompt += `**Related to:** ${(result as any).relatedTopic}\n`;
+        prompt += `**Content:** ${result.chunk.content.substring(0, 500)}${result.chunk.content.length > 500 ? '...' : ''}\n`;
+        prompt += `**Source:** Document ID ${result.document.id}, Chunk ${result.chunk.index + 1}\n\n`;
+      });
+      
+      prompt += `## Research Requirements:\n`;
+      prompt += `- **IMPORTANT**: Use the provided documents as evidence and cite them in your report\n`;
+      prompt += `- Include specific quotes from documents with citations (Document X, Y% match)\n`;
+      prompt += `- Reference statistical data and metrics found in the documents\n`;
+      prompt += `- Create a comprehensive analysis that connects document evidence to research topics\n`;
+    } else {
+      prompt += `## Research Requirements:\n`;
+      prompt += `- **Note**: No supporting documents found in knowledge base - generate based on AI knowledge\n`;
+    }
+    
     prompt += `- Research Type: ${type}\n`;
     prompt += `- Research Depth: ${depth}\n`;
-    prompt += `- Format: Markdown with proper headers and structure\n`;
-    prompt += `- Include executive summary, key findings, and conclusions\n`;
+    prompt += `- Format: Professional markdown with proper headers and structure\n\n`;
+    
+    prompt += `## Required Report Structure:\n`;
+    prompt += `1. **🎯 Executive Summary** - Key findings and primary insights\n`;
+    prompt += `2. **📊 Individual Topic Analysis** - Detailed analysis per topic with:\n`;
+    prompt += `   - Topic Background\n`;
+    prompt += `   - Key Findings\n`;
+    prompt += `   - Supporting Evidence (with citations if documents available)\n`;
+    prompt += `   - Analysis and Implications\n`;
+    prompt += `3. **🔗 Cross-Topic Insights & Connections** - How topics relate to each other\n`;
+    prompt += `4. **📈 Key Findings & Evidence** - Statistical data, quotes, and concrete evidence\n`;
+    prompt += `5. **💡 Implications & Impact Assessment** - What this means for the field\n`;
+    prompt += `6. **🎯 Actionable Recommendations** - Specific next steps and recommendations\n`;
+    prompt += `7. **📚 Source Integration Summary** - How documents informed the research\n\n`;
     
     if (depth === 'overview') {
-      prompt += `- Keep it concise with high-level insights\n`;
+      prompt += `## Depth Guidelines:\n`;
+      prompt += `- Keep sections concise with high-level insights\n`;
       prompt += `- Focus on 3-5 key points per topic\n`;
+      prompt += `- Emphasize actionable takeaways\n`;
     } else if (depth === 'detailed') {
+      prompt += `## Depth Guidelines:\n`;
       prompt += `- Provide comprehensive analysis with supporting data\n`;
       prompt += `- Include market analysis, technology assessment, and competitive landscape\n`;
+      prompt += `- Add specific metrics and quantitative insights\n`;
     } else { // comprehensive
+      prompt += `## Depth Guidelines:\n`;
       prompt += `- Provide in-depth analysis with detailed methodology\n`;
       prompt += `- Include extensive findings, strategic recommendations, and next steps\n`;
       prompt += `- Add specific metrics, market sizing, and implementation timelines\n`;
+      prompt += `- Cross-reference multiple sources and provide detailed evidence\n`;
     }
     
-    prompt += `\nPlease generate a professional research report in markdown format.`;
+    prompt += `\n## Output Format:\n`;
+    prompt += `Generate a professional, well-structured research report in markdown format. `;
+    prompt += `Make it comprehensive, evidence-based, and actionable. `;
+    
+    if (relevantDocuments.length > 0) {
+      prompt += `Ensure all document citations are properly formatted and referenced throughout the report.`;
+    }
     
     return prompt;
   }
