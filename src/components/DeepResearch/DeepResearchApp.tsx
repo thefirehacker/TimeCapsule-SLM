@@ -45,6 +45,7 @@ export class DeepResearchApp {
   documentModalOpen = false;
   eventListenersSetup = false;
   isUploading = false;
+  isVectorStoreLoading = true;
   
   // Modal states
   showOllamaConnectionModal = false;
@@ -68,6 +69,7 @@ export class DeepResearchApp {
   setShowModelSelectionModal: ((show: boolean) => void) | null = null;
   setAvailableModels: ((models: any[]) => void) | null = null;
   setSelectedOllamaURL: ((url: string) => void) | null = null;
+  setIsVectorStoreLoading: ((loading: boolean) => void) | null = null;
 
   constructor() {
     // Make this instance globally available - only in browser
@@ -80,23 +82,75 @@ export class DeepResearchApp {
   async init() {
     console.log('🚀 DeepResearchApp.init() called');
     
-    // Load basic data first (topics, research results)
+    // Load basic data first (topics, research results) - this is fast
     this.loadBasicDataFromStorage();
     
-    // Initialize AI Assistant
+    // Initialize AI Assistant - this is fast
     this.initializeAIAssistant();
     
-    // Now load AI connection state after AI assistant is initialized
-    // Add small delay to ensure everything is properly set up
+    // Load AI connection state - this is fast
     setTimeout(() => {
       this.loadAIConnectionFromStorage();
     }, 100);
     
-    // Initialize Vector Store
-    await this.initializeVectorStore();
+    // Show UI immediately with ready status
+    this.updateStatus('✅ DeepResearch ready - Document features loading...');
+    console.log('✅ DeepResearchApp basic initialization complete - UI ready');
     
-    this.updateStatus('🤖 Ready to connect to AI - Click "Connect AI" to start');
-    console.log('✅ DeepResearchApp initialized');
+    // Initialize Vector Store asynchronously in background (non-blocking)
+    this.initializeVectorStoreAsync();
+  }
+
+  private async initializeVectorStoreAsync() {
+    try {
+      console.log('📊 Starting background VectorStore initialization...');
+      this.updateStatus('📊 Loading document processing capabilities...');
+      this.isVectorStoreLoading = true;
+      this.setIsVectorStoreLoading?.(true);
+      
+      // Check if there's already a shared VectorStore instance (only in browser)
+      if (typeof window !== 'undefined' && (window as any).sharedVectorStore && (window as any).sharedVectorStore.initialized) {
+        console.log('🔗 Using existing shared VectorStore instance');
+        this.vectorStore = (window as any).sharedVectorStore;
+        this.updateStatus('✅ Document processing ready');
+        this.updateDocumentStatus();
+        this.isVectorStoreLoading = false;
+        this.setIsVectorStoreLoading?.(false);
+        return;
+      }
+      
+      // Create new VectorStore instance (this downloads embeddings)
+      console.log('🆕 Creating new VectorStore instance - downloading embeddings...');
+      this.updateStatus('⬇️ Downloading AI embeddings model (first time only)...');
+      
+      this.vectorStore = new VectorStore();
+      await this.vectorStore.init();
+      
+      // Make it available globally (only in browser)
+      if (typeof window !== 'undefined') {
+        (window as any).sharedVectorStore = this.vectorStore;
+      }
+      
+      console.log('✅ VectorStore background initialization complete');
+      this.updateStatus('✅ Document processing ready - Upload documents to enhance research');
+      this.updateDocumentStatus();
+      this.isVectorStoreLoading = false;
+      this.setIsVectorStoreLoading?.(false);
+      
+    } catch (error) {
+      console.error('❌ VectorStore background initialization failed:', error);
+      this.updateStatus('⚠️ Document processing unavailable - Research still works without documents');
+      this.vectorStore = null;
+      this.isVectorStoreLoading = false;
+      this.setIsVectorStoreLoading?.(false);
+      // Don't block the app - continue without vector store
+    }
+  }
+
+  // Legacy method - now non-blocking
+  async initializeVectorStore() {
+    // Just call the async version and don't await it
+    this.initializeVectorStoreAsync();
   }
 
   initializeAIAssistant() {
@@ -120,36 +174,6 @@ export class DeepResearchApp {
     });
     
     console.log('✅ AI Assistant initialized');
-  }
-
-  async initializeVectorStore() {
-    try {
-      console.log('🗂️ Initializing Vector Store...');
-      
-      // Check if there's already a shared VectorStore instance (only in browser)
-      if (typeof window !== 'undefined' && (window as any).sharedVectorStore && (window as any).sharedVectorStore.initialized) {
-        console.log('🔗 Using existing shared VectorStore instance');
-        this.vectorStore = (window as any).sharedVectorStore;
-      } else {
-        // Create new VectorStore instance
-        console.log('🆕 Creating new VectorStore instance for DeepResearch');
-        this.vectorStore = new VectorStore();
-        await this.vectorStore.init();
-        
-        // Make it available globally (only in browser)
-        if (typeof window !== 'undefined') {
-          (window as any).sharedVectorStore = this.vectorStore;
-        }
-      }
-      
-      console.log('✅ Vector Store initialized');
-      this.updateStatus('📚 Vector Store ready for document management');
-      this.updateDocumentStatus();
-    } catch (error) {
-      console.error('❌ Vector Store initialization failed:', error);
-      this.updateStatus('❌ Vector Store initialization failed: ' + (error as Error).message);
-      this.vectorStore = null;
-    }
   }
 
   addTopic(title: string, description: string) {
@@ -322,8 +346,14 @@ export class DeepResearchApp {
 
     try {
       // Step 1: Perform RAG - Search for relevant documents
-      this.updateStatus('🔍 Searching knowledge base for relevant documents...');
-      const relevantDocuments = await this.searchRelevantDocuments(selectedTopics);
+      let relevantDocuments: any[] = [];
+      if (this.vectorStore && !this.isVectorStoreLoading) {
+        this.updateStatus('🔍 Searching knowledge base for relevant documents...');
+        relevantDocuments = await this.searchRelevantDocuments(selectedTopics);
+      } else {
+        console.log('⚠️ VectorStore not ready, generating research without document context');
+        this.updateStatus('🔍 Generating research (document search unavailable)...');
+      }
       
       // Step 2: Build research prompt with RAG context
       const researchPrompt = await this.buildResearchPrompt(selectedTopics, researchType, researchDepth, relevantDocuments);
@@ -1365,6 +1395,7 @@ export function DeepResearchComponent() {
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [documentStatus, setDocumentStatus] = useState({ count: 0, totalSize: 0, vectorCount: 0 });
   const [showDocumentManager, setShowDocumentManager] = useState<boolean>(false);
+  const [isVectorStoreLoading, setIsVectorStoreLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -1408,6 +1439,7 @@ export function DeepResearchComponent() {
       appRef.current.setShowModelSelectionModal = setShowModelSelectionModal;
       appRef.current.setAvailableModels = setAvailableModels;
       appRef.current.setSelectedOllamaURL = setSelectedOllamaURL;
+      appRef.current.setIsVectorStoreLoading = setIsVectorStoreLoading;
       
       // Initialize the app
       appRef.current.init();
@@ -1516,6 +1548,15 @@ export function DeepResearchComponent() {
             }
             75% {
               transform: translateY(-2px) rotate(-1deg);
+            }
+          }
+          
+          @keyframes spin {
+            0% {
+              transform: rotate(0deg);
+            }
+            100% {
+              transform: rotate(360deg);
             }
           }
           
@@ -1897,14 +1938,39 @@ export function DeepResearchComponent() {
           >
             {isGenerating ? '🔄 Generating...' : 
              !aiStatus.connected ? '❌ Connect AI First' : 
+             isVectorStoreLoading ? '🚀 Generate Research*' :
              '🚀 Generate Research'}
           </button>
+          {isVectorStoreLoading && (
+            <div style={{ 
+              fontSize: '11px', 
+              color: 'rgba(255,255,255,0.6)', 
+              marginTop: '5px', 
+              textAlign: 'center' 
+            }}>
+              *Research will work without documents while embeddings load
+            </div>
+          )}
 
           {/* Document Management */}
           <div style={{ marginBottom: '20px' }}>
             <h4 style={{ marginBottom: '10px' }}>📚 Knowledge Base</h4>
             <div style={{ fontSize: '12px', marginBottom: '10px', color: 'rgba(255,255,255,0.8)' }}>
-              Documents: {documentStatus.count} | Size: {formatFileSize(documentStatus.totalSize)} | Vectors: {documentStatus.vectorCount}
+              {isVectorStoreLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ 
+                    width: '16px', 
+                    height: '16px', 
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTop: '2px solid #4facfe',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  Loading embeddings...
+                </div>
+              ) : (
+                <>Documents: {documentStatus.count} | Size: {formatFileSize(documentStatus.totalSize)} | Vectors: {documentStatus.vectorCount}</>
+              )}
             </div>
             <input 
               type="file" 
@@ -1915,37 +1981,46 @@ export function DeepResearchComponent() {
             />
             <button 
               onClick={() => document.getElementById('documentUpload')?.click()}
+              disabled={isVectorStoreLoading}
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
+                background: isVectorStoreLoading ? 
+                  'rgba(255, 255, 255, 0.3)' : 
+                  'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
                 border: 'none',
                 borderRadius: '12px',
-                color: '#333',
+                color: isVectorStoreLoading ? 'rgba(255,255,255,0.6)' : '#333',
                 fontWeight: '600',
-                cursor: 'pointer',
-                marginBottom: '10px'
+                cursor: isVectorStoreLoading ? 'not-allowed' : 'pointer',
+                marginBottom: '10px',
+                opacity: isVectorStoreLoading ? 0.5 : 1,
+                transition: 'all 0.3s ease'
               }}
             >
-              📄 Upload Documents
+              {isVectorStoreLoading ? '⏳ Loading...' : '📄 Upload Documents'}
             </button>
             <button 
               onClick={() => app.showDocumentManager()}
+              disabled={isVectorStoreLoading}
               style={{
                 width: '100%',
                 padding: '14px',
-                background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                background: isVectorStoreLoading ? 
+                  'rgba(255, 255, 255, 0.3)' : 
+                  'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
                 border: 'none',
                 borderRadius: '12px',
                 color: 'white',
                 fontWeight: '700',
-                cursor: 'pointer',
+                cursor: isVectorStoreLoading ? 'not-allowed' : 'pointer',
                 marginBottom: '10px',
-                boxShadow: '0 4px 15px rgba(79, 172, 254, 0.4)',
-                transition: 'all 0.3s ease'
+                boxShadow: isVectorStoreLoading ? 'none' : '0 4px 15px rgba(79, 172, 254, 0.4)',
+                transition: 'all 0.3s ease',
+                opacity: isVectorStoreLoading ? 0.5 : 1
               }}
             >
-              📚 Manage Knowledge
+              {isVectorStoreLoading ? '⏳ Loading...' : '📚 Manage Knowledge'}
             </button>
           </div>
 
