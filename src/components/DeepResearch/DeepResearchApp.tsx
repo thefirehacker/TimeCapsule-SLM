@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { VectorStore, DocumentData } from '../VectorStore/VectorStore';
+import { AIAssistant, AIStatus as AIConnectionStatus } from '../../lib/AIAssistant';
 
 export type AIProvider = 'ollama' | 'lmstudio' | 'openai' | 'local';
 export type ResearchType = 'academic' | 'market' | 'technology' | 'competitive' | 'trend' | 'literature';
@@ -14,26 +15,26 @@ export interface Topic {
   selected: boolean;
 }
 
-export interface AIStatus {
-  connected: boolean;
-  provider: AIProvider;
-  model?: string;
-}
-
 export class DeepResearchApp {
   topics: Topic[] = [];
   researchResults: Record<string, string> = {};
   currentTab: 'research' | 'sources' | 'notes' = 'research';
-  aiAssistant: any = null;
+  aiAssistant: AIAssistant | null = null;
   isGenerating = false;
   vectorStore: VectorStore | null = null;
   documentModalOpen = false;
   eventListenersSetup = false;
   isUploading = false;
+  
+  // Modal states
+  showOllamaConnectionModal = false;
+  showModelSelectionModal = false;
+  availableModels: any[] = [];
+  selectedOllamaURL = 'http://localhost:11434';
 
   // React state setters (will be set in the hook)
   setTopics: ((topics: Topic[]) => void) | null = null;
-  setAIStatus: ((status: AIStatus) => void) | null = null;
+  setAIStatus: ((status: AIConnectionStatus) => void) | null = null;
   setResearchType: ((type: ResearchType) => void) | null = null;
   setResearchDepth: ((depth: ResearchDepth) => void) | null = null;
   setResearchResults: ((results: string) => void) | null = null;
@@ -43,6 +44,10 @@ export class DeepResearchApp {
   setDocuments: ((docs: DocumentData[]) => void) | null = null;
   setDocumentStatus: ((status: { count: number; totalSize: number; vectorCount: number }) => void) | null = null;
   setShowDocumentManager: ((show: boolean) => void) | null = null;
+  setShowOllamaConnectionModal: ((show: boolean) => void) | null = null;
+  setShowModelSelectionModal: ((show: boolean) => void) | null = null;
+  setAvailableModels: ((models: any[]) => void) | null = null;
+  setSelectedOllamaURL: ((url: string) => void) | null = null;
 
   constructor() {
     // Make this instance globally available - only in browser
@@ -56,12 +61,34 @@ export class DeepResearchApp {
     console.log('🚀 DeepResearchApp.init() called');
     
     this.loadFromStorage();
-    this.updateStatus('🦙 Ollama mode enabled - Ready to start research');
+    
+    // Initialize AI Assistant
+    this.initializeAIAssistant();
     
     // Initialize Vector Store
     await this.initializeVectorStore();
     
+    this.updateStatus('🤖 Ready to connect to AI - Click "Connect AI" to start');
     console.log('✅ DeepResearchApp initialized');
+  }
+
+  initializeAIAssistant() {
+    console.log('🤖 Initializing AI Assistant...');
+    this.aiAssistant = new AIAssistant();
+    
+    // Set up status change callback
+    this.aiAssistant.setStatusChangeCallback((status) => {
+      console.log('🔄 AI Status changed:', status);
+      this.setAIStatus?.(status);
+      
+      if (status.connected) {
+        this.updateStatus(`✅ Connected to ${status.provider}${status.model ? ` (${status.model})` : ''}`);
+      } else {
+        this.updateStatus(`❌ AI connection failed: ${status.error || 'Unknown error'}`);
+      }
+    });
+    
+    console.log('✅ AI Assistant initialized');
   }
 
   async initializeVectorStore() {
@@ -138,13 +165,76 @@ export class DeepResearchApp {
   }
 
   async connectAI() {
-    this.updateStatus('🔄 Connecting to AI...');
+    this.updateStatus('🔄 Starting AI connection...');
     
-    // Simulate AI connection
-    setTimeout(() => {
-      this.setAIStatus?.({ connected: true, provider: 'ollama' });
-      this.updateStatus('✅ Connected to AI successfully');
-    }, 1000);
+    // Check if already connected
+    if (this.aiAssistant?.isConnected()) {
+      this.updateStatus('✅ AI is already connected');
+      return;
+    }
+    
+    // Show Ollama connection modal
+    this.setShowOllamaConnectionModal?.(true);
+  }
+
+  async testOllamaConnection(url: string) {
+    if (!this.aiAssistant) {
+      this.updateStatus('❌ AI Assistant not initialized');
+      return;
+    }
+
+    this.updateStatus('🔍 Testing Ollama connection...');
+    
+    try {
+      const result = await this.aiAssistant.testOllamaConnection(url);
+      
+      if (result.success) {
+        this.availableModels = result.models || [];
+        this.setAvailableModels?.(this.availableModels);
+        this.selectedOllamaURL = url;
+        this.setSelectedOllamaURL?.(url);
+        
+        // Close connection modal and show model selection
+        this.setShowOllamaConnectionModal?.(false);
+        this.setShowModelSelectionModal?.(true);
+        
+        this.updateStatus(`✅ Found ${this.availableModels.length} available models`);
+      } else {
+        this.updateStatus(`❌ Connection failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Ollama connection test failed:', error);
+      this.updateStatus(`❌ Connection test failed: ${(error as Error).message}`);
+    }
+  }
+
+  async selectModel(modelName: string) {
+    if (!this.aiAssistant) {
+      this.updateStatus('❌ AI Assistant not initialized');
+      return;
+    }
+
+    this.updateStatus(`🔄 Connecting to ${modelName}...`);
+    
+    try {
+      const success = await this.aiAssistant.connectToOllama(this.selectedOllamaURL, modelName);
+      
+      if (success) {
+        this.setShowModelSelectionModal?.(false);
+        this.updateStatus(`✅ Connected to ${modelName} successfully`);
+      } else {
+        this.updateStatus(`❌ Failed to connect to ${modelName}`);
+      }
+    } catch (error) {
+      console.error('❌ Model selection failed:', error);
+      this.updateStatus(`❌ Model selection failed: ${(error as Error).message}`);
+    }
+  }
+
+  cancelConnection() {
+    this.setShowOllamaConnectionModal?.(false);
+    this.setShowModelSelectionModal?.(false);
+    this.updateStatus('🔄 Connection cancelled');
   }
 
   async generateResearch(researchType: ResearchType, researchDepth: ResearchDepth) {
@@ -156,13 +246,22 @@ export class DeepResearchApp {
       return;
     }
 
+    // Check if AI is connected
+    if (!this.aiAssistant?.isConnected()) {
+      this.updateStatus('❌ Please connect to AI first');
+      return;
+    }
+
     this.isGenerating = true;
     this.setIsGenerating?.(true);
-    this.updateStatus('🔄 Generating research...');
+    this.updateStatus('🔄 Generating research with AI...');
 
     try {
-      // Generate mock research content
-      const researchContent = this.generateMockResearch(selectedTopics, researchType, researchDepth);
+      // Build research prompt
+      const researchPrompt = this.buildResearchPrompt(selectedTopics, researchType, researchDepth);
+      
+      // Generate research using AI
+      const researchContent = await this.aiAssistant.generateContent(researchPrompt, 'research');
       
       // Save to vector store if available
       if (this.vectorStore) {
@@ -178,19 +277,53 @@ export class DeepResearchApp {
     } catch (error) {
       console.error('❌ Research generation failed:', error);
       this.updateStatus('❌ Research generation failed: ' + (error as Error).message);
+      
+      // Fall back to demo content on error
+      const demoContent = this.generateDemoResearch(selectedTopics, researchType, researchDepth);
+      this.setResearchResults?.(demoContent);
+      this.updateStatus('⚠️ Using demo content - AI generation failed');
     } finally {
       this.isGenerating = false;
       this.setIsGenerating?.(false);
     }
   }
 
-  private generateMockResearch(selectedTopics: Topic[], type: ResearchType, depth: ResearchDepth): string {
+  private buildResearchPrompt(selectedTopics: Topic[], type: ResearchType, depth: ResearchDepth): string {
+    const topics = selectedTopics.map(t => `${t.title}: ${t.description}`).join('\n');
+    
+    let prompt = `Generate a ${depth} ${type} research report on the following topics:\n\n${topics}\n\n`;
+    
+    prompt += `Requirements:\n`;
+    prompt += `- Research Type: ${type}\n`;
+    prompt += `- Research Depth: ${depth}\n`;
+    prompt += `- Format: Markdown with proper headers and structure\n`;
+    prompt += `- Include executive summary, key findings, and conclusions\n`;
+    
+    if (depth === 'overview') {
+      prompt += `- Keep it concise with high-level insights\n`;
+      prompt += `- Focus on 3-5 key points per topic\n`;
+    } else if (depth === 'detailed') {
+      prompt += `- Provide comprehensive analysis with supporting data\n`;
+      prompt += `- Include market analysis, technology assessment, and competitive landscape\n`;
+    } else { // comprehensive
+      prompt += `- Provide in-depth analysis with detailed methodology\n`;
+      prompt += `- Include extensive findings, strategic recommendations, and next steps\n`;
+      prompt += `- Add specific metrics, market sizing, and implementation timelines\n`;
+    }
+    
+    prompt += `\nPlease generate a professional research report in markdown format.`;
+    
+    return prompt;
+  }
+
+  private generateDemoResearch(selectedTopics: Topic[], type: ResearchType, depth: ResearchDepth): string {
     const topics = selectedTopics.map(t => t.title).join(', ');
     
     let content = `# ${type.charAt(0).toUpperCase() + type.slice(1)} Research Report\n\n`;
     content += `**Research Depth:** ${depth}\n`;
     content += `**Topics:** ${topics}\n`;
-    content += `**Generated:** ${new Date().toLocaleDateString()}\n\n`;
+    content += `**Generated:** ${new Date().toLocaleDateString()}\n`;
+    content += `**Note:** This is demo content - AI generation failed\n\n`;
     
     content += `## Executive Summary\n\n`;
     content += `This ${depth} ${type} research analysis covers ${topics}. `;
@@ -267,7 +400,7 @@ export class DeepResearchApp {
     content += `3. Partnership and collaboration opportunities\n`;
     content += `4. Investment and resource planning\n\n`;
     content += `---\n\n`;
-    content += `*This research was generated by DeepResearch TimeCapsule*`;
+    content += `*This research was generated by DeepResearch TimeCapsule (Demo Mode)*`;
     
     return content;
   }
@@ -726,7 +859,7 @@ export class DeepResearchApp {
 // React Component Hook
 export function DeepResearchComponent() {
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [aiStatus, setAIStatus] = useState<AIStatus>({ connected: false, provider: 'ollama' });
+  const [aiStatus, setAIStatus] = useState<AIConnectionStatus>({ connected: false, provider: 'ollama' });
   const [researchType, setResearchType] = useState<ResearchType>('academic');
   const [researchDepth, setResearchDepth] = useState<ResearchDepth>('overview');
   const [researchResults, setResearchResults] = useState<string>('');
@@ -746,6 +879,15 @@ export function DeepResearchComponent() {
   const [showDocumentPreview, setShowDocumentPreview] = useState<boolean>(false);
   const [showChunkView, setShowChunkView] = useState<boolean>(false);
   const [currentChunk, setCurrentChunk] = useState<any>(null);
+  const [showAddTopicModal, setShowAddTopicModal] = useState<boolean>(false);
+  const [newTopicTitle, setNewTopicTitle] = useState<string>('');
+  const [newTopicDescription, setNewTopicDescription] = useState<string>('');
+  
+  // AI Connection Modal States
+  const [showOllamaConnectionModal, setShowOllamaConnectionModal] = useState<boolean>(false);
+  const [showModelSelectionModal, setShowModelSelectionModal] = useState<boolean>(false);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [selectedOllamaURL, setSelectedOllamaURL] = useState<string>('http://localhost:11434');
   
   const appRef = useRef<DeepResearchApp | null>(null);
 
@@ -766,6 +908,10 @@ export function DeepResearchComponent() {
       appRef.current.setDocuments = setDocuments;
       appRef.current.setDocumentStatus = setDocumentStatus;
       appRef.current.setShowDocumentManager = setShowDocumentManager;
+      appRef.current.setShowOllamaConnectionModal = setShowOllamaConnectionModal;
+      appRef.current.setShowModelSelectionModal = setShowModelSelectionModal;
+      appRef.current.setAvailableModels = setAvailableModels;
+      appRef.current.setSelectedOllamaURL = setSelectedOllamaURL;
       
       // Initialize the app
       appRef.current.init();
@@ -784,9 +930,12 @@ export function DeepResearchComponent() {
     try {
       const results = await app.searchDocuments(searchQuery, searchThreshold, 20);
       setSearchResults(results);
+      console.log('Search completed, results:', results.length);
       if (results.length > 0) {
         setCurrentSearchQuery(searchQuery);
         setShowSearchResults(true);
+        setShowDocumentManager(false); // Close document manager when showing search results
+        console.log('Opening search results modal with', results.length, 'results');
       }
     } catch (error) {
       console.error('Search failed:', error);
@@ -846,6 +995,16 @@ export function DeepResearchComponent() {
       padding: '20px',
       fontFamily: 'Segoe UI, sans-serif'
     }}>
+      <style>
+        {`
+          input::placeholder, textarea::placeholder {
+            color: rgba(255, 255, 255, 0.6) !important;
+          }
+          input:focus::placeholder, textarea:focus::placeholder {
+            color: rgba(255, 255, 255, 0.4) !important;
+          }
+        `}
+      </style>
       <div style={{
         display: 'grid',
         gridTemplateColumns: '300px 1fr 6px 2fr',
@@ -931,8 +1090,26 @@ export function DeepResearchComponent() {
                 cursor: 'pointer'
               }}
             >
-              {aiStatus.connected ? '✅ Connected' : '🔌 Connect AI'}
+              {aiStatus.connected ? `✅ Connected (${aiStatus.model})` : '🔌 Connect AI'}
             </button>
+            {aiStatus.connected && (
+              <button 
+                onClick={() => app.aiAssistant?.disconnect()}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'rgba(255, 69, 0, 0.3)',
+                  border: '1px solid rgba(255, 69, 0, 0.5)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginTop: '10px'
+                }}
+              >
+                🔌 Disconnect
+              </button>
+            )}
           </div>
 
           {/* Research Type */}
@@ -987,13 +1164,7 @@ export function DeepResearchComponent() {
           {/* Add Topic */}
           <div style={{ marginBottom: '20px' }}>
             <button 
-              onClick={() => {
-                const title = prompt('Topic title:');
-                const description = prompt('Topic description:');
-                if (title && description) {
-                  app.addTopic(title, description);
-                }
-              }}
+              onClick={() => setShowAddTopicModal(true)}
               style={{
                 width: '100%',
                 padding: '14px',
@@ -1012,24 +1183,39 @@ export function DeepResearchComponent() {
 
           {/* Generate Research */}
           <button 
-            onClick={() => app.generateResearch(researchType, researchDepth)}
-            disabled={isGenerating || topics.filter(t => t.selected).length === 0}
+            onClick={() => {
+              const selectedTopics = topics.filter(t => t.selected);
+              if (selectedTopics.length === 0) {
+                app.updateStatus('❌ Please select at least one topic first');
+                return;
+              }
+              if (!aiStatus.connected) {
+                app.updateStatus('❌ Please connect to AI first');
+                return;
+              }
+              app.generateResearch(researchType, researchDepth);
+            }}
+            disabled={isGenerating || !aiStatus.connected}
             style={{
               width: '100%',
               padding: '14px',
-              background: isGenerating ? 
+              background: (isGenerating || !aiStatus.connected) ? 
                 'rgba(255, 255, 255, 0.3)' :
                 'linear-gradient(45deg, #fa709a 0%, #fee140 100%)',
               border: 'none',
               borderRadius: '12px',
               color: 'white',
               fontWeight: '700',
-              cursor: isGenerating ? 'not-allowed' : 'pointer',
-              opacity: isGenerating ? 0.5 : 1,
-              marginBottom: '20px'
+              cursor: (isGenerating || !aiStatus.connected) ? 'not-allowed' : 'pointer',
+              opacity: (isGenerating || !aiStatus.connected) ? 0.5 : 1,
+              marginBottom: '20px',
+              boxShadow: (isGenerating || !aiStatus.connected) ? 'none' : '0 4px 15px rgba(250, 112, 154, 0.4)',
+              transition: 'all 0.3s ease'
             }}
           >
-            {isGenerating ? '🔄 Generating...' : '🚀 Generate Research'}
+            {isGenerating ? '🔄 Generating...' : 
+             !aiStatus.connected ? '❌ Connect AI First' : 
+             '🚀 Generate Research'}
           </button>
 
           {/* Document Management */}
@@ -2142,6 +2328,468 @@ export function DeepResearchComponent() {
                 }}
               >
                 📥 Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Topic Modal */}
+      {showAddTopicModal && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '20px',
+            padding: '30px',
+            maxWidth: '900px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, color: '#4facfe', fontSize: '24px' }}>Add New Topic</h2>
+              <button 
+                onClick={() => setShowAddTopicModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '5px',
+                  borderRadius: '5px',
+                  transition: 'background 0.3s ease'
+                }}
+                                 onMouseEnter={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.2)'}
+                 onMouseLeave={(e) => (e.target as HTMLElement).style.background = 'none'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Topic Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: '600' }}>
+                  Topic Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter a descriptive topic title..."
+                  value={newTopicTitle}
+                  onChange={(e) => setNewTopicTitle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'rgba(79, 172, 254, 0.6)';
+                    e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: '600' }}>
+                  Topic Description
+                </label>
+                <textarea
+                  placeholder="Provide a detailed description of what you want to research about this topic..."
+                  value={newTopicDescription}
+                  onChange={(e) => setNewTopicDescription(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    height: '120px',
+                    resize: 'vertical',
+                    outline: 'none',
+                    transition: 'all 0.3s ease',
+                    fontFamily: 'inherit'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'rgba(79, 172, 254, 0.6)';
+                    e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  onClick={() => {
+                    setShowAddTopicModal(false);
+                    setNewTopicTitle('');
+                    setNewTopicDescription('');
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (newTopicTitle.trim() && newTopicDescription.trim()) {
+                      app.addTopic(newTopicTitle.trim(), newTopicDescription.trim());
+                      setShowAddTopicModal(false);
+                      setNewTopicTitle('');
+                      setNewTopicDescription('');
+                    } else {
+                      app.updateStatus('❌ Please fill in both title and description');
+                    }
+                  }}
+                  disabled={!newTopicTitle.trim() || !newTopicDescription.trim()}
+                  style={{
+                    padding: '12px 24px',
+                    background: (!newTopicTitle.trim() || !newTopicDescription.trim()) 
+                      ? 'rgba(255, 255, 255, 0.3)'
+                      : 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: (!newTopicTitle.trim() || !newTopicDescription.trim()) ? 'not-allowed' : 'pointer',
+                    opacity: (!newTopicTitle.trim() || !newTopicDescription.trim()) ? 0.5 : 1,
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  ➕ Add Topic
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ollama Connection Modal */}
+      {showOllamaConnectionModal && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #00d4aa 0%, #00a67d 100%)',
+            borderRadius: '20px',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '24px' }}>🦙 Ollama Connection</h2>
+              <button 
+                onClick={() => app.cancelConnection()}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '5px',
+                  borderRadius: '5px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* URL Input */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'white', fontWeight: '600' }}>
+                Ollama Server URL:
+              </label>
+              <input
+                type="text"
+                value={selectedOllamaURL}
+                onChange={(e) => setSelectedOllamaURL(e.target.value)}
+                placeholder="http://localhost:11434"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  marginBottom: '10px'
+                }}
+              />
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', marginBottom: '15px' }}>
+                💡 Examples: http://localhost:11434, http://192.168.1.100:11434, https://my-ollama-server.com
+              </p>
+            </div>
+
+            {/* Requirements */}
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '20px', textAlign: 'center' }}>
+              📋 Requirements:<br/>
+              • Ollama must be installed and running<br/>
+              • At least one model must be available<br/>
+              • Example: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 4px', borderRadius: '3px' }}>ollama pull qwen2.5:0.5b</code><br/>
+              • No API key required - fully local
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+              <button
+                onClick={() => app.cancelConnection()}
+                style={{
+                  padding: '12px 24px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => app.testOllamaConnection(selectedOllamaURL)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                🔌 Connect to Ollama
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Model Selection Modal */}
+      {showModelSelectionModal && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            borderRadius: '20px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '24px' }}>🤖 Choose Your Model</h2>
+              <button 
+                onClick={() => app.cancelConnection()}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '5px',
+                  borderRadius: '5px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Connection Info */}
+            <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: 0 }}>
+                Connected to: <strong>{selectedOllamaURL}</strong>
+              </p>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '5px 0' }}>
+                Found {availableModels.length} available models
+              </p>
+            </div>
+
+            {/* Model List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {availableModels.map((model, index) => (
+                <div key={index} style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  padding: '15px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={() => app.selectModel(model.name)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '5px' }}>
+                        🤖 {model.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                        Size: {model.size ? `${Math.round(model.size / 1024 / 1024 / 1024 * 10) / 10}GB` : 'Unknown'} • 
+                        Modified: {model.modified ? new Date(model.modified).toLocaleDateString() : 'Unknown'}
+                      </div>
+                    </div>
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      Select
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* No Models Message */}
+            {availableModels.length === 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                color: 'rgba(255,255,255,0.8)',
+                background: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: '15px'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>🤖</div>
+                <div style={{ fontSize: '18px', marginBottom: '10px' }}>No models found</div>
+                <div style={{ fontSize: '14px', marginBottom: '20px' }}>
+                  Please install a model first. For example:<br/>
+                  <code style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
+                    ollama pull qwen2.5:0.5b
+                  </code>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '25px' }}>
+              <button
+                onClick={() => app.cancelConnection()}
+                style={{
+                  padding: '12px 24px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => app.testOllamaConnection(selectedOllamaURL)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Refresh Models
               </button>
             </div>
           </div>
