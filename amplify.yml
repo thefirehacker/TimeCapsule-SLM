@@ -1,0 +1,66 @@
+version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - '# Execute Amplify CLI with the helper script'
+        - amplifyPush --simple
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "Installing dependencies..."
+        - npm ci
+        - echo "Environment check..."
+        - echo "Node version:" && node --version
+        - echo "NPM version:" && npm --version
+        - echo "Next.js version:" && npx next --version
+        - echo "GA4 Measurement ID:" && echo $NEXT_PUBLIC_GA4_MEASUREMENT_ID
+    build:
+      commands:
+        - echo "Building Next.js application..."
+        - echo "Environment variables check:"
+        - echo "NEXT_PUBLIC_GA4_MEASUREMENT_ID=$NEXT_PUBLIC_GA4_MEASUREMENT_ID"
+        - echo "NEXT_PUBLIC_SITE_NAME=$NEXT_PUBLIC_SITE_NAME"
+        - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL"
+        - npm run build
+        - echo "Build completed successfully"
+    postBuild:
+      commands:
+        - echo "Post-build optimizations..."
+        - echo "Checking build output..."
+        - ls -la .next/
+        - echo "Build artifacts created successfully"
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
+  customHeaders:
+    - pattern: '**/*'
+      headers:
+        - key: 'X-Frame-Options'
+          value: 'DENY'
+        - key: 'X-XSS-Protection'
+          value: '1; mode=block'
+        - key: 'X-Content-Type-Options'
+          value: 'nosniff'
+        - key: 'Referrer-Policy'
+          value: 'strict-origin-when-cross-origin'
+        - key: 'Permissions-Policy'
+          value: 'camera=(), microphone=(), geolocation=()'
+    - pattern: '/favicon.ico'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=86400'
+    - pattern: '/Media/**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/_next/static/**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable' 
