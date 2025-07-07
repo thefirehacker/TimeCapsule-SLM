@@ -70,6 +70,14 @@ export class DeepResearchApp {
   setAvailableModels: ((models: any[]) => void) | null = null;
   setSelectedOllamaURL: ((url: string) => void) | null = null;
   setIsVectorStoreLoading: ((loading: boolean) => void) | null = null;
+  setIsProcessingDocuments: ((processing: boolean) => void) | null = null;
+  setProcessingProgress: ((progress: {
+    currentFile: string;
+    progress: number;
+    message: string;
+    fileIndex: number;
+    totalFiles: number;
+  } | null) => void) | null = null;
 
   constructor() {
     // Make this instance globally available - only in browser
@@ -733,6 +741,7 @@ export class DeepResearchApp {
     }
 
     this.isUploading = true;
+    this.setIsProcessingDocuments?.(true);
     console.log(`📊 Processing ${files.length} documents...`);
     
     let successCount = 0;
@@ -744,6 +753,15 @@ export class DeepResearchApp {
         console.log(`📄 Processing file ${i + 1}/${files.length}: ${file.name}`);
         this.updateStatus(`📄 Processing ${file.name} (${i + 1}/${files.length})...`);
         
+        // Update processing progress state for modal
+        this.setProcessingProgress?.({
+          currentFile: file.name,
+          progress: 0,
+          message: 'Starting processing...',
+          fileIndex: i + 1,
+          totalFiles: files.length
+        });
+        
         try {
           const content = await this.readFileContent(file);
           await this.vectorStore.addDocument(
@@ -752,14 +770,45 @@ export class DeepResearchApp {
             // Progress callback for each file
             (progress) => {
               this.updateStatus(`📄 ${file.name}: ${progress.message} (${progress.progress}%)`);
+              
+              // Update modal progress in real-time
+              this.setProcessingProgress?.({
+                currentFile: file.name,
+                progress: progress.progress,
+                message: progress.message,
+                fileIndex: i + 1,
+                totalFiles: files.length
+              });
             }
           );
           successCount++;
           console.log(`✅ Successfully processed: ${file.name}`);
+          
+          // Clear progress for this file
+          this.setProcessingProgress?.({
+            currentFile: file.name,
+            progress: 100,
+            message: '✅ Processing complete',
+            fileIndex: i + 1,
+            totalFiles: files.length
+          });
+          
+          // Brief pause to show completion
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
         } catch (fileError) {
           console.error(`❌ Failed to process ${file.name}:`, fileError);
           failedCount++;
           this.updateStatus(`❌ Failed to process ${file.name}: ${(fileError as Error).message}`);
+          
+          // Show error in progress
+          this.setProcessingProgress?.({
+            currentFile: file.name,
+            progress: 0,
+            message: `❌ Error: ${(fileError as Error).message}`,
+            fileIndex: i + 1,
+            totalFiles: files.length
+          });
           
           // Continue processing other files instead of stopping
           await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause before next file
@@ -785,6 +834,8 @@ export class DeepResearchApp {
       this.updateStatus('❌ Upload process failed: ' + (error as Error).message);
     } finally {
       this.isUploading = false;
+      this.setIsProcessingDocuments?.(false);
+      this.setProcessingProgress?.(null);
       
       // Clear file input to allow re-uploading same files
       if (typeof document !== 'undefined') {
@@ -1396,6 +1447,38 @@ function formatMarkdownToHTML(markdown: string): string {
   return html;
 }
 
+// Client-only time component to avoid hydration issues
+function ClientOnlyTime() {
+  const [currentTime, setCurrentTime] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+        --:--:--
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+      {currentTime}
+    </div>
+  );
+}
+
 // React Component Hook
 export function DeepResearchComponent() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -1404,7 +1487,7 @@ export function DeepResearchComponent() {
   const [researchDepth, setResearchDepth] = useState<ResearchDepth>('overview');
   const [researchResults, setResearchResults] = useState<string>('');
   const [currentTab, setCurrentTab] = useState<'research' | 'sources' | 'notes'>('research');
-  const [statusMessage, setStatusMessage] = useState<string>('Initializing...');
+  const [statusMessage, setStatusMessage] = useState<string>('🚀 DeepResearch TimeCapsule ready');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [documentStatus, setDocumentStatus] = useState({ count: 0, totalSize: 0, vectorCount: 0 });
@@ -1424,6 +1507,16 @@ export function DeepResearchComponent() {
   const [newTopicTitle, setNewTopicTitle] = useState<string>('');
   const [newTopicDescription, setNewTopicDescription] = useState<string>('');
   
+  // Document processing progress states
+  const [isProcessingDocuments, setIsProcessingDocuments] = useState<boolean>(false);
+  const [processingProgress, setProcessingProgress] = useState<{
+    currentFile: string;
+    progress: number;
+    message: string;
+    fileIndex: number;
+    totalFiles: number;
+  } | null>(null);
+  
   // AI Connection Modal States
   const [showOllamaConnectionModal, setShowOllamaConnectionModal] = useState<boolean>(false);
   const [showModelSelectionModal, setShowModelSelectionModal] = useState<boolean>(false);
@@ -1433,35 +1526,35 @@ export function DeepResearchComponent() {
   const appRef = useRef<DeepResearchApp | null>(null);
 
   useEffect(() => {
-    // Initialize the app instance
-    if (!appRef.current) {
-      appRef.current = new DeepResearchApp();
-      
-      // Set React state setters
-      appRef.current.setTopics = setTopics;
-      appRef.current.setAIStatus = setAIStatus;
-      appRef.current.setResearchType = setResearchType;
-      appRef.current.setResearchDepth = setResearchDepth;
-      appRef.current.setResearchResults = setResearchResults;
-      appRef.current.setCurrentTab = setCurrentTab;
-      appRef.current.setStatusMessage = setStatusMessage;
-      appRef.current.setIsGenerating = setIsGenerating;
-      appRef.current.setDocuments = setDocuments;
-      appRef.current.setDocumentStatus = setDocumentStatus;
-      appRef.current.setShowDocumentManager = setShowDocumentManager;
-      appRef.current.setShowOllamaConnectionModal = setShowOllamaConnectionModal;
-      appRef.current.setShowModelSelectionModal = setShowModelSelectionModal;
-      appRef.current.setAvailableModels = setAvailableModels;
-      appRef.current.setSelectedOllamaURL = setSelectedOllamaURL;
-      appRef.current.setIsVectorStoreLoading = setIsVectorStoreLoading;
-      
-      // Initialize the app
-      appRef.current.init();
-    }
+    // Always create the app instance immediately
+    const app = new DeepResearchApp();
+    appRef.current = app;
+    
+    // Set React state setters
+    app.setTopics = setTopics;
+    app.setAIStatus = setAIStatus;
+    app.setResearchType = setResearchType;
+    app.setResearchDepth = setResearchDepth;
+    app.setResearchResults = setResearchResults;
+    app.setCurrentTab = setCurrentTab;
+    app.setStatusMessage = setStatusMessage;
+    app.setIsGenerating = setIsGenerating;
+    app.setDocuments = setDocuments;
+    app.setDocumentStatus = setDocumentStatus;
+    app.setShowDocumentManager = setShowDocumentManager;
+    app.setShowOllamaConnectionModal = setShowOllamaConnectionModal;
+    app.setShowModelSelectionModal = setShowModelSelectionModal;
+    app.setAvailableModels = setAvailableModels;
+    app.setSelectedOllamaURL = setSelectedOllamaURL;
+    app.setIsVectorStoreLoading = setIsVectorStoreLoading;
+    app.setIsProcessingDocuments = setIsProcessingDocuments;
+    app.setProcessingProgress = setProcessingProgress;
+    
+    // Initialize the app asynchronously (non-blocking)
+    app.init();
   }, []);
 
-  const app = appRef.current;
-  if (!app) return <div>Loading...</div>;
+  const app = appRef.current!; // Non-null assertion since we create it immediately in useEffect
 
   const handleSearch = async () => {
     if (!app || !searchQuery.trim()) {
@@ -1541,12 +1634,32 @@ export function DeepResearchComponent() {
         {`
           @keyframes pulse {
             0%, 100% {
-              opacity: 0;
+              opacity: 1;
               transform: scale(1);
             }
             50% {
-              opacity: 0.3;
-              transform: scale(1.05);
+              opacity: 0.85;
+              transform: scale(1.01);
+            }
+          }
+          
+          @keyframes gentlePulse {
+            0%, 100% {
+              background: rgba(79, 172, 254, 0.1);
+              border-color: rgba(79, 172, 254, 0.3);
+            }
+            50% {
+              background: rgba(79, 172, 254, 0.15);
+              border-color: rgba(79, 172, 254, 0.4);
+            }
+          }
+          
+          @keyframes pulseGlow {
+            0%, 100% {
+              box-shadow: 0 0 5px rgba(79, 172, 254, 0.3);
+            }
+            50% {
+              box-shadow: 0 0 20px rgba(79, 172, 254, 0.6);
             }
           }
           
@@ -1565,14 +1678,15 @@ export function DeepResearchComponent() {
             }
           }
           
-          @keyframes spin {
-            0% {
-              transform: rotate(0deg);
+                      @keyframes spin {
+             0% { transform: rotate(0deg); }
+             100% { transform: rotate(360deg); }
             }
-            100% {
-              transform: rotate(360deg);
+            
+            @keyframes gentleSpin {
+             0% { transform: rotate(0deg); }
+             100% { transform: rotate(360deg); }
             }
-          }
           
           .logo-container {
             animation: float 6s ease-in-out infinite;
@@ -1978,7 +2092,7 @@ export function DeepResearchComponent() {
                     border: '2px solid rgba(255,255,255,0.3)',
                     borderTop: '2px solid #4facfe',
                     borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
+                    animation: 'gentleSpin 1.5s linear infinite'
                   }}></div>
                   Loading embeddings...
                 </div>
@@ -2513,6 +2627,97 @@ export function DeepResearchComponent() {
               )}
             </div>
 
+            {/* Processing Progress Section */}
+            {isProcessingDocuments && processingProgress && (
+              <div style={{
+                background: 'rgba(79, 172, 254, 0.1)',
+                border: '1px solid rgba(79, 172, 254, 0.3)',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '25px',
+                animation: 'gentlePulse 4s ease-in-out infinite'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    border: '3px solid rgba(79, 172, 254, 0.3)',
+                    borderTop: '3px solid #4facfe',
+                    borderRadius: '50%',
+                    animation: 'gentleSpin 1.5s linear infinite'
+                  }}></div>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#4facfe' }}>
+                      📄 Processing Documents
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', fontWeight: '500' }}>
+                      File {processingProgress.fileIndex} of {processingProgress.totalFiles}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    marginBottom: '8px',
+                    color: 'rgba(255, 255, 255, 0.95)',
+                    fontWeight: '600'
+                  }}>
+                    📄 {processingProgress.currentFile}
+                  </div>
+                  <div style={{ 
+                    fontSize: '13px', 
+                    marginBottom: '10px',
+                    color: 'rgba(255, 255, 255, 0.85)',
+                    fontWeight: '500'
+                  }}>
+                    {processingProgress.message}
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      width: `${processingProgress.progress}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
+                      transition: 'width 0.3s ease',
+                      borderRadius: '4px'
+                    }}></div>
+                  </div>
+                  
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    textAlign: 'right',
+                    fontWeight: '500'
+                  }}>
+                    {processingProgress.progress}% complete
+                  </div>
+                </div>
+
+                {processingProgress.totalFiles > 1 && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    textAlign: 'center',
+                    padding: '10px',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    borderRadius: '8px',
+                    fontWeight: '500'
+                  }}>
+                    🔄 Processing {processingProgress.totalFiles} files in background - UI remains responsive
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Upload Area */}
             <div style={{
               border: '2px dashed rgba(255, 255, 255, 0.3)',
@@ -2521,24 +2726,36 @@ export function DeepResearchComponent() {
               textAlign: 'center',
               marginBottom: '25px',
               transition: 'all 0.3s ease',
-              cursor: 'pointer'
+              cursor: isProcessingDocuments ? 'not-allowed' : 'pointer',
+              opacity: isProcessingDocuments ? 0.6 : 1
             }}
-            onClick={() => document.getElementById('documentUpload')?.click()}
+            onClick={() => !isProcessingDocuments && document.getElementById('documentUpload')?.click()}
                          onMouseEnter={(e) => {
-               const target = e.target as HTMLElement;
-               target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-               target.style.background = 'rgba(255, 255, 255, 0.05)';
+               if (!isProcessingDocuments) {
+                 const target = e.target as HTMLElement;
+                 target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                 target.style.background = 'rgba(255, 255, 255, 0.05)';
+               }
              }}
              onMouseLeave={(e) => {
-               const target = e.target as HTMLElement;
-               target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-               target.style.background = 'transparent';
+               if (!isProcessingDocuments) {
+                 const target = e.target as HTMLElement;
+                 target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                 target.style.background = 'transparent';
+               }
              }}
             >
-              <div style={{ fontSize: '48px', marginBottom: '15px' }}>📁</div>
-              <div style={{ fontSize: '18px', marginBottom: '10px' }}>Click to Upload Documents</div>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>
+                {isProcessingDocuments ? '⏳' : '📁'}
+              </div>
+              <div style={{ fontSize: '18px', marginBottom: '10px' }}>
+                {isProcessingDocuments ? 'Processing Documents...' : 'Click to Upload Documents'}
+              </div>
               <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                Supports: PDF, DOCX, TXT, MD, and more
+                {isProcessingDocuments 
+                  ? 'Please wait while documents are being processed'
+                  : 'Supports: PDF, DOCX, TXT, MD, and more'
+                }
               </div>
             </div>
 
@@ -2751,33 +2968,41 @@ export function DeepResearchComponent() {
               justifyContent: 'center'
             }}>
               <button 
-                onClick={() => document.getElementById('documentUpload')?.click()}
+                onClick={() => !isProcessingDocuments && document.getElementById('documentUpload')?.click()}
+                disabled={isProcessingDocuments}
                 style={{
                   padding: '12px 24px',
-                  background: 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
+                  background: isProcessingDocuments ? 
+                    'rgba(255, 255, 255, 0.3)' : 
+                    'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
                   border: 'none',
                   borderRadius: '8px',
-                  color: '#333',
+                  color: isProcessingDocuments ? 'rgba(255,255,255,0.6)' : '#333',
                   fontSize: '14px',
                   fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  cursor: isProcessingDocuments ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  opacity: isProcessingDocuments ? 0.5 : 1
                 }}
               >
-                📄 Upload More Documents
+                {isProcessingDocuments ? '⏳ Processing...' : '📄 Upload More Documents'}
               </button>
               <button 
                 onClick={() => app.exportTimeCapsule()}
+                disabled={isProcessingDocuments}
                 style={{
                   padding: '12px 24px',
-                  background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                  background: isProcessingDocuments ? 
+                    'rgba(79, 172, 254, 0.3)' : 
+                    'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
                   border: 'none',
                   borderRadius: '8px',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  cursor: isProcessingDocuments ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  opacity: isProcessingDocuments ? 0.5 : 1
                 }}
               >
                 📦 Export TimeCapsule
@@ -3093,9 +3318,7 @@ export function DeepResearchComponent() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>📋 {statusMessage}</div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
-            {new Date().toLocaleTimeString()}
-          </div>
+          <ClientOnlyTime />
         </div>
       </div>
 
@@ -3541,139 +3764,421 @@ export function DeepResearchComponent() {
           boxSizing: 'border-box'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '70vh',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '24px',
+            padding: '35px',
+            maxWidth: '800px',
+            width: '95%',
+            maxHeight: '85vh',
             overflowY: 'auto',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.6)',
             color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(20px)'
           }}>
             {/* Modal Header */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '25px',
-              paddingBottom: '15px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+              marginBottom: '30px',
+              paddingBottom: '20px',
+              borderBottom: '2px solid rgba(255, 255, 255, 0.2)'
             }}>
-              <h2 style={{ margin: 0, fontSize: '24px' }}>🤖 Choose Your Model</h2>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '28px', fontWeight: '700' }}>🤖 Choose Your Model</h2>
+                <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>
+                  Select the AI model that best fits your research needs
+                </p>
+              </div>
               <button 
                 onClick={() => app.cancelConnection()}
                 style={{
-                  background: 'none',
+                  background: 'rgba(255, 69, 0, 0.8)',
                   border: 'none',
                   color: 'white',
-                  fontSize: '24px',
+                  fontSize: '20px',
                   cursor: 'pointer',
-                  padding: '5px',
-                  borderRadius: '5px'
+                  padding: '10px',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s ease'
                 }}
+                onMouseEnter={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 69, 0, 1)'}
+                onMouseLeave={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 69, 0, 0.8)'}
               >
                 ✕
               </button>
             </div>
 
             {/* Connection Info */}
-            <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: 0 }}>
-                Connected to: <strong>{selectedOllamaURL}</strong>
+            <div style={{ 
+              marginBottom: '25px', 
+              textAlign: 'center',
+              background: 'rgba(255, 255, 255, 0.1)',
+              padding: '15px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', margin: 0, fontWeight: '600' }}>
+                🔗 Connected to: <span style={{ color: '#4facfe' }}>{selectedOllamaURL}</span>
               </p>
-              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '5px 0' }}>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '5px 0 0 0' }}>
                 Found {availableModels.length} available models
               </p>
             </div>
 
-            {/* Model List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {availableModels.map((model, index) => (
-                <div key={index} style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
-                  padding: '15px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => app.selectModel(model.name)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '5px' }}>
-                        🤖 {model.name}
+            {/* Recommendation Note */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(79, 172, 254, 0.2) 0%, rgba(0, 242, 254, 0.2) 100%)',
+              border: '2px solid rgba(79, 172, 254, 0.4)',
+              borderRadius: '15px',
+              padding: '18px',
+              marginBottom: '25px',
+              textAlign: 'center'
+            }}>
+              <div style={{ 
+                fontSize: '16px', 
+                fontWeight: '700', 
+                color: '#4facfe', 
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                ⭐ Default Recommended Model
+              </div>
+              <div style={{ 
+                fontSize: '14px', 
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontWeight: '500'
+              }}>
+                <strong style={{ color: '#4facfe' }}>Qwen 3 0.6B</strong> is our recommended default model for research tasks. 
+                It offers the best balance of speed, efficiency, and quality for document analysis and content generation.
+              </div>
+            </div>
+
+            {/* Model Cards Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '20px',
+              marginBottom: '25px'
+            }}>
+              {(() => {
+                // Sort models to put Qwen 3 0.6B first
+                const sortedModels = [...availableModels].sort((a, b) => {
+                  const aIsQwen3 = a.name.toLowerCase().includes('qwen3') && a.name.includes('0.6');
+                  const bIsQwen3 = b.name.toLowerCase().includes('qwen3') && b.name.includes('0.6');
+                  
+                  if (aIsQwen3 && !bIsQwen3) return -1; // a comes first
+                  if (!aIsQwen3 && bIsQwen3) return 1;  // b comes first
+                  return 0; // keep original order for others
+                });
+                
+                return sortedModels.map((model, index) => {
+                  const isQwen3 = model.name.toLowerCase().includes('qwen3') && model.name.includes('0.6');
+                  const isRecommended = isQwen3;
+                
+                return (
+                  <div 
+                    key={index} 
+                    style={{
+                      background: isRecommended 
+                        ? 'linear-gradient(135deg, rgba(79, 172, 254, 0.3) 0%, rgba(0, 242, 254, 0.3) 100%)'
+                        : 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      border: isRecommended 
+                        ? '2px solid rgba(79, 172, 254, 0.6)'
+                        : '1px solid rgba(255, 255, 255, 0.2)',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onClick={() => app.selectModel(model.name)}
+                    onMouseEnter={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.transform = 'translateY(-5px)';
+                      target.style.boxShadow = '0 15px 35px rgba(0,0,0,0.3)';
+                      if (isRecommended) {
+                        target.style.borderColor = 'rgba(79, 172, 254, 0.8)';
+                        target.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.4) 0%, rgba(0, 242, 254, 0.4) 100%)';
+                      } else {
+                        target.style.background = 'rgba(255, 255, 255, 0.15)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.transform = 'translateY(0)';
+                      target.style.boxShadow = 'none';
+                      if (isRecommended) {
+                        target.style.borderColor = 'rgba(79, 172, 254, 0.6)';
+                        target.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.3) 0%, rgba(0, 242, 254, 0.3) 100%)';
+                      } else {
+                        target.style.background = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                  >
+                    {/* Recommended Badge */}
+                    {isRecommended && (
+                      <>
+                        <div style={{
+                          position: 'absolute',
+                          top: '-5px',
+                          right: '-5px',
+                          background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          boxShadow: '0 4px 12px rgba(79, 172, 254, 0.4)',
+                          animation: 'pulseGlow 2s ease-in-out infinite',
+                          zIndex: 1
+                        }}>
+                          ⭐ RECOMMENDED
+                        </div>
+                        <div style={{
+                          position: 'absolute',
+                          top: '-5px',
+                          left: '-5px',
+                          background: 'linear-gradient(45deg, #00d4aa 0%, #00a67d 100%)',
+                          color: 'white',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          boxShadow: '0 4px 12px rgba(0, 212, 170, 0.4)',
+                          zIndex: 1
+                        }}>
+                          #1 DEFAULT
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Model Icon & Name */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                      <div style={{
+                        width: '50px',
+                        height: '50px',
+                        background: isRecommended 
+                          ? 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)'
+                          : 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '24px',
+                        boxShadow: isRecommended ? '0 8px 20px rgba(79, 172, 254, 0.4)' : 'none'
+                      }}>
+                        {model.name.toLowerCase().includes('qwen') ? '🧠' : 
+                         model.name.toLowerCase().includes('llama') ? '🦙' : 
+                         model.name.toLowerCase().includes('tiny') ? '🐁' : '🤖'}
                       </div>
-                      <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                        Size: {model.size ? `${Math.round(model.size / 1024 / 1024 / 1024 * 10) / 10}GB` : 'Unknown'} • 
-                        Modified: {model.modified ? new Date(model.modified).toLocaleDateString() : 'Unknown'}
+                      <div>
+                        <div style={{ 
+                          fontWeight: '700', 
+                          fontSize: '18px', 
+                          marginBottom: '4px',
+                          color: isRecommended ? '#4facfe' : 'white'
+                        }}>
+                          {model.name}
+                        </div>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          display: 'flex',
+                          gap: '8px'
+                        }}>
+                          <span>📊 {model.size ? `${Math.round(model.size / 1024 / 1024 / 1024 * 10) / 10}GB` : 'Unknown'}</span>
+                          <span>📅 {model.modified ? new Date(model.modified).toLocaleDateString() : 'Unknown'}</span>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Model Description */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.2)',
-                      padding: '8px 16px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '600'
+                      fontSize: '13px',
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      lineHeight: '1.4',
+                      marginBottom: '15px'
                     }}>
-                      Select
+                      {model.name.toLowerCase().includes('qwen3') && model.name.includes('0.6') ? 
+                        '🎯 Optimized for research tasks. Fast, efficient, and perfect for document analysis and content generation.' :
+                       model.name.toLowerCase().includes('llama') ? 
+                        '🦙 Powerful general-purpose model. Great for complex reasoning and detailed analysis.' :
+                       model.name.toLowerCase().includes('tiny') ? 
+                        '⚡ Ultra-fast lightweight model. Perfect for quick responses and low-resource environments.' :
+                        '🤖 Advanced AI model for comprehensive research and analysis tasks.'
+                      }
                     </div>
-                  </div>
-                </div>
-              ))}
+
+                    {/* Performance Indicators */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      marginBottom: '15px'
+                    }}>
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600'
+                      }}>
+                        {model.name.toLowerCase().includes('0.6') ? '⚡ Fast' : 
+                         model.name.toLowerCase().includes('1.') ? '🔥 Balanced' : 
+                         model.name.toLowerCase().includes('3.') ? '🎯 Powerful' : '🔮 Advanced'}
+                      </div>
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600'
+                      }}>
+                        {model.size && model.size < 1024 * 1024 * 1024 ? '💚 Low Resource' : 
+                         model.size && model.size < 2 * 1024 * 1024 * 1024 ? '💛 Medium Resource' : 
+                         '🔴 High Resource'}
+                      </div>
+                    </div>
+
+                    {/* Select Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        app.selectModel(model.name);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: isRecommended
+                          ? 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)'
+                          : 'rgba(255, 255, 255, 0.2)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: 'white',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: isRecommended ? '0 4px 15px rgba(79, 172, 254, 0.3)' : 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (isRecommended) {
+                          target.style.boxShadow = '0 6px 20px rgba(79, 172, 254, 0.5)';
+                        } else {
+                          target.style.background = 'rgba(255, 255, 255, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (isRecommended) {
+                          target.style.boxShadow = '0 4px 15px rgba(79, 172, 254, 0.3)';
+                        } else {
+                          target.style.background = 'rgba(255, 255, 255, 0.2)';
+                        }
+                      }}
+                    >
+                      {isRecommended ? '⭐ Select Recommended' : '🚀 Select Model'}
+                                         </button>
+                   </div>
+                 );
+               });
+              })()}
             </div>
 
             {/* No Models Message */}
             {availableModels.length === 0 && (
               <div style={{
                 textAlign: 'center',
-                padding: '40px',
-                color: 'rgba(255,255,255,0.8)',
-                background: 'rgba(0, 0, 0, 0.2)',
-                borderRadius: '15px'
+                padding: '50px',
+                color: 'rgba(255,255,255,0.9)',
+                background: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '20px',
+                border: '2px dashed rgba(255, 255, 255, 0.3)'
               }}>
-                <div style={{ fontSize: '48px', marginBottom: '20px' }}>🤖</div>
-                <div style={{ fontSize: '18px', marginBottom: '10px' }}>No models found</div>
-                <div style={{ fontSize: '14px', marginBottom: '20px' }}>
-                  Please install a model first. For example:<br/>
-                  <code style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
-                    ollama pull qwen2.5:0.5b
+                <div style={{ fontSize: '64px', marginBottom: '20px' }}>🤖</div>
+                <div style={{ fontSize: '24px', marginBottom: '15px', fontWeight: '600' }}>No models found</div>
+                <div style={{ fontSize: '16px', marginBottom: '25px', color: 'rgba(255,255,255,0.8)' }}>
+                  Please install a model first. Here are some recommended options:
+                </div>
+                <div style={{ 
+                  background: 'rgba(0,0,0,0.4)', 
+                  padding: '20px', 
+                  borderRadius: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px' }}>💡 Quick Setup:</div>
+                  <code style={{ 
+                    background: 'rgba(79, 172, 254, 0.2)', 
+                    padding: '8px 12px', 
+                    borderRadius: '6px',
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: '#4facfe',
+                    fontWeight: '600'
+                  }}>
+                    ollama pull qwen3:0.6b
                   </code>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                    ⭐ Recommended for research tasks
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '25px' }}>
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              justifyContent: 'center', 
+              marginTop: '30px',
+              paddingTop: '20px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
               <button
                 onClick={() => app.cancelConnection()}
                 style={{
-                  padding: '12px 24px',
+                  padding: '14px 28px',
                   background: 'rgba(255, 255, 255, 0.2)',
                   border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
                 }}
+                onMouseEnter={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.3)'}
+                onMouseLeave={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.2)'}
               >
-                Cancel
+                ❌ Cancel
               </button>
               <button
                 onClick={() => app.testOllamaConnection(selectedOllamaURL)}
                 style={{
-                  padding: '12px 24px',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '8px',
+                  padding: '14px 28px',
+                  background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 15px rgba(79, 172, 254, 0.3)'
                 }}
+                onMouseEnter={(e) => (e.target as HTMLElement).style.boxShadow = '0 6px 20px rgba(79, 172, 254, 0.5)'}
+                onMouseLeave={(e) => (e.target as HTMLElement).style.boxShadow = '0 4px 15px rgba(79, 172, 254, 0.3)'}
               >
                 🔄 Refresh Models
               </button>
