@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import { DeepResearchComponent } from '@/components/DeepResearch/DeepResearchApp';
 
 export default function DeepResearchPage() {
