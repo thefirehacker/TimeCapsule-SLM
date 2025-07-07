@@ -396,26 +396,22 @@ export class DeepResearchApp {
   async previewDocument(docId: string) {
     if (!this.vectorStore) {
       this.updateStatus('❌ Vector Store not available');
-      return;
+      return null;
     }
 
     try {
       const document = await this.vectorStore.getDocument(docId);
       if (!document) {
         this.updateStatus('❌ Document not found');
-        return;
+        return null;
       }
 
-      // Show document preview in alert (in a real app, this would be a modal)
-      const preview = document.content.length > 500 
-        ? document.content.substring(0, 500) + '...' 
-        : document.content;
-      
-      alert(`Document: ${document.title}\n\nContent:\n${preview}`);
-      this.updateStatus('📄 Document preview shown');
+      this.updateStatus('📄 Document preview loaded');
+      return document;
     } catch (error) {
       console.error('Failed to preview document:', error);
       this.updateStatus('❌ Failed to preview document: ' + (error as Error).message);
+      return null;
     }
   }
 
@@ -447,66 +443,32 @@ export class DeepResearchApp {
     }
   }
 
-  async quickSearch() {
+  async searchDocuments(query: string, threshold: number = 0.3, limit: number = 20) {
     if (!this.vectorStore) {
       this.updateStatus('❌ Vector Store not available');
-      return;
+      return [];
     }
 
-    const query = prompt('Enter search query:');
-    if (!query) return;
+    if (!query.trim()) {
+      this.updateStatus('❌ Please enter a search query');
+      return [];
+    }
 
     try {
       this.updateStatus('🔍 Searching documents...');
-      const results = await this.vectorStore.searchSimilar(query, 0.3, 10);
+      const results = await this.vectorStore.searchSimilar(query, threshold, limit);
       
       if (results.length === 0) {
         this.updateStatus('❌ No documents found matching your query');
-        return;
+        return [];
       }
 
-      // Show search results in alert (in a real app, this would be a modal)
-      let resultsText = `Found ${results.length} results for "${query}":\n\n`;
-      results.forEach((result, index) => {
-        const preview = result.chunk.content.length > 100 
-          ? result.chunk.content.substring(0, 100) + '...' 
-          : result.chunk.content;
-        resultsText += `${index + 1}. ${result.document.title} (${(result.similarity * 100).toFixed(1)}%)\n`;
-        resultsText += `   ${preview}\n\n`;
-      });
-
-      alert(resultsText);
       this.updateStatus(`✅ Found ${results.length} relevant results`);
+      return results;
     } catch (error) {
       console.error('Search failed:', error);
       this.updateStatus('❌ Search failed: ' + (error as Error).message);
-    }
-  }
-
-  async searchDocuments() {
-    if (!this.vectorStore) {
-      this.updateStatus('❌ Vector Store not available');
-      return;
-    }
-
-    const query = prompt('Enter search query:');
-    if (!query) return;
-
-    const threshold = parseFloat(prompt('Similarity threshold (0.1-0.9):', '0.3') || '0.3');
-
-    try {
-      this.updateStatus('🔍 Searching documents...');
-      const results = await this.vectorStore.searchSimilar(query, threshold);
-      
-      if (results.length === 0) {
-        this.updateStatus('❌ No documents found matching your query');
-      } else {
-        this.updateStatus(`✅ Found ${results.length} relevant results`);
-        console.log('Search results:', results);
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-      this.updateStatus('❌ Search failed: ' + (error as Error).message);
+      return [];
     }
   }
 
@@ -774,6 +736,16 @@ export function DeepResearchComponent() {
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [documentStatus, setDocumentStatus] = useState({ count: 0, totalSize: 0, vectorCount: 0 });
   const [showDocumentManager, setShowDocumentManager] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchThreshold, setSearchThreshold] = useState<number>(0.1);
+  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+  const [currentSearchQuery, setCurrentSearchQuery] = useState<string>('');
+  const [previewDocument, setPreviewDocument] = useState<DocumentData | null>(null);
+  const [showDocumentPreview, setShowDocumentPreview] = useState<boolean>(false);
+  const [showChunkView, setShowChunkView] = useState<boolean>(false);
+  const [currentChunk, setCurrentChunk] = useState<any>(null);
   
   const appRef = useRef<DeepResearchApp | null>(null);
 
@@ -803,12 +775,68 @@ export function DeepResearchComponent() {
   const app = appRef.current;
   if (!app) return <div>Loading...</div>;
 
+  const handleSearch = async () => {
+    if (!app || !searchQuery.trim()) {
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await app.searchDocuments(searchQuery, searchThreshold, 20);
+      setSearchResults(results);
+      if (results.length > 0) {
+        setCurrentSearchQuery(searchQuery);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      app.updateStatus('❌ Search failed: ' + (error as Error).message);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handlePreviewDocument = async (docId: string) => {
+    const doc = await app.previewDocument(docId);
+    if (doc) {
+      setPreviewDocument(doc);
+      setShowDocumentPreview(true);
+    }
+  };
+
+  const closeSearchResults = () => {
+    setShowSearchResults(false);
+    setSearchResults([]);
+    setCurrentSearchQuery('');
+  };
+
+  const closeDocumentPreview = () => {
+    setShowDocumentPreview(false);
+    setPreviewDocument(null);
+  };
+
+  const handleViewChunk = (chunk: any, document: DocumentData) => {
+    setCurrentChunk({ ...chunk, document });
+    setShowChunkView(true);
+  };
+
+  const closeChunkView = () => {
+    setShowChunkView(false);
+    setCurrentChunk(null);
   };
 
   return (
@@ -1037,32 +1065,19 @@ export function DeepResearchComponent() {
               onClick={() => app.showDocumentManager()}
               style={{
                 width: '100%',
-                padding: '12px',
-                background: 'linear-gradient(45d, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: 'white',
-                fontWeight: '600',
-                cursor: 'pointer',
-                marginBottom: '10px'
-              }}
-            >
-              📚 Manage Knowledge
-            </button>
-            <button 
-              onClick={() => app.quickSearch()}
-              style={{
-                width: '100%',
-                padding: '12px',
+                padding: '14px',
                 background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
                 border: 'none',
                 borderRadius: '12px',
                 color: 'white',
-                fontWeight: '600',
-                cursor: 'pointer'
+                fontWeight: '700',
+                cursor: 'pointer',
+                marginBottom: '10px',
+                boxShadow: '0 4px 15px rgba(79, 172, 254, 0.4)',
+                transition: 'all 0.3s ease'
               }}
             >
-              🔍 Quick Search
+              📚 Manage Knowledge
             </button>
           </div>
 
@@ -1123,34 +1138,6 @@ export function DeepResearchComponent() {
               }}
             >
               📦 Import TimeCapsule
-            </button>
-          </div>
-
-          {/* Advanced Search */}
-          <div style={{ marginBottom: '20px' }}>
-            <h4 style={{ marginBottom: '10px', fontSize: '14px' }}>🔍 Advanced Search</h4>
-            <button 
-              onClick={() => {
-                const query = prompt('Enter search query:');
-                if (query) {
-                  const threshold = parseFloat(prompt('Similarity threshold (0.1-0.9):', '0.3') || '0.3');
-                  const limit = parseInt(prompt('Max results (1-50):', '10') || '10');
-                  app.searchDocumentsAdvanced({ query, threshold, limit });
-                }
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: 'white',
-                fontWeight: '600',
-                cursor: 'pointer',
-                marginBottom: '10px'
-              }}
-            >
-              🔍 Advanced Search
             </button>
           </div>
 
@@ -1334,59 +1321,250 @@ export function DeepResearchComponent() {
         </div>
       </div>
 
-      {/* Document Manager Modal */}
+      {/* Document Manager Modal - Redesigned to match reference */}
       {showDocumentManager && (
         <div style={{
           position: 'fixed',
           top: '0',
           left: '0',
-          right: '0',
-          bottom: '0',
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(5px)',
-          zIndex: 50,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 2000,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px'
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
         }}>
           <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '20px',
             padding: '30px',
-            color: 'white',
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-            maxWidth: '800px',
-            width: '100%',
+            maxWidth: '900px',
+            width: '90%',
             maxHeight: '80vh',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '24px' }}>📚 Knowledge Base Manager</h2>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, color: '#4facfe', fontSize: '24px' }}>📚 Knowledge Base Manager</h2>
               <button 
                 onClick={() => app.hideDocumentManager()}
                 style={{
-                  background: 'rgba(255, 69, 0, 0.3)',
-                  border: '1px solid rgba(255, 69, 0, 0.5)',
-                  borderRadius: '10px',
+                  background: 'none',
+                  border: 'none',
                   color: 'white',
-                  padding: '8px 16px',
+                  fontSize: '24px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  padding: '5px',
+                  borderRadius: '5px',
+                  transition: 'background 0.3s ease'
                 }}
+                                 onMouseEnter={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.2)'}
+                 onMouseLeave={(e) => (e.target as HTMLElement).style.background = 'none'}
               >
-                ✕ Close
+                ✕
               </button>
             </div>
 
-            <div style={{ marginBottom: '20px', padding: '15px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '10px' }}>
-              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>
-                <strong>Statistics:</strong> {documentStatus.count} documents | {formatFileSize(documentStatus.totalSize)} | {documentStatus.vectorCount} vectors
+            {/* Vector Statistics */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '10px',
+              padding: '20px',
+              marginBottom: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h3 style={{ color: '#4facfe', marginBottom: '15px', fontSize: '16px' }}>📊 Vector Store Statistics</h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                gap: '15px'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
+                    {documentStatus.count}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Documents
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
+                    {formatFileSize(documentStatus.totalSize)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Total Size
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe', marginBottom: '5px' }}>
+                    {documentStatus.vectorCount}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Vector Count
+                  </div>
+                </div>
               </div>
             </div>
 
+            {/* Search Interface */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '10px',
+              padding: '20px',
+              marginBottom: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h3 style={{ color: '#4facfe', marginBottom: '15px', fontSize: '16px' }}>🔍 Search Knowledge Base</h3>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Enter search query..."
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px'
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <select
+                  value={searchThreshold}
+                  onChange={(e) => setSearchThreshold(parseFloat(e.target.value))}
+                  style={{
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value={0.1}>Low (0.1)</option>
+                  <option value={0.3}>Medium (0.3)</option>
+                  <option value={0.5}>High (0.5)</option>
+                  <option value={0.7}>Very High (0.7)</option>
+                </select>
+                <button
+                  onClick={handleSearch}
+                  disabled={isSearching || !searchQuery.trim()}
+                  style={{
+                    padding: '12px 20px',
+                    background: isSearching ? 'rgba(255, 255, 255, 0.3)' : 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    cursor: isSearching ? 'not-allowed' : 'pointer',
+                    opacity: isSearching ? 0.5 : 1
+                  }}
+                >
+                  {isSearching ? '🔄' : '🔍'} Search
+                </button>
+                {searchResults.length > 0 && (
+                  <button
+                    onClick={clearSearch}
+                    style={{
+                      padding: '12px 20px',
+                      background: 'rgba(255, 69, 0, 0.3)',
+                      border: '1px solid rgba(255, 69, 0, 0.5)',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+              
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div style={{
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginTop: '15px',
+                  maxHeight: '200px',
+                  overflowY: 'auto'
+                }}>
+                  <h4 style={{ color: '#4facfe', marginBottom: '10px', fontSize: '14px' }}>
+                    🎯 Search Results ({searchResults.length})
+                  </h4>
+                  {searchResults.map((result, index) => (
+                    <div key={index} style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: '6px',
+                      padding: '10px',
+                      marginBottom: '10px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                        <span style={{ fontWeight: '600', color: '#4facfe', fontSize: '12px' }}>
+                          📄 {result.document.title}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                          {(result.similarity * 100).toFixed(1)}% match
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                        {result.chunk.content.substring(0, 150)}...
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Upload Area */}
+            <div style={{
+              border: '2px dashed rgba(255, 255, 255, 0.3)',
+              borderRadius: '10px',
+              padding: '30px',
+              textAlign: 'center',
+              marginBottom: '25px',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer'
+            }}
+            onClick={() => document.getElementById('documentUpload')?.click()}
+                         onMouseEnter={(e) => {
+               const target = e.target as HTMLElement;
+               target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+               target.style.background = 'rgba(255, 255, 255, 0.05)';
+             }}
+             onMouseLeave={(e) => {
+               const target = e.target as HTMLElement;
+               target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+               target.style.background = 'transparent';
+             }}
+            >
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>📁</div>
+              <div style={{ fontSize: '18px', marginBottom: '10px' }}>Click to Upload Documents</div>
+              <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                Supports: PDF, DOCX, TXT, MD, and more
+              </div>
+            </div>
+
+            {/* Document List */}
             {documents.length === 0 ? (
               <div style={{
                 textAlign: 'center',
@@ -1397,144 +1575,432 @@ export function DeepResearchComponent() {
               }}>
                 <div style={{ fontSize: '48px', marginBottom: '20px' }}>📄</div>
                 <div style={{ fontSize: '18px', marginBottom: '10px' }}>No documents uploaded yet</div>
-                <div style={{ fontSize: '14px' }}>Upload documents using the "Upload Documents" button</div>
+                <div style={{ fontSize: '14px' }}>Upload documents to build your knowledge base</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{
+                display: 'grid',
+                gap: '15px',
+                marginBottom: '25px'
+              }}>
                 {documents.map((doc) => (
                   <div key={doc.id} style={{
                     background: 'rgba(255, 255, 255, 0.1)',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '15px',
-                    padding: '20px',
+                    borderRadius: '10px',
+                    padding: '15px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                     transition: 'all 0.3s ease'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '8px' }}>
-                          📄 {doc.title}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginBottom: '10px' }}>
-                          <strong>Type:</strong> {doc.metadata.filetype} | 
-                          <strong> Size:</strong> {formatFileSize(doc.metadata.filesize)} | 
-                          <strong> Uploaded:</strong> {new Date(doc.metadata.uploadedAt).toLocaleDateString()} |
-                          <strong> Chunks:</strong> {doc.chunks.length} |
-                          <strong> Vectors:</strong> {doc.vectors.length}
-                        </div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
-                          {doc.metadata.description}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'rgba(255,255,255,0.6)', 
-                          marginTop: '10px',
-                          maxHeight: '60px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          <strong>Content preview:</strong> {doc.content.substring(0, 200)}...
-                        </div>
+                  }}
+                                     onMouseEnter={(e) => {
+                     const target = e.target as HTMLElement;
+                     target.style.background = 'rgba(255, 255, 255, 0.15)';
+                     target.style.transform = 'translateY(-2px)';
+                   }}
+                   onMouseLeave={(e) => {
+                     const target = e.target as HTMLElement;
+                     target.style.background = 'rgba(255, 255, 255, 0.1)';
+                     target.style.transform = 'translateY(0)';
+                   }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '5px', color: '#4facfe' }}>
+                        📄 {doc.title}
                       </div>
-                      <div style={{ display: 'flex', gap: '8px', marginLeft: '20px', flexWrap: 'wrap' }}>
-                        <button 
-                          onClick={() => app.previewDocument(doc.id)}
-                          style={{
-                            background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: 'white',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          👁️ Preview
-                        </button>
-                        <button 
-                          onClick={() => app.downloadDocument(doc.id)}
-                          style={{
-                            background: 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: '#333',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          📥 Download
-                        </button>
-                        <button 
-                          onClick={() => {
-                            const query = prompt('Enter search query for this document:');
-                            if (query) {
-                              app.quickSearch();
-                            }
-                          }}
-                          style={{
-                            background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: 'white',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          🔍 Search
-                        </button>
-                        <button 
-                          onClick={() => app.deleteDocument(doc.id)}
-                          style={{
-                            background: 'rgba(255,69,0,0.3)',
-                            border: '1px solid rgba(255,69,0,0.5)',
-                            borderRadius: '8px',
-                            color: 'white',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          🗑️ Delete
-                        </button>
+                      <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                        <strong>Type:</strong> {doc.metadata.filetype} | 
+                        <strong> Size:</strong> {formatFileSize(doc.metadata.filesize)} | 
+                        <strong> Uploaded:</strong> {new Date(doc.metadata.uploadedAt).toLocaleDateString()} |
+                        <strong> Chunks:</strong> {doc.chunks.length} |
+                        <strong> Vectors:</strong> {doc.vectors.length}
                       </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => handlePreviewDocument(doc.id)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        👁️ Preview
+                      </button>
+                      <button 
+                        onClick={() => app.downloadDocument(doc.id)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        📥 Download
+                      </button>
+                      <button 
+                        onClick={() => app.deleteDocument(doc.id)}
+                        style={{
+                          background: 'rgba(255, 69, 0, 0.3)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.2)' }}>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            {/* Modal Actions */}
+            <div style={{
+              display: 'flex',
+              gap: '15px',
+              marginTop: '25px',
+              paddingTop: '20px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+              justifyContent: 'center'
+            }}>
+              <button 
+                onClick={() => document.getElementById('documentUpload')?.click()}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#333',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                📄 Upload More Documents
+              </button>
+              <button 
+                onClick={() => app.exportTimeCapsule()}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                📦 Export TimeCapsule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Results Modal - Like Reference Design */}
+      {showSearchResults && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '20px',
+            padding: '30px',
+            maxWidth: '1000px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Search Results Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, color: '#4facfe', fontSize: '24px' }}>
+                ⚡ Quick Search Results for "{currentSearchQuery}"
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                  Found {searchResults.length} results • Threshold: {(searchThreshold * 100).toFixed(0)}% (Quick Mode)
+                </span>
                 <button 
-                  onClick={() => document.getElementById('documentUpload')?.click()}
+                  onClick={closeSearchResults}
                   style={{
-                    background: 'linear-gradient(45deg, #a8edea 0%, #fed6e3 100%)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: '#333',
-                    padding: '12px 20px',
-                    cursor: 'pointer',
-                    fontWeight: '600'
-                  }}
-                >
-                  📄 Upload More Documents
-                </button>
-                <button 
-                  onClick={() => app.searchDocuments()}
-                  style={{
-                    background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
-                    border: 'none',
-                    borderRadius: '12px',
+                    background: 'rgba(255, 69, 0, 0.7)',
                     color: 'white',
-                    padding: '12px 20px',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '35px',
+                    height: '35px',
                     cursor: 'pointer',
-                    fontWeight: '600'
+                    fontSize: '18px',
+                    fontWeight: 'bold'
                   }}
                 >
-                  🔍 Search All Documents
+                  ✕
                 </button>
               </div>
+            </div>
+
+            {/* Search Results List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {searchResults.map((result, index) => (
+                <div key={index} style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '15px',
+                  padding: '20px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}>
+                  {/* Document Title and Match Info */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '15px'
+                  }}>
+                    <div style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: '#4facfe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}>
+                      📄 {result.document.title}
+                      <span style={{
+                        fontSize: '14px',
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        fontWeight: 'normal'
+                      }}>
+                        • Chunk {result.chunk.index + 1} • {(result.similarity * 100).toFixed(1)}% match
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={() => handleViewChunk(result.chunk, result.document)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        👁️ View Chunk
+                      </button>
+                      <button
+                        onClick={() => handlePreviewDocument(result.document.id)}
+                        style={{
+                          background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        📄 Full Doc
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Relevant Excerpt */}
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    borderRadius: '10px',
+                    padding: '15px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#4facfe',
+                      marginBottom: '8px',
+                      fontWeight: '600'
+                    }}>
+                      Relevant Excerpt:
+                    </div>
+                    <div style={{
+                      fontSize: '14px',
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      lineHeight: '1.6'
+                    }}>
+                      "{result.chunk.content.length > 300 
+                        ? result.chunk.content.substring(0, 300) + '...' 
+                        : result.chunk.content}"
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {showDocumentPreview && previewDocument && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '20px',
+            padding: '30px',
+            maxWidth: '1000px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Document Preview Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#4facfe', fontSize: '24px', marginBottom: '10px' }}>
+                  📄 Document: {previewDocument.title}
+                </h2>
+                <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                  <span><strong>Type:</strong> {previewDocument.metadata.filetype}</span>
+                  <span><strong>Size:</strong> {formatFileSize(previewDocument.metadata.filesize)}</span>
+                  <span><strong>Uploaded:</strong> {new Date(previewDocument.metadata.uploadedAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              <button 
+                onClick={closeDocumentPreview}
+                style={{
+                  background: 'rgba(255, 69, 0, 0.7)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '35px',
+                  height: '35px',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Document Content */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: '15px',
+              padding: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              maxHeight: '60vh',
+              overflowY: 'auto',
+              whiteSpace: 'pre-wrap',
+              fontSize: '14px',
+              lineHeight: '1.6',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace'
+            }}>
+              {previewDocument.content}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '15px',
+              marginTop: '25px',
+              paddingTop: '20px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+              justifyContent: 'center'
+            }}>
+              <button 
+                onClick={closeDocumentPreview}
+                style={{
+                  padding: '12px 24px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => app.downloadDocument(previewDocument.id)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Download
+              </button>
             </div>
           </div>
         </div>
@@ -1560,6 +2026,127 @@ export function DeepResearchComponent() {
           </div>
         </div>
       </div>
+
+      {/* Chunk View Modal */}
+      {showChunkView && currentChunk && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '20px',
+            padding: '30px',
+            maxWidth: '1000px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Chunk View Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, color: '#4facfe', fontSize: '24px' }}>
+                📄 Chunk: {currentChunk.document.title}
+              </h2>
+              <button 
+                onClick={closeChunkView}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '5px',
+                  borderRadius: '5px',
+                  transition: 'background 0.3s ease'
+                }}
+                                 onMouseEnter={(e) => (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.2)'}
+                 onMouseLeave={(e) => (e.target as HTMLElement).style.background = 'none'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Chunk Content */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: '15px',
+              padding: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              maxHeight: '60vh',
+              overflowY: 'auto',
+              whiteSpace: 'pre-wrap',
+              fontSize: '14px',
+              lineHeight: '1.6',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace'
+            }}>
+              {currentChunk.content}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '15px',
+              marginTop: '25px',
+              paddingTop: '20px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+              justifyContent: 'center'
+            }}>
+              <button 
+                onClick={closeChunkView}
+                style={{
+                  padding: '12px 24px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => app.downloadDocument(currentChunk.document.id)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
