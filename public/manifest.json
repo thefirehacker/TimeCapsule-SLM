@@ -1,0 +1,36 @@
+{
+  "name": "DeepResearch TimeCapsule",
+  "short_name": "TimeCapsule",
+  "description": "Professional AI-powered research platform with advanced document analysis and vector search",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/Media/TimeCapsule_04.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Media/TimeCapsule_04.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "education", "research", "artificial-intelligence"],
+  "lang": "en",
+  "dir": "ltr",
+  "scope": "/",
+  "screenshots": [
+    {
+      "src": "/Media/TimeCapsule_04.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+} 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { VectorStore, DocumentData } from '../VectorStore/VectorStore';
 import { AIAssistant, AIStatus as AIConnectionStatus } from '../../lib/AIAssistant';
+import { analytics } from '../../lib/analytics';
 
 export type AIProvider = 'ollama' | 'lmstudio' | 'openai' | 'local';
 export type ResearchType = 'academic' | 'market' | 'technology' | 'competitive' | 'trend' | 'literature';
@@ -162,12 +163,18 @@ export class DeepResearchApp {
     this.topics.push(newTopic);
     this.setTopics?.(this.topics);
     this.saveToStorage();
+    
+    // Track topic addition
+    analytics.trackTopicManagement('add_topic', this.topics.length);
   }
 
   deleteTopic(topicId: string) {
     this.topics = this.topics.filter(t => t.id !== topicId);
     this.setTopics?.(this.topics);
     this.saveToStorage();
+    
+    // Track topic deletion
+    analytics.trackTopicManagement('delete_topic', this.topics.length);
   }
 
   selectTopic(topicId: string) {
@@ -254,12 +261,19 @@ export class DeepResearchApp {
         this.updateStatus(`✅ Connected to ${modelName} successfully`);
         // Save connection state to localStorage
         this.saveToStorage();
+        
+        // Track successful AI connection
+        analytics.trackAIConnection('ollama', modelName, 'connected');
       } else {
         this.updateStatus(`❌ Failed to connect to ${modelName}`);
+        // Track failed AI connection
+        analytics.trackAIConnection('ollama', modelName, 'failed');
       }
     } catch (error) {
       console.error('❌ Model selection failed:', error);
       this.updateStatus(`❌ Model selection failed: ${(error as Error).message}`);
+      // Track connection error
+      analytics.trackAIConnection('ollama', modelName, 'error');
     }
   }
 
@@ -296,6 +310,15 @@ export class DeepResearchApp {
     this.isGenerating = true;
     this.setIsGenerating?.(true);
     this.updateStatus('🔄 Generating research with AI...');
+
+    // Track research generation start
+    const aiSession = this.aiAssistant.getSession();
+    analytics.trackResearchGeneration(
+      researchType,
+      researchDepth,
+      aiSession?.provider || 'unknown',
+      selectedTopics.length
+    );
 
     try {
       // Step 1: Perform RAG - Search for relevant documents
@@ -702,8 +725,13 @@ export class DeepResearchApp {
       if (successCount > 0) {
         this.updateStatus(`✅ Successfully uploaded ${successCount} file(s)${failedCount > 0 ? ` (${failedCount} failed)` : ''}`);
         this.updateDocumentStatus();
+        
+        // Track successful document uploads
+        analytics.trackDocumentManagement('upload_documents', successCount);
       } else {
         this.updateStatus(`❌ All uploads failed`);
+        // Track failed uploads
+        analytics.trackDocumentManagement('upload_failed', 0);
       }
       
       console.log(`📊 Upload process completed: ${successCount} successful, ${failedCount} failed`);
@@ -750,7 +778,7 @@ export class DeepResearchApp {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  showDocumentManager() {
+  async showDocumentManager() {
     if (!this.vectorStore) {
       this.updateStatus('❌ Vector Store not initialized');
       return;
@@ -758,6 +786,26 @@ export class DeepResearchApp {
 
     this.setShowDocumentManager?.(true);
     this.updateStatus('📚 Opening document manager...');
+    
+    // Track manage knowledge event
+    try {
+      const stats = await this.vectorStore.getStats();
+      analytics.trackEvent('knowledge_management', {
+        action: 'manage_knowledge_opened',
+        document_count: stats.documentCount,
+        vector_count: stats.vectorCount,
+        event_category: 'knowledge',
+        event_label: 'manage_knowledge_opened'
+      });
+    } catch (error) {
+      analytics.trackEvent('knowledge_management', {
+        action: 'manage_knowledge_opened',
+        document_count: 0,
+        vector_count: 0,
+        event_category: 'knowledge',
+        event_label: 'manage_knowledge_opened'
+      });
+    }
   }
 
   hideDocumentManager() {
@@ -849,14 +897,19 @@ export class DeepResearchApp {
       
       if (results.length === 0) {
         this.updateStatus('❌ No documents found matching your query');
+        analytics.trackSearch(query, 0, 'knowledge_base');
         return [];
       }
 
       this.updateStatus(`✅ Found ${results.length} relevant results`);
+      // Track successful search
+      analytics.trackSearch(query, results.length, 'knowledge_base');
       return results;
     } catch (error) {
       console.error('Search failed:', error);
       this.updateStatus('❌ Search failed: ' + (error as Error).message);
+      // Track search error
+      analytics.trackError('search_error', (error as Error).message, 'searchDocuments');
       return [];
     }
   }
@@ -900,6 +953,9 @@ export class DeepResearchApp {
     URL.revokeObjectURL(url);
     
     this.updateStatus('✅ Research exported successfully');
+    
+    // Track export event
+    analytics.trackExport('research_results', blob.size);
   }
 
   // TimeCapsule export - comprehensive data export including vector store
@@ -1437,6 +1493,40 @@ export function DeepResearchComponent() {
     }}>
       <style>
         {`
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 0;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 0.3;
+              transform: scale(1.05);
+            }
+          }
+          
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg);
+            }
+            25% {
+              transform: translateY(-2px) rotate(1deg);
+            }
+            50% {
+              transform: translateY(-4px) rotate(0deg);
+            }
+            75% {
+              transform: translateY(-2px) rotate(-1deg);
+            }
+          }
+          
+          .logo-container {
+            animation: float 6s ease-in-out infinite;
+          }
+          
+          .logo-glow:hover {
+            opacity: 0.6 !important;
+          }
+          
           input::placeholder, textarea::placeholder {
             color: rgba(255, 255, 255, 0.6) !important;
           }
@@ -1520,14 +1610,108 @@ export function DeepResearchComponent() {
           boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
           border: '1px solid rgba(255, 255, 255, 0.18)'
         }}>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: '800',
-            margin: '0',
-            textShadow: '0 4px 8px rgba(0,0,0,0.3)'
-          }}>
-            🔬 DeepResearch Studio
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
+            <div 
+            className="logo-container"
+            style={{ 
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+            onMouseEnter={(e) => {
+              const target = e.currentTarget as HTMLElement;
+              const glow = target.querySelector('.logo-glow') as HTMLElement;
+              target.style.animationPlayState = 'paused';
+              target.style.transform = 'scale(1.15) rotate(8deg)';
+              target.style.filter = 'drop-shadow(0 12px 30px rgba(79, 172, 254, 0.5)) drop-shadow(0 0 25px rgba(255, 255, 255, 0.4))';
+              if (glow) glow.style.opacity = '0.7';
+            }}
+            onMouseLeave={(e) => {
+              const target = e.currentTarget as HTMLElement;
+              const glow = target.querySelector('.logo-glow') as HTMLElement;
+              target.style.animationPlayState = 'running';
+              target.style.transform = '';
+              target.style.filter = 'drop-shadow(0 6px 12px rgba(0,0,0,0.3))';
+              if (glow) glow.style.opacity = '0';
+            }}
+            onClick={(e) => {
+              const target = e.currentTarget as HTMLElement;
+              // Create a delightful "press" animation
+              target.style.animationPlayState = 'paused';
+              target.style.transform = 'scale(0.9) rotate(-3deg)';
+              target.style.filter = 'drop-shadow(0 4px 15px rgba(79, 172, 254, 0.6)) drop-shadow(0 0 30px rgba(255, 255, 255, 0.5))';
+              
+              setTimeout(() => {
+                target.style.transform = 'scale(1.2) rotate(10deg)';
+                target.style.filter = 'drop-shadow(0 15px 35px rgba(79, 172, 254, 0.6)) drop-shadow(0 0 35px rgba(255, 255, 255, 0.5))';
+              }, 100);
+              
+              setTimeout(() => {
+                target.style.animationPlayState = 'running';
+                target.style.transform = '';
+                target.style.filter = 'drop-shadow(0 6px 12px rgba(0,0,0,0.3))';
+              }, 300);
+              
+              // Track logo interaction
+              analytics.trackEngagement('logo_clicked');
+            }}
+            >
+              <img 
+                src="/Media/TimeCapsule_04.png" 
+                alt="TimeCapsule Logo" 
+                style={{ 
+                  height: '80px', 
+                  width: 'auto',
+                  filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.3))',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
+                  padding: '8px',
+                  backdropFilter: 'blur(10px)'
+                }} 
+              />
+              {/* Animated glow ring */}
+              <div style={{
+                position: 'absolute',
+                top: '-4px',
+                left: '-4px',
+                right: '-4px',
+                bottom: '-4px',
+                borderRadius: '16px',
+                background: 'linear-gradient(45deg, #4facfe, #00f2fe, #4facfe)',
+                opacity: '0',
+                zIndex: '-1',
+                transition: 'opacity 0.3s ease',
+                animation: 'pulse 2s infinite'
+              }} 
+              className="logo-glow"
+              />
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: '36px',
+                fontWeight: '800',
+                margin: '0',
+                textShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                background: 'linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                lineHeight: '1.2'
+              }}>
+                DeepResearch TimeCapsule
+              </h1>
+              <p style={{
+                fontSize: '14px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                margin: '4px 0 0 0',
+                fontWeight: '500',
+                letterSpacing: '0.5px'
+              }}>
+                🔬 AI-powered research and analysis platform
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Controls Panel */}
