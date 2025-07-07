@@ -267,7 +267,10 @@ export class DeepResearchApp {
       
       // Step 3: Generate research using AI with RAG context
       this.updateStatus('🤖 Generating comprehensive research report...');
-      const researchContent = await this.aiAssistant.generateContent(researchPrompt, 'research');
+      const rawContent = await this.aiAssistant.generateContent(researchPrompt, 'research');
+      
+      // Filter out <think> tags and any other unwanted content
+      const researchContent = this.cleanResearchOutput(rawContent);
       
       // Step 4: Save to vector store if available
       if (this.vectorStore) {
@@ -401,15 +404,80 @@ export class DeepResearchApp {
       prompt += `- Cross-reference multiple sources and provide detailed evidence\n`;
     }
     
-    prompt += `\n## Output Format:\n`;
-    prompt += `Generate a professional, well-structured research report in markdown format. `;
-    prompt += `Make it comprehensive, evidence-based, and actionable. `;
+    prompt += `\n## Critical Output Requirements:\n`;
+    prompt += `- **IMPORTANT**: Generate ONLY the final research report - NO thinking process, reasoning, or analysis tags\n`;
+    prompt += `- **NO** <think>, <reasoning>, or <analysis> tags - output must be clean markdown only\n`;
+    prompt += `- Start directly with the report title and content\n`;
+    prompt += `- Use professional markdown formatting with proper headers, lists, and emphasis\n`;
+    prompt += `- Make it comprehensive, evidence-based, and actionable\n`;
     
     if (relevantDocuments.length > 0) {
-      prompt += `Ensure all document citations are properly formatted and referenced throughout the report.`;
+      prompt += `- Include document citations in format: (Document X, Y% match)\n`;
+      prompt += `- Reference specific quotes and data from the provided documents\n`;
     }
     
+    prompt += `\n## Example Output Structure:\n`;
+    prompt += `# Research Report Title\n\n`;
+    prompt += `## 🎯 Executive Summary\n[key findings]\n\n`;
+    prompt += `## 📊 Individual Topic Analysis\n[detailed analysis per topic]\n\n`;
+    prompt += `[... continue with remaining sections ...]\n\n`;
+    prompt += `**Generate the report now in clean markdown format:**`;
+    
     return prompt;
+  }
+
+  private cleanResearchOutput(rawContent: string): string {
+    let cleanContent = rawContent;
+    
+    // Remove <think> tags and their content
+    cleanContent = cleanContent.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    
+    // Remove any other unwanted XML-like tags that might appear
+    cleanContent = cleanContent.replace(/<\/?reasoning>/gi, '');
+    cleanContent = cleanContent.replace(/<\/?analysis>/gi, '');
+    
+    // Clean up extra whitespace and newlines
+    cleanContent = cleanContent.replace(/\n\s*\n\s*\n/g, '\n\n');
+    cleanContent = cleanContent.trim();
+    
+    // Ensure proper markdown formatting
+    cleanContent = this.improveMarkdownFormatting(cleanContent);
+    
+    return cleanContent;
+  }
+
+  private improveMarkdownFormatting(content: string): string {
+    let formatted = content;
+    
+    // Ensure proper heading hierarchy
+    formatted = formatted.replace(/^#{7,}/gm, '######'); // Max 6 levels
+    
+    // Ensure space after hash symbols in headings
+    formatted = formatted.replace(/^(#+)([^\s#])/gm, '$1 $2');
+    
+    // Improve list formatting
+    formatted = formatted.replace(/^(\s*)-([^\s])/gm, '$1- $2');
+    formatted = formatted.replace(/^(\s*)\*([^\s])/gm, '$1* $2');
+    formatted = formatted.replace(/^(\s*)\d+\.([^\s])/gm, '$1$&');
+    
+    // Ensure proper spacing around code blocks
+    formatted = formatted.replace(/```/g, '\n```\n');
+    formatted = formatted.replace(/\n\n```\n/g, '\n```\n');
+    formatted = formatted.replace(/\n```\n\n/g, '\n```\n');
+    
+    // Improve table formatting if present
+    formatted = formatted.replace(/\|([^|\n]*)\|/g, (match, content) => {
+      return '| ' + content.trim() + ' |';
+    });
+    
+    // Ensure consistent emphasis formatting
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '**$1**');
+    formatted = formatted.replace(/\*([^*]+)\*/g, '*$1*');
+    
+    // Clean up multiple consecutive newlines
+    formatted = formatted.replace(/\n{3,}/g, '\n\n');
+    
+    return formatted.trim();
   }
 
   private generateDemoResearch(selectedTopics: Topic[], type: ResearchType, depth: ResearchDepth): string {
@@ -952,6 +1020,73 @@ export class DeepResearchApp {
   }
 }
 
+// Utility function for markdown to HTML conversion
+function formatMarkdownToHTML(markdown: string): string {
+  let html = markdown;
+  
+  // Convert headers
+  html = html.replace(/^#{6}\s(.+)$/gm, '<h6 style="color: #4facfe; margin: 20px 0 10px 0; font-weight: 600; font-size: 14px;">$1</h6>');
+  html = html.replace(/^#{5}\s(.+)$/gm, '<h5 style="color: #4facfe; margin: 20px 0 10px 0; font-weight: 600; font-size: 16px;">$1</h5>');
+  html = html.replace(/^#{4}\s(.+)$/gm, '<h4 style="color: #4facfe; margin: 20px 0 10px 0; font-weight: 600; font-size: 18px;">$1</h4>');
+  html = html.replace(/^#{3}\s(.+)$/gm, '<h3 style="color: #4facfe; margin: 25px 0 15px 0; font-weight: 700; font-size: 20px;">$1</h3>');
+  html = html.replace(/^#{2}\s(.+)$/gm, '<h2 style="color: #00f2fe; margin: 30px 0 20px 0; font-weight: 700; font-size: 24px;">$1</h2>');
+  html = html.replace(/^#{1}\s(.+)$/gm, '<h1 style="color: #00f2fe; margin: 30px 0 20px 0; font-weight: 800; font-size: 28px; border-bottom: 2px solid rgba(79, 172, 254, 0.3); padding-bottom: 10px;">$1</h1>');
+  
+  // Convert bold text
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #4facfe; font-weight: 600;">$1</strong>');
+  
+  // Convert italic text
+  html = html.replace(/\*(.+?)\*/g, '<em style="color: rgba(255, 255, 255, 0.8); font-style: italic;">$1</em>');
+  
+  // Convert unordered lists
+  html = html.replace(/^[\s]*[-*+]\s(.+)$/gm, '<li style="margin: 5px 0; color: rgba(255, 255, 255, 0.9);">$1</li>');
+  
+  // Convert ordered lists  
+  html = html.replace(/^[\s]*\d+\.\s(.+)$/gm, '<li style="margin: 5px 0; color: rgba(255, 255, 255, 0.9);">$1</li>');
+  
+  // Wrap consecutive list items in ul/ol tags
+  html = html.replace(/(<li[^>]*>.*?<\/li>[\s\S]*?)+/g, (match) => {
+    if (match.includes('- ') || match.includes('* ') || match.includes('+ ')) {
+      return `<ul style="margin: 15px 0; padding-left: 20px; list-style-type: disc;">${match}</ul>`;
+    } else {
+      return `<ol style="margin: 15px 0; padding-left: 20px; list-style-type: decimal;">${match}</ol>`;
+    }
+  });
+  
+  // Convert code blocks
+  html = html.replace(/```[\s\S]*?```/g, (match) => {
+    const code = match.replace(/```/g, '').trim();
+    return `<pre style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 15px; margin: 15px 0; overflow-x: auto; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #a8f7a8;"><code>${code}</code></pre>`;
+  });
+  
+  // Convert inline code
+  html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px; padding: 2px 6px; font-family: Monaco, Menlo, monospace; font-size: 12px; color: #a8f7a8;">$1</code>');
+  
+  // Convert line breaks
+  html = html.replace(/\n\n/g, '</p><p style="margin: 15px 0; color: rgba(255, 255, 255, 0.9); line-height: 1.8;">');
+  html = html.replace(/\n/g, '<br/>');
+  
+  // Wrap in paragraph tags
+  html = `<p style="margin: 15px 0; color: rgba(255, 255, 255, 0.9); line-height: 1.8;">${html}</p>`;
+  
+  // Convert blockquotes
+  html = html.replace(/^>\s(.+)$/gm, '<blockquote style="border-left: 4px solid #4facfe; margin: 20px 0; padding: 15px 20px; background: rgba(79, 172, 254, 0.1); color: rgba(255, 255, 255, 0.8); font-style: italic;">$1</blockquote>');
+  
+  // Convert tables (basic support)
+  html = html.replace(/\|(.+?)\|/g, (match) => {
+    const cells = match.split('|').filter(cell => cell.trim());
+    const tableCells = cells.map(cell => `<td style="padding: 8px 12px; border: 1px solid rgba(255, 255, 255, 0.2);">${cell.trim()}</td>`).join('');
+    return `<tr>${tableCells}</tr>`;
+  });
+  
+  // Simple table wrapping
+  if (html.includes('<tr>')) {
+    html = html.replace(/(<tr>.*?<\/tr>)/g, '<table style="border-collapse: collapse; margin: 20px 0; width: 100%;">$1</table>');
+  }
+  
+  return html;
+}
+
 // React Component Hook
 export function DeepResearchComponent() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -1098,6 +1233,59 @@ export function DeepResearchComponent() {
           }
           input:focus::placeholder, textarea:focus::placeholder {
             color: rgba(255, 255, 255, 0.4) !important;
+          }
+          .research-output h1 {
+            color: #00f2fe !important;
+            border-bottom: 2px solid rgba(79, 172, 254, 0.3) !important;
+            padding-bottom: 10px !important;
+            margin: 30px 0 20px 0 !important;
+          }
+          .research-output h2 {
+            color: #00f2fe !important;
+            margin: 30px 0 20px 0 !important;
+          }
+          .research-output h3 {
+            color: #4facfe !important;
+            margin: 25px 0 15px 0 !important;
+          }
+          .research-output h4, .research-output h5, .research-output h6 {
+            color: #4facfe !important;
+            margin: 20px 0 10px 0 !important;
+          }
+          .research-output strong {
+            color: #4facfe !important;
+            font-weight: 600 !important;
+          }
+          .research-output code {
+            background: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 4px !important;
+            padding: 2px 6px !important;
+            color: #a8f7a8 !important;
+          }
+          .research-output pre {
+            background: rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 8px !important;
+            padding: 15px !important;
+            margin: 15px 0 !important;
+            overflow-x: auto !important;
+          }
+          .research-output ul, .research-output ol {
+            margin: 15px 0 !important;
+            padding-left: 20px !important;
+          }
+          .research-output li {
+            margin: 5px 0 !important;
+            color: rgba(255, 255, 255, 0.9) !important;
+          }
+          .research-output blockquote {
+            border-left: 4px solid #4facfe !important;
+            margin: 20px 0 !important;
+            padding: 15px 20px !important;
+            background: rgba(79, 172, 254, 0.1) !important;
+            color: rgba(255, 255, 255, 0.8) !important;
+            font-style: italic !important;
           }
         `}
       </style>
@@ -1570,16 +1758,18 @@ export function DeepResearchComponent() {
           </div>
           
           {researchResults ? (
-            <div style={{
+            <div className="research-output" style={{
               background: 'rgba(0, 0, 0, 0.3)',
               borderRadius: '15px',
-              padding: '20px',
+              padding: '25px',
               minHeight: 'calc(100% - 80px)',
-              whiteSpace: 'pre-wrap',
               fontSize: '14px',
-              lineHeight: '1.6'
+              lineHeight: '1.8',
+              color: 'rgba(255, 255, 255, 0.95)',
+              fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              overflow: 'auto'
             }}>
-              {researchResults}
+              <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHTML(researchResults) }} />
             </div>
           ) : (
             <div style={{
