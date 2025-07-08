@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
-import { Analytics } from "./components/Analytics";
+import { Analytics } from "../components/analytics/Analytics";
+import { Navbar } from "@/components/ui/navbar";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const poppins = Poppins({
+  variable: "--font-poppins",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
   title: "DeepResearch TimeCapsule - AI-Powered Research Studio",
-  description: "Professional AI-powered research platform with advanced document analysis, vector search, and comprehensive research generation using multiple AI providers.",
-  keywords: "AI research, document analysis, vector search, machine learning, academic research, market analysis",
+  description:
+    "Professional AI-powered research platform with advanced document analysis, vector search, and comprehensive research generation using multiple AI providers.",
+  keywords:
+    "AI research, document analysis, vector search, machine learning, academic research, market analysis",
   authors: [{ name: "FireHacker", url: "https://x.com/thefirehacker" }],
   creator: "FireHacker",
   publisher: "TimeCapsule",
@@ -42,7 +41,8 @@ export const metadata: Metadata = {
     url: process.env.NEXT_PUBLIC_SITE_URL,
     siteName: "DeepResearch TimeCapsule",
     title: "DeepResearch TimeCapsule - AI-Powered Research Studio",
-    description: "Professional AI-powered research platform with advanced document analysis, vector search, and comprehensive research generation.",
+    description:
+      "Professional AI-powered research platform with advanced document analysis, vector search, and comprehensive research generation.",
     images: [
       {
         url: "/Media/TimeCapsule_04.png",
@@ -55,7 +55,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "DeepResearch TimeCapsule - AI-Powered Research Studio",
-    description: "Professional AI-powered research platform with advanced document analysis and research generation.",
+    description:
+      "Professional AI-powered research platform with advanced document analysis and research generation.",
     images: ["/Media/TimeCapsule_04.png"],
     creator: "@thefirehacker",
   },
@@ -90,21 +91,41 @@ export default function RootLayout({
       <head>
         {/* Multiple favicon formats for better browser compatibility */}
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/Media/TimeCapsule_04.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/Media/TimeCapsule_04.png" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/Media/TimeCapsule_04.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/Media/TimeCapsule_04.png"
+        />
         <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/Media/TimeCapsule_04.png" />
-        
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/Media/TimeCapsule_04.png"
+        />
+
         {/* Additional meta tags */}
         <meta name="msapplication-TileColor" content="#667eea" />
-        <meta name="msapplication-TileImage" content="/Media/TimeCapsule_04.png" />
-        
+        <meta
+          name="msapplication-TileImage"
+          content="/Media/TimeCapsule_04.png"
+        />
+
         {/* Force favicon cache refresh in development */}
-        <link rel="icon" href={`/favicon.ico?v=${Date.now()}`} type="image/x-icon" />
+        <link
+          rel="icon"
+          href={`/favicon.ico?v=${Date.now()}`}
+          type="image/x-icon"
+        />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${poppins.className} antialiased`}>
+        <Navbar />
         <Analytics />
         {children}
       </body>
