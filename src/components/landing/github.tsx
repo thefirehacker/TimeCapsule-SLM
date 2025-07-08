@@ -26,7 +26,7 @@ const projectStats = [
   {
     icon: Code,
     value: "Open Source",
-    label: "MIT Licensed",
+    label: "Apache 2.0 Licensed",
     color: "text-blue-600",
     bgColor: "bg-blue-50 dark:bg-blue-900/20",
   },
@@ -219,9 +219,9 @@ export function GitHubSection() {
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
                     <Shield className="w-5 h-5 text-green-600" />
                     <div>
-                      <div className="font-medium">MIT License</div>
+                      <div className="font-medium">Apache 2.0 License</div>
                       <div className="text-sm text-muted-foreground">
-                        Free & open forever
+                        Apache 2.0 Licensed • Community driven • Optional paid add-ons
                       </div>
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export function GitHubSection() {
                   </a>
                 </div>
                 <p className="text-white/50 text-xs mt-4">
-                  Licensed under MIT • Free forever • Community driven
+               Free to get started • Community driven • Premium features available
                 </p>
               </div>
             </CardContent>
