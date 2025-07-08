@@ -1,7 +1,45 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { AIProvider, AIStatus, ResearchType, ResearchDepth } from './DeepResearchApp';
+import { useState } from "react";
+import {
+  AIProvider,
+  AIStatus,
+  ResearchType,
+  ResearchDepth,
+} from "./DeepResearchApp";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import {
+  Bot,
+  Settings,
+  Database,
+  FileText,
+  Plus,
+  Rocket,
+  Download,
+  Upload,
+  Trash2,
+  HardDrive,
+  Wifi,
+  WifiOff,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 
 interface ControlsPanelProps {
   aiStatus: AIStatus;
@@ -46,227 +84,459 @@ export function ControlsPanel({
   onExportTimeCapsule,
   onLoadTimeCapsule,
   isGenerating,
-  documentStatus
+  documentStatus,
 }: ControlsPanelProps) {
-  const [topicTitle, setTopicTitle] = useState('');
-  const [topicDescription, setTopicDescription] = useState('');
+  const [topicTitle, setTopicTitle] = useState("");
+  const [topicDescription, setTopicDescription] = useState("");
 
   const handleAddTopic = () => {
     if (topicTitle.trim()) {
       onAddTopic(topicTitle, topicDescription);
-      setTopicTitle('');
-      setTopicDescription('');
+      setTopicTitle("");
+      setTopicDescription("");
     }
   };
 
-  const handleProviderChange = (provider: AIProvider) => {
-    setAIStatus({ ...aiStatus, provider, connected: false });
+  const handleProviderChange = (provider: string) => {
+    setAIStatus({
+      ...aiStatus,
+      provider: provider as AIProvider,
+      connected: false,
+    });
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const getAIProviderIcon = (provider: AIProvider) => {
+    switch (provider) {
+      case "ollama":
+        return "🦙";
+      case "lmstudio":
+        return "🏠";
+      case "openai":
+        return "🤖";
+      case "local":
+        return "💻";
+      default:
+        return "🤖";
+    }
+  };
+
+  const getResearchTypeIcon = (type: ResearchType) => {
+    switch (type) {
+      case "academic":
+        return "📚";
+      case "market":
+        return "📈";
+      case "technology":
+        return "⚙️";
+      case "competitive":
+        return "🏆";
+      case "trend":
+        return "📊";
+      case "literature":
+        return "📖";
+      default:
+        return "📚";
+    }
+  };
+
+  const getResearchDepthIcon = (depth: ResearchDepth) => {
+    switch (depth) {
+      case "overview":
+        return "👁️";
+      case "detailed":
+        return "🔍";
+      case "comprehensive":
+        return "📋";
+      default:
+        return "👁️";
+    }
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-[10px] rounded-[20px] p-[20px] text-white shadow-[0_8px_32px_rgba(31,38,135,0.37)] border border-white/18 relative overflow-hidden h-full">
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-400/5 to-red-400/5 pointer-events-none"></div>
-      
-      <div className="relative z-10 h-full overflow-y-auto space-y-6">
-        <h2 className="text-xl font-bold text-white">🎛️ Controls</h2>
-
-        {/* AI Configuration */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-blue-300">🤖 AI Configuration</h3>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">AI Provider</label>
-            <select
-              value={aiStatus.provider}
-              onChange={(e) => handleProviderChange(e.target.value as AIProvider)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="ollama">🦙 Ollama</option>
-              <option value="lmstudio">🏠 LM Studio</option>
-              <option value="openai">🚀 OpenAI</option>
-              <option value="local">🧠 Local Qwen</option>
-            </select>
+    <div className="h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-r border-slate-200 dark:border-slate-700">
+      <ScrollArea className="h-full">
+        <div className="p-6 space-y-6">
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Controls
+            </h2>
           </div>
 
-          <button
-            onClick={onConnectAI}
-            disabled={isGenerating}
-            className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-              aiStatus.connected
-                ? 'bg-green-500/30 text-green-200 border border-green-400/50'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {aiStatus.connected ? '✅ Connected' : '🔌 Connect AI'}
-          </button>
-        </div>
-
-        {/* Research Configuration */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-green-300">📊 Research Config</h3>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Research Type</label>
-            <select
-              value={researchType}
-              onChange={(e) => setResearchType(e.target.value as ResearchType)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="academic">📚 Academic</option>
-              <option value="market">📈 Market</option>
-              <option value="technology">⚙️ Technology</option>
-              <option value="competitive">🏆 Competitive</option>
-              <option value="trend">📊 Trend</option>
-              <option value="literature">📖 Literature</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Research Depth</label>
-            <select
-              value={researchDepth}
-              onChange={(e) => setResearchDepth(e.target.value as ResearchDepth)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="overview">👁️ Overview</option>
-              <option value="detailed">🔍 Detailed</option>
-              <option value="comprehensive">📋 Comprehensive</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Topic Management */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-purple-300">📝 Add Topic</h3>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Title</label>
-            <input
-              type="text"
-              value={topicTitle}
-              onChange={(e) => setTopicTitle(e.target.value)}
-              placeholder="Enter topic title..."
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              onKeyPress={(e) => e.key === 'Enter' && handleAddTopic()}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
-            <textarea
-              value={topicDescription}
-              onChange={(e) => setTopicDescription(e.target.value)}
-              placeholder="Enter topic description..."
-              rows={3}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-            />
-          </div>
-
-          <button
-            onClick={handleAddTopic}
-            disabled={!topicTitle.trim()}
-            className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 px-4 rounded-lg font-medium transition-colors"
-          >
-            ➕ Add Topic
-          </button>
-        </div>
-
-        {/* Document Management */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-yellow-300">📚 Knowledge Base</h3>
-          
-          <div className="bg-white/10 rounded-lg p-3 text-sm">
-            <div className="text-white/70 mb-2">Current Status:</div>
-            <div className="text-blue-300">
-              {documentStatus.count} documents • {formatFileSize(documentStatus.totalSize)}
-            </div>
-            {documentStatus.vectorCount > 0 && (
-              <div className="text-white/60 text-xs mt-1">
-                {documentStatus.vectorCount} searchable chunks
+          {/* AI Configuration */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bot className="h-4 w-4" />
+                AI Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ai-provider">AI Provider</Label>
+                <Select
+                  value={aiStatus.provider}
+                  onValueChange={handleProviderChange}
+                >
+                  <SelectTrigger id="ai-provider">
+                    <SelectValue placeholder="Select AI provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ollama">
+                      <div className="flex items-center gap-2">
+                        <span>🦙</span>
+                        <span>Ollama</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="lmstudio">
+                      <div className="flex items-center gap-2">
+                        <span>🏠</span>
+                        <span>LM Studio</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="openai">
+                      <div className="flex items-center gap-2">
+                        <span>🤖</span>
+                        <span>OpenAI</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="local">
+                      <div className="flex items-center gap-2">
+                        <span>💻</span>
+                        <span>Local Qwen</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={onUploadDocuments}
-              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              📄 Upload
-            </button>
-            <button
-              onClick={onManageKnowledge}
-              className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              🛠️ Manage
-            </button>
-          </div>
+              <Button
+                onClick={onConnectAI}
+                disabled={isGenerating}
+                className={`w-full ${
+                  aiStatus.connected
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-primary hover:bg-primary/90"
+                }`}
+              >
+                {aiStatus.connected ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Connected ({aiStatus.model})
+                  </>
+                ) : (
+                  <>
+                    <Wifi className="h-4 w-4 mr-2" />
+                    Connect AI
+                  </>
+                )}
+              </Button>
 
-          <button
-            onClick={onUploadRepository}
-            disabled
-            className="w-full bg-gray-500/50 text-white/50 py-2 px-4 rounded-lg text-sm font-medium cursor-not-allowed"
-          >
-            📦 Repository (Soon)
-          </button>
+              {aiStatus.connected && (
+                <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-sm text-green-700 dark:text-green-300">
+                      Online
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {getAIProviderIcon(aiStatus.provider)} {aiStatus.provider}
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Research Configuration */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Database className="h-4 w-4" />
+                Research Config
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="research-type">Research Type</Label>
+                <Select
+                  value={researchType}
+                  onValueChange={(value) =>
+                    setResearchType(value as ResearchType)
+                  }
+                >
+                  <SelectTrigger id="research-type">
+                    <SelectValue placeholder="Select research type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="academic">
+                      <div className="flex items-center gap-2">
+                        <span>📚</span>
+                        <span>Academic</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="market">
+                      <div className="flex items-center gap-2">
+                        <span>📈</span>
+                        <span>Market</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="technology">
+                      <div className="flex items-center gap-2">
+                        <span>⚙️</span>
+                        <span>Technology</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="competitive">
+                      <div className="flex items-center gap-2">
+                        <span>🏆</span>
+                        <span>Competitive</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="trend">
+                      <div className="flex items-center gap-2">
+                        <span>📊</span>
+                        <span>Trend</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="literature">
+                      <div className="flex items-center gap-2">
+                        <span>📖</span>
+                        <span>Literature</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="research-depth">Research Depth</Label>
+                <Select
+                  value={researchDepth}
+                  onValueChange={(value) =>
+                    setResearchDepth(value as ResearchDepth)
+                  }
+                >
+                  <SelectTrigger id="research-depth">
+                    <SelectValue placeholder="Select research depth" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="overview">
+                      <div className="flex items-center gap-2">
+                        <span>👁️</span>
+                        <span>Overview</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="detailed">
+                      <div className="flex items-center gap-2">
+                        <span>🔍</span>
+                        <span>Detailed</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="comprehensive">
+                      <div className="flex items-center gap-2">
+                        <span>📋</span>
+                        <span>Comprehensive</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Topic Management */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4" />
+                Add Topic
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="topic-title">Title</Label>
+                <Input
+                  id="topic-title"
+                  value={topicTitle}
+                  onChange={(e) => setTopicTitle(e.target.value)}
+                  placeholder="Enter topic title..."
+                  onKeyPress={(e) => e.key === "Enter" && handleAddTopic()}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="topic-description">Description</Label>
+                <Textarea
+                  id="topic-description"
+                  value={topicDescription}
+                  onChange={(e) => setTopicDescription(e.target.value)}
+                  placeholder="Enter topic description..."
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+
+              <Button
+                onClick={handleAddTopic}
+                disabled={!topicTitle.trim()}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Topic
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Knowledge Base */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <HardDrive className="h-4 w-4" />
+                Knowledge Base
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Documents:
+                  </span>
+                  <Badge variant="outline">{documentStatus.count}</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Total Size:
+                  </span>
+                  <Badge variant="outline">
+                    {formatFileSize(documentStatus.totalSize)}
+                  </Badge>
+                </div>
+                {documentStatus.vectorCount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-400">
+                      Searchable Chunks:
+                    </span>
+                    <Badge variant="outline">
+                      {documentStatus.vectorCount}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={onUploadDocuments} variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-1" />
+                  Upload
+                </Button>
+                <Button onClick={onManageKnowledge} variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-1" />
+                  Manage
+                </Button>
+              </div>
+
+              <Button
+                onClick={onUploadRepository}
+                disabled
+                variant="outline"
+                size="sm"
+                className="w-full opacity-50"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Repository (Soon)
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Actions */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Rocket className="h-4 w-4" />
+                Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={onGenerateResearch}
+                disabled={isGenerating || !aiStatus.connected}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Generate Research
+                  </>
+                )}
+              </Button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={onExportResults} variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-1" />
+                  Export
+                </Button>
+                <Button
+                  onClick={onClearAll}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* TimeCapsule */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <HardDrive className="h-4 w-4" />
+                TimeCapsule
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={onExportTimeCapsule}
+                  variant="outline"
+                  size="sm"
+                  className="text-cyan-600 hover:text-cyan-700 border-cyan-200 hover:border-cyan-300"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Save
+                </Button>
+                <Button
+                  onClick={onLoadTimeCapsule}
+                  variant="outline"
+                  size="sm"
+                  className="text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Load
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Research Actions */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-red-300">🚀 Actions</h3>
-          
-          <button
-            onClick={onGenerateResearch}
-            disabled={isGenerating || !aiStatus.connected}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-bold transition-all duration-200"
-          >
-            {isGenerating ? '⏳ Generating...' : '🚀 Generate Research'}
-          </button>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={onExportResults}
-              className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              📥 Export
-            </button>
-            <button
-              onClick={onClearAll}
-              className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              🗑️ Clear
-            </button>
-          </div>
-        </div>
-
-        {/* TimeCapsule */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-cyan-300">🧳 TimeCapsule</h3>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={onExportTimeCapsule}
-              className="bg-cyan-500 hover:bg-cyan-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              💾 Save
-            </button>
-            <button
-              onClick={onLoadTimeCapsule}
-              className="bg-orange-500 hover:bg-orange-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              📂 Load
-            </button>
-          </div>
-        </div>
-      </div>
+      </ScrollArea>
     </div>
   );
-} 
+}
