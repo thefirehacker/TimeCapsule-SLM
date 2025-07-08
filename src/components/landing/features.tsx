@@ -52,21 +52,21 @@ const features = [
     status: "available",
   },
   {
-    id: "playground",
+    id: "aiframes",
     icon: Palette,
-    title: "Playground",
-    subtitle: "Build AI Content • Create Visual Stories",
+    title: "AI-Frames",
+    subtitle: "Interactive AI-Guided Learning • Visual Learning Paths",
     description:
-      "Advanced creative coding environment powered by AI to build interactive content, visual narratives, and dynamic presentations. Transform research insights from TimeCapsules into engaging visual experiences with real-time AI assistance.",
+      "Create structured learning experiences with AI-guided frames. Each frame contains videos, documents, and interactive elements with AI assistance. Build sequential learning paths where AI provides contextual help and concept explanations based on your knowledge base.",
     features: [
-      "Build AI-powered interactive content",
-      "Create visual stories from research data",
-      "Real-time AI coding assistance",
-      "Transform TimeCapsules into visuals",
-      "Collaborate on creative projects",
+      "Create interactive learning frames with videos and docs",
+      "AI-guided explanations and concept clarification",
+      "Sequential learning paths with context awareness",
+      "Timestamp-controlled video segments for focused learning",
+      "Integration with TimeCapsule knowledge base",
     ],
-    href: "/playground",
-    buttonText: "Launch Playground",
+    href: "/ai-frames",
+    buttonText: "Try AI-Frames",
     buttonIcon: Palette,
     gradient: "from-blue-500 to-cyan-500",
     bgColor: "bg-blue-100 dark:bg-blue-900/30",
@@ -356,9 +356,9 @@ export function FeaturesSection() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="">
-                <Link href="/playground">
+                <Link href="/ai-frames">
                   <Palette className="w-5 h-5 mr-2" />
-                  Try Playground
+                  Try AI-Frames
                 </Link>
               </Button>
             </div>

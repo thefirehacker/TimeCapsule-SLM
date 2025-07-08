@@ -90,12 +90,39 @@ export function HeroSection() {
               {/* Main Heading */}
               <AnimatedGroup variants={transitionVariants} className="mb-8">
                 <h1 className="relative text-6xl md:text-7xl lg:text-8xl font-black leading-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  TimeCapsule-SLM
+                  <span className="block sm:inline">Time</span>
+                  <span className="block sm:inline">Capsule</span>
+                  <span className="block sm:inline">-</span>
+                  <span className="block sm:inline">SLM</span>
                 </h1>
 
-                <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium mb-4">
-                  Complete AI-powered research & creative platform
-                </p>
+                <div className="mt-6 mb-6">
+                  <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-gray-200 leading-tight">
+                    <span className="relative inline-block">
+                      <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent font-extrabold tracking-tight">
+                        Solving Open Learning
+                      </span>
+                      <div className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 opacity-30 rounded-full"></div>
+                      <div className="absolute -top-1 -left-1 w-2 h-2 bg-purple-400 rounded-full opacity-60 animate-pulse"></div>
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-400 rounded-full opacity-60 animate-pulse delay-500"></div>
+                    </span>
+                  </div>
+                  <div className="text-xl md:text-2xl lg:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">
+                    with a Complete{" "}
+                    <span className="relative inline-block">
+                      <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent font-bold">
+                        AI-Powered Platform
+                      </span>
+                      <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-50"></div>
+                    </span>
+                  </div>
+                  <div className="text-lg md:text-xl lg:text-2xl font-medium text-gray-600 dark:text-gray-400 mt-3">
+                    for{" "}
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold">Research</span>,{" "}
+                    <span className="text-purple-600 dark:text-purple-400 font-semibold">Creativity</span>, and{" "}
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Collaboration</span>
+                  </div>
+                </div>
 
                 <p className="text-lg text-gray-500 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
                   Advanced research tools with DeepResearch, in-browser RAG, and
@@ -139,8 +166,8 @@ export function HeroSection() {
                     variant="outline"
                     className="border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transform hover:scale-105 transition-all duration-300"
                   >
-                    <Link href="/playground" className="px-8 py-3">
-                      <span>Try Playground</span>
+                    <Link href="/ai-frames" className="px-8 py-3">
+                      <span>Try AI-Frames</span>
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Link>
                   </Button>
