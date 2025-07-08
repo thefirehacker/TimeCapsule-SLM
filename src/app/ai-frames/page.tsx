@@ -43,6 +43,10 @@ import {
   Eye,
   Settings,
   GripVertical,
+  Volume2,
+  VolumeX,
+  Mic,
+  Sliders,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -177,6 +181,27 @@ export default function AIFramesPage() {
   const [draggedFrameId, setDraggedFrameId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   
+  // TTS and voice state
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsReady, setTtsReady] = useState(false);
+  const [currentNarration, setCurrentNarration] = useState<string>("");
+  const [narrationQueue, setNarrationQueue] = useState<string[]>([]);
+  const [autoPlayAfterNarration, setAutoPlayAfterNarration] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [voiceSettings, setVoiceSettings] = useState({
+    rate: 0.9,
+    pitch: 1.0,
+    volume: 0.8
+  });
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [userHasInteracted, setUserHasInteracted] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
+  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState(0);
+  const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<NodeJS.Timeout | null>(null);
+  
   // DeepResearch integration
   const [deepResearchApp, setDeepResearchApp] = useState<DeepResearchApp | null>(null);
   const [vectorStore, setVectorStore] = useState<VectorStore | null>(null);
@@ -203,7 +228,406 @@ export default function AIFramesPage() {
     }
   }, []);
 
+  // Initialize TTS when not in creation mode
+  useEffect(() => {
+    if (!isCreationMode && isVoiceEnabled && typeof window !== "undefined") {
+      initializeTTS();
+    }
+  }, [isCreationMode, isVoiceEnabled]);
+
+  const cancelAutoAdvance = () => {
+    if (autoAdvanceTimer) {
+      clearInterval(autoAdvanceTimer);
+      setAutoAdvanceTimer(null);
+    }
+    setAutoAdvanceCountdown(0);
+    setChatMessages(prev => [
+      ...prev,
+      { 
+        role: 'ai', 
+        content: `⏹️ Auto-advance cancelled. Use the navigation buttons to move between frames manually.` 
+      }
+    ]);
+  };
+
   const currentFrame = frames[currentFrameIndex];
+
+  // Auto-advance to next frame after video ends
+  useEffect(() => {
+    if (!isCreationMode && autoAdvanceEnabled && currentFrame) {
+      const advanceDelay = (currentFrame.duration + 3) * 1000; // 3 seconds after video ends
+      
+      const timer = setTimeout(() => {
+        // Start countdown
+        setAutoAdvanceCountdown(5);
+        
+        // Show countdown message
+        setChatMessages(prev => [
+          ...prev,
+          { 
+            role: 'ai', 
+            content: `⏰ Video segment complete! Auto-advancing to next frame in 5 seconds...` 
+          }
+        ]);
+        
+        // Countdown timer
+        let countdown = 5;
+        const countdownInterval = setInterval(() => {
+          countdown--;
+          setAutoAdvanceCountdown(countdown);
+          
+          if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            if (currentFrameIndex < frames.length - 1) {
+              setCurrentFrameIndex(currentFrameIndex + 1);
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'ai', 
+                  content: `▶️ Moving to Frame ${currentFrameIndex + 2}: ${frames[currentFrameIndex + 1]?.title || 'Next Frame'}` 
+                }
+              ]);
+            } else {
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'ai', 
+                  content: `🎉 Congratulations! You've completed all frames in this learning sequence.` 
+                }
+              ]);
+            }
+            setAutoAdvanceCountdown(0);
+          }
+        }, 1000);
+        
+        setAutoAdvanceTimer(countdownInterval);
+      }, advanceDelay);
+
+      return () => {
+        clearTimeout(timer);
+        if (autoAdvanceTimer) {
+          clearInterval(autoAdvanceTimer);
+          setAutoAdvanceTimer(null);
+        }
+      };
+    }
+  }, [currentFrameIndex, isCreationMode, autoAdvanceEnabled, currentFrame, frames.length, frames]);
+
+  // Auto-narrate when frame changes in learn mode
+  useEffect(() => {
+    if (!isCreationMode && isVoiceEnabled && ttsReady && currentFrame && userHasInteracted) {
+      // Reset video to beginning when frame changes
+      if (videoRef.current) {
+        const videoId = extractVideoId(currentFrame.videoUrl);
+        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=0&controls=1&modestbranding=1&rel=0`;
+        videoRef.current.src = resetUrl;
+      }
+      
+      // Start narration (which will auto-play video when complete)
+      narrateFrame(currentFrame);
+    }
+  }, [currentFrameIndex, isCreationMode, isVoiceEnabled, ttsReady, userHasInteracted]);
+
+  // Detect user interaction to enable TTS
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      setUserHasInteracted(true);
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, []);
+
+  // Cleanup TTS on unmount or mode change
+  useEffect(() => {
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Stop TTS when switching to creation mode
+  useEffect(() => {
+    if (isCreationMode && isSpeaking) {
+      stopSpeaking();
+    }
+  }, [isCreationMode]);
+
+  const initializeTTS = async () => {
+    try {
+      // Check if speech synthesis is available
+      if (!window.speechSynthesis) {
+        console.warn("Speech synthesis not supported");
+        return;
+      }
+
+      // Wait for voices to load
+      const loadVoices = () => {
+        return new Promise<void>((resolve) => {
+          const voices = window.speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            setAvailableVoices(voices);
+            selectBestVoice(voices);
+            setTtsReady(true);
+            resolve();
+          } else {
+            window.speechSynthesis.addEventListener('voiceschanged', () => {
+              const newVoices = window.speechSynthesis.getVoices();
+              setAvailableVoices(newVoices);
+              selectBestVoice(newVoices);
+              setTtsReady(true);
+              resolve();
+            }, { once: true });
+          }
+        });
+      };
+
+      await loadVoices();
+      console.log("✅ TTS initialized successfully");
+    } catch (error) {
+      console.error("❌ TTS initialization failed:", error);
+    }
+  };
+
+  const selectBestVoice = (voices: SpeechSynthesisVoice[]) => {
+    // Priority order for high-quality voices - Google UK English Female as default
+    const voicePriority = [
+      // Google UK English Female as top priority
+      'Google UK English Female',
+      'Google UK English',
+      
+      // Other premium neural voices
+      'Google US English',
+      'Google UK English Male',
+      'Microsoft Zira - English (United States)',
+      'Microsoft David - English (United States)',
+      'Microsoft Mark - English (United States)',
+      
+      // System voices (good quality)
+      'Alex', // macOS
+      'Samantha', // macOS
+      'Victoria', // macOS
+      'Karen', // macOS
+      'Microsoft Zira Desktop', // Windows
+      'Microsoft David Desktop', // Windows
+      
+      // Fallback to any English voice
+      'en-US',
+      'en-GB',
+      'en-AU'
+    ];
+
+    // Find the best available voice
+    let bestVoice = null;
+    
+    for (const priorityVoice of voicePriority) {
+      const found = voices.find(voice => 
+        voice.name.includes(priorityVoice) || 
+        voice.lang.includes(priorityVoice) ||
+        voice.name === priorityVoice
+      );
+      if (found) {
+        bestVoice = found;
+        break;
+      }
+    }
+
+    // If no priority voice found, use the first English voice
+    if (!bestVoice) {
+      bestVoice = voices.find(voice => 
+        voice.lang.startsWith('en') && voice.localService
+      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+    }
+
+    setSelectedVoice(bestVoice);
+    console.log(`🎙️ Selected voice: ${bestVoice?.name} (${bestVoice?.lang})`);
+  };
+
+  const getVoiceQuality = (voice: SpeechSynthesisVoice): 'premium' | 'good' | 'basic' => {
+    const premiumVoices = [
+      'Microsoft Zira', 'Microsoft David', 'Microsoft Mark',
+      'Google US English', 'Google UK English',
+      'Alex', 'Samantha', 'Victoria'
+    ];
+    
+    const goodVoices = [
+      'Karen', 'Veena', 'Daniel', 'Moira', 'Tessa',
+      'Microsoft', 'Google'
+    ];
+
+    if (premiumVoices.some(pv => voice.name.includes(pv))) {
+      return 'premium';
+    } else if (goodVoices.some(gv => voice.name.includes(gv))) {
+      return 'good';
+    }
+    return 'basic';
+  };
+
+  const speakText = (text: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!window.speechSynthesis || !isVoiceEnabled) {
+        resolve();
+        return;
+      }
+
+      // Check if user has interacted (required for autoplay policies)
+      if (!userHasInteracted) {
+        console.log("⚠️ TTS requires user interaction first");
+        resolve();
+        return;
+      }
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Use selected voice or fallback to best available
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      } else {
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+          voice.name.includes('Google') || 
+          voice.name.includes('Microsoft') ||
+          voice.lang.startsWith('en')
+        );
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+      }
+      
+      // Apply voice settings
+      utterance.rate = voiceSettings.rate;
+      utterance.pitch = voiceSettings.pitch;
+      utterance.volume = voiceSettings.volume;
+
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setCurrentNarration(text);
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setCurrentNarration("");
+        resolve();
+      };
+
+      utterance.onerror = (event) => {
+        setIsSpeaking(false);
+        setCurrentNarration("");
+        
+        // Handle different error types gracefully
+        if (event.error === 'not-allowed') {
+          console.log("⚠️ TTS not allowed - user interaction required");
+        } else if (event.error === 'interrupted') {
+          console.log("⚠️ TTS interrupted - this is normal when switching frames");
+        } else {
+          console.error("❌ Speech synthesis error:", event.error);
+        }
+        
+        // Don't reject on 'interrupted' errors as they're normal
+        if (event.error === 'interrupted') {
+          resolve();
+        } else {
+          reject(event.error);
+        }
+      };
+
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error("❌ Failed to start speech synthesis:", error);
+        setIsSpeaking(false);
+        setCurrentNarration("");
+        reject(error);
+      }
+    });
+  };
+
+  const stopSpeaking = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setCurrentNarration("");
+    }
+  };
+
+  const narrateFrame = async (frame: AIFrame) => {
+    if (!isVoiceEnabled || isSpeaking) return;
+
+    try {
+      // Create narration text for the frame
+      const narrationText = `
+        Welcome to Frame ${currentFrameIndex + 1}: ${frame.title}.
+        
+        Our learning goal for this frame is: ${frame.goal}
+        
+        Let me provide some context: ${frame.informationText.replace(/\n/g, ' ').substring(0, 300)}...
+        
+        Now, let's watch the video segment to see this concept in action.
+      `.replace(/\s+/g, ' ').trim();
+
+      // Speak the narration
+      await speakText(narrationText);
+
+      // Show auto-play indicator
+      setChatMessages(prev => [
+        ...prev,
+        { 
+          role: 'ai', 
+          content: `🎬 Narration complete! Auto-playing video in 3 seconds...` 
+        }
+      ]);
+
+      // Auto-play YouTube video after narration completes
+      setTimeout(() => {
+        if (!isSpeaking) {
+          // Start YouTube video playback
+          startYouTubeVideo();
+          
+          setChatMessages(prev => [
+            ...prev,
+            { 
+              role: 'ai', 
+              content: `▶️ Video is now playing! Watch "${frame.goal}" in action. The video will play the specific segment from ${formatTime(frame.startTime)} for ${formatTime(frame.duration)}.` 
+            }
+          ]);
+        }
+      }, 3000); // 3 second delay to give user time to see the indicator
+
+    } catch (error) {
+      console.error("Narration failed:", error);
+    }
+  };
+
+  const startYouTubeVideo = () => {
+    try {
+      if (videoRef.current) {
+        // Send play command to YouTube iframe
+        const iframe = videoRef.current;
+        const videoId = extractVideoId(currentFrame.videoUrl);
+        
+        if (videoId) {
+          // Create new iframe src with autoplay enabled
+          const newEmbedUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=1&controls=1&modestbranding=1&rel=0`;
+          iframe.src = newEmbedUrl;
+          
+          console.log(`🎬 Auto-playing YouTube video: ${currentFrame.title}`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to auto-play YouTube video:", error);
+    }
+  };
 
   const extractVideoId = (url: string) => {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
@@ -263,6 +687,24 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       { role: 'user', content: `Tell me about ${concept}` },
       { role: 'ai', content: aiResponse }
     ]);
+
+    // Voice narration for concept explanation in Learn mode
+    if (!isCreationMode && isVoiceEnabled && ttsReady) {
+      const conceptNarration = `
+        Let me explain ${concept}. 
+        
+        ${concept} is a key concept in your current learning path. 
+        It relates directly to ${currentFrame.title} and helps you understand ${currentFrame.goal}.
+        
+        This concept is fundamental for your learning journey and connects to the other topics you're exploring.
+      `.replace(/\s+/g, ' ').trim();
+
+      try {
+        await speakText(conceptNarration);
+      } catch (error) {
+        console.error("Concept narration failed:", error);
+      }
+    }
   };
 
   const handleChatSubmit = async () => {
@@ -479,6 +921,43 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   const videoId = extractVideoId(currentFrame.videoUrl);
   const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=0&controls=1&modestbranding=1&rel=0`;
 
+  const nextFrame = () => {
+    if (currentFrameIndex < frames.length - 1) {
+      setCurrentFrameIndex(currentFrameIndex + 1);
+      // Mark user interaction for TTS
+      if (!userHasInteracted) {
+        setUserHasInteracted(true);
+      }
+    }
+  };
+
+  const prevFrame = () => {
+    if (currentFrameIndex > 0) {
+      setCurrentFrameIndex(currentFrameIndex - 1);
+      // Mark user interaction for TTS
+      if (!userHasInteracted) {
+        setUserHasInteracted(true);
+      }
+    }
+  };
+
+  const handleReplayNarration = async () => {
+    if (!currentFrame || !isVoiceEnabled || !ttsReady) return;
+    
+    try {
+      // Reset video to beginning without autoplay
+      if (videoRef.current) {
+        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=0&controls=1&modestbranding=1&rel=0`;
+        videoRef.current.src = resetUrl;
+      }
+      
+      // Start narration (which will auto-play video when complete)
+      await narrateFrame(currentFrame);
+    } catch (error) {
+      console.error("Failed to replay narration:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
@@ -514,6 +993,80 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   {isCreationMode ? "Create" : "Learn"}
                 </Badge>
               </div>
+              
+              {/* Voice Control - Only in Learn Mode */}
+              {!isCreationMode && (
+                <>
+                  <Separator orientation="vertical" className="h-8" />
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="voice-toggle" className="text-sm font-medium flex items-center gap-2">
+                      {isVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                      Voice
+                    </Label>
+                    <Switch
+                      id="voice-toggle"
+                      checked={isVoiceEnabled}
+                      onCheckedChange={(checked) => {
+                        setIsVoiceEnabled(checked);
+                        if (!checked) {
+                          stopSpeaking();
+                        }
+                        // Mark user interaction when toggling voice
+                        if (!userHasInteracted) {
+                          setUserHasInteracted(true);
+                        }
+                      }}
+                    />
+                    {!userHasInteracted && isVoiceEnabled && (
+                      <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-900/20">
+                        Click to enable
+                      </Badge>
+                    )}
+                    {isSpeaking && (
+                      <Badge variant="default" className="bg-green-500 animate-pulse">
+                        <Mic className="h-3 w-3 mr-1" />
+                        Speaking
+                      </Badge>
+                    )}
+                    {ttsReady && isVoiceEnabled && userHasInteracted && (
+                      <Badge variant="outline" className="text-xs">
+                        TTS Ready
+                      </Badge>
+                    )}
+                    {selectedVoice && (
+                      <Badge variant="outline" className="text-xs">
+                        {selectedVoice.name.split(' ')[0]}
+                      </Badge>
+                    )}
+                    {isVoiceEnabled && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowVoiceSettings(true);
+                          // Mark user interaction
+                          if (!userHasInteracted) {
+                            setUserHasInteracted(true);
+                          }
+                        }}
+                      >
+                        <Sliders className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {/* Auto-advance toggle */}
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="auto-advance" className="text-sm font-medium">
+                        Auto-advance
+                      </Label>
+                      <Switch
+                        id="auto-advance"
+                        checked={autoAdvanceEnabled}
+                        onCheckedChange={setAutoAdvanceEnabled}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
               <Separator orientation="vertical" className="h-8" />
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm">
@@ -612,7 +1165,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentFrameIndex(Math.max(0, currentFrameIndex - 1))}
+                      onClick={prevFrame}
                       disabled={currentFrameIndex === 0}
                     >
                       <SkipBack className="h-4 w-4" />
@@ -620,7 +1173,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentFrameIndex(Math.min(frames.length - 1, currentFrameIndex + 1))}
+                      onClick={nextFrame}
                       disabled={currentFrameIndex === frames.length - 1}
                     >
                       <SkipForward className="h-4 w-4" />
@@ -687,14 +1240,41 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   <div className="text-sm text-slate-600 dark:text-slate-400">
                     Playing from {formatTime(currentFrame.startTime)} for {formatTime(currentFrame.duration)}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAIConcepts(!showAIConcepts)}
-                  >
-                    <Brain className="h-4 w-4 mr-2" />
-                    AI Concepts
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {!isCreationMode && isVoiceEnabled && (
+                      <>
+                        {isSpeaking ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={stopSpeaking}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Pause className="h-4 w-4 mr-2" />
+                            Stop Voice
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleReplayNarration}
+                            disabled={!ttsReady}
+                          >
+                            <Volume2 className="h-4 w-4 mr-2" />
+                            Replay Narration
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAIConcepts(!showAIConcepts)}
+                    >
+                      <Brain className="h-4 w-4 mr-2" />
+                      AI Concepts
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -840,22 +1420,62 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             </Card>
 
             {/* AI Assistant */}
-            <Card>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageCircle className="h-5 w-5 text-blue-600" />
                   AI Assistant
-                  {vectorStore && (
-                    <Badge variant="outline">
+                  {deepResearchApp && (
+                    <Badge variant="outline" className="ml-2">
                       <Database className="h-3 w-3 mr-1" />
-                      KB
+                      TimeCapsule Connected
                     </Badge>
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-64 mb-4">
-                  <div className="space-y-3">
+              <CardContent className="h-full flex flex-col">
+                {/* Current Narration Display */}
+                {isSpeaking && currentNarration && (
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Mic className="h-4 w-4 text-blue-600 animate-pulse" />
+                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        Currently Speaking:
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 italic">
+                      {currentNarration.length > 150 
+                        ? currentNarration.substring(0, 150) + "..."
+                        : currentNarration
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {/* Auto-advance Countdown */}
+                {autoAdvanceCountdown > 0 && (
+                  <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-orange-600 animate-pulse" />
+                        <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                          Auto-advancing in {autoAdvanceCountdown} seconds...
+                        </span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={cancelAutoAdvance}
+                        className="text-orange-600 hover:text-orange-700 border-orange-300"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                <ScrollArea className="flex-1 mb-4">
+                  <div className="space-y-4">
                     {chatMessages.length === 0 ? (
                       <div className="text-center text-slate-500 dark:text-slate-400 py-8">
                         <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -867,21 +1487,34 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                             Connected to your TimeCapsule knowledge
                           </p>
                         )}
+                        {!isCreationMode && isVoiceEnabled && !userHasInteracted && (
+                          <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
+                            🎙️ Click anywhere to enable voice narration
+                          </p>
+                        )}
+                        {!isCreationMode && isVoiceEnabled && userHasInteracted && (
+                          <p className="text-xs mt-2 text-green-600 dark:text-green-400">
+                            🎙️ Voice narration enabled - Navigate frames to hear explanations
+                          </p>
+                        )}
                       </div>
                     ) : (
                       chatMessages.map((message, index) => (
                         <div
                           key={index}
-                          className={`p-3 rounded-lg ${
-                            message.role === 'user'
-                              ? 'bg-blue-100 dark:bg-blue-900/30 ml-4'
-                              : 'bg-slate-100 dark:bg-slate-800 mr-4'
-                          }`}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
-                          <div className="text-sm font-medium mb-1">
-                            {message.role === 'user' ? 'You' : 'AI Assistant'}
+                          <div
+                            className={`max-w-[80%] p-3 rounded-lg ${
+                              message.role === 'user'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                            }`}
+                          >
+                            <div className="text-sm whitespace-pre-wrap">
+                              {message.content}
+                            </div>
                           </div>
-                          <div className="text-sm whitespace-pre-wrap">{message.content}</div>
                         </div>
                       ))
                     )}
@@ -991,6 +1624,181 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Voice Settings Modal */}
+      <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Volume2 className="h-5 w-5 text-blue-600" />
+              Voice Settings
+            </DialogTitle>
+            <DialogDescription>
+              Choose your preferred voice and adjust speech settings for optimal learning experience.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Voice Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Select Voice</Label>
+              <ScrollArea className="h-32 border rounded-lg p-3">
+                <div className="space-y-2">
+                  {availableVoices
+                    .filter(voice => voice.lang.startsWith('en'))
+                    .sort((a, b) => {
+                      const aQuality = getVoiceQuality(a);
+                      const bQuality = getVoiceQuality(b);
+                      const qualityOrder = { premium: 0, good: 1, basic: 2 };
+                      return qualityOrder[aQuality] - qualityOrder[bQuality];
+                    })
+                    .map((voice, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                          selectedVoice?.name === voice.name
+                            ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-600'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                        onClick={() => setSelectedVoice(voice)}
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{voice.name}</div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400">
+                            {voice.lang} • {voice.localService ? 'Local' : 'Network'}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={getVoiceQuality(voice) === 'premium' ? 'default' : 'outline'}
+                            className={
+                              getVoiceQuality(voice) === 'premium'
+                                ? 'bg-green-500'
+                                : getVoiceQuality(voice) === 'good'
+                                ? 'bg-yellow-500'
+                                : 'bg-gray-500'
+                            }
+                          >
+                            {getVoiceQuality(voice)}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const testUtterance = new SpeechSynthesisUtterance("Hello, this is a test of this voice.");
+                              testUtterance.voice = voice;
+                              testUtterance.rate = voiceSettings.rate;
+                              testUtterance.pitch = voiceSettings.pitch;
+                              testUtterance.volume = voiceSettings.volume;
+                              window.speechSynthesis.speak(testUtterance);
+                            }}
+                          >
+                            <Play className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Voice Settings */}
+            <div className="space-y-4">
+              <Label className="text-sm font-medium">Speech Settings</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rate" className="text-xs">
+                    Speed: {voiceSettings.rate.toFixed(1)}x
+                  </Label>
+                  <input
+                    id="rate"
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={voiceSettings.rate}
+                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pitch" className="text-xs">
+                    Pitch: {voiceSettings.pitch.toFixed(1)}
+                  </Label>
+                  <input
+                    id="pitch"
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={voiceSettings.pitch}
+                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="volume" className="text-xs">
+                    Volume: {Math.round(voiceSettings.volume * 100)}%
+                  </Label>
+                  <input
+                    id="volume"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={voiceSettings.volume}
+                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, volume: parseFloat(e.target.value) }))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Test Voice */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Test Voice</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const testText = "Hello! This is how I will sound when narrating your AI-Frames learning content. The speed, pitch, and volume are all adjustable to match your preferences.";
+                    speakText(testText);
+                  }}
+                  disabled={isSpeaking}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Test Voice
+                </Button>
+                {isSpeaking && (
+                  <Button
+                    variant="outline"
+                    onClick={stopSpeaking}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Pause className="h-4 w-4 mr-2" />
+                    Stop
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Voice Quality Info */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <div className="text-sm font-medium mb-2">Voice Quality Guide:</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                <div><Badge className="bg-green-500 text-xs mr-2">Premium</Badge>Neural voices (Microsoft, Google) - Most natural sounding</div>
+                <div><Badge className="bg-yellow-500 text-xs mr-2">Good</Badge>System voices (Alex, Samantha) - Clear and pleasant</div>
+                <div><Badge className="bg-gray-500 text-xs mr-2">Basic</Badge>Default voices - Functional but robotic</div>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowVoiceSettings(false)}>
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
