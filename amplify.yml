@@ -4,7 +4,7 @@ frontend:
     preBuild:
       commands:
         - echo "📦 Installing dependencies..."
-        - npm ci
+        - npm ci --cache .npm --prefer-offline
         - echo "🔧 Node.js version:"
         - node --version
         - echo "📦 npm version:"
@@ -21,49 +21,24 @@ frontend:
         - echo "AUTH_GITHUB_SECRET is ${AUTH_GITHUB_SECRET:+set}"
         - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+set}"
         - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+set}"
-        - echo "📁 File system debug..."
-        - echo "Current directory:" && pwd
-        - echo "Checking src/components/ui directory:"
-        - ls -la src/components/ui/ | head -10
-        - echo "Checking specific UI components:"
-        - ls -la src/components/ui/card.tsx src/components/ui/button.tsx src/components/ui/badge.tsx || echo "Some UI components not found"
+        - echo "NEXTAUTH_URL is ${NEXTAUTH_URL:+set}"
     build:
       commands:
         - echo "🔨 Building Next.js application..."
-        - echo "🌍 Final environment variables verification:"
-        - echo "NEXT_PUBLIC_GA4_MEASUREMENT_ID=$NEXT_PUBLIC_GA4_MEASUREMENT_ID"
-        - echo "NEXT_PUBLIC_SITE_NAME=$NEXT_PUBLIC_SITE_NAME"
-        - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL"
-        - echo "GA4_ANONYMIZE_IP=$GA4_ANONYMIZE_IP"
-        - echo "GA4_DEBUG_MODE=$GA4_DEBUG_MODE"
-        - echo "🔐 VERBOSE Authentication Variables Debug:"
-        - echo "================================================"
-        - 'echo "AUTH_SECRET length: ${#AUTH_SECRET} chars"'
-        - 'echo "AUTH_SECRET value: ${AUTH_SECRET}"'
-        - echo "------------------------------------------------"
-        - 'echo "AUTH_GITHUB_ID length: ${#AUTH_GITHUB_ID} chars"'
-        - 'echo "AUTH_GITHUB_ID value: ${AUTH_GITHUB_ID}"'
-        - echo "------------------------------------------------"
-        - 'echo "AUTH_GITHUB_SECRET length: ${#AUTH_GITHUB_SECRET} chars"'
-        - 'echo "AUTH_GITHUB_SECRET value: ${AUTH_GITHUB_SECRET}"'
-        - echo "------------------------------------------------"
-        - 'echo "AUTH_GOOGLE_ID length: ${#AUTH_GOOGLE_ID} chars"'
-        - 'echo "AUTH_GOOGLE_ID value: ${AUTH_GOOGLE_ID}"'
-        - echo "------------------------------------------------"
-        - 'echo "AUTH_GOOGLE_SECRET length: ${#AUTH_GOOGLE_SECRET} chars"'
-        - 'echo "AUTH_GOOGLE_SECRET value: ${AUTH_GOOGLE_SECRET}"'
-        - echo "================================================"
-        - 'echo "🌐 Site URL Configuration:"'
-        - 'echo "NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}"'
-        - 'echo "NODE_ENV: ${NODE_ENV:-NOT_SET}"'
-        - echo "================================================"
-        - echo "🔍 Variable Validation Checks:"
-        - 'if [ -z "$AUTH_SECRET" ]; then echo "❌ AUTH_SECRET is empty"; else echo "✅ AUTH_SECRET is set"; fi'
-        - 'if [ -z "$AUTH_GITHUB_ID" ]; then echo "❌ AUTH_GITHUB_ID is empty"; else echo "✅ AUTH_GITHUB_ID is set"; fi'
-        - 'if [ -z "$AUTH_GITHUB_SECRET" ]; then echo "❌ AUTH_GITHUB_SECRET is empty"; else echo "✅ AUTH_GITHUB_SECRET is set"; fi'
-        - 'if [ -z "$AUTH_GOOGLE_ID" ]; then echo "❌ AUTH_GOOGLE_ID is empty"; else echo "✅ AUTH_GOOGLE_ID is set"; fi'
-        - 'if [ -z "$AUTH_GOOGLE_SECRET" ]; then echo "❌ AUTH_GOOGLE_SECRET is empty"; else echo "✅ AUTH_GOOGLE_SECRET is set"; fi'
-        - echo "================================================"
+        - echo "🔐 Creating .env.production for runtime environment variables..."
+        - echo "# Runtime environment variables for NextAuth" > .env.production
+        - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
+        - echo "AUTH_GOOGLE_ID=$AUTH_GOOGLE_ID" >> .env.production
+        - echo "AUTH_GOOGLE_SECRET=$AUTH_GOOGLE_SECRET" >> .env.production
+        - echo "AUTH_GITHUB_ID=$AUTH_GITHUB_ID" >> .env.production
+        - echo "AUTH_GITHUB_SECRET=$AUTH_GITHUB_SECRET" >> .env.production
+        - echo "NEXTAUTH_SECRET=$AUTH_SECRET" >> .env.production
+        - echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
+        - echo "NODE_ENV=production" >> .env.production
+        - echo "✅ Environment variables written to .env.production"
+        - echo "🔍 Verifying .env.production contents:"
+        - cat .env.production
+        - echo "🏗️ Starting Next.js build..."
         - npm run build
         - echo "✅ Build completed successfully!"
     postBuild:
@@ -71,15 +46,19 @@ frontend:
         - echo "📊 Post-build optimizations..."
         - echo "🔍 Checking build output..."
         - ls -la .next/
+        - echo "🔍 Verifying .env.production exists in build output:"
+        - ls -la .env.production || echo "⚠️ .env.production not found"
         - echo "✅ Build artifacts created successfully"
   artifacts:
     baseDirectory: .next
     files:
       - '**/*'
+      - '.env.production'
   cache:
     paths:
       - node_modules/**/*
       - .next/cache/**/*
+      - .npm/**/*
   customHeaders:
     - pattern: '**/*'
       headers:
