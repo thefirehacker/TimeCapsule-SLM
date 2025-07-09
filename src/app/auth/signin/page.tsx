@@ -1,26 +1,8 @@
-"use client";
-
-import { signIn, getProviders } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { signIn } from "../../../../auth";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Github } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-
-interface Provider {
-  id: string;
-  name: string;
-  type: string;
-  signinUrl: string;
-  callbackUrl: string;
-}
+import { Github } from "lucide-react";
 
 function GoogleIcon() {
   return (
@@ -46,52 +28,6 @@ function GoogleIcon() {
 }
 
 export default function SignInPage() {
-  const [providers, setProviders] = useState<Record<string, Provider> | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchProviders = async () => {
-      const res = await getProviders();
-      setProviders(res);
-    };
-    fetchProviders();
-  }, []);
-
-  const handleSignIn = async (providerId: string) => {
-    setIsLoading(providerId);
-    try {
-      await signIn(providerId, { callbackUrl: "/" });
-    } catch (error) {
-      console.error("Sign in error:", error);
-    } finally {
-      setIsLoading(null);
-    }
-  };
-
-  const getProviderIcon = (providerId: string) => {
-    switch (providerId) {
-      case "google":
-        return <GoogleIcon />;
-      case "github":
-        return <Github className="h-5 w-5" />;
-      default:
-        return null;
-    }
-  };
-
-  const getProviderButtonStyles = (providerId: string) => {
-    switch (providerId) {
-      case "google":
-        return "bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400";
-      case "github":
-        return "bg-gray-900 hover:bg-gray-800 text-white border border-gray-700";
-      default:
-        return "bg-primary hover:bg-primary/90 text-primary-foreground";
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 p-4">
       <div className="w-full max-w-md">
@@ -118,62 +54,60 @@ export default function SignInPage() {
           </p>
         </div>
 
-        {/* Sign In Card */}
-        <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border border-white/20 dark:border-gray-800/50 shadow-xl">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl font-semibold">Sign In</CardTitle>
-            <CardDescription>
-              Choose your preferred authentication method
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {providers ? (
-              Object.values(providers).map((provider) => (
-                <Button
-                  key={provider.name}
-                  onClick={() => handleSignIn(provider.id)}
-                  disabled={isLoading !== null}
-                  className={`w-full h-12 gap-3 text-base font-medium transition-all duration-200 ${getProviderButtonStyles(
-                    provider.id
-                  )}`}
-                >
-                  {isLoading === provider.id ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
-                  ) : (
-                    getProviderIcon(provider.id)
-                  )}
-                  {isLoading === provider.id
-                    ? "Signing in..."
-                    : `Continue with ${provider.name}`}
-                </Button>
-              ))
-            ) : (
-              <div className="space-y-4">
-                <div className="w-full h-12 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-md" />
-                <div className="w-full h-12 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-md" />
-              </div>
-            )}
+        {/* Sign In Buttons */}
+        <div className="space-y-4">
+          {/* Google */}
+          <form
+            action={async () => {
+              "use server";
+              await signIn("google", { redirectTo: "/" });
+            }}
+            className="w-full"
+          >
+            <Button
+              type="submit"
+              className="w-full h-12 gap-3 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400"
+            >
+              <GoogleIcon /> Continue with Google
+            </Button>
+          </form>
 
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                By signing in, you agree to our{" "}
-                <Link
-                  href="/terms"
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link
-                  href="/privacy"
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  Privacy Policy
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          {/* GitHub */}
+          <form
+            action={async () => {
+              "use server";
+              await signIn("github", { redirectTo: "/" });
+            }}
+            className="w-full"
+          >
+            <Button
+              type="submit"
+              className="w-full h-12 gap-3 text-base font-medium bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
+            >
+              <Github className="h-5 w-5" /> Continue with GitHub
+            </Button>
+          </form>
+        </div>
+
+        {/* Legal Links */}
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-8">
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+            By signing in, you agree to our{" "}
+            <Link
+              href="/terms"
+              className="underline hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="underline hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              Privacy Policy
+            </Link>
+          </p>
+        </div>
 
         {/* Back to Home */}
         <div className="text-center mt-8">
