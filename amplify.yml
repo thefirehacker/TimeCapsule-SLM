@@ -15,6 +15,12 @@ frontend:
         - echo "NEXT_PUBLIC_SITE_URL is ${NEXT_PUBLIC_SITE_URL:-'not set'}"
         - echo "GA4_ANONYMIZE_IP is ${GA4_ANONYMIZE_IP:-'not set'}"
         - echo "GA4_DEBUG_MODE is ${GA4_DEBUG_MODE:-'not set'}"
+        - echo "🔐 Authentication variables check..."
+        - echo "AUTH_SECRET is ${AUTH_SECRET:+set}"
+        - echo "AUTH_GITHUB_ID is ${AUTH_GITHUB_ID:+set}"
+        - echo "AUTH_GITHUB_SECRET is ${AUTH_GITHUB_SECRET:+set}"
+        - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+set}"
+        - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+set}"
     build:
       commands:
         - echo "🔨 Building Next.js application..."
@@ -24,6 +30,12 @@ frontend:
         - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL"
         - echo "GA4_ANONYMIZE_IP=$GA4_ANONYMIZE_IP"
         - echo "GA4_DEBUG_MODE=$GA4_DEBUG_MODE"
+        - echo "🔐 Final authentication variables verification:"
+        - echo "AUTH_SECRET is ${AUTH_SECRET:+configured}"
+        - echo "AUTH_GITHUB_ID is ${AUTH_GITHUB_ID:+configured}"
+        - echo "AUTH_GITHUB_SECRET is ${AUTH_GITHUB_SECRET:+configured}"
+        - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+configured}"
+        - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+configured}"
         - npm run build
         - echo "✅ Build completed successfully!"
     postBuild:
