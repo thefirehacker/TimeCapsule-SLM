@@ -7,6 +7,7 @@ import {
   AIStatus as AIConnectionStatus,
 } from "../../lib/AIAssistant";
 import { analytics } from "../../lib/analytics";
+import { usePageAnalytics } from "../analytics/Analytics";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -271,8 +272,17 @@ export class DeepResearchApp {
     this.setTopics?.(this.topics);
     this.saveToStorage();
 
-    // Track topic addition
+    // Track topic addition with enhanced analytics
     analytics.trackTopicManagement("add_topic", this.topics.length);
+    
+    const pageAnalytics = (this as any).pageAnalytics;
+    if (pageAnalytics) {
+      pageAnalytics.trackFeatureUsage('topic_added', {
+        topic_title: title,
+        topic_description_length: description.length,
+        total_topics: this.topics.length
+      });
+    }
   }
 
   deleteTopic(topicId: string) {
@@ -280,17 +290,41 @@ export class DeepResearchApp {
     this.setTopics?.(this.topics);
     this.saveToStorage();
 
-    // Track topic deletion
+    // Track topic deletion with enhanced analytics
     analytics.trackTopicManagement("delete_topic", this.topics.length);
+    
+    const pageAnalytics = (this as any).pageAnalytics;
+    if (pageAnalytics) {
+      pageAnalytics.trackFeatureUsage('topic_deleted', {
+        topic_id: topicId,
+        remaining_topics: this.topics.length
+      });
+    }
   }
 
   selectTopic(topicId: string) {
+    const topic = this.topics.find(t => t.id === topicId);
+    const wasSelected = topic?.selected || false;
+    
     this.topics = this.topics.map((t) => ({
       ...t,
       selected: t.id === topicId ? !t.selected : t.selected,
     }));
     this.setTopics?.(this.topics);
     this.saveToStorage();
+    
+    // Track topic selection with enhanced analytics
+    const pageAnalytics = (this as any).pageAnalytics;
+    if (pageAnalytics) {
+      const selectedCount = this.topics.filter(t => t.selected).length;
+      pageAnalytics.trackFeatureUsage('topic_selected', {
+        topic_id: topicId,
+        topic_title: topic?.title || 'unknown',
+        action: wasSelected ? 'deselected' : 'selected',
+        total_selected: selectedCount,
+        total_topics: this.topics.length
+      });
+    }
   }
 
   moveTopic(topicId: string, direction: "up" | "down") {
@@ -433,8 +467,23 @@ export class DeepResearchApp {
     this.setIsGenerating?.(true);
     this.updateStatus("🔄 Generating research with AI...");
 
-    // Track research generation start
+    // Track research generation start with enhanced analytics
     const aiSession = this.aiAssistant.getSession();
+    const pageAnalytics = (this as any).pageAnalytics;
+    
+    if (pageAnalytics) {
+      pageAnalytics.trackFeatureUsage('research_generation_started', {
+        research_type: researchType,
+        research_depth: researchDepth,
+        ai_provider: aiSession?.provider || "unknown",
+        ai_model: aiSession?.model || "unknown",
+        selected_topics: selectedTopics.length,
+        topic_titles: selectedTopics.map(t => t.title),
+        has_vector_store: !!this.vectorStore,
+        vector_store_ready: !this.isVectorStoreLoading
+      });
+    }
+    
     analytics.trackResearchGeneration(
       researchType,
       researchDepth,
@@ -528,6 +577,20 @@ export class DeepResearchApp {
       this.saveToStorage();
 
       this.updateStatus("✅ Research generated and saved successfully");
+      
+      // Track successful research generation
+      if (pageAnalytics) {
+        pageAnalytics.trackFeatureUsage('research_generation_completed', {
+          research_type: researchType,
+          research_depth: researchDepth,
+          ai_provider: aiSession?.provider || "unknown",
+          ai_model: aiSession?.model || "unknown",
+          content_length: researchContent.length,
+          document_integration: relevantDocuments.length > 0,
+          documents_found: relevantDocuments.length,
+          topics_researched: selectedTopics.length
+        });
+      }
     } catch (error) {
       console.error("❌ Research generation failed:", error);
       this.updateStatus(
@@ -899,6 +962,22 @@ export class DeepResearchApp {
       return;
     }
 
+    // Track document upload start
+    const pageAnalytics = (this as any).pageAnalytics;
+    if (pageAnalytics) {
+      const fileTypes = Array.from(files).map(f => f.type || 'unknown');
+      const fileSizes = Array.from(files).map(f => f.size);
+      const totalSize = fileSizes.reduce((sum, size) => sum + size, 0);
+      
+      pageAnalytics.trackFeatureUsage('document_upload_started', {
+        file_count: files.length,
+        file_types: fileTypes,
+        total_size_bytes: totalSize,
+        average_size_bytes: Math.round(totalSize / files.length),
+        file_names: Array.from(files).map(f => f.name)
+      });
+    }
+
     this.isUploading = true;
     this.setIsProcessingDocuments?.(true);
     console.log(`📊 Processing ${files.length} documents...`);
@@ -989,8 +1068,17 @@ export class DeepResearchApp {
         );
         this.updateDocumentStatus();
 
-        // Track successful document uploads
+        // Track successful document uploads with enhanced analytics
         analytics.trackDocumentManagement("upload_documents", successCount);
+        
+        if (pageAnalytics) {
+          pageAnalytics.trackFeatureUsage('document_upload_completed', {
+            successful_files: successCount,
+            failed_files: failedCount,
+            total_files: files.length,
+            success_rate: Math.round((successCount / files.length) * 100)
+          });
+        }
       } else {
         this.updateStatus(`❌ All uploads failed`);
         // Track failed uploads
@@ -1789,6 +1877,9 @@ function ClientOnlyTime() {
 
 // React Component Hook
 export function DeepResearchComponent() {
+  // Initialize page analytics for fine-grained tracking
+  const pageAnalytics = usePageAnalytics('DeepResearch-TimeCapsule', 'research');
+  
   const [topics, setTopics] = useState<Topic[]>([]);
   const [aiStatus, setAIStatus] = useState<AIConnectionStatus>({
     connected: false,
@@ -1881,6 +1972,9 @@ export function DeepResearchComponent() {
 
     // Initialize the app asynchronously (non-blocking)
     app.init();
+    
+    // Set analytics for the app instance
+    (app as any).pageAnalytics = pageAnalytics;
   }, []);
 
   const app = appRef.current!; // Non-null assertion since we create it immediately in useEffect
@@ -1889,6 +1983,15 @@ export function DeepResearchComponent() {
     if (!app || !searchQuery.trim()) {
       return;
     }
+
+    // Track search start
+    pageAnalytics.trackFeatureUsage('document_search_started', {
+      search_query: searchQuery,
+      search_threshold: searchThreshold,
+      query_length: searchQuery.length,
+      has_documents: documentStatus.count > 0,
+      document_count: documentStatus.count
+    });
 
     setIsSearching(true);
     try {
@@ -1899,6 +2002,17 @@ export function DeepResearchComponent() {
       );
       setSearchResults(results);
       console.log("Search completed, results:", results.length);
+      
+      // Track search completion
+      pageAnalytics.trackFeatureUsage('document_search_completed', {
+        search_query: searchQuery,
+        search_threshold: searchThreshold,
+        results_found: results.length,
+        search_successful: results.length > 0,
+        average_similarity: results.length > 0 ? 
+          results.reduce((sum, r) => sum + (r.similarity || 0), 0) / results.length : 0
+      });
+      
       if (results.length > 0) {
         setCurrentSearchQuery(searchQuery);
         setShowSearchResults(true);
@@ -1913,6 +2027,10 @@ export function DeepResearchComponent() {
       console.error("Search failed:", error);
       app.updateStatus("❌ Search failed: " + (error as Error).message);
       setSearchResults([]);
+      
+      // Track search error
+      pageAnalytics.trackError('document_search_failed', 
+        error instanceof Error ? error.message : 'Unknown search error');
     } finally {
       setIsSearching(false);
     }

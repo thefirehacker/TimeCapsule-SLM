@@ -1,6 +1,6 @@
 /**
  * Google Analytics 4 Implementation for DeepResearch TimeCapsule
- * Based on reference implementation from DeepResearch.html
+ * Enhanced with comprehensive device, location, and interaction tracking
  */
 
 declare global {
@@ -18,9 +18,47 @@ export interface GA4Config {
   siteUrl: string;
 }
 
+export interface DeviceInfo {
+  userAgent: string;
+  platform: string;
+  vendor: string;
+  language: string;
+  languages: string[];
+  screenResolution: string;
+  viewportSize: string;
+  colorDepth: number;
+  pixelRatio: number;
+  timezone: string;
+  isOnline: boolean;
+  connectionType?: string;
+  deviceMemory?: number;
+  hardwareConcurrency: number;
+  maxTouchPoints: number;
+  deviceType: 'mobile' | 'tablet' | 'desktop';
+  operatingSystem: string;
+  browser: string;
+  browserVersion: string;
+}
+
+export interface LocationInfo {
+  timezone: string;
+  timezoneOffset: number;
+  language: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+}
+
 export class Analytics {
   private config: GA4Config;
   private isInitialized = false;
+  private deviceInfo: DeviceInfo | null = null;
+  private locationInfo: LocationInfo | null = null;
+  private sessionStartTime: number = Date.now();
+  private pageStartTime: number = Date.now();
 
   constructor() {
     this.config = {
@@ -30,6 +68,12 @@ export class Analytics {
       siteName: process.env.NEXT_PUBLIC_SITE_NAME || 'DeepResearch TimeCapsule',
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL || ''
     };
+    
+    // Collect device and location info immediately
+    if (typeof window !== 'undefined') {
+      this.collectDeviceInfo();
+      this.collectLocationInfo();
+    }
     
     // Debug environment variables
     console.log('📊 GA4 Environment Variables Debug:', {
@@ -46,6 +90,159 @@ export class Analytics {
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
       }
     });
+  }
+
+  /**
+   * Collect comprehensive device information
+   */
+  private collectDeviceInfo(): void {
+    if (typeof window === 'undefined') return;
+
+    const nav = navigator as any;
+    const screen = window.screen;
+    
+    // Detect device type
+    const userAgent = nav.userAgent || '';
+    let deviceType: 'mobile' | 'tablet' | 'desktop' = 'desktop';
+    if (/Mobile|Android|iPhone|iPod/.test(userAgent)) {
+      deviceType = 'mobile';
+    } else if (/iPad|Tablet/.test(userAgent)) {
+      deviceType = 'tablet';
+    }
+
+    // Detect operating system
+    let operatingSystem = 'Unknown';
+    if (userAgent.indexOf('Win') !== -1) operatingSystem = 'Windows';
+    else if (userAgent.indexOf('Mac') !== -1) operatingSystem = 'macOS';
+    else if (userAgent.indexOf('Linux') !== -1) operatingSystem = 'Linux';
+    else if (userAgent.indexOf('Android') !== -1) operatingSystem = 'Android';
+    else if (userAgent.indexOf('iOS') !== -1 || userAgent.indexOf('iPhone') !== -1 || userAgent.indexOf('iPad') !== -1) operatingSystem = 'iOS';
+
+    // Detect browser
+    let browser = 'Unknown';
+    let browserVersion = '';
+    if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) {
+      browser = 'Chrome';
+      browserVersion = userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '';
+    } else if (userAgent.indexOf('Firefox') !== -1) {
+      browser = 'Firefox';
+      browserVersion = userAgent.match(/Firefox\/([0-9.]+)/)?.[1] || '';
+    } else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) {
+      browser = 'Safari';
+      browserVersion = userAgent.match(/Safari\/([0-9.]+)/)?.[1] || '';
+    } else if (userAgent.indexOf('Edg') !== -1) {
+      browser = 'Edge';
+      browserVersion = userAgent.match(/Edg\/([0-9.]+)/)?.[1] || '';
+    }
+
+    this.deviceInfo = {
+      userAgent: userAgent,
+      platform: nav.platform || '',
+      vendor: nav.vendor || '',
+      language: nav.language || '',
+      languages: nav.languages ? Array.from(nav.languages) : [],
+      screenResolution: `${screen.width}x${screen.height}`,
+      viewportSize: `${window.innerWidth}x${window.innerHeight}`,
+      colorDepth: screen.colorDepth || 0,
+      pixelRatio: window.devicePixelRatio || 1,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      isOnline: nav.onLine,
+      connectionType: (nav.connection as any)?.effectiveType || undefined,
+      deviceMemory: (nav as any).deviceMemory || undefined,
+      hardwareConcurrency: nav.hardwareConcurrency || 0,
+      maxTouchPoints: nav.maxTouchPoints || 0,
+      deviceType,
+      operatingSystem,
+      browser,
+      browserVersion
+    };
+
+    console.log('📱 Device Info Collected:', this.deviceInfo);
+  }
+
+  /**
+   * Collect location and timezone information
+   */
+  private collectLocationInfo(): void {
+    if (typeof window === 'undefined') return;
+
+    this.locationInfo = {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneOffset: new Date().getTimezoneOffset(),
+      language: navigator.language || ''
+    };
+
+    // Try to get more precise location (with user permission)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (this.locationInfo) {
+            this.locationInfo.latitude = position.coords.latitude;
+            this.locationInfo.longitude = position.coords.longitude;
+            this.locationInfo.accuracy = position.coords.accuracy;
+            console.log('🌍 Location Info Updated:', this.locationInfo);
+          }
+        },
+        (error) => {
+          console.log('🌍 Location access denied or unavailable:', error.message);
+        },
+        { timeout: 5000, maximumAge: 300000 } // 5s timeout, 5min cache
+      );
+    }
+
+    console.log('🌍 Location Info Collected:', this.locationInfo);
+  }
+
+  /**
+   * Get comprehensive event context
+   */
+  private getEventContext(): Record<string, any> {
+    const context: Record<string, any> = {
+      timestamp: new Date().toISOString(),
+      site_name: this.config.siteName,
+      session_duration: Math.round((Date.now() - this.sessionStartTime) / 1000),
+      page_duration: Math.round((Date.now() - this.pageStartTime) / 1000)
+    };
+
+    // Add device info
+    if (this.deviceInfo) {
+      context.device_type = this.deviceInfo.deviceType;
+      context.operating_system = this.deviceInfo.operatingSystem;
+      context.browser = this.deviceInfo.browser;
+      context.browser_version = this.deviceInfo.browserVersion;
+      context.screen_resolution = this.deviceInfo.screenResolution;
+      context.viewport_size = this.deviceInfo.viewportSize;
+      context.device_language = this.deviceInfo.language;
+      context.device_timezone = this.deviceInfo.timezone;
+      context.device_online = this.deviceInfo.isOnline;
+      context.device_pixel_ratio = this.deviceInfo.pixelRatio;
+      context.device_memory = this.deviceInfo.deviceMemory;
+      context.device_cores = this.deviceInfo.hardwareConcurrency;
+      context.device_touch_points = this.deviceInfo.maxTouchPoints;
+      context.connection_type = this.deviceInfo.connectionType;
+    }
+
+    // Add location info
+    if (this.locationInfo) {
+      context.user_timezone = this.locationInfo.timezone;
+      context.timezone_offset = this.locationInfo.timezoneOffset;
+      context.user_language = this.locationInfo.language;
+      if (this.locationInfo.latitude && this.locationInfo.longitude) {
+        // Round to reduce precision for privacy
+        context.user_latitude = Math.round(this.locationInfo.latitude * 100) / 100;
+        context.user_longitude = Math.round(this.locationInfo.longitude * 100) / 100;
+        context.location_accuracy = this.locationInfo.accuracy;
+      }
+    }
+
+    return context;
+  }
+
+  /**
+   * Reset page start time (call when navigating to new page)
+   */
+  resetPageTimer(): void {
+    this.pageStartTime = Date.now();
   }
 
   /**
@@ -82,7 +279,7 @@ export class Analytics {
         window.dataLayer.push(arguments);
       };
 
-      // Configure GA4
+      // Configure GA4 with enhanced user properties
       window.gtag('js', new Date());
       window.gtag('config', this.config.measurementId, {
         anonymize_ip: this.config.anonymizeIp,
@@ -91,16 +288,25 @@ export class Analytics {
         custom_map: {
           custom_parameter_1: 'research_type',
           custom_parameter_2: 'ai_provider',
-          custom_parameter_3: 'document_count'
+          custom_parameter_3: 'document_count',
+          custom_parameter_4: 'device_type',
+          custom_parameter_5: 'operating_system'
+        },
+        // Enhanced user properties
+        user_properties: {
+          device_type: this.deviceInfo?.deviceType,
+          operating_system: this.deviceInfo?.operatingSystem,
+          browser: this.deviceInfo?.browser,
+          timezone: this.deviceInfo?.timezone
         }
       });
 
       this.isInitialized = true;
-      console.log('✅ GA4: Successfully initialized');
+      console.log('✅ GA4: Successfully initialized with enhanced tracking');
 
-      // Track initialization
+      // Track initialization with full context
       this.trackEvent('ga4_initialized', {
-        site_name: this.config.siteName,
+        ...this.getEventContext(),
         debug_mode: this.config.debugMode
       });
 
@@ -131,7 +337,7 @@ export class Analytics {
   /**
    * Track page view
    */
-  trackPageView(pageName: string, pageUrl: string): void {
+  trackPageView(pageName: string, pageUrl: string, additionalParams: Record<string, any> = {}): void {
     if (!this.isInitialized) {
       console.warn('⚠️ GA4: Not initialized, skipping page view tracking');
       return;
@@ -144,6 +350,14 @@ export class Analytics {
         custom_map: {
           site_name: this.config.siteName
         }
+      });
+
+      // Also send as an event with additional parameters for better tracking
+      window.gtag('event', 'page_view', {
+        page_title: pageName,
+        page_location: pageUrl,
+        site_name: this.config.siteName,
+        ...additionalParams
       });
 
       console.log(`📊 GA4: Page view tracked - ${pageName}`);
@@ -163,11 +377,8 @@ export class Analytics {
 
     try {
       const eventData = {
-        ...parameters,
-        timestamp: new Date().toISOString(),
-        site_name: this.config.siteName,
-        user_agent: navigator.userAgent,
-        screen_resolution: `${screen.width}x${screen.height}`
+        ...this.getEventContext(),
+        ...parameters
       };
 
       window.gtag('event', eventName, eventData);
@@ -308,6 +519,25 @@ export class Analytics {
   }
 
   /**
+   * Disable analytics (for consent withdrawal)
+   */
+  disable(): void {
+    if (this.isInitialized) {
+      this.isInitialized = false;
+      console.log('🔒 GA4: Analytics disabled due to consent withdrawal');
+      
+      // Clear any existing gtag configuration
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('config', this.config.measurementId, {
+          send_page_view: false,
+          anonymize_ip: true,
+          ads_data_redaction: true
+        });
+      }
+    }
+  }
+
+  /**
    * Get current configuration
    */
   getConfig(): GA4Config {
@@ -315,7 +545,7 @@ export class Analytics {
   }
 
   /**
-   * Check if analytics is initialized
+   * Check if analytics is ready to use
    */
   isReady(): boolean {
     return this.isInitialized;

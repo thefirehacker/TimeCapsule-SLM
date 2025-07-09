@@ -52,6 +52,7 @@ import {
 // Import DeepResearch components and types
 import { DeepResearchApp } from "../../components/DeepResearch/DeepResearchApp";
 import { VectorStore } from "../../components/VectorStore/VectorStore";
+import { usePageAnalytics } from "@/components/analytics/Analytics";
 
 interface AIFrame {
   id: string;
@@ -148,6 +149,9 @@ const hardcodedFrames: AIFrame[] = [
 ];
 
 export default function AIFramesPage() {
+  // Initialize page analytics for AI-Frames
+  const pageAnalytics = usePageAnalytics('AI-Frames', 'learning');
+  
   // Mode state
   const [isCreationMode, setIsCreationMode] = useState(false);
   
@@ -643,6 +647,14 @@ export default function AIFramesPage() {
   const handleConceptClick = async (concept: string) => {
     setSelectedConcept(concept);
     
+    // Track concept click
+    pageAnalytics.trackFeatureUsage('concept_exploration', {
+      concept: concept,
+      current_frame: currentFrameIndex,
+      frame_title: currentFrame?.title,
+      total_concepts: currentFrame?.aiConcepts.length
+    });
+    
     // Enhanced AI response using DeepResearch and Knowledge Base
     let aiResponse = `Let me explain ${concept} in the context of your current learning path:
 
@@ -822,6 +834,16 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       setShowCreateFrame(false);
       setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
       
+      // Track frame creation
+      pageAnalytics.trackFeatureUsage('frame_creation', {
+        goal_length: newFrameData.goal.length,
+        video_url: newFrameData.videoUrl,
+        start_time: newFrameData.startTime,
+        duration: newFrameData.duration,
+        concepts_generated: newFrame.aiConcepts.length,
+        total_frames: frames.length + 1
+      });
+      
       // Add success message to chat
       setChatMessages(prev => [
         ...prev,
@@ -832,6 +854,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       ]);
     } catch (error) {
       console.error("Failed to create frame:", error);
+      pageAnalytics.trackError('frame_creation_failed', error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -928,6 +951,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       if (!userHasInteracted) {
         setUserHasInteracted(true);
       }
+      // Track frame navigation
+      pageAnalytics.trackUserAction('frame_navigation', {
+        direction: 'next',
+        from_frame: currentFrameIndex,
+        to_frame: currentFrameIndex + 1,
+        total_frames: frames.length
+      });
     }
   };
 
@@ -938,6 +968,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       if (!userHasInteracted) {
         setUserHasInteracted(true);
       }
+      // Track frame navigation
+      pageAnalytics.trackUserAction('frame_navigation', {
+        direction: 'previous',
+        from_frame: currentFrameIndex,
+        to_frame: currentFrameIndex - 1,
+        total_frames: frames.length
+      });
     }
   };
 
@@ -986,7 +1023,15 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 <Switch
                   id="mode-toggle"
                   checked={isCreationMode}
-                  onCheckedChange={setIsCreationMode}
+                  onCheckedChange={(checked) => {
+                    setIsCreationMode(checked);
+                    // Track mode switching
+                    pageAnalytics.trackFeatureUsage('mode_switch', {
+                      mode: checked ? 'creation' : 'learning',
+                      current_frame: currentFrameIndex,
+                      total_frames: frames.length
+                    });
+                  }}
                 />
                 <Badge variant={isCreationMode ? "default" : "secondary"}>
                   {isCreationMode ? <Edit3 className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
@@ -1006,16 +1051,22 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     <Switch
                       id="voice-toggle"
                       checked={isVoiceEnabled}
-                      onCheckedChange={(checked) => {
-                        setIsVoiceEnabled(checked);
-                        if (!checked) {
-                          stopSpeaking();
-                        }
-                        // Mark user interaction when toggling voice
-                        if (!userHasInteracted) {
-                          setUserHasInteracted(true);
-                        }
-                      }}
+                                onCheckedChange={(checked) => {
+            setIsVoiceEnabled(checked);
+            if (!checked) {
+              stopSpeaking();
+            }
+            // Mark user interaction when toggling voice
+            if (!userHasInteracted) {
+              setUserHasInteracted(true);
+            }
+            // Track voice toggle
+            pageAnalytics.trackFeatureUsage('voice_toggle', {
+              enabled: checked,
+              tts_ready: ttsReady,
+              current_frame: currentFrameIndex
+            });
+          }}
                     />
                     {!userHasInteracted && isVoiceEnabled && (
                       <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-900/20">

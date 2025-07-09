@@ -114,7 +114,7 @@ export default function SignInPage() {
           </Link>
 
           <p className="text-gray-600 dark:text-gray-400">
-            Sign in to continue your AI-powered research journey
+            Sign in to continue your AI-powered innovation journey
           </p>
         </div>
 

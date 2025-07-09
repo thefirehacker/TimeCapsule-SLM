@@ -1,11 +1,11 @@
 "use client";
 
 import { DeepResearchComponent } from "@/components/DeepResearch/DeepResearchApp";
+import { usePageAnalytics } from "@/components/analytics/Analytics";
 
 export default function DeepResearchPage() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-      <DeepResearchComponent />
-    </div>
-  );
+  // Initialize page analytics for DeepResearch TimeCapsule
+  const pageAnalytics = usePageAnalytics('DeepResearch-TimeCapsule', 'research');
+
+  return <DeepResearchComponent />;
 }
