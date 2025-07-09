@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "../components/analytics/Analytics";
+import { SessionProvider } from "../components/providers/SessionProvider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -125,7 +126,7 @@ export default function RootLayout({
       </head>
       <body className={`${poppins.className} antialiased`}>
         <Analytics />
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
