@@ -28,17 +28,23 @@ if (process.env.NODE_ENV === "production") {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: authSecret,
-  trustHost: true, // Required for Amplify and production deployments
+  // trustHost: true, // Required for Amplify and production deployments
   providers: [
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
+      clientId:
+        process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID || "",
       clientSecret:
-        process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
+        process.env.AUTH_GOOGLE_SECRET ||
+        process.env.GOOGLE_CLIENT_SECRET ||
+        "",
     }),
     GitHub({
-      clientId: process.env.AUTH_GITHUB_ID || process.env.GITHUB_CLIENT_ID,
+      clientId:
+        process.env.AUTH_GITHUB_ID || process.env.GITHUB_CLIENT_ID || "",
       clientSecret:
-        process.env.AUTH_GITHUB_SECRET || process.env.GITHUB_CLIENT_SECRET,
+        process.env.AUTH_GITHUB_SECRET ||
+        process.env.GITHUB_CLIENT_SECRET ||
+        "",
     }),
   ],
   pages: {
@@ -54,7 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id as string;
+        session.user!.id = token.id as string;
       }
       return session;
     },
