@@ -5,19 +5,24 @@ import GitHub from "next-auth/providers/github";
 // Ensure AUTH_SECRET is available
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 if (!authSecret) {
-  throw new Error("AUTH_SECRET or NEXTAUTH_SECRET environment variable is required");
+  throw new Error(
+    "AUTH_SECRET or NEXTAUTH_SECRET environment variable is required"
+  );
 }
 
 // Determine the base URL for authentication
-const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const baseUrl =
+  process.env.NEXTAUTH_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "http://localhost:3000";
 
 // Debug logging for production
-if (process.env.NODE_ENV === 'production') {
-  console.log('🔐 NextAuth Production Config:', {
+if (process.env.NODE_ENV === "production") {
+  console.log("🔐 NextAuth Production Config:", {
     hasSecret: !!authSecret,
     baseUrl,
     nodeEnv: process.env.NODE_ENV,
-    trustHost: true
+    trustHost: true,
   });
 }
 
@@ -26,12 +31,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true, // Required for Amplify and production deployments
   providers: [
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      clientId: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
+      clientSecret:
+        process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
     }),
     GitHub({
-      clientId: process.env.AUTH_GITHUB_ID,
-      clientSecret: process.env.AUTH_GITHUB_SECRET,
+      clientId: process.env.AUTH_GITHUB_ID || process.env.GITHUB_CLIENT_ID,
+      clientSecret:
+        process.env.AUTH_GITHUB_SECRET || process.env.GITHUB_CLIENT_SECRET,
     }),
   ],
   pages: {
