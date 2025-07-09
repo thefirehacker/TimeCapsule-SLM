@@ -30,15 +30,34 @@ frontend:
         - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL"
         - echo "GA4_ANONYMIZE_IP=$GA4_ANONYMIZE_IP"
         - echo "GA4_DEBUG_MODE=$GA4_DEBUG_MODE"
-        - echo "🔐 Final authentication variables verification:"
-        - echo "AUTH_SECRET is ${AUTH_SECRET:+configured}"
-        - echo "AUTH_GITHUB_ID is ${AUTH_GITHUB_ID:+configured}"
-        - echo "AUTH_GITHUB_SECRET is ${AUTH_GITHUB_SECRET:+configured}"
-        - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+configured}"
-        - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+configured}"
-        - echo "🌐 NextAuth URL configuration:"
-        - echo "NEXTAUTH_URL: ${NEXTAUTH_URL:-'not set'}"
-        - echo "NEXT_PUBLIC_SITE_URL: $NEXT_PUBLIC_SITE_URL"
+        - echo "🔐 VERBOSE Authentication Variables Debug:"
+        - echo "================================================"
+        - 'echo "AUTH_SECRET length: ${#AUTH_SECRET} chars"'
+        - 'echo "AUTH_SECRET value: ${AUTH_SECRET}"'
+        - echo "------------------------------------------------"
+        - 'echo "AUTH_GITHUB_ID length: ${#AUTH_GITHUB_ID} chars"'
+        - 'echo "AUTH_GITHUB_ID value: ${AUTH_GITHUB_ID}"'
+        - echo "------------------------------------------------"
+        - 'echo "AUTH_GITHUB_SECRET length: ${#AUTH_GITHUB_SECRET} chars"'
+        - 'echo "AUTH_GITHUB_SECRET value: ${AUTH_GITHUB_SECRET}"'
+        - echo "------------------------------------------------"
+        - 'echo "AUTH_GOOGLE_ID length: ${#AUTH_GOOGLE_ID} chars"'
+        - 'echo "AUTH_GOOGLE_ID value: ${AUTH_GOOGLE_ID}"'
+        - echo "------------------------------------------------"
+        - 'echo "AUTH_GOOGLE_SECRET length: ${#AUTH_GOOGLE_SECRET} chars"'
+        - 'echo "AUTH_GOOGLE_SECRET value: ${AUTH_GOOGLE_SECRET}"'
+        - echo "================================================"
+        - 'echo "🌐 Site URL Configuration:"'
+        - 'echo "NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}"'
+        - 'echo "NODE_ENV: ${NODE_ENV:-NOT_SET}"'
+        - echo "================================================"
+        - echo "🔍 Variable Validation Checks:"
+        - 'if [ -z "$AUTH_SECRET" ]; then echo "❌ AUTH_SECRET is empty"; else echo "✅ AUTH_SECRET is set"; fi'
+        - 'if [ -z "$AUTH_GITHUB_ID" ]; then echo "❌ AUTH_GITHUB_ID is empty"; else echo "✅ AUTH_GITHUB_ID is set"; fi'
+        - 'if [ -z "$AUTH_GITHUB_SECRET" ]; then echo "❌ AUTH_GITHUB_SECRET is empty"; else echo "✅ AUTH_GITHUB_SECRET is set"; fi'
+        - 'if [ -z "$AUTH_GOOGLE_ID" ]; then echo "❌ AUTH_GOOGLE_ID is empty"; else echo "✅ AUTH_GOOGLE_ID is set"; fi'
+        - 'if [ -z "$AUTH_GOOGLE_SECRET" ]; then echo "❌ AUTH_GOOGLE_SECRET is empty"; else echo "✅ AUTH_GOOGLE_SECRET is set"; fi'
+        - echo "================================================"
         - npm run build
         - echo "✅ Build completed successfully!"
     postBuild:
