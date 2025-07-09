@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -385,12 +385,12 @@ export function useCookieConsent() {
     }
   }, []);
 
-  const updatePreferences = (newPreferences: CookiePreferences) => {
+  const updatePreferences = useCallback((newPreferences: CookiePreferences) => {
     setPreferences(newPreferences);
     setHasConsent(true);
-  };
+  }, []);
 
-  const resetConsent = () => {
+  const resetConsent = useCallback(() => {
     localStorage.removeItem(COOKIE_CONSENT_KEY);
     localStorage.removeItem(COOKIE_PREFERENCES_KEY);
     setHasConsent(false);
@@ -400,7 +400,7 @@ export function useCookieConsent() {
       functional: false,
       marketing: false
     });
-  };
+  }, []);
 
   return {
     preferences,
