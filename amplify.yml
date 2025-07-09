@@ -21,6 +21,12 @@ frontend:
         - echo "AUTH_GITHUB_SECRET is ${AUTH_GITHUB_SECRET:+set}"
         - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+set}"
         - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+set}"
+        - echo "📁 File system debug..."
+        - echo "Current directory:" && pwd
+        - echo "Checking src/components/ui directory:"
+        - ls -la src/components/ui/ | head -10
+        - echo "Checking specific UI components:"
+        - ls -la src/components/ui/card.tsx src/components/ui/button.tsx src/components/ui/badge.tsx || echo "Some UI components not found"
     build:
       commands:
         - echo "🔨 Building Next.js application..."

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   // Disable TypeScript errors in build for Amplify
@@ -18,6 +19,8 @@ const nextConfig: NextConfig = {
       ...config.resolve.alias,
       "sharp$": false,
       "onnxruntime-node$": false,
+      // Explicit alias for @ path resolution (for Amplify compatibility)
+      "@": path.resolve(__dirname, "src"),
     };
     
     // Fallback for Node.js modules in browser
