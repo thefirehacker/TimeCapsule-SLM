@@ -7,6 +7,7 @@ import { Menu, X, LogIn, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +28,7 @@ const menuItems = [
 
 function AuthSection({ isScrolled }: { isScrolled: boolean }) {
   const { data: session, status } = useSession();
-
+  const router = useRouter();
   if (status === "loading") {
     return (
       <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
@@ -40,7 +41,7 @@ function AuthSection({ isScrolled }: { isScrolled: boolean }) {
     return (
       <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
         <Button
-          onClick={() => signIn()}
+          onClick={() => router.push("/auth/signin")}
           size="sm"
           variant="outline"
           className="gap-2 bg-background/50 backdrop-blur-sm border-primary/20 hover:bg-primary/5"
