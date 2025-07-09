@@ -1,0 +1,261 @@
+/* Rich Text Editor Styles */
+
+/* Math formula styling */
+.math-formula {
+  @apply inline-block px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded;
+}
+
+/* Code block styling */
+.ProseMirror pre {
+  @apply bg-slate-100 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent p-0 text-sm font-mono;
+}
+
+/* Table styling */
+.ProseMirror table {
+  @apply border-collapse border border-slate-300 dark:border-slate-700 w-full my-4;
+}
+
+.ProseMirror table td,
+.ProseMirror table th {
+  @apply border border-slate-300 dark:border-slate-700 p-2 text-left;
+}
+
+.ProseMirror table th {
+  @apply bg-slate-100 dark:bg-slate-800 font-semibold;
+}
+
+/* Image styling */
+.ProseMirror img {
+  @apply max-w-full h-auto rounded-lg shadow-md my-4;
+}
+
+/* Blockquote styling */
+.ProseMirror blockquote {
+  @apply border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-700 dark:text-slate-300 my-4;
+}
+
+/* List styling */
+.ProseMirror ul {
+  @apply list-disc ml-6 my-4;
+}
+
+.ProseMirror ol {
+  @apply list-decimal ml-6 my-4;
+}
+
+.ProseMirror li {
+  @apply mb-2;
+}
+
+/* Heading styling */
+.ProseMirror h1 {
+  @apply text-3xl font-bold mb-6 text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-2;
+}
+
+.ProseMirror h2 {
+  @apply text-2xl font-semibold mb-4 text-slate-800 dark:text-slate-200 mt-8;
+}
+
+.ProseMirror h3 {
+  @apply text-xl font-medium mb-3 text-slate-700 dark:text-slate-300 mt-6;
+}
+
+.ProseMirror h4 {
+  @apply text-lg font-medium mb-2 text-slate-700 dark:text-slate-300 mt-4;
+}
+
+.ProseMirror h5 {
+  @apply text-base font-medium mb-2 text-slate-700 dark:text-slate-300 mt-4;
+}
+
+.ProseMirror h6 {
+  @apply text-sm font-medium mb-2 text-slate-700 dark:text-slate-300 mt-4;
+}
+
+/* Paragraph styling */
+.ProseMirror p {
+  @apply mb-4 text-slate-700 dark:text-slate-300 leading-relaxed;
+}
+
+/* Code styling */
+.ProseMirror code {
+  @apply bg-slate-100 dark:bg-slate-800 text-sm px-2 py-1 rounded font-mono text-primary;
+}
+
+/* Link styling */
+.ProseMirror a {
+  @apply text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300;
+}
+
+/* Strong/Bold styling */
+.ProseMirror strong {
+  @apply font-semibold text-primary;
+}
+
+/* Emphasis/Italic styling */
+.ProseMirror em {
+  @apply italic;
+}
+
+/* Strikethrough styling */
+.ProseMirror s {
+  @apply line-through;
+}
+
+/* Horizontal rule styling */
+.ProseMirror hr {
+  @apply border-slate-300 dark:border-slate-700 my-8;
+}
+
+/* Focus styles */
+.ProseMirror:focus {
+  @apply outline-none;
+}
+
+/* Placeholder styles */
+.ProseMirror .is-editor-empty:first-child::before {
+  @apply text-slate-400 dark:text-slate-500 float-left h-0 pointer-events-none;
+  content: attr(data-placeholder);
+}
+
+/* Selection styles */
+.ProseMirror ::selection {
+  @apply bg-blue-200 dark:bg-blue-800;
+}
+
+/* Syntax highlighting for code blocks */
+.ProseMirror .hljs {
+  @apply bg-slate-100 dark:bg-slate-900;
+}
+
+.ProseMirror .hljs-comment {
+  @apply text-slate-500 dark:text-slate-400;
+}
+
+.ProseMirror .hljs-keyword {
+  @apply text-purple-600 dark:text-purple-400;
+}
+
+.ProseMirror .hljs-string {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.ProseMirror .hljs-number {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+.ProseMirror .hljs-function {
+  @apply text-yellow-600 dark:text-yellow-400;
+}
+
+.ProseMirror .hljs-variable {
+  @apply text-red-600 dark:text-red-400;
+}
+
+.ProseMirror .hljs-type {
+  @apply text-cyan-600 dark:text-cyan-400;
+}
+
+.ProseMirror .hljs-built_in {
+  @apply text-indigo-600 dark:text-indigo-400;
+}
+
+.ProseMirror .hljs-literal {
+  @apply text-orange-600 dark:text-orange-400;
+}
+
+.ProseMirror .hljs-meta {
+  @apply text-pink-600 dark:text-pink-400;
+}
+
+.ProseMirror .hljs-tag {
+  @apply text-red-600 dark:text-red-400;
+}
+
+.ProseMirror .hljs-attr {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+.ProseMirror .hljs-attribute {
+  @apply text-yellow-600 dark:text-yellow-400;
+}
+
+.ProseMirror .hljs-title {
+  @apply text-purple-600 dark:text-purple-400;
+}
+
+.ProseMirror .hljs-section {
+  @apply text-red-600 dark:text-red-400;
+}
+
+.ProseMirror .hljs-name {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+/* Math display styling */
+.katex-display {
+  @apply my-4 overflow-x-auto;
+}
+
+.katex {
+  @apply text-slate-900 dark:text-slate-100;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ProseMirror h1 {
+    @apply text-2xl;
+  }
+
+  .ProseMirror h2 {
+    @apply text-xl;
+  }
+
+  .ProseMirror h3 {
+    @apply text-lg;
+  }
+
+  .ProseMirror table {
+    @apply text-sm;
+  }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+  .math-formula {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* TipTap floating menu fixes */
+.tippy-box {
+  @apply bg-transparent shadow-none;
+}
+
+.tippy-content {
+  @apply p-0 bg-transparent;
+}
+
+.tippy-arrow {
+  @apply hidden;
+}
+
+/* Remove default TipTap menu styling */
+.ProseMirror-menubar {
+  @apply hidden;
+}
+
+/* Floating menu container */
+.ProseMirror-float-menu {
+  @apply z-50;
+}
+
+/* Bubble menu container */
+.ProseMirror-bubble-menu {
+  @apply z-50;
+}

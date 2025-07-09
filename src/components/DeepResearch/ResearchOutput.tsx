@@ -1,11 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   FileText,
   BookOpen,
@@ -17,6 +19,8 @@ import {
   Info,
   Download,
   Eye,
+  Edit3,
+  Save,
 } from "lucide-react";
 
 interface ResearchOutputProps {
@@ -32,45 +36,98 @@ export function ResearchOutput({
   onTabChange,
   onClearOutput,
 }: ResearchOutputProps) {
-  const renderMarkdown = (content: string) => {
-    // Enhanced markdown rendering with better styling
-    return content
-      .replace(
-        /^# (.*$)/gim,
-        '<h1 class="text-3xl font-bold mb-6 text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-2">$1</h1>'
-      )
-      .replace(
-        /^## (.*$)/gim,
-        '<h2 class="text-2xl font-semibold mb-4 text-slate-800 dark:text-slate-200 mt-8">$1</h2>'
-      )
-      .replace(
-        /^### (.*$)/gim,
-        '<h3 class="text-xl font-medium mb-3 text-slate-700 dark:text-slate-300 mt-6">$1</h3>'
-      )
-      .replace(
-        /^\*\*(.*)\*\*/gim,
-        '<strong class="font-semibold text-primary">$1</strong>'
-      )
-      .replace(
-        /^\* (.*$)/gim,
-        '<li class="ml-6 text-slate-700 dark:text-slate-300 mb-1 list-disc">$1</li>'
-      )
-      .replace(
-        /^\d+\. (.*$)/gim,
-        '<li class="ml-6 text-slate-700 dark:text-slate-300 mb-1 list-decimal">$1</li>'
-      )
-      .replace(
-        /`([^`]+)`/g,
-        '<code class="bg-slate-100 dark:bg-slate-800 text-sm px-2 py-1 rounded font-mono text-primary">$1</code>'
-      )
-      .replace(
-        /\n\n/g,
-        '</p><p class="mb-4 text-slate-700 dark:text-slate-300 leading-relaxed">'
-      )
-      .replace(
-        /^\n/g,
-        '<p class="mb-4 text-slate-700 dark:text-slate-300 leading-relaxed">'
-      );
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableContent, setEditableContent] = useState("");
+
+  // Initialize editable content when research results change
+  useEffect(() => {
+    if (researchResults && !isEditing) {
+      const htmlContent = convertMarkdownToHTML(researchResults);
+      setEditableContent(htmlContent);
+    }
+  }, [researchResults, isEditing]);
+
+  const handleEditToggle = () => {
+    if (!isEditing) {
+      // Entering edit mode - initialize content
+      const htmlContent = researchResults
+        ? convertMarkdownToHTML(researchResults)
+        : "";
+      setEditableContent(htmlContent);
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleSave = () => {
+    // Here you could call a callback to save the content
+    // For now, we'll just exit edit mode
+    setIsEditing(false);
+  };
+
+  const handleContentChange = (content: string) => {
+    setEditableContent(content);
+  };
+  const convertMarkdownToHTML = (content: string) => {
+    if (!content) return "";
+
+    // Convert markdown to HTML for the rich text editor
+    let html = content
+      // Headers
+      .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
+      .replace(/^### (.*$)/gim, "<h3>$1</h3>")
+      .replace(/^## (.*$)/gim, "<h2>$1</h2>")
+      .replace(/^# (.*$)/gim, "<h1>$1</h1>")
+
+      // Bold and italic
+      .replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+
+      // Strikethrough
+      .replace(/~~(.*?)~~/g, "<s>$1</s>")
+
+      // Inline code
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+
+      // Math equations
+      .replace(/\$\$([^$]+)\$\$/g, '<span class="math-formula">$1</span>')
+      .replace(/\\\[(.*?)\\\]/g, '<span class="math-formula">$1</span>')
+      .replace(/\\\((.*?)\\\)/g, '<span class="math-formula">$1</span>')
+
+      // Links
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+
+      // Images
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+
+      // Code blocks
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, "<pre><code>$2</code></pre>")
+
+      // Blockquotes
+      .replace(/^> (.*$)/gim, "<blockquote>$1</blockquote>")
+
+      // Lists - handle nested structure
+      .replace(/^(\s*)- (.*$)/gim, "<li>$2</li>")
+      .replace(/^(\s*)\d+\. (.*$)/gim, "<li>$2</li>")
+
+      // Horizontal rules
+      .replace(/^---$/gim, "<hr>")
+      .replace(/^\*\*\*$/gim, "<hr>")
+
+      // Line breaks and paragraphs
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/^\n/g, "<p>")
+      .replace(/\n$/g, "</p>");
+
+    // Wrap in paragraph tags if not already wrapped
+    if (!html.startsWith("<") && html.trim()) {
+      html = `<p>${html}</p>`;
+    }
+
+    // Clean up any double paragraph tags
+    html = html.replace(/<p><\/p>/g, "");
+
+    return html;
   };
 
   const renderEmptyState = () => (
@@ -79,15 +136,15 @@ export function ResearchOutput({
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-4">
             <div className="p-4 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full">
-              <Star className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+              <FileText className="h-12 w-12 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
           <CardTitle className="text-2xl text-slate-900 dark:text-slate-100">
             Welcome to Deep Research Studio
           </CardTitle>
           <p className="text-slate-600 dark:text-slate-400 mt-2">
-            Your AI-powered research companion for comprehensive analysis and
-            insights
+            Your AI-powered research companion with rich text editing, math
+            equations, and professional formatting
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -141,15 +198,15 @@ export function ResearchOutput({
               <ul className="space-y-2 text-sm text-green-800 dark:text-green-200">
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                  Multiple AI Providers Support
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />6
-                  Research Types Available
+                  Rich Text Editor with Toolbar
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                  Document Integration
+                  Math Equations & Code Highlighting
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                  Image Upload & Tables
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
@@ -157,7 +214,7 @@ export function ResearchOutput({
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                  Export & Archive Features
+                  Export & Edit Capabilities
                 </li>
               </ul>
             </Card>
@@ -211,17 +268,45 @@ export function ResearchOutput({
             <CardTitle className="flex items-center gap-2 text-lg">
               <FileText className="h-5 w-5 text-primary" />
               Research Output
+              {isEditing && (
+                <Badge variant="outline" className="ml-2">
+                  Editing
+                </Badge>
+              )}
             </CardTitle>
             {researchResults && (
-              <Button
-                onClick={onClearOutput}
-                variant="outline"
-                size="sm"
-                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Clear
-              </Button>
+              <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <Button
+                    onClick={handleSave}
+                    variant="outline"
+                    size="sm"
+                    className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+                  >
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleEditToggle}
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                  >
+                    <Edit3 className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+                <Button
+                  onClick={onClearOutput}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -263,16 +348,26 @@ export function ResearchOutput({
 
               <div className="flex-1 overflow-hidden">
                 <TabsContent value="research" className="h-full m-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-6">
-                      <div
-                        className="prose prose-slate dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{
-                          __html: renderMarkdown(researchResults),
-                        }}
-                      />
-                    </div>
-                  </ScrollArea>
+                  <div className="h-full p-6">
+                    <RichTextEditor
+                      key={isEditing ? "editing" : "viewing"} // Force re-mount when mode changes
+                      content={
+                        isEditing
+                          ? editableContent || "<p>Start writing here...</p>"
+                          : convertMarkdownToHTML(researchResults || "")
+                      }
+                      onChange={isEditing ? handleContentChange : undefined}
+                      editable={isEditing}
+                      className="min-h-[600px]"
+                      placeholder={
+                        isEditing
+                          ? "Start typing your content here..."
+                          : researchResults
+                          ? "Click Edit to modify the content..."
+                          : "Research results will appear here..."
+                      }
+                    />
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="sources" className="h-full m-0">
