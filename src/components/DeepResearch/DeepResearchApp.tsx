@@ -1186,6 +1186,12 @@ export class DeepResearchApp {
         limit
       );
 
+      console.log(
+        "🔍 VectorStore search completed with",
+        results.length,
+        "results"
+      );
+
       if (results.length === 0) {
         this.updateStatus("❌ No documents found matching your query");
         analytics.trackSearch(query, 0, "knowledge_base");
@@ -1944,8 +1950,24 @@ export function DeepResearchComponent() {
     setPreviewDocument(null);
   };
 
-  const handleViewChunk = (chunk: any, document: DocumentData) => {
-    setCurrentChunk({ ...chunk, document });
+  const handleViewChunk = (searchResult: any, document: DocumentData) => {
+    console.log("🔍 handleViewChunk called with:", { searchResult, document });
+    console.log("🔍 SearchResult structure:", Object.keys(searchResult || {}));
+    console.log("🔍 SearchResult.chunk:", searchResult?.chunk);
+    console.log("🔍 SearchResult.chunk.content:", searchResult?.chunk?.content);
+
+    // Extract content from the correct structure (SearchResult.chunk.content)
+    const chunkData = {
+      content: searchResult?.chunk?.content || "No content available",
+      similarity: searchResult?.similarity || 0,
+      chunkIndex: searchResult?.chunk?.id || "unknown",
+      documentId: searchResult?.document?.id || "unknown",
+      document: searchResult?.document ||
+        document || { title: "Unknown Document" },
+    };
+
+    console.log("🔍 Viewing chunk from:", chunkData.document?.title);
+    setCurrentChunk(chunkData);
     setShowChunkView(true);
   };
 
@@ -2160,8 +2182,8 @@ export function DeepResearchComponent() {
           if (!open) app.hideDocumentManager();
         }}
       >
-        <DialogContent className="sm:max-w-4xl max-h-[80vh]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="flex-shrink-0 p-6 pb-4">
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-purple-600" />
               Knowledge Base Manager
@@ -2171,54 +2193,54 @@ export function DeepResearchComponent() {
               base.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {/* Search Section */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Search Documents</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Search your knowledge base..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                  />
-                  <Button onClick={handleSearch} disabled={isSearching}>
-                    <Search className="h-4 w-4 mr-2" />
-                    {isSearching ? "Searching..." : "Search"}
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                  <Label htmlFor="search-threshold">
-                    Similarity threshold:
-                  </Label>
-                  <Input
-                    id="search-threshold"
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={searchThreshold}
-                    onChange={(e) =>
-                      setSearchThreshold(parseFloat(e.target.value))
-                    }
-                    className="w-20"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex-1 overflow-y-auto px-6">
+            <div className="space-y-4 py-4">
+              {/* Search Section */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Search Documents</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Search your knowledge base..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    />
+                    <Button onClick={handleSearch} disabled={isSearching}>
+                      <Search className="h-4 w-4 mr-2" />
+                      {isSearching ? "Searching..." : "Search"}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <Label htmlFor="search-threshold">
+                      Similarity threshold:
+                    </Label>
+                    <Input
+                      id="search-threshold"
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={searchThreshold}
+                      onChange={(e) =>
+                        setSearchThreshold(parseFloat(e.target.value))
+                      }
+                      className="w-20"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Documents List */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  Documents ({documents.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="max-h-80">
+              {/* Documents List */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    Documents ({documents.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   {documents.length > 0 ? (
                     <div className="space-y-2">
                       {documents.map((doc) => (
@@ -2278,18 +2300,14 @@ export function DeepResearchComponent() {
                       </p>
                     </div>
                   )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                onClick={() => app.hideDocumentManager()}
-              >
-                Close
-              </Button>
+                </CardContent>
+              </Card>
             </div>
+          </div>
+          <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
+            <Button variant="outline" onClick={() => app.hideDocumentManager()}>
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -2302,8 +2320,8 @@ export function DeepResearchComponent() {
             if (!open) closeSearchResults();
           }}
         >
-          <DialogContent className="sm:max-w-3xl max-h-[80vh]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
               <DialogTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5 text-blue-600" />
                 Search Results for "{currentSearchQuery}"
@@ -2313,8 +2331,8 @@ export function DeepResearchComponent() {
                 base.
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-96">
-              <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto px-6">
+              <div className="space-y-3 py-4">
                 {searchResults.map((result, index) => (
                   <Card key={index} className="p-4">
                     <div className="space-y-2">
@@ -2337,14 +2355,14 @@ export function DeepResearchComponent() {
                         {result.document?.title || "Unknown Document"}
                       </h4>
                       <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">
-                        {result.content}
+                        {result.chunk?.content || "No content available"}
                       </p>
                     </div>
                   </Card>
                 ))}
               </div>
-            </ScrollArea>
-            <div className="flex justify-end">
+            </div>
+            <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
               <Button variant="outline" onClick={closeSearchResults}>
                 Close
               </Button>
@@ -2361,8 +2379,8 @@ export function DeepResearchComponent() {
             if (!open) closeDocumentPreview();
           }}
         >
-          <DialogContent className="sm:max-w-4xl max-h-[80vh]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-green-600" />
                 {previewDocument.title}
@@ -2372,12 +2390,12 @@ export function DeepResearchComponent() {
                 {formatFileSize(previewDocument.metadata.filesize)}
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-96">
-              <div className="whitespace-pre-wrap text-sm font-mono bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+            <div className="flex-1 overflow-y-auto px-6">
+              <div className="whitespace-pre-wrap text-sm font-mono bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
                 {previewDocument.content}
               </div>
-            </ScrollArea>
-            <div className="flex justify-end gap-2">
+            </div>
+            <div className="flex justify-end gap-2 p-6 pt-4 flex-shrink-0 border-t">
               <Button
                 variant="outline"
                 onClick={() => app.downloadDocument(previewDocument.id)}
@@ -2401,22 +2419,42 @@ export function DeepResearchComponent() {
             if (!open) closeChunkView();
           }}
         >
-          <DialogContent className="sm:max-w-3xl max-h-[80vh]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-orange-600" />
                 Document Chunk
               </DialogTitle>
               <DialogDescription>
-                From: {currentChunk.document?.title || "Unknown Document"}
+                From:{" "}
+                {currentChunk.document?.title ||
+                  currentChunk.document?.name ||
+                  "Unknown Document"}
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-96">
-              <div className="whitespace-pre-wrap text-sm bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
-                {currentChunk.content}
+            <div className="flex-1 overflow-y-auto px-6">
+              {/* Chunk metadata */}
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+                <div className="flex justify-between items-center">
+                  <span>
+                    <strong>Similarity Match:</strong>{" "}
+                    {currentChunk.similarity
+                      ? (currentChunk.similarity * 100).toFixed(1) + "%"
+                      : "N/A"}
+                  </span>
+                  <span>
+                    <strong>Content Length:</strong>{" "}
+                    {currentChunk.content?.length || 0} characters
+                  </span>
+                </div>
               </div>
-            </ScrollArea>
-            <div className="flex justify-end">
+
+              {/* Chunk content */}
+              <div className="whitespace-pre-wrap text-sm bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
+                {currentChunk.content || "No content available"}
+              </div>
+            </div>
+            <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
               <Button variant="outline" onClick={closeChunkView}>
                 Close
               </Button>
