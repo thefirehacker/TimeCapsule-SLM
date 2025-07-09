@@ -1,4 +1,6 @@
-import { signIn } from "../../../../auth";
+"use client";
+
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
@@ -57,36 +59,20 @@ export default function SignInPage() {
         {/* Sign In Buttons */}
         <div className="space-y-4">
           {/* Google */}
-          <form
-            action={async () => {
-              "use server";
-              await signIn("google", { redirectTo: "/" });
-            }}
-            className="w-full"
+          <Button
+            onClick={() => signIn("google", { callbackUrl: "/" })}
+            className="w-full h-12 gap-3 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400"
           >
-            <Button
-              type="submit"
-              className="w-full h-12 gap-3 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400"
-            >
-              <GoogleIcon /> Continue with Google
-            </Button>
-          </form>
+            <GoogleIcon /> Continue with Google
+          </Button>
 
           {/* GitHub */}
-          <form
-            action={async () => {
-              "use server";
-              await signIn("github", { redirectTo: "/" });
-            }}
-            className="w-full"
+          <Button
+            onClick={() => signIn("github", { callbackUrl: "/" })}
+            className="w-full h-12 gap-3 text-base font-medium bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
           >
-            <Button
-              type="submit"
-              className="w-full h-12 gap-3 text-base font-medium bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
-            >
-              <Github className="h-5 w-5" /> Continue with GitHub
-            </Button>
-          </form>
+            <Github className="h-5 w-5" /> Continue with GitHub
+          </Button>
         </div>
 
         {/* Legal Links */}
