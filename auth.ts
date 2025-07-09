@@ -28,7 +28,15 @@ if (process.env.NODE_ENV === "production") {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: authSecret,
-  // trustHost: true, // Required for Amplify and production deployments
+  trustHost: true,
+
+  logger: {
+    debug: console.log,
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+  },
+  debug: true,
   providers: [
     Google({
       clientId:
@@ -68,5 +76,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  debug: process.env.NODE_ENV === "development",
 });
