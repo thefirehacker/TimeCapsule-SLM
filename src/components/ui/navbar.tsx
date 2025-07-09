@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "./separator";
 
 const menuItems = [
   { name: "Home", href: "/" },
@@ -128,7 +129,7 @@ export function Navbar() {
     <header>
       <nav
         data-state={menuState && "active"}
-        className="fixed z-20 w-full px-2 group"
+        className={`fixed z-20 w-full px-2 ${isScrolled ? "" : ""}`}
       >
         <div
           className={cn(
@@ -206,6 +207,8 @@ export function Navbar() {
           </div>
         </div>
       </nav>
+
+      <Separator />
     </header>
   );
 }

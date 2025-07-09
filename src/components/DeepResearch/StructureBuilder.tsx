@@ -50,9 +50,9 @@ export function StructureBuilder({
   const selectedCount = topics.filter((topic) => topic.selected).length;
 
   return (
-    <div className="h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-r border-slate-200 dark:border-slate-700">
-      <Card className="h-full border-0 shadow-lg rounded-none">
-        <CardHeader className="pb-3 border-b border-slate-200 dark:border-slate-700">
+    <div className="h-full  bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-r border-slate-200 dark:border-slate-700">
+      <Card className="h-full border-0 shadow-lg">
+        <CardHeader className="">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Target className="h-5 w-5 text-primary" />
             Research Structure

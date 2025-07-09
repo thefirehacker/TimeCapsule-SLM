@@ -161,7 +161,7 @@ export function ControlsPanel({
   };
 
   return (
-    <div className="h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-r border-slate-200 dark:border-slate-700">
+    <div className="h-full  dark:from-slate-900 dark:to-slate-800 border-r border-slate-200 dark:border-slate-700">
       <ScrollArea className="h-full">
         <div className="p-6 space-y-6">
           <div className="flex items-center gap-2">

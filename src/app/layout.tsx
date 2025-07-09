@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "../components/analytics/Analytics";
 import { SessionProvider } from "../components/providers/SessionProvider";
+import { Navbar } from "@/components/ui/navbar";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -126,7 +127,10 @@ export default function RootLayout({
       </head>
       <body className={`${poppins.className} antialiased`}>
         <Analytics />
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <Navbar />
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
