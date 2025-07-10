@@ -934,6 +934,68 @@ ${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
 
+  // Listen for metadata changes from other pages (like DeepResearch)
+  useEffect(() => {
+    const refreshMetadata = () => {
+      if (metadataManager) {
+        const updatedBubblSpaces = metadataManager.getAllBubblSpaces();
+        const updatedTimeCapsules = metadataManager.getAllTimeCapsules();
+        
+        setAllBubblSpaces(updatedBubblSpaces);
+        setAllTimeCapsules(updatedTimeCapsules);
+        
+        // Update current selections if they were modified
+        const currentBubblSpaceUpdated = updatedBubblSpaces.find(b => b.id === currentBubblSpace?.id);
+        if (currentBubblSpaceUpdated) {
+          setCurrentBubblSpace(currentBubblSpaceUpdated);
+        }
+        
+        const currentTimeCapsuleUpdated = updatedTimeCapsules.find(t => t.id === currentTimeCapsule?.id);
+        if (currentTimeCapsuleUpdated) {
+          setCurrentTimeCapsule(currentTimeCapsuleUpdated);
+        }
+      }
+    };
+
+    const handleMetadataStorageChange = (event: StorageEvent) => {
+      if (event.key === 'bubblspaces_metadata' || event.key === 'timecapsules_metadata') {
+        console.log('🔄 Metadata changed in another page, refreshing AI-Frames...');
+        
+        // Reload metadata from localStorage
+        setTimeout(() => {
+          refreshMetadata();
+        }, 100); // Small delay to ensure storage write is complete
+      }
+    };
+
+    const handleBubblSpaceChange = (event: CustomEvent) => {
+      console.log('🔄 BubblSpace changed in same page, refreshing AI-Frames...');
+      setTimeout(() => {
+        refreshMetadata();
+      }, 50);
+    };
+
+    const handleTimeCapsuleChange = (event: CustomEvent) => {
+      console.log('🔄 TimeCapsule changed in same page, refreshing AI-Frames...');
+      setTimeout(() => {
+        refreshMetadata();
+      }, 50);
+    };
+
+    // Listen for storage events from other pages
+    window.addEventListener('storage', handleMetadataStorageChange);
+    
+    // Listen for custom events from same page
+    window.addEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
+    window.addEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleMetadataStorageChange);
+      window.removeEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
+      window.removeEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+    };
+  }, [metadataManager, currentBubblSpace, currentTimeCapsule]);
+
   // Initialize TTS when not in creation mode
   useEffect(() => {
     if (!isCreationMode && isVoiceEnabled && typeof window !== "undefined") {

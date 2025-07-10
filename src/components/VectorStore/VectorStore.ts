@@ -669,6 +669,13 @@ export class VectorStore {
     private async findDuplicateDocument(documentData: DocumentData): Promise<DocumentData | null> {
       try {
         const allDocs = await this.getAllDocuments();
+        const newMeta = documentData.metadata as any;
+        
+        // SPECIAL CASE: Allow metadata updates to completely bypass duplicate detection
+        if (newMeta.source === 'metadata') {
+          console.log(`🔄 Bypassing duplicate detection for metadata update: ${documentData.title}`);
+          return null; // No duplicate found, allow insertion
+        }
         
         for (const existingDoc of allDocs) {
           // Check for exact ID match
@@ -682,7 +689,6 @@ export class VectorStore {
           }
           
           // Check for source-specific duplicate patterns
-          const newMeta = documentData.metadata as any;
           const existingMeta = existingDoc.metadata as any;
           
           // AI-Frames specific duplicate detection

@@ -105,10 +105,19 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
       });
     }
     
+    // Dispatch custom event for same-page updates
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('bubblspace-metadata-changed', {
+        detail: { type: 'created', bubblSpace }
+      }));
+    }
+    
     return bubblSpace;
   }
 
   updateBubblSpace(id: string, updates: Partial<BubblSpace>): BubblSpace {
+    console.log(`🔄 MetadataManager.updateBubblSpace called for ID: ${id}`, updates);
+    
     const existing = this.bubblSpaces.get(id);
     if (!existing) {
       throw new Error(`BubblSpace with id ${id} not found`);
@@ -120,6 +129,11 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
       id, // Prevent ID changes
       updatedAt: new Date().toISOString(),
     };
+
+    console.log(`📝 BubblSpace updated:`, {
+      old: { name: existing.name, description: existing.description },
+      new: { name: updated.name, description: updated.description }
+    });
 
     const errors = validateBubblSpace(updated);
     if (errors.length > 0) {
@@ -138,15 +152,29 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
 
     this.bubblSpaces.set(id, updated);
     this.saveBubblSpaces(Array.from(this.bubblSpaces.values()));
+    console.log(`💾 BubblSpace saved to localStorage`);
     
     // Auto-sync to Knowledge Base when BubblSpace is updated
     if (this.vectorStore && this.vectorStore.initialized) {
+      console.log(`🔄 Syncing BubblSpace to Knowledge Base...`);
       this.saveMetadataToVectorStore(
         Array.from(this.bubblSpaces.values()),
         Array.from(this.timeCapsules.values())
-      ).catch(error => {
-        console.warn('Failed to sync updated BubblSpace to Knowledge Base:', error);
+      ).then(() => {
+        console.log(`✅ BubblSpace synced to Knowledge Base successfully`);
+      }).catch(error => {
+        console.warn('❌ Failed to sync updated BubblSpace to Knowledge Base:', error);
       });
+    } else {
+      console.warn(`⚠️ VectorStore not available for sync - initialized: ${this.vectorStore?.initialized}, hasVectorStore: ${!!this.vectorStore}`);
+    }
+    
+    // Dispatch custom event for same-page updates
+    if (typeof window !== 'undefined') {
+      console.log(`📢 Dispatching bubblspace-metadata-changed event`);
+      window.dispatchEvent(new CustomEvent('bubblspace-metadata-changed', {
+        detail: { type: 'updated', bubblSpace: updated }
+      }));
     }
     
     return updated;
@@ -259,6 +287,13 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
       });
     }
     
+    // Dispatch custom event for same-page updates
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('timecapsule-metadata-changed', {
+        detail: { type: 'created', timeCapsule }
+      }));
+    }
+    
     return timeCapsule;
   }
 
@@ -291,6 +326,13 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
       ).catch(error => {
         console.warn('Failed to sync updated TimeCapsule to Knowledge Base:', error);
       });
+    }
+    
+    // Dispatch custom event for same-page updates
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('timecapsule-metadata-changed', {
+        detail: { type: 'updated', timeCapsule: updated }
+      }));
     }
     
     return updated;
@@ -543,13 +585,36 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
       return;
     }
 
+    console.log('🔄 Starting metadata sync to Knowledge Base...');
+
     try {
       // Store BubblSpaces as searchable documents
       for (const space of bubblSpaces) {
+        const docId = `bubblspace-${space.id}`;
+        console.log(`📝 Syncing BubblSpace: ${space.name} (ID: ${docId})`);
+        console.log(`📋 BubblSpace data:`, {
+          name: space.name,
+          description: space.description,
+          tags: space.tags,
+          updatedAt: space.updatedAt
+        });
+        
+        // Delete existing document first to ensure fresh update
+        try {
+          await this.vectorStore.deleteDocument(docId);
+          console.log(`🗑️ Deleted old BubblSpace document: ${docId}`);
+        } catch (deleteError) {
+          // Document might not exist, that's OK
+          console.log(`ℹ️ Old BubblSpace document not found (first time sync): ${docId}`);
+        }
+        
+        const contentText = `BubblSpace: ${space.name}\nDescription: ${space.description}\nTags: ${space.tags?.join(', ') || 'none'}`;
+        console.log(`📄 Document content being saved:`, contentText);
+        
         const doc = {
-          id: `bubblspace-${space.id}`,
+          id: docId,
           title: `BubblSpace: ${space.name}`, // Required by VectorStore schema
-          content: `BubblSpace: ${space.name}\nDescription: ${space.description}\nTags: ${space.tags?.join(', ') || 'none'}`,
+          content: contentText,
           metadata: {
             filename: `bubblspace-${space.name}.json`,
             filesize: JSON.stringify(space).length,
@@ -563,17 +628,32 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
             bubblSpaceId: space.id,
             name: space.name,
             createdAt: space.createdAt,
+            updatedAt: space.updatedAt, // Include updated timestamp
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
         };
+        
         await this.vectorStore.insertDocument(doc);
+        console.log(`✅ BubblSpace synced to Knowledge Base: ${space.name}`);
       }
 
       // Store TimeCapsules as searchable documents
       for (const tc of timeCapsules) {
+        const docId = `timecapsule-${tc.id}`;
+        console.log(`📝 Syncing TimeCapsule: ${tc.name} (ID: ${docId})`);
+        
+        // Delete existing document first to ensure fresh update
+        try {
+          await this.vectorStore.deleteDocument(docId);
+          console.log(`🗑️ Deleted old TimeCapsule document: ${docId}`);
+        } catch (deleteError) {
+          // Document might not exist, that's OK
+          console.log(`ℹ️ Old TimeCapsule document not found (first time sync): ${docId}`);
+        }
+        
         const doc = {
-          id: `timecapsule-${tc.id}`,
+          id: docId,
           title: `TimeCapsule: ${tc.name}`, // Required by VectorStore schema
           content: `TimeCapsule: ${tc.name}\nDescription: ${tc.description}\nCategory: ${tc.category}\nTags: ${tc.tags?.join(', ') || 'none'}`,
           metadata: {
@@ -591,14 +671,20 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
             name: tc.name,
             category: tc.category,
             createdAt: tc.createdAt,
+            updatedAt: tc.updatedAt, // Include updated timestamp
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
         };
+        
         await this.vectorStore.insertDocument(doc);
+        console.log(`✅ TimeCapsule synced to Knowledge Base: ${tc.name}`);
       }
+      
+      console.log('✅ All metadata synced to Knowledge Base successfully');
     } catch (error) {
-      console.error('Failed to save metadata to vector store:', error);
+      console.error('❌ Failed to save metadata to vector store:', error);
+      throw error; // Re-throw to ensure caller knows about the failure
     }
   }
 
@@ -721,19 +807,28 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
 
   // Public getter for external access
   setVectorStore(vectorStore: any): void {
+    console.log('🔗 MetadataManager.setVectorStore called', {
+      hasVectorStore: !!vectorStore,
+      isInitialized: vectorStore?.initialized,
+      processingAvailable: vectorStore?.processingAvailable,
+      wasAlreadySet: !!this.vectorStore
+    });
+    
     this.vectorStore = vectorStore;
     
     // Only sync if the vector store is already initialized
     if (vectorStore && vectorStore.initialized) {
+      console.log('✅ VectorStore is ready, syncing metadata immediately...');
       this.syncWithVectorStore();
     } else if (vectorStore) {
-      console.log('📋 Vector store set but not initialized yet, will sync when ready');
+      console.log('⏳ Vector store set but not initialized yet, will sync when ready');
       
       // Poll for initialization (with exponential backoff)
       let attempts = 0;
       const maxAttempts = 20;
       const checkInterval = () => setTimeout(() => {
         attempts++;
+        console.log(`⏳ Checking VectorStore initialization (attempt ${attempts}/${maxAttempts})...`);
         if (this.vectorStore?.initialized) {
           console.log('✅ Vector store now ready, syncing metadata...');
           this.syncWithVectorStore();

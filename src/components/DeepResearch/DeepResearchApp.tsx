@@ -521,9 +521,16 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
+      console.log(`🔄 DeepResearch.loadMetadata called`);
+      
       // Load BubblSpaces and TimeCapsules
       const bubblSpaces = await this.metadataManager.loadBubblSpaces();
       const timeCapsules = await this.metadataManager.loadTimeCapsules();
+
+      console.log(`📝 Loaded metadata:`, {
+        bubblSpaces: bubblSpaces.map(b => ({ id: b.id, name: b.name })),
+        timeCapsules: timeCapsules.map(t => ({ id: t.id, name: t.name }))
+      });
 
       this.bubblSpaces = bubblSpaces;
       this.timeCapsules = timeCapsules;
@@ -556,9 +563,9 @@ Duration: ${frame.duration || 0}s
       this.setCurrentBubblSpace?.(this.currentBubblSpace);
       this.setCurrentTimeCapsule?.(this.currentTimeCapsule);
 
-      console.log(`📝 Loaded ${bubblSpaces.length} BubblSpaces and ${timeCapsules.length} TimeCapsules`);
+      console.log(`✅ Metadata loaded - Current BubblSpace: ${this.currentBubblSpace?.name}`);
     } catch (error) {
-      console.error('Failed to load metadata:', error);
+      console.error('❌ Failed to load metadata:', error);
     }
   }
 
@@ -2509,10 +2516,13 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
+      console.log(`🔄 DeepResearch.saveBubblSpace called:`, { name, description, options, editingBubblSpace: this.editingBubblSpace?.id });
+      
       let bubblSpace: BubblSpace;
       
       if (this.editingBubblSpace) {
         // Update existing
+        console.log(`🔄 Updating existing BubblSpace: ${this.editingBubblSpace.id}`);
         bubblSpace = this.metadataManager.updateBubblSpace(this.editingBubblSpace.id, {
           name,
           description,
@@ -2521,15 +2531,17 @@ Duration: ${frame.duration || 0}s
         this.updateStatus(`✅ Updated BubblSpace: ${name}`);
       } else {
         // Create new
+        console.log(`🔄 Creating new BubblSpace`);
         bubblSpace = this.metadataManager.createBubblSpace(name, description, options);
         this.updateStatus(`✅ Created BubblSpace: ${name}`);
       }
 
+      console.log(`✅ BubblSpace operation completed, refreshing data...`);
       // Refresh data
       await this.loadMetadata();
       this.closeBubblSpaceDialog();
     } catch (error) {
-      console.error('Failed to save BubblSpace:', error);
+      console.error('❌ Failed to save BubblSpace:', error);
       this.updateStatus(`❌ Failed to save BubblSpace: ${(error as Error).message}`);
     }
   }
@@ -3021,6 +3033,50 @@ export function DeepResearchComponent() {
       }
     }
   }, [vectorStoreError, vectorStoreInitializing, vectorStoreInitialized, processingStatus]);
+
+  // Listen for metadata changes from other pages (like AI-Frames)
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app) return;
+
+    const handleMetadataStorageChange = (event: StorageEvent) => {
+      if (event.key === 'bubblspaces_metadata' || event.key === 'timecapsules_metadata') {
+        console.log('🔄 Metadata changed in another page, refreshing DeepResearch...');
+        // Reload metadata from localStorage
+        setTimeout(() => {
+          app.loadMetadata?.();
+        }, 100); // Small delay to ensure storage write is complete
+      }
+    };
+
+    const handleBubblSpaceChange = (event: CustomEvent) => {
+      console.log('🔄 BubblSpace changed in same page, refreshing DeepResearch...', event.detail);
+      setTimeout(() => {
+        console.log('🔄 Calling app.loadMetadata from event handler...');
+        app.loadMetadata?.();
+      }, 50);
+    };
+
+    const handleTimeCapsuleChange = (event: CustomEvent) => {
+      console.log('🔄 TimeCapsule changed in same page, refreshing DeepResearch...');
+      setTimeout(() => {
+        app.loadMetadata?.();
+      }, 50);
+    };
+
+    // Listen for storage events from other pages
+    window.addEventListener('storage', handleMetadataStorageChange);
+    
+    // Listen for custom events from same page
+    window.addEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
+    window.addEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleMetadataStorageChange);
+      window.removeEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
+      window.removeEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+    };
+  }, []);
 
   const app = appRef.current!; // Non-null assertion since we create it immediately in useEffect
 
