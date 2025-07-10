@@ -108,8 +108,8 @@ const hardcodedFrames: AIFrame[] = [
       "Tokenizer Integration",
       "Memory Management",
       "Configuration Files",
-      "GPT-2 Variants"
-    ]
+      "GPT-2 Variants",
+    ],
   },
   {
     id: "frame-02",
@@ -143,48 +143,50 @@ const hardcodedFrames: AIFrame[] = [
       "Data Preprocessing",
       "Checkpointing",
       "Loss Functions",
-      "Evaluation Metrics"
-    ]
-  }
+      "Evaluation Metrics",
+    ],
+  },
 ];
 
 export default function AIFramesPage() {
   // Initialize page analytics for AI-Frames
-  const pageAnalytics = usePageAnalytics('AI-Frames', 'learning');
-  
+  const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
+
   // Mode state
   const [isCreationMode, setIsCreationMode] = useState(false);
-  
+
   // Frame state
   const [frames, setFrames] = useState<AIFrame[]>(hardcodedFrames);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
-  
+
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [showAIConcepts, setShowAIConcepts] = useState(false);
   const [selectedConcept, setSelectedConcept] = useState<string | null>(null);
-  
+
   // Chat state
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'ai', content: string}>>([]);
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ role: "user" | "ai"; content: string }>
+  >([]);
   const [chatInput, setChatInput] = useState("");
-  
+
   // Creation mode state
   const [showCreateFrame, setShowCreateFrame] = useState(false);
   const [newFrameData, setNewFrameData] = useState<FrameCreationData>({
     goal: "",
     videoUrl: "",
     startTime: 0,
-    duration: 300
+    duration: 300,
   });
   const [isGeneratingFrame, setIsGeneratingFrame] = useState(false);
   const [showFrameEditor, setShowFrameEditor] = useState(false);
   const [editingFrame, setEditingFrame] = useState<AIFrame | null>(null);
-  
+
   // Drag and drop state
   const [draggedFrameId, setDraggedFrameId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  
+
   // TTS and voice state
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -192,25 +194,30 @@ export default function AIFramesPage() {
   const [currentNarration, setCurrentNarration] = useState<string>("");
   const [narrationQueue, setNarrationQueue] = useState<string[]>([]);
   const [autoPlayAfterNarration, setAutoPlayAfterNarration] = useState(false);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [availableVoices, setAvailableVoices] = useState<
+    SpeechSynthesisVoice[]
+  >([]);
+  const [selectedVoice, setSelectedVoice] =
+    useState<SpeechSynthesisVoice | null>(null);
   const [voiceSettings, setVoiceSettings] = useState({
     rate: 0.9,
     pitch: 1.0,
-    volume: 0.8
+    volume: 0.8,
   });
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [userHasInteracted, setUserHasInteracted] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState(0);
-  const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<NodeJS.Timeout | null>(null);
-  
+  const [autoAdvanceTimer, setAutoAdvanceTimer] =
+    useState<NodeJS.Timeout | null>(null);
+
   // DeepResearch integration
-  const [deepResearchApp, setDeepResearchApp] = useState<DeepResearchApp | null>(null);
+  const [deepResearchApp, setDeepResearchApp] =
+    useState<DeepResearchApp | null>(null);
   const [vectorStore, setVectorStore] = useState<VectorStore | null>(null);
   const [timeCapsuleData, setTimeCapsuleData] = useState<any>(null);
-  
+
   const videoRef = useRef<HTMLIFrameElement>(null);
 
   // Initialize DeepResearch integration
@@ -219,7 +226,7 @@ export default function AIFramesPage() {
     if (typeof window !== "undefined" && (window as any).deepResearchApp) {
       setDeepResearchApp((window as any).deepResearchApp);
       setVectorStore((window as any).sharedVectorStore);
-      
+
       // Load TimeCapsule data from localStorage
       try {
         const savedData = localStorage.getItem("deepresearch_data");
@@ -245,12 +252,12 @@ export default function AIFramesPage() {
       setAutoAdvanceTimer(null);
     }
     setAutoAdvanceCountdown(0);
-    setChatMessages(prev => [
+    setChatMessages((prev) => [
       ...prev,
-      { 
-        role: 'ai', 
-        content: `⏹️ Auto-advance cancelled. Use the navigation buttons to move between frames manually.` 
-      }
+      {
+        role: "ai",
+        content: `⏹️ Auto-advance cancelled. Use the navigation buttons to move between frames manually.`,
+      },
     ]);
   };
 
@@ -260,50 +267,52 @@ export default function AIFramesPage() {
   useEffect(() => {
     if (!isCreationMode && autoAdvanceEnabled && currentFrame) {
       const advanceDelay = (currentFrame.duration + 3) * 1000; // 3 seconds after video ends
-      
+
       const timer = setTimeout(() => {
         // Start countdown
         setAutoAdvanceCountdown(5);
-        
+
         // Show countdown message
-        setChatMessages(prev => [
+        setChatMessages((prev) => [
           ...prev,
-          { 
-            role: 'ai', 
-            content: `⏰ Video segment complete! Auto-advancing to next frame in 5 seconds...` 
-          }
+          {
+            role: "ai",
+            content: `⏰ Video segment complete! Auto-advancing to next frame in 5 seconds...`,
+          },
         ]);
-        
+
         // Countdown timer
         let countdown = 5;
         const countdownInterval = setInterval(() => {
           countdown--;
           setAutoAdvanceCountdown(countdown);
-          
+
           if (countdown <= 0) {
             clearInterval(countdownInterval);
             if (currentFrameIndex < frames.length - 1) {
               setCurrentFrameIndex(currentFrameIndex + 1);
-              setChatMessages(prev => [
+              setChatMessages((prev) => [
                 ...prev,
-                { 
-                  role: 'ai', 
-                  content: `▶️ Moving to Frame ${currentFrameIndex + 2}: ${frames[currentFrameIndex + 1]?.title || 'Next Frame'}` 
-                }
+                {
+                  role: "ai",
+                  content: `▶️ Moving to Frame ${currentFrameIndex + 2}: ${
+                    frames[currentFrameIndex + 1]?.title || "Next Frame"
+                  }`,
+                },
               ]);
             } else {
-              setChatMessages(prev => [
+              setChatMessages((prev) => [
                 ...prev,
-                { 
-                  role: 'ai', 
-                  content: `🎉 Congratulations! You've completed all frames in this learning sequence.` 
-                }
+                {
+                  role: "ai",
+                  content: `🎉 Congratulations! You've completed all frames in this learning sequence.`,
+                },
               ]);
             }
             setAutoAdvanceCountdown(0);
           }
         }, 1000);
-        
+
         setAutoAdvanceTimer(countdownInterval);
       }, advanceDelay);
 
@@ -315,37 +324,60 @@ export default function AIFramesPage() {
         }
       };
     }
-  }, [currentFrameIndex, isCreationMode, autoAdvanceEnabled, currentFrame, frames.length, frames]);
+  }, [
+    currentFrameIndex,
+    isCreationMode,
+    autoAdvanceEnabled,
+    currentFrame,
+    frames.length,
+    frames,
+  ]);
 
   // Auto-narrate when frame changes in learn mode
   useEffect(() => {
-    if (!isCreationMode && isVoiceEnabled && ttsReady && currentFrame && userHasInteracted) {
+    if (
+      !isCreationMode &&
+      isVoiceEnabled &&
+      ttsReady &&
+      currentFrame &&
+      userHasInteracted
+    ) {
       // Reset video to beginning when frame changes
       if (videoRef.current) {
         const videoId = extractVideoId(currentFrame.videoUrl);
-        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=0&controls=1&modestbranding=1&rel=0`;
+        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${
+          currentFrame.startTime
+        }&end=${
+          currentFrame.startTime + currentFrame.duration
+        }&autoplay=0&controls=1&modestbranding=1&rel=0`;
         videoRef.current.src = resetUrl;
       }
-      
+
       // Start narration (which will auto-play video when complete)
       narrateFrame(currentFrame);
     }
-  }, [currentFrameIndex, isCreationMode, isVoiceEnabled, ttsReady, userHasInteracted]);
+  }, [
+    currentFrameIndex,
+    isCreationMode,
+    isVoiceEnabled,
+    ttsReady,
+    userHasInteracted,
+  ]);
 
   // Detect user interaction to enable TTS
   useEffect(() => {
     const handleUserInteraction = () => {
       setUserHasInteracted(true);
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
     };
 
-    document.addEventListener('click', handleUserInteraction);
-    document.addEventListener('keydown', handleUserInteraction);
+    document.addEventListener("click", handleUserInteraction);
+    document.addEventListener("keydown", handleUserInteraction);
 
     return () => {
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
     };
   }, []);
 
@@ -383,13 +415,17 @@ export default function AIFramesPage() {
             setTtsReady(true);
             resolve();
           } else {
-            window.speechSynthesis.addEventListener('voiceschanged', () => {
-              const newVoices = window.speechSynthesis.getVoices();
-              setAvailableVoices(newVoices);
-              selectBestVoice(newVoices);
-              setTtsReady(true);
-              resolve();
-            }, { once: true });
+            window.speechSynthesis.addEventListener(
+              "voiceschanged",
+              () => {
+                const newVoices = window.speechSynthesis.getVoices();
+                setAvailableVoices(newVoices);
+                selectBestVoice(newVoices);
+                setTtsReady(true);
+                resolve();
+              },
+              { once: true }
+            );
           }
         });
       };
@@ -405,38 +441,39 @@ export default function AIFramesPage() {
     // Priority order for high-quality voices - Google UK English Female as default
     const voicePriority = [
       // Google UK English Female as top priority
-      'Google UK English Female',
-      'Google UK English',
-      
+      "Google UK English Female",
+      "Google UK English",
+
       // Other premium neural voices
-      'Google US English',
-      'Google UK English Male',
-      'Microsoft Zira - English (United States)',
-      'Microsoft David - English (United States)',
-      'Microsoft Mark - English (United States)',
-      
+      "Google US English",
+      "Google UK English Male",
+      "Microsoft Zira - English (United States)",
+      "Microsoft David - English (United States)",
+      "Microsoft Mark - English (United States)",
+
       // System voices (good quality)
-      'Alex', // macOS
-      'Samantha', // macOS
-      'Victoria', // macOS
-      'Karen', // macOS
-      'Microsoft Zira Desktop', // Windows
-      'Microsoft David Desktop', // Windows
-      
+      "Alex", // macOS
+      "Samantha", // macOS
+      "Victoria", // macOS
+      "Karen", // macOS
+      "Microsoft Zira Desktop", // Windows
+      "Microsoft David Desktop", // Windows
+
       // Fallback to any English voice
-      'en-US',
-      'en-GB',
-      'en-AU'
+      "en-US",
+      "en-GB",
+      "en-AU",
     ];
 
     // Find the best available voice
     let bestVoice = null;
-    
+
     for (const priorityVoice of voicePriority) {
-      const found = voices.find(voice => 
-        voice.name.includes(priorityVoice) || 
-        voice.lang.includes(priorityVoice) ||
-        voice.name === priorityVoice
+      const found = voices.find(
+        (voice) =>
+          voice.name.includes(priorityVoice) ||
+          voice.lang.includes(priorityVoice) ||
+          voice.name === priorityVoice
       );
       if (found) {
         bestVoice = found;
@@ -446,33 +483,48 @@ export default function AIFramesPage() {
 
     // If no priority voice found, use the first English voice
     if (!bestVoice) {
-      bestVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && voice.localService
-      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+      bestVoice =
+        voices.find(
+          (voice) => voice.lang.startsWith("en") && voice.localService
+        ) ||
+        voices.find((voice) => voice.lang.startsWith("en")) ||
+        voices[0];
     }
 
     setSelectedVoice(bestVoice);
     console.log(`🎙️ Selected voice: ${bestVoice?.name} (${bestVoice?.lang})`);
   };
 
-  const getVoiceQuality = (voice: SpeechSynthesisVoice): 'premium' | 'good' | 'basic' => {
+  const getVoiceQuality = (
+    voice: SpeechSynthesisVoice
+  ): "premium" | "good" | "basic" => {
     const premiumVoices = [
-      'Microsoft Zira', 'Microsoft David', 'Microsoft Mark',
-      'Google US English', 'Google UK English',
-      'Alex', 'Samantha', 'Victoria'
-    ];
-    
-    const goodVoices = [
-      'Karen', 'Veena', 'Daniel', 'Moira', 'Tessa',
-      'Microsoft', 'Google'
+      "Microsoft Zira",
+      "Microsoft David",
+      "Microsoft Mark",
+      "Google US English",
+      "Google UK English",
+      "Alex",
+      "Samantha",
+      "Victoria",
     ];
 
-    if (premiumVoices.some(pv => voice.name.includes(pv))) {
-      return 'premium';
-    } else if (goodVoices.some(gv => voice.name.includes(gv))) {
-      return 'good';
+    const goodVoices = [
+      "Karen",
+      "Veena",
+      "Daniel",
+      "Moira",
+      "Tessa",
+      "Microsoft",
+      "Google",
+    ];
+
+    if (premiumVoices.some((pv) => voice.name.includes(pv))) {
+      return "premium";
+    } else if (goodVoices.some((gv) => voice.name.includes(gv))) {
+      return "good";
     }
-    return 'basic';
+    return "basic";
   };
 
   const speakText = (text: string): Promise<void> => {
@@ -493,22 +545,23 @@ export default function AIFramesPage() {
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      
+
       // Use selected voice or fallback to best available
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       } else {
         const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(voice => 
-          voice.name.includes('Google') || 
-          voice.name.includes('Microsoft') ||
-          voice.lang.startsWith('en')
+        const preferredVoice = voices.find(
+          (voice) =>
+            voice.name.includes("Google") ||
+            voice.name.includes("Microsoft") ||
+            voice.lang.startsWith("en")
         );
         if (preferredVoice) {
           utterance.voice = preferredVoice;
         }
       }
-      
+
       // Apply voice settings
       utterance.rate = voiceSettings.rate;
       utterance.pitch = voiceSettings.pitch;
@@ -528,18 +581,20 @@ export default function AIFramesPage() {
       utterance.onerror = (event) => {
         setIsSpeaking(false);
         setCurrentNarration("");
-        
+
         // Handle different error types gracefully
-        if (event.error === 'not-allowed') {
+        if (event.error === "not-allowed") {
           console.log("⚠️ TTS not allowed - user interaction required");
-        } else if (event.error === 'interrupted') {
-          console.log("⚠️ TTS interrupted - this is normal when switching frames");
+        } else if (event.error === "interrupted") {
+          console.log(
+            "⚠️ TTS interrupted - this is normal when switching frames"
+          );
         } else {
           console.error("❌ Speech synthesis error:", event.error);
         }
-        
+
         // Don't reject on 'interrupted' errors as they're normal
-        if (event.error === 'interrupted') {
+        if (event.error === "interrupted") {
           resolve();
         } else {
           reject(event.error);
@@ -575,21 +630,25 @@ export default function AIFramesPage() {
         
         Our learning goal for this frame is: ${frame.goal}
         
-        Let me provide some context: ${frame.informationText.replace(/\n/g, ' ').substring(0, 300)}...
+        Let me provide some context: ${frame.informationText
+          .replace(/\n/g, " ")
+          .substring(0, 300)}...
         
         Now, let's watch the video segment to see this concept in action.
-      `.replace(/\s+/g, ' ').trim();
+      `
+        .replace(/\s+/g, " ")
+        .trim();
 
       // Speak the narration
       await speakText(narrationText);
 
       // Show auto-play indicator
-      setChatMessages(prev => [
+      setChatMessages((prev) => [
         ...prev,
-        { 
-          role: 'ai', 
-          content: `🎬 Narration complete! Auto-playing video in 3 seconds...` 
-        }
+        {
+          role: "ai",
+          content: `🎬 Narration complete! Auto-playing video in 3 seconds...`,
+        },
       ]);
 
       // Auto-play YouTube video after narration completes
@@ -597,17 +656,20 @@ export default function AIFramesPage() {
         if (!isSpeaking) {
           // Start YouTube video playback
           startYouTubeVideo();
-          
-          setChatMessages(prev => [
+
+          setChatMessages((prev) => [
             ...prev,
-            { 
-              role: 'ai', 
-              content: `▶️ Video is now playing! Watch "${frame.goal}" in action. The video will play the specific segment from ${formatTime(frame.startTime)} for ${formatTime(frame.duration)}.` 
-            }
+            {
+              role: "ai",
+              content: `▶️ Video is now playing! Watch "${
+                frame.goal
+              }" in action. The video will play the specific segment from ${formatTime(
+                frame.startTime
+              )} for ${formatTime(frame.duration)}.`,
+            },
           ]);
         }
       }, 3000); // 3 second delay to give user time to see the indicator
-
     } catch (error) {
       console.error("Narration failed:", error);
     }
@@ -619,12 +681,16 @@ export default function AIFramesPage() {
         // Send play command to YouTube iframe
         const iframe = videoRef.current;
         const videoId = extractVideoId(currentFrame.videoUrl);
-        
+
         if (videoId) {
           // Create new iframe src with autoplay enabled
-          const newEmbedUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=1&controls=1&modestbranding=1&rel=0`;
+          const newEmbedUrl = `https://www.youtube.com/embed/${videoId}?start=${
+            currentFrame.startTime
+          }&end=${
+            currentFrame.startTime + currentFrame.duration
+          }&autoplay=1&controls=1&modestbranding=1&rel=0`;
           iframe.src = newEmbedUrl;
-          
+
           console.log(`🎬 Auto-playing YouTube video: ${currentFrame.title}`);
         }
       }
@@ -634,27 +700,29 @@ export default function AIFramesPage() {
   };
 
   const extractVideoId = (url: string) => {
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+    );
     return match ? match[1] : null;
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleConceptClick = async (concept: string) => {
     setSelectedConcept(concept);
-    
+
     // Track concept click
-    pageAnalytics.trackFeatureUsage('concept_exploration', {
+    pageAnalytics.trackFeatureUsage("concept_exploration", {
       concept: concept,
       current_frame: currentFrameIndex,
       frame_title: currentFrame?.title,
-      total_concepts: currentFrame?.aiConcepts.length
+      total_concepts: currentFrame?.aiConcepts.length,
     });
-    
+
     // Enhanced AI response using DeepResearch and Knowledge Base
     let aiResponse = `Let me explain ${concept} in the context of your current learning path:
 
@@ -667,7 +735,9 @@ Based on your TimeCapsule data and knowledge base, here's what you need to know 
         if (searchResults.length > 0) {
           aiResponse += `\n\n**From your Knowledge Base:**\n`;
           searchResults.forEach((result, index) => {
-            aiResponse += `• ${result.document.title}: ${result.chunk.content.substring(0, 200)}...\n`;
+            aiResponse += `• ${
+              result.document.title
+            }: ${result.chunk.content.substring(0, 200)}...\n`;
           });
         }
       } catch (error) {
@@ -677,11 +747,12 @@ Based on your TimeCapsule data and knowledge base, here's what you need to know 
 
     // Check TimeCapsule research for related topics
     if (timeCapsuleData?.research?.topics) {
-      const relatedTopics = timeCapsuleData.research.topics.filter((topic: any) => 
-        topic.title.toLowerCase().includes(concept.toLowerCase()) ||
-        topic.description.toLowerCase().includes(concept.toLowerCase())
+      const relatedTopics = timeCapsuleData.research.topics.filter(
+        (topic: any) =>
+          topic.title.toLowerCase().includes(concept.toLowerCase()) ||
+          topic.description.toLowerCase().includes(concept.toLowerCase())
       );
-      
+
       if (relatedTopics.length > 0) {
         aiResponse += `\n\n**Related Research Topics:**\n`;
         relatedTopics.forEach((topic: any) => {
@@ -694,10 +765,10 @@ Based on your TimeCapsule data and knowledge base, here's what you need to know 
 
 Would you like me to create a new frame focused specifically on ${concept}?`;
 
-    setChatMessages(prev => [
+    setChatMessages((prev) => [
       ...prev,
-      { role: 'user', content: `Tell me about ${concept}` },
-      { role: 'ai', content: aiResponse }
+      { role: "user", content: `Tell me about ${concept}` },
+      { role: "ai", content: aiResponse },
     ]);
 
     // Voice narration for concept explanation in Learn mode
@@ -709,7 +780,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         It relates directly to ${currentFrame.title} and helps you understand ${currentFrame.goal}.
         
         This concept is fundamental for your learning journey and connects to the other topics you're exploring.
-      `.replace(/\s+/g, ' ').trim();
+      `
+        .replace(/\s+/g, " ")
+        .trim();
 
       try {
         await speakText(conceptNarration);
@@ -721,17 +794,23 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
-    
+
     let aiResponse = `Great question! Based on your current frame "${currentFrame.title}" and your learning journey, let me help you understand this concept better.`;
 
     // Enhanced AI response with knowledge base integration
     if (vectorStore) {
       try {
-        const searchResults = await vectorStore.searchSimilar(chatInput, 0.3, 3);
+        const searchResults = await vectorStore.searchSimilar(
+          chatInput,
+          0.3,
+          3
+        );
         if (searchResults.length > 0) {
           aiResponse += `\n\n**Relevant information from your knowledge base:**\n`;
           searchResults.forEach((result, index) => {
-            aiResponse += `${index + 1}. From "${result.document.title}": ${result.chunk.content.substring(0, 300)}...\n\n`;
+            aiResponse += `${index + 1}. From "${
+              result.document.title
+            }": ${result.chunk.content.substring(0, 300)}...\n\n`;
           });
         }
       } catch (error) {
@@ -740,34 +819,36 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     }
 
     aiResponse += `\nThis relates to your current learning goal and connects to the concepts in this frame. Would you like me to suggest related frames or create new ones based on this topic?`;
-    
-    setChatMessages(prev => [
+
+    setChatMessages((prev) => [
       ...prev,
-      { role: 'user', content: chatInput },
-      { role: 'ai', content: aiResponse }
+      { role: "user", content: chatInput },
+      { role: "ai", content: aiResponse },
     ]);
     setChatInput("");
   };
 
-  const generateFrameContent = async (frameData: FrameCreationData): Promise<AIFrame> => {
+  const generateFrameContent = async (
+    frameData: FrameCreationData
+  ): Promise<AIFrame> => {
     setIsGeneratingFrame(true);
-    
+
     try {
       // Simulate AI generation process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Analyze existing frames for concept relationships
-      const existingConcepts = frames.flatMap(frame => frame.aiConcepts);
+      const existingConcepts = frames.flatMap((frame) => frame.aiConcepts);
       const relatedConcepts: string[] = [];
-      
+
       // Simple concept matching (in real implementation, this would use AI)
-      const goalWords = frameData.goal.toLowerCase().split(' ');
-      existingConcepts.forEach(concept => {
-        if (goalWords.some(word => concept.toLowerCase().includes(word))) {
+      const goalWords = frameData.goal.toLowerCase().split(" ");
+      existingConcepts.forEach((concept) => {
+        if (goalWords.some((word) => concept.toLowerCase().includes(word))) {
           relatedConcepts.push(concept);
         }
       });
-      
+
       // Generate new concepts based on goal
       const newConcepts = [
         "Implementation Details",
@@ -775,19 +856,23 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         "Common Pitfalls",
         "Performance Optimization",
         "Real-world Applications",
-        "Advanced Techniques"
+        "Advanced Techniques",
       ];
-      
-      const allConcepts = [...new Set([...relatedConcepts, ...newConcepts])].slice(0, 6);
-      
+
+      const allConcepts = [
+        ...new Set([...relatedConcepts, ...newConcepts]),
+      ].slice(0, 6);
+
       // Extract video info
       const videoId = extractVideoId(frameData.videoUrl);
       const startTime = frameData.startTime || 0;
       const duration = frameData.duration || 300;
-      
+
       const newFrame: AIFrame = {
         id: `frame-${Date.now()}`,
-        title: `Learning: ${frameData.goal.substring(0, 50)}${frameData.goal.length > 50 ? '...' : ''}`,
+        title: `Learning: ${frameData.goal.substring(0, 50)}${
+          frameData.goal.length > 50 ? "..." : ""
+        }`,
         goal: frameData.goal,
         informationText: `
           This frame focuses on: ${frameData.goal}
@@ -813,9 +898,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         aiConcepts: allConcepts,
         isGenerated: true,
         sourceGoal: frameData.goal,
-        sourceUrl: frameData.videoUrl
+        sourceUrl: frameData.videoUrl,
       };
-      
+
       return newFrame;
     } finally {
       setIsGeneratingFrame(false);
@@ -826,35 +911,38 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     if (!newFrameData.goal.trim() || !newFrameData.videoUrl.trim()) {
       return;
     }
-    
+
     try {
       const newFrame = await generateFrameContent(newFrameData);
-      setFrames(prev => [...prev, newFrame]);
+      setFrames((prev) => [...prev, newFrame]);
       setCurrentFrameIndex(frames.length); // Switch to new frame
       setShowCreateFrame(false);
       setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
-      
+
       // Track frame creation
-      pageAnalytics.trackFeatureUsage('frame_creation', {
+      pageAnalytics.trackFeatureUsage("frame_creation", {
         goal_length: newFrameData.goal.length,
         video_url: newFrameData.videoUrl,
         start_time: newFrameData.startTime,
         duration: newFrameData.duration,
         concepts_generated: newFrame.aiConcepts.length,
-        total_frames: frames.length + 1
+        total_frames: frames.length + 1,
       });
-      
+
       // Add success message to chat
-      setChatMessages(prev => [
+      setChatMessages((prev) => [
         ...prev,
-        { 
-          role: 'ai', 
-          content: `✅ Successfully created new frame: "${newFrame.title}"\n\nThis frame was generated based on your goal and existing knowledge base. The AI has identified ${newFrame.aiConcepts.length} related concepts that connect to your learning journey.` 
-        }
+        {
+          role: "ai",
+          content: `✅ Successfully created new frame: "${newFrame.title}"\n\nThis frame was generated based on your goal and existing knowledge base. The AI has identified ${newFrame.aiConcepts.length} related concepts that connect to your learning journey.`,
+        },
       ]);
     } catch (error) {
       console.error("Failed to create frame:", error);
-      pageAnalytics.trackError('frame_creation_failed', error instanceof Error ? error.message : 'Unknown error');
+      pageAnalytics.trackError(
+        "frame_creation_failed",
+        error instanceof Error ? error.message : "Unknown error"
+      );
     }
   };
 
@@ -865,22 +953,26 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   const handleDeleteFrame = (frameId: string) => {
     if (confirm("Are you sure you want to delete this frame?")) {
-      setFrames(prev => prev.filter(f => f.id !== frameId));
+      setFrames((prev) => prev.filter((f) => f.id !== frameId));
       if (currentFrameIndex >= frames.length - 1) {
         setCurrentFrameIndex(Math.max(0, frames.length - 2));
       }
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, frameId: string, index: number) => {
+  const handleDragStart = (
+    e: React.DragEvent,
+    frameId: string,
+    index: number
+  ) => {
     setDraggedFrameId(frameId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', frameId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", frameId);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     setDragOverIndex(index);
   };
 
@@ -889,7 +981,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-    
+
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       setDragOverIndex(null);
     }
@@ -897,10 +989,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    
+
     if (!draggedFrameId) return;
-    
-    const draggedIndex = frames.findIndex(frame => frame.id === draggedFrameId);
+
+    const draggedIndex = frames.findIndex(
+      (frame) => frame.id === draggedFrameId
+    );
     if (draggedIndex === -1 || draggedIndex === dropIndex) {
       setDraggedFrameId(null);
       setDragOverIndex(null);
@@ -913,23 +1007,31 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     newFrames.splice(dropIndex, 0, draggedFrame);
 
     setFrames(newFrames);
-    
+
     // Update current frame index if needed
     if (currentFrameIndex === draggedIndex) {
       setCurrentFrameIndex(dropIndex);
-    } else if (draggedIndex < currentFrameIndex && dropIndex >= currentFrameIndex) {
+    } else if (
+      draggedIndex < currentFrameIndex &&
+      dropIndex >= currentFrameIndex
+    ) {
       setCurrentFrameIndex(currentFrameIndex - 1);
-    } else if (draggedIndex > currentFrameIndex && dropIndex <= currentFrameIndex) {
+    } else if (
+      draggedIndex > currentFrameIndex &&
+      dropIndex <= currentFrameIndex
+    ) {
       setCurrentFrameIndex(currentFrameIndex + 1);
     }
 
     // Add success message to chat
-    setChatMessages(prev => [
+    setChatMessages((prev) => [
       ...prev,
-      { 
-        role: 'ai', 
-        content: `✅ Frame reordered successfully! Frame "${draggedFrame.title}" moved to position ${dropIndex + 1}.` 
-      }
+      {
+        role: "ai",
+        content: `✅ Frame reordered successfully! Frame "${
+          draggedFrame.title
+        }" moved to position ${dropIndex + 1}.`,
+      },
     ]);
 
     setDraggedFrameId(null);
@@ -942,7 +1044,11 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   };
 
   const videoId = extractVideoId(currentFrame.videoUrl);
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=0&controls=1&modestbranding=1&rel=0`;
+  const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${
+    currentFrame.startTime
+  }&end=${
+    currentFrame.startTime + currentFrame.duration
+  }&autoplay=0&controls=1&modestbranding=1&rel=0`;
 
   const nextFrame = () => {
     if (currentFrameIndex < frames.length - 1) {
@@ -952,11 +1058,11 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         setUserHasInteracted(true);
       }
       // Track frame navigation
-      pageAnalytics.trackUserAction('frame_navigation', {
-        direction: 'next',
+      pageAnalytics.trackUserAction("frame_navigation", {
+        direction: "next",
         from_frame: currentFrameIndex,
         to_frame: currentFrameIndex + 1,
-        total_frames: frames.length
+        total_frames: frames.length,
       });
     }
   };
@@ -969,25 +1075,29 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         setUserHasInteracted(true);
       }
       // Track frame navigation
-      pageAnalytics.trackUserAction('frame_navigation', {
-        direction: 'previous',
+      pageAnalytics.trackUserAction("frame_navigation", {
+        direction: "previous",
         from_frame: currentFrameIndex,
         to_frame: currentFrameIndex - 1,
-        total_frames: frames.length
+        total_frames: frames.length,
       });
     }
   };
 
   const handleReplayNarration = async () => {
     if (!currentFrame || !isVoiceEnabled || !ttsReady) return;
-    
+
     try {
       // Reset video to beginning without autoplay
       if (videoRef.current) {
-        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${currentFrame.startTime}&end=${currentFrame.startTime + currentFrame.duration}&autoplay=0&controls=1&modestbranding=1&rel=0`;
+        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${
+          currentFrame.startTime
+        }&end=${
+          currentFrame.startTime + currentFrame.duration
+        }&autoplay=0&controls=1&modestbranding=1&rel=0`;
         videoRef.current.src = resetUrl;
       }
-      
+
       // Start narration (which will auto-play video when complete)
       await narrateFrame(currentFrame);
     } catch (error) {
@@ -996,7 +1106,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen pt-20 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-6">
         <div className="container mx-auto">
@@ -1026,55 +1136,72 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   onCheckedChange={(checked) => {
                     setIsCreationMode(checked);
                     // Track mode switching
-                    pageAnalytics.trackFeatureUsage('mode_switch', {
-                      mode: checked ? 'creation' : 'learning',
+                    pageAnalytics.trackFeatureUsage("mode_switch", {
+                      mode: checked ? "creation" : "learning",
                       current_frame: currentFrameIndex,
-                      total_frames: frames.length
+                      total_frames: frames.length,
                     });
                   }}
                 />
                 <Badge variant={isCreationMode ? "default" : "secondary"}>
-                  {isCreationMode ? <Edit3 className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                  {isCreationMode ? (
+                    <Edit3 className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Eye className="h-3 w-3 mr-1" />
+                  )}
                   {isCreationMode ? "Create" : "Learn"}
                 </Badge>
               </div>
-              
+
               {/* Voice Control - Only in Learn Mode */}
               {!isCreationMode && (
                 <>
                   <Separator orientation="vertical" className="h-8" />
                   <div className="flex items-center gap-3">
-                    <Label htmlFor="voice-toggle" className="text-sm font-medium flex items-center gap-2">
-                      {isVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    <Label
+                      htmlFor="voice-toggle"
+                      className="text-sm font-medium flex items-center gap-2"
+                    >
+                      {isVoiceEnabled ? (
+                        <Volume2 className="h-4 w-4" />
+                      ) : (
+                        <VolumeX className="h-4 w-4" />
+                      )}
                       Voice
                     </Label>
                     <Switch
                       id="voice-toggle"
                       checked={isVoiceEnabled}
-                                onCheckedChange={(checked) => {
-            setIsVoiceEnabled(checked);
-            if (!checked) {
-              stopSpeaking();
-            }
-            // Mark user interaction when toggling voice
-            if (!userHasInteracted) {
-              setUserHasInteracted(true);
-            }
-            // Track voice toggle
-            pageAnalytics.trackFeatureUsage('voice_toggle', {
-              enabled: checked,
-              tts_ready: ttsReady,
-              current_frame: currentFrameIndex
-            });
-          }}
+                      onCheckedChange={(checked) => {
+                        setIsVoiceEnabled(checked);
+                        if (!checked) {
+                          stopSpeaking();
+                        }
+                        // Mark user interaction when toggling voice
+                        if (!userHasInteracted) {
+                          setUserHasInteracted(true);
+                        }
+                        // Track voice toggle
+                        pageAnalytics.trackFeatureUsage("voice_toggle", {
+                          enabled: checked,
+                          tts_ready: ttsReady,
+                          current_frame: currentFrameIndex,
+                        });
+                      }}
                     />
                     {!userHasInteracted && isVoiceEnabled && (
-                      <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-900/20">
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-yellow-50 dark:bg-yellow-900/20"
+                      >
                         Click to enable
                       </Badge>
                     )}
                     {isSpeaking && (
-                      <Badge variant="default" className="bg-green-500 animate-pulse">
+                      <Badge
+                        variant="default"
+                        className="bg-green-500 animate-pulse"
+                      >
                         <Mic className="h-3 w-3 mr-1" />
                         Speaking
                       </Badge>
@@ -1086,7 +1213,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     )}
                     {selectedVoice && (
                       <Badge variant="outline" className="text-xs">
-                        {selectedVoice.name.split(' ')[0]}
+                        {selectedVoice.name.split(" ")[0]}
                       </Badge>
                     )}
                     {isVoiceEnabled && (
@@ -1106,7 +1233,10 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     )}
                     {/* Auto-advance toggle */}
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="auto-advance" className="text-sm font-medium">
+                      <Label
+                        htmlFor="auto-advance"
+                        className="text-sm font-medium"
+                      >
                         Auto-advance
                       </Label>
                       <Switch
@@ -1162,11 +1292,16 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Database className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">Connected to TimeCapsule</span>
+                        <span className="text-sm font-medium">
+                          Connected to TimeCapsule
+                        </span>
                       </div>
                       <div className="text-xs text-slate-600 dark:text-slate-400">
-                        {timeCapsuleData.research?.topics?.length || 0} research topics • 
-                        {vectorStore ? " Knowledge base connected" : " No knowledge base"}
+                        {timeCapsuleData.research?.topics?.length || 0} research
+                        topics •
+                        {vectorStore
+                          ? " Knowledge base connected"
+                          : " No knowledge base"}
                       </div>
                     </div>
                   )}
@@ -1260,11 +1395,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               </CardHeader>
               <CardContent>
                 <div className="prose prose-slate dark:prose-invert max-w-none">
-                  {currentFrame.informationText.split('\n').map((paragraph, index) => (
-                    <p key={index} className="mb-4 leading-relaxed">
-                      {paragraph.trim()}
-                    </p>
-                  ))}
+                  {currentFrame.informationText
+                    .split("\n")
+                    .map((paragraph, index) => (
+                      <p key={index} className="mb-4 leading-relaxed">
+                        {paragraph.trim()}
+                      </p>
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -1289,7 +1426,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 </div>
                 <div className="mt-4 flex items-center justify-between">
                   <div className="text-sm text-slate-600 dark:text-slate-400">
-                    Playing from {formatTime(currentFrame.startTime)} for {formatTime(currentFrame.duration)}
+                    Playing from {formatTime(currentFrame.startTime)} for{" "}
+                    {formatTime(currentFrame.duration)}
                   </div>
                   <div className="flex items-center gap-2">
                     {!isCreationMode && isVoiceEnabled && (
@@ -1374,11 +1512,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               </CardHeader>
               <CardContent>
                 <div className="prose prose-slate dark:prose-invert max-w-none">
-                  {currentFrame.afterVideoText.split('\n').map((paragraph, index) => (
-                    <p key={index} className="mb-4 leading-relaxed">
-                      {paragraph.trim()}
-                    </p>
-                  ))}
+                  {currentFrame.afterVideoText
+                    .split("\n")
+                    .map((paragraph, index) => (
+                      <p key={index} className="mb-4 leading-relaxed">
+                        {paragraph.trim()}
+                      </p>
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -1408,17 +1548,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     <div
                       key={frame.id}
                       className={`relative transition-all duration-200 ${
-                        dragOverIndex === index ? 'transform scale-105 bg-blue-50 dark:bg-blue-900/20 rounded-lg' : ''
-                      } ${
-                        draggedFrameId === frame.id ? 'opacity-50' : ''
-                      }`}
+                        dragOverIndex === index
+                          ? "transform scale-105 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                          : ""
+                      } ${draggedFrameId === frame.id ? "opacity-50" : ""}`}
                       onDragOver={(e) => handleDragOver(e, index)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, index)}
                       onDragEnd={handleDragEnd}
                     >
                       <div
-                        className={`flex items-center gap-2 ${isCreationMode ? 'cursor-move' : ''}`}
+                        className={`flex items-center gap-2 ${
+                          isCreationMode ? "cursor-move" : ""
+                        }`}
                         draggable={isCreationMode}
                         onDragStart={(e) => handleDragStart(e, frame.id, index)}
                       >
@@ -1428,14 +1570,18 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           </div>
                         )}
                         <Button
-                          variant={index === currentFrameIndex ? "default" : "outline"}
+                          variant={
+                            index === currentFrameIndex ? "default" : "outline"
+                          }
                           size="sm"
                           onClick={() => setCurrentFrameIndex(index)}
                           className="flex-1 justify-start text-left h-auto p-3"
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">Frame {index + 1}</span>
+                              <span className="font-medium">
+                                Frame {index + 1}
+                              </span>
                               {frame.isGenerated && (
                                 <Badge variant="secondary" className="text-xs">
                                   <Wand2 className="h-2 w-2 mr-1" />
@@ -1495,10 +1641,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                       </span>
                     </div>
                     <p className="text-sm text-blue-700 dark:text-blue-300 italic">
-                      {currentNarration.length > 150 
+                      {currentNarration.length > 150
                         ? currentNarration.substring(0, 150) + "..."
-                        : currentNarration
-                      }
+                        : currentNarration}
                     </p>
                   </div>
                 )}
@@ -1524,42 +1669,52 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     </div>
                   </div>
                 )}
-                
+
                 <ScrollArea className="flex-1 mb-4">
                   <div className="space-y-4">
                     {chatMessages.length === 0 ? (
                       <div className="text-center text-slate-500 dark:text-slate-400 py-8">
                         <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p className="text-sm">
-                          Ask questions about the content or click on AI concepts to learn more
+                          Ask questions about the content or click on AI
+                          concepts to learn more
                         </p>
                         {timeCapsuleData && (
                           <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
                             Connected to your TimeCapsule knowledge
                           </p>
                         )}
-                        {!isCreationMode && isVoiceEnabled && !userHasInteracted && (
-                          <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
-                            🎙️ Click anywhere to enable voice narration
-                          </p>
-                        )}
-                        {!isCreationMode && isVoiceEnabled && userHasInteracted && (
-                          <p className="text-xs mt-2 text-green-600 dark:text-green-400">
-                            🎙️ Voice narration enabled - Navigate frames to hear explanations
-                          </p>
-                        )}
+                        {!isCreationMode &&
+                          isVoiceEnabled &&
+                          !userHasInteracted && (
+                            <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
+                              🎙️ Click anywhere to enable voice narration
+                            </p>
+                          )}
+                        {!isCreationMode &&
+                          isVoiceEnabled &&
+                          userHasInteracted && (
+                            <p className="text-xs mt-2 text-green-600 dark:text-green-400">
+                              🎙️ Voice narration enabled - Navigate frames to
+                              hear explanations
+                            </p>
+                          )}
                       </div>
                     ) : (
                       chatMessages.map((message, index) => (
                         <div
                           key={index}
-                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`flex ${
+                            message.role === "user"
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
                         >
                           <div
                             className={`max-w-[80%] p-3 rounded-lg ${
-                              message.role === 'user'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                              message.role === "user"
+                                ? "bg-blue-600 text-white"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                             }`}
                           >
                             <div className="text-sm whitespace-pre-wrap">
@@ -1576,7 +1731,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
+                    onKeyPress={(e) => e.key === "Enter" && handleChatSubmit()}
                     placeholder="Ask about the content..."
                     className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
                   />
@@ -1599,7 +1754,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               Create AI Frame
             </DialogTitle>
             <DialogDescription>
-              AI will analyze your goal and TimeCapsule data to create a comprehensive learning frame.
+              AI will analyze your goal and TimeCapsule data to create a
+              comprehensive learning frame.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1608,7 +1764,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               <Textarea
                 id="frame-goal"
                 value={newFrameData.goal}
-                onChange={(e) => setNewFrameData(prev => ({ ...prev, goal: e.target.value }))}
+                onChange={(e) =>
+                  setNewFrameData((prev) => ({ ...prev, goal: e.target.value }))
+                }
                 placeholder="What do you want to learn? (e.g., 'Understanding how neural networks backpropagate gradients')"
                 className="min-h-[80px]"
               />
@@ -1618,7 +1776,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               <Input
                 id="video-url"
                 value={newFrameData.videoUrl}
-                onChange={(e) => setNewFrameData(prev => ({ ...prev, videoUrl: e.target.value }))}
+                onChange={(e) =>
+                  setNewFrameData((prev) => ({
+                    ...prev,
+                    videoUrl: e.target.value,
+                  }))
+                }
                 placeholder="https://youtube.com/watch?v=..."
               />
             </div>
@@ -1629,7 +1792,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   id="start-time"
                   type="number"
                   value={newFrameData.startTime}
-                  onChange={(e) => setNewFrameData(prev => ({ ...prev, startTime: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) =>
+                    setNewFrameData((prev) => ({
+                      ...prev,
+                      startTime: parseInt(e.target.value) || 0,
+                    }))
+                  }
                   placeholder="0"
                 />
               </div>
@@ -1639,28 +1807,45 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   id="duration"
                   type="number"
                   value={newFrameData.duration}
-                  onChange={(e) => setNewFrameData(prev => ({ ...prev, duration: parseInt(e.target.value) || 300 }))}
+                  onChange={(e) =>
+                    setNewFrameData((prev) => ({
+                      ...prev,
+                      duration: parseInt(e.target.value) || 300,
+                    }))
+                  }
                   placeholder="300"
                 />
               </div>
             </div>
             {timeCapsuleData && (
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="text-sm font-medium mb-1">AI will use your TimeCapsule data:</div>
+                <div className="text-sm font-medium mb-1">
+                  AI will use your TimeCapsule data:
+                </div>
                 <div className="text-xs text-slate-600 dark:text-slate-400">
-                  • {timeCapsuleData.research?.topics?.length || 0} research topics
-                  • {vectorStore ? "Knowledge base documents" : "No knowledge base"}
+                  • {timeCapsuleData.research?.topics?.length || 0} research
+                  topics •{" "}
+                  {vectorStore
+                    ? "Knowledge base documents"
+                    : "No knowledge base"}
                   • Existing frame concepts for relationship mapping
                 </div>
               </div>
             )}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowCreateFrame(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateFrame(false)}
+              >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreateFrame}
-                disabled={isGeneratingFrame || !newFrameData.goal.trim() || !newFrameData.videoUrl.trim()}
+                disabled={
+                  isGeneratingFrame ||
+                  !newFrameData.goal.trim() ||
+                  !newFrameData.videoUrl.trim()
+                }
               >
                 {isGeneratingFrame ? (
                   <>
@@ -1688,7 +1873,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               Voice Settings
             </DialogTitle>
             <DialogDescription>
-              Choose your preferred voice and adjust speech settings for optimal learning experience.
+              Choose your preferred voice and adjust speech settings for optimal
+              learning experience.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
@@ -1698,7 +1884,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               <ScrollArea className="h-32 border rounded-lg p-3">
                 <div className="space-y-2">
                   {availableVoices
-                    .filter(voice => voice.lang.startsWith('en'))
+                    .filter((voice) => voice.lang.startsWith("en"))
                     .sort((a, b) => {
                       const aQuality = getVoiceQuality(a);
                       const bQuality = getVoiceQuality(b);
@@ -1710,26 +1896,33 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                         key={index}
                         className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
                           selectedVoice?.name === voice.name
-                            ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-600'
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? "bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-600"
+                            : "hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                         onClick={() => setSelectedVoice(voice)}
                       >
                         <div className="flex-1">
-                          <div className="font-medium text-sm">{voice.name}</div>
+                          <div className="font-medium text-sm">
+                            {voice.name}
+                          </div>
                           <div className="text-xs text-slate-600 dark:text-slate-400">
-                            {voice.lang} • {voice.localService ? 'Local' : 'Network'}
+                            {voice.lang} •{" "}
+                            {voice.localService ? "Local" : "Network"}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge
-                            variant={getVoiceQuality(voice) === 'premium' ? 'default' : 'outline'}
+                            variant={
+                              getVoiceQuality(voice) === "premium"
+                                ? "default"
+                                : "outline"
+                            }
                             className={
-                              getVoiceQuality(voice) === 'premium'
-                                ? 'bg-green-500'
-                                : getVoiceQuality(voice) === 'good'
-                                ? 'bg-yellow-500'
-                                : 'bg-gray-500'
+                              getVoiceQuality(voice) === "premium"
+                                ? "bg-green-500"
+                                : getVoiceQuality(voice) === "good"
+                                ? "bg-yellow-500"
+                                : "bg-gray-500"
                             }
                           >
                             {getVoiceQuality(voice)}
@@ -1739,7 +1932,10 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const testUtterance = new SpeechSynthesisUtterance("Hello, this is a test of this voice.");
+                              const testUtterance =
+                                new SpeechSynthesisUtterance(
+                                  "Hello, this is a test of this voice."
+                                );
                               testUtterance.voice = voice;
                               testUtterance.rate = voiceSettings.rate;
                               testUtterance.pitch = voiceSettings.pitch;
@@ -1771,7 +1967,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     max="2"
                     step="0.1"
                     value={voiceSettings.rate}
-                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                    onChange={(e) =>
+                      setVoiceSettings((prev) => ({
+                        ...prev,
+                        rate: parseFloat(e.target.value),
+                      }))
+                    }
                     className="w-full"
                   />
                 </div>
@@ -1786,7 +1987,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     max="2"
                     step="0.1"
                     value={voiceSettings.pitch}
-                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                    onChange={(e) =>
+                      setVoiceSettings((prev) => ({
+                        ...prev,
+                        pitch: parseFloat(e.target.value),
+                      }))
+                    }
                     className="w-full"
                   />
                 </div>
@@ -1801,7 +2007,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     max="1"
                     step="0.1"
                     value={voiceSettings.volume}
-                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, volume: parseFloat(e.target.value) }))}
+                    onChange={(e) =>
+                      setVoiceSettings((prev) => ({
+                        ...prev,
+                        volume: parseFloat(e.target.value),
+                      }))
+                    }
                     className="w-full"
                   />
                 </div>
@@ -1815,7 +2026,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const testText = "Hello! This is how I will sound when narrating your AI-Frames learning content. The speed, pitch, and volume are all adjustable to match your preferences.";
+                    const testText =
+                      "Hello! This is how I will sound when narrating your AI-Frames learning content. The speed, pitch, and volume are all adjustable to match your preferences.";
                     speakText(testText);
                   }}
                   disabled={isSpeaking}
@@ -1838,16 +2050,30 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
             {/* Voice Quality Info */}
             <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-              <div className="text-sm font-medium mb-2">Voice Quality Guide:</div>
+              <div className="text-sm font-medium mb-2">
+                Voice Quality Guide:
+              </div>
               <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                <div><Badge className="bg-green-500 text-xs mr-2">Premium</Badge>Neural voices (Microsoft, Google) - Most natural sounding</div>
-                <div><Badge className="bg-yellow-500 text-xs mr-2">Good</Badge>System voices (Alex, Samantha) - Clear and pleasant</div>
-                <div><Badge className="bg-gray-500 text-xs mr-2">Basic</Badge>Default voices - Functional but robotic</div>
+                <div>
+                  <Badge className="bg-green-500 text-xs mr-2">Premium</Badge>
+                  Neural voices (Microsoft, Google) - Most natural sounding
+                </div>
+                <div>
+                  <Badge className="bg-yellow-500 text-xs mr-2">Good</Badge>
+                  System voices (Alex, Samantha) - Clear and pleasant
+                </div>
+                <div>
+                  <Badge className="bg-gray-500 text-xs mr-2">Basic</Badge>
+                  Default voices - Functional but robotic
+                </div>
               </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowVoiceSettings(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowVoiceSettings(false)}
+            >
               Close
             </Button>
           </div>
@@ -1855,4 +2081,4 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       </Dialog>
     </div>
   );
-} 
+}

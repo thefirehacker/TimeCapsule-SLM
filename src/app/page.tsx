@@ -8,11 +8,10 @@ import { usePageAnalytics } from "@/components/analytics/Analytics";
 
 export default function Home() {
   // Initialize page analytics for Homepage
-  const analytics = usePageAnalytics('Homepage', 'landing');
+  const analytics = usePageAnalytics("Homepage", "landing");
 
   return (
     <div className="min-h-screen">
-      <Navbar />
       <HeroSection />
       <FeaturesSection />
       <GitHubSection />
