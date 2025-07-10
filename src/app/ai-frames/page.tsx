@@ -138,7 +138,7 @@ export default function AIFramesPage() {
   } = useVectorStore();
 
   // Mode state
-  const [isCreationMode, setIsCreationMode] = useState(false);
+  const [isCreationMode, setIsCreationMode] = useState(true);
   const [showCreationForm, setShowCreationForm] = useState(false);
   
   // NEW: Graph view state
