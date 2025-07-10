@@ -7,13 +7,17 @@ import { DragItem } from "./types";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, nodeType: DragItem["nodeType"]) => void;
+  mode?: "creator" | "learner";
 }
 
-export default function Sidebar({ onDragStart }: SidebarProps) {
+export default function Sidebar({ onDragStart, mode = "creator" }: SidebarProps) {
   const nodeTypes: DragItem[] = [
     { nodeType: "youtube", label: "YouTube Video" },
     { nodeType: "pdf", label: "PDF Document" },
     { nodeType: "text", label: "Text Note" },
+    { nodeType: "aiframe", label: "AI Frame" },
+    { nodeType: "concept", label: "Concept" },
+    { nodeType: "chapter", label: "Chapter" },
   ];
 
   const getNodeIcon = (nodeType: DragItem["nodeType"]) => {
@@ -38,6 +42,27 @@ export default function Sidebar({ onDragStart }: SidebarProps) {
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM16 18H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
           </svg>
         );
+      case "aiframe":
+        return (
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
+            <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z" />
+          </svg>
+        );
+      case "concept":
+        return (
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        );
+      case "chapter":
+        return (
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
+          </svg>
+        );
+      default:
+        return null;
     }
   };
 
@@ -49,6 +74,14 @@ export default function Sidebar({ onDragStart }: SidebarProps) {
         return "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200";
       case "text":
         return "text-green-600 bg-green-50 hover:bg-green-100 border-green-200";
+      case "aiframe":
+        return "text-purple-600 bg-purple-50 hover:bg-purple-100 border-purple-200";
+      case "concept":
+        return "text-yellow-600 bg-yellow-50 hover:bg-yellow-100 border-yellow-200";
+      case "chapter":
+        return "text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-200";
+      default:
+        return "text-gray-600 bg-gray-50 hover:bg-gray-100 border-gray-200";
     }
   };
 

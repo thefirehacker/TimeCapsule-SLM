@@ -47,12 +47,16 @@ import {
   VolumeX,
   Mic,
   Sliders,
+  Network,
 } from "lucide-react";
 
 // Import DeepResearch components and types
 import { DeepResearchApp } from "../../components/DeepResearch/DeepResearchApp";
 import { VectorStore } from "../../components/VectorStore/VectorStore";
 import { usePageAnalytics } from "@/components/analytics/Analytics";
+
+// Import Graph Integration
+import { FrameGraphIntegration } from "@/components/ai-graphs";
 
 interface AIFrame {
   id: string;
@@ -154,6 +158,9 @@ export default function AIFramesPage() {
 
   // Mode state
   const [isCreationMode, setIsCreationMode] = useState(false);
+  
+  // NEW: Graph view state
+  const [showGraphView, setShowGraphView] = useState(false);
 
   // Frame state
   const [frames, setFrames] = useState<AIFrame[]>(hardcodedFrames);
@@ -1153,6 +1160,34 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 </Badge>
               </div>
 
+              {/* NEW: Graph View Toggle */}
+              <div className="flex items-center gap-3">
+                <Label htmlFor="graph-toggle" className="text-sm font-medium">
+                  Graph View
+                </Label>
+                <Switch
+                  id="graph-toggle"
+                  checked={showGraphView}
+                  onCheckedChange={(checked) => {
+                    setShowGraphView(checked);
+                    // Track graph view toggle
+                    pageAnalytics.trackFeatureUsage("graph_view_toggle", {
+                      enabled: checked,
+                      mode: isCreationMode ? "creation" : "learning",
+                      current_frame: currentFrameIndex,
+                    });
+                  }}
+                />
+                <Badge variant={showGraphView ? "default" : "secondary"}>
+                  {showGraphView ? (
+                    <Network className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Database className="h-3 w-3 mr-1" />
+                  )}
+                  {showGraphView ? "Graph" : "Linear"}
+                </Badge>
+              </div>
+
               {/* Voice Control - Only in Learn Mode */}
               {!isCreationMode && (
                 <>
@@ -1265,7 +1300,20 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       </div>
 
       <div className="container mx-auto p-6">
-        <div className="grid lg:grid-cols-3 gap-6">
+        {/* NEW: Conditional rendering based on graph view */}
+        {showGraphView ? (
+          /* Graph View */
+          <FrameGraphIntegration
+            frames={frames}
+            onFramesChange={setFrames}
+            isCreationMode={isCreationMode}
+            currentFrameIndex={currentFrameIndex}
+            onFrameIndexChange={setCurrentFrameIndex}
+            onCreateFrame={() => setShowCreateFrame(true)}
+          />
+        ) : (
+          /* Traditional Linear View */
+          <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Creation Mode Panel */}
@@ -1743,6 +1791,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             </Card>
           </div>
         </div>
+        )}
       </div>
 
       {/* Create Frame Modal */}

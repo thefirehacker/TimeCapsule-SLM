@@ -1,73 +1,104 @@
-# AI Learning Graph
+# AI-Graphs Components
 
-A React Flow-based interactive learning graph that allows users to create visual connections between different learning resources.
+This directory contains the React Flow-based graph components for learning experiences.
+
+## Components
+
+### Core Components
+- **LearningGraph**: Main graph component with drag-and-drop node creation
+- **YouTubeNode**: Node for YouTube video content
+- **PDFNode**: Node for PDF document content  
+- **TextNode**: Node for text notes
+- **AIFrameNode**: Node for AI Frame content (NEW)
+- **ConceptNode**: Node for AI concepts (NEW)
+- **ChapterNode**: Node for chapter organization (NEW)
+- **Sidebar**: Draggable component palette
+- **FrameGraphIntegration**: Integration component for AI-Frames (NEW)
+
+### AI-Frames Integration
+
+The new integration allows users to:
+- **Graph-based Frame Creation**: Create AI frames by dropping nodes in graph view
+- **Sequential Flow**: Enforce one-to-one connections between frames
+- **Concept Visualization**: Show AI concepts as side nodes connected to frames
+- **Chapter Organization**: Automatically organize frames into chapters
+- **Dual Interface**: Toggle between traditional linear view and graph view
+- **Bidirectional Sync**: Changes in graph reflect in frame list and vice versa
+
+## Usage in AI-Frames
+
+```tsx
+import { FrameGraphIntegration } from "@/components/ai-graphs";
+
+// In your AI-Frames component
+<FrameGraphIntegration
+  frames={frames}
+  onFramesChange={setFrames}
+  isCreationMode={isCreationMode}
+  currentFrameIndex={currentFrameIndex}
+  onFrameIndexChange={setCurrentFrameIndex}
+  onCreateFrame={() => setShowCreateFrame(true)}
+/>
+```
 
 ## Features
 
-- **Drag and Drop Interface**: Drag nodes from the sidebar to the canvas
-- **Three Node Types**:
-  - **YouTube Video**: Store video URL, timestamp, and notes
-  - **PDF Document**: Store PDF URL, page ranges, and notes
-  - **Text Note**: Store plain text content
-- **Interactive Connections**: Connect nodes to show relationships
-- **Visual Canvas**: Clean, modern interface with background patterns
-- **Zoom and Pan**: Full canvas navigation with minimap
-- **Real-time Editing**: Edit node content directly on the canvas
+### Sequential Graph System
+- Only one connection allowed per node (linear sequence)
+- Automatic concept node generation from frame AI concepts
+- Chapter auto-organization based on concept similarity
 
-## Usage
+### Creator Mode
+- Drag nodes to create frames
+- Edit node content inline
+- Organize frames into chapters
+- Visual structure overview
 
-1. **Adding Nodes**: Drag any node type from the left sidebar to the canvas
-2. **Editing Content**: Click on any input field within a node to edit its content
-3. **Connecting Nodes**: Drag from one node's connection point to another to create relationships
-4. **Navigation**: Use mouse wheel to zoom, drag to pan, or use the controls panel
+### Learning Mode
+- Follow sequential path through frames
+- Visual progress tracking
+- Concept relationship exploration
+- Chapter-based navigation
 
 ## Node Types
 
-### YouTube Node (Red)
+### AI Frame Node
+- Represents a complete AI frame with video, goal, and concepts
+- Editable title, goal, video URL, start time, duration
+- Shows associated AI concepts as badges
+- Connects to concept nodes automatically
 
-- **Video URL**: Full YouTube video URL
-- **Timestamp**: Specific time reference (e.g., "1:23:45")
-- **Notes**: Additional context or comments
+### Concept Node
+- Represents an AI concept from a frame
+- Shows concept name and description
+- Connected to parent frame with yellow connector
+- Positioned as side nodes for clarity
 
-### PDF Node (Blue)
+### Chapter Node
+- Groups related frames together
+- Shows frame count and chapter description
+- Auto-generated based on concept similarity
+- Green color scheme for easy identification
 
-- **PDF URL**: Link to the PDF document
-- **Pages**: Specific page references (e.g., "1-10" or "5,8,12")
-- **Notes**: Additional context or comments
+## Sequential Flow Rules
 
-### Text Node (Green)
+1. **One Output Per Node**: Each frame can only connect to one next frame
+2. **Linear Progression**: No branching or complex paths allowed
+3. **Concept Side-Chains**: Concepts branch off but don't continue the main flow
+4. **Chapter Grouping**: Visual grouping without breaking linear flow
 
-- **Content**: Free-form text content for notes, ideas, or summaries
+## Integration Points
 
-## Technical Details
+- **Frame Creation**: Graph nodes sync with frame creation tools
+- **Chapter Management**: Automatic chapter organization with manual override
+- **Concept Mapping**: AI concepts become visual nodes
+- **Progress Tracking**: Current frame highlighted in both views
+- **Export/Import**: Graph structure saved with TimeCapsule data
 
-Built with:
+## Styling
 
-- **@xyflow/react**: For the flow diagram functionality
-- **React**: Component-based architecture
-- **TypeScript**: Type safety and better development experience
-- **Tailwind CSS**: Styling and responsive design
-- **Shadcn/ui**: UI component library
-
-## File Structure
-
-```
-src/components/ai-graphs/
-├── LearningGraph.tsx    # Main component with React Flow
-├── Sidebar.tsx          # Draggable node sidebar
-├── YouTubeNode.tsx      # YouTube video node component
-├── PDFNode.tsx          # PDF document node component
-├── TextNode.tsx         # Text note node component
-├── types.ts             # TypeScript type definitions
-├── index.ts             # Component exports
-└── README.md            # This documentation
-```
-
-## Future Enhancements
-
-- Save/load graph configurations
-- Export graphs as images or PDFs
-- Advanced node types (websites, books, courses)
-- Collaborative editing
-- AI-powered content suggestions
-- Integration with external learning platforms
+- **AI Frames**: Purple theme (#8b5cf6)
+- **Concepts**: Yellow theme (#f59e0b)  
+- **Chapters**: Green theme (#10b981)
+- **Connections**: Blue connectors (#3b82f6) for sequential flow
+- **Concept Links**: Yellow connectors (#fbbf24) for concept relationships
