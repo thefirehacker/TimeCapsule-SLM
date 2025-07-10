@@ -1,8 +1,7 @@
-// Document Processing Worker
-// This worker handles document chunking and embedding generation
+// Text Processing Worker - Handles text chunking and processing only
+// Embeddings are handled in main thread via EmbeddingService for better reliability
 
 let isInitialized = false;
-let embeddingModel = null;
 
 // Worker message handler
 self.onmessage = async function(e) {
@@ -21,22 +20,31 @@ self.onmessage = async function(e) {
         }
         
         const result = await processDocument(data);
-        self.postMessage({ type: 'document_processed', data: result, id });
+        self.postMessage({ 
+          type: 'document_processed', 
+          data: result, 
+          id 
+        });
         break;
         
-      case 'generate_embedding':
+      case 'chunk_text':
         if (!isInitialized) {
           throw new Error('Worker not initialized');
         }
         
-        const embedding = await generateEmbedding(data.text);
-        self.postMessage({ type: 'embedding_generated', data: embedding, id });
+        const chunks = await chunkText(data.text, data.options || {});
+        self.postMessage({ 
+          type: 'text_chunked', 
+          data: chunks, 
+          id 
+        });
         break;
         
       default:
         throw new Error(`Unknown message type: ${type}`);
     }
   } catch (error) {
+    console.error('❌ Worker error:', error);
     self.postMessage({ 
       type: 'error', 
       error: error.message, 
@@ -45,111 +53,153 @@ self.onmessage = async function(e) {
   }
 };
 
-// Initialize the worker
+// Initialize the worker (lightweight - no ML libraries)
 async function initialize() {
   try {
-    // Report progress
-    self.postMessage({ type: 'progress', data: { status: 'loading_model' } });
-    
-    // In a real implementation, you would load the embedding model here
-    // For now, we'll simulate the initialization
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    isInitialized = true;
-    console.log('✅ Worker initialized successfully');
-    
-    self.postMessage({ type: 'progress', data: { status: 'ready' } });
-  } catch (error) {
-    console.error('❌ Worker initialization failed:', error);
-    throw error;
-  }
-}
-
-// Process document into chunks
-async function processDocument(documentData) {
-  const { content, title, metadata } = documentData;
-  
-  // Simple text chunking (in production, use more sophisticated chunking)
-  const chunks = simpleChunk(content);
-  
-  // Generate embeddings for each chunk (simulated for now)
-  const processedChunks = [];
-  
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+    console.log('🔧 Initializing text processing worker...');
     
     // Report progress
     self.postMessage({ 
       type: 'progress', 
       data: { 
-        status: 'processing',
-        current: i + 1,
-        total: chunks.length
+        status: 'initializing',
+        message: 'Initializing text processing...',
+        progress: 50
       } 
     });
     
-    // Generate embedding (simulated)
-    const embedding = await generateEmbedding(chunk);
+    isInitialized = true;
     
-    processedChunks.push({
-      index: i,
-      content: chunk,
-      embedding: embedding,
-      wordCount: chunk.split(' ').length
+    console.log('✅ Text processing worker initialized successfully');
+    
+    self.postMessage({ 
+      type: 'progress', 
+      data: { 
+        status: 'ready',
+        message: 'Text processing ready',
+        progress: 100
+      } 
     });
+    
+  } catch (error) {
+    console.error('❌ Worker initialization failed:', error);
+    throw new Error('Failed to initialize text processing worker');
   }
+}
+
+// Process document - chunking only (no embeddings)
+async function processDocument(documentData) {
+  console.log(`📄 Processing document: ${documentData.title}`);
+  console.log(`📊 Document stats: ${documentData.content.length} characters, ${documentData.content.split(/\s+/).length} words`);
   
+  const startTime = Date.now();
+  
+  // Report progress
+  self.postMessage({ 
+    type: 'progress', 
+    data: { 
+      status: 'chunking',
+      message: 'Breaking document into chunks...',
+      progress: 25
+    } 
+  });
+  
+  // Chunk the document text using word-based chunking
+  const chunks = await chunkText(documentData.content, {
+    wordsPerChunk: 500,
+    maxChunks: 50
+  });
+  
+  self.postMessage({ 
+    type: 'progress', 
+    data: { 
+      status: 'processing',
+      message: `Processed ${chunks.length} text chunks`,
+      progress: 75
+    } 
+  });
+  
+  const processingTime = Date.now() - startTime;
+  console.log(`✅ Document chunked in ${processingTime}ms: ${chunks.length} chunks`);
+  
+  // Return processed document (without embeddings)
   return {
     id: documentData.id,
-    title: title,
-    metadata: metadata,
-    chunks: processedChunks,
-    totalChunks: processedChunks.length
+    title: documentData.title,
+    content: documentData.content,
+    metadata: documentData.metadata,
+    chunks: chunks,
+    processingTime: processingTime
   };
 }
 
-// Simple text chunking function
-function simpleChunk(text) {
-  const maxChunkSize = 500; // words
-  const words = text.split(' ');
+// Chunk text into smaller pieces - Word-based chunking with memory safety
+async function chunkText(text, options = {}) {
+  const wordsPerChunk = options.wordsPerChunk || 500;
+  const maxChunks = options.maxChunks || 50;
+  
+  console.log(`📝 Chunking text: ${text.length} characters`);
+  
+  // Split text into words
+  const words = text.split(/\s+/).filter(word => word.length > 0);
+  console.log(`📊 Total words: ${words.length}`);
+  
   const chunks = [];
+  let chunkIndex = 0;
+  const totalPossibleChunks = Math.min(Math.ceil(words.length / wordsPerChunk), maxChunks);
   
-  for (let i = 0; i < words.length; i += maxChunkSize) {
-    chunks.push(words.slice(i, i + maxChunkSize).join(' '));
+  // Create word-based chunks with progress reporting
+  for (let i = 0; i < words.length; i += wordsPerChunk) {
+    // Safety check - enforce maximum chunks limit
+    if (chunkIndex >= maxChunks) {
+      console.warn(`⚠️ Reached maximum chunk limit (${maxChunks}), truncating document`);
+      break;
+    }
+    
+    const chunkWords = words.slice(i, i + wordsPerChunk);
+    const chunkContent = chunkWords.join(' ');
+    
+    // Calculate character positions for compatibility
+    const allWordsBeforeChunk = words.slice(0, i);
+    const startIndex = allWordsBeforeChunk.join(' ').length + (allWordsBeforeChunk.length > 0 ? 1 : 0);
+    const endIndex = startIndex + chunkContent.length;
+    
+    chunks.push({
+      index: chunkIndex,
+      content: chunkContent.trim(),
+      startIndex: startIndex,
+      endIndex: endIndex,
+      wordCount: chunkWords.length
+    });
+    
+    chunkIndex++;
+    
+    // Report progress during chunking (25% to 75% range)
+    const progress = Math.round(25 + (chunkIndex / totalPossibleChunks) * 50);
+    self.postMessage({ 
+      type: 'progress', 
+      data: { 
+        status: 'chunking',
+        message: `Processing chunk ${chunkIndex}/${totalPossibleChunks}...`,
+        progress: progress
+      } 
+    });
   }
   
-  return chunks.length > 0 ? chunks : [text];
-}
-
-// Generate embedding for text (simulated)
-async function generateEmbedding(text) {
-  // In a real implementation, this would use a proper embedding model
-  // For now, we'll return a simulated embedding vector
+  console.log(`✅ Created ${chunks.length} word-based chunks (${wordsPerChunk} words per chunk, max ${maxChunks} chunks)`);
   
-  // Simulate processing time
-  await new Promise(resolve => setTimeout(resolve, 10));
-  
-  // Generate a simple hash-based embedding (not suitable for production)
-  const embedding = [];
-  const dimension = 384; // Common embedding dimension
-  
-  // Simple hash function to generate consistent embeddings
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    const char = text.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+  // Return at least one chunk even if text is empty
+  if (chunks.length === 0) {
+    chunks.push({
+      index: 0,
+      content: text.trim(),
+      startIndex: 0,
+      endIndex: text.length,
+      wordCount: words.length
+    });
   }
   
-  // Generate embedding vector based on hash
-  for (let i = 0; i < dimension; i++) {
-    const value = Math.sin(hash * (i + 1) * 0.1) * 0.5;
-    embedding.push(value);
-  }
-  
-  // Normalize the embedding
-  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-  return embedding.map(val => val / magnitude);
+  return chunks;
 }
 
 // Error handling
@@ -161,4 +211,4 @@ self.onerror = function(error) {
   });
 };
 
-console.log('🔧 Document processing worker loaded'); 
+console.log('🔧 Text processing worker loaded successfully'); 

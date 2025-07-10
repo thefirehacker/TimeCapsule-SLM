@@ -254,7 +254,7 @@ export class DeepResearchApp {
 
   private async initializeVectorStoreAsync() {
     try {
-      console.log("📊 Starting background VectorStore initialization...");
+      console.log("📊 Starting immediate VectorStore initialization with background Xenova download...");
       this.updateStatus("📊 Loading document processing capabilities...");
       this.isVectorStoreLoading = true;
       this.setIsVectorStoreLoading?.(true);
@@ -267,46 +267,241 @@ export class DeepResearchApp {
       ) {
         console.log("🔗 Using existing shared VectorStore instance");
         this.vectorStore = (window as any).sharedVectorStore;
-        this.updateStatus("✅ Document processing ready");
+        
+        // Check if Xenova is still downloading
+        if ((this.vectorStore as any).downloadStatus === 'downloading') {
+          this.updateStatus("🧠 Xenova AI models downloading in background...");
+          this.monitorXenovaDownloadProgress();
+        } else if ((this.vectorStore as any).downloadStatus === 'ready') {
+          this.updateStatus("✅ Document processing ready - All features available");
+        } else {
+          this.updateStatus("✅ Document processing ready - Upload documents to enhance research");
+        }
+        
         this.updateDocumentStatus();
         this.isVectorStoreLoading = false;
         this.setIsVectorStoreLoading?.(false);
+        
+        // After VectorStore is ready, sync AI-Frames data to KB
+        await this.syncAIFramesToKB();
         return;
       }
 
-      // Create new VectorStore instance (this downloads embeddings)
-      console.log(
-        "🆕 Creating new VectorStore instance - downloading embeddings..."
-      );
-      this.updateStatus(
-        "⬇️ Downloading AI embeddings model (first time only)..."
-      );
+      // Create new VectorStore instance with immediate Xenova download
+      console.log("🆕 Creating new VectorStore instance with immediate background download...");
+      this.updateStatus("🧠 Starting AI model download (background, page ready immediately)...");
 
       this.vectorStore = new VectorStore();
       await this.vectorStore.init();
 
-      // Make it available globally (only in browser)
+      // Monitor download progress after initialization
+      this.monitorXenovaDownloadProgress();
+
+      // Make it available globally (only in browser) with enhanced persistence
       if (typeof window !== "undefined") {
         (window as any).sharedVectorStore = this.vectorStore;
+        
+        // Add event listener to maintain VectorStore across page navigation
+        const handleBeforeUnload = () => {
+          console.log("🔄 Page navigation detected, persisting VectorStore state...");
+          // VectorStore will persist in IndexedDB automatically
+        };
+        
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        // Store reference for cleanup
+        (window as any).sharedVectorStoreCleanup = () => {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
       }
 
-      console.log("✅ VectorStore background initialization complete");
-      this.updateStatus(
-        "✅ Document processing ready - Upload documents to enhance research"
-      );
+      console.log("✅ VectorStore initialization complete, monitoring background download");
       this.updateDocumentStatus();
       this.isVectorStoreLoading = false;
       this.setIsVectorStoreLoading?.(false);
+      
+      // After VectorStore is ready, sync AI-Frames data to KB
+      await this.syncAIFramesToKB();
+      
     } catch (error) {
-      console.error("❌ VectorStore background initialization failed:", error);
-      this.updateStatus(
-        "⚠️ Document processing unavailable - Research still works without documents"
-      );
-      this.vectorStore = null;
+      console.error("❌ VectorStore initialization failed:", error);
+      this.updateStatus("❌ Document processing initialization failed");
       this.isVectorStoreLoading = false;
       this.setIsVectorStoreLoading?.(false);
-      // Don't block the app - continue without vector store
     }
+  }
+
+  // Monitor Xenova download progress
+  private monitorXenovaDownloadProgress() {
+    if (!this.vectorStore) return;
+
+    const checkProgress = () => {
+      const downloadStatus = (this.vectorStore as any).downloadStatus;
+      const downloadProgress = (this.vectorStore as any).downloadProgress || 0;
+      const downloadError = (this.vectorStore as any).downloadError;
+
+      switch (downloadStatus) {
+        case 'downloading':
+          this.updateStatus(`🧠 AI models downloading: ${downloadProgress}% (background process)`);
+          setTimeout(checkProgress, 2000); // Check every 2 seconds
+          break;
+          
+        case 'ready':
+          this.updateStatus("✅ AI models ready - Full document processing and search available");
+          console.log("🎉 Xenova download completed successfully");
+          break;
+          
+        case 'error':
+          this.updateStatus("⚠️ AI model download failed - Basic document management still available");
+          console.error("❌ Xenova download error:", downloadError);
+          break;
+          
+        default:
+          // Keep checking if status is unclear
+          setTimeout(checkProgress, 1000);
+      }
+    };
+
+    // Start monitoring
+    setTimeout(checkProgress, 1000);
+  }
+
+  // Sync AI-Frames data to Knowledge Base
+  private async syncAIFramesToKB() {
+    if (!this.vectorStore) {
+      console.log("⚠️ VectorStore not available, skipping AI-Frames sync");
+      return;
+    }
+
+    try {
+      console.log("🔄 Checking for AI-Frames data to sync with Knowledge Base...");
+      
+      // Check localStorage for AI-Frames data
+      const aiFramesData = localStorage.getItem('aiFramesData');
+      if (!aiFramesData) {
+        console.log("ℹ️ No AI-Frames data found to sync");
+        return;
+      }
+
+      const parsedData = JSON.parse(aiFramesData);
+      if (!parsedData || !parsedData.nodes || parsedData.nodes.length === 0) {
+        console.log("ℹ️ AI-Frames data is empty, nothing to sync");
+        return;
+      }
+
+      console.log(`📊 Found ${parsedData.nodes.length} AI-Frames nodes to sync`);
+      this.updateStatus(`🔄 Syncing ${parsedData.nodes.length} AI-Frames to Knowledge Base...`);
+
+      let syncedCount = 0;
+      const totalNodes = parsedData.nodes.length;
+
+      for (const node of parsedData.nodes) {
+        try {
+          // Skip empty nodes
+          if (!node.data || !node.data.content) continue;
+
+          // Create document title based on node type
+          const title = node.data.title || 
+                       `${node.type} - ${node.data.subject || 'Untitled'}` || 
+                       `AI-Frame Node ${node.id}`;
+
+          // Create document content
+          const content = node.data.content || node.data.description || '';
+          if (!content.trim()) continue;
+
+          // Check if this AI-Frame is already in the KB (by checking for existing doc with same aiFrameId)
+          const existingDocs = await this.vectorStore.getAllDocuments();
+          const existingDoc = existingDocs.find(doc => 
+            doc.metadata.source === 'ai-frames' && 
+            (doc.metadata as any).aiFrameId === node.id
+          );
+
+          if (existingDoc) {
+            console.log(`⚠️ AI-Frame ${node.id} already exists in KB, skipping`);
+            continue;
+          }
+
+          // Add to Knowledge Base
+          await this.vectorStore.addGeneratedDocument(
+            title,
+            content,
+            (progress) => {
+              this.updateStatus(`🔄 Syncing AI-Frame ${syncedCount + 1}/${totalNodes}: ${progress.message}`);
+            }
+          );
+
+          // Update the document metadata to mark it as from AI-Frames
+          const allDocs = await this.vectorStore.getAllDocuments();
+          const newDoc = allDocs.find(doc => doc.title === title);
+          if (newDoc) {
+            (newDoc.metadata as any).source = 'ai-frames';
+            (newDoc.metadata as any).aiFrameId = node.id;
+            (newDoc.metadata as any).aiFrameType = node.type;
+            await this.vectorStore.insertDocument(newDoc);
+          }
+
+          syncedCount++;
+          console.log(`✅ Synced AI-Frame: ${title}`);
+
+        } catch (nodeError) {
+          console.warn(`⚠️ Failed to sync AI-Frame node ${node.id}:`, nodeError);
+        }
+      }
+
+      if (syncedCount > 0) {
+        this.updateStatus(`✅ Successfully synced ${syncedCount} AI-Frames to Knowledge Base`);
+        this.updateDocumentStatus();
+        
+        // Set up periodic sync to keep AI-Frames and KB in sync
+        this.setupAIFramesSync();
+      } else {
+        this.updateStatus("ℹ️ AI-Frames data already synced with Knowledge Base");
+      }
+
+    } catch (error) {
+      console.error("❌ Failed to sync AI-Frames to KB:", error);
+      this.updateStatus("❌ Failed to sync AI-Frames to Knowledge Base");
+    }
+  }
+
+  // Set up periodic sync to keep AI-Frames and KB in sync
+  private setupAIFramesSync() {
+    if (typeof window === "undefined") return;
+
+    // Check if sync is already set up
+    if ((window as any).aiFramesSyncSetup) {
+      console.log("🔄 AI-Frames sync already set up");
+      return;
+    }
+
+    // Set up storage event listener to detect AI-Frames changes
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'aiFramesData' && event.newValue) {
+        console.log("🔄 AI-Frames data changed, syncing to Knowledge Base...");
+        this.syncAIFramesToKB();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Set up periodic sync (every 30 seconds)
+    const syncInterval = setInterval(async () => {
+      if (this.vectorStore && this.vectorStore.initialized) {
+        await this.syncAIFramesToKB();
+      }
+    }, 30000); // 30 seconds
+
+    // Store cleanup function
+    (window as any).aiFramesSyncCleanup = () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(syncInterval);
+      (window as any).aiFramesSyncSetup = false;
+    };
+
+    // Mark as set up
+    (window as any).aiFramesSyncSetup = true;
+
+    console.log("🔄 AI-Frames sync monitoring established");
   }
 
   // Legacy method - now non-blocking
@@ -664,10 +859,24 @@ export class DeepResearchApp {
       // Step 1: Perform RAG - Search for relevant documents
       let relevantDocuments: any[] = [];
       if (this.vectorStore && !this.isVectorStoreLoading) {
-        this.updateStatus(
-          "🔍 Searching knowledge base for relevant documents..."
-        );
-        relevantDocuments = await this.searchRelevantDocuments(selectedTopics);
+        // Enhanced fallback messaging for RAG search
+        if (this.vectorStore.processingAvailable) {
+          this.updateStatus(
+            "🔍 Searching knowledge base for relevant documents..."
+          );
+          relevantDocuments = await this.searchRelevantDocuments(selectedTopics);
+        } else {
+          const status = this.vectorStore.processingStatus;
+          if (this.vectorStore.downloadStatus === 'downloading') {
+            this.updateStatus(
+              `🧠 ${status} - Generating research without document context for now...`
+            );
+          } else {
+            this.updateStatus(
+              "🔍 Generating research (document search unavailable)..."
+            );
+          }
+        }
       } else {
         console.log(
           "⚠️ VectorStore not ready, generating research without document context"
@@ -1126,6 +1335,19 @@ export class DeepResearchApp {
       return;
     }
 
+    // Enhanced fallback messaging for upload
+    if (!this.vectorStore.processingAvailable) {
+      const status = this.vectorStore.processingStatus;
+      if (this.vectorStore.downloadStatus === 'downloading') {
+        this.updateStatus(`⏳ ${status} - Upload will be available once download completes`);
+      } else if (this.vectorStore.downloadStatus === 'error') {
+        this.updateStatus("❌ AI model download failed - Document upload requires AI processing");
+      } else {
+        this.updateStatus("❌ Document processing not ready - Please wait or refresh the page");
+      }
+      return;
+    }
+
     if (this.isUploading) {
       this.updateStatus("⚠️ Upload already in progress");
       return;
@@ -1427,6 +1649,19 @@ export class DeepResearchApp {
   ) {
     if (!this.vectorStore) {
       this.updateStatus("❌ Vector Store not available");
+      return [];
+    }
+
+    // Enhanced fallback messaging for search
+    if (!this.vectorStore.processingAvailable) {
+      const status = this.vectorStore.processingStatus;
+      if (this.vectorStore.downloadStatus === 'downloading') {
+        this.updateStatus(`⏳ ${status} - Search will be available once download completes`);
+      } else if (this.vectorStore.downloadStatus === 'error') {
+        this.updateStatus("❌ AI model download failed - Semantic search requires AI processing");
+      } else {
+        this.updateStatus("❌ Search not ready - Please wait or refresh the page");
+      }
       return [];
     }
 

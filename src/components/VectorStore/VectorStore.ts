@@ -9,6 +9,7 @@ import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument } from '../../lib/workers/DocumentProcessor';
 
@@ -16,10 +17,11 @@ import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument }
 addRxPlugin(RxDBDevModePlugin);
 addRxPlugin(RxDBUpdatePlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Document schema for RxDB
 const documentSchema = {
-  version: 0,
+  version: 1, // Incremented from 0 to handle schema migration
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -42,7 +44,14 @@ const documentSchema = {
         uploadedAt: { type: 'string' },
         source: { type: 'string' },
         description: { type: 'string' },
-        isGenerated: { type: 'boolean' }
+        isGenerated: { type: 'boolean' },
+        // Additional fields from previous schema
+        bubblSpaceId: { type: 'string' },
+        category: { type: 'string' },
+        createdAt: { type: 'string' },
+        name: { type: 'string' },
+        timeCapsuleId: { type: 'string' },
+        type: { type: 'string' }
       }
     },
     chunks: {
@@ -83,6 +92,13 @@ export interface DocumentData {
     source: string;
     description: string;
     isGenerated: boolean;
+    // Additional fields from previous schema
+    bubblSpaceId?: string;
+    category?: string;
+    createdAt?: string;
+    name?: string;
+    timeCapsuleId?: string;
+    type?: string;
   };
   chunks: Array<{
     id: string;
@@ -114,6 +130,12 @@ export class VectorStore {
   private isInitialized = false;
   private readonly CHUNK_SIZE = 1000;
   private readonly CHUNK_OVERLAP = 200;
+  
+  // Private properties for status tracking
+  private _processorAvailable = false;
+  private _downloadProgress = 0;
+  private _downloadStatus = 'unknown';
+  private _downloadError = '';
 
   constructor() {
     console.log('🗂️ VectorStore constructor called');
@@ -123,38 +145,120 @@ export class VectorStore {
     try {
       console.log('🗂️ Initializing RxDB Vector Store...');
 
-      // Initialize document processor (Web Worker)
-      console.log('🤖 Loading document processor...');
+      // Initialize document processor (Web Worker) and START IMMEDIATE XENOVA DOWNLOAD
+      console.log('🤖 Loading document processor and starting immediate Xenova download...');
       this.documentProcessor = getDocumentProcessor();
       
-      // Initialize in background - don't await to avoid blocking
-      this.documentProcessor.init().catch((error: any) => {
-        console.error('⚠️ Document processor initialization failed:', error);
-        console.log('📄 VectorStore will work without document processing');
-      });
+      // Start IMMEDIATE background download - this is the key change
+      console.log('🧠 Starting immediate background Xenova download...');
+      this._processorAvailable = false;
+      this._downloadProgress = 0;
+      this._downloadStatus = 'downloading';
+      
+      // Start background initialization immediately (non-blocking)
+      this.startImmediateBackgroundDownload()
+        .then(() => {
+          console.log('✅ Xenova download complete - all features ready');
+          this._processorAvailable = true;
+          this._downloadProgress = 100;
+          this._downloadStatus = 'ready';
+          console.log('🔍 Status set to ready. Full status:', {
+            isInitialized: this.isInitialized,
+            downloadStatus: this._downloadStatus,
+            hasDocumentProcessor: !!this.documentProcessor,
+            processorAvailable: this._processorAvailable,
+            processingAvailable: this.processingAvailable
+          });
+        })
+        .catch((error: any) => {
+          console.error('❌ Xenova download failed:', error);
+          this._processorAvailable = false;
+          this._downloadProgress = 0;
+          this._downloadStatus = 'error';
+          this._downloadError = error.message;
+        });
 
-      // Create RxDB database with validation wrapper
+      // Create RxDB database with validation wrapper (continues immediately)
       console.log('📚 Creating RxDB database...');
       const storage = wrappedValidateAjvStorage({
         storage: getRxStorageDexie()
       });
       
-      this.database = await createRxDatabase({
-        name: 'deepresearch_vectorstore',
-        storage: storage,
-        ignoreDuplicate: true
-      });
+      // Try to create database, handle schema conflicts
+      try {
+        this.database = await createRxDatabase({
+          name: 'deepresearch_vectorstore',
+          storage: storage,
+          ignoreDuplicate: true
+        });
 
-      // Add documents collection
-      console.log('📄 Creating documents collection...');
-      this.documentsCollection = await this.database.addCollections({
-        documents: {
-          schema: documentSchema
+        // Add documents collection with migration support
+        console.log('📄 Creating documents collection...');
+        this.documentsCollection = await this.database.addCollections({
+          documents: {
+            schema: documentSchema,
+            migrationStrategies: {
+              // Migration from version 0 to version 1
+              1: function(oldDoc: any) {
+                // Migrate old documents to new schema
+                const newDoc = {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    // Ensure all required fields exist
+                    filename: oldDoc.metadata.filename || oldDoc.metadata.name || oldDoc.title,
+                    filesize: oldDoc.metadata.filesize || 0,
+                    filetype: oldDoc.metadata.filetype || 'unknown',
+                    uploadedAt: oldDoc.metadata.uploadedAt || oldDoc.metadata.createdAt || new Date().toISOString(),
+                    source: oldDoc.metadata.source || 'unknown',
+                    description: oldDoc.metadata.description || '',
+                    isGenerated: oldDoc.metadata.isGenerated || false,
+                    // Preserve existing fields
+                    bubblSpaceId: oldDoc.metadata.bubblSpaceId,
+                    category: oldDoc.metadata.category,
+                    createdAt: oldDoc.metadata.createdAt,
+                    name: oldDoc.metadata.name,
+                    timeCapsuleId: oldDoc.metadata.timeCapsuleId,
+                    type: oldDoc.metadata.type
+                  }
+                };
+                return newDoc;
+              }
+            }
+          }
+        });
+
+      } catch (schemaError: any) {
+        if (schemaError.code === 'DB6') {
+          console.warn('🔄 Schema conflict detected, clearing old database and recreating...');
+          
+          // Clear IndexedDB database manually
+          if (typeof window !== 'undefined' && window.indexedDB) {
+            await this.clearIndexedDB('deepresearch_vectorstore');
+          }
+          
+          // Recreate database with new schema
+          this.database = await createRxDatabase({
+            name: 'deepresearch_vectorstore',
+            storage: storage,
+            ignoreDuplicate: true
+          });
+
+          this.documentsCollection = await this.database.addCollections({
+            documents: {
+              schema: documentSchema
+            }
+          });
+          
+          console.log('✅ Database recreated with new schema');
+        } else {
+          throw schemaError;
         }
-      });
+      }
 
       this.isInitialized = true;
       console.log('✅ RxDB Vector Store initialized successfully');
+      console.log('🧠 Xenova download running in background...');
       
       // Make instance available globally (like the original) - only in browser
       if (typeof window !== 'undefined') {
@@ -174,6 +278,17 @@ export class VectorStore {
   ): Promise<string> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
+    }
+
+    // Enhanced ready state management
+    const downloadStatus = this._downloadStatus;
+    
+    if (downloadStatus === 'downloading') {
+      throw new Error('AI models are still downloading in the background. Please wait a moment and try again.');
+    } else if (downloadStatus === 'error') {
+      throw new Error('AI model download failed. Document upload requires AI processing capabilities.');
+    } else if (!this.documentProcessor || !this._processorAvailable) {
+      throw new Error('Document processing is unavailable. Please refresh the page and try again.');
     }
 
     // File size check (following reference implementation - 10MB limit)
@@ -263,6 +378,17 @@ export class VectorStore {
   ): Promise<string> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
+    }
+
+    // Enhanced ready state management
+    const downloadStatus = this._downloadStatus;
+    
+    if (downloadStatus === 'downloading') {
+      throw new Error('AI models are still downloading in the background. Please wait a moment and try again.');
+    } else if (downloadStatus === 'error') {
+      throw new Error('AI model download failed. Document processing requires AI processing capabilities.');
+    } else if (!this.documentProcessor || !this._processorAvailable) {
+      throw new Error('Document processing is unavailable. Please refresh the page and try again.');
     }
 
     console.log(`📄 Processing generated document: ${title}`);
@@ -393,6 +519,17 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
+    // Enhanced ready state management for search
+    const downloadStatus = this._downloadStatus;
+    
+    if (downloadStatus === 'downloading') {
+      throw new Error('AI models are still downloading in the background. Search will be available shortly.');
+    } else if (downloadStatus === 'error') {
+      throw new Error('AI model download failed. Semantic search requires AI processing capabilities.');
+    } else if (!this.documentProcessor || !this._processorAvailable) {
+      throw new Error('Search is unavailable. Please refresh the page and try again.');
+    }
+
     try {
       console.log(`🔍 Searching for: "${query}" with threshold: ${threshold}`);
 
@@ -493,138 +630,277 @@ export class VectorStore {
           console.log(`✅ Document updated: ${documentData.id}`);
           return; // Success, exit the retry loop
         } else {
-          // Document doesn't exist, try to insert it
-          await this.documentsCollection.documents.insert(documentData);
-          console.log(`✅ Document inserted: ${documentData.id}`);
-          return; // Success, exit the retry loop
-        }
-      } catch (error: any) {
-        // Check if this is a revision conflict error
-        if (error.name === 'RxError' && error.code === 'CONFLICT') {
-          retryCount++;
-          console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
-          
-          if (retryCount >= maxRetries) {
-            console.error(`❌ Max retries exceeded for document ${documentData.id}`);
+                      // Document doesn't exist, try to insert it
+            await this.documentsCollection.documents.insert(documentData);
+            console.log(`✅ Document inserted: ${documentData.id}`);
+            return; // Success, exit the retry loop
+          }
+        } catch (error: any) {
+          // Check if this is a revision conflict error
+          if (error.name === 'RxError' && error.code === 'CONFLICT') {
+            retryCount++;
+            console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
+            
+            if (retryCount >= maxRetries) {
+              console.error(`❌ Max retries exceeded for document ${documentData.id}`);
+              throw error;
+            }
+            
+            // Wait a small random amount before retrying to reduce collision probability
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
+            continue; // Retry the operation
+          } else {
+            // Non-conflict error, don't retry
+            console.error('❌ Failed to upsert document:', error);
             throw error;
           }
-          
-          // Wait a small random amount before retrying to reduce collision probability
-          await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
-          continue; // Retry the operation
-        } else {
-          // Non-conflict error, don't retry
-          console.error('❌ Failed to upsert document:', error);
-          throw error;
         }
       }
     }
-  }
 
-  private createChunks(content: string): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
-    const chunks = [];
-    let startIndex = 0;
-    let chunkIndex = 0;
+    private createChunks(content: string): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
+      const chunks = [];
+      let startIndex = 0;
+      let chunkIndex = 0;
 
-    console.log(`📄 Creating chunks from ${content.length} characters`);
-    
-    while (startIndex < content.length) {
-      const endIndex = Math.min(startIndex + this.CHUNK_SIZE, content.length);
-      const chunkContent = content.substring(startIndex, endIndex);
+      console.log(`📄 Creating chunks from ${content.length} characters`);
       
-      chunks.push({
-        id: `chunk_${Date.now()}_${chunkIndex}_${Math.random().toString(36).substr(2, 9)}`,
-        content: chunkContent,
-        startIndex: startIndex,
-        endIndex: endIndex
+      while (startIndex < content.length) {
+        const endIndex = Math.min(startIndex + this.CHUNK_SIZE, content.length);
+        const chunkContent = content.substring(startIndex, endIndex);
+        
+        chunks.push({
+          id: `chunk_${Date.now()}_${chunkIndex}_${Math.random().toString(36).substr(2, 9)}`,
+          content: chunkContent,
+          startIndex: startIndex,
+          endIndex: endIndex
+        });
+
+        // Move start index forward, accounting for overlap
+        startIndex = endIndex - this.CHUNK_OVERLAP;
+        chunkIndex++;
+        
+        if (startIndex >= content.length) break;
+      }
+
+      console.log(`✅ Created ${chunks.length} chunks with ${this.CHUNK_SIZE} char size and ${this.CHUNK_OVERLAP} char overlap`);
+      return chunks;
+    }
+
+    // Word-based chunking (following reference implementation)
+    private createWordBasedChunks(text: string, wordsPerChunk: number): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
+      const words = text.split(/\s+/);
+      const chunks = [];
+      
+      console.log(`📄 Creating word-based chunks from ${words.length} words (${wordsPerChunk} words per chunk)`);
+      
+      for (let i = 0; i < words.length; i += wordsPerChunk) {
+        const chunkWords = words.slice(i, i + wordsPerChunk);
+        const chunkContent = chunkWords.join(' ');
+        
+        // Calculate character positions for compatibility
+        const allWordsBeforeChunk = words.slice(0, i);
+        const startIndex = allWordsBeforeChunk.join(' ').length + (allWordsBeforeChunk.length > 0 ? 1 : 0);
+        const endIndex = startIndex + chunkContent.length;
+        
+        chunks.push({
+          id: `chunk_${Date.now()}_${Math.floor(i / wordsPerChunk)}_${Math.random().toString(36).substr(2, 9)}`,
+          content: chunkContent,
+          startIndex: startIndex,
+          endIndex: endIndex
+        });
+      }
+      
+      console.log(`✅ Created ${chunks.length} word-based chunks`);
+      return chunks.length > 0 ? chunks : [{
+        id: `chunk_${Date.now()}_0_${Math.random().toString(36).substr(2, 9)}`,
+        content: text,
+        startIndex: 0,
+        endIndex: text.length
+      }];
+    }
+
+    private async generateEmbedding(text: string): Promise<number[]> {
+      throw new Error('Embedding generation is now handled by Web Worker - use DocumentProcessor');
+    }
+
+    private cosineSimilarity(a: number[], b: number[]): number {
+      if (a.length !== b.length) {
+        throw new Error('Vector dimensions must match');
+      }
+
+      let dotProduct = 0;
+      let normA = 0;
+      let normB = 0;
+
+      for (let i = 0; i < a.length; i++) {
+        dotProduct += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+
+      if (normA === 0 || normB === 0) {
+        return 0;
+      }
+
+      return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    // Helper method for formatting file sizes
+    private formatFileSize(bytes: number): string {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Start immediate background Xenova download - non-blocking
+    private async startImmediateBackgroundDownload(): Promise<void> {
+      if (!this.documentProcessor) {
+        throw new Error('Document processor not available');
+      }
+
+      console.log('🧠 Starting immediate Xenova download in background...');
+      
+      // Initialize web worker first (lightweight)
+      await this.initializeWebWorker();
+      
+      // Then start Xenova download immediately (heavy lifting)
+      await this.initializeXenovaService();
+      
+      console.log('✅ Immediate background download completed');
+    }
+
+    // Initialize web worker (lightweight, fast)
+    private async initializeWebWorker(): Promise<void> {
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔄 Initializing web worker (attempt ${attempt}/${maxRetries})...`);
+          await this.documentProcessor.init();
+          console.log('✅ Web worker initialized successfully');
+          return; // Success
+        } catch (error: any) {
+          console.error(`❌ Web worker initialization failed (attempt ${attempt}/${maxRetries}):`, error);
+          
+          if (attempt === maxRetries) {
+            throw error; // Final attempt failed
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    }
+
+    // Initialize Xenova embedding service (heavy, but immediate)
+    private async initializeXenovaService(): Promise<void> {
+      try {
+        console.log('🧠 Starting Xenova embedding service download...');
+        
+        // This will trigger immediate download of Xenova transformers
+        // The EmbeddingService will handle the actual download
+        const embeddingService = this.documentProcessor.embeddingServiceInstance;
+        
+        if (embeddingService && embeddingService.init) {
+          await embeddingService.init((progress: any) => {
+            console.log(`📊 Xenova download progress: ${progress.message} (${progress.progress}%)`);
+            this._downloadProgress = progress.progress;
+          });
+        }
+        
+        console.log('✅ Xenova embedding service ready');
+      } catch (error) {
+        console.error('❌ Xenova embedding service initialization failed:', error);
+        throw error;
+      }
+    }
+
+    // Clear IndexedDB database manually to resolve schema conflicts
+    private async clearIndexedDB(dbName: string): Promise<void> {
+      return new Promise((resolve, reject) => {
+        const deleteRequest = indexedDB.deleteDatabase(dbName);
+        
+        deleteRequest.onsuccess = () => {
+          console.log('🗑️ IndexedDB database cleared successfully');
+          resolve();
+        };
+        
+        deleteRequest.onerror = (event) => {
+          console.error('❌ Failed to clear IndexedDB database:', event);
+          reject(new Error('Failed to clear IndexedDB database'));
+        };
+        
+        deleteRequest.onblocked = () => {
+          console.warn('⚠️ IndexedDB deletion blocked, please close other tabs and try again');
+          // Resolve anyway to continue with the process
+          resolve();
+        };
       });
+    }
 
-      // Move start index forward, accounting for overlap
-      startIndex = endIndex - this.CHUNK_OVERLAP;
-      chunkIndex++;
+    // Make this available globally like the original
+    get initialized(): boolean {
+      return this.isInitialized;
+    }
+
+    // Check if document processing is available
+    get processingAvailable(): boolean {
+      const downloadStatus = this._downloadStatus;
+      const result = this.isInitialized && downloadStatus === 'ready' && this.documentProcessor && this._processorAvailable;
       
-      if (startIndex >= content.length) break;
-    }
-
-    console.log(`✅ Created ${chunks.length} chunks with ${this.CHUNK_SIZE} char size and ${this.CHUNK_OVERLAP} char overlap`);
-    return chunks;
-  }
-
-  // Word-based chunking (following reference implementation)
-  private createWordBasedChunks(text: string, wordsPerChunk: number): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
-    const words = text.split(/\s+/);
-    const chunks = [];
-    
-    console.log(`📄 Creating word-based chunks from ${words.length} words (${wordsPerChunk} words per chunk)`);
-    
-    for (let i = 0; i < words.length; i += wordsPerChunk) {
-      const chunkWords = words.slice(i, i + wordsPerChunk);
-      const chunkContent = chunkWords.join(' ');
+      // Debug logging to help identify the issue
+      if (!result) {
+        console.log('🔍 VectorStore.processingAvailable = false. Status check:', {
+          isInitialized: this.isInitialized,
+          downloadStatus: downloadStatus,
+          hasDocumentProcessor: !!this.documentProcessor,
+          processorAvailable: this._processorAvailable
+        });
+      }
       
-      // Calculate character positions for compatibility
-      const allWordsBeforeChunk = words.slice(0, i);
-      const startIndex = allWordsBeforeChunk.join(' ').length + (allWordsBeforeChunk.length > 0 ? 1 : 0);
-      const endIndex = startIndex + chunkContent.length;
-      
-      chunks.push({
-        id: `chunk_${Date.now()}_${Math.floor(i / wordsPerChunk)}_${Math.random().toString(36).substr(2, 9)}`,
-        content: chunkContent,
-        startIndex: startIndex,
-        endIndex: endIndex
-      });
-    }
-    
-    console.log(`✅ Created ${chunks.length} word-based chunks`);
-    return chunks.length > 0 ? chunks : [{
-      id: `chunk_${Date.now()}_0_${Math.random().toString(36).substr(2, 9)}`,
-      content: text,
-      startIndex: 0,
-      endIndex: text.length
-    }];
-  }
-
-  private async generateEmbedding(text: string): Promise<number[]> {
-    throw new Error('Embedding generation is now handled by Web Worker - use DocumentProcessor');
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) {
-      throw new Error('Vector dimensions must match');
+      return result;
     }
 
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
+    // Get detailed status message for document processing
+    get processingStatus(): string {
+      if (!this.isInitialized) {
+        return 'Vector Store not initialized';
+      }
 
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      const downloadStatus = this._downloadStatus;
+      const downloadProgress = this._downloadProgress || 0;
+
+      switch (downloadStatus) {
+        case 'downloading':
+          return `AI models downloading: ${downloadProgress}% - Advanced features will be available shortly`;
+        case 'ready':
+          return 'Document processing ready - All features available';
+        case 'error':
+          return 'AI model download failed - Some features unavailable';
+        default:
+          return 'Document processing status unknown';
+      }
     }
 
-    if (normA === 0 || normB === 0) {
-      return 0;
+    // Get download status details
+    get downloadStatus(): string {
+      return this._downloadStatus || 'unknown';
     }
 
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    get downloadProgress(): number {
+      return this._downloadProgress || 0;
+    }
+
+    // Check if basic document management is available (without AI processing)
+    get basicFunctionsAvailable(): boolean {
+      return this.isInitialized && this.documentsCollection !== null;
+    }
   }
 
-  // Helper method for formatting file sizes
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  // Make VectorStore available globally - only in browser
+  if (typeof window !== 'undefined') {
+    (window as any).VectorStore = VectorStore;
   }
-
-  // Make this available globally like the original
-  get initialized(): boolean {
-    return this.isInitialized;
-  }
-}
-
-// Make VectorStore available globally - only in browser
-if (typeof window !== 'undefined') {
-  (window as any).VectorStore = VectorStore;
-} 
