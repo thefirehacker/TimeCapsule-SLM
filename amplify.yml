@@ -22,6 +22,9 @@ frontend:
         - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+set}"
         - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+set}"
         - echo "NEXTAUTH_URL is ${NEXTAUTH_URL:+set}"
+        - echo "🗄️ Database variables check..."
+        - echo "AWS_REGION is ${AWS_REGION:-'not set'}"
+        - echo "DYNAMODB_TABLE_NAME is ${DYNAMODB_TABLE_NAME:-'not set'}"
     build:
       commands:
         - echo "🔨 Building Next.js application..."
@@ -34,6 +37,8 @@ frontend:
         - echo "AUTH_GITHUB_SECRET=$AUTH_GITHUB_SECRET" >> .env.production
         - echo "NEXTAUTH_SECRET=$AUTH_SECRET" >> .env.production
         - echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
+        - echo "AWS_REGION=$AWS_REGION" >> .env.production
+        - echo "DYNAMODB_TABLE_NAME=$DYNAMODB_TABLE_NAME" >> .env.production
         - echo "NODE_ENV=production" >> .env.production
         - echo "✅ Environment variables written to .env.production"
         - echo "🔍 Verifying .env.production contents:"
