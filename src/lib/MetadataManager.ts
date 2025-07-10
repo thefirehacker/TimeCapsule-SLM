@@ -59,6 +59,24 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
       'Welcome to your learning and research workspace!',
       { isDefault: true, color: '#6366F1' }
     );
+    
+    // Create a default TimeCapsule for the new BubblSpace
+    try {
+      const defaultTimeCapsule = this.createTimeCapsule(
+        'Getting Started',
+        'Your first learning session',
+        defaultSpace.id,
+        {
+          category: 'learning',
+          difficulty: 'beginner',
+          estimatedDuration: 30
+        }
+      );
+      console.log(`✅ Created default BubblSpace "${defaultSpace.name}" and TimeCapsule "${defaultTimeCapsule.name}"`);
+    } catch (timeCapsuleError) {
+      console.warn('⚠️ Failed to create default TimeCapsule:', timeCapsuleError);
+    }
+    
     return defaultSpace;
   }
 
@@ -67,6 +85,11 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
   // =============================================================================
 
   createBubblSpace(name: string, description: string, options: Partial<BubblSpace> = {}): BubblSpace {
+    // ENFORCE USER LIMITS: Maximum 1 BubblSpace allowed
+    if (this.bubblSpaces.size >= 1 && !options.isDefault) {
+      throw new Error('Maximum 1 BubblSpace allowed. Please edit your existing BubblSpace instead of creating a new one.');
+    }
+    
     const errors = validateBubblSpace({ name, description, ...options });
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join(', ')}`);
@@ -255,6 +278,12 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
   ): TimeCapsuleMetadata {
     if (!this.bubblSpaces.has(bubblSpaceId)) {
       throw new Error(`BubblSpace with id ${bubblSpaceId} not found`);
+    }
+
+    // ENFORCE USER LIMITS: Maximum 3 TimeCapsules per BubblSpace
+    const existingTimeCapsules = this.getTimeCapsulesByBubblSpace(bubblSpaceId);
+    if (existingTimeCapsules.length >= 3) {
+      throw new Error('Maximum 3 TimeCapsules allowed per BubblSpace. Please delete or edit existing TimeCapsules instead of creating new ones.');
     }
 
     const timeCapsule: TimeCapsuleMetadata = {
@@ -586,6 +615,9 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     }
 
     console.log('🔄 Starting metadata sync to Knowledge Base...');
+    
+    let syncSuccessful = false;
+    let syncErrors: string[] = [];
 
     try {
       // Store BubblSpaces as searchable documents
@@ -608,7 +640,15 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
           console.log(`ℹ️ Old BubblSpace document not found (first time sync): ${docId}`);
         }
         
-        const contentText = `BubblSpace: ${space.name}\nDescription: ${space.description}\nTags: ${space.tags?.join(', ') || 'none'}`;
+        const contentText = `BubblSpace: ${space.name}
+Description: ${space.description}
+ID: ${space.id}
+Created: ${new Date(space.createdAt).toLocaleString()}
+Updated: ${new Date(space.updatedAt).toLocaleString()}
+Color: ${space.color || 'default'}
+Is Default: ${space.isDefault ? 'Yes' : 'No'}
+Created By: ${space.createdBy || 'unknown'}
+Tags: ${space.tags?.join(', ') || 'none'}`;
         console.log(`📄 Document content being saved:`, contentText);
         
         const doc = {
@@ -623,39 +663,86 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
             source: 'metadata',
             description: `BubblSpace metadata: ${space.name}`,
             isGenerated: true,
-            // Custom metadata for BubblSpace
+            // Enhanced metadata for BubblSpace - ALL UI VALUES
             type: 'bubblspace',
             bubblSpaceId: space.id,
             name: space.name,
             createdAt: space.createdAt,
-            updatedAt: space.updatedAt, // Include updated timestamp
+            updatedAt: space.updatedAt,
+            // Additional UI fields from BubblSpace interface
+            color: space.color,
+            isDefault: space.isDefault,
+            createdBy: space.createdBy,
+            tags: space.tags,
+            // Full object for reference
+            fullObject: JSON.stringify(space)
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
         };
         
-        await this.vectorStore.insertDocument(doc);
-        console.log(`✅ BubblSpace synced to Knowledge Base: ${space.name}`);
+        try {
+          await this.vectorStore.insertDocument(doc);
+          console.log(`✅ BubblSpace synced to Knowledge Base: ${space.name}`);
+          
+          // Additional verification for critical documents
+          const verificationDoc = await this.vectorStore.getDocument(docId);
+          if (verificationDoc) {
+            console.log(`✅ BubblSpace persistence verified: ${space.name}`);
+          } else {
+            console.warn(`⚠️ BubblSpace persistence verification failed: ${space.name}`);
+            syncErrors.push(`BubblSpace ${space.name} was not properly persisted`);
+          }
+        } catch (insertError) {
+          console.error(`❌ Failed to sync BubblSpace ${space.name}:`, insertError);
+          syncErrors.push(`BubblSpace ${space.name}: ${insertError instanceof Error ? insertError.message : String(insertError)}`);
+        }
       }
 
       // Store TimeCapsules as searchable documents
       for (const tc of timeCapsules) {
         const docId = `timecapsule-${tc.id}`;
         console.log(`📝 Syncing TimeCapsule: ${tc.name} (ID: ${docId})`);
+        console.log(`📋 TimeCapsule data:`, {
+          name: tc.name,
+          description: tc.description,
+          tags: tc.tags,
+          updatedAt: tc.updatedAt
+        });
         
         // Delete existing document first to ensure fresh update
         try {
-          await this.vectorStore.deleteDocument(docId);
-          console.log(`🗑️ Deleted old TimeCapsule document: ${docId}`);
+          console.log(`🔍 Checking for existing TimeCapsule document: ${docId}`);
+          const existingDoc = await this.vectorStore.getDocument(docId);
+          if (existingDoc) {
+            console.log(`🗑️ Found existing TimeCapsule document, deleting: ${docId}`);
+            await this.vectorStore.deleteDocument(docId);
+            console.log(`✅ Deleted old TimeCapsule document: ${docId}`);
+          } else {
+            console.log(`ℹ️ No existing TimeCapsule document found (first time sync): ${docId}`);
+          }
         } catch (deleteError) {
-          // Document might not exist, that's OK
-          console.log(`ℹ️ Old TimeCapsule document not found (first time sync): ${docId}`);
+          console.warn(`⚠️ Error checking/deleting TimeCapsule document ${docId}:`, deleteError);
         }
+        
+        const contentText = `TimeCapsule: ${tc.name}
+Description: ${tc.description}
+ID: ${tc.id}
+BubblSpace ID: ${tc.bubblSpaceId}
+Version: ${tc.version}
+Created: ${new Date(tc.createdAt).toLocaleString()}
+Updated: ${new Date(tc.updatedAt).toLocaleString()}
+Category: ${tc.category || 'other'}
+Privacy: ${tc.privacy || 'private'}
+Difficulty: ${tc.difficulty || 'beginner'}
+Estimated Duration: ${tc.estimatedDuration ? `${tc.estimatedDuration} minutes` : 'not specified'}
+Tags: ${tc.tags?.join(', ') || 'none'}`;
+        console.log(`📄 Document content being saved:`, contentText);
         
         const doc = {
           id: docId,
           title: `TimeCapsule: ${tc.name}`, // Required by VectorStore schema
-          content: `TimeCapsule: ${tc.name}\nDescription: ${tc.description}\nCategory: ${tc.category}\nTags: ${tc.tags?.join(', ') || 'none'}`,
+          content: contentText,
           metadata: {
             filename: `timecapsule-${tc.name}.json`,
             filesize: JSON.stringify(tc).length,
@@ -664,24 +751,56 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
             source: 'metadata',
             description: `TimeCapsule metadata: ${tc.name}`,
             isGenerated: true,
-            // Custom metadata for TimeCapsule
+            // Enhanced metadata for TimeCapsule - ALL UI VALUES
             type: 'timecapsule',
             timeCapsuleId: tc.id,
             bubblSpaceId: tc.bubblSpaceId,
             name: tc.name,
             category: tc.category,
             createdAt: tc.createdAt,
-            updatedAt: tc.updatedAt, // Include updated timestamp
+            updatedAt: tc.updatedAt,
+            // Additional UI fields from TimeCapsuleMetadata interface
+            version: tc.version,
+            privacy: tc.privacy,
+            difficulty: tc.difficulty,
+            estimatedDuration: tc.estimatedDuration,
+            tags: tc.tags,
+            // Full object for reference
+            fullObject: JSON.stringify(tc)
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
         };
         
-        await this.vectorStore.insertDocument(doc);
-        console.log(`✅ TimeCapsule synced to Knowledge Base: ${tc.name}`);
+        console.log(`📋 About to insert document with ID: ${docId} and title: ${doc.title}`);
+        
+        try {
+          await this.vectorStore.insertDocument(doc);
+          console.log(`✅ TimeCapsule synced to Knowledge Base: ${tc.name}`);
+          
+          // Additional verification for critical documents
+          const verificationDoc = await this.vectorStore.getDocument(docId);
+          if (verificationDoc) {
+            console.log(`✅ TimeCapsule persistence verified: ${tc.name}`);
+          } else {
+            console.warn(`⚠️ TimeCapsule persistence verification failed: ${tc.name}`);
+            syncErrors.push(`TimeCapsule ${tc.name} was not properly persisted`);
+          }
+        } catch (insertError) {
+          console.error(`❌ Failed to sync TimeCapsule ${tc.name}:`, insertError);
+          syncErrors.push(`TimeCapsule ${tc.name}: ${insertError instanceof Error ? insertError.message : String(insertError)}`);
+        }
       }
       
-      console.log('✅ All metadata synced to Knowledge Base successfully');
+      // Final verification step
+      if (syncErrors.length === 0) {
+        syncSuccessful = true;
+        console.log('✅ All metadata synced to Knowledge Base successfully');
+      } else {
+        console.warn(`⚠️ Metadata sync completed with ${syncErrors.length} errors:`, syncErrors);
+        throw new Error(`Metadata sync failed: ${syncErrors.join(', ')}`);
+      }
+      
     } catch (error) {
       console.error('❌ Failed to save metadata to vector store:', error);
       throw error; // Re-throw to ensure caller knows about the failure

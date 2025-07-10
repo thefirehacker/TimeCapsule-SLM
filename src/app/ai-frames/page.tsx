@@ -16,7 +16,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Play,
   Pause,
@@ -50,6 +62,7 @@ import {
   Network,
   Package,
   FolderPlus,
+  ChevronDown,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -91,6 +104,14 @@ interface AIFrame {
   isGenerated?: boolean;
   sourceGoal?: string;
   sourceUrl?: string;
+  // NEW: Hierarchy and relationship fields
+  order: number; // Preserve frame order
+  bubblSpaceId?: string; // Link to BubblSpace
+  timeCapsuleId?: string; // Link to TimeCapsule
+  parentFrameId?: string; // For chapter/module hierarchy
+  type: 'frame' | 'chapter' | 'module'; // Frame type
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface FrameCreationData {
@@ -100,77 +121,7 @@ interface FrameCreationData {
   duration?: number;
 }
 
-const hardcodedFrames: AIFrame[] = [
-  {
-    id: "frame-01",
-    title: "GPT-2 Model Loading from Scratch",
-    goal: "Understanding how to load and initialize GPT-2 model from scratch using Tyler's implementation",
-    informationText: `
-      In this frame, we'll explore Tyler Romero's approach to loading GPT-2 model from scratch. 
-      This is a foundational concept for understanding how large language models are initialized 
-      and prepared for training or inference. 
-      
-      Tyler's blog post demonstrates the practical implementation details that are often overlooked 
-      in theoretical explanations.
-    `,
-    videoUrl: "https://youtu.be/l8pRSuU81PU?si=fTMMzZfitHcNcv2J&t=1242",
-    startTime: 1242, // 20:42
-    duration: 300, // 5 minutes
-    afterVideoText: `
-      Key takeaways from this segment:
-      • Model initialization requires careful parameter setup
-      • Configuration files define model architecture
-      • Proper tokenizer integration is crucial for text processing
-      • Understanding the relationship between model size and memory requirements
-      
-      The implementation shown here forms the foundation for more advanced training techniques 
-      we'll explore in subsequent frames.
-    `,
-    aiConcepts: [
-      "Model Architecture",
-      "Parameter Initialization",
-      "Tokenizer Integration",
-      "Memory Management",
-      "Configuration Files",
-      "GPT-2 Variants",
-    ],
-  },
-  {
-    id: "frame-02",
-    title: "Understanding train_gpt2.py Script",
-    goal: "Explanation of what train_gpt2.py script is and why it's needed",
-    informationText: `
-      Tyler's training script is the orchestrator that brings together all components needed 
-      for GPT-2 training. This script handles data loading, model training loops, 
-      optimization, and checkpointing.
-      
-      Understanding this script is crucial for anyone wanting to train language models 
-      from scratch or fine-tune existing models.
-    `,
-    videoUrl: "https://youtu.be/l8pRSuU81PU?si=fTMMzZfitHcNcv2J&t=1542",
-    startTime: 1542, // 25:42
-    duration: 360, // 6 minutes
-    afterVideoText: `
-      The train_gpt2.py script serves several critical functions:
-      • Data preprocessing and batch management
-      • Training loop implementation with proper gradient handling
-      • Loss calculation and optimization steps
-      • Model checkpointing and state management
-      • Evaluation metrics and logging
-      
-      This script demonstrates production-ready training practices that can be adapted 
-      for various language modeling tasks.
-    `,
-    aiConcepts: [
-      "Training Loops",
-      "Gradient Optimization",
-      "Data Preprocessing",
-      "Checkpointing",
-      "Loss Functions",
-      "Evaluation Metrics",
-    ],
-  },
-];
+// No hardcoded frames - app starts empty by default
 
 export default function AIFramesPage() {
   // Initialize page analytics for AI-Frames
@@ -188,12 +139,13 @@ export default function AIFramesPage() {
 
   // Mode state
   const [isCreationMode, setIsCreationMode] = useState(false);
+  const [showCreationForm, setShowCreationForm] = useState(false);
   
   // NEW: Graph view state
   const [showGraphView, setShowGraphView] = useState(false);
 
-  // Frame state
-  const [frames, setFrames] = useState<AIFrame[]>(hardcodedFrames);
+  // Frame state - Always start empty, load from localStorage if available
+  const [frames, setFrames] = useState<AIFrame[]>([]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
 
   // Playback state
@@ -209,7 +161,6 @@ export default function AIFramesPage() {
   const [chatInput, setChatInput] = useState("");
 
   // Creation mode state
-  const [showCreateFrame, setShowCreateFrame] = useState(false);
   const [newFrameData, setNewFrameData] = useState<FrameCreationData>({
     goal: "",
     videoUrl: "",
@@ -235,6 +186,7 @@ export default function AIFramesPage() {
   const [currentTimeCapsule, setCurrentTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
   const [allBubblSpaces, setAllBubblSpaces] = useState<BubblSpace[]>([]);
   const [allTimeCapsules, setAllTimeCapsules] = useState<TimeCapsuleMetadata[]>([]);
+  const [showTimeCapsuleSelector, setShowTimeCapsuleSelector] = useState<boolean>(false);
   
   // Dialog states
   const [showBubblSpaceDialog, setShowBubblSpaceDialog] = useState(false);
@@ -274,6 +226,11 @@ export default function AIFramesPage() {
   const [graphState, setGraphState] = useState<any>(null);
   const [chapters, setChapters] = useState<any[]>([]);
   const [conceptExplanations, setConceptExplanations] = useState<Record<string, string>>({});
+
+  // Confirmation dialog states
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showClearAllConfirmation, setShowClearAllConfirmation] = useState(false);
+  const [frameToDelete, setFrameToDelete] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLIFrameElement>(null);
 
@@ -424,6 +381,9 @@ This can be imported in any page with full compatibility!`,
           setIsCreationMode(aiFramesData.isCreationMode || false);
           setShowGraphView(aiFramesData.showGraphView || false);
           
+          // Clear the cleared flag since we're importing new frames
+          localStorage.removeItem("ai_frames_cleared");
+          
           if (aiFramesData.graphState) setGraphState(aiFramesData.graphState);
           if (aiFramesData.chapters) setChapters(aiFramesData.chapters);
           if (aiFramesData.voiceSettings) setVoiceSettings(aiFramesData.voiceSettings);
@@ -468,6 +428,9 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       if (importedData.data.frames) {
         setFrames(importedData.data.frames);
         setCurrentFrameIndex(importedData.data.currentFrameIndex || 0);
+        
+        // Clear the cleared flag since we're importing new frames
+        localStorage.removeItem("ai_frames_cleared");
         
         if (importedData.data.isCreationMode !== undefined) {
           setIsCreationMode(importedData.data.isCreationMode);
@@ -706,75 +669,28 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
   };
 
-  // Load AI-Frames TimeCapsule data on initialization
+  // App starts completely empty - no auto-restore from localStorage
+  // Users need to explicitly import TimeCapsules to load frames
   useEffect(() => {
+    console.log('🎯 AI-Frames app initialized with empty state');
+    
+    // Clear any old saved data since we're starting fresh
     try {
-      // Check for AI-Frames specific data
-      const aiFramesData = localStorage.getItem("ai_frames_timecapsule");
-      if (aiFramesData) {
-        const parsedData = JSON.parse(aiFramesData);
-        if (parsedData.data && parsedData.data.frames) {
-          // Auto-restore last session
-          setFrames(parsedData.data.frames);
-          setCurrentFrameIndex(parsedData.data.currentFrameIndex || 0);
-          
-          if (parsedData.data.voiceSettings) {
-            setVoiceSettings(parsedData.data.voiceSettings);
-          }
-          
-          // Restore graph state and chapters
-          if (parsedData.data.graphState) {
-            setGraphState(parsedData.data.graphState);
-          }
-          
-          if (parsedData.data.chapters) {
-            setChapters(parsedData.data.chapters);
-          }
-          
-          if (parsedData.data.showGraphView !== undefined) {
-            setShowGraphView(parsedData.data.showGraphView);
-          }
-          
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              role: "ai",
-              content: `🔄 Restored previous session with ${parsedData.data.frames.length} frames. You were on frame ${(parsedData.data.currentFrameIndex || 0) + 1}.`,
-            },
-          ]);
-        }
-      }
-
-      // Check for combined TimeCapsule data
-      const combinedData = localStorage.getItem("timecapsule_combined");
-      if (combinedData && !aiFramesData) {
-        const parsedData = JSON.parse(combinedData);
-        if (parsedData.data && parsedData.data.frames) {
-          setFrames(parsedData.data.frames);
-          setCurrentFrameIndex(parsedData.data.currentFrameIndex || 0);
-          
-          if (parsedData.data.graphState) {
-            setGraphState(parsedData.data.graphState);
-          }
-          
-          if (parsedData.data.chapters) {
-            setChapters(parsedData.data.chapters);
-          }
-        }
-      }
+      localStorage.removeItem("ai_frames_cleared");
     } catch (error) {
-      console.error("Failed to load TimeCapsule data:", error);
+      console.log('Note: localStorage cleanup failed (normal in some environments)');
     }
   }, []);
+
+
 
   // Initialize metadata manager and load BubblSpaces/TimeCapsules
   useEffect(() => {
     const initializeMetadata = async () => {
       try {
-        // Initialize metadata manager
         const manager = getMetadataManager(vectorStore);
         setMetadataManager(manager);
-        
+
         // Load BubblSpaces and TimeCapsules
         const bubblSpaces = manager.getAllBubblSpaces();
         const timeCapsules = manager.getAllTimeCapsules();
@@ -786,24 +702,62 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         const defaultBubblSpace = manager.getDefaultBubblSpace();
         setCurrentBubblSpace(defaultBubblSpace || bubblSpaces[0] || null);
         
-        // Auto-create TimeCapsule for current session if none exists
-        if (bubblSpaces.length > 0 && !currentTimeCapsule) {
-          const sessionTimeCapsule = manager.createTimeCapsule(
-            MetadataUtils.generateTimeCapsuleName('learning', 'AI-Frames Session'),
-            'Auto-generated TimeCapsule for current AI-Frames learning session',
-            (defaultBubblSpace || bubblSpaces[0]).id,
-            {
-              category: 'learning',
-              difficulty: 'intermediate',
-              estimatedDuration: frames.length * 10, // Estimate 10 mins per frame
+        // FIXED: Use existing TimeCapsules instead of creating new ones
+        if (bubblSpaces.length > 0) {
+          const targetBubblSpace = defaultBubblSpace || bubblSpaces[0];
+          
+          // Get existing TimeCapsules for this BubblSpace
+          const existingTimeCapsules = manager
+            .getTimeCapsulesByBubblSpace(targetBubblSpace.id)
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+          
+          if (existingTimeCapsules.length > 0) {
+            // Use the most recent existing TimeCapsule
+            setCurrentTimeCapsule(existingTimeCapsules[0]);
+            console.log(`✅ Using existing TimeCapsule: ${existingTimeCapsules[0].name}`);
+          } else {
+            // Only create a new TimeCapsule if none exist for this BubblSpace
+            try {
+              const newTimeCapsule = manager.createTimeCapsule(
+                'AI-Frames Session',
+                'Learning session with AI-Frames',
+                targetBubblSpace.id,
+                {
+                  category: 'learning',
+                  difficulty: 'intermediate',
+                  estimatedDuration: frames.length * 10, // Estimate 10 mins per frame
+                }
+              );
+              setCurrentTimeCapsule(newTimeCapsule);
+              setAllTimeCapsules(prev => [...prev, newTimeCapsule]);
+              console.log(`✅ Created new TimeCapsule: ${newTimeCapsule.name}`);
+            } catch (createError) {
+              console.warn('⚠️ Could not create TimeCapsule (may have hit limit), using first available:', createError);
+              // If we can't create a new TimeCapsule, use the first available one from any BubblSpace
+              const anyTimeCapsule = timeCapsules.length > 0 ? timeCapsules[0] : null;
+              setCurrentTimeCapsule(anyTimeCapsule);
+              if (anyTimeCapsule) {
+                console.log(`✅ Using fallback TimeCapsule: ${anyTimeCapsule.name}`);
+              }
             }
-          );
-          setCurrentTimeCapsule(sessionTimeCapsule);
-          setAllTimeCapsules(prev => [...prev, sessionTimeCapsule]);
+          }
         }
         
       } catch (error) {
         console.error('Failed to initialize metadata manager:', error);
+        
+        // Fallback: try to load any existing TimeCapsules
+        try {
+          const manager = getMetadataManager(vectorStore);
+          const existingTimeCapsules = manager.getAllTimeCapsules();
+          if (existingTimeCapsules.length > 0) {
+            setCurrentTimeCapsule(existingTimeCapsules[0]);
+            setAllTimeCapsules(existingTimeCapsules);
+            console.log(`✅ Fallback: Using existing TimeCapsule: ${existingTimeCapsules[0].name}`);
+          }
+        } catch (fallbackError) {
+          console.error('Failed to load existing TimeCapsules:', fallbackError);
+        }
       }
     };
 
@@ -845,7 +799,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
   }, [providerVectorStore]);
 
-  // Save all current AI-Frames to Knowledge Base whenever frames change or VectorStore becomes available
+  // Enhanced AI-Frames Knowledge Base sync with order preservation
   const saveAllFramesToKB = async () => {
     if (!vectorStore || !vectorStoreInitialized || frames.length === 0) {
       return;
@@ -857,15 +811,25 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
 
     try {
-      console.log(`📊 Saving ${frames.length} AI-Frames to Knowledge Base...`);
+      console.log(`📊 Saving ${frames.length} AI-Frames to Knowledge Base with order preservation...`);
       
-      for (const frame of frames) {
+      // Process frames in order to maintain sequence
+      for (let index = 0; index < frames.length; index++) {
+        const frame = frames[index];
         if (!frame.title || !frame.informationText) continue;
 
-        // Create document title and content from AI-Frame
-        const title = `AI-Frame: ${frame.title}`;
+        // Enhanced document title with order information
+        const title = `AI-Frame [${frame.order || index + 1}]: ${frame.title}`;
+        
+        // Enhanced content with hierarchy and relationship information
         const content = `
 Learning Goal: ${frame.goal}
+
+Order: ${frame.order || index + 1} of ${frames.length}
+Type: ${frame.type || 'frame'}
+${frame.parentFrameId ? `Parent Frame: ${frame.parentFrameId}` : ''}
+BubblSpace: ${frame.bubblSpaceId || currentBubblSpace?.id || 'default'}
+TimeCapsule: ${frame.timeCapsuleId || currentTimeCapsule?.id || 'default'}
 
 Context & Background:
 ${frame.informationText}
@@ -880,47 +844,97 @@ Video Details:
 - Start Time: ${frame.startTime || 0}s
 - Duration: ${frame.duration || 0}s
 
-Generated: ${frame.isGenerated ? 'Yes' : 'No'}
-${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
+Metadata:
+- Generated: ${frame.isGenerated ? 'Yes' : 'No'}
+- Created: ${frame.createdAt || 'Unknown'}
+- Updated: ${frame.updatedAt || 'Unknown'}
+${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
         `.trim();
+
+        // Generate unique document ID for this frame
+        const docId = `aiframe-${frame.id}`;
 
         // Check if this AI-Frame already exists in KB
         const existingDocs = await vectorStore.getAllDocuments();
         const existingDoc = existingDocs.find(doc => 
-          doc.metadata.source === 'ai-frames' && 
-          ((doc.metadata as any).aiFrameId === frame.id || doc.title === title)
+          doc.id === docId || 
+          (doc.metadata.source === 'ai-frames' && (doc.metadata as any).aiFrameId === frame.id)
         );
 
         if (existingDoc) {
-          console.log(`⚠️ AI-Frame "${frame.title}" already exists in KB, skipping`);
-          continue;
+          console.log(`🔄 AI-Frame "${frame.title}" exists in KB, updating with current order and data...`);
+          
+          // Delete existing document first to ensure clean update
+          try {
+            await vectorStore.deleteDocument(existingDoc.id);
+            console.log(`🗑️ Deleted old AI-Frame document: ${existingDoc.id}`);
+          } catch (deleteError) {
+            console.warn(`⚠️ Failed to delete old AI-Frame document: ${deleteError}`);
+          }
         }
 
-        // Add to Knowledge Base
-        try {
-          await vectorStore.addGeneratedDocument(title, content);
-          
-          // Update metadata to mark as AI-Frame
-          const allDocs = await vectorStore.getAllDocuments();
-          const newDoc = allDocs.find(doc => doc.title === title && !(doc.metadata as any).aiFrameId);
-          if (newDoc) {
-            newDoc.metadata.source = 'ai-frames';
-            (newDoc.metadata as any).aiFrameId = frame.id;
-            (newDoc.metadata as any).aiFrameType = 'learning-frame';
-            (newDoc.metadata as any).videoUrl = frame.videoUrl;
-            (newDoc.metadata as any).startTime = frame.startTime;
-            (newDoc.metadata as any).duration = frame.duration;
-            (newDoc.metadata as any).isGenerated = frame.isGenerated;
-            await vectorStore.insertDocument(newDoc);
-          }
+        // Create enhanced document with complete metadata
+        const aiFrameDoc = {
+          id: docId,
+          title: title,
+          content: content,
+          metadata: {
+            filename: `aiframe-${frame.id}.json`,
+            filesize: JSON.stringify(frame).length,
+            filetype: 'application/json',
+            uploadedAt: frame.createdAt || new Date().toISOString(),
+            source: 'ai-frames',
+            description: `AI-Frame: ${frame.title} (Order: ${frame.order || index + 1})`,
+            isGenerated: true,
+            // Enhanced AI-Frame specific metadata
+            aiFrameId: frame.id,
+            aiFrameType: frame.type || 'frame',
+            aiFrameOrder: frame.order || index + 1,
+            aiFrameTotalFrames: frames.length,
+            parentFrameId: frame.parentFrameId,
+            bubblSpaceId: frame.bubblSpaceId || currentBubblSpace?.id || 'default',
+            timeCapsuleId: frame.timeCapsuleId || currentTimeCapsule?.id || 'default',
+            videoUrl: frame.videoUrl,
+            startTime: frame.startTime,
+            duration: frame.duration,
+            createdAt: frame.createdAt,
+            updatedAt: frame.updatedAt || new Date().toISOString(),
+            // Hierarchy information
+            frameHierarchy: {
+              order: frame.order || index + 1,
+              total: frames.length,
+              type: frame.type || 'frame',
+              hasParent: !!frame.parentFrameId,
+              parentId: frame.parentFrameId
+            }
+          },
+          chunks: [], // Required by VectorStore schema
+          vectors: [], // Required by VectorStore schema
+        };
 
-          console.log(`✅ Saved AI-Frame to KB: ${frame.title}`);
+        // Insert the enhanced document
+        try {
+          await vectorStore.insertDocument(aiFrameDoc);
+          console.log(`✅ Saved AI-Frame to KB: ${frame.title} (Order: ${frame.order || index + 1})`);
         } catch (error) {
           console.warn(`⚠️ Failed to save AI-Frame "${frame.title}" to KB:`, error);
         }
       }
 
-      console.log(`✅ Finished saving AI-Frames to Knowledge Base`);
+      console.log(`✅ Finished saving AI-Frames to Knowledge Base with order preservation`);
+      
+      // Dispatch event to notify other pages of AI-Frames update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('aiframes-kb-synced', {
+          detail: { 
+            frameCount: frames.length, 
+            bubblSpaceId: currentBubblSpace?.id,
+            timeCapsuleId: currentTimeCapsule?.id,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+      
     } catch (error) {
       console.error('❌ Failed to save AI-Frames to Knowledge Base:', error);
     }
@@ -934,67 +948,153 @@ ${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
 
-  // Listen for metadata changes from other pages (like DeepResearch)
+  // Enhanced cross-page synchronization system - Listen for metadata changes from other pages
   useEffect(() => {
+    if (!metadataManager) return;
+
     const refreshMetadata = () => {
-      if (metadataManager) {
+      try {
+        console.log('🔄 AI-Frames: Refreshing metadata from storage...');
         const updatedBubblSpaces = metadataManager.getAllBubblSpaces();
         const updatedTimeCapsules = metadataManager.getAllTimeCapsules();
+        
+        console.log('📦 AI-Frames metadata refresh:', {
+          bubblSpaces: updatedBubblSpaces.length,
+          timeCapsules: updatedTimeCapsules.length,
+          currentBubblSpace: currentBubblSpace?.name,
+          currentTimeCapsule: currentTimeCapsule?.name
+        });
         
         setAllBubblSpaces(updatedBubblSpaces);
         setAllTimeCapsules(updatedTimeCapsules);
         
         // Update current selections if they were modified
         const currentBubblSpaceUpdated = updatedBubblSpaces.find(b => b.id === currentBubblSpace?.id);
-        if (currentBubblSpaceUpdated) {
+        if (currentBubblSpaceUpdated && JSON.stringify(currentBubblSpaceUpdated) !== JSON.stringify(currentBubblSpace)) {
+          console.log('🏢 Current BubblSpace updated, applying changes...');
           setCurrentBubblSpace(currentBubblSpaceUpdated);
         }
         
         const currentTimeCapsuleUpdated = updatedTimeCapsules.find(t => t.id === currentTimeCapsule?.id);
-        if (currentTimeCapsuleUpdated) {
+        if (currentTimeCapsuleUpdated && JSON.stringify(currentTimeCapsuleUpdated) !== JSON.stringify(currentTimeCapsule)) {
+          console.log('🕰️ Current TimeCapsule updated, applying changes...');
           setCurrentTimeCapsule(currentTimeCapsuleUpdated);
         }
+        
+        console.log('✅ AI-Frames metadata refresh completed');
+      } catch (error) {
+        console.error('❌ AI-Frames metadata refresh failed:', error);
       }
     };
 
     const handleMetadataStorageChange = (event: StorageEvent) => {
       if (event.key === 'bubblspaces_metadata' || event.key === 'timecapsules_metadata') {
-        console.log('🔄 Metadata changed in another page, refreshing AI-Frames...');
+        console.log('🔄 Cross-page metadata storage change detected in AI-Frames:', {
+          key: event.key,
+          hasNewValue: !!event.newValue,
+          timestamp: new Date().toISOString()
+        });
         
-        // Reload metadata from localStorage
+        // Reload metadata from storage with delay to ensure write completion
         setTimeout(() => {
+          console.log('📦 Executing AI-Frames metadata refresh from cross-page storage change...');
           refreshMetadata();
-        }, 100); // Small delay to ensure storage write is complete
+        }, 100);
       }
     };
 
     const handleBubblSpaceChange = (event: CustomEvent) => {
-      console.log('🔄 BubblSpace changed in same page, refreshing AI-Frames...');
+      console.log('🏢 Same-page BubblSpace change detected in AI-Frames:', {
+        type: event.detail?.type,
+        bubblSpaceName: event.detail?.bubblSpace?.name,
+        bubblSpaceId: event.detail?.bubblSpace?.id,
+        timestamp: new Date().toISOString()
+      });
+      
       setTimeout(() => {
+        console.log('📦 Executing AI-Frames metadata refresh from BubblSpace change...');
         refreshMetadata();
+        
+        // Update AI-Frames with new BubblSpace relationship if needed
+        if (event.detail?.bubblSpace && frames.length > 0) {
+          console.log('🔗 Updating AI-Frames BubblSpace relationship...');
+          setFrames(prev => prev.map(frame => ({
+            ...frame,
+            bubblSpaceId: event.detail.bubblSpace.id,
+            updatedAt: new Date().toISOString()
+          })));
+        }
       }, 50);
     };
 
     const handleTimeCapsuleChange = (event: CustomEvent) => {
-      console.log('🔄 TimeCapsule changed in same page, refreshing AI-Frames...');
+      console.log('🕰️ Same-page TimeCapsule change detected in AI-Frames:', {
+        type: event.detail?.type,
+        timeCapsuleName: event.detail?.timeCapsule?.name,
+        timeCapsuleId: event.detail?.timeCapsule?.id,
+        timestamp: new Date().toISOString()
+      });
+      
       setTimeout(() => {
+        console.log('📦 Executing AI-Frames metadata refresh from TimeCapsule change...');
         refreshMetadata();
+        
+        // Update AI-Frames with new TimeCapsule relationship if needed
+        if (event.detail?.timeCapsule && frames.length > 0) {
+          console.log('🔗 Updating AI-Frames TimeCapsule relationship...');
+          setFrames(prev => prev.map(frame => ({
+            ...frame,
+            timeCapsuleId: event.detail.timeCapsule.id,
+            updatedAt: new Date().toISOString()
+          })));
+        }
       }, 50);
     };
 
-    // Listen for storage events from other pages
+    // AUTO-SYNC: Sync metadata to Knowledge Base every 30 seconds
+    const autoSyncInterval = setInterval(() => {
+      if (metadataManager && vectorStore && vectorStore.initialized) {
+        console.log('🔄 Auto-sync: Syncing AI-Frames metadata to Knowledge Base...');
+        
+        const bubblSpaces = metadataManager.getAllBubblSpaces();
+        const timeCapsules = metadataManager.getAllTimeCapsules();
+        
+        metadataManager.saveMetadataToVectorStore(bubblSpaces, timeCapsules)
+          .then(() => {
+            console.log('✅ Auto-sync: AI-Frames metadata synced successfully');
+            
+            // Also sync AI-Frames data to Knowledge Base
+            return saveAllFramesToKB();
+          })
+          .then(() => {
+            console.log('✅ Auto-sync: AI-Frames data synced successfully');
+          })
+          .catch((error: any) => {
+            console.warn('⚠️ Auto-sync: Failed to sync AI-Frames data:', error.message);
+          });
+      } else {
+        console.log('⏳ Auto-sync: Waiting for AI-Frames metadata manager and vector store...');
+      }
+    }, 30000); // 30 seconds
+
+    // Enhanced event listeners
     window.addEventListener('storage', handleMetadataStorageChange);
-    
-    // Listen for custom events from same page
     window.addEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
     window.addEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+
+    console.log('🔄 Enhanced cross-page sync established for AI-Frames with auto-sync every 30 seconds');
 
     return () => {
       window.removeEventListener('storage', handleMetadataStorageChange);
       window.removeEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
       window.removeEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+      
+      // Clear auto-sync interval
+      clearInterval(autoSyncInterval);
+      console.log('🛑 Auto-sync: AI-Frames auto-sync stopped');
+      console.log('🔄 AI-Frames cross-page sync listeners removed');
     };
-  }, [metadataManager, currentBubblSpace, currentTimeCapsule]);
+  }, [metadataManager, currentBubblSpace, currentTimeCapsule, frames.length]);
 
   // Initialize TTS when not in creation mode
   useEffect(() => {
@@ -1018,12 +1118,11 @@ ${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
     ]);
   };
 
-  const currentFrame = frames[currentFrameIndex];
-
   // Auto-advance to next frame after video ends
   useEffect(() => {
-    if (!isCreationMode && autoAdvanceEnabled && currentFrame) {
-      const advanceDelay = (currentFrame.duration + 3) * 1000; // 3 seconds after video ends
+    const currentFrameForAutoAdvance = frames[currentFrameIndex];
+    if (!isCreationMode && autoAdvanceEnabled && currentFrameForAutoAdvance) {
+      const advanceDelay = (currentFrameForAutoAdvance.duration + 3) * 1000; // 3 seconds after video ends
 
       const timer = setTimeout(() => {
         // Start countdown
@@ -1085,33 +1184,37 @@ ${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
     currentFrameIndex,
     isCreationMode,
     autoAdvanceEnabled,
-    currentFrame,
     frames.length,
     frames,
   ]);
 
   // Auto-narrate when frame changes in learn mode
   useEffect(() => {
+    // Get current frame safely
+    const currentFrameInEffect = frames[currentFrameIndex];
+    
     if (
       !isCreationMode &&
       isVoiceEnabled &&
       ttsReady &&
-      currentFrame &&
+      currentFrameInEffect &&
       userHasInteracted
     ) {
       // Reset video to beginning when frame changes
-      if (videoRef.current) {
-        const videoId = extractVideoId(currentFrame.videoUrl);
-        const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${
-          currentFrame.startTime
-        }&end=${
-          currentFrame.startTime + currentFrame.duration
-        }&autoplay=0&controls=1&modestbranding=1&rel=0`;
-        videoRef.current.src = resetUrl;
+      if (videoRef.current && currentFrameInEffect.videoUrl) {
+        const videoId = extractVideoId(currentFrameInEffect.videoUrl);
+        if (videoId) {
+          const resetUrl = `https://www.youtube.com/embed/${videoId}?start=${
+            currentFrameInEffect.startTime
+          }&end=${
+            currentFrameInEffect.startTime + currentFrameInEffect.duration
+          }&autoplay=0&controls=1&modestbranding=1&rel=0`;
+          videoRef.current.src = resetUrl;
+        }
       }
 
       // Start narration (which will auto-play video when complete)
-      narrateFrame(currentFrame);
+      narrateFrame(currentFrameInEffect);
     }
   }, [
     currentFrameIndex,
@@ -1434,7 +1537,10 @@ ${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
 
   const startYouTubeVideo = () => {
     try {
-      if (videoRef.current) {
+      // Get current frame safely
+      const currentFrame = frames[currentFrameIndex];
+      
+      if (videoRef.current && currentFrame && currentFrame.videoUrl) {
         // Send play command to YouTube iframe
         const iframe = videoRef.current;
         const videoId = extractVideoId(currentFrame.videoUrl);
@@ -1472,12 +1578,15 @@ ${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
   const handleConceptClick = async (concept: string) => {
     setSelectedConcept(concept);
 
+    // Get current frame safely
+    const currentFrameForConcept = frames[currentFrameIndex];
+
     // Track concept click
     pageAnalytics.trackFeatureUsage("concept_exploration", {
       concept: concept,
       current_frame: currentFrameIndex,
-      frame_title: currentFrame?.title,
-      total_concepts: currentFrame?.aiConcepts.length,
+      frame_title: currentFrameForConcept?.title,
+      total_concepts: currentFrameForConcept?.aiConcepts.length,
     });
 
     // Enhanced AI response using DeepResearch and Knowledge Base
@@ -1552,7 +1661,10 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
 
-    let aiResponse = `Great question! Based on your current frame "${currentFrame.title}" and your learning journey, let me help you understand this concept better.`;
+    // Get current frame safely
+    const currentFrame = frames[currentFrameIndex];
+
+    let aiResponse = `Great question! Based on your current frame "${currentFrame?.title || 'your current learning session'}" and your learning journey, let me help you understand this concept better.`;
 
     // Enhanced AI response with knowledge base integration
     if (vectorStore) {
@@ -1656,6 +1768,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         isGenerated: true,
         sourceGoal: frameData.goal,
         sourceUrl: frameData.videoUrl,
+                  order: frames.length + 1,
+          bubblSpaceId: "default",
+          timeCapsuleId: "default",
+          parentFrameId: undefined,
+          type: 'frame',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       return newFrame;
@@ -1673,8 +1792,11 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       const newFrame = await generateFrameContent(newFrameData);
       setFrames((prev) => [...prev, newFrame]);
       setCurrentFrameIndex(frames.length); // Switch to new frame
-      setShowCreateFrame(false);
+              setShowCreationForm(false);
       setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
+      
+      // Clear the cleared flag since we're creating new frames
+      localStorage.removeItem("ai_frames_cleared");
 
       // Track frame creation
       pageAnalytics.trackFeatureUsage("frame_creation", {
@@ -1709,12 +1831,150 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   };
 
   const handleDeleteFrame = (frameId: string) => {
-    if (confirm("Are you sure you want to delete this frame?")) {
-      setFrames((prev) => prev.filter((f) => f.id !== frameId));
+    setFrameToDelete(frameId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteFrame = () => {
+    if (frameToDelete) {
+      setFrames((prev) => prev.filter((f) => f.id !== frameToDelete));
       if (currentFrameIndex >= frames.length - 1) {
         setCurrentFrameIndex(Math.max(0, frames.length - 2));
       }
+      setFrameToDelete(null);
     }
+    setShowDeleteConfirmation(false);
+  };
+
+  const cancelDeleteFrame = () => {
+    setFrameToDelete(null);
+    setShowDeleteConfirmation(false);
+  };
+
+  // NEW: Clear all AI frames and sync to Knowledge Base
+  const handleClearAllFrames = async () => {
+    if (!frames.length) {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: "ℹ️ No AI frames to clear.",
+        },
+      ]);
+      return;
+    }
+
+    setShowClearAllConfirmation(true);
+  };
+
+  const confirmClearAllFrames = async () => {
+    setShowClearAllConfirmation(false);
+
+    try {
+      // Clear from Knowledge Base first
+      if (vectorStore && vectorStoreInitialized) {
+        console.log(`🗑️ Clearing ${frames.length} AI-Frames from Knowledge Base...`);
+        
+        for (const frame of frames) {
+          const docId = `aiframe-${frame.id}`;
+          try {
+            await vectorStore.deleteDocument(docId);
+            console.log(`✅ Deleted AI-Frame from KB: ${frame.title}`);
+          } catch (deleteError) {
+            console.warn(`⚠️ Failed to delete AI-Frame "${frame.title}" from KB:`, deleteError);
+          }
+        }
+        
+        // Also search for any other AI-Frames documents that might exist
+        try {
+          const allDocs = await vectorStore.getAllDocuments();
+          const aiFramesDocs = allDocs.filter(doc => doc.metadata?.source === 'ai-frames');
+          
+          for (const doc of aiFramesDocs) {
+            try {
+              await vectorStore.deleteDocument(doc.id);
+              console.log(`✅ Deleted additional AI-Frame document from KB: ${doc.title}`);
+            } catch (deleteError) {
+              console.warn(`⚠️ Failed to delete AI-Frame document "${doc.title}" from KB:`, deleteError);
+            }
+          }
+          
+          console.log(`✅ Cleared all AI-Frames from Knowledge Base (${frames.length} frames + ${aiFramesDocs.length} additional documents)`);
+        } catch (searchError) {
+          console.warn('⚠️ Failed to search for additional AI-Frames documents:', searchError);
+        }
+      }
+
+      // Clear local state
+      const clearedCount = frames.length;
+      setFrames([]);
+      setCurrentFrameIndex(0);
+      
+      // Comprehensively clear localStorage data
+      try {
+        localStorage.removeItem("ai_frames_timecapsule");
+        localStorage.removeItem("timecapsule_combined");
+        localStorage.removeItem("deepresearch_data");
+        localStorage.removeItem("ai_frames_cleared");
+        console.log('🗑️ Completely cleared AI-Frames localStorage data');
+      } catch (storageError) {
+        console.warn('⚠️ Failed to clear localStorage:', storageError);
+      }
+      
+      // Reset other related state
+      setGraphState(null);
+      setChapters([]);
+      setSelectedConcept(null);
+      setShowAIConcepts(false);
+      
+      // Add success message to chat
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🗑️ Successfully cleared all ${clearedCount} AI frames!\n\n✅ Removed from local session\n✅ Cleared from Knowledge Base\n✅ Cleared localStorage data\n✅ App will stay empty after reload\n\nYou can now start fresh or import a new TimeCapsule.`,
+        },
+      ]);
+
+      // Track the clear action
+      pageAnalytics.trackFeatureUsage("clear_all_frames", {
+        frames_cleared: clearedCount,
+        had_knowledge_base: !!vectorStore,
+        bubblspace_id: currentBubblSpace?.id,
+        timecapsule_id: currentTimeCapsule?.id,
+      });
+
+      // Dispatch event to notify other pages of AI-Frames clear
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('aiframes-cleared', {
+          detail: { 
+            frameCount: clearedCount,
+            bubblSpaceId: currentBubblSpace?.id,
+            timeCapsuleId: currentTimeCapsule?.id,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to clear AI frames:', error);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `❌ Failed to clear AI frames: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        },
+      ]);
+      
+      pageAnalytics.trackError(
+        "clear_all_frames_failed",
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    }
+  };
+
+  const cancelClearAllFrames = () => {
+    setShowClearAllConfirmation(false);
   };
 
   const handleDragStart = (
@@ -1763,7 +2023,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     const [draggedFrame] = newFrames.splice(draggedIndex, 1);
     newFrames.splice(dropIndex, 0, draggedFrame);
 
-    setFrames(newFrames);
+    // Update order field for all frames to maintain sequence
+    const reorderedFrames = newFrames.map((frame, index) => ({
+      ...frame,
+      order: index + 1,
+      updatedAt: new Date().toISOString()
+    }));
+
+    setFrames(reorderedFrames);
 
     // Update current frame index if needed
     if (currentFrameIndex === draggedIndex) {
@@ -1787,12 +2054,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         role: "ai",
         content: `✅ Frame reordered successfully! Frame "${
           draggedFrame.title
-        }" moved to position ${dropIndex + 1}.`,
+        }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.`,
       },
     ]);
 
     setDraggedFrameId(null);
     setDragOverIndex(null);
+
+    console.log('🔄 Frame order updated via drag & drop:', {
+      fromIndex: draggedIndex,
+      toIndex: dropIndex,
+      frameTitle: draggedFrame.title,
+      totalFrames: reorderedFrames.length
+    });
   };
 
   const handleDragEnd = () => {
@@ -1800,12 +2074,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     setDragOverIndex(null);
   };
 
-  const videoId = extractVideoId(currentFrame.videoUrl);
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${
+  // Get current frame safely for video display
+  const currentFrame = frames[currentFrameIndex];
+  const videoId = currentFrame ? extractVideoId(currentFrame.videoUrl) : null;
+  const embedUrl = currentFrame && videoId ? `https://www.youtube.com/embed/${videoId}?start=${
     currentFrame.startTime
   }&end=${
     currentFrame.startTime + currentFrame.duration
-  }&autoplay=0&controls=1&modestbranding=1&rel=0`;
+  }&autoplay=0&controls=1&modestbranding=1&rel=0` : '';
 
   const nextFrame = () => {
     if (currentFrameIndex < frames.length - 1) {
@@ -1862,8 +2138,26 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     }
   };
 
+  // Close TimeCapsule selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showTimeCapsuleSelector && !(event.target as Element)?.closest('.timecapsule-selector')) {
+        setShowTimeCapsuleSelector(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTimeCapsuleSelector]);
+
+  // Skip early return - always show main interface
+
   return (
     <div className="pt-20 min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+      
+
       {/* Top Navigation Header */}
       <div className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
         <div className="flex items-center justify-between">
@@ -1872,7 +2166,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               AI-Frames Learning Platform
             </h2>
             <Badge variant="outline" className="text-xs">
-              Frame {currentFrameIndex + 1} of {frames.length}
+              {frames.length === 0 ? 'No Frames' : `Frame ${currentFrameIndex + 1} of ${frames.length}`}
             </Badge>
           </div>
           
@@ -1880,60 +2174,149 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           <div className="flex items-center gap-4">
             {/* Current BubblSpace Display */}
             {currentBubblSpace && (
-              <div 
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                onClick={() => {
-                  setEditingBubblSpace(currentBubblSpace);
-                  setShowBubblSpaceDialog(true);
-                }}
-                title={`Current BubblSpace: ${currentBubblSpace.name}. Click to edit.`}
-              >
+              <div className="flex items-center gap-2">
                 <div 
-                  className="w-3 h-3 rounded"
-                  style={{ backgroundColor: currentBubblSpace.color || '#3B82F6' }}
-                />
-                <span className="text-sm font-medium truncate max-w-[120px]">
-                  {currentBubblSpace.name}
-                </span>
-                {currentBubblSpace.isDefault && (
-                  <Badge variant="secondary" className="text-xs">Default</Badge>
-                )}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => {
+                    setEditingBubblSpace(currentBubblSpace);
+                    setShowBubblSpaceDialog(true);
+                  }}
+                  title={`Current BubblSpace: ${currentBubblSpace.name}. Click to edit.`}
+                >
+                  <div 
+                    className="w-3 h-3 rounded"
+                    style={{ backgroundColor: currentBubblSpace.color || '#3B82F6' }}
+                  />
+                  <span className="text-sm font-medium truncate max-w-[120px]">
+                    {currentBubblSpace.name}
+                  </span>
+                  {currentBubblSpace.isDefault && (
+                    <Badge variant="secondary" className="text-xs">Default</Badge>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditingBubblSpace(currentBubblSpace);
+                    setShowBubblSpaceDialog(true);
+                  }}
+                  className="h-8 w-8 p-0"
+                  title="Edit BubblSpace"
+                >
+                  <Edit3 className="h-4 w-4" />
+                </Button>
               </div>
             )}
             
-            {/* BubblSpace Management */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEditingBubblSpace(null);
-                setShowBubblSpaceDialog(true);
-              }}
-              title="Create or manage BubblSpaces"
-            >
-              <FolderPlus className="h-4 w-4 mr-2" />
-              BubblSpace
-            </Button>
+            {/* BubblSpace Management - Disabled for regular users */}
+            {/* Advanced users only: BubblSpace creation disabled */}
 
             <Separator orientation="vertical" className="h-6" />
 
-            {/* Current TimeCapsule Display */}
-            {currentTimeCapsule && (
-              <div 
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                onClick={() => {
-                  setEditingTimeCapsule(currentTimeCapsule);
-                  setShowTimeCapsuleDialog(true);
-                }}
-                title={`Current TimeCapsule: ${currentTimeCapsule.name}. Click to edit.`}
-              >
-                <Package className="w-3 h-3" />
-                <span className="text-sm font-medium truncate max-w-[120px]">
-                  {currentTimeCapsule.name}
-                </span>
-                <Badge variant="outline" className="text-xs">
-                  {currentTimeCapsule.category}
-                </Badge>
+            {/* Current TimeCapsule Display with Selector */}
+            {allTimeCapsules.length > 0 && (
+              <div className="flex items-center gap-2">
+                {/* TimeCapsule Dropdown Selector */}
+                <div className="relative timecapsule-selector">
+                  <button
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                    onClick={() => setShowTimeCapsuleSelector(!showTimeCapsuleSelector)}
+                    title="Select TimeCapsule"
+                  >
+                    <Package className="w-3 h-3" />
+                    <span className="text-sm font-medium truncate max-w-[120px]">
+                      {currentTimeCapsule?.name || 'Select TimeCapsule'}
+                    </span>
+                    {currentTimeCapsule && (
+                      <Badge variant="outline" className="text-xs">
+                        {currentTimeCapsule.category}
+                      </Badge>
+                    )}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  
+                  {/* TimeCapsule Dropdown */}
+                  {showTimeCapsuleSelector && (
+                    <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg z-50 min-w-[280px]">
+                      <div className="p-2 border-b">
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Available TimeCapsules ({allTimeCapsules.length})
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {allTimeCapsules.map((timeCapsule) => (
+                          <button
+                            key={timeCapsule.id}
+                            className={`w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 ${
+                              currentTimeCapsule?.id === timeCapsule.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                            }`}
+                            onClick={() => {
+                              setCurrentTimeCapsule(timeCapsule);
+                              setShowTimeCapsuleSelector(false);
+                              // Update frames with new TimeCapsule ID
+                              const updatedFrames = frames.map(frame => ({
+                                ...frame,
+                                timeCapsuleId: timeCapsule.id,
+                                updatedAt: new Date().toISOString()
+                              }));
+                              setFrames(updatedFrames);
+                              console.log(`✅ Switched to TimeCapsule: ${timeCapsule.name}`);
+                            }}
+                          >
+                            <div className="flex items-center gap-2 flex-1">
+                              <Package className="w-3 h-3" />
+                              <div>
+                                <div className="text-sm font-medium truncate">
+                                  {timeCapsule.name}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {timeCapsule.description}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className="text-xs">
+                                {timeCapsule.category}
+                              </Badge>
+                              {currentTimeCapsule?.id === timeCapsule.id && (
+                                <Badge variant="default" className="text-xs">Current</Badge>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="p-2 border-t">
+                        <button
+                          className="w-full text-left px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                          onClick={() => {
+                            setShowTimeCapsuleSelector(false);
+                            setEditingTimeCapsule(null);
+                            setShowTimeCapsuleDialog(true);
+                          }}
+                        >
+                          + Create New TimeCapsule
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Edit Current TimeCapsule */}
+                {currentTimeCapsule && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditingTimeCapsule(currentTimeCapsule);
+                      setShowTimeCapsuleDialog(true);
+                    }}
+                    className="h-8 w-8 p-0"
+                    title="Edit Current TimeCapsule"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
             
@@ -1972,6 +2355,21 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             >
               <Download className="h-4 w-4 mr-2" />
               Export
+            </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Clear All AI-Frames */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleClearAllFrames}
+              title="Clear all AI frames and remove from Knowledge Base"
+              disabled={!frames.length}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear All
             </Button>
           </div>
         </div>
@@ -2162,7 +2560,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowCreateFrame(true)}
+                    onClick={() => setShowCreationForm(true)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -2377,11 +2775,11 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               /* Graph View */
               <FrameGraphIntegration
                 frames={frames}
-                onFramesChange={setFrames}
+                onFramesChange={setFrames as any} // TODO: Fix type compatibility after updating FrameGraphIntegration
                 isCreationMode={isCreationMode}
                 currentFrameIndex={currentFrameIndex}
                 onFrameIndexChange={setCurrentFrameIndex}
-                onCreateFrame={() => setShowCreateFrame(true)}
+                                    onCreateFrame={() => setShowCreationForm(true)}
                 onTimeCapsuleUpdate={handleTimeCapsuleUpdate}
               />
             ) : (
@@ -2397,16 +2795,112 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-center py-8">
-                        <Button
-                          onClick={() => setShowCreateFrame(true)}
-                          size="lg"
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                        >
-                          <Plus className="h-5 w-5 mr-2" />
-                          Create New AI Frame
-                        </Button>
-                      </div>
+                      {showCreationForm ? (
+                        <div className="max-w-2xl mx-auto text-left">
+                          <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold">Create New AI Frame</h2>
+                            <Button 
+                              variant="ghost" 
+                              onClick={() => setShowCreationForm(false)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              ✕ Cancel
+                            </Button>
+                          </div>
+                          <p className="text-gray-600 dark:text-gray-400 mb-6">
+                            Generate a new learning frame with AI assistance
+                          </p>
+                          
+                          <div className="space-y-6">
+                            <div>
+                              <Label htmlFor="goal" className="text-base font-medium">Learning Goal</Label>
+                              <Textarea
+                                id="goal"
+                                placeholder="What should learners understand after this frame?"
+                                value={newFrameData.goal}
+                                onChange={(e) => setNewFrameData({ ...newFrameData, goal: e.target.value })}
+                                rows={4}
+                                className="mt-2"
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="videoUrl" className="text-base font-medium">Video URL</Label>
+                              <Input
+                                id="videoUrl"
+                                placeholder="https://youtube.com/watch?v=..."
+                                value={newFrameData.videoUrl}
+                                onChange={(e) => setNewFrameData({ ...newFrameData, videoUrl: e.target.value })}
+                                className="mt-2"
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="startTime" className="text-base font-medium">Start Time (seconds)</Label>
+                                <Input
+                                  id="startTime"
+                                  type="number"
+                                  placeholder="0"
+                                  value={newFrameData.startTime || ""}
+                                  onChange={(e) => setNewFrameData({ ...newFrameData, startTime: parseInt(e.target.value) || 0 })}
+                                  className="mt-2"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="duration" className="text-base font-medium">Duration (seconds)</Label>
+                                <Input
+                                  id="duration"
+                                  type="number"
+                                  placeholder="300"
+                                  value={newFrameData.duration || ""}
+                                  onChange={(e) => setNewFrameData({ ...newFrameData, duration: parseInt(e.target.value) || 300 })}
+                                  className="mt-2"
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-end gap-3 pt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => setShowCreationForm(false)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button 
+                                onClick={() => {
+                                  handleCreateFrame();
+                                  setShowCreationForm(false);
+                                }} 
+                                disabled={isGeneratingFrame}
+                              >
+                                {isGeneratingFrame ? (
+                                  <>
+                                    <Wand2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Creating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Create Frame
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-8">
+                          <Button
+                            onClick={() => setShowCreationForm(true)}
+                            size="lg"
+                            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                          >
+                            <Plus className="h-5 w-5 mr-2" />
+                            Create New AI Frame
+                          </Button>
+                        </div>
+                      )}
                       {timeCapsuleData && (
                         <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
@@ -2428,8 +2922,11 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   </Card>
                 )}
 
-                {/* Frame Header */}
-                <Card>
+                {/* Frame Content - Only show if frames exist */}
+                {frames.length > 0 && currentFrame && (
+                  <>
+                    {/* Frame Header */}
+                    <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -2638,6 +3135,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     </div>
                   </CardContent>
                 </Card>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -2688,242 +3187,191 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         }}
       />
 
-      {/* Create Frame Dialog */}
-      {showCreateFrame && (
-        <Dialog open={showCreateFrame} onOpenChange={setShowCreateFrame}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New AI Frame</DialogTitle>
-              <DialogDescription>
-                Generate a new learning frame with AI assistance
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="grid gap-4">
-                <div>
-                  <Label htmlFor="goal">Learning Goal</Label>
-                  <Textarea
-                    id="goal"
-                    placeholder="What should learners understand after this frame?"
-                    value={newFrameData.goal}
-                    onChange={(e) =>
-                      setNewFrameData({ ...newFrameData, goal: e.target.value })
-                    }
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="videoUrl">Video URL</Label>
-                  <Input
-                    id="videoUrl"
-                    placeholder="https://youtube.com/watch?v=..."
-                    value={newFrameData.videoUrl}
-                    onChange={(e) =>
-                      setNewFrameData({
-                        ...newFrameData,
-                        videoUrl: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="startTime">Start Time (seconds)</Label>
-                    <Input
-                      id="startTime"
-                      type="number"
-                      placeholder="0"
-                      value={newFrameData.startTime || ""}
-                      onChange={(e) =>
-                        setNewFrameData({
-                          ...newFrameData,
-                          startTime: parseInt(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="duration">Duration (seconds)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      placeholder="300"
-                      value={newFrameData.duration || ""}
-                      onChange={(e) =>
-                        setNewFrameData({
-                          ...newFrameData,
-                          duration: parseInt(e.target.value) || 300,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateFrame(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateFrame} disabled={isGeneratingFrame}>
-                  {isGeneratingFrame ? (
-                    <>
-                      <Wand2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Frame
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+
+
+
+
+      
 
       {/* Voice Settings Dialog */}
-      {showVoiceSettings && (
-        <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Voice Settings</DialogTitle>
-              <DialogDescription>
-                Configure text-to-speech settings
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="voice-select">Voice</Label>
-                <select
-                  id="voice-select"
-                  value={selectedVoice?.name || ""}
-                  onChange={(e) => {
-                    const voice = availableVoices?.find(
-                      (v) => v.name === e.target.value
-                    );
-                    if (voice) {
-                      setSelectedVoice(voice);
-                      localStorage.setItem("selectedVoiceName", voice.name);
+      <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Voice Settings</DialogTitle>
+            <DialogDescription>
+              Configure text-to-speech settings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="voice-select">Voice</Label>
+              <select
+                id="voice-select"
+                value={selectedVoice?.name || ""}
+                onChange={(e) => {
+                  const voice = availableVoices?.find(
+                    (v) => v.name === e.target.value
+                  );
+                  if (voice) {
+                    setSelectedVoice(voice);
+                    localStorage.setItem("selectedVoiceName", voice.name);
+                  }
+                }}
+                className="w-full p-2 border rounded"
+              >
+                {availableVoices.map((voice) => (
+                  <option key={voice.name} value={voice.name}>
+                    {voice.name} ({voice.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="voice-rate">Speech Rate</Label>
+              <input
+                id="voice-rate"
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={voiceSettings.rate}
+                onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                className="w-full"
+              />
+              <div className="text-sm text-gray-600">
+                {voiceSettings.rate.toFixed(1)}x
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="voice-pitch">Pitch</Label>
+              <input
+                id="voice-pitch"
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={voiceSettings.pitch}
+                onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                className="w-full"
+              />
+              <div className="text-sm text-gray-600">
+                {voiceSettings.pitch.toFixed(1)}
+              </div>
+            </div>
+            {selectedVoice && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                <p className="text-sm font-medium">Test Voice</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedVoice) {
+                      speakText(
+                        `Hello! This is a test of the ${selectedVoice.name} voice at ${voiceSettings.rate}x speed and ${voiceSettings.pitch} pitch.`
+                      );
                     }
                   }}
-                  className="w-full p-2 border rounded"
+                  className="mt-2"
                 >
-                  {availableVoices.map((voice) => (
-                    <option key={voice.name} value={voice.name}>
-                      {voice.name} ({voice.lang})
-                    </option>
-                  ))}
-                </select>
+                  <Volume2 className="h-4 w-4 mr-2" />
+                  Test Voice
+                </Button>
               </div>
-              <div>
-                <Label htmlFor="voice-rate">Speech Rate</Label>
-                <input
-                  id="voice-rate"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={voiceSettings.rate}
-                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
-                  className="w-full"
-                />
-                <div className="text-sm text-gray-600">
-                  {voiceSettings.rate.toFixed(1)}x
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Concept Detail Dialog */}
+      <Dialog
+        open={!!selectedConcept}
+        onOpenChange={() => setSelectedConcept(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              {selectedConcept || "Loading..."}
+            </DialogTitle>
+            <DialogDescription>
+              AI-generated explanation and context
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-96">
+            <div className="space-y-4">
+              {selectedConcept && conceptExplanations[selectedConcept] ? (
+                <div className="prose prose-sm dark:prose-invert">
+                  {conceptExplanations[selectedConcept]
+                    .split("\n")
+                    .map((paragraph: string, index: number) => (
+                      <p key={index}>{paragraph}</p>
+                    ))}
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="voice-pitch">Pitch</Label>
-                <input
-                  id="voice-pitch"
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={voiceSettings.pitch}
-                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
-                  className="w-full"
-                />
-                <div className="text-sm text-gray-600">
-                  {voiceSettings.pitch.toFixed(1)}
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <Brain className="h-8 w-8 mx-auto mb-2 animate-pulse" />
+                    <p className="text-sm text-gray-500">
+                      Loading explanation...
+                    </p>
+                  </div>
                 </div>
-              </div>
-              {selectedVoice && (
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
-                  <p className="text-sm font-medium">Test Voice</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (selectedVoice) {
-                        speakText(
-                          `Hello! This is a test of the ${selectedVoice.name} voice at ${voiceSettings.rate}x speed and ${voiceSettings.pitch} pitch.`
-                        );
-                      }
-                    }}
-                    className="mt-2"
-                  >
-                    <Volume2 className="h-4 w-4 mr-2" />
-                    Test Voice
-                  </Button>
+              )}
+              {timeCapsuleData && (
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    💡 This explanation uses knowledge from your TimeCapsule
+                  </p>
                 </div>
               )}
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
-      {/* Concept Detail Dialog */}
-      {selectedConcept && (
-        <Dialog
-          open={!!selectedConcept}
-          onOpenChange={() => setSelectedConcept(null)}
-        >
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5" />
-                {selectedConcept}
-              </DialogTitle>
-              <DialogDescription>
-                AI-generated explanation and context
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="max-h-96">
-              <div className="space-y-4">
-                {selectedConcept && conceptExplanations[selectedConcept] ? (
-                  <div className="prose prose-sm dark:prose-invert">
-                    {conceptExplanations[selectedConcept]
-                      .split("\n")
-                      .map((paragraph: string, index: number) => (
-                        <p key={index}>{paragraph}</p>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <Brain className="h-8 w-8 mx-auto mb-2 animate-pulse" />
-                      <p className="text-sm text-gray-500">
-                        Loading explanation...
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {timeCapsuleData && (
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
-                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      💡 This explanation uses knowledge from your TimeCapsule
-                    </p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Delete Frame Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Frame</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this frame? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteFrame}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteFrame}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All Frames Confirmation Dialog */}
+      <AlertDialog open={showClearAllConfirmation} onOpenChange={setShowClearAllConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear All AI Frames</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear all {frames.length} AI frames? This action cannot be undone.
+              <br /><br />
+              <strong>This will also remove all AI-Frames from the Knowledge Base and keep them cleared even after page reload.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelClearAllFrames}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmClearAllFrames}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Clear All Frames
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

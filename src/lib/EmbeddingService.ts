@@ -21,14 +21,18 @@ class EmbeddingService {
   private initializationPromise: Promise<void> | null = null;
 
   private constructor() {
-    // Configure Xenova environment for immediate download
-    env.allowLocalModels = false;
-    env.allowRemoteModels = true;
+    // Configure Xenova environment for CDN loading and caching
+    env.allowLocalModels = false; // Don't try to load from local server
+    env.allowRemoteModels = true; // Allow loading from Hugging Face CDN
+    env.useBrowserCache = true; // Use browser's built-in caching
     
-    // Enable persistent caching across browser sessions
-    env.cacheDir = '.cache/xenova'; // Browser cache directory
-    env.allowLocalModels = true; // Allow loading from cache
-    env.allowRemoteModels = true; // Allow downloading if needed
+    // Set the proper CDN base URL to ensure it doesn't try localhost
+    env.backends.onnx.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';
+    
+    // Optional: Set custom remote URL for models (defaults to HF Hub which is correct)
+    // env.remoteURL = 'https://huggingface.co/';
+    
+    console.log('🧠 Xenova environment configured for CDN loading');
   }
 
   static getInstance(): EmbeddingService {
@@ -87,37 +91,43 @@ class EmbeddingService {
         });
       }
 
-      // Load the embedding model with enhanced caching
-      console.log('📦 Loading Xenova/all-MiniLM-L6-v2 model...');
+      // Load the embedding model with enhanced CDN loading
+      console.log('📦 Loading Xenova/all-MiniLM-L6-v2 model from Hugging Face CDN...');
       
       onProgress?.({
-        message: isCached ? 'Loading from cache...' : 'Loading embedding model...',
+        message: isCached ? 'Loading from browser cache...' : 'Downloading from CDN...',
         progress: 30
       });
 
       let downloadDetected = false;
       
-      // Use dynamic import with pipeline for cached/download loading
+      // Use pipeline with explicit CDN configuration
       this.model = await pipeline(
         'feature-extraction',
         'Xenova/all-MiniLM-L6-v2',
         {
-          cache_dir: '.cache/xenova', // Explicit cache directory
+          // Remove cache_dir to let the browser handle caching naturally
           progress_callback: (progress: any) => {
             if (progress.status === 'downloading') {
               downloadDetected = true;
               const downloadProgress = Math.round(30 + (progress.progress || 0) * 0.6); // Scale to 30-90%
               onProgress?.({
-                message: `Downloading model: ${progress.file} (${Math.round((progress.progress || 0) * 100)}%)`,
+                message: `Downloading from CDN: ${progress.file} (${Math.round((progress.progress || 0) * 100)}%)`,
                 progress: downloadProgress
               });
-              console.log(`📊 Model download: ${progress.file} - ${Math.round((progress.progress || 0) * 100)}%`);
+              console.log(`📊 CDN download: ${progress.file} - ${Math.round((progress.progress || 0) * 100)}%`);
             } else if (progress.status === 'ready') {
               onProgress?.({
-                message: 'Model loaded from cache',
+                message: 'Model loaded successfully',
                 progress: 95
               });
-              console.log('✅ Model loaded from browser cache');
+              console.log('✅ Model loaded successfully');
+            } else if (progress.status === 'progress') {
+              const downloadProgress = Math.round(30 + (progress.progress || 0) * 0.6);
+              onProgress?.({
+                message: `Loading model: ${Math.round((progress.progress || 0) * 100)}%`,
+                progress: downloadProgress
+              });
             }
           }
         }

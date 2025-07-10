@@ -2611,19 +2611,37 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
+      console.log(`🔄 DeepResearch.saveTimeCapsule called:`, { 
+        name, 
+        description, 
+        bubblSpaceId, 
+        options, 
+        editingTimeCapsule: this.editingTimeCapsule?.id 
+      });
+      
       let timeCapsule: TimeCapsuleMetadata;
       
       if (this.editingTimeCapsule) {
         // Update existing
+        console.log(`🔄 Updating existing TimeCapsule: ${this.editingTimeCapsule.id}`);
         timeCapsule = this.metadataManager.updateTimeCapsule(this.editingTimeCapsule.id, {
           name,
           description,
           bubblSpaceId,
           ...options,
         });
+        
+        // Immediately update current TimeCapsule if it's the one being edited
+        if (this.currentTimeCapsule?.id === this.editingTimeCapsule.id) {
+          console.log(`🔄 Updating current TimeCapsule in DeepResearch UI`);
+          this.currentTimeCapsule = timeCapsule;
+          this.setCurrentTimeCapsule?.(timeCapsule);
+        }
+        
         this.updateStatus(`✅ Updated TimeCapsule: ${name}`);
       } else {
         // Create new
+        console.log(`🔄 Creating new TimeCapsule`);
         timeCapsule = this.metadataManager.createTimeCapsule(name, description, bubblSpaceId, options);
         this.updateStatus(`✅ Created TimeCapsule: ${name}`);
       }
@@ -2634,11 +2652,12 @@ Duration: ${frame.duration || 0}s
         this.setCurrentTimeCapsule?.(timeCapsule);
       }
 
+      console.log(`✅ TimeCapsule operation completed, refreshing data...`);
       // Refresh data
       await this.loadMetadata();
       this.closeTimeCapsuleDialog();
     } catch (error) {
-      console.error('Failed to save TimeCapsule:', error);
+      console.error('❌ Failed to save TimeCapsule:', error);
       this.updateStatus(`❌ Failed to save TimeCapsule: ${(error as Error).message}`);
     }
   }
@@ -3034,7 +3053,7 @@ export function DeepResearchComponent() {
     }
   }, [vectorStoreError, vectorStoreInitializing, vectorStoreInitialized, processingStatus]);
 
-  // Listen for metadata changes from other pages (like AI-Frames)
+  // Listen for metadata changes from other pages (like AI-Frames) + Auto-sync
   useEffect(() => {
     const app = appRef.current;
     if (!app) return;
@@ -3064,6 +3083,26 @@ export function DeepResearchComponent() {
       }, 50);
     };
 
+    // AUTO-SYNC: Sync metadata to Knowledge Base every 30 seconds
+    const autoSyncInterval = setInterval(() => {
+      if (app && app.metadataManager && app.vectorStore && app.vectorStore.initialized) {
+        console.log('🔄 Auto-sync: Syncing DeepResearch metadata to Knowledge Base...');
+        
+        const bubblSpaces = app.metadataManager.getAllBubblSpaces();
+        const timeCapsules = app.metadataManager.getAllTimeCapsules();
+        
+        app.metadataManager.saveMetadataToVectorStore(bubblSpaces, timeCapsules)
+          .then(() => {
+            console.log('✅ Auto-sync: DeepResearch metadata synced successfully');
+          })
+          .catch((error: any) => {
+            console.warn('⚠️ Auto-sync: Failed to sync DeepResearch metadata:', error.message);
+          });
+      } else {
+        console.log('⏳ Auto-sync: Waiting for DeepResearch metadata manager and vector store...');
+      }
+    }, 30000); // 30 seconds
+
     // Listen for storage events from other pages
     window.addEventListener('storage', handleMetadataStorageChange);
     
@@ -3075,6 +3114,10 @@ export function DeepResearchComponent() {
       window.removeEventListener('storage', handleMetadataStorageChange);
       window.removeEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
       window.removeEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+      
+      // Clear auto-sync interval
+      clearInterval(autoSyncInterval);
+      console.log('🛑 Auto-sync: DeepResearch auto-sync stopped');
     };
   }, []);
 
@@ -3206,90 +3249,104 @@ export function DeepResearchComponent() {
       <div className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
         <div className="px-6 py-3">
           <div className="flex items-center justify-between">
-            {/* Left Side - Current Selection Display */}
             <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                DeepResearch Platform
+              </h2>
+              <Badge variant="outline" className="text-xs">
+                {topics.length} Topic{topics.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+            
+            {/* BubblSpace & TimeCapsule Management - AI-Frames Style */} 
+            <div className="flex items-center gap-4">
+              {/* Current BubblSpace Display - Click to Edit */}
               {currentBubblSpace && (
                 <div className="flex items-center gap-2">
                   <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: currentBubblSpace.color }}
-                  />
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {currentBubblSpace.name}
-                  </span>
-                </div>
-              )}
-              
-              {currentTimeCapsule && (
-                <>
-                  <div className="text-slate-400 dark:text-slate-600">→</div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {currentTimeCapsule.category}
-                    </Badge>
-                    <span className="text-slate-600 dark:text-slate-400">
-                      {currentTimeCapsule.name}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => {
+                      app.editingBubblSpace = currentBubblSpace;
+                      app.setEditingBubblSpace?.(currentBubblSpace);
+                      app.setShowBubblSpaceDialog?.(true);
+                    }}
+                    title={`Current BubblSpace: ${currentBubblSpace.name}. Click to edit.`}
+                  >
+                    <div 
+                      className="w-3 h-3 rounded"
+                      style={{ backgroundColor: currentBubblSpace.color || '#3B82F6' }}
+                    />
+                    <span className="text-sm font-medium truncate max-w-[120px]">
+                      {currentBubblSpace.name}
                     </span>
+                    {currentBubblSpace.isDefault && (
+                      <Badge variant="secondary" className="text-xs">Default</Badge>
+                    )}
                   </div>
-                </>
-              )}
-              
-              {isMetadataLoading && (
-                <div className="text-slate-500 dark:text-slate-400 text-sm">
-                  Loading metadata...
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      app.editingBubblSpace = currentBubblSpace;
+                      app.setEditingBubblSpace?.(currentBubblSpace);
+                      app.setShowBubblSpaceDialog?.(true);
+                    }}
+                    className="h-8 w-8 p-0"
+                    title="Edit BubblSpace"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
-            </div>
-
-            {/* Right Side - Management Buttons */}
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => app.openBubblSpaceDialog()}
-                className="gap-2"
-              >
-                <FolderPlus className="h-4 w-4" />
-                New BubblSpace
-              </Button>
               
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => app.openTimeCapsuleDialog()}
-                className="gap-2"
+                          {/* BubblSpace Management - Disabled for regular users */}
+            {/* Advanced users only: BubblSpace creation disabled */}
+
+              <Separator orientation="vertical" className="h-6" />
+
+              {/* Current TimeCapsule Display - Click to Edit */}
+              {currentTimeCapsule && (
+                <div 
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => {
+                    app.editingTimeCapsule = currentTimeCapsule;
+                    app.setEditingTimeCapsule?.(currentTimeCapsule);
+                    app.setShowTimeCapsuleDialog?.(true);
+                  }}
+                  title={`Current TimeCapsule: ${currentTimeCapsule.name}. Click to edit.`}
+                >
+                  <Package className="w-3 h-3" />
+                  <span className="text-sm font-medium truncate max-w-[120px]">
+                    {currentTimeCapsule.name}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {currentTimeCapsule.category}
+                  </Badge>
+                </div>
+              )}
+              
+              {/* TimeCapsule Management */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  app.editingTimeCapsule = null;
+                  app.setEditingTimeCapsule?.(null);
+                  app.setShowTimeCapsuleDialog?.(true);
+                }}
+                title="Create or manage TimeCapsules"
                 disabled={!currentBubblSpace}
               >
-                <Plus className="h-4 w-4" />
-                New TimeCapsule
+                <Plus className="h-4 w-4 mr-2" />
+                TimeCapsule
               </Button>
-              
-              {currentBubblSpace && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => app.openBubblSpaceDialog(currentBubblSpace)}
-                  className="gap-2"
-                >
-                  <Edit3 className="h-4 w-4" />
-                  Edit
-                </Button>
-              )}
-              
+
+              <Separator orientation="vertical" className="h-6" />
+
+              {/* Enhanced TimeCapsule Export/Import */}
               <Button 
                 variant="outline" 
-                size="sm" 
-                onClick={() => app.exportTimeCapsule()}
-                className="gap-2"
-                disabled={!currentTimeCapsule}
-              >
-                <Package className="h-4 w-4" />
-                Export
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
+                size="sm"
                 onClick={() => {
                   const input = document.createElement("input");
                   input.type = "file";
@@ -3300,10 +3357,20 @@ export function DeepResearchComponent() {
                   };
                   input.click();
                 }}
-                className="gap-2"
+                title="Import Enhanced TimeCapsule with full metadata support"
               >
-                <Upload className="h-4 w-4" />
+                <Upload className="h-4 w-4 mr-2" />
                 Import
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => app.exportTimeCapsule()}
+                title="Export Enhanced TimeCapsule with BubblSpace and metadata"
+                disabled={!currentTimeCapsule}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
               </Button>
             </div>
           </div>

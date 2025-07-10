@@ -51,7 +51,18 @@ const documentSchema = {
         createdAt: { type: 'string' },
         name: { type: 'string' },
         timeCapsuleId: { type: 'string' },
-        type: { type: 'string' }
+        type: { type: 'string' },
+        updatedAt: { type: 'string' },
+        // Enhanced metadata fields for BubblSpace and TimeCapsule
+        color: { type: 'string' },
+        isDefault: { type: 'boolean' },
+        createdBy: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' } },
+        version: { type: 'string' },
+        privacy: { type: 'string' },
+        difficulty: { type: 'string' },
+        estimatedDuration: { type: 'number' },
+        fullObject: { type: 'string' }
       }
     },
     chunks: {
@@ -99,6 +110,17 @@ export interface DocumentData {
     name?: string;
     timeCapsuleId?: string;
     type?: string;
+    updatedAt?: string;
+    // Enhanced metadata fields for BubblSpace and TimeCapsule
+    color?: string;
+    isDefault?: boolean;
+    createdBy?: string;
+    tags?: string[];
+    version?: string;
+    privacy?: string;
+    difficulty?: string;
+    estimatedDuration?: number;
+    fullObject?: string;
   };
   chunks: Array<{
     id: string;
@@ -499,18 +521,79 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    try {
-      console.log(`🗑️ Deleting document: ${id}`);
-      const doc = await this.documentsCollection.documents.findOne(id).exec();
-      if (doc) {
-        await doc.remove();
-        console.log(`✅ Document deleted: ${id}`);
-      } else {
-        console.warn(`⚠️ Document not found: ${id}`);
+    const maxRetries = 5;
+    let retryCount = 0;
+    let backoffDelay = 100; // Start with 100ms delay
+
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`🗑️ Deleting document: ${id} (attempt ${retryCount + 1}/${maxRetries})`);
+        
+        // Fresh fetch of the document for each attempt
+        const doc = await this.documentsCollection.documents.findOne(id).exec();
+        
+        if (doc) {
+          // Get current revision for debugging
+          const currentRevision = doc._rev;
+          console.log(`📋 Document ${id} found with revision: ${currentRevision}`);
+          
+          // Attempt deletion with proper error handling
+          await doc.remove();
+          console.log(`✅ Document deleted successfully: ${id}`);
+          return; // Success, exit retry loop
+          
+        } else {
+          console.warn(`⚠️ Document not found: ${id}`);
+          return; // Document doesn't exist, consider it "deleted"
+        }
+        
+      } catch (error: any) {
+        retryCount++;
+        
+        // Check if this is a revision conflict error
+        if (error.name === 'RxError' && error.code === 'CONFLICT') {
+          console.warn(`⚠️ Document deletion conflict for ${id}, retry ${retryCount}/${maxRetries}`, {
+            errorCode: error.code,
+            documentId: error.parameters?.id,
+            currentRevision: error.parameters?.writeError?.documentInDb?._rev,
+            attemptedRevision: error.parameters?.writeError?.writeRow?.document?._rev,
+            conflictType: 'deletion'
+          });
+          
+          // For deletion conflicts, try to refresh and re-attempt
+          if (retryCount < maxRetries) {
+            // Add jitter to reduce collision probability
+            const jitter = Math.random() * 50; // 0-50ms random jitter
+            const delay = backoffDelay + jitter;
+            console.log(`⏳ Waiting ${Math.round(delay)}ms before deletion retry ${retryCount + 1}/${maxRetries}...`);
+            
+            await new Promise(resolve => setTimeout(resolve, delay));
+            backoffDelay *= 1.5; // Exponential backoff: 100ms, 150ms, 225ms, etc.
+            
+            continue; // Retry the deletion
+          }
+        } else {
+          console.warn(`⚠️ Document deletion error for ${id}, retry ${retryCount}/${maxRetries}:`, error.message);
+        }
+        
+        if (retryCount >= maxRetries) {
+          console.error(`❌ Max retries exceeded for document deletion ${id}`, {
+            finalError: error.message,
+            errorCode: error.code,
+            retryCount,
+            maxRetries
+          });
+          throw error;
+        }
+        
+        // Exponential backoff with jitter for non-conflict errors too
+        const jitter = Math.random() * 50;
+        const delay = backoffDelay + jitter;
+        console.log(`⏳ Waiting ${Math.round(delay)}ms before retry ${retryCount + 1}/${maxRetries}...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        backoffDelay *= 1.5;
       }
-    } catch (error) {
-      console.error('❌ Failed to delete document:', error);
-      throw error;
     }
   }
 
@@ -615,54 +698,162 @@ export class VectorStore {
       return; // Skip insertion of duplicate
     }
 
-    const maxRetries = 3;
+    // Debug logging for TimeCapsule documents
+    if (documentData.metadata?.type === 'timecapsule') {
+      console.log(`📋 TimeCapsule document operation:`, {
+        id: documentData.id,
+        title: documentData.title,
+        source: documentData.metadata.source,
+        timeCapsuleId: documentData.metadata.timeCapsuleId,
+        name: documentData.metadata.name,
+        updatedAt: documentData.metadata.updatedAt
+      });
+    }
+
+    const maxRetries = 5; // Increased retries for better conflict resolution
     let retryCount = 0;
+    let backoffDelay = 100; // Start with 100ms delay
 
     while (retryCount < maxRetries) {
       try {
-        // Fresh fetch of the document for each attempt
-        const existingDoc = await this.documentsCollection.documents.findOne(documentData.id).exec();
+        // Fresh fetch of the document for each attempt with proper error handling
+        let existingDoc = null;
+        try {
+          existingDoc = await this.documentsCollection.documents.findOne(documentData.id).exec();
+        } catch (findError) {
+          console.warn(`⚠️ Error finding document ${documentData.id}:`, findError);
+          // Continue with insertion if document doesn't exist
+        }
         
         if (existingDoc) {
-          // Document exists, update it using the latest revision
-          await existingDoc.update({
-            $set: {
-              title: documentData.title,
-              content: documentData.content,
-              metadata: documentData.metadata,
-              chunks: documentData.chunks,
-              vectors: documentData.vectors
+          // ENHANCED HANDLING: For metadata updates, use atomic update with proper revision handling
+          const isMetadataUpdate = documentData.metadata.source === 'metadata';
+          
+          if (isMetadataUpdate) {
+            console.log(`🔄 Metadata update detected for ${documentData.id}, using atomic update strategy (attempt ${retryCount + 1}/${maxRetries})`);
+            
+            // Additional debug logging for TimeCapsule metadata updates
+            if (documentData.metadata?.type === 'timecapsule') {
+              console.log(`📋 TimeCapsule metadata update details:`, {
+                documentId: documentData.id,
+                timeCapsuleId: documentData.metadata.timeCapsuleId,
+                oldTitle: existingDoc.title,
+                newTitle: documentData.title,
+                oldName: existingDoc.metadata?.name,
+                newName: documentData.metadata.name,
+                oldUpdatedAt: existingDoc.metadata?.updatedAt,
+                newUpdatedAt: documentData.metadata.updatedAt,
+                currentRevision: existingDoc._rev
+              });
             }
-          });
-          console.log(`✅ Document updated: ${documentData.id}`);
-          return; // Success, exit the retry loop
-        } else {
-                      // Document doesn't exist, try to insert it
-            await this.documentsCollection.documents.insert(documentData);
-            console.log(`✅ Document inserted: ${documentData.id}`);
+            
+            // Use atomic update instead of delete-then-insert to avoid conflicts
+            try {
+              const updateResult = await existingDoc.atomicUpdate((docData: any) => {
+                return {
+                  ...docData,
+                  title: documentData.title,
+                  content: documentData.content,
+                  metadata: documentData.metadata,
+                  chunks: documentData.chunks,
+                  vectors: documentData.vectors
+                };
+              });
+              
+              console.log(`✅ Document atomically updated: ${documentData.id}`);
+              
+              // Additional confirmation for TimeCapsule updates
+              if (documentData.metadata?.type === 'timecapsule') {
+                console.log(`✅ TimeCapsule document successfully updated: ${documentData.title}`);
+              }
+              
+              // CRITICAL FIX: Add database flush and verification
+              await this.ensureDocumentPersistence(documentData.id, documentData.title);
+              return; // Success, exit the retry loop
+            } catch (atomicError: any) {
+              // If atomic update fails, fall back to delete-then-insert with delay
+              console.warn(`⚠️ Atomic update failed for ${documentData.id}, trying delete-then-insert:`, atomicError.message);
+              
+              // Re-fetch the document to get the latest revision
+              const latestDoc = await this.documentsCollection.documents.findOne(documentData.id).exec();
+              if (latestDoc) {
+                await latestDoc.remove();
+                console.log(`🗑️ Deleted existing document: ${documentData.id}`);
+                
+                // Longer delay to ensure deletion is fully processed
+                await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                
+                // Insert the new document
+                await this.documentsCollection.documents.insert(documentData);
+                console.log(`✅ Document re-inserted after deletion: ${documentData.id}`);
+                
+                // CRITICAL FIX: Add database flush and verification
+                await this.ensureDocumentPersistence(documentData.id, documentData.title);
+                return; // Success, exit the retry loop
+              }
+            }
+          } else {
+            // Standard update for non-metadata documents
+            await existingDoc.update({
+              $set: {
+                title: documentData.title,
+                content: documentData.content,
+                metadata: documentData.metadata,
+                chunks: documentData.chunks,
+                vectors: documentData.vectors
+              }
+            });
+            console.log(`✅ Document updated: ${documentData.id}`);
+            
+            // CRITICAL FIX: Add database flush and verification
+            await this.ensureDocumentPersistence(documentData.id, documentData.title);
             return; // Success, exit the retry loop
           }
-        } catch (error: any) {
-          // Check if this is a revision conflict error
-          if (error.name === 'RxError' && error.code === 'CONFLICT') {
-            retryCount++;
-            console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
-            
-            if (retryCount >= maxRetries) {
-              console.error(`❌ Max retries exceeded for document ${documentData.id}`);
-              throw error;
-            }
-            
-            // Wait a small random amount before retrying to reduce collision probability
-            await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
-            continue; // Retry the operation
-          } else {
-            // Non-conflict error, don't retry
-            console.error('❌ Failed to upsert document:', error);
-            throw error;
-          }
+        } else {
+          // Document doesn't exist, try to insert it
+          await this.documentsCollection.documents.insert(documentData);
+          console.log(`✅ Document inserted: ${documentData.id}`);
+          
+          // CRITICAL FIX: Add database flush and verification
+          await this.ensureDocumentPersistence(documentData.id, documentData.title);
+          return; // Success, exit the retry loop
         }
+      } catch (error: any) {
+        retryCount++;
+        
+        // Check if this is a revision conflict error
+        if (error.name === 'RxError' && error.code === 'CONFLICT') {
+          console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`, {
+            errorCode: error.code,
+            documentId: error.parameters?.id,
+            currentRevision: error.parameters?.writeError?.documentInDb?._rev,
+            attemptedRevision: error.parameters?.writeError?.writeRow?.document?._rev
+          });
+        } else {
+          console.warn(`⚠️ Document operation error for ${documentData.id}, retry ${retryCount}/${maxRetries}:`, error.message);
+        }
+        
+        if (retryCount >= maxRetries) {
+          console.error(`❌ Max retries exceeded for document ${documentData.id}`, {
+            finalError: error.message,
+            errorCode: error.code,
+            retryCount,
+            maxRetries
+          });
+          throw error;
+        }
+        
+        // Exponential backoff with jitter to reduce collision probability
+        const jitter = Math.random() * 50; // 0-50ms random jitter
+        const delay = backoffDelay + jitter;
+        console.log(`⏳ Waiting ${Math.round(delay)}ms before retry ${retryCount + 1}/${maxRetries}...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        backoffDelay *= 1.5; // Exponential backoff: 100ms, 150ms, 225ms, etc.
+        
+        continue; // Retry the operation
       }
+    }
     }
 
     // Enhanced duplicate detection method
@@ -674,6 +865,29 @@ export class VectorStore {
         // SPECIAL CASE: Allow metadata updates to completely bypass duplicate detection
         if (newMeta.source === 'metadata') {
           console.log(`🔄 Bypassing duplicate detection for metadata update: ${documentData.title}`);
+          
+          // Debug logging for TimeCapsule metadata updates
+          if (newMeta.type === 'timecapsule') {
+            const existingTimeCapsuleDocs = allDocs.filter(doc => 
+              doc.metadata?.type === 'timecapsule' && doc.metadata?.timeCapsuleId === newMeta.timeCapsuleId
+            );
+            console.log(`📋 Found ${existingTimeCapsuleDocs.length} existing TimeCapsule documents for timeCapsuleId: ${newMeta.timeCapsuleId}`);
+            if (existingTimeCapsuleDocs.length > 0) {
+              console.log(`📋 Existing TimeCapsule documents:`, existingTimeCapsuleDocs.map(doc => ({
+                id: doc.id,
+                title: doc.title,
+                name: doc.metadata?.name,
+                updatedAt: doc.metadata?.updatedAt
+              })));
+            }
+          }
+          
+          return null; // No duplicate found, allow insertion
+        }
+
+        // SPECIAL CASE: Allow AI-Frames updates to bypass duplicate detection for order preservation
+        if (newMeta.source === 'ai-frames') {
+          console.log(`🔄 Bypassing duplicate detection for AI-Frames update: ${documentData.title}`);
           return null; // No duplicate found, allow insertion
         }
         
@@ -1025,6 +1239,43 @@ export class VectorStore {
     // Check if basic document management is available (without AI processing)
     get basicFunctionsAvailable(): boolean {
       return this.isInitialized && this.documentsCollection !== null;
+    }
+
+    // NEW METHOD: Ensure document persistence to IndexedDB
+    private async ensureDocumentPersistence(documentId: string, documentTitle: string): Promise<void> {
+      try {
+        console.log(`🔍 Verifying document persistence: ${documentId}`);
+        
+        // Force IndexedDB flush by triggering a read operation
+        await this.flushDatabase();
+        
+        // Small delay to ensure IndexedDB has time to commit
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify the document is actually persisted
+        const verificationDoc = await this.documentsCollection.documents.findOne(documentId).exec();
+        
+        if (verificationDoc) {
+          console.log(`✅ Document persistence verified: ${documentTitle} (ID: ${documentId})`);
+        } else {
+          console.warn(`⚠️ Document persistence verification failed: ${documentTitle} (ID: ${documentId})`);
+          throw new Error(`Document ${documentId} was not properly persisted to IndexedDB`);
+        }
+      } catch (error) {
+        console.error(`❌ Document persistence verification failed for ${documentId}:`, error);
+        throw error;
+      }
+    }
+
+    // NEW METHOD: Force database flush to ensure IndexedDB commit
+    private async flushDatabase(): Promise<void> {
+      try {
+        // Force a database operation to trigger IndexedDB flush
+        await this.documentsCollection.documents.count().exec();
+        console.log(`💾 Database flush completed`);
+      } catch (error) {
+        console.warn(`⚠️ Database flush failed:`, error);
+      }
     }
   }
 
