@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,8 @@ import {
   Mic,
   Sliders,
   Network,
+  Package,
+  FolderPlus,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -57,6 +59,23 @@ import { usePageAnalytics } from "@/components/analytics/Analytics";
 
 // Import Graph Integration
 import { FrameGraphIntegration } from "@/components/ai-graphs";
+
+// Import Metadata Management
+import { BubblSpaceDialog } from "@/components/ui/bubblspace-dialog";
+import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
+import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
+import { 
+  getMetadataManager, 
+  MetadataManager 
+} from "@/lib/MetadataManager";
+import {
+  BubblSpace,
+  TimeCapsuleMetadata,
+  EnhancedTimeCapsule,
+  ImportOptions,
+  ImportResult,
+  MetadataUtils
+} from "@/types/timecapsule";
 
 interface AIFrame {
   id: string;
@@ -195,9 +214,24 @@ export default function AIFramesPage() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // TTS and voice state
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsReady, setTtsReady] = useState(false);
+
+  // Metadata Management State
+  const [metadataManager, setMetadataManager] = useState<MetadataManager | null>(null);
+  const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(null);
+  const [currentTimeCapsule, setCurrentTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
+  const [allBubblSpaces, setAllBubblSpaces] = useState<BubblSpace[]>([]);
+  const [allTimeCapsules, setAllTimeCapsules] = useState<TimeCapsuleMetadata[]>([]);
+  
+  // Dialog states
+  const [showBubblSpaceDialog, setShowBubblSpaceDialog] = useState(false);
+  const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] = useState(false);
+  const [showSafeImportDialog, setShowSafeImportDialog] = useState(false);
+  const [editingBubblSpace, setEditingBubblSpace] = useState<BubblSpace | null>(null);
+  const [editingTimeCapsule, setEditingTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
+  const [importTimeCapsuleData, setImportTimeCapsuleData] = useState<EnhancedTimeCapsule | null>(null);
   const [currentNarration, setCurrentNarration] = useState<string>("");
   const [narrationQueue, setNarrationQueue] = useState<string[]>([]);
   const [autoPlayAfterNarration, setAutoPlayAfterNarration] = useState(false);
@@ -225,7 +259,547 @@ export default function AIFramesPage() {
   const [vectorStore, setVectorStore] = useState<VectorStore | null>(null);
   const [timeCapsuleData, setTimeCapsuleData] = useState<any>(null);
 
+  // Graph state for TimeCapsule integration
+  const [graphState, setGraphState] = useState<any>(null);
+  const [chapters, setChapters] = useState<any[]>([]);
+  const [conceptExplanations, setConceptExplanations] = useState<Record<string, string>>({});
+
   const videoRef = useRef<HTMLIFrameElement>(null);
+
+  // Callback for TimeCapsule updates from FrameGraphIntegration
+  const handleTimeCapsuleUpdate = useCallback((newGraphState: any, newChapters: any[]) => {
+    setGraphState(newGraphState);
+    setChapters(newChapters);
+  }, []);
+
+  // Enhanced TimeCapsule Export with Metadata
+  const handleExportTimeCapsule = async () => {
+    if (!metadataManager || !currentTimeCapsule) {
+      // Show TimeCapsule creation dialog if none exists
+      setShowTimeCapsuleDialog(true);
+      return;
+    }
+
+    try {
+      // Update current TimeCapsule with latest progress
+      const updatedTimeCapsule = metadataManager.updateTimeCapsule(currentTimeCapsule.id, {
+        estimatedDuration: frames.length * 10,
+        description: `Learning session with ${frames.length} AI frames. Progress: ${Math.round((currentFrameIndex / frames.length) * 100)}%`,
+      });
+
+      // Export using the enhanced format
+      const enhancedTimeCapsule = await metadataManager.exportTimeCapsule(updatedTimeCapsule.id);
+
+      // Create downloadable file
+      const blob = new Blob([JSON.stringify(enhancedTimeCapsule, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${currentBubblSpace?.name || 'BubblSpace'}-${enhancedTimeCapsule.timeCapsuleMetadata.name}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Show success message
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `📦 Enhanced TimeCapsule exported successfully! 
+          
+🏢 BubblSpace: ${currentBubblSpace?.name}
+📋 TimeCapsule: ${enhancedTimeCapsule.timeCapsuleMetadata.name}
+🎯 Contains: ${frames.length} AI frames, research data, and complete session state
+📊 Size: ${enhancedTimeCapsule.metadata.fileSize ? MetadataUtils.formatFileSize(enhancedTimeCapsule.metadata.fileSize) : 'Unknown'}
+
+This can be imported in any page with full compatibility!`,
+        },
+      ]);
+
+      // Track export
+      pageAnalytics.trackFeatureUsage("enhanced_timecapsule_export", {
+        bubblspace_id: currentBubblSpace?.id,
+        timecapsule_id: enhancedTimeCapsule.timeCapsuleMetadata.id,
+        frames_count: frames.length,
+        current_frame: currentFrameIndex,
+        mode: isCreationMode ? "creation" : "learning",
+        category: enhancedTimeCapsule.timeCapsuleMetadata.category,
+        file_size: enhancedTimeCapsule.metadata.fileSize,
+      });
+
+    } catch (error) {
+      console.error("Failed to export TimeCapsule:", error);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `❌ Failed to export TimeCapsule: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        },
+      ]);
+    }
+  };
+
+  const handleImportTimeCapsule = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const importedData = JSON.parse(content);
+
+          // Check if it's an enhanced TimeCapsule format
+          if (importedData.timeCapsuleMetadata && importedData.bubblSpace) {
+            // Show safe import dialog for enhanced format
+            setImportTimeCapsuleData(importedData as EnhancedTimeCapsule);
+            setShowSafeImportDialog(true);
+            return;
+          }
+
+          // Handle legacy format with direct import (for backward compatibility)
+          handleLegacyImport(importedData);
+          
+        } catch (error) {
+          console.error("Failed to parse TimeCapsule data:", error);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "ai",
+              content: `❌ Failed to import TimeCapsule: Invalid file format. Please ensure you're uploading a valid TimeCapsule JSON file.`,
+            },
+          ]);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  // Handle enhanced TimeCapsule import with metadata manager
+  const handleEnhancedImport = async (options: ImportOptions): Promise<ImportResult> => {
+    if (!metadataManager || !importTimeCapsuleData) {
+      return {
+        success: false,
+        message: 'Metadata manager not initialized',
+        details: { itemsImported: {} }
+      };
+    }
+
+    try {
+      const result = await metadataManager.importTimeCapsule(importTimeCapsuleData, options);
+      
+      if (result.success) {
+        // Refresh local state
+        setAllBubblSpaces(metadataManager.getAllBubblSpaces());
+        setAllTimeCapsules(metadataManager.getAllTimeCapsules());
+        
+        // Set imported BubblSpace and TimeCapsule as current
+        setCurrentBubblSpace(importTimeCapsuleData.bubblSpace);
+        setCurrentTimeCapsule(importTimeCapsuleData.timeCapsuleMetadata);
+        
+        // If AI-Frames data was imported, update local state
+        if (options.selectiveImport.aiFrames && importTimeCapsuleData.aiFramesData) {
+          const aiFramesData = importTimeCapsuleData.aiFramesData;
+          setFrames(aiFramesData.frames || []);
+          setCurrentFrameIndex(aiFramesData.currentFrameIndex || 0);
+          setIsCreationMode(aiFramesData.isCreationMode || false);
+          setShowGraphView(aiFramesData.showGraphView || false);
+          
+          if (aiFramesData.graphState) setGraphState(aiFramesData.graphState);
+          if (aiFramesData.chapters) setChapters(aiFramesData.chapters);
+          if (aiFramesData.voiceSettings) setVoiceSettings(aiFramesData.voiceSettings);
+          if (aiFramesData.chatMessages) setChatMessages(aiFramesData.chatMessages);
+        }
+        
+        // Show success message with details
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: `✅ ${result.message}
+            
+🎯 Items imported:
+${result.details.itemsImported.frames ? `• ${result.details.itemsImported.frames} AI frames` : ''}
+${result.details.itemsImported.topics ? `• ${result.details.itemsImported.topics} research topics` : ''}
+${result.details.itemsImported.documents ? `• ${result.details.itemsImported.documents} documents` : ''}
+${result.details.backupCreated ? `• Backup created: ${result.details.backupCreated}` : ''}`,
+          },
+        ]);
+      }
+      
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: { itemsImported: {} }
+      };
+    }
+  };
+
+  // Handle legacy TimeCapsule import for backward compatibility
+  const handleLegacyImport = (importedData: any) => {
+    try {
+      // Validate the data structure
+      if (!importedData.data || (!importedData.data.frames && !importedData.research)) {
+        throw new Error("Invalid TimeCapsule format");
+      }
+
+      // Handle AI-Frames specific data
+      if (importedData.data.frames) {
+        setFrames(importedData.data.frames);
+        setCurrentFrameIndex(importedData.data.currentFrameIndex || 0);
+        
+        if (importedData.data.isCreationMode !== undefined) {
+          setIsCreationMode(importedData.data.isCreationMode);
+        }
+        
+        if (importedData.data.showGraphView !== undefined) {
+          setShowGraphView(importedData.data.showGraphView);
+        }
+
+        // Restore graph state and chapters
+        if (importedData.data.graphState) {
+          setGraphState(importedData.data.graphState);
+        }
+        
+        if (importedData.data.chapters) {
+          setChapters(importedData.data.chapters);
+        }
+
+        // Restore voice settings
+        if (importedData.data.voiceSettings) {
+          setVoiceSettings(importedData.data.voiceSettings);
+        }
+        
+        if (importedData.data.isVoiceEnabled !== undefined) {
+          setIsVoiceEnabled(importedData.data.isVoiceEnabled);
+        }
+        
+        if (importedData.data.autoAdvanceEnabled !== undefined) {
+          setAutoAdvanceEnabled(importedData.data.autoAdvanceEnabled);
+        }
+
+        // Restore chat history
+        if (importedData.data.chatMessages) {
+          setChatMessages(importedData.data.chatMessages);
+        }
+      }
+
+      // Handle DeepResearch data
+      if (importedData.data.deepResearchData || importedData.research) {
+        const deepResearchData = importedData.data.deepResearchData || importedData;
+        setTimeCapsuleData(deepResearchData);
+        localStorage.setItem("deepresearch_data", JSON.stringify(deepResearchData));
+      }
+
+      // Save the imported data
+      localStorage.setItem("ai_frames_timecapsule", JSON.stringify(importedData));
+      localStorage.setItem("timecapsule_combined", JSON.stringify(importedData));
+
+      // Show success message
+      const frameCount = importedData.data.frames?.length || 0;
+      const hasDeepResearch = !!(importedData.data.deepResearchData || importedData.research);
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🎉 Legacy TimeCapsule imported successfully! Loaded ${frameCount} AI frames${hasDeepResearch ? ' and DeepResearch data' : ''}. You can continue where you left off.`,
+        },
+      ]);
+
+      // Track import
+      pageAnalytics.trackFeatureUsage("legacy_timecapsule_import", {
+        frames_count: frameCount,
+        has_deep_research: hasDeepResearch,
+        data_type: importedData.type || "unknown",
+      });
+
+    } catch (error) {
+      console.error("Failed to import TimeCapsule:", error);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `❌ Failed to import TimeCapsule: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        },
+      ]);
+    }
+  };
+
+  // BubblSpace Management Handlers
+  const handleCreateBubblSpace = async (bubblSpaceData: Partial<BubblSpace>) => {
+    if (!metadataManager) return;
+    
+    try {
+      const newBubblSpace = metadataManager.createBubblSpace(
+        bubblSpaceData.name!,
+        bubblSpaceData.description!,
+        bubblSpaceData
+      );
+      
+      setAllBubblSpaces(metadataManager.getAllBubblSpaces());
+      setCurrentBubblSpace(newBubblSpace);
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🏢 BubblSpace "${newBubblSpace.name}" created successfully! This will organize your learning projects.`,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to create BubblSpace:', error);
+    }
+  };
+
+  const handleEditBubblSpace = async (bubblSpaceData: Partial<BubblSpace>) => {
+    if (!metadataManager || !editingBubblSpace) return;
+    
+    try {
+      const updatedBubblSpace = metadataManager.updateBubblSpace(
+        editingBubblSpace.id,
+        bubblSpaceData
+      );
+      
+      setAllBubblSpaces(metadataManager.getAllBubblSpaces());
+      if (currentBubblSpace?.id === updatedBubblSpace.id) {
+        setCurrentBubblSpace(updatedBubblSpace);
+      }
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `✏️ BubblSpace "${updatedBubblSpace.name}" updated successfully!`,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to update BubblSpace:', error);
+    }
+  };
+
+  const handleDeleteBubblSpace = async (id: string) => {
+    if (!metadataManager) return;
+    
+    try {
+      const bubblSpace = metadataManager.getBubblSpace(id);
+      metadataManager.deleteBubblSpace(id);
+      
+      setAllBubblSpaces(metadataManager.getAllBubblSpaces());
+      
+      // If we deleted the current BubblSpace, switch to another one
+      if (currentBubblSpace?.id === id) {
+        const remaining = metadataManager.getAllBubblSpaces();
+        setCurrentBubblSpace(remaining[0] || null);
+      }
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🗑️ BubblSpace "${bubblSpace?.name}" deleted successfully.`,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to delete BubblSpace:', error);
+    }
+  };
+
+  // TimeCapsule Management Handlers
+  const handleCreateTimeCapsule = async (timeCapsuleData: Partial<TimeCapsuleMetadata>) => {
+    if (!metadataManager) return;
+    
+    try {
+      const newTimeCapsule = metadataManager.createTimeCapsule(
+        timeCapsuleData.name!,
+        timeCapsuleData.description!,
+        timeCapsuleData.bubblSpaceId!,
+        timeCapsuleData
+      );
+      
+      setAllTimeCapsules(metadataManager.getAllTimeCapsules());
+      setCurrentTimeCapsule(newTimeCapsule);
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `📋 TimeCapsule "${newTimeCapsule.name}" created successfully! Your session data will be organized here.`,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to create TimeCapsule:', error);
+    }
+  };
+
+  const handleEditTimeCapsule = async (timeCapsuleData: Partial<TimeCapsuleMetadata>) => {
+    if (!metadataManager || !editingTimeCapsule) return;
+    
+    try {
+      const updatedTimeCapsule = metadataManager.updateTimeCapsule(
+        editingTimeCapsule.id,
+        timeCapsuleData
+      );
+      
+      setAllTimeCapsules(metadataManager.getAllTimeCapsules());
+      if (currentTimeCapsule?.id === updatedTimeCapsule.id) {
+        setCurrentTimeCapsule(updatedTimeCapsule);
+      }
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `📝 TimeCapsule "${updatedTimeCapsule.name}" updated successfully!`,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to update TimeCapsule:', error);
+    }
+  };
+
+  const handleDeleteTimeCapsule = async (id: string) => {
+    if (!metadataManager) return;
+    
+    try {
+      const timeCapsule = metadataManager.getTimeCapsule(id);
+      metadataManager.deleteTimeCapsule(id);
+      
+      setAllTimeCapsules(metadataManager.getAllTimeCapsules());
+      
+      // If we deleted the current TimeCapsule, switch to another one or create new
+      if (currentTimeCapsule?.id === id) {
+        const remaining = metadataManager.getAllTimeCapsules();
+        setCurrentTimeCapsule(remaining[0] || null);
+      }
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🗑️ TimeCapsule "${timeCapsule?.name}" deleted successfully.`,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to delete TimeCapsule:', error);
+    }
+  };
+
+  // Load AI-Frames TimeCapsule data on initialization
+  useEffect(() => {
+    try {
+      // Check for AI-Frames specific data
+      const aiFramesData = localStorage.getItem("ai_frames_timecapsule");
+      if (aiFramesData) {
+        const parsedData = JSON.parse(aiFramesData);
+        if (parsedData.data && parsedData.data.frames) {
+          // Auto-restore last session
+          setFrames(parsedData.data.frames);
+          setCurrentFrameIndex(parsedData.data.currentFrameIndex || 0);
+          
+          if (parsedData.data.voiceSettings) {
+            setVoiceSettings(parsedData.data.voiceSettings);
+          }
+          
+          // Restore graph state and chapters
+          if (parsedData.data.graphState) {
+            setGraphState(parsedData.data.graphState);
+          }
+          
+          if (parsedData.data.chapters) {
+            setChapters(parsedData.data.chapters);
+          }
+          
+          if (parsedData.data.showGraphView !== undefined) {
+            setShowGraphView(parsedData.data.showGraphView);
+          }
+          
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "ai",
+              content: `🔄 Restored previous session with ${parsedData.data.frames.length} frames. You were on frame ${(parsedData.data.currentFrameIndex || 0) + 1}.`,
+            },
+          ]);
+        }
+      }
+
+      // Check for combined TimeCapsule data
+      const combinedData = localStorage.getItem("timecapsule_combined");
+      if (combinedData && !aiFramesData) {
+        const parsedData = JSON.parse(combinedData);
+        if (parsedData.data && parsedData.data.frames) {
+          setFrames(parsedData.data.frames);
+          setCurrentFrameIndex(parsedData.data.currentFrameIndex || 0);
+          
+          if (parsedData.data.graphState) {
+            setGraphState(parsedData.data.graphState);
+          }
+          
+          if (parsedData.data.chapters) {
+            setChapters(parsedData.data.chapters);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load TimeCapsule data:", error);
+    }
+  }, []);
+
+  // Initialize metadata manager and load BubblSpaces/TimeCapsules
+  useEffect(() => {
+    const initializeMetadata = async () => {
+      try {
+        // Initialize metadata manager
+        const manager = getMetadataManager(vectorStore);
+        setMetadataManager(manager);
+        
+        // Load BubblSpaces and TimeCapsules
+        const bubblSpaces = manager.getAllBubblSpaces();
+        const timeCapsules = manager.getAllTimeCapsules();
+        
+        setAllBubblSpaces(bubblSpaces);
+        setAllTimeCapsules(timeCapsules);
+        
+        // Set current BubblSpace (default or first available)
+        const defaultBubblSpace = manager.getDefaultBubblSpace();
+        setCurrentBubblSpace(defaultBubblSpace || bubblSpaces[0] || null);
+        
+        // Auto-create TimeCapsule for current session if none exists
+        if (bubblSpaces.length > 0 && !currentTimeCapsule) {
+          const sessionTimeCapsule = manager.createTimeCapsule(
+            MetadataUtils.generateTimeCapsuleName('learning', 'AI-Frames Session'),
+            'Auto-generated TimeCapsule for current AI-Frames learning session',
+            (defaultBubblSpace || bubblSpaces[0]).id,
+            {
+              category: 'learning',
+              difficulty: 'intermediate',
+              estimatedDuration: frames.length * 10, // Estimate 10 mins per frame
+            }
+          );
+          setCurrentTimeCapsule(sessionTimeCapsule);
+          setAllTimeCapsules(prev => [...prev, sessionTimeCapsule]);
+        }
+        
+      } catch (error) {
+        console.error('Failed to initialize metadata manager:', error);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      initializeMetadata();
+    }
+  }, [vectorStore, frames.length]);
 
   // Initialize DeepResearch integration
   useEffect(() => {
@@ -557,7 +1131,7 @@ export default function AIFramesPage() {
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       } else {
-        const voices = window.speechSynthesis.getVoices();
+        const voices = window.speechSynthesis?.getVoices() || [];
         const preferredVoice = voices.find(
           (voice) =>
             voice.name.includes("Google") ||
@@ -1113,97 +1687,224 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   };
 
   return (
-    <div className="min-h-screen pt-20 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-6">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
-                <Video className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                  AI-Frames
-                </h1>
-                <p className="text-slate-600 dark:text-slate-300">
-                  Interactive AI-guided learning experiences
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Mode Toggle */}
-              <div className="flex items-center gap-3">
-                <Label htmlFor="mode-toggle" className="text-sm font-medium">
-                  {isCreationMode ? "Creation" : "Learning"}
-                </Label>
-                <Switch
-                  id="mode-toggle"
-                  checked={isCreationMode}
-                  onCheckedChange={(checked) => {
-                    setIsCreationMode(checked);
-                    // Track mode switching
-                    pageAnalytics.trackFeatureUsage("mode_switch", {
-                      mode: checked ? "creation" : "learning",
-                      current_frame: currentFrameIndex,
-                      total_frames: frames.length,
-                    });
-                  }}
+    <div className="pt-20 min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+      {/* Top Navigation Header */}
+      <div className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+              AI-Frames Learning Platform
+            </h2>
+            <Badge variant="outline" className="text-xs">
+              Frame {currentFrameIndex + 1} of {frames.length}
+            </Badge>
+          </div>
+          
+          {/* BubblSpace & TimeCapsule Management */}
+          <div className="flex items-center gap-4">
+            {/* Current BubblSpace Display */}
+            {currentBubblSpace && (
+              <div 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                onClick={() => {
+                  setEditingBubblSpace(currentBubblSpace);
+                  setShowBubblSpaceDialog(true);
+                }}
+                title={`Current BubblSpace: ${currentBubblSpace.name}. Click to edit.`}
+              >
+                <div 
+                  className="w-3 h-3 rounded"
+                  style={{ backgroundColor: currentBubblSpace.color || '#3B82F6' }}
                 />
-                <Badge variant={isCreationMode ? "default" : "secondary"}>
-                  {isCreationMode ? (
-                    <Edit3 className="h-3 w-3 mr-1" />
-                  ) : (
-                    <Eye className="h-3 w-3 mr-1" />
-                  )}
-                  {isCreationMode ? "Create" : "Learn"}
+                <span className="text-sm font-medium truncate max-w-[120px]">
+                  {currentBubblSpace.name}
+                </span>
+                {currentBubblSpace.isDefault && (
+                  <Badge variant="secondary" className="text-xs">Default</Badge>
+                )}
+              </div>
+            )}
+            
+            {/* BubblSpace Management */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingBubblSpace(null);
+                setShowBubblSpaceDialog(true);
+              }}
+              title="Create or manage BubblSpaces"
+            >
+              <FolderPlus className="h-4 w-4 mr-2" />
+              BubblSpace
+            </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Current TimeCapsule Display */}
+            {currentTimeCapsule && (
+              <div 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                onClick={() => {
+                  setEditingTimeCapsule(currentTimeCapsule);
+                  setShowTimeCapsuleDialog(true);
+                }}
+                title={`Current TimeCapsule: ${currentTimeCapsule.name}. Click to edit.`}
+              >
+                <Package className="w-3 h-3" />
+                <span className="text-sm font-medium truncate max-w-[120px]">
+                  {currentTimeCapsule.name}
+                </span>
+                <Badge variant="outline" className="text-xs">
+                  {currentTimeCapsule.category}
                 </Badge>
               </div>
+            )}
+            
+            {/* TimeCapsule Management */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingTimeCapsule(null);
+                setShowTimeCapsuleDialog(true);
+              }}
+              title="Create or manage TimeCapsules"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              TimeCapsule
+            </Button>
 
-              {/* NEW: Graph View Toggle */}
-              <div className="flex items-center gap-3">
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Enhanced TimeCapsule Export/Import */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleImportTimeCapsule}
+              title="Import Enhanced TimeCapsule with full metadata support"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleExportTimeCapsule}
+              title="Export Enhanced TimeCapsule with BubblSpace and metadata"
+              disabled={!currentTimeCapsule}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content below header */}
+      <div className="pt-16">
+        <div className="flex h-screen">
+          {/* Left Sidebar */}
+          <div className="w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto">
+        <div className="p-4 space-y-6">
+          {/* App Title */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
+              <Video className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+                AI-Frames
+              </h1>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Interactive AI learning
+              </p>
+            </div>
+          </div>
+
+          {/* Mode Controls */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Mode & View</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="mode-toggle" className="text-sm font-medium">
+                  Mode
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="mode-toggle"
+                    checked={isCreationMode}
+                    onCheckedChange={(checked) => {
+                      setIsCreationMode(checked);
+                      pageAnalytics.trackFeatureUsage("mode_switch", {
+                        mode: checked ? "creation" : "learning",
+                        current_frame: currentFrameIndex,
+                        total_frames: frames.length,
+                      });
+                    }}
+                  />
+                  <Badge variant={isCreationMode ? "default" : "secondary"} className="text-xs">
+                    {isCreationMode ? (
+                      <Edit3 className="h-3 w-3 mr-1" />
+                    ) : (
+                      <Eye className="h-3 w-3 mr-1" />
+                    )}
+                    {isCreationMode ? "Create" : "Learn"}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Graph View Toggle */}
+              <div className="flex items-center justify-between">
                 <Label htmlFor="graph-toggle" className="text-sm font-medium">
                   Graph View
                 </Label>
-                <Switch
-                  id="graph-toggle"
-                  checked={showGraphView}
-                  onCheckedChange={(checked) => {
-                    setShowGraphView(checked);
-                    // Track graph view toggle
-                    pageAnalytics.trackFeatureUsage("graph_view_toggle", {
-                      enabled: checked,
-                      mode: isCreationMode ? "creation" : "learning",
-                      current_frame: currentFrameIndex,
-                    });
-                  }}
-                />
-                <Badge variant={showGraphView ? "default" : "secondary"}>
-                  {showGraphView ? (
-                    <Network className="h-3 w-3 mr-1" />
-                  ) : (
-                    <Database className="h-3 w-3 mr-1" />
-                  )}
-                  {showGraphView ? "Graph" : "Linear"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="graph-toggle"
+                    checked={showGraphView}
+                    onCheckedChange={(checked) => {
+                      setShowGraphView(checked);
+                      pageAnalytics.trackFeatureUsage("graph_view_toggle", {
+                        enabled: checked,
+                        mode: isCreationMode ? "creation" : "learning",
+                        current_frame: currentFrameIndex,
+                      });
+                    }}
+                  />
+                  <Badge variant={showGraphView ? "default" : "secondary"} className="text-xs">
+                    {showGraphView ? (
+                      <Network className="h-3 w-3 mr-1" />
+                    ) : (
+                      <Database className="h-3 w-3 mr-1" />
+                    )}
+                    {showGraphView ? "Graph" : "Linear"}
+                  </Badge>
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Voice Control - Only in Learn Mode */}
-              {!isCreationMode && (
-                <>
-                  <Separator orientation="vertical" className="h-8" />
-                  <div className="flex items-center gap-3">
-                    <Label
-                      htmlFor="voice-toggle"
-                      className="text-sm font-medium flex items-center gap-2"
-                    >
-                      {isVoiceEnabled ? (
-                        <Volume2 className="h-4 w-4" />
-                      ) : (
-                        <VolumeX className="h-4 w-4" />
-                      )}
-                      Voice
-                    </Label>
+          {/* Voice Controls - Only in Learn Mode */}
+          {!isCreationMode && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Voice Controls</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="voice-toggle" className="text-sm font-medium flex items-center gap-2">
+                    {isVoiceEnabled ? (
+                      <Volume2 className="h-4 w-4" />
+                    ) : (
+                      <VolumeX className="h-4 w-4" />
+                    )}
+                    Voice
+                  </Label>
+                  <div className="flex items-center gap-2">
                     <Switch
                       id="voice-toggle"
                       checked={isVoiceEnabled}
@@ -1212,11 +1913,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                         if (!checked) {
                           stopSpeaking();
                         }
-                        // Mark user interaction when toggling voice
                         if (!userHasInteracted) {
                           setUserHasInteracted(true);
                         }
-                        // Track voice toggle
                         pageAnalytics.trackFeatureUsage("voice_toggle", {
                           enabled: checked,
                           tts_ready: ttsReady,
@@ -1224,910 +1923,831 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                         });
                       }}
                     />
-                    {!userHasInteracted && isVoiceEnabled && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-yellow-50 dark:bg-yellow-900/20"
-                      >
-                        Click to enable
-                      </Badge>
-                    )}
                     {isSpeaking && (
-                      <Badge
-                        variant="default"
-                        className="bg-green-500 animate-pulse"
-                      >
+                      <Badge variant="default" className="bg-green-500 animate-pulse text-xs">
                         <Mic className="h-3 w-3 mr-1" />
                         Speaking
                       </Badge>
                     )}
-                    {ttsReady && isVoiceEnabled && userHasInteracted && (
-                      <Badge variant="outline" className="text-xs">
-                        TTS Ready
-                      </Badge>
-                    )}
+                  </div>
+                </div>
+
+                {!userHasInteracted && isVoiceEnabled && (
+                  <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-900/20 w-full justify-center">
+                    Click to enable
+                  </Badge>
+                )}
+
+                {isVoiceEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowVoiceSettings(true);
+                        if (!userHasInteracted) {
+                          setUserHasInteracted(true);
+                        }
+                      }}
+                      className="flex-1"
+                    >
+                      <Sliders className="h-4 w-4 mr-2" />
+                      Settings
+                    </Button>
                     {selectedVoice && (
                       <Badge variant="outline" className="text-xs">
                         {selectedVoice.name.split(" ")[0]}
                       </Badge>
                     )}
-                    {isVoiceEnabled && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowVoiceSettings(true);
-                          // Mark user interaction
-                          if (!userHasInteracted) {
-                            setUserHasInteracted(true);
-                          }
-                        }}
-                      >
-                        <Sliders className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {/* Auto-advance toggle */}
-                    <div className="flex items-center gap-2">
-                      <Label
-                        htmlFor="auto-advance"
-                        className="text-sm font-medium"
-                      >
-                        Auto-advance
-                      </Label>
-                      <Switch
-                        id="auto-advance"
-                        checked={autoAdvanceEnabled}
-                        onCheckedChange={setAutoAdvanceEnabled}
-                      />
-                    </div>
                   </div>
-                </>
+                )}
+
+                {/* Auto-advance toggle */}
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <Label htmlFor="auto-advance" className="text-sm font-medium">
+                    Auto-advance
+                  </Label>
+                  <Switch
+                    id="auto-advance"
+                    checked={autoAdvanceEnabled}
+                    onCheckedChange={setAutoAdvanceEnabled}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Frame Navigation */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                Frame Navigation
+                {isCreationMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCreateFrame(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {frames.map((frame, index) => (
+                  <div
+                    key={frame.id}
+                    className={`relative transition-all duration-200 ${
+                      dragOverIndex === index
+                        ? "transform scale-105 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                        : ""
+                    } ${draggedFrameId === frame.id ? "opacity-50" : ""}`}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div
+                      className={`flex items-center gap-2 ${
+                        isCreationMode ? "cursor-move" : ""
+                      }`}
+                      draggable={isCreationMode}
+                      onDragStart={(e) => handleDragStart(e, frame.id, index)}
+                    >
+                      {isCreationMode && (
+                        <div className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                          <GripVertical className="h-4 w-4" />
+                        </div>
+                      )}
+                      <Button
+                        variant={
+                          index === currentFrameIndex ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => setCurrentFrameIndex(index)}
+                        className="flex-1 justify-start text-left h-auto p-3"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-xs">
+                              Frame {index + 1}
+                            </span>
+                            {frame.isGenerated && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Wand2 className="h-2 w-2 mr-1" />
+                                AI
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs opacity-75 truncate">
+                            {frame.title}
+                          </div>
+                        </div>
+                      </Button>
+                    </div>
+                    {isCreationMode && (
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditFrame(frame);
+                          }}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Assistant */}
+          <Card className="flex-1">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-blue-600" />
+                AI Assistant
+                {deepResearchApp && (
+                  <Badge variant="outline" className="text-xs">
+                    <Database className="h-3 w-3 mr-1" />
+                    Connected
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col h-64">
+              {/* Current Narration Display */}
+              {isSpeaking && currentNarration && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mic className="h-4 w-4 text-blue-600 animate-pulse" />
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      Currently Speaking:
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 line-clamp-3">
+                    {currentNarration}
+                  </p>
+                </div>
               )}
-              <Separator orientation="vertical" className="h-8" />
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Load TimeCapsule
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export TimeCapsule
+
+              {/* Auto-advance Countdown */}
+              {autoAdvanceCountdown > 0 && (
+                <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-orange-600 animate-pulse" />
+                      <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                        Auto-advancing in {autoAdvanceCountdown} seconds...
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={cancelAutoAdvance}
+                      className="text-orange-600 hover:text-orange-700 border-orange-300"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <ScrollArea className="flex-1 mb-4">
+                <div className="space-y-4">
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center text-slate-500 dark:text-slate-400 py-8">
+                      <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">
+                        Ask questions about the content or click on AI
+                        concepts to learn more
+                      </p>
+                      {timeCapsuleData && (
+                        <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
+                          Connected to your TimeCapsule knowledge
+                        </p>
+                      )}
+                      {!isCreationMode &&
+                        isVoiceEnabled &&
+                        !userHasInteracted && (
+                          <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
+                            🎙️ Click anywhere to enable voice narration
+                          </p>
+                        )}
+                      {!isCreationMode &&
+                        isVoiceEnabled &&
+                        userHasInteracted && (
+                          <p className="text-xs mt-2 text-green-600 dark:text-green-400">
+                            🎙️ Voice narration enabled - Navigate frames to
+                            hear explanations
+                          </p>
+                        )}
+                    </div>
+                  ) : (
+                    chatMessages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${
+                          message.role === "user"
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`max-w-[80%] p-3 rounded-lg ${
+                            message.role === "user"
+                              ? "bg-blue-600 text-white"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                          }`}
+                        >
+                          <div className="text-sm whitespace-pre-wrap">
+                            {message.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleChatSubmit()}
+                  placeholder="Ask about the content..."
+                  className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
+                />
+                <Button size="sm" onClick={handleChatSubmit}>
+                  <MessageCircle className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      <div className="container mx-auto p-6">
-        {/* NEW: Conditional rendering based on graph view */}
-        {showGraphView ? (
-          /* Graph View */
-          <FrameGraphIntegration
-            frames={frames}
-            onFramesChange={setFrames}
-            isCreationMode={isCreationMode}
-            currentFrameIndex={currentFrameIndex}
-            onFrameIndexChange={setCurrentFrameIndex}
-            onCreateFrame={() => setShowCreateFrame(true)}
-          />
-        ) : (
-          /* Traditional Linear View */
-          <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Creation Mode Panel */}
-            {isCreationMode && (
-              <Card className="border-2 border-dashed border-blue-300 dark:border-blue-600">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wand2 className="h-5 w-5 text-blue-600" />
-                    AI Frame Creation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-center py-8">
-                    <Button
-                      onClick={() => setShowCreateFrame(true)}
-                      size="lg"
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Create New AI Frame
-                    </Button>
-                  </div>
-                  {timeCapsuleData && (
-                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Database className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">
-                          Connected to TimeCapsule
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-600 dark:text-slate-400">
-                        {timeCapsuleData.research?.topics?.length || 0} research
-                        topics •
-                        {vectorStore
-                          ? " Knowledge base connected"
-                          : " No knowledge base"}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Frame Header */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline">
-                      Frame {currentFrameIndex + 1} of {frames.length}
-                    </Badge>
-                    <Badge variant="secondary">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatTime(currentFrame.duration)}
-                    </Badge>
-                    {currentFrame.isGenerated && (
-                      <Badge variant="default" className="bg-purple-500">
-                        <Wand2 className="h-3 w-3 mr-1" />
-                        AI Generated
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isCreationMode && (
-                      <>
+              {/* Main Content Area */}
+        <div className="flex-1 overflow-auto h-screen">
+          <div className="p-6">
+            {/* Conditional rendering based on graph view */}
+            {showGraphView ? (
+              /* Graph View */
+              <FrameGraphIntegration
+                frames={frames}
+                onFramesChange={setFrames}
+                isCreationMode={isCreationMode}
+                currentFrameIndex={currentFrameIndex}
+                onFrameIndexChange={setCurrentFrameIndex}
+                onCreateFrame={() => setShowCreateFrame(true)}
+                onTimeCapsuleUpdate={handleTimeCapsuleUpdate}
+              />
+            ) : (
+              /* Traditional Linear View */
+              <div className="max-w-4xl mx-auto space-y-6">
+                {/* Creation Mode Panel */}
+                {isCreationMode && (
+                  <Card className="border-2 border-dashed border-blue-300 dark:border-blue-600">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Wand2 className="h-5 w-5 text-blue-600" />
+                        AI Frame Creation
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-center py-8">
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditFrame(currentFrame)}
+                          onClick={() => setShowCreateFrame(true)}
+                          size="lg"
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
                         >
-                          <Edit3 className="h-4 w-4" />
+                          <Plus className="h-5 w-5 mr-2" />
+                          Create New AI Frame
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteFrame(currentFrame.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={prevFrame}
-                      disabled={currentFrameIndex === 0}
-                    >
-                      <SkipBack className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={nextFrame}
-                      disabled={currentFrameIndex === frames.length - 1}
-                    >
-                      <SkipForward className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <CardTitle className="text-2xl">{currentFrame.title}</CardTitle>
-              </CardHeader>
-            </Card>
-
-            {/* Goal Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-blue-600" />
-                  Learning Goal
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {currentFrame.goal}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Information Text */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-green-600" />
-                  Context & Background
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="prose prose-slate dark:prose-invert max-w-none">
-                  {currentFrame.informationText
-                    .split("\n")
-                    .map((paragraph, index) => (
-                      <p key={index} className="mb-4 leading-relaxed">
-                        {paragraph.trim()}
-                      </p>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Video Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Video className="h-5 w-5 text-purple-600" />
-                  Video Content
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-                  <iframe
-                    ref={videoRef}
-                    src={embedUrl}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-slate-600 dark:text-slate-400">
-                    Playing from {formatTime(currentFrame.startTime)} for{" "}
-                    {formatTime(currentFrame.duration)}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!isCreationMode && isVoiceEnabled && (
-                      <>
-                        {isSpeaking ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={stopSpeaking}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Pause className="h-4 w-4 mr-2" />
-                            Stop Voice
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleReplayNarration}
-                            disabled={!ttsReady}
-                          >
-                            <Volume2 className="h-4 w-4 mr-2" />
-                            Replay Narration
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAIConcepts(!showAIConcepts)}
-                    >
-                      <Brain className="h-4 w-4 mr-2" />
-                      AI Concepts
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* AI Concepts (triggered by video pause or user action) */}
-            {showAIConcepts && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Lightbulb className="h-5 w-5 text-yellow-600" />
-                    Related Concepts
-                    {timeCapsuleData && (
-                      <Badge variant="outline" className="ml-2">
-                        <Database className="h-3 w-3 mr-1" />
-                        KB Connected
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {currentFrame.aiConcepts.map((concept, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleConceptClick(concept)}
-                        className="h-auto p-3 text-left justify-start"
-                      >
-                        <Brain className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="text-sm">{concept}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* After Video Text */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ArrowRight className="h-5 w-5 text-indigo-600" />
-                  Key Takeaways
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="prose prose-slate dark:prose-invert max-w-none">
-                  {currentFrame.afterVideoText
-                    .split("\n")
-                    .map((paragraph, index) => (
-                      <p key={index} className="mb-4 leading-relaxed">
-                        {paragraph.trim()}
-                      </p>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Frame Navigation */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center justify-between">
-                  Frame Navigation
-                  {isCreationMode && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCreateFrame(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {frames.map((frame, index) => (
-                    <div
-                      key={frame.id}
-                      className={`relative transition-all duration-200 ${
-                        dragOverIndex === index
-                          ? "transform scale-105 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
-                          : ""
-                      } ${draggedFrameId === frame.id ? "opacity-50" : ""}`}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, index)}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <div
-                        className={`flex items-center gap-2 ${
-                          isCreationMode ? "cursor-move" : ""
-                        }`}
-                        draggable={isCreationMode}
-                        onDragStart={(e) => handleDragStart(e, frame.id, index)}
-                      >
-                        {isCreationMode && (
-                          <div className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <GripVertical className="h-4 w-4" />
+                      </div>
+                      {timeCapsuleData && (
+                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Database className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium">
+                              Connected to TimeCapsule
+                            </span>
                           </div>
-                        )}
-                        <Button
-                          variant={
-                            index === currentFrameIndex ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setCurrentFrameIndex(index)}
-                          className="flex-1 justify-start text-left h-auto p-3"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">
-                                Frame {index + 1}
-                              </span>
-                              {frame.isGenerated && (
-                                <Badge variant="secondary" className="text-xs">
-                                  <Wand2 className="h-2 w-2 mr-1" />
-                                  AI
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs opacity-75 truncate">
-                              {frame.title}
-                            </div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400">
+                            {timeCapsuleData.research?.topics?.length || 0} research
+                            topics •
+                            {vectorStore
+                              ? " Knowledge base connected"
+                              : " No knowledge base"}
                           </div>
-                        </Button>
-                      </div>
-                      {isCreationMode && (
-                        <div className="absolute top-2 right-2 flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditFrame(frame);
-                            }}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
                         </div>
                       )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                )}
 
-            {/* AI Assistant */}
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-blue-600" />
-                  AI Assistant
-                  {deepResearchApp && (
-                    <Badge variant="outline" className="ml-2">
-                      <Database className="h-3 w-3 mr-1" />
-                      TimeCapsule Connected
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="h-full flex flex-col">
-                {/* Current Narration Display */}
-                {isSpeaking && currentNarration && (
-                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Mic className="h-4 w-4 text-blue-600 animate-pulse" />
-                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                        Currently Speaking:
-                      </span>
+                {/* Frame Header */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {formatTime(currentFrame.duration)}
+                        </Badge>
+                        {currentFrame.isGenerated && (
+                          <Badge variant="default" className="bg-purple-500">
+                            <Wand2 className="h-3 w-3 mr-1" />
+                            AI Generated
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isCreationMode && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditFrame(currentFrame)}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteFrame(currentFrame.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={prevFrame}
+                          disabled={currentFrameIndex === 0}
+                        >
+                          <SkipBack className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={nextFrame}
+                          disabled={currentFrameIndex === frames.length - 1}
+                        >
+                          <SkipForward className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 italic">
-                      {currentNarration.length > 150
-                        ? currentNarration.substring(0, 150) + "..."
-                        : currentNarration}
+                    <CardTitle className="text-2xl">{currentFrame.title}</CardTitle>
+                  </CardHeader>
+                </Card>
+
+                {/* Goal Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-blue-600" />
+                      Learning Goal
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {currentFrame.goal}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Information Text */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-green-600" />
+                      Context & Background
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="prose prose-slate dark:prose-invert max-w-none">
+                      {currentFrame.informationText
+                        .split("\n")
+                        .map((paragraph, index) => (
+                          <p key={index} className="mb-4 leading-relaxed">
+                            {paragraph.trim()}
+                          </p>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Video Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Video className="h-5 w-5 text-purple-600" />
+                      Video Content
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                      <iframe
+                        ref={videoRef}
+                        src={embedUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="text-sm text-slate-600 dark:text-slate-400">
+                        Playing from {formatTime(currentFrame.startTime)} for{" "}
+                        {formatTime(currentFrame.duration)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!isCreationMode && isVoiceEnabled && (
+                          <>
+                            {isSpeaking ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={stopSpeaking}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Pause className="h-4 w-4 mr-2" />
+                                Stop Voice
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleReplayNarration}
+                                disabled={!ttsReady}
+                              >
+                                <Volume2 className="h-4 w-4 mr-2" />
+                                Replay Narration
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAIConcepts(!showAIConcepts)}
+                        >
+                          <Brain className="h-4 w-4 mr-2" />
+                          AI Concepts
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* AI Concepts (triggered by video pause or user action) */}
+                {showAIConcepts && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Lightbulb className="h-5 w-5 text-yellow-600" />
+                        Related Concepts
+                        {timeCapsuleData && (
+                          <Badge variant="outline" className="ml-2">
+                            <Database className="h-3 w-3 mr-1" />
+                            KB Connected
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {currentFrame.aiConcepts.map((concept, index) => (
+                          <Button
+                            key={index}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleConceptClick(concept)}
+                            className="h-auto p-3 text-left justify-start"
+                          >
+                            <Brain className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="text-sm">{concept}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* After Video Text */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ArrowRight className="h-5 w-5 text-indigo-600" />
+                      Key Takeaways
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="prose prose-slate dark:prose-invert max-w-none">
+                      {currentFrame.afterVideoText
+                        .split("\n")
+                        .map((paragraph, index) => (
+                          <p key={index} className="mb-4 leading-relaxed">
+                            {paragraph.trim()}
+                          </p>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+
+      {/* Dialogs */}
+      {/* BubblSpace Dialog */}
+      <BubblSpaceDialog
+        isOpen={showBubblSpaceDialog}
+        onClose={() => {
+          setShowBubblSpaceDialog(false);
+          setEditingBubblSpace(null);
+        }}
+        bubblSpace={editingBubblSpace}
+        onSave={editingBubblSpace ? handleEditBubblSpace : handleCreateBubblSpace}
+        onDelete={handleDeleteBubblSpace}
+        existingBubblSpaces={allBubblSpaces}
+      />
+
+      {/* TimeCapsule Dialog */}
+      <TimeCapsuleDialog
+        isOpen={showTimeCapsuleDialog}
+        onClose={() => {
+          setShowTimeCapsuleDialog(false);
+          setEditingTimeCapsule(null);
+        }}
+        timeCapsule={editingTimeCapsule}
+        onSave={editingTimeCapsule ? handleEditTimeCapsule : handleCreateTimeCapsule}
+        onDelete={handleDeleteTimeCapsule}
+        bubblSpaces={allBubblSpaces}
+        defaultBubblSpaceId={currentBubblSpace?.id}
+      />
+
+      {/* Safe Import Dialog */}
+      <SafeImportDialog
+        isOpen={showSafeImportDialog}
+        onClose={() => setShowSafeImportDialog(false)}
+        onImport={handleEnhancedImport}
+        timeCapsuleData={importTimeCapsuleData}
+        existingData={{
+          bubblSpaces: allBubblSpaces,
+          timeCapsules: allTimeCapsules,
+          hasResearchData: true,
+          hasAIFramesData: frames.length > 0,
+          hasVectorStoreData: true,
+        }}
+      />
+
+      {/* Create Frame Dialog */}
+      {showCreateFrame && (
+        <Dialog open={showCreateFrame} onOpenChange={setShowCreateFrame}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New AI Frame</DialogTitle>
+              <DialogDescription>
+                Generate a new learning frame with AI assistance
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="grid gap-4">
+                <div>
+                  <Label htmlFor="goal">Learning Goal</Label>
+                  <Textarea
+                    id="goal"
+                    placeholder="What should learners understand after this frame?"
+                    value={newFrameData.goal}
+                    onChange={(e) =>
+                      setNewFrameData({ ...newFrameData, goal: e.target.value })
+                    }
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="videoUrl">Video URL</Label>
+                  <Input
+                    id="videoUrl"
+                    placeholder="https://youtube.com/watch?v=..."
+                    value={newFrameData.videoUrl}
+                    onChange={(e) =>
+                      setNewFrameData({
+                        ...newFrameData,
+                        videoUrl: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="startTime">Start Time (seconds)</Label>
+                    <Input
+                      id="startTime"
+                      type="number"
+                      placeholder="0"
+                      value={newFrameData.startTime || ""}
+                      onChange={(e) =>
+                        setNewFrameData({
+                          ...newFrameData,
+                          startTime: parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="duration">Duration (seconds)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      placeholder="300"
+                      value={newFrameData.duration || ""}
+                      onChange={(e) =>
+                        setNewFrameData({
+                          ...newFrameData,
+                          duration: parseInt(e.target.value) || 300,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateFrame(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateFrame} disabled={isGeneratingFrame}>
+                  {isGeneratingFrame ? (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Frame
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Voice Settings Dialog */}
+      {showVoiceSettings && (
+        <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Voice Settings</DialogTitle>
+              <DialogDescription>
+                Configure text-to-speech settings
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="voice-select">Voice</Label>
+                <select
+                  id="voice-select"
+                  value={selectedVoice?.name || ""}
+                  onChange={(e) => {
+                    const voice = availableVoices?.find(
+                      (v) => v.name === e.target.value
+                    );
+                    if (voice) {
+                      setSelectedVoice(voice);
+                      localStorage.setItem("selectedVoiceName", voice.name);
+                    }
+                  }}
+                  className="w-full p-2 border rounded"
+                >
+                  {availableVoices.map((voice) => (
+                    <option key={voice.name} value={voice.name}>
+                      {voice.name} ({voice.lang})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="voice-rate">Speech Rate</Label>
+                <input
+                  id="voice-rate"
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={voiceSettings.rate}
+                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+                <div className="text-sm text-gray-600">
+                  {voiceSettings.rate.toFixed(1)}x
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="voice-pitch">Pitch</Label>
+                <input
+                  id="voice-pitch"
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={voiceSettings.pitch}
+                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+                <div className="text-sm text-gray-600">
+                  {voiceSettings.pitch.toFixed(1)}
+                </div>
+              </div>
+              {selectedVoice && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                  <p className="text-sm font-medium">Test Voice</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedVoice) {
+                        speakText(
+                          `Hello! This is a test of the ${selectedVoice.name} voice at ${voiceSettings.rate}x speed and ${voiceSettings.pitch} pitch.`
+                        );
+                      }
+                    }}
+                    className="mt-2"
+                  >
+                    <Volume2 className="h-4 w-4 mr-2" />
+                    Test Voice
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Concept Detail Dialog */}
+      {selectedConcept && (
+        <Dialog
+          open={!!selectedConcept}
+          onOpenChange={() => setSelectedConcept(null)}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5" />
+                {selectedConcept}
+              </DialogTitle>
+              <DialogDescription>
+                AI-generated explanation and context
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-96">
+              <div className="space-y-4">
+                {selectedConcept && conceptExplanations[selectedConcept] ? (
+                  <div className="prose prose-sm dark:prose-invert">
+                    {conceptExplanations[selectedConcept]
+                      .split("\n")
+                      .map((paragraph: string, index: number) => (
+                        <p key={index}>{paragraph}</p>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <Brain className="h-8 w-8 mx-auto mb-2 animate-pulse" />
+                      <p className="text-sm text-gray-500">
+                        Loading explanation...
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {timeCapsuleData && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      💡 This explanation uses knowledge from your TimeCapsule
                     </p>
                   </div>
                 )}
-
-                {/* Auto-advance Countdown */}
-                {autoAdvanceCountdown > 0 && (
-                  <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-orange-600 animate-pulse" />
-                        <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                          Auto-advancing in {autoAdvanceCountdown} seconds...
-                        </span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={cancelAutoAdvance}
-                        className="text-orange-600 hover:text-orange-700 border-orange-300"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <ScrollArea className="flex-1 mb-4">
-                  <div className="space-y-4">
-                    {chatMessages.length === 0 ? (
-                      <div className="text-center text-slate-500 dark:text-slate-400 py-8">
-                        <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">
-                          Ask questions about the content or click on AI
-                          concepts to learn more
-                        </p>
-                        {timeCapsuleData && (
-                          <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
-                            Connected to your TimeCapsule knowledge
-                          </p>
-                        )}
-                        {!isCreationMode &&
-                          isVoiceEnabled &&
-                          !userHasInteracted && (
-                            <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
-                              🎙️ Click anywhere to enable voice narration
-                            </p>
-                          )}
-                        {!isCreationMode &&
-                          isVoiceEnabled &&
-                          userHasInteracted && (
-                            <p className="text-xs mt-2 text-green-600 dark:text-green-400">
-                              🎙️ Voice narration enabled - Navigate frames to
-                              hear explanations
-                            </p>
-                          )}
-                      </div>
-                    ) : (
-                      chatMessages.map((message, index) => (
-                        <div
-                          key={index}
-                          className={`flex ${
-                            message.role === "user"
-                              ? "justify-end"
-                              : "justify-start"
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[80%] p-3 rounded-lg ${
-                              message.role === "user"
-                                ? "bg-blue-600 text-white"
-                                : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                            }`}
-                          >
-                            <div className="text-sm whitespace-pre-wrap">
-                              {message.content}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </ScrollArea>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleChatSubmit()}
-                    placeholder="Ask about the content..."
-                    className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
-                  />
-                  <Button size="sm" onClick={handleChatSubmit}>
-                    <MessageCircle className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-        )}
-      </div>
-
-      {/* Create Frame Modal */}
-      <Dialog open={showCreateFrame} onOpenChange={setShowCreateFrame}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wand2 className="h-5 w-5 text-purple-600" />
-              Create AI Frame
-            </DialogTitle>
-            <DialogDescription>
-              AI will analyze your goal and TimeCapsule data to create a
-              comprehensive learning frame.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="frame-goal">Learning Goal</Label>
-              <Textarea
-                id="frame-goal"
-                value={newFrameData.goal}
-                onChange={(e) =>
-                  setNewFrameData((prev) => ({ ...prev, goal: e.target.value }))
-                }
-                placeholder="What do you want to learn? (e.g., 'Understanding how neural networks backpropagate gradients')"
-                className="min-h-[80px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="video-url">Video URL</Label>
-              <Input
-                id="video-url"
-                value={newFrameData.videoUrl}
-                onChange={(e) =>
-                  setNewFrameData((prev) => ({
-                    ...prev,
-                    videoUrl: e.target.value,
-                  }))
-                }
-                placeholder="https://youtube.com/watch?v=..."
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start-time">Start Time (seconds)</Label>
-                <Input
-                  id="start-time"
-                  type="number"
-                  value={newFrameData.startTime}
-                  onChange={(e) =>
-                    setNewFrameData((prev) => ({
-                      ...prev,
-                      startTime: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  placeholder="0"
-                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (seconds)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={newFrameData.duration}
-                  onChange={(e) =>
-                    setNewFrameData((prev) => ({
-                      ...prev,
-                      duration: parseInt(e.target.value) || 300,
-                    }))
-                  }
-                  placeholder="300"
-                />
-              </div>
-            </div>
-            {timeCapsuleData && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="text-sm font-medium mb-1">
-                  AI will use your TimeCapsule data:
-                </div>
-                <div className="text-xs text-slate-600 dark:text-slate-400">
-                  • {timeCapsuleData.research?.topics?.length || 0} research
-                  topics •{" "}
-                  {vectorStore
-                    ? "Knowledge base documents"
-                    : "No knowledge base"}
-                  • Existing frame concepts for relationship mapping
-                </div>
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateFrame(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateFrame}
-                disabled={
-                  isGeneratingFrame ||
-                  !newFrameData.goal.trim() ||
-                  !newFrameData.videoUrl.trim()
-                }
-              >
-                {isGeneratingFrame ? (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Create Frame
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Voice Settings Modal */}
-      <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-blue-600" />
-              Voice Settings
-            </DialogTitle>
-            <DialogDescription>
-              Choose your preferred voice and adjust speech settings for optimal
-              learning experience.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6">
-            {/* Voice Selection */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Select Voice</Label>
-              <ScrollArea className="h-32 border rounded-lg p-3">
-                <div className="space-y-2">
-                  {availableVoices
-                    .filter((voice) => voice.lang.startsWith("en"))
-                    .sort((a, b) => {
-                      const aQuality = getVoiceQuality(a);
-                      const bQuality = getVoiceQuality(b);
-                      const qualityOrder = { premium: 0, good: 1, basic: 2 };
-                      return qualityOrder[aQuality] - qualityOrder[bQuality];
-                    })
-                    .map((voice, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                          selectedVoice?.name === voice.name
-                            ? "bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-600"
-                            : "hover:bg-slate-100 dark:hover:bg-slate-800"
-                        }`}
-                        onClick={() => setSelectedVoice(voice)}
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">
-                            {voice.name}
-                          </div>
-                          <div className="text-xs text-slate-600 dark:text-slate-400">
-                            {voice.lang} •{" "}
-                            {voice.localService ? "Local" : "Network"}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              getVoiceQuality(voice) === "premium"
-                                ? "default"
-                                : "outline"
-                            }
-                            className={
-                              getVoiceQuality(voice) === "premium"
-                                ? "bg-green-500"
-                                : getVoiceQuality(voice) === "good"
-                                ? "bg-yellow-500"
-                                : "bg-gray-500"
-                            }
-                          >
-                            {getVoiceQuality(voice)}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const testUtterance =
-                                new SpeechSynthesisUtterance(
-                                  "Hello, this is a test of this voice."
-                                );
-                              testUtterance.voice = voice;
-                              testUtterance.rate = voiceSettings.rate;
-                              testUtterance.pitch = voiceSettings.pitch;
-                              testUtterance.volume = voiceSettings.volume;
-                              window.speechSynthesis.speak(testUtterance);
-                            }}
-                          >
-                            <Play className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Voice Settings */}
-            <div className="space-y-4">
-              <Label className="text-sm font-medium">Speech Settings</Label>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rate" className="text-xs">
-                    Speed: {voiceSettings.rate.toFixed(1)}x
-                  </Label>
-                  <input
-                    id="rate"
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.1"
-                    value={voiceSettings.rate}
-                    onChange={(e) =>
-                      setVoiceSettings((prev) => ({
-                        ...prev,
-                        rate: parseFloat(e.target.value),
-                      }))
-                    }
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pitch" className="text-xs">
-                    Pitch: {voiceSettings.pitch.toFixed(1)}
-                  </Label>
-                  <input
-                    id="pitch"
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.1"
-                    value={voiceSettings.pitch}
-                    onChange={(e) =>
-                      setVoiceSettings((prev) => ({
-                        ...prev,
-                        pitch: parseFloat(e.target.value),
-                      }))
-                    }
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="volume" className="text-xs">
-                    Volume: {Math.round(voiceSettings.volume * 100)}%
-                  </Label>
-                  <input
-                    id="volume"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={voiceSettings.volume}
-                    onChange={(e) =>
-                      setVoiceSettings((prev) => ({
-                        ...prev,
-                        volume: parseFloat(e.target.value),
-                      }))
-                    }
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Test Voice */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Test Voice</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const testText =
-                      "Hello! This is how I will sound when narrating your AI-Frames learning content. The speed, pitch, and volume are all adjustable to match your preferences.";
-                    speakText(testText);
-                  }}
-                  disabled={isSpeaking}
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Test Voice
-                </Button>
-                {isSpeaking && (
-                  <Button
-                    variant="outline"
-                    onClick={stopSpeaking}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Pause className="h-4 w-4 mr-2" />
-                    Stop
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Voice Quality Info */}
-            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-              <div className="text-sm font-medium mb-2">
-                Voice Quality Guide:
-              </div>
-              <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                <div>
-                  <Badge className="bg-green-500 text-xs mr-2">Premium</Badge>
-                  Neural voices (Microsoft, Google) - Most natural sounding
-                </div>
-                <div>
-                  <Badge className="bg-yellow-500 text-xs mr-2">Good</Badge>
-                  System voices (Alex, Samantha) - Clear and pleasant
-                </div>
-                <div>
-                  <Badge className="bg-gray-500 text-xs mr-2">Basic</Badge>
-                  Default voices - Functional but robotic
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowVoiceSettings(false)}
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

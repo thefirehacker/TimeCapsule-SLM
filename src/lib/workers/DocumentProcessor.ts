@@ -38,11 +38,9 @@ export class DocumentProcessor {
   async init(onProgress?: ProgressCallback): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // Create Web Worker
-        this.worker = new Worker(
-          new URL('./embeddingWorker.ts', import.meta.url),
-          { type: 'module' }
-        );
+        // Use worker from public directory (works reliably in Next.js)
+        const workerUrl = '/workers/embeddingWorker.js';
+        this.worker = new Worker(workerUrl);
 
         // Set up message handler
         this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
@@ -55,18 +53,19 @@ export class DocumentProcessor {
         };
 
         // Handle initialization response
-        const initHandler = (event: MessageEvent<WorkerResponse>) => {
-          if (event.data.type === 'initialized') {
+        const initHandler = (event: MessageEvent<any>) => {
+          if (event.data.type === 'init_complete') {
             this.workerReady = true;
             console.log('✅ Document Processor: Worker initialized');
             resolve();
           } else if (event.data.type === 'error') {
-            reject(new Error(event.data.data?.message || 'Worker initialization failed'));
+            reject(new Error(event.data.error || 'Worker initialization failed'));
           } else if (event.data.type === 'progress' && onProgress) {
+            const progressData = event.data.data || {};
             onProgress({
-              status: event.data.data.status,
-              message: event.data.data.message,
-              progress: event.data.data.progress || 0
+              status: progressData.status || 'loading',
+              message: progressData.status === 'loading_model' ? 'Loading AI model...' : 'Initializing...',
+              progress: progressData.status === 'ready' ? 100 : 50
             });
           }
         };
@@ -83,7 +82,14 @@ export class DocumentProcessor {
 
       } catch (error) {
         console.error('❌ Document Processor: Failed to create worker:', error);
-        reject(error);
+        console.warn('⚠️  Document Processor: Running in fallback mode without worker');
+        
+        // Set up fallback mode - mark as ready but without worker
+        this.workerReady = false;
+        this.worker = null;
+        
+        // Resolve anyway to allow the app to continue without workers
+        resolve();
       }
     });
   }
@@ -99,8 +105,40 @@ export class DocumentProcessor {
     onComplete: (document: ProcessedDocument) => void,
     onError: (error: string) => void
   ): Promise<void> {
-    if (!this.workerReady) {
-      throw new Error('Document processor not initialized');
+    if (!this.worker) {
+      // Fallback: Simple processing without embeddings
+      console.warn('⚠️  Document Processor: Processing without worker (no embeddings)');
+      
+      onProgress({
+        status: 'chunking',
+        message: 'Processing document in fallback mode...',
+        progress: 50
+      });
+      
+      // Simple text chunking without embeddings
+      const chunks = this.simpleChunk(documentData.content);
+      
+      const processedDoc: ProcessedDocument = {
+        id: documentData.id,
+        title: documentData.title,
+        content: documentData.content,
+        metadata: documentData.metadata,
+        chunks: chunks.map((content: string, index: number) => ({
+          index,
+          content,
+          wordCount: content.split(' ').length
+        })),
+        vectors: [] // No embeddings in fallback mode
+      };
+      
+      onProgress({
+        status: 'complete',
+        message: 'Document processed (fallback mode)',
+        progress: 100
+      });
+      
+      onComplete(processedDoc);
+      return;
     }
 
     if (this.currentProcessing) {
@@ -145,28 +183,39 @@ export class DocumentProcessor {
     
     // Send document to worker
     this.worker?.postMessage({
-      type: 'processDocument',
-      data: documentData
-    } as WorkerMessage);
+      type: 'process_document',
+      data: documentData,
+      id: documentData.id
+    });
   }
 
-  private handleWorkerMessage(response: WorkerResponse) {
+  private handleWorkerMessage(response: any) {
     const callbacks = (this as any).currentCallbacks;
     if (!callbacks) return;
 
     switch (response.type) {
       case 'progress':
+        const progressData = response.data || {};
+        let message = 'Processing...';
+        let progress = 0;
+        
+        if (progressData.status === 'processing') {
+          message = `Processing chunk ${progressData.current || 0} of ${progressData.total || 0}`;
+          progress = progressData.current && progressData.total ? 
+            Math.round((progressData.current / progressData.total) * 100) : 0;
+        }
+        
         callbacks.onProgress({
-          status: response.data.status,
-          message: response.data.message,
-          progress: response.data.progress || 0,
-          chunkIndex: response.data.chunkIndex,
-          totalChunks: response.data.totalChunks
+          status: progressData.status || 'chunking',
+          message,
+          progress,
+          chunkIndex: progressData.current,
+          totalChunks: progressData.total
         });
         break;
 
-      case 'documentComplete':
-        const document = response.data.document as ProcessedDocument;
+      case 'document_processed':
+        const document = response.data as ProcessedDocument;
         console.log(`✅ Document Processor: Completed processing ${document.title}`);
         
         callbacks.onComplete(document);
@@ -174,8 +223,8 @@ export class DocumentProcessor {
         break;
 
       case 'error':
-        console.error('❌ Document Processor: Processing error:', response.data.message);
-        callbacks.onError(response.data.message);
+        console.error('❌ Document Processor: Processing error:', response.error);
+        callbacks.onError(response.error);
         this.processNext();
         break;
     }
@@ -207,20 +256,38 @@ export class DocumentProcessor {
     return this.currentProcessing !== null;
   }
 
+  private simpleChunk(content: string): string[] {
+    // Simple text chunking without embeddings (fallback)
+    const maxChunkSize = 500; // words
+    const words = content.split(' ');
+    const chunks: string[] = [];
+    
+    for (let i = 0; i < words.length; i += maxChunkSize) {
+      chunks.push(words.slice(i, i + maxChunkSize).join(' '));
+    }
+    
+    return chunks.length > 0 ? chunks : [content];
+  }
+
   async generateEmbedding(text: string): Promise<number[]> {
-    if (!this.workerReady) {
-      throw new Error('Document processor not initialized');
+    if (!this.worker) {
+      console.warn('⚠️  Document Processor: Cannot generate embedding without worker');
+      return []; // Return empty array in fallback mode
     }
 
     return new Promise((resolve, reject) => {
+      const requestId = Date.now().toString();
+      
       // Set up one-time message handler for this embedding request
-      const embeddingHandler = (event: MessageEvent<WorkerResponse>) => {
-        if (event.data.type === 'embeddingComplete') {
+      const embeddingHandler = (event: MessageEvent<any>) => {
+        if (event.data.id === requestId) {
           this.worker?.removeEventListener('message', embeddingHandler);
-          resolve(event.data.data.embedding);
-        } else if (event.data.type === 'error') {
-          this.worker?.removeEventListener('message', embeddingHandler);
-          reject(new Error(event.data.data?.message || 'Embedding generation failed'));
+          
+          if (event.data.type === 'embedding_generated') {
+            resolve(event.data.data);
+          } else if (event.data.type === 'error') {
+            reject(new Error(event.data.error || 'Embedding generation failed'));
+          }
         }
       };
 
@@ -228,9 +295,10 @@ export class DocumentProcessor {
 
       // Send embedding request to worker
       this.worker?.postMessage({
-        type: 'generateEmbedding',
-        data: { text }
-      } as WorkerMessage);
+        type: 'generate_embedding',
+        data: { text },
+        id: requestId
+      });
 
       // Clean up handler after timeout
       setTimeout(() => {

@@ -44,7 +44,29 @@ import {
   Search,
   Eye,
   X,
+  Plus,
+  Edit3,
+  Package,
+  FolderPlus,
+  Upload,
 } from "lucide-react";
+
+// Import Metadata Management
+import { BubblSpaceDialog } from "@/components/ui/bubblspace-dialog";
+import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
+import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
+import { 
+  getMetadataManager, 
+  MetadataManager 
+} from "@/lib/MetadataManager";
+import {
+  BubblSpace,
+  TimeCapsuleMetadata,
+  EnhancedTimeCapsule,
+  ImportOptions,
+  ImportResult,
+  MetadataUtils
+} from "@/types/timecapsule";
 
 export type AIProvider = "ollama" | "lmstudio" | "openai" | "local";
 export type ResearchType =
@@ -101,6 +123,25 @@ export class DeepResearchApp {
   availableModels: any[] = [];
   selectedOllamaURL = "http://localhost:11434";
 
+  // Metadata Management
+  metadataManager: MetadataManager | null = null;
+  currentBubblSpace: BubblSpace | null = null;
+  currentTimeCapsule: TimeCapsuleMetadata | null = null;
+  showBubblSpaceDialog = false;
+  showTimeCapsuleDialog = false;
+  showSafeImportDialog = false;
+  bubblSpaces: BubblSpace[] = [];
+  timeCapsules: TimeCapsuleMetadata[] = [];
+  editingBubblSpace: BubblSpace | null = null;
+  editingTimeCapsule: TimeCapsuleMetadata | null = null;
+  importFile: File | null = null;
+  isMetadataLoading = false;
+
+  // Initialization state to prevent double initialization
+  private static initializationPromise: Promise<void> | null = null;
+  private static isInitializing = false;
+  private initialized = false;
+
   // React state setters (will be set in the hook)
   setTopics: ((topics: Topic[]) => void) | null = null;
   setAIStatus: ((status: AIConnectionStatus) => void) | null = null;
@@ -138,6 +179,18 @@ export class DeepResearchApp {
       ) => void)
     | null = null;
 
+  // Metadata Management React state setters
+  setCurrentBubblSpace: ((space: BubblSpace | null) => void) | null = null;
+  setCurrentTimeCapsule: ((capsule: TimeCapsuleMetadata | null) => void) | null = null;
+  setShowBubblSpaceDialog: ((show: boolean) => void) | null = null;
+  setShowTimeCapsuleDialog: ((show: boolean) => void) | null = null;
+  setShowSafeImportDialog: ((show: boolean) => void) | null = null;
+  setBubblSpaces: ((spaces: BubblSpace[]) => void) | null = null;
+  setTimeCapsules: ((capsules: TimeCapsuleMetadata[]) => void) | null = null;
+  setEditingBubblSpace: ((space: BubblSpace | null) => void) | null = null;
+  setEditingTimeCapsule: ((capsule: TimeCapsuleMetadata | null) => void) | null = null;
+  setIsMetadataLoading: ((loading: boolean) => void) | null = null;
+
   constructor() {
     // Make this instance globally available - only in browser
     if (typeof window !== "undefined") {
@@ -149,6 +202,34 @@ export class DeepResearchApp {
   async init() {
     console.log("🚀 DeepResearchApp.init() called");
 
+    // Prevent double initialization using static flag
+    if (this.initialized) {
+      console.log("⚠️ DeepResearchApp already initialized, skipping");
+      return;
+    }
+
+    // If another instance is already initializing, wait for it
+    if (DeepResearchApp.isInitializing && DeepResearchApp.initializationPromise) {
+      console.log("⏳ Another instance is initializing, waiting...");
+      await DeepResearchApp.initializationPromise;
+      this.initialized = true;
+      return;
+    }
+
+    // Mark as initializing and create promise
+    DeepResearchApp.isInitializing = true;
+    DeepResearchApp.initializationPromise = this.performInitialization();
+
+    try {
+      await DeepResearchApp.initializationPromise;
+      this.initialized = true;
+    } finally {
+      DeepResearchApp.isInitializing = false;
+      DeepResearchApp.initializationPromise = null;
+    }
+  }
+
+  private async performInitialization() {
     // Load basic data first (topics, research results) - this is fast
     this.loadBasicDataFromStorage();
 
@@ -166,6 +247,9 @@ export class DeepResearchApp {
 
     // Initialize Vector Store asynchronously in background (non-blocking)
     this.initializeVectorStoreAsync();
+
+    // Initialize Metadata Manager asynchronously
+    this.initializeMetadataManagerAsync();
   }
 
   private async initializeVectorStoreAsync() {
@@ -229,6 +313,91 @@ export class DeepResearchApp {
   async initializeVectorStore() {
     // Just call the async version and don't await it
     this.initializeVectorStoreAsync();
+  }
+
+  private async initializeMetadataManagerAsync() {
+    try {
+      console.log("📝 Starting metadata manager initialization...");
+      this.isMetadataLoading = true;
+      this.setIsMetadataLoading?.(true);
+
+      // Get metadata manager singleton (it auto-initializes)
+      this.metadataManager = getMetadataManager();
+
+      // Wait for vector store to be ready before linking it
+      const maxWaitTime = 10000; // 10 seconds
+      const checkInterval = 100; // 100ms
+      let waitTime = 0;
+      
+      while (!this.vectorStore && waitTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waitTime += checkInterval;
+      }
+
+      // Link vector store to metadata manager
+      if (this.vectorStore) {
+        this.metadataManager.setVectorStore(this.vectorStore);
+        console.log("🔗 Metadata manager linked to vector store");
+      } else {
+        console.warn("⚠️ Vector store not available, metadata manager running without vector store");
+      }
+
+      // Load existing metadata
+      await this.loadMetadata();
+
+      console.log("✅ Metadata manager initialization complete");
+      this.isMetadataLoading = false;
+      this.setIsMetadataLoading?.(false);
+    } catch (error) {
+      console.error("❌ Metadata manager initialization failed:", error);
+      this.isMetadataLoading = false;
+      this.setIsMetadataLoading?.(false);
+    }
+  }
+
+  async loadMetadata() {
+    if (!this.metadataManager) return;
+
+    try {
+      // Load BubblSpaces and TimeCapsules
+      const bubblSpaces = await this.metadataManager.loadBubblSpaces();
+      const timeCapsules = await this.metadataManager.loadTimeCapsules();
+
+      this.bubblSpaces = bubblSpaces;
+      this.timeCapsules = timeCapsules;
+
+      // Set current BubblSpace and TimeCapsule
+      this.currentBubblSpace = this.metadataManager.getDefaultBubblSpace();
+      
+      // Get the most recent TimeCapsule for the current BubblSpace or create one
+      if (this.currentBubblSpace) {
+        const recentTimeCapsules = this.metadataManager
+          .getTimeCapsulesByBubblSpace(this.currentBubblSpace.id)
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        
+        if (recentTimeCapsules.length > 0) {
+          this.currentTimeCapsule = recentTimeCapsules[0];
+        } else {
+          // Create default TimeCapsule for this BubblSpace
+          this.currentTimeCapsule = this.metadataManager.createTimeCapsule(
+            'Research Session',
+            'Deep research and analysis',
+            this.currentBubblSpace.id,
+            { category: 'research' }
+          );
+        }
+      }
+
+      // Update React state
+      this.setBubblSpaces?.(bubblSpaces);
+      this.setTimeCapsules?.(timeCapsules);
+      this.setCurrentBubblSpace?.(this.currentBubblSpace);
+      this.setCurrentTimeCapsule?.(this.currentTimeCapsule);
+
+      console.log(`📝 Loaded ${bubblSpaces.length} BubblSpaces and ${timeCapsules.length} TimeCapsules`);
+    } catch (error) {
+      console.error('Failed to load metadata:', error);
+    }
   }
 
   initializeAIAssistant() {
@@ -1373,7 +1542,20 @@ export class DeepResearchApp {
           currentTab: this.currentTab,
         },
         vectorStore: null as any,
+        aiFramesData: null as any, // NEW: Include AI-Frames data if available
       };
+
+      // Check for existing AI-Frames data and include it
+      try {
+        const existingAIFrames = localStorage.getItem("ai_frames_timecapsule");
+        if (existingAIFrames) {
+          const aiFramesData = JSON.parse(existingAIFrames);
+          timeCapsuleData.aiFramesData = aiFramesData.data;
+          this.updateStatus("🎥 Including AI-Frames data in export");
+        }
+      } catch (aiFramesError) {
+        console.warn("⚠️ Could not include AI-Frames data:", aiFramesError);
+      }
 
       // Export vector store data if available
       if (this.vectorStore) {
@@ -1394,6 +1576,53 @@ export class DeepResearchApp {
         }
       }
 
+      // Store large TimeCapsule data in IndexedDB to avoid localStorage quota issues
+      if (this.vectorStore) {
+        try {
+          const timeCapsuleId = `timecapsule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Store TimeCapsule as a special document in VectorStore (IndexedDB)
+          const timeCapsuleDoc = {
+            id: timeCapsuleId,
+            title: `TimeCapsule Export ${new Date().toLocaleDateString()}`,
+            content: JSON.stringify(timeCapsuleData),
+            metadata: {
+              filename: `timecapsule_${new Date().toISOString().split("T")[0]}.json`,
+              filesize: JSON.stringify(timeCapsuleData).length,
+              filetype: 'application/json',
+              uploadedAt: new Date().toISOString(),
+              source: 'timecapsule_export',
+              description: 'TimeCapsule export data stored in IndexedDB',
+              isGenerated: true
+            },
+            chunks: [],
+            vectors: []
+          };
+
+          await this.vectorStore.insertDocument(timeCapsuleDoc);
+          
+          // Save only minimal reference in localStorage
+          const timeCapsuleRef = {
+            id: timeCapsuleId,
+            exportedAt: new Date().toISOString(),
+            filename: timeCapsuleDoc.metadata.filename,
+            fileSize: timeCapsuleDoc.metadata.filesize
+          };
+          
+          localStorage.setItem("deepresearch_data", JSON.stringify({
+            topics: this.topics,
+            researchResults: this.researchResults,
+            currentTab: this.currentTab
+          }));
+          localStorage.setItem("timecapsule_combined_ref", JSON.stringify(timeCapsuleRef));
+          
+          this.updateStatus("📊 TimeCapsule stored in IndexedDB");
+        } catch (storageError) {
+          console.warn("⚠️ Could not store in IndexedDB, using direct export:", storageError);
+          // Fallback to direct export without storing in IndexedDB
+        }
+      }
+
       const blob = new Blob([JSON.stringify(timeCapsuleData, null, 2)], {
         type: "application/json",
       });
@@ -1404,7 +1633,12 @@ export class DeepResearchApp {
       a.click();
       URL.revokeObjectURL(url);
 
-      this.updateStatus("✅ TimeCapsule exported successfully");
+      const fileSize = blob.size;
+      const hasAIFrames = !!timeCapsuleData.aiFramesData;
+      
+      this.updateStatus(
+        `✅ TimeCapsule exported successfully (${Math.round(fileSize / 1024)}KB)${hasAIFrames ? ' - includes AI-Frames data' : ''}`
+      );
     } catch (error) {
       console.error("❌ TimeCapsule export failed:", error);
       this.updateStatus(
@@ -1421,9 +1655,101 @@ export class DeepResearchApp {
       const content = await this.readFileContent(file);
       const timeCapsuleData = JSON.parse(content);
 
-      // Validate TimeCapsule format
-      if (!timeCapsuleData.metadata || !timeCapsuleData.research) {
+      // Validate TimeCapsule format - support both DeepResearch and AI-Frames formats
+      if (!timeCapsuleData.metadata && !timeCapsuleData.data) {
         throw new Error("Invalid TimeCapsule format");
+      }
+
+      // Handle AI-Frames TimeCapsule format
+      if (timeCapsuleData.type === "ai-frames-timecapsule" && timeCapsuleData.data) {
+        this.updateStatus("🎥 Detected AI-Frames TimeCapsule format...");
+        
+        // Extract AI-Frames data and convert to DeepResearch format
+        const aiFramesData = timeCapsuleData.data;
+        
+        // Convert AI-Frames to research topics
+        if (aiFramesData.frames && Array.isArray(aiFramesData.frames)) {
+          const convertedTopics = aiFramesData.frames.map((frame: any, index: number) => ({
+            id: frame.id || `frame-${index}`,
+            title: frame.goal || `Frame ${index + 1}`,
+            description: frame.description || frame.transcript || `Learning frame about ${frame.goal}`,
+            selected: true,
+            order: index,
+            concepts: frame.aiConcepts || [],
+            video: frame.video || null,
+            timestamp: frame.timestamp || null,
+          }));
+
+          this.topics = convertedTopics;
+          this.setTopics?.(this.topics);
+          
+          this.updateStatus(`📚 Converted ${convertedTopics.length} AI-Frames to research topics`);
+        }
+
+        // Import DeepResearch data if available
+        if (aiFramesData.deepResearchData) {
+          if (aiFramesData.deepResearchData.research) {
+            if (aiFramesData.deepResearchData.research.topics) {
+              this.topics = [...this.topics, ...aiFramesData.deepResearchData.research.topics];
+              this.setTopics?.(this.topics);
+            }
+            
+            if (aiFramesData.deepResearchData.research.researchResults) {
+              this.researchResults = aiFramesData.deepResearchData.research.researchResults;
+              this.setResearchResults?.(this.getCurrentResearchContent());
+            }
+          }
+        }
+
+        // Store AI-Frames data in IndexedDB instead of localStorage to avoid quota issues
+        if (this.vectorStore) {
+          try {
+            const aiFramesId = `aiframes_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            const aiFramesDoc = {
+              id: aiFramesId,
+              title: `AI-Frames TimeCapsule ${new Date().toLocaleDateString()}`,
+              content: JSON.stringify(timeCapsuleData),
+              metadata: {
+                filename: `ai_frames_timecapsule.json`,
+                filesize: JSON.stringify(timeCapsuleData).length,
+                filetype: 'application/json',
+                uploadedAt: new Date().toISOString(),
+                source: 'aiframes_import',
+                description: 'AI-Frames TimeCapsule data stored in IndexedDB',
+                isGenerated: true
+              },
+              chunks: [],
+              vectors: []
+            };
+
+            await this.vectorStore.insertDocument(aiFramesDoc);
+            
+            // Store only minimal reference in localStorage
+            localStorage.setItem("ai_frames_timecapsule_ref", JSON.stringify({
+              id: aiFramesId,
+              importedAt: new Date().toISOString()
+            }));
+            
+            this.updateStatus("📊 AI-Frames data stored in IndexedDB");
+          } catch (storageError) {
+            console.warn("⚠️ Could not store AI-Frames in IndexedDB:", storageError);
+            // Fallback to localStorage for small data only
+            localStorage.setItem("ai_frames_timecapsule_ref", JSON.stringify({
+              type: "legacy",
+              importedAt: new Date().toISOString()
+            }));
+          }
+        }
+
+        this.saveToStorage();
+        this.updateStatus("✅ AI-Frames TimeCapsule imported successfully - can now export as combined format");
+        return;
+      }
+
+      // Handle traditional DeepResearch TimeCapsule format
+      if (!timeCapsuleData.metadata || !timeCapsuleData.research) {
+        throw new Error("Invalid DeepResearch TimeCapsule format");
       }
 
       // Restore research data
@@ -1435,6 +1761,54 @@ export class DeepResearchApp {
       if (timeCapsuleData.research.researchResults) {
         this.researchResults = timeCapsuleData.research.researchResults;
         this.setResearchResults?.(this.getCurrentResearchContent());
+      }
+
+      // Restore AI-Frames data if available in combined TimeCapsule
+      if (timeCapsuleData.aiFramesData) {
+        try {
+          this.updateStatus("🎥 Restoring AI-Frames data...");
+          
+          if (this.vectorStore) {
+            // Store in IndexedDB
+            const aiFramesId = `aiframes_combined_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            const aiFramesTimeCapsule = {
+              version: "1.0",
+              timestamp: new Date().toISOString(),
+              type: "ai-frames-timecapsule",
+              data: timeCapsuleData.aiFramesData,
+            };
+            
+            const aiFramesDoc = {
+              id: aiFramesId,
+              title: `AI-Frames Combined Data ${new Date().toLocaleDateString()}`,
+              content: JSON.stringify(aiFramesTimeCapsule),
+              metadata: {
+                filename: `ai_frames_combined.json`,
+                filesize: JSON.stringify(aiFramesTimeCapsule).length,
+                filetype: 'application/json',
+                uploadedAt: new Date().toISOString(),
+                source: 'aiframes_combined',
+                description: 'AI-Frames combined data from TimeCapsule',
+                isGenerated: true
+              },
+              chunks: [],
+              vectors: []
+            };
+
+            await this.vectorStore.insertDocument(aiFramesDoc);
+            
+            // Store only reference in localStorage
+            localStorage.setItem("ai_frames_timecapsule_ref", JSON.stringify({
+              id: aiFramesId,
+              importedAt: new Date().toISOString()
+            }));
+          }
+          
+          this.updateStatus("✅ AI-Frames data available for AI-Frames page");
+        } catch (aiFramesError) {
+          console.warn("⚠️ Could not restore AI-Frames data:", aiFramesError);
+        }
       }
 
       // Restore vector store data
@@ -1467,8 +1841,53 @@ export class DeepResearchApp {
         }
       }
 
+      // Store TimeCapsule data in IndexedDB instead of localStorage to avoid quota issues
+      if (this.vectorStore) {
+        try {
+          const timeCapsuleId = `timecapsule_import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Store TimeCapsule as a special document in VectorStore (IndexedDB)
+          const timeCapsuleDoc = {
+            id: timeCapsuleId,
+            title: `TimeCapsule Import ${new Date().toLocaleDateString()}`,
+            content: JSON.stringify(timeCapsuleData),
+            metadata: {
+              filename: `imported_timecapsule.json`,
+              filesize: JSON.stringify(timeCapsuleData).length,
+              filetype: 'application/json',
+              uploadedAt: new Date().toISOString(),
+              source: 'timecapsule_import',
+              description: 'TimeCapsule import data stored in IndexedDB',
+              isGenerated: true
+            },
+            chunks: [],
+            vectors: []
+          };
+
+          await this.vectorStore.insertDocument(timeCapsuleDoc);
+          
+          // Save only minimal reference in localStorage
+          const timeCapsuleRef = {
+            id: timeCapsuleId,
+            importedAt: new Date().toISOString(),
+            hasAIFrames: !!timeCapsuleData.aiFramesData
+          };
+          
+          localStorage.setItem("timecapsule_combined_ref", JSON.stringify(timeCapsuleRef));
+          
+          this.updateStatus("📊 TimeCapsule stored in IndexedDB");
+        } catch (storageError) {
+          console.warn("⚠️ Could not store TimeCapsule in IndexedDB:", storageError);
+          this.updateStatus("⚠️ TimeCapsule imported but not stored for cross-page compatibility");
+        }
+      }
+
       this.saveToStorage();
-      this.updateStatus("✅ TimeCapsule imported successfully");
+      
+      const hasAIFrames = !!timeCapsuleData.aiFramesData;
+      this.updateStatus(
+        `✅ TimeCapsule imported successfully${hasAIFrames ? ' - AI-Frames data ready for AI-Frames page' : ''}`
+      );
     } catch (error) {
       console.error("❌ TimeCapsule import failed:", error);
       this.updateStatus(
@@ -1557,10 +1976,153 @@ export class DeepResearchApp {
           ollamaURL: this.selectedOllamaURL,
         },
       };
-      localStorage.setItem("deepresearch_data", JSON.stringify(data));
+      
+      const dataString = JSON.stringify(data);
+      const dataSize = dataString.length;
+      
+      // Check if data is getting too large (> 2MB)
+      if (dataSize > 2 * 1024 * 1024) {
+        console.warn(`⚠️ Research data is large (${Math.round(dataSize / 1024)}KB), considering IndexedDB storage`);
+        
+        // Try to store in IndexedDB if VectorStore is available
+        if (this.vectorStore) {
+          this.saveToIndexedDB(data).then(() => {
+            // Store only minimal data in localStorage
+            const minimalData = {
+              topics: this.topics,
+              researchResults: { current: this.researchResults.current || "" }, // Only current research
+              aiConnection: data.aiConnection,
+              _storedInIndexedDB: true,
+              _lastSaved: new Date().toISOString()
+            };
+            localStorage.setItem("deepresearch_data", JSON.stringify(minimalData));
+            console.log("💾 Large data moved to IndexedDB, minimal data saved to localStorage");
+          }).catch((indexedDBError) => {
+            console.warn("⚠️ Failed to store in IndexedDB, trying localStorage with reduced data:", indexedDBError);
+            this.saveReducedToLocalStorage(data);
+          });
+          return;
+        } else {
+          // Fallback: store reduced data in localStorage
+          this.saveReducedToLocalStorage(data);
+          return;
+        }
+      }
+      
+      // Try normal localStorage save
+      localStorage.setItem("deepresearch_data", dataString);
       console.log("💾 Saved state to localStorage:", data.aiConnection);
+      
     } catch (error) {
-      console.error("Failed to save to storage:", error);
+      if (error instanceof Error && error.name === "QuotaExceededError") {
+        console.error("❌ localStorage quota exceeded, trying IndexedDB storage");
+        this.handleQuotaExceeded();
+      } else {
+        console.error("Failed to save to storage:", error);
+      }
+    }
+  }
+
+  private async saveToIndexedDB(data: any) {
+    if (!this.vectorStore) {
+      throw new Error("VectorStore not available");
+    }
+    
+    const researchId = `research_state_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const researchDoc = {
+      id: researchId,
+      title: `Research State ${new Date().toLocaleDateString()}`,
+      content: JSON.stringify(data),
+      metadata: {
+        filename: `research_state.json`,
+        filesize: JSON.stringify(data).length,
+        filetype: 'application/json',
+        uploadedAt: new Date().toISOString(),
+        source: 'research_state',
+        description: 'DeepResearch state data stored in IndexedDB',
+        isGenerated: true
+      },
+      chunks: [],
+      vectors: []
+    };
+
+    await this.vectorStore.insertDocument(researchDoc);
+    
+    // Store reference in localStorage
+    localStorage.setItem("deepresearch_state_ref", JSON.stringify({
+      id: researchId,
+      savedAt: new Date().toISOString()
+    }));
+  }
+
+  private saveReducedToLocalStorage(originalData: any) {
+    try {
+      // Save only essential data to localStorage
+      const reducedData = {
+        topics: this.topics,
+        researchResults: { 
+          current: this.researchResults.current || "",
+          // Keep only the last 3 research items to reduce size
+          ...Object.fromEntries(
+            Object.entries(this.researchResults)
+              .filter(([key, value]) => key !== 'current' && typeof value === 'object')
+              .slice(-3)
+          )
+        },
+        aiConnection: originalData.aiConnection,
+        _reducedStorage: true,
+        _lastSaved: new Date().toISOString()
+      };
+      
+      localStorage.setItem("deepresearch_data", JSON.stringify(reducedData));
+      console.log("💾 Saved reduced data to localStorage due to size constraints");
+      
+    } catch (reduceError) {
+      console.error("❌ Failed to save even reduced data:", reduceError);
+      // Last resort: save only connection state
+      try {
+        localStorage.setItem("deepresearch_data", JSON.stringify({
+          topics: [],
+          researchResults: {},
+          aiConnection: originalData.aiConnection,
+          _emergencyMode: true
+        }));
+        console.log("🚨 Emergency save: only connection state preserved");
+      } catch (emergencyError) {
+        console.error("❌ Complete localStorage failure:", emergencyError);
+      }
+    }
+  }
+
+  private handleQuotaExceeded() {
+    console.log("🧹 Handling localStorage quota exceeded...");
+    
+    // Clear old TimeCapsule references that might be taking space
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('timecapsule') || key.includes('ai_frames')) {
+          console.log(`🗑️ Removing old reference: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Try saving again with minimal data
+      this.saveReducedToLocalStorage({
+        topics: this.topics,
+        researchResults: this.researchResults,
+        aiConnection: {
+          provider: this.aiAssistant?.getSession()?.provider || "ollama",
+          connected: this.aiAssistant?.isConnected() || false,
+          model: this.aiAssistant?.getSession()?.model || null,
+          baseURL: this.aiAssistant?.getSession()?.baseURL || this.selectedOllamaURL,
+          ollamaURL: this.selectedOllamaURL,
+        }
+      });
+      
+    } catch (cleanupError) {
+      console.error("❌ Failed to clean up localStorage:", cleanupError);
     }
   }
 
@@ -1720,6 +2282,214 @@ export class DeepResearchApp {
       this.updateStatus(
         `❌ Failed to restore AI connection: ${(error as Error).message}`
       );
+    }
+  }
+
+  // =============================================================================
+  // METADATA MANAGEMENT HANDLERS
+  // =============================================================================
+
+  openBubblSpaceDialog(bubblSpace?: BubblSpace) {
+    this.editingBubblSpace = bubblSpace || null;
+    this.showBubblSpaceDialog = true;
+    this.setEditingBubblSpace?.(this.editingBubblSpace);
+    this.setShowBubblSpaceDialog?.(true);
+  }
+
+  closeBubblSpaceDialog() {
+    this.showBubblSpaceDialog = false;
+    this.editingBubblSpace = null;
+    this.setShowBubblSpaceDialog?.(false);
+    this.setEditingBubblSpace?.(null);
+  }
+
+  async saveBubblSpace(name: string, description: string, options: Partial<BubblSpace> = {}) {
+    if (!this.metadataManager) return;
+
+    try {
+      let bubblSpace: BubblSpace;
+      
+      if (this.editingBubblSpace) {
+        // Update existing
+        bubblSpace = this.metadataManager.updateBubblSpace(this.editingBubblSpace.id, {
+          name,
+          description,
+          ...options,
+        });
+        this.updateStatus(`✅ Updated BubblSpace: ${name}`);
+      } else {
+        // Create new
+        bubblSpace = this.metadataManager.createBubblSpace(name, description, options);
+        this.updateStatus(`✅ Created BubblSpace: ${name}`);
+      }
+
+      // Refresh data
+      await this.loadMetadata();
+      this.closeBubblSpaceDialog();
+    } catch (error) {
+      console.error('Failed to save BubblSpace:', error);
+      this.updateStatus(`❌ Failed to save BubblSpace: ${(error as Error).message}`);
+    }
+  }
+
+  async deleteBubblSpace(id: string) {
+    if (!this.metadataManager) return;
+
+    try {
+      const success = this.metadataManager.deleteBubblSpace(id);
+      if (success) {
+        await this.loadMetadata();
+        this.updateStatus('✅ BubblSpace deleted');
+      }
+    } catch (error) {
+      console.error('Failed to delete BubblSpace:', error);
+      this.updateStatus(`❌ Failed to delete BubblSpace: ${(error as Error).message}`);
+    }
+  }
+
+  selectBubblSpace(bubblSpace: BubblSpace) {
+    this.currentBubblSpace = bubblSpace;
+    this.setCurrentBubblSpace?.(bubblSpace);
+    
+    // Set as default
+    if (this.metadataManager) {
+      this.metadataManager.setDefaultBubblSpace(bubblSpace.id);
+    }
+
+    // Load most recent TimeCapsule for this BubblSpace
+    if (this.metadataManager) {
+      const timeCapsules = this.metadataManager
+        .getTimeCapsulesByBubblSpace(bubblSpace.id)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      
+      if (timeCapsules.length > 0) {
+        this.currentTimeCapsule = timeCapsules[0];
+        this.setCurrentTimeCapsule?.(this.currentTimeCapsule);
+      } else {
+        this.currentTimeCapsule = null;
+        this.setCurrentTimeCapsule?.(null);
+      }
+    }
+
+    this.updateStatus(`📦 Switched to BubblSpace: ${bubblSpace.name}`);
+  }
+
+  openTimeCapsuleDialog(timeCapsule?: TimeCapsuleMetadata) {
+    this.editingTimeCapsule = timeCapsule || null;
+    this.showTimeCapsuleDialog = true;
+    this.setEditingTimeCapsule?.(this.editingTimeCapsule);
+    this.setShowTimeCapsuleDialog?.(true);
+  }
+
+  closeTimeCapsuleDialog() {
+    this.showTimeCapsuleDialog = false;
+    this.editingTimeCapsule = null;
+    this.setShowTimeCapsuleDialog?.(false);
+    this.setEditingTimeCapsule?.(null);
+  }
+
+  async saveTimeCapsule(
+    name: string,
+    description: string,
+    bubblSpaceId: string,
+    options: Partial<TimeCapsuleMetadata> = {}
+  ) {
+    if (!this.metadataManager) return;
+
+    try {
+      let timeCapsule: TimeCapsuleMetadata;
+      
+      if (this.editingTimeCapsule) {
+        // Update existing
+        timeCapsule = this.metadataManager.updateTimeCapsule(this.editingTimeCapsule.id, {
+          name,
+          description,
+          bubblSpaceId,
+          ...options,
+        });
+        this.updateStatus(`✅ Updated TimeCapsule: ${name}`);
+      } else {
+        // Create new
+        timeCapsule = this.metadataManager.createTimeCapsule(name, description, bubblSpaceId, options);
+        this.updateStatus(`✅ Created TimeCapsule: ${name}`);
+      }
+
+      // Set as current if newly created or if no current TimeCapsule
+      if (!this.editingTimeCapsule || !this.currentTimeCapsule) {
+        this.currentTimeCapsule = timeCapsule;
+        this.setCurrentTimeCapsule?.(timeCapsule);
+      }
+
+      // Refresh data
+      await this.loadMetadata();
+      this.closeTimeCapsuleDialog();
+    } catch (error) {
+      console.error('Failed to save TimeCapsule:', error);
+      this.updateStatus(`❌ Failed to save TimeCapsule: ${(error as Error).message}`);
+    }
+  }
+
+  async deleteTimeCapsule(id: string) {
+    if (!this.metadataManager) return;
+
+    try {
+      const success = this.metadataManager.deleteTimeCapsule(id);
+      if (success) {
+        if (this.currentTimeCapsule?.id === id) {
+          this.currentTimeCapsule = null;
+          this.setCurrentTimeCapsule?.(null);
+        }
+        await this.loadMetadata();
+        this.updateStatus('✅ TimeCapsule deleted');
+      }
+    } catch (error) {
+      console.error('Failed to delete TimeCapsule:', error);
+      this.updateStatus(`❌ Failed to delete TimeCapsule: ${(error as Error).message}`);
+    }
+  }
+
+  selectTimeCapsule(timeCapsule: TimeCapsuleMetadata) {
+    this.currentTimeCapsule = timeCapsule;
+    this.setCurrentTimeCapsule?.(timeCapsule);
+    this.updateStatus(`🕰️ Switched to TimeCapsule: ${timeCapsule.name}`);
+  }
+
+  openSafeImportDialog(file: File) {
+    this.importFile = file;
+    this.showSafeImportDialog = true;
+    this.setShowSafeImportDialog?.(true);
+  }
+
+  closeSafeImportDialog() {
+    this.showSafeImportDialog = false;
+    this.importFile = null;
+    this.setShowSafeImportDialog?.(false);
+  }
+
+  async performSafeImport(options: ImportOptions): Promise<ImportResult> {
+    if (!this.metadataManager || !this.importFile) {
+      throw new Error('No metadata manager or import file available');
+    }
+
+    try {
+      const content = await this.readFileContent(this.importFile);
+      const data: EnhancedTimeCapsule = JSON.parse(content);
+
+      const result = await this.metadataManager.importTimeCapsule(data, options);
+      
+      if (result.success) {
+        await this.loadMetadata();
+        this.updateStatus(`✅ Import completed successfully`);
+      } else {
+        this.updateStatus(`⚠️ Import completed with warnings`);
+      }
+
+      this.closeSafeImportDialog();
+      return result;
+    } catch (error) {
+      console.error('Safe import failed:', error);
+      this.updateStatus(`❌ Import failed: ${(error as Error).message}`);
+      throw error;
     }
   }
 
@@ -1946,6 +2716,18 @@ export function DeepResearchComponent() {
     "http://localhost:11434"
   );
 
+  // Metadata Management States
+  const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(null);
+  const [currentTimeCapsule, setCurrentTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
+  const [showBubblSpaceDialog, setShowBubblSpaceDialog] = useState<boolean>(false);
+  const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] = useState<boolean>(false);
+  const [showSafeImportDialog, setShowSafeImportDialog] = useState<boolean>(false);
+  const [bubblSpaces, setBubblSpaces] = useState<BubblSpace[]>([]);
+  const [timeCapsules, setTimeCapsules] = useState<TimeCapsuleMetadata[]>([]);
+  const [editingBubblSpace, setEditingBubblSpace] = useState<BubblSpace | null>(null);
+  const [editingTimeCapsule, setEditingTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
+  const [isMetadataLoading, setIsMetadataLoading] = useState<boolean>(false);
+
   const appRef = useRef<DeepResearchApp | null>(null);
 
   useEffect(() => {
@@ -1972,6 +2754,18 @@ export function DeepResearchComponent() {
     app.setIsVectorStoreLoading = setIsVectorStoreLoading;
     app.setIsProcessingDocuments = setIsProcessingDocuments;
     app.setProcessingProgress = setProcessingProgress;
+
+    // Set metadata management setters
+    app.setCurrentBubblSpace = setCurrentBubblSpace;
+    app.setCurrentTimeCapsule = setCurrentTimeCapsule;
+    app.setShowBubblSpaceDialog = setShowBubblSpaceDialog;
+    app.setShowTimeCapsuleDialog = setShowTimeCapsuleDialog;
+    app.setShowSafeImportDialog = setShowSafeImportDialog;
+    app.setBubblSpaces = setBubblSpaces;
+    app.setTimeCapsules = setTimeCapsules;
+    app.setEditingBubblSpace = setEditingBubblSpace;
+    app.setEditingTimeCapsule = setEditingTimeCapsule;
+    app.setIsMetadataLoading = setIsMetadataLoading;
 
     // Initialize the app asynchronously (non-blocking)
     app.init();
@@ -2104,7 +2898,116 @@ export function DeepResearchComponent() {
 
   return (
     <div className="pt-20 min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
-      <ResizablePanelGroup direction="horizontal" className="h-screen">
+      {/* Metadata Management Header */}
+      <div className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left Side - Current Selection Display */}
+            <div className="flex items-center gap-4">
+              {currentBubblSpace && (
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: currentBubblSpace.color }}
+                  />
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {currentBubblSpace.name}
+                  </span>
+                </div>
+              )}
+              
+              {currentTimeCapsule && (
+                <>
+                  <div className="text-slate-400 dark:text-slate-600">→</div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      {currentTimeCapsule.category}
+                    </Badge>
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {currentTimeCapsule.name}
+                    </span>
+                  </div>
+                </>
+              )}
+              
+              {isMetadataLoading && (
+                <div className="text-slate-500 dark:text-slate-400 text-sm">
+                  Loading metadata...
+                </div>
+              )}
+            </div>
+
+            {/* Right Side - Management Buttons */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => app.openBubblSpaceDialog()}
+                className="gap-2"
+              >
+                <FolderPlus className="h-4 w-4" />
+                New BubblSpace
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => app.openTimeCapsuleDialog()}
+                className="gap-2"
+                disabled={!currentBubblSpace}
+              >
+                <Plus className="h-4 w-4" />
+                New TimeCapsule
+              </Button>
+              
+              {currentBubblSpace && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => app.openBubblSpaceDialog(currentBubblSpace)}
+                  className="gap-2"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => app.exportTimeCapsule()}
+                className="gap-2"
+                disabled={!currentTimeCapsule}
+              >
+                <Package className="h-4 w-4" />
+                Export
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = ".json";
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) app.openSafeImportDialog(file);
+                  };
+                  input.click();
+                }}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Import
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="pt-16">
+        <ResizablePanelGroup direction="horizontal" className="h-screen">
         {/* Left Panel - Controls */}
         <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
           <ControlsPanel
@@ -2588,6 +3491,50 @@ export function DeepResearchComponent() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Metadata Management Dialogs */}
+      <BubblSpaceDialog
+        isOpen={showBubblSpaceDialog}
+        onClose={() => app.closeBubblSpaceDialog()}
+        onSave={(bubblSpace: Partial<BubblSpace>) => {
+          if (bubblSpace.name && bubblSpace.description) {
+            app.saveBubblSpace(bubblSpace.name, bubblSpace.description, bubblSpace);
+          }
+        }}
+        onDelete={(id: string) => {
+          app.deleteBubblSpace(id);
+        }}
+        bubblSpace={editingBubblSpace}
+        existingBubblSpaces={bubblSpaces}
+      />
+
+      <TimeCapsuleDialog
+        isOpen={showTimeCapsuleDialog}
+        onClose={() => app.closeTimeCapsuleDialog()}
+        onSave={(timeCapsule: Partial<TimeCapsuleMetadata>) => {
+          if (timeCapsule.name && timeCapsule.description && timeCapsule.bubblSpaceId) {
+            app.saveTimeCapsule(timeCapsule.name, timeCapsule.description, timeCapsule.bubblSpaceId, timeCapsule);
+          }
+        }}
+        onDelete={(id: string) => {
+          app.deleteTimeCapsule(id);
+        }}
+        timeCapsule={editingTimeCapsule}
+        bubblSpaces={bubblSpaces}
+      />
+
+      {/* TODO: Fix SafeImportDialog props interface 
+      <SafeImportDialog
+        isOpen={showSafeImportDialog && !!app.importFile}
+        onClose={() => app.closeSafeImportDialog()}
+        onImport={(options: ImportOptions) => {
+          app.performSafeImport(options);
+          return Promise.resolve({ success: true, details: {} } as ImportResult);
+        }}
+        file={app.importFile}
+      />
+      */}
+      </div>
     </div>
   );
 }

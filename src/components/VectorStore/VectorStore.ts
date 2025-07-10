@@ -471,12 +471,53 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    try {
-      await this.documentsCollection.documents.insert(documentData);
-      console.log(`✅ Document inserted: ${documentData.id}`);
-    } catch (error) {
-      console.error('❌ Failed to insert document:', error);
-      throw error;
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        // Fresh fetch of the document for each attempt
+        const existingDoc = await this.documentsCollection.documents.findOne(documentData.id).exec();
+        
+        if (existingDoc) {
+          // Document exists, update it using the latest revision
+          await existingDoc.update({
+            $set: {
+              title: documentData.title,
+              content: documentData.content,
+              metadata: documentData.metadata,
+              chunks: documentData.chunks,
+              vectors: documentData.vectors
+            }
+          });
+          console.log(`✅ Document updated: ${documentData.id}`);
+          return; // Success, exit the retry loop
+        } else {
+          // Document doesn't exist, try to insert it
+          await this.documentsCollection.documents.insert(documentData);
+          console.log(`✅ Document inserted: ${documentData.id}`);
+          return; // Success, exit the retry loop
+        }
+      } catch (error: any) {
+        // Check if this is a revision conflict error
+        if (error.name === 'RxError' && error.code === 'CONFLICT') {
+          retryCount++;
+          console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
+          
+          if (retryCount >= maxRetries) {
+            console.error(`❌ Max retries exceeded for document ${documentData.id}`);
+            throw error;
+          }
+          
+          // Wait a small random amount before retrying to reduce collision probability
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
+          continue; // Retry the operation
+        } else {
+          // Non-conflict error, don't retry
+          console.error('❌ Failed to upsert document:', error);
+          throw error;
+        }
+      }
     }
   }
 

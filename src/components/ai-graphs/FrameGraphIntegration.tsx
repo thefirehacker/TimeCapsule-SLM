@@ -40,6 +40,7 @@ interface FrameGraphIntegrationProps {
   currentFrameIndex: number;
   onFrameIndexChange: (index: number) => void;
   onCreateFrame?: () => void;
+  onTimeCapsuleUpdate?: (graphState: GraphState, chapters: any[]) => void;
 }
 
 export default function FrameGraphIntegration({
@@ -49,6 +50,7 @@ export default function FrameGraphIntegration({
   currentFrameIndex,
   onFrameIndexChange,
   onCreateFrame,
+  onTimeCapsuleUpdate,
 }: FrameGraphIntegrationProps) {
   const [activeView, setActiveView] = useState<"linear" | "graph">("linear");
   const [graphState, setGraphState] = useState<GraphState>({
@@ -88,7 +90,12 @@ export default function FrameGraphIntegration({
 
   const handleGraphChange = useCallback((newGraphState: GraphState) => {
     setGraphState(newGraphState);
-  }, []);
+    
+    // Notify parent component for TimeCapsule updates
+    if (onTimeCapsuleUpdate) {
+      onTimeCapsuleUpdate(newGraphState, chapters);
+    }
+  }, [chapters, onTimeCapsuleUpdate]);
 
   const handleViewChange = useCallback((value: string) => {
     setActiveView(value as "linear" | "graph");
@@ -97,6 +104,50 @@ export default function FrameGraphIntegration({
   const handleChapterClick = useCallback((chapter: any) => {
     onFrameIndexChange(chapter.startIndex);
   }, [onFrameIndexChange]);
+
+  // Load graph state from TimeCapsule
+  useEffect(() => {
+    try {
+      const timeCapsuleData = localStorage.getItem("ai_frames_timecapsule");
+      if (timeCapsuleData) {
+        const parsedData = JSON.parse(timeCapsuleData);
+        if (parsedData.data.graphState) {
+          setGraphState(parsedData.data.graphState);
+        }
+        if (parsedData.data.chapters) {
+          setChapters(parsedData.data.chapters);
+        }
+        if (parsedData.data.activeView) {
+          setActiveView(parsedData.data.activeView);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load graph state from TimeCapsule:", error);
+    }
+  }, []);
+
+  // Save graph state to TimeCapsule when it changes
+  useEffect(() => {
+    try {
+      const existingData = localStorage.getItem("ai_frames_timecapsule");
+      if (existingData) {
+        const parsedData = JSON.parse(existingData);
+        const updatedData = {
+          ...parsedData,
+          data: {
+            ...parsedData.data,
+            graphState: graphState,
+            chapters: chapters,
+            activeView: activeView,
+            lastGraphUpdate: new Date().toISOString(),
+          }
+        };
+        localStorage.setItem("ai_frames_timecapsule", JSON.stringify(updatedData));
+      }
+    } catch (error) {
+      console.error("Failed to save graph state to TimeCapsule:", error);
+    }
+  }, [graphState, chapters, activeView]);
 
   const renderLinearView = () => (
     <div className="space-y-6">
