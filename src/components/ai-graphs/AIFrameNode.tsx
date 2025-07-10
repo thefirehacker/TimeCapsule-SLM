@@ -19,14 +19,51 @@ import {
   Brain
 } from "lucide-react";
 
-export default function AIFrameNode({ data, selected }: NodeProps & { data: AIFrameNodeData }) {
+interface AIFrameNodeProps extends NodeProps {
+  data: AIFrameNodeData & {
+    onFrameUpdate?: (frameId: string, updatedData: Partial<AIFrameNodeData>) => void;
+  };
+}
+
+export default function AIFrameNode({ data, selected }: AIFrameNodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<AIFrameNodeData>(data);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = useCallback(() => {
-    // Update the node data
-    Object.assign(data, editData);
-    setIsEditing(false);
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    
+    try {
+      // Update the node data
+      Object.assign(data, editData);
+      
+      // Sync changes back to parent frames array
+      if (data.onFrameUpdate && data.frameId) {
+        const updatedFrameData = {
+          id: data.frameId,
+          title: editData.title,
+          goal: editData.goal,
+          informationText: editData.informationText,
+          videoUrl: editData.videoUrl,
+          startTime: editData.startTime,
+          duration: editData.duration,
+          afterVideoText: editData.afterVideoText,
+          aiConcepts: editData.aiConcepts,
+          isGenerated: editData.isGenerated,
+          sourceGoal: editData.sourceGoal,
+          sourceUrl: editData.sourceUrl,
+          updatedAt: new Date().toISOString(),
+        };
+        
+        await data.onFrameUpdate(data.frameId, updatedFrameData);
+      }
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to save frame:', error);
+    } finally {
+      setIsSaving(false);
+    }
   }, [data, editData]);
 
   const handleCancel = useCallback(() => {
@@ -58,6 +95,7 @@ export default function AIFrameNode({ data, selected }: NodeProps & { data: AIFr
                       value={editData.title}
                       onChange={(e) => setEditData({...editData, title: e.target.value})}
                       className="h-6 text-sm"
+                      placeholder="Enter frame title..."
                     />
                   ) : (
                     data.title || "AI Frame"
@@ -83,15 +121,19 @@ export default function AIFrameNode({ data, selected }: NodeProps & { data: AIFr
                     variant="ghost"
                     size="sm"
                     onClick={handleSave}
+                    disabled={isSaving}
                     className="h-6 w-6 p-0"
+                    title="Save changes"
                   >
-                    <Save className="h-3 w-3" />
+                    <Save className={`h-3 w-3 ${isSaving ? 'animate-spin' : ''}`} />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleCancel}
+                    disabled={isSaving}
                     className="h-6 w-6 p-0"
+                    title="Cancel changes"
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -102,6 +144,7 @@ export default function AIFrameNode({ data, selected }: NodeProps & { data: AIFr
                   size="sm"
                   onClick={() => setIsEditing(true)}
                   className="h-6 w-6 p-0"
+                  title="Edit frame"
                 >
                   <Edit3 className="h-3 w-3" />
                 </Button>
@@ -170,6 +213,22 @@ export default function AIFrameNode({ data, selected }: NodeProps & { data: AIFr
             )}
           </div>
 
+          {/* Information Text - Add this section for editing */}
+          {isEditing && (
+            <div>
+              <Label className="text-xs font-medium flex items-center gap-1">
+                <BookOpen className="h-3 w-3" />
+                Information Text
+              </Label>
+              <Textarea
+                value={editData.informationText}
+                onChange={(e) => setEditData({...editData, informationText: e.target.value})}
+                className="mt-1 text-xs h-20"
+                placeholder="Enter background information..."
+              />
+            </div>
+          )}
+
           {/* AI Concepts */}
           {data.aiConcepts.length > 0 && (
             <div>
@@ -189,6 +248,14 @@ export default function AIFrameNode({ data, selected }: NodeProps & { data: AIFr
                   </Badge>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Save Status */}
+          {isSaving && (
+            <div className="text-xs text-blue-600 flex items-center gap-1">
+              <Save className="h-3 w-3 animate-spin" />
+              Saving changes...
             </div>
           )}
         </CardContent>

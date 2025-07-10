@@ -16,6 +16,7 @@ import {
   Plus,
   ArrowRight,
   Layers,
+  Save,
 } from "lucide-react";
 
 interface AIFrame {
@@ -279,17 +280,107 @@ export default function FrameGraphIntegration({
     </div>
   );
 
+  const handleSaveGraph = useCallback(async () => {
+    try {
+      // Save current graph state to localStorage
+      const graphData = {
+        graphState: graphState,
+        chapters: chapters,
+        frames: frames,
+        activeView: activeView,
+        lastSaved: new Date().toISOString(),
+      };
+      
+      localStorage.setItem("ai_frames_graph_state", JSON.stringify(graphData));
+      
+      // Also update TimeCapsule data
+      const existingData = localStorage.getItem("ai_frames_timecapsule");
+      if (existingData) {
+        const parsedData = JSON.parse(existingData);
+        const updatedData = {
+          ...parsedData,
+          data: {
+            ...parsedData.data,
+            graphState: graphState,
+            chapters: chapters,
+            activeView: activeView,
+            lastGraphSave: new Date().toISOString(),
+          }
+        };
+        localStorage.setItem("ai_frames_timecapsule", JSON.stringify(updatedData));
+      }
+      
+      // Dispatch custom event to notify parent components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('graph-saved', {
+          detail: {
+            frameCount: frames.length,
+            nodeCount: graphState.nodes.length,
+            edgeCount: graphState.edges.length,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+      
+      console.log('✅ Graph saved successfully!', {
+        frames: frames.length,
+        nodes: graphState.nodes.length,
+        connections: graphState.edges.length
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to save graph:', error);
+      return false;
+    }
+  }, [graphState, chapters, frames, activeView]);
+
   const renderGraphView = () => (
     <div className="h-full">
       <Card className="h-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Network className="h-5 w-5 text-purple-600" />
-            Graph View
-            <Badge variant="outline" className="ml-2">
-              Sequential Flow
-            </Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-purple-600" />
+              <div>
+                <CardTitle>Graph View</CardTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-xs">
+                    Sequential Flow
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {frames.length} frames
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            {isCreationMode && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveGraph}
+                  className="bg-green-50 hover:bg-green-100 border-green-300 text-green-700"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Graph
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Auto-organize frames based on current connections
+                    organizeIntoChapters();
+                    handleSaveGraph();
+                  }}
+                  title="Auto-organize frames into chapters"
+                >
+                  <Layers className="h-4 w-4 mr-2" />
+                  Organize
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="h-full p-0">
           <div className="h-[600px]">

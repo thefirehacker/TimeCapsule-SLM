@@ -35,6 +35,7 @@ export interface AIFrameNodeData extends Record<string, unknown> {
   isGenerated?: boolean;
   sourceGoal?: string;
   sourceUrl?: string;
+  onFrameUpdate?: (frameId: string, updatedData: any) => void;
 }
 
 export interface ConceptNodeData extends Record<string, unknown> {

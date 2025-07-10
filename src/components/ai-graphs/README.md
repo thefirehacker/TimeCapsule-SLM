@@ -2,6 +2,38 @@
 
 This directory contains the React Flow-based graph components for learning experiences.
 
+## Quick Start Guide: Creating and Saving Frames in Graph View
+
+### 1. **Switch to Creator Mode + Graph View**
+- Toggle "Creator Mode" in the left sidebar
+- Toggle "Graph View" in the left sidebar  
+- You should now see the graph canvas with a draggable component palette
+
+### 2. **Create a New Frame**
+- Drag the "AI Frame" component from the sidebar onto the canvas
+- A new purple AI Frame node will appear
+
+### 3. **Edit and Save the Frame**
+- Click the **Edit** button (pencil icon) on the AI Frame node
+- Fill in the frame details:
+  - **Title**: Name of your frame
+  - **Learning Goal**: What should learners understand?
+  - **Video URL**: YouTube video URL
+  - **Start Time**: When to start the video (in seconds)
+  - **Duration**: How long to play the video (in seconds)
+  - **Information Text**: Background context and explanation
+- Click the **Save** button (disk icon) to save your changes
+
+### 4. **Frame is Auto-Synced**
+- The saved frame automatically appears in the sidebar Frame Navigation
+- Switch back to Linear View to see your frame in the traditional interface
+- All changes are synced between Graph View and Linear View
+
+### 5. **Connect Frames (Optional)**
+- Drag from the bottom handle of one frame to the top handle of another
+- This creates a sequential learning path
+- Only one connection per frame is allowed (maintains linear flow)
+
 ## Components
 
 ### Core Components
@@ -102,3 +134,16 @@ import { FrameGraphIntegration } from "@/components/ai-graphs";
 - **Chapters**: Green theme (#10b981)
 - **Connections**: Blue connectors (#3b82f6) for sequential flow
 - **Concept Links**: Yellow connectors (#fbbf24) for concept relationships
+
+## Troubleshooting
+
+### Frame Not Saving?
+- Make sure you're in Creator Mode
+- Click the Save button (disk icon) after editing
+- Check that the frame appears in the sidebar Frame Navigation
+- If issues persist, try refreshing the page
+
+### Can't Edit Frame?
+- Click the Edit button (pencil icon) on the frame node
+- Make sure you're in Creator Mode
+- The frame should show editable input fields when in edit mode

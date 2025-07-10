@@ -948,6 +948,27 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
 
+  // Listen for graph save events
+  useEffect(() => {
+    const handleGraphSaved = (event: CustomEvent) => {
+      console.log('📊 Graph saved successfully!', event.detail);
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `✅ Graph saved successfully!\n\n📊 Saved: ${event.detail.frameCount} frames, ${event.detail.nodeCount} nodes, ${event.detail.edgeCount} connections\n🕐 Time: ${new Date(event.detail.timestamp).toLocaleTimeString()}`,
+        },
+      ]);
+    };
+
+    window.addEventListener('graph-saved', handleGraphSaved as EventListener);
+    
+    return () => {
+      window.removeEventListener('graph-saved', handleGraphSaved as EventListener);
+    };
+  }, []);
+
   // Enhanced cross-page synchronization system - Listen for metadata changes from other pages
   useEffect(() => {
     if (!metadataManager) return;

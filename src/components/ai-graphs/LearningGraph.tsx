@@ -94,6 +94,7 @@ export default function LearningGraph({
             isGenerated: frame.isGenerated,
             sourceGoal: frame.sourceGoal,
             sourceUrl: frame.sourceUrl,
+            onFrameUpdate: handleFrameUpdate,
           },
         };
         
@@ -154,6 +155,16 @@ export default function LearningGraph({
       setFrameGraphMapping(newMapping);
     }
   }, [frames, nodes.length, setNodes, setEdges]);
+
+  // Handle frame updates from graph nodes
+  const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
+    if (onFramesChange) {
+      const updatedFrames = frames.map(frame => 
+        frame.id === frameId ? { ...frame, ...updatedData } : frame
+      );
+      onFramesChange(updatedFrames);
+    }
+  }, [frames, onFramesChange]);
 
   // Handle sequential connections (only one connection per node)
   const onConnect = useCallback(
@@ -235,6 +246,7 @@ export default function LearningGraph({
               afterVideoText: "Key takeaways",
               aiConcepts: [],
               isGenerated: false,
+              onFrameUpdate: handleFrameUpdate,
             };
           case "concept":
             return {
@@ -279,6 +291,14 @@ export default function LearningGraph({
           isGenerated: newNodeData.isGenerated,
           sourceGoal: newNodeData.sourceGoal,
           sourceUrl: newNodeData.sourceUrl,
+          // Add required fields for frame structure
+          order: frames.length + 1,
+          bubblSpaceId: "default",
+          timeCapsuleId: "default",
+          parentFrameId: undefined,
+          type: 'frame' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
         
         onFramesChange([...frames, newFrame]);
