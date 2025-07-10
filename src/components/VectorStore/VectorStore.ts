@@ -608,6 +608,13 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
+    // Enhanced duplicate detection before insertion
+    const duplicateDoc = await this.findDuplicateDocument(documentData);
+    if (duplicateDoc) {
+      console.log(`⚠️ Duplicate document detected: "${documentData.title}" (similar to "${duplicateDoc.title}"), skipping insertion`);
+      return; // Skip insertion of duplicate
+    }
+
     const maxRetries = 3;
     let retryCount = 0;
 
@@ -656,6 +663,121 @@ export class VectorStore {
           }
         }
       }
+    }
+
+    // Enhanced duplicate detection method
+    private async findDuplicateDocument(documentData: DocumentData): Promise<DocumentData | null> {
+      try {
+        const allDocs = await this.getAllDocuments();
+        
+        for (const existingDoc of allDocs) {
+          // Check for exact ID match
+          if (existingDoc.id === documentData.id) {
+            return existingDoc;
+          }
+          
+          // Check for exact title match
+          if (existingDoc.title === documentData.title) {
+            return existingDoc;
+          }
+          
+          // Check for source-specific duplicate patterns
+          const newMeta = documentData.metadata as any;
+          const existingMeta = existingDoc.metadata as any;
+          
+          // AI-Frames specific duplicate detection
+          if (newMeta.source === 'ai-frames' && existingMeta.source === 'ai-frames') {
+            if (newMeta.aiFrameId && existingMeta.aiFrameId && newMeta.aiFrameId === existingMeta.aiFrameId) {
+              return existingDoc;
+            }
+          }
+          
+          // TimeCapsule specific duplicate detection
+          if (newMeta.source === 'timecapsule_export' && existingMeta.source === 'timecapsule_export') {
+            // Check if content is substantially similar (first 500 chars)
+            const newContentStart = documentData.content.substring(0, 500);
+            const existingContentStart = existingDoc.content.substring(0, 500);
+            if (newContentStart === existingContentStart) {
+              return existingDoc;
+            }
+          }
+          
+          // TimeCapsule import duplicate detection
+          if (newMeta.source === 'timecapsule_import' && existingMeta.source === 'timecapsule_import') {
+            // Check for similar file names and sizes
+            if (newMeta.filename === existingMeta.filename && 
+                Math.abs(newMeta.filesize - existingMeta.filesize) < 1000) {
+              return existingDoc;
+            }
+          }
+          
+          // BubblSpace specific duplicate detection
+          if (newMeta.bubblSpaceId && existingMeta.bubblSpaceId && 
+              newMeta.bubblSpaceId === existingMeta.bubblSpaceId) {
+            // Same BubblSpace with very similar titles
+            const titleSimilarity = this.calculateStringSimilarity(
+              documentData.title.toLowerCase(), 
+              existingDoc.title.toLowerCase()
+            );
+            if (titleSimilarity > 0.8) {
+              return existingDoc;
+            }
+          }
+          
+          // Research state duplicate detection
+          if (newMeta.source === 'research_state' && existingMeta.source === 'research_state') {
+            // Only allow one research state document at a time
+            return existingDoc;
+          }
+          
+          // General content similarity check for generated documents
+          if (newMeta.isGenerated && existingMeta.isGenerated) {
+            const contentSimilarity = this.calculateStringSimilarity(
+              documentData.content.substring(0, 1000),
+              existingDoc.content.substring(0, 1000)
+            );
+            if (contentSimilarity > 0.85) {
+              return existingDoc;
+            }
+          }
+        }
+        
+        return null; // No duplicate found
+      } catch (error) {
+        console.warn('⚠️ Duplicate detection failed:', error);
+        return null; // If duplicate detection fails, allow insertion
+      }
+    }
+
+    // Helper method to calculate string similarity (Levenshtein-based)
+    private calculateStringSimilarity(str1: string, str2: string): number {
+      if (str1 === str2) return 1;
+      if (str1.length === 0 || str2.length === 0) return 0;
+      
+      const maxLength = Math.max(str1.length, str2.length);
+      const distance = this.levenshteinDistance(str1, str2);
+      return (maxLength - distance) / maxLength;
+    }
+
+    // Levenshtein distance calculation
+    private levenshteinDistance(str1: string, str2: string): number {
+      const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+      
+      for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+      
+      for (let j = 1; j <= str2.length; j++) {
+        for (let i = 1; i <= str1.length; i++) {
+          const substitutionCost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+          matrix[j][i] = Math.min(
+            matrix[j][i - 1] + 1, // deletion
+            matrix[j - 1][i] + 1, // insertion
+            matrix[j - 1][i - 1] + substitutionCost // substitution
+          );
+        }
+      }
+      
+      return matrix[str2.length][str1.length];
     }
 
     private createChunks(content: string): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {

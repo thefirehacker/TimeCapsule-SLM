@@ -55,6 +55,7 @@ import {
 // Import DeepResearch components and types
 import { DeepResearchApp } from "../../components/DeepResearch/DeepResearchApp";
 import { VectorStore } from "../../components/VectorStore/VectorStore";
+import { useVectorStore } from "../../components/providers/VectorStoreProvider";
 import { usePageAnalytics } from "@/components/analytics/Analytics";
 
 // Import Graph Integration
@@ -174,6 +175,16 @@ const hardcodedFrames: AIFrame[] = [
 export default function AIFramesPage() {
   // Initialize page analytics for AI-Frames
   const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
+
+  // Get VectorStore from provider
+  const {
+    vectorStore: providerVectorStore,
+    isInitialized: vectorStoreInitialized,
+    isInitializing: vectorStoreInitializing,
+    error: vectorStoreError,
+    processingAvailable,
+    processingStatus
+  } = useVectorStore();
 
   // Mode state
   const [isCreationMode, setIsCreationMode] = useState(false);
@@ -801,24 +812,127 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
   }, [vectorStore, frames.length]);
 
-  // Initialize DeepResearch integration
+  // Initialize DeepResearch integration with VectorStoreProvider
   useEffect(() => {
     // Check if there's a global DeepResearch instance
     if (typeof window !== "undefined" && (window as any).deepResearchApp) {
       setDeepResearchApp((window as any).deepResearchApp);
-      setVectorStore((window as any).sharedVectorStore);
+    }
 
-      // Load TimeCapsule data from localStorage
-      try {
-        const savedData = localStorage.getItem("deepresearch_data");
-        if (savedData) {
-          setTimeCapsuleData(JSON.parse(savedData));
-        }
-      } catch (error) {
-        console.error("Failed to load TimeCapsule data:", error);
+    // Load TimeCapsule data from localStorage
+    try {
+      const savedData = localStorage.getItem("deepresearch_data");
+      if (savedData) {
+        setTimeCapsuleData(JSON.parse(savedData));
       }
+    } catch (error) {
+      console.error("Failed to load TimeCapsule data:", error);
     }
   }, []);
+
+  // Update VectorStore when provider makes it available
+  useEffect(() => {
+    if (providerVectorStore) {
+      console.log('🔗 AI-Frames connecting to VectorStoreProvider...');
+      setVectorStore(providerVectorStore);
+      
+      // Make it available globally for compatibility
+      if (typeof window !== "undefined") {
+        (window as any).sharedVectorStore = providerVectorStore;
+      }
+      
+      console.log('✅ AI-Frames connected to VectorStoreProvider');
+    }
+  }, [providerVectorStore]);
+
+  // Save all current AI-Frames to Knowledge Base whenever frames change or VectorStore becomes available
+  const saveAllFramesToKB = async () => {
+    if (!vectorStore || !vectorStoreInitialized || frames.length === 0) {
+      return;
+    }
+
+    if (!processingAvailable) {
+      console.log('⏳ VectorStore not ready for processing, skipping AI-Frames KB save');
+      return;
+    }
+
+    try {
+      console.log(`📊 Saving ${frames.length} AI-Frames to Knowledge Base...`);
+      
+      for (const frame of frames) {
+        if (!frame.title || !frame.informationText) continue;
+
+        // Create document title and content from AI-Frame
+        const title = `AI-Frame: ${frame.title}`;
+        const content = `
+Learning Goal: ${frame.goal}
+
+Context & Background:
+${frame.informationText}
+
+After Video Content:
+${frame.afterVideoText || 'No additional content'}
+
+AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(', ') : 'None'}
+
+Video Details:
+- URL: ${frame.videoUrl || 'No video'}
+- Start Time: ${frame.startTime || 0}s
+- Duration: ${frame.duration || 0}s
+
+Generated: ${frame.isGenerated ? 'Yes' : 'No'}
+${frame.sourceGoal ? `Source Goal: ${frame.sourceGoal}` : ''}
+        `.trim();
+
+        // Check if this AI-Frame already exists in KB
+        const existingDocs = await vectorStore.getAllDocuments();
+        const existingDoc = existingDocs.find(doc => 
+          doc.metadata.source === 'ai-frames' && 
+          ((doc.metadata as any).aiFrameId === frame.id || doc.title === title)
+        );
+
+        if (existingDoc) {
+          console.log(`⚠️ AI-Frame "${frame.title}" already exists in KB, skipping`);
+          continue;
+        }
+
+        // Add to Knowledge Base
+        try {
+          await vectorStore.addGeneratedDocument(title, content);
+          
+          // Update metadata to mark as AI-Frame
+          const allDocs = await vectorStore.getAllDocuments();
+          const newDoc = allDocs.find(doc => doc.title === title && !(doc.metadata as any).aiFrameId);
+          if (newDoc) {
+            newDoc.metadata.source = 'ai-frames';
+            (newDoc.metadata as any).aiFrameId = frame.id;
+            (newDoc.metadata as any).aiFrameType = 'learning-frame';
+            (newDoc.metadata as any).videoUrl = frame.videoUrl;
+            (newDoc.metadata as any).startTime = frame.startTime;
+            (newDoc.metadata as any).duration = frame.duration;
+            (newDoc.metadata as any).isGenerated = frame.isGenerated;
+            await vectorStore.insertDocument(newDoc);
+          }
+
+          console.log(`✅ Saved AI-Frame to KB: ${frame.title}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to save AI-Frame "${frame.title}" to KB:`, error);
+        }
+      }
+
+      console.log(`✅ Finished saving AI-Frames to Knowledge Base`);
+    } catch (error) {
+      console.error('❌ Failed to save AI-Frames to Knowledge Base:', error);
+    }
+  };
+
+  // Save frames to KB when VectorStore becomes ready or frames change
+  useEffect(() => {
+    if (vectorStore && vectorStoreInitialized && processingAvailable && frames.length > 0) {
+      console.log('🔄 AI-Frames detected, saving to Knowledge Base...');
+      saveAllFramesToKB();
+    }
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
 
   // Initialize TTS when not in creation mode
   useEffect(() => {

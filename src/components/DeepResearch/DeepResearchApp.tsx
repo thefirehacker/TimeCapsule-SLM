@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { VectorStore, DocumentData } from "../VectorStore/VectorStore";
+import { useVectorStore } from "../providers/VectorStoreProvider";
 import {
   AIAssistant,
   AIStatus as AIConnectionStatus,
@@ -253,82 +254,12 @@ export class DeepResearchApp {
   }
 
   private async initializeVectorStoreAsync() {
-    try {
-      console.log("📊 Starting immediate VectorStore initialization with background Xenova download...");
-      this.updateStatus("📊 Loading document processing capabilities...");
-      this.isVectorStoreLoading = true;
-      this.setIsVectorStoreLoading?.(true);
-
-      // Check if there's already a shared VectorStore instance (only in browser)
-      if (
-        typeof window !== "undefined" &&
-        (window as any).sharedVectorStore &&
-        (window as any).sharedVectorStore.initialized
-      ) {
-        console.log("🔗 Using existing shared VectorStore instance");
-        this.vectorStore = (window as any).sharedVectorStore;
-        
-        // Check if Xenova is still downloading
-        if ((this.vectorStore as any).downloadStatus === 'downloading') {
-          this.updateStatus("🧠 Xenova AI models downloading in background...");
-          this.monitorXenovaDownloadProgress();
-        } else if ((this.vectorStore as any).downloadStatus === 'ready') {
-          this.updateStatus("✅ Document processing ready - All features available");
-        } else {
-          this.updateStatus("✅ Document processing ready - Upload documents to enhance research");
-        }
-        
-        this.updateDocumentStatus();
-        this.isVectorStoreLoading = false;
-        this.setIsVectorStoreLoading?.(false);
-        
-        // After VectorStore is ready, sync AI-Frames data to KB
-        await this.syncAIFramesToKB();
-        return;
-      }
-
-      // Create new VectorStore instance with immediate Xenova download
-      console.log("🆕 Creating new VectorStore instance with immediate background download...");
-      this.updateStatus("🧠 Starting AI model download (background, page ready immediately)...");
-
-      this.vectorStore = new VectorStore();
-      await this.vectorStore.init();
-
-      // Monitor download progress after initialization
-      this.monitorXenovaDownloadProgress();
-
-      // Make it available globally (only in browser) with enhanced persistence
-      if (typeof window !== "undefined") {
-        (window as any).sharedVectorStore = this.vectorStore;
-        
-        // Add event listener to maintain VectorStore across page navigation
-        const handleBeforeUnload = () => {
-          console.log("🔄 Page navigation detected, persisting VectorStore state...");
-          // VectorStore will persist in IndexedDB automatically
-        };
-        
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        
-        // Store reference for cleanup
-        (window as any).sharedVectorStoreCleanup = () => {
-          window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-      }
-
-      console.log("✅ VectorStore initialization complete, monitoring background download");
-      this.updateDocumentStatus();
-      this.isVectorStoreLoading = false;
-      this.setIsVectorStoreLoading?.(false);
-      
-      // After VectorStore is ready, sync AI-Frames data to KB
-      await this.syncAIFramesToKB();
-      
-    } catch (error) {
-      console.error("❌ VectorStore initialization failed:", error);
-      this.updateStatus("❌ Document processing initialization failed");
-      this.isVectorStoreLoading = false;
-      this.setIsVectorStoreLoading?.(false);
-    }
+    // VectorStore will be provided by VectorStoreProvider
+    console.log("📊 VectorStore will be initialized by VectorStoreProvider...");
+    this.updateStatus("📊 Waiting for VectorStore from provider...");
+    
+    // The VectorStore will be set by the React component when the provider initializes it
+    // This method is now primarily for backwards compatibility
   }
 
   // Monitor Xenova download progress
@@ -367,7 +298,7 @@ export class DeepResearchApp {
   }
 
   // Sync AI-Frames data to Knowledge Base
-  private async syncAIFramesToKB() {
+  async syncAIFramesToKB() {
     if (!this.vectorStore) {
       console.log("⚠️ VectorStore not available, skipping AI-Frames sync");
       return;
@@ -376,48 +307,81 @@ export class DeepResearchApp {
     try {
       console.log("🔄 Checking for AI-Frames data to sync with Knowledge Base...");
       
-      // Check localStorage for AI-Frames data
-      const aiFramesData = localStorage.getItem('aiFramesData');
-      if (!aiFramesData) {
+      // Check localStorage for AI-Frames data with correct keys
+      const aiFramesTimeCapsule = localStorage.getItem('ai_frames_timecapsule');
+      const timeCapsuleCombined = localStorage.getItem('timecapsule_combined');
+      
+      let aiFramesData = null;
+      
+      // Try to parse AI-Frames TimeCapsule data first
+      if (aiFramesTimeCapsule) {
+        try {
+          const parsedTimeCapsule = JSON.parse(aiFramesTimeCapsule);
+          if (parsedTimeCapsule.data && parsedTimeCapsule.data.frames) {
+            aiFramesData = parsedTimeCapsule.data.frames;
+            console.log(`📊 Found ${aiFramesData.length} AI-Frames from ai_frames_timecapsule`);
+          }
+        } catch (parseError) {
+          console.warn("⚠️ Failed to parse ai_frames_timecapsule:", parseError);
+        }
+      }
+      
+      // Fallback to combined TimeCapsule data
+      if (!aiFramesData && timeCapsuleCombined) {
+        try {
+          const parsedCombined = JSON.parse(timeCapsuleCombined);
+          if (parsedCombined.data && parsedCombined.data.frames) {
+            aiFramesData = parsedCombined.data.frames;
+            console.log(`📊 Found ${aiFramesData.length} AI-Frames from timecapsule_combined`);
+          }
+        } catch (parseError) {
+          console.warn("⚠️ Failed to parse timecapsule_combined:", parseError);
+        }
+      }
+
+      if (!aiFramesData || aiFramesData.length === 0) {
         console.log("ℹ️ No AI-Frames data found to sync");
         return;
       }
 
-      const parsedData = JSON.parse(aiFramesData);
-      if (!parsedData || !parsedData.nodes || parsedData.nodes.length === 0) {
-        console.log("ℹ️ AI-Frames data is empty, nothing to sync");
-        return;
-      }
-
-      console.log(`📊 Found ${parsedData.nodes.length} AI-Frames nodes to sync`);
-      this.updateStatus(`🔄 Syncing ${parsedData.nodes.length} AI-Frames to Knowledge Base...`);
+      this.updateStatus(`🔄 Syncing ${aiFramesData.length} AI-Frames to Knowledge Base...`);
 
       let syncedCount = 0;
-      const totalNodes = parsedData.nodes.length;
+      const totalFrames = aiFramesData.length;
 
-      for (const node of parsedData.nodes) {
+      for (const frame of aiFramesData) {
         try {
-          // Skip empty nodes
-          if (!node.data || !node.data.content) continue;
+          // Skip empty frames
+          if (!frame.title || !frame.informationText) continue;
 
-          // Create document title based on node type
-          const title = node.data.title || 
-                       `${node.type} - ${node.data.subject || 'Untitled'}` || 
-                       `AI-Frame Node ${node.id}`;
+          // Create document title and content from AI-Frame structure
+          const title = `AI-Frame: ${frame.title}`;
+          const content = `
+Goal: ${frame.goal}
 
-          // Create document content
-          const content = node.data.content || node.data.description || '';
-          if (!content.trim()) continue;
+Information:
+${frame.informationText}
 
-          // Check if this AI-Frame is already in the KB (by checking for existing doc with same aiFrameId)
+After Video Text:
+${frame.afterVideoText || 'No additional text'}
+
+AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(', ') : 'None'}
+
+Video URL: ${frame.videoUrl || 'No video'}
+Start Time: ${frame.startTime || 0}s
+Duration: ${frame.duration || 0}s
+          `.trim();
+
+          // Check if this AI-Frame is already in the KB using enhanced duplicate detection
           const existingDocs = await this.vectorStore.getAllDocuments();
           const existingDoc = existingDocs.find(doc => 
-            doc.metadata.source === 'ai-frames' && 
-            (doc.metadata as any).aiFrameId === node.id
+            (doc.metadata.source === 'ai-frames' && 
+             (doc.metadata as any).aiFrameId === frame.id) ||
+            (doc.title === title && doc.metadata.source === 'ai-frames')
           );
 
           if (existingDoc) {
-            console.log(`⚠️ AI-Frame ${node.id} already exists in KB, skipping`);
+            console.log(`⚠️ AI-Frame "${frame.title}" already exists in KB, skipping`);
             continue;
           }
 
@@ -426,25 +390,28 @@ export class DeepResearchApp {
             title,
             content,
             (progress) => {
-              this.updateStatus(`🔄 Syncing AI-Frame ${syncedCount + 1}/${totalNodes}: ${progress.message}`);
+              this.updateStatus(`🔄 Syncing AI-Frame ${syncedCount + 1}/${totalFrames}: ${progress.message}`);
             }
           );
 
           // Update the document metadata to mark it as from AI-Frames
           const allDocs = await this.vectorStore.getAllDocuments();
-          const newDoc = allDocs.find(doc => doc.title === title);
+          const newDoc = allDocs.find(doc => doc.title === title && !(doc.metadata as any).aiFrameId);
           if (newDoc) {
-            (newDoc.metadata as any).source = 'ai-frames';
-            (newDoc.metadata as any).aiFrameId = node.id;
-            (newDoc.metadata as any).aiFrameType = node.type;
+            newDoc.metadata.source = 'ai-frames';
+            (newDoc.metadata as any).aiFrameId = frame.id;
+            (newDoc.metadata as any).aiFrameType = 'learning-frame';
+            (newDoc.metadata as any).videoUrl = frame.videoUrl;
+            (newDoc.metadata as any).startTime = frame.startTime;
+            (newDoc.metadata as any).duration = frame.duration;
             await this.vectorStore.insertDocument(newDoc);
           }
 
           syncedCount++;
-          console.log(`✅ Synced AI-Frame: ${title}`);
+          console.log(`✅ Synced AI-Frame: ${frame.title}`);
 
-        } catch (nodeError) {
-          console.warn(`⚠️ Failed to sync AI-Frame node ${node.id}:`, nodeError);
+        } catch (frameError) {
+          console.warn(`⚠️ Failed to sync AI-Frame "${frame.title}":`, frameError);
         }
       }
 
@@ -476,9 +443,9 @@ export class DeepResearchApp {
 
     // Set up storage event listener to detect AI-Frames changes
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'aiFramesData' && event.newValue) {
+      if ((event.key === 'ai_frames_timecapsule' || event.key === 'timecapsule_combined') && event.newValue) {
         console.log("🔄 AI-Frames data changed, syncing to Knowledge Base...");
-        this.syncAIFramesToKB();
+        setTimeout(() => this.syncAIFramesToKB(), 1000); // Small delay to ensure data is saved
       }
     };
 
@@ -2888,6 +2855,18 @@ export function DeepResearchComponent() {
     "research"
   );
 
+  // Get VectorStore from provider
+  const {
+    vectorStore,
+    isInitialized: vectorStoreInitialized,
+    isInitializing: vectorStoreInitializing,
+    error: vectorStoreError,
+    processingAvailable,
+    processingStatus,
+    downloadProgress,
+    stats: vectorStoreStats
+  } = useVectorStore();
+
   const [topics, setTopics] = useState<Topic[]>([]);
   const [aiStatus, setAIStatus] = useState<AIConnectionStatus>({
     connected: false,
@@ -3008,6 +2987,40 @@ export function DeepResearchComponent() {
     // Set analytics for the app instance
     (app as any).pageAnalytics = pageAnalytics;
   }, []);
+
+  // Update app when VectorStore from provider becomes available
+  useEffect(() => {
+    const app = appRef.current;
+    if (app && vectorStore) {
+      console.log('🔗 Connecting DeepResearch to VectorStoreProvider...');
+      app.vectorStore = vectorStore;
+      
+      // Update loading state based on provider state
+      app.isVectorStoreLoading = !vectorStoreInitialized;
+      app.setIsVectorStoreLoading?.(!vectorStoreInitialized);
+      
+      // Update document status
+      app.updateDocumentStatus();
+      
+      console.log('✅ DeepResearch connected to VectorStoreProvider');
+    }
+  }, [vectorStore, vectorStoreInitialized]);
+
+  // Update status message based on VectorStore provider state
+  useEffect(() => {
+    const app = appRef.current;
+    if (app) {
+      if (vectorStoreError) {
+        app.updateStatus(`❌ VectorStore error: ${vectorStoreError}`);
+      } else if (vectorStoreInitializing) {
+        app.updateStatus('🚀 Initializing VectorStore...');
+      } else if (!vectorStoreInitialized) {
+        app.updateStatus('⏳ Waiting for VectorStore...');
+      } else if (processingStatus) {
+        app.updateStatus(processingStatus);
+      }
+    }
+  }, [vectorStoreError, vectorStoreInitializing, vectorStoreInitialized, processingStatus]);
 
   const app = appRef.current!; // Non-null assertion since we create it immediately in useEffect
 

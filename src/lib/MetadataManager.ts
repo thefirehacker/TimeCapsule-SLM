@@ -95,6 +95,16 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     this.bubblSpaces.set(bubblSpace.id, bubblSpace);
     this.saveBubblSpaces(Array.from(this.bubblSpaces.values()));
     
+    // Auto-sync to Knowledge Base when BubblSpace is created
+    if (this.vectorStore && this.vectorStore.initialized) {
+      this.saveMetadataToVectorStore(
+        Array.from(this.bubblSpaces.values()),
+        Array.from(this.timeCapsules.values())
+      ).catch(error => {
+        console.warn('Failed to sync BubblSpace to Knowledge Base:', error);
+      });
+    }
+    
     return bubblSpace;
   }
 
@@ -128,6 +138,16 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
 
     this.bubblSpaces.set(id, updated);
     this.saveBubblSpaces(Array.from(this.bubblSpaces.values()));
+    
+    // Auto-sync to Knowledge Base when BubblSpace is updated
+    if (this.vectorStore && this.vectorStore.initialized) {
+      this.saveMetadataToVectorStore(
+        Array.from(this.bubblSpaces.values()),
+        Array.from(this.timeCapsules.values())
+      ).catch(error => {
+        console.warn('Failed to sync updated BubblSpace to Knowledge Base:', error);
+      });
+    }
     
     return updated;
   }
@@ -229,6 +249,16 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     this.timeCapsules.set(timeCapsule.id, timeCapsule);
     this.saveTimeCapsules(Array.from(this.timeCapsules.values()));
     
+    // Auto-sync to Knowledge Base when TimeCapsule is created
+    if (this.vectorStore && this.vectorStore.initialized) {
+      this.saveMetadataToVectorStore(
+        Array.from(this.bubblSpaces.values()),
+        Array.from(this.timeCapsules.values())
+      ).catch(error => {
+        console.warn('Failed to sync TimeCapsule to Knowledge Base:', error);
+      });
+    }
+    
     return timeCapsule;
   }
 
@@ -252,6 +282,16 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
 
     this.timeCapsules.set(id, updated);
     this.saveTimeCapsules(Array.from(this.timeCapsules.values()));
+    
+    // Auto-sync to Knowledge Base when TimeCapsule is updated
+    if (this.vectorStore && this.vectorStore.initialized) {
+      this.saveMetadataToVectorStore(
+        Array.from(this.bubblSpaces.values()),
+        Array.from(this.timeCapsules.values())
+      ).catch(error => {
+        console.warn('Failed to sync updated TimeCapsule to Knowledge Base:', error);
+      });
+    }
     
     return updated;
   }

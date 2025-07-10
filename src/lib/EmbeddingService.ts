@@ -24,6 +24,11 @@ class EmbeddingService {
     // Configure Xenova environment for immediate download
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
+    
+    // Enable persistent caching across browser sessions
+    env.cacheDir = '.cache/xenova'; // Browser cache directory
+    env.allowLocalModels = true; // Allow loading from cache
+    env.allowRemoteModels = true; // Allow downloading if needed
   }
 
   static getInstance(): EmbeddingService {
@@ -57,38 +62,72 @@ class EmbeddingService {
 
   private async performImmediateInitialization(onProgress?: EmbeddingProgressCallback): Promise<void> {
     try {
-      console.log('🧠 Starting immediate Xenova download...');
+      console.log('🧠 Starting Xenova embedding service initialization...');
       
       onProgress?.({
-        message: 'Downloading Xenova transformers.js...',
-        progress: 10
+        message: 'Checking for cached model...',
+        progress: 5
       });
 
-      // Load the embedding model immediately
+      // Check if model is already cached
+      const cacheKey = 'xenova-embeddings-model-cached';
+      const isCached = localStorage.getItem(cacheKey) === 'true';
+      
+      if (isCached) {
+        console.log('🎯 Model appears to be cached, attempting to load from cache...');
+        onProgress?.({
+          message: 'Loading model from cache...',
+          progress: 20
+        });
+      } else {
+        console.log('📦 Model not cached, starting download...');
+        onProgress?.({
+          message: 'Downloading Xenova transformers.js...',
+          progress: 10
+        });
+      }
+
+      // Load the embedding model with enhanced caching
       console.log('📦 Loading Xenova/all-MiniLM-L6-v2 model...');
       
       onProgress?.({
-        message: 'Loading embedding model...',
+        message: isCached ? 'Loading from cache...' : 'Loading embedding model...',
         progress: 30
       });
 
-      // Use dynamic import with pipeline for immediate download
+      let downloadDetected = false;
+      
+      // Use dynamic import with pipeline for cached/download loading
       this.model = await pipeline(
         'feature-extraction',
         'Xenova/all-MiniLM-L6-v2',
         {
+          cache_dir: '.cache/xenova', // Explicit cache directory
           progress_callback: (progress: any) => {
             if (progress.status === 'downloading') {
+              downloadDetected = true;
               const downloadProgress = Math.round(30 + (progress.progress || 0) * 0.6); // Scale to 30-90%
               onProgress?.({
                 message: `Downloading model: ${progress.file} (${Math.round((progress.progress || 0) * 100)}%)`,
                 progress: downloadProgress
               });
               console.log(`📊 Model download: ${progress.file} - ${Math.round((progress.progress || 0) * 100)}%`);
+            } else if (progress.status === 'ready') {
+              onProgress?.({
+                message: 'Model loaded from cache',
+                progress: 95
+              });
+              console.log('✅ Model loaded from browser cache');
             }
           }
         }
       );
+
+      // Mark as cached for future sessions
+      if (downloadDetected) {
+        localStorage.setItem(cacheKey, 'true');
+        console.log('💾 Model cached for future sessions');
+      }
 
       onProgress?.({
         message: 'Embedding model ready',
@@ -169,11 +208,13 @@ class EmbeddingService {
         // Call progress callback AFTER successful generation
         onProgress?.(i + 1, texts.length);
         
-        // Yield control to UI every 3 embeddings to prevent freezing
-        if (i > 0 && (i + 1) % 3 === 0) {
-          console.log(`⏸️ Yielding control to UI after embedding ${i + 1}/${texts.length}`);
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
+        // Yield control to UI after EVERY embedding using requestAnimationFrame
+        console.log(`⏸️ Yielding control to UI after embedding ${i + 1}/${texts.length}`);
+        await new Promise(resolve => {
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 20); // Additional 20ms after frame
+          });
+        });
         
       } catch (error) {
         console.error(`❌ Failed to generate embedding for text ${i + 1}:`, error);
@@ -184,10 +225,12 @@ class EmbeddingService {
         // Still report progress even on error
         onProgress?.(i + 1, texts.length);
         
-        // Yield control even on error
-        if (i > 0 && (i + 1) % 3 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
+        // Yield control even on error using requestAnimationFrame
+        await new Promise(resolve => {
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 20);
+          });
+        });
       }
     }
 
@@ -212,6 +255,12 @@ class EmbeddingService {
     this.isInitialized = false;
     this.isInitializing = false;
     this.initializationPromise = null;
+  }
+
+  // Clear cache marker if needed (for debugging or cache invalidation)
+  static clearCacheMarker(): void {
+    localStorage.removeItem('xenova-embeddings-model-cached');
+    console.log('🗑️ Xenova cache marker cleared');
   }
 }
 
