@@ -101,21 +101,37 @@ class EmbeddingService {
 
       let downloadDetected = false;
       
-      // Use pipeline with explicit CDN configuration
+      // Track progress efficiently with throttling
+      let lastProgressReport = 0;
+      let progressCounter = 0;
+      
+      // Use pipeline with optimized progress tracking
       this.model = await pipeline(
         'feature-extraction',
         'Xenova/all-MiniLM-L6-v2',
         {
           // Remove cache_dir to let the browser handle caching naturally
           progress_callback: (progress: any) => {
+            progressCounter++;
+            const now = Date.now();
+            
+            // Throttle progress reports to every 500ms to prevent performance issues
+            if (now - lastProgressReport < 500) {
+              return;
+            }
+            lastProgressReport = now;
+            
             if (progress.status === 'downloading') {
               downloadDetected = true;
-              const downloadProgress = Math.round(30 + (progress.progress || 0) * 0.6); // Scale to 30-90%
+              // Fix progress calculation - progress.progress is already 0-1, don't multiply by 100
+              const normalizedProgress = Math.min(Math.max(progress.progress || 0, 0), 1); // Clamp 0-1
+              const downloadProgress = Math.round(30 + normalizedProgress * 60); // Scale to 30-90%
+              
               onProgress?.({
-                message: `Downloading from CDN: ${progress.file} (${Math.round((progress.progress || 0) * 100)}%)`,
+                message: `Downloading from CDN: ${progress.file} (${Math.round(normalizedProgress * 100)}%)`,
                 progress: downloadProgress
               });
-              console.log(`📊 CDN download: ${progress.file} - ${Math.round((progress.progress || 0) * 100)}%`);
+              console.log(`📊 CDN download: ${progress.file} - ${Math.round(normalizedProgress * 100)}%`);
             } else if (progress.status === 'ready') {
               onProgress?.({
                 message: 'Model loaded successfully',
@@ -123,9 +139,11 @@ class EmbeddingService {
               });
               console.log('✅ Model loaded successfully');
             } else if (progress.status === 'progress') {
-              const downloadProgress = Math.round(30 + (progress.progress || 0) * 0.6);
+              // Fix progress calculation here too
+              const normalizedProgress = Math.min(Math.max(progress.progress || 0, 0), 1);
+              const downloadProgress = Math.round(30 + normalizedProgress * 60);
               onProgress?.({
-                message: `Loading model: ${Math.round((progress.progress || 0) * 100)}%`,
+                message: `Loading model: ${Math.round(normalizedProgress * 100)}%`,
                 progress: downloadProgress
               });
             }

@@ -82,6 +82,10 @@ import {
   getMetadataManager, 
   MetadataManager 
 } from "@/lib/MetadataManager";
+import { 
+  getGraphStorageManager, 
+  GraphStorageManager 
+} from "@/lib/GraphStorageManager";
 import {
   BubblSpace,
   TimeCapsuleMetadata,
@@ -90,6 +94,7 @@ import {
   ImportResult,
   MetadataUtils
 } from "@/types/timecapsule";
+import { debugFrames, debugStorage, debugSync } from '@/lib/debugUtils';
 
 interface AIFrame {
   id: string;
@@ -146,6 +151,15 @@ export default function AIFramesPage() {
 
   // Frame state - Always start empty, load from localStorage if available
   const [frames, setFrames] = useState<AIFrame[]>([]);
+  
+  // Debug: Track frames changes
+  useEffect(() => {
+    debugFrames('Frames state updated', {
+      count: frames.length,
+      frameIds: frames.map(f => f.id),
+      frameTitles: frames.map(f => f.title)
+    });
+  }, [frames]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
 
   // Playback state
@@ -182,6 +196,7 @@ export default function AIFramesPage() {
 
   // Metadata Management State
   const [metadataManager, setMetadataManager] = useState<MetadataManager | null>(null);
+  const [graphStorageManager, setGraphStorageManager] = useState<GraphStorageManager | null>(null);
   const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(null);
   const [currentTimeCapsule, setCurrentTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
   const [allBubblSpaces, setAllBubblSpaces] = useState<BubblSpace[]>([]);
@@ -669,18 +684,171 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
   };
 
-  // App starts completely empty - no auto-restore from localStorage
-  // Users need to explicitly import TimeCapsules to load frames
-  useEffect(() => {
-    console.log('🎯 AI-Frames app initialized with empty state');
-    
-    // Clear any old saved data since we're starting fresh
+  // Load frames from IndexedDB/localStorage storage
+  const loadFramesFromStorage = useCallback(async () => {
     try {
-      localStorage.removeItem("ai_frames_cleared");
+      // Primary: Try to load from GraphStorageManager (IndexedDB) if available
+      if (graphStorageManager) {
+        console.log('📊 Loading frames from IndexedDB via GraphStorageManager...');
+        
+        const frameSequence = await graphStorageManager.loadFrameSequence();
+        const sessionState = await graphStorageManager.loadSessionState();
+        
+        if (frameSequence && frameSequence.frames.length > 0) {
+          console.log('📊 Loading frames from IndexedDB:', frameSequence.frames.length);
+          setFrames(frameSequence.frames);
+          setCurrentFrameIndex(frameSequence.currentFrameIndex || 0);
+          
+          // Update session state if available
+          if (sessionState) {
+            setIsCreationMode(sessionState.isCreationMode);
+            setShowGraphView(sessionState.showGraphView);
+            setChapters(sessionState.chapters || []);
+            setGraphState(sessionState.graphState);
+          }
+          
+          console.log('✅ Frames loaded from IndexedDB successfully');
+          return true;
+        }
+      }
+      
+      // Fallback: Try to load from TimeCapsule data in localStorage
+      const timeCapsuleData = localStorage.getItem("ai_frames_timecapsule");
+      if (timeCapsuleData) {
+        const parsed = JSON.parse(timeCapsuleData);
+        if (parsed.data?.frames && Array.isArray(parsed.data.frames)) {
+          console.log('📊 Loading frames from localStorage TimeCapsule:', parsed.data.frames.length);
+          setFrames(parsed.data.frames);
+          setCurrentFrameIndex(parsed.data.currentFrameIndex || 0);
+          
+          // Update other state if available
+          if (parsed.data.isCreationMode !== undefined) {
+            setIsCreationMode(parsed.data.isCreationMode);
+          }
+          if (parsed.data.showGraphView !== undefined) {
+            setShowGraphView(parsed.data.showGraphView);
+          }
+          if (parsed.data.graphState) {
+            setGraphState(parsed.data.graphState);
+          }
+          if (parsed.data.chapters) {
+            setChapters(parsed.data.chapters);
+          }
+          
+          console.log('✅ Frames loaded from localStorage TimeCapsule successfully');
+          return true;
+        }
+      }
+      
+      // Final fallback: Try to load from graph state storage
+      const graphData = localStorage.getItem("ai_frames_graph_state");
+      if (graphData) {
+        const parsed = JSON.parse(graphData);
+        if (parsed.frames && Array.isArray(parsed.frames)) {
+          console.log('📊 Loading frames from localStorage graph storage:', parsed.frames.length);
+          setFrames(parsed.frames);
+          setCurrentFrameIndex(0); // Reset to first frame
+          
+          console.log('✅ Frames loaded from localStorage graph storage successfully');
+          return true;
+        }
+      }
+      
+      console.log('ℹ️ No frames found in any storage');
+      return false;
     } catch (error) {
-      console.log('Note: localStorage cleanup failed (normal in some environments)');
+      console.error('❌ Failed to load frames from storage:', error);
+      return false;
     }
-  }, []);
+  }, [graphStorageManager]);
+
+  // Save frames to storage (bidirectional sync)
+  const saveFramesToStorage = useCallback(async () => {
+    try {
+      // Primary: Save to GraphStorageManager (IndexedDB) if available
+      if (graphStorageManager) {
+        console.log('💾 Saving frames to IndexedDB via GraphStorageManager...');
+        
+        // Save frame sequence
+        await graphStorageManager.saveFrameSequence(frames, currentFrameIndex, {
+          bubblSpaceId: currentBubblSpace?.id,
+          timeCapsuleId: currentTimeCapsule?.id,
+        });
+        
+        // Save session state
+        await graphStorageManager.saveSessionState({
+          isCreationMode,
+          showGraphView,
+          chapters,
+          graphState,
+          lastActiveFrame: currentFrameIndex,
+        });
+        
+        console.log('✅ Frames saved to IndexedDB successfully');
+      }
+      
+      // Fallback/Compatibility: Save to localStorage
+      const timeCapsuleData = {
+        data: {
+          frames: frames,
+          currentFrameIndex: currentFrameIndex,
+          isCreationMode: isCreationMode,
+          showGraphView: showGraphView,
+          graphState: graphState,
+          chapters: chapters,
+          lastSaved: new Date().toISOString(),
+        }
+      };
+      
+      localStorage.setItem("ai_frames_timecapsule", JSON.stringify(timeCapsuleData));
+      
+      // Also save to graph state format for compatibility
+      const graphData = {
+        frames: frames,
+        graphState: graphState,
+        chapters: chapters,
+        activeView: showGraphView ? 'graph' : 'linear',
+        lastSaved: new Date().toISOString(),
+      };
+      
+      localStorage.setItem("ai_frames_graph_state", JSON.stringify(graphData));
+      
+      console.log('💾 Frames saved to localStorage (compatibility)');
+    } catch (error) {
+      console.error('❌ Failed to save frames to storage:', error);
+    }
+  }, [frames, currentFrameIndex, isCreationMode, showGraphView, graphState, chapters, graphStorageManager, currentBubblSpace, currentTimeCapsule]);
+
+  // App initialization - Check for existing data
+  useEffect(() => {
+    console.log('🎯 AI-Frames app initializing...');
+    
+    // Check if user explicitly cleared data
+    const wasCleared = localStorage.getItem("ai_frames_cleared");
+    if (wasCleared) {
+      console.log('🗑️ App was previously cleared, staying empty');
+      localStorage.removeItem("ai_frames_cleared");
+      return;
+    }
+    
+    // Try to load existing frame data
+    loadFramesFromStorage().then((loaded) => {
+      if (loaded) {
+        console.log('✅ AI-Frames initialized with existing data');
+        // Note: Don't show welcome message here, it will be set by loadFramesFromStorage
+      } else {
+        console.log('🎯 AI-Frames initialized with empty state');
+        setChatMessages([
+          {
+            role: "ai",
+            content: `👋 Welcome to AI-Frames! I'm here to help you create interactive learning experiences.\n\n🎯 Get started by:\n• Switching to **Creator Mode** and creating your first frame\n• Or **importing a TimeCapsule** to load existing content\n\nBoth Linear and Graph views are available for organizing your frames.`,
+          },
+        ]);
+      }
+    }).catch((error) => {
+      console.error('❌ Failed to load frames during initialization:', error);
+    });
+  }, [loadFramesFromStorage]);
 
 
 
@@ -798,6 +966,25 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       console.log('✅ AI-Frames connected to VectorStoreProvider');
     }
   }, [providerVectorStore]);
+
+  // Initialize GraphStorageManager when VectorStore is ready
+  useEffect(() => {
+    const initializeGraphStorage = async () => {
+      if (vectorStore && vectorStoreInitialized && !graphStorageManager) {
+        try {
+          console.log('🗂️ Initializing GraphStorageManager...');
+          const graphManager = getGraphStorageManager(vectorStore);
+          await graphManager.initialize();
+          setGraphStorageManager(graphManager);
+          console.log('✅ GraphStorageManager initialized successfully');
+        } catch (error) {
+          console.error('❌ Failed to initialize GraphStorageManager:', error);
+        }
+      }
+    };
+
+    initializeGraphStorage();
+  }, [vectorStore, vectorStoreInitialized, graphStorageManager]);
 
   // Enhanced AI-Frames Knowledge Base sync with order preservation
   const saveAllFramesToKB = async () => {
@@ -948,16 +1135,67 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
 
+  // Listen for localStorage changes (cross-tab sync and graph updates)
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'ai_frames_timecapsule' || event.key === 'ai_frames_graph_state') {
+        console.log('🔄 Storage change detected:', event.key);
+        
+        // Small delay to ensure write is complete
+        setTimeout(async () => {
+          try {
+            const loaded = await loadFramesFromStorage();
+            if (loaded) {
+              console.log('✅ Frames reloaded from storage due to external change');
+              
+              setChatMessages((prev) => [
+                ...prev,
+                {
+                  role: "ai",
+                  content: `🔄 Frames updated from ${event.key === 'ai_frames_graph_state' ? 'graph view' : 'storage'}! Changes have been synchronized.`,
+                },
+              ]);
+            }
+          } catch (error) {
+            console.error('❌ Failed to reload frames from storage:', error);
+          }
+        }, 100);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadFramesFromStorage]);
+
+  // Save frames to storage whenever they change (bidirectional sync)
+  useEffect(() => {
+    if (frames.length > 0) {
+      saveFramesToStorage();
+    }
+  }, [frames, currentFrameIndex, saveFramesToStorage]);
+
   // Listen for graph save events
   useEffect(() => {
     const handleGraphSaved = (event: CustomEvent) => {
       console.log('📊 Graph saved successfully!', event.detail);
       
+      // Reload frames from storage to sync with graph changes
+      setTimeout(async () => {
+        try {
+          await loadFramesFromStorage();
+        } catch (error) {
+          console.error('❌ Failed to reload frames after graph save:', error);
+        }
+      }, 200);
+      
       setChatMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: `✅ Graph saved successfully!\n\n📊 Saved: ${event.detail.frameCount} frames, ${event.detail.nodeCount} nodes, ${event.detail.edgeCount} connections\n🕐 Time: ${new Date(event.detail.timestamp).toLocaleTimeString()}`,
+          content: `✅ Graph saved successfully!\n\n📊 Saved: ${event.detail.frameCount} frames, ${event.detail.nodeCount} nodes, ${event.detail.edgeCount} connections\n🕐 Time: ${new Date(event.detail.timestamp).toLocaleTimeString()}\n\n🔄 Linear view synchronized with graph changes.`,
         },
       ]);
     };
@@ -967,7 +1205,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     return () => {
       window.removeEventListener('graph-saved', handleGraphSaved as EventListener);
     };
-  }, []);
+  }, [loadFramesFromStorage]);
 
   // Enhanced cross-page synchronization system - Listen for metadata changes from other pages
   useEffect(() => {
@@ -2097,12 +2335,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   // Get current frame safely for video display
   const currentFrame = frames[currentFrameIndex];
-  const videoId = currentFrame ? extractVideoId(currentFrame.videoUrl) : null;
-  const embedUrl = currentFrame && videoId ? `https://www.youtube.com/embed/${videoId}?start=${
+  const videoId = currentFrame?.videoUrl ? extractVideoId(currentFrame.videoUrl) : null;
+  const embedUrl = currentFrame && videoId && currentFrame.videoUrl ? `https://www.youtube.com/embed/${videoId}?start=${
     currentFrame.startTime
   }&end=${
     currentFrame.startTime + currentFrame.duration
-  }&autoplay=0&controls=1&modestbranding=1&rel=0` : '';
+  }&autoplay=0&controls=1&modestbranding=1&rel=0` : null;
 
   const nextFrame = () => {
     if (currentFrameIndex < frames.length - 1) {
@@ -2379,6 +2617,48 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             </Button>
 
             <Separator orientation="vertical" className="h-6" />
+
+            {/* Refresh from Storage */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                try {
+                  const loaded = await loadFramesFromStorage();
+                  if (loaded) {
+                    setChatMessages((prev) => [
+                      ...prev,
+                      {
+                        role: "ai",
+                        content: `🔄 Frames refreshed from storage! Linear and Graph views are now synchronized.`,
+                      },
+                    ]);
+                  } else {
+                    setChatMessages((prev) => [
+                      ...prev,
+                      {
+                        role: "ai",
+                        content: `ℹ️ No additional frame data found in storage. Views are already synchronized.`,
+                      },
+                    ]);
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to refresh frames from storage:', error);
+                  setChatMessages((prev) => [
+                    ...prev,
+                    {
+                      role: "ai",
+                      content: `❌ Failed to refresh frames from storage. Please try again.`,
+                    },
+                  ]);
+                }
+              }}
+              title="Refresh frames from storage to sync with Graph view changes"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
+            >
+              <ArrowRight className="h-4 w-4 mr-2 transform rotate-45" />
+              Refresh
+            </Button>
 
             {/* Clear All AI-Frames */}
             <Button 
@@ -3049,7 +3329,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                                      <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                    {embedUrl ? (
                       <iframe
                         ref={videoRef}
                         src={embedUrl}
@@ -3057,7 +3338,17 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       />
-                    </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+                        <div className="text-center">
+                          <Video className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            No video available
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                     <div className="mt-4 flex items-center justify-between">
                       <div className="text-sm text-slate-600 dark:text-slate-400">
                         Playing from {formatTime(currentFrame.startTime)} for{" "}

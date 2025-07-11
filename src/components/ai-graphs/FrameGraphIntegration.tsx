@@ -18,6 +18,7 @@ import {
   Layers,
   Save,
 } from "lucide-react";
+import { debugFrames, debugStorage } from '@/lib/debugUtils';
 
 interface AIFrame {
   id: string;
@@ -53,6 +54,15 @@ export default function FrameGraphIntegration({
   onCreateFrame,
   onTimeCapsuleUpdate,
 }: FrameGraphIntegrationProps) {
+  
+  // Debug: Track when frames prop changes
+  useEffect(() => {
+    debugFrames('FrameGraphIntegration received frames update', {
+      count: frames.length,
+      frameIds: frames.map(f => f.id),
+      frameTitles: frames.map(f => f.title)
+    });
+  }, [frames]);
   const [activeView, setActiveView] = useState<"linear" | "graph">("linear");
   const [graphState, setGraphState] = useState<GraphState>({
     nodes: [],
@@ -282,6 +292,13 @@ export default function FrameGraphIntegration({
 
   const handleSaveGraph = useCallback(async () => {
     try {
+      debugStorage('handleSaveGraph called with frames', {
+        frameCount: frames.length,
+        frames: frames,
+        nodes: graphState.nodes.length,
+        edges: graphState.edges.length
+      });
+      
       // Save current graph state to localStorage
       const graphData = {
         graphState: graphState,
@@ -320,9 +337,16 @@ export default function FrameGraphIntegration({
             timestamp: new Date().toISOString()
           }
         }));
+        
+        // Also trigger a storage event to sync with linear view
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'ai_frames_graph_state',
+          newValue: JSON.stringify(graphData),
+          url: window.location.href
+        }));
       }
       
-      console.log('✅ Graph saved successfully!', {
+      debugStorage('Graph saved successfully!', {
         frames: frames.length,
         nodes: graphState.nodes.length,
         connections: graphState.edges.length

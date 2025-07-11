@@ -1147,9 +1147,16 @@ export class VectorStore {
         const embeddingService = this.documentProcessor.embeddingServiceInstance;
         
         if (embeddingService && embeddingService.init) {
+          let lastProgressLog = 0;
           await embeddingService.init((progress: any) => {
-            console.log(`📊 Xenova download progress: ${progress.message} (${progress.progress}%)`);
             this._downloadProgress = progress.progress;
+            
+            // Throttle console logging to every 2 seconds to prevent spam
+            const now = Date.now();
+            if (now - lastProgressLog >= 2000) {
+              console.log(`📊 Xenova download progress: ${progress.message} (${progress.progress}%)`);
+              lastProgressLog = now;
+            }
           });
         }
         

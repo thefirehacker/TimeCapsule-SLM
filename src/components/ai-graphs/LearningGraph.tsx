@@ -25,6 +25,7 @@ import ConceptNode from "./ConceptNode";
 import ChapterNode from "./ChapterNode";
 import Sidebar from "./Sidebar";
 import { NodeData, DragItem, GraphState, FrameGraphMapping } from "./types";
+import { debugFrames, debugLog } from '@/lib/debugUtils';
 
 const nodeTypes = {
   youtube: YouTubeNode,
@@ -63,9 +64,39 @@ export default function LearningGraph({
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
 
-  // Sync frames to graph nodes on initial load
+  // Handle frame updates from graph nodes
+  const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
+    if (onFramesChange) {
+      const updatedFrames = frames.map(frame => 
+        frame.id === frameId ? { ...frame, ...updatedData } : frame
+      );
+      onFramesChange(updatedFrames);
+    }
+  }, [frames, onFramesChange]);
+
+  // Enhanced sync: frames to graph nodes (handles view switching)
   useEffect(() => {
-    if (frames.length > 0 && nodes.length === 0) {
+    debugFrames('Syncing frames to graph nodes', { 
+      frameCount: frames.length, 
+      nodeCount: nodes.length,
+      existingMapping: frameGraphMapping.length
+    });
+    
+    // Check if we need to sync frames to nodes
+    const needsSync = frames.length > 0 && (
+      nodes.length === 0 || // No nodes exist
+      frameGraphMapping.length === 0 || // No mapping exists
+      frameGraphMapping.length !== frames.length || // Mapping count mismatch
+      !frames.every(frame => frameGraphMapping.some(mapping => mapping.frameId === frame.id)) // Missing frames
+    );
+    
+    if (needsSync) {
+      debugFrames('Creating graph nodes from frames', { 
+        reason: nodes.length === 0 ? 'no_nodes' : 
+                frameGraphMapping.length === 0 ? 'no_mapping' : 
+                frameGraphMapping.length !== frames.length ? 'count_mismatch' : 'missing_frames'
+      });
+      
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
       const newMapping: FrameGraphMapping[] = [];
@@ -153,18 +184,20 @@ export default function LearningGraph({
       setNodes(newNodes);
       setEdges(newEdges);
       setFrameGraphMapping(newMapping);
+      
+      debugFrames('Graph nodes created successfully', { 
+        nodeCount: newNodes.length,
+        edgeCount: newEdges.length,
+        mappingCount: newMapping.length
+      });
+    } else {
+      debugFrames('No sync needed', { 
+        framesExist: frames.length > 0,
+        nodesExist: nodes.length > 0,
+        mappingExists: frameGraphMapping.length > 0
+      });
     }
-  }, [frames, nodes.length, setNodes, setEdges]);
-
-  // Handle frame updates from graph nodes
-  const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
-    if (onFramesChange) {
-      const updatedFrames = frames.map(frame => 
-        frame.id === frameId ? { ...frame, ...updatedData } : frame
-      );
-      onFramesChange(updatedFrames);
-    }
-  }, [frames, onFramesChange]);
+  }, [frames, nodes.length, frameGraphMapping, setNodes, setEdges, handleFrameUpdate]);
 
   // Handle sequential connections (only one connection per node)
   const onConnect = useCallback(
@@ -278,6 +311,10 @@ export default function LearningGraph({
       
       // If it's an AI frame node, sync with frames array
       if (type === "aiframe" && onFramesChange) {
+        debugFrames('Creating new AI Frame from graph node');
+        debugFrames('Current frames count', { count: frames.length });
+        debugFrames('Node data', newNodeData);
+        
         const newFrame = {
           id: newNodeData.frameId,
           title: newNodeData.title,
@@ -301,7 +338,21 @@ export default function LearningGraph({
           updatedAt: new Date().toISOString(),
         };
         
-        onFramesChange([...frames, newFrame]);
+        debugFrames('New frame created', newFrame);
+        debugFrames('Calling onFramesChange with updated frames array');
+        
+        const updatedFrames = [...frames, newFrame];
+        debugFrames('Updated frames count', { count: updatedFrames.length });
+        
+        onFramesChange(updatedFrames);
+        debugFrames('onFramesChange called successfully');
+      } else {
+        if (type === "aiframe" && !onFramesChange) {
+          debugLog.warn({ 
+            category: 'FRAMES', 
+            message: 'AI Frame node created but onFramesChange callback is missing!' 
+          });
+        }
       }
     },
     [reactFlowInstance, setNodes, frames, onFramesChange]
