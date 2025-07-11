@@ -22,6 +22,7 @@ export { default as EnhancedSidebar } from "./EnhancedSidebar";
 
 // Integration Components
 export { default as FrameGraphIntegration } from "./FrameGraphIntegration";
+export { default as DualPaneFrameView } from "./DualPaneFrameView";
 
 // Types
 export type {

@@ -120,6 +120,23 @@ export default function EnhancedLearningGraph({
       }
       return node;
     }));
+
+    // Emit event to sync with Frame Navigation
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('graph-attachment-changed', {
+        detail: {
+          frameId,
+          attachment,
+          action: 'attached'
+        }
+      }));
+    }
+
+    console.log('✅ Enhanced: Content attached → Frame Navigation sync triggered:', {
+      frameId,
+      attachmentType: attachment.type,
+      action: 'attached'
+    });
   }, [frames, onFramesChange]);
 
   // Handle content detachment from frames
@@ -154,6 +171,22 @@ export default function EnhancedLearningGraph({
       }
       return node;
     }));
+
+    // Emit event to sync with Frame Navigation
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('graph-attachment-changed', {
+        detail: {
+          frameId,
+          attachment: undefined,
+          action: 'detached'
+        }
+      }));
+    }
+
+    console.log('✅ Enhanced: Content detached → Frame Navigation sync triggered:', {
+      frameId,
+      action: 'detached'
+    });
   }, [frames, onFramesChange]);
 
   // Sync frames to enhanced graph nodes on initial load
@@ -482,7 +515,17 @@ export default function EnhancedLearningGraph({
         const updatedFrames = [...frames, newFrame];
         onFramesChange(updatedFrames);
         
-        console.log('✅ Enhanced: New frame added to frames array:', {
+        // Emit event to sync with Frame Navigation
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-frame-added', {
+            detail: {
+              newFrame,
+              totalFrames: updatedFrames.length
+            }
+          }));
+        }
+        
+        console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
           frameId: newFrame.id,
           title: newFrame.title,
           totalFrames: updatedFrames.length
@@ -491,6 +534,58 @@ export default function EnhancedLearningGraph({
     },
     [reactFlowInstance, frames, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent]
   );
+
+  // Handle node selection and emit events for Frame Navigation sync
+  const handleNodeClick = useCallback((event: any, node: any) => {
+    setSelectedNode(node.id);
+    
+    // If it's an AI frame node, emit event to sync with Frame Navigation
+    if (node.data?.type === 'aiframe' && node.data?.frameId) {
+      const frameIndex = frames.findIndex(frame => frame.id === node.data.frameId);
+      if (frameIndex !== -1) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-frame-selected', {
+            detail: {
+              frameId: node.data.frameId,
+              frameIndex,
+              nodeId: node.id
+            }
+          }));
+        }
+        
+        console.log('🔄 Enhanced: Graph node selected → Frame Navigation sync triggered:', {
+          nodeId: node.id,
+          frameId: node.data.frameId,
+          frameIndex
+        });
+      }
+    }
+  }, [frames]);
+
+  // Listen for clear all frames event and reset graph nodes/edges
+  useEffect(() => {
+    const handleClearAllFrames = (event: CustomEvent) => {
+      const { clearedCount } = event.detail;
+      console.log('🗑️ Enhanced Graph: Clear all frames event received, clearing nodes and edges:', {
+        clearedCount,
+        currentNodes: nodes.length,
+        currentEdges: edges.length
+      });
+      
+      // Clear all nodes and edges
+      setNodes([]);
+      setEdges([]);
+      setSelectedNode(null);
+      
+      console.log('✅ Enhanced Graph: All nodes and edges cleared successfully');
+    };
+
+    window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+    
+    return () => {
+      window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+    };
+  }, [nodes.length, edges.length]);
 
   // Update graph state when nodes/edges change
   useEffect(() => {
@@ -517,6 +612,7 @@ export default function EnhancedLearningGraph({
           onInit={setReactFlowInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          onNodeClick={handleNodeClick}
           nodeTypes={enhancedNodeTypes}
           fitView
           attributionPosition="top-right"

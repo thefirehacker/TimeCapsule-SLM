@@ -51,6 +51,19 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
+  // Convert seconds to MM:SS format for editing
+  const secondsToTimestamp = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Convert MM:SS format to seconds
+  const timestampToSeconds = (timestamp: string): number => {
+    const [minutes, seconds] = timestamp.split(':').map(num => parseInt(num) || 0);
+    return minutes * 60 + seconds;
+  };
+
   const extractVideoId = (url: string) => {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
     return match ? match[1] : null;
@@ -180,23 +193,31 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
           {isEditing ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-medium">Start Time (seconds)</Label>
+                <Label className="text-xs font-medium">Start Time (MM:SS)</Label>
                 <Input
-                  type="number"
-                  value={editData.startTime}
-                  onChange={(e) => setEditData({...editData, startTime: parseInt(e.target.value) || 0})}
+                  type="text"
+                  value={secondsToTimestamp(editData.startTime)}
+                  onChange={(e) => {
+                    const seconds = timestampToSeconds(e.target.value);
+                    setEditData({...editData, startTime: seconds});
+                  }}
                   className="mt-1 text-xs"
-                  placeholder="0"
+                  placeholder="00:00"
+                  pattern="[0-9]{2}:[0-9]{2}"
                 />
               </div>
               <div>
-                <Label className="text-xs font-medium">Duration (seconds)</Label>
+                <Label className="text-xs font-medium">Duration (MM:SS)</Label>
                 <Input
-                  type="number"
-                  value={editData.duration}
-                  onChange={(e) => setEditData({...editData, duration: parseInt(e.target.value) || 300})}
+                  type="text"
+                  value={secondsToTimestamp(editData.duration)}
+                  onChange={(e) => {
+                    const seconds = timestampToSeconds(e.target.value);
+                    setEditData({...editData, duration: seconds});
+                  }}
                   className="mt-1 text-xs"
-                  placeholder="300"
+                  placeholder="05:00"
+                  pattern="[0-9]{2}:[0-9]{2}"
                 />
               </div>
             </div>

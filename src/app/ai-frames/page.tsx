@@ -1200,12 +1200,102 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
       ]);
     };
 
+    // Listen for graph frame selection events to sync Frame Navigation
+    const handleGraphFrameSelected = (event: CustomEvent) => {
+      const { frameId, frameIndex } = event.detail;
+      if (frameIndex !== -1 && frameIndex !== currentFrameIndex) {
+        console.log('🔄 Graph frame selection → Frame Navigation sync:', {
+          frameId,
+          frameIndex,
+          currentFrameIndex
+        });
+        setCurrentFrameIndex(frameIndex);
+      }
+    };
+
+    // Listen for graph actions that modify frames
+    const handleGraphFrameAdded = (event: CustomEvent) => {
+      const { newFrame } = event.detail;
+      console.log('🔄 Graph frame added → Frame Navigation sync:', newFrame);
+      
+      setFrames(prev => {
+        const updatedFrames = [...prev, newFrame];
+        setCurrentFrameIndex(updatedFrames.length - 1); // Navigate to new frame
+        return updatedFrames;
+      });
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🎯 New frame created in graph view: "${newFrame.title}"\n\n📊 Frame Navigation updated automatically.`,
+        },
+      ]);
+    };
+
+    const handleGraphFrameDeleted = (event: CustomEvent) => {
+      const { deletedFrameId, remainingFrames } = event.detail;
+      console.log('🔄 Graph frame deleted → Frame Navigation sync:', deletedFrameId);
+      
+      setFrames(remainingFrames);
+      
+      // Update current index if needed
+      if (currentFrameIndex >= remainingFrames.length) {
+        setCurrentFrameIndex(Math.max(0, remainingFrames.length - 1));
+      }
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🗑️ Frame deleted in graph view.\n\n📊 Frame Navigation updated automatically.`,
+        },
+      ]);
+    };
+
+    const handleGraphAttachmentChanged = (event: CustomEvent) => {
+      const { frameId, attachment, action } = event.detail;
+      console.log('🔄 Graph attachment change → Frame Navigation sync:', { frameId, action });
+      
+      setFrames(prev => prev.map(frame => 
+        frame.id === frameId 
+          ? { 
+              ...frame, 
+              attachment,
+              // Update legacy fields for backward compatibility
+              ...(attachment?.type === 'video' && {
+                videoUrl: attachment.data?.videoUrl || '',
+                startTime: attachment.data?.startTime || 0,
+                duration: attachment.data?.duration || 300
+              }),
+              updatedAt: new Date().toISOString()
+            }
+          : frame
+      ));
+      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `🔗 Content ${action} in graph view.\n\n📊 Frame Navigation synchronized with attachment changes.`,
+        },
+      ]);
+    };
+
     window.addEventListener('graph-saved', handleGraphSaved as EventListener);
+    window.addEventListener('graph-frame-selected', handleGraphFrameSelected as EventListener);
+    window.addEventListener('graph-frame-added', handleGraphFrameAdded as EventListener);
+    window.addEventListener('graph-frame-deleted', handleGraphFrameDeleted as EventListener);
+    window.addEventListener('graph-attachment-changed', handleGraphAttachmentChanged as EventListener);
     
     return () => {
       window.removeEventListener('graph-saved', handleGraphSaved as EventListener);
+      window.removeEventListener('graph-frame-selected', handleGraphFrameSelected as EventListener);
+      window.removeEventListener('graph-frame-added', handleGraphFrameAdded as EventListener);
+      window.removeEventListener('graph-frame-deleted', handleGraphFrameDeleted as EventListener);
+      window.removeEventListener('graph-attachment-changed', handleGraphAttachmentChanged as EventListener);
     };
-  }, [loadFramesFromStorage]);
+  }, [loadFramesFromStorage, currentFrameIndex]);
 
   // Enhanced cross-page synchronization system - Listen for metadata changes from other pages
   useEffect(() => {
@@ -2169,13 +2259,24 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       setFrames([]);
       setCurrentFrameIndex(0);
       
+      // Emit event to clear graph nodes
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('clear-all-frames', {
+          detail: {
+            clearedCount,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+      
       // Comprehensively clear localStorage data
       try {
         localStorage.removeItem("ai_frames_timecapsule");
         localStorage.removeItem("timecapsule_combined");
         localStorage.removeItem("deepresearch_data");
         localStorage.removeItem("ai_frames_cleared");
-        console.log('🗑️ Completely cleared AI-Frames localStorage data');
+        localStorage.removeItem("ai_frames_graph_state");
+        console.log('🗑️ Completely cleared AI-Frames localStorage data including graph state');
       } catch (storageError) {
         console.warn('⚠️ Failed to clear localStorage:', storageError);
       }
@@ -2191,7 +2292,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         ...prev,
         {
           role: "ai",
-          content: `🗑️ Successfully cleared all ${clearedCount} AI frames!\n\n✅ Removed from local session\n✅ Cleared from Knowledge Base\n✅ Cleared localStorage data\n✅ App will stay empty after reload\n\nYou can now start fresh or import a new TimeCapsule.`,
+          content: `🗑️ Successfully cleared all ${clearedCount} AI frames!\n\n✅ Removed from local session\n✅ Cleared from Knowledge Base\n✅ Cleared localStorage data\n✅ Cleared graph nodes and connections\n✅ App will stay empty after reload\n\nYou can now start fresh or import a new TimeCapsule.`,
         },
       ]);
 
@@ -2306,6 +2407,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       setCurrentFrameIndex(currentFrameIndex + 1);
     }
 
+    // Emit event to sync with graph view
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('frames-reordered', {
+        detail: {
+          fromIndex: draggedIndex,
+          toIndex: dropIndex,
+          draggedFrameId: draggedFrame.id,
+          reorderedFrames: reorderedFrames,
+          newCurrentIndex: currentFrameIndex === draggedIndex ? dropIndex : currentFrameIndex
+        }
+      }));
+    }
+
     // Add success message to chat
     setChatMessages((prev) => [
       ...prev,
@@ -2313,14 +2427,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         role: "ai",
         content: `✅ Frame reordered successfully! Frame "${
           draggedFrame.title
-        }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.`,
+        }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.\n\n🔄 Graph view synchronized with new order.`,
       },
     ]);
 
     setDraggedFrameId(null);
     setDragOverIndex(null);
 
-    console.log('🔄 Frame order updated via drag & drop:', {
+    console.log('🔄 Frame order updated via drag & drop → Graph sync triggered:', {
       fromIndex: draggedIndex,
       toIndex: dropIndex,
       frameTitle: draggedFrame.title,
@@ -2732,34 +2846,41 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 </div>
               </div>
 
-              {/* Graph View Toggle */}
-              <div className="flex items-center justify-between">
-                <Label htmlFor="graph-toggle" className="text-sm font-medium">
-                  Graph View
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="graph-toggle"
-                    checked={showGraphView}
-                    onCheckedChange={(checked) => {
-                      setShowGraphView(checked);
-                      pageAnalytics.trackFeatureUsage("graph_view_toggle", {
-                        enabled: checked,
-                        mode: isCreationMode ? "creation" : "learning",
-                        current_frame: currentFrameIndex,
-                      });
-                    }}
-                  />
-                  <Badge variant={showGraphView ? "default" : "secondary"} className="text-xs">
-                    {showGraphView ? (
-                      <Network className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Database className="h-3 w-3 mr-1" />
-                    )}
-                    {showGraphView ? "Graph" : "Linear"}
-                  </Badge>
-                </div>
-              </div>
+                        {/* Graph View Toggle - Enhanced */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="graph-toggle" className="text-sm font-medium">
+              View Mode
+            </Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="graph-toggle"
+                checked={showGraphView}
+                onCheckedChange={(checked) => {
+                  setShowGraphView(checked);
+                  pageAnalytics.trackFeatureUsage("graph_view_toggle", {
+                    enabled: checked,
+                    mode: isCreationMode ? "creation" : "learning",
+                    current_frame: currentFrameIndex,
+                  });
+                }}
+              />
+              <Badge variant={showGraphView ? "default" : "secondary"} className="text-xs">
+                {showGraphView ? (
+                  <Network className="h-3 w-3 mr-1" />
+                ) : (
+                  <Database className="h-3 w-3 mr-1" />
+                )}
+                {showGraphView ? "Dual-Pane" : "Linear Only"}
+              </Badge>
+            </div>
+          </div>
+          
+          {/* Graph View Description */}
+          {showGraphView && (
+            <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+              💡 Dual-pane mode: Graph view (left) + Linear view (right) with full sync
+            </div>
+          )}
             </CardContent>
           </Card>
 
@@ -2900,7 +3021,24 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           index === currentFrameIndex ? "default" : "outline"
                         }
                         size="sm"
-                        onClick={() => setCurrentFrameIndex(index)}
+                        onClick={() => {
+                          setCurrentFrameIndex(index);
+                          // Emit event to sync with graph view
+                          if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('frame-navigation-selected', {
+                              detail: {
+                                frameId: frame.id,
+                                frameIndex: index,
+                                frameTitle: frame.title
+                              }
+                            }));
+                          }
+                          console.log('🔄 Frame Navigation → Graph sync:', {
+                            frameId: frame.id,
+                            frameIndex: index,
+                            frameTitle: frame.title
+                          });
+                        }}
                         className="flex-1 justify-start text-left h-auto p-3"
                       >
                         <div className="flex-1">
@@ -2912,6 +3050,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                               <Badge variant="secondary" className="text-xs">
                                 <Wand2 className="h-2 w-2 mr-1" />
                                 AI
+                              </Badge>
+                            )}
+                            {showGraphView && index === currentFrameIndex && (
+                              <Badge variant="default" className="text-xs bg-purple-500">
+                                <Network className="h-2 w-2 mr-1" />
+                                Synced
                               </Badge>
                             )}
                           </div>
