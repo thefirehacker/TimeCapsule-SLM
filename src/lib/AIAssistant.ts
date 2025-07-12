@@ -162,7 +162,7 @@ ${prompt}<|im_end|>
 `;
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minute timeout per agent section
       
       const response = await fetch(`${this.aiSession.baseURL}/api/generate`, {
         method: 'POST',

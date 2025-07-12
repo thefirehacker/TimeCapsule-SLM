@@ -4984,9 +4984,9 @@ export function DeepResearchComponent() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-hidden px-6">
+          <div className="flex-1 overflow-y-auto px-6">
             <Tabs defaultValue="progress" className="flex flex-col h-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsList className="grid w-full grid-cols-3 mb-4 flex-shrink-0">
                 <TabsTrigger value="progress" className="flex items-center gap-2">
                   <Bot className="h-4 w-4" />
                   Agent Progress
@@ -5001,7 +5001,7 @@ export function DeepResearchComponent() {
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto">
                 <TabsContent value="progress" className="h-full overflow-y-auto">
                   <div className="space-y-4">
                     {currentAgentProgress && (

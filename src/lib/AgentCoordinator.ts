@@ -363,7 +363,7 @@ export class AgentCoordinator {
   private async waitForDependencies(dependencies: string[]): Promise<void> {
     if (dependencies.length === 0) return;
 
-    const maxWait = 300000; // 5 minutes max wait
+    const maxWait = 1800000; // 30 minutes max wait (total session timeout)
     const checkInterval = 1000; // Check every second
     let waited = 0;
 
