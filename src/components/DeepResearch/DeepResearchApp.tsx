@@ -3634,6 +3634,11 @@ export function DeepResearchComponent() {
   // Document Manager States
   const [documentManagerTab, setDocumentManagerTab] = useState<string>("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState<string>("");
+  
+  // Semantic Search States for Knowledge Base Manager
+  const [showSemanticResults, setShowSemanticResults] = useState<boolean>(false);
+  const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
+  const [currentSemanticQuery, setCurrentSemanticQuery] = useState<string>("");
 
   const appRef = useRef<DeepResearchApp | null>(null);
 
@@ -3811,6 +3816,74 @@ export function DeepResearchComponent() {
 
   const app = appRef.current!; // Non-null assertion since we create it immediately in useEffect
 
+  // New semantic search handler for Knowledge Base Manager (inline results)
+  const handleKnowledgeBaseSearch = async () => {
+    if (!app || !documentSearchQuery.trim()) {
+      // If no search query, clear semantic results and show normal document lists
+      setShowSemanticResults(false);
+      setSemanticSearchResults([]);
+      setCurrentSemanticQuery("");
+      return;
+    }
+
+    // Track search start
+    pageAnalytics.trackFeatureUsage("kb_semantic_search_started", {
+      search_query: documentSearchQuery,
+      search_threshold: searchThreshold,
+      query_length: documentSearchQuery.length,
+      document_tab: documentManagerTab,
+    });
+
+    setIsSearching(true);
+    try {
+      const results = await app.searchDocuments(
+        documentSearchQuery,
+        searchThreshold,
+        30 // More results for inline display
+      );
+
+      setSemanticSearchResults(results);
+      setCurrentSemanticQuery(documentSearchQuery);
+      setShowSemanticResults(results.length > 0);
+
+      console.log("KB Semantic search completed, results:", results.length);
+
+      // Track search completion
+      pageAnalytics.trackFeatureUsage("kb_semantic_search_completed", {
+        search_query: documentSearchQuery,
+        search_threshold: searchThreshold,
+        results_found: results.length,
+        search_successful: results.length > 0,
+        average_similarity:
+          results.length > 0
+            ? results.reduce((sum, r) => sum + (r.similarity || 0), 0) /
+              results.length
+            : 0,
+      });
+
+    } catch (error) {
+      console.error("KB Semantic search failed:", error);
+      app.updateStatus("❌ Search failed: " + (error as Error).message);
+      setSemanticSearchResults([]);
+      setShowSemanticResults(false);
+
+      // Track search error
+      pageAnalytics.trackError(
+        "kb_semantic_search_failed",
+        error instanceof Error ? error.message : "Unknown search error"
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearKnowledgeBaseSearch = () => {
+    setDocumentSearchQuery("");
+    setShowSemanticResults(false);
+    setSemanticSearchResults([]);
+    setCurrentSemanticQuery("");
+  };
+
   const handleSearch = async () => {
     if (!app || !searchQuery.trim()) {
       return;
@@ -3970,6 +4043,12 @@ export function DeepResearchComponent() {
   };
 
   const getFilteredDocumentsByCategory = (category: string) => {
+    // If showing semantic search results, return those filtered by category
+    if (showSemanticResults && semanticSearchResults.length > 0) {
+      return getSemanticResultsByCategory(category);
+    }
+    
+    // Otherwise use normal document filtering
     const categorized = categorizeDocuments(documents);
     const categoryDocs = categorized[category as keyof typeof categorized] || [];
     
@@ -3981,6 +4060,36 @@ export function DeepResearchComponent() {
       doc.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
       doc.metadata.description?.toLowerCase().includes(documentSearchQuery.toLowerCase())
     );
+  };
+
+  const getSemanticResultsByCategory = (category: string) => {
+    // Filter semantic search results by document category
+    return semanticSearchResults.filter(result => {
+      const doc = result.document;
+      if (!doc) return false;
+      
+      // Use same categorization logic
+      switch (category) {
+        case 'user':
+          return !(
+            (doc.title.toLowerCase().includes('agent log') || doc.metadata.source === 'research_state') ||
+            (doc.metadata.source === 'ai-frames' || doc.title.toLowerCase().includes('ai-frame')) ||
+            (doc.metadata.source === 'timecapsule_export' || doc.metadata.source === 'timecapsule_import' ||
+             doc.metadata.source === 'aiframes_import' || doc.metadata.source === 'aiframes_combined' ||
+             doc.title.toLowerCase().includes('timecapsule') || doc.metadata.isGenerated === true)
+          );
+        case 'aiFrames':
+          return (doc.metadata.source === 'ai-frames' || doc.title.toLowerCase().includes('ai-frame'));
+        case 'system':
+          return (doc.metadata.source === 'timecapsule_export' || doc.metadata.source === 'timecapsule_import' ||
+                  doc.metadata.source === 'aiframes_import' || doc.metadata.source === 'aiframes_combined' ||
+                  doc.title.toLowerCase().includes('timecapsule') || doc.metadata.isGenerated === true);
+        case 'agentLogs':
+          return (doc.title.toLowerCase().includes('agent log') || doc.metadata.source === 'research_state');
+        default:
+          return false;
+      }
+    });
   };
 
   const getDocumentCategoryCounts = () => {
@@ -4379,15 +4488,28 @@ export function DeepResearchComponent() {
                   <CardContent className="space-y-3">
                     <div className="flex gap-2">
                       <Input
-                        placeholder={`Search ${documentManagerTab} documents...`}
+                        placeholder={`Semantic search ${documentManagerTab} documents...`}
                         value={documentSearchQuery}
-                        onChange={(e) => setDocumentSearchQuery(e.target.value)}
-                        onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                        onChange={(e) => {
+                          setDocumentSearchQuery(e.target.value);
+                          // Clear semantic search results when input is cleared
+                          if (!e.target.value.trim() && showSemanticResults) {
+                            setShowSemanticResults(false);
+                            setSemanticSearchResults([]);
+                            setCurrentSemanticQuery("");
+                          }
+                        }}
+                        onKeyPress={(e) => e.key === "Enter" && handleKnowledgeBaseSearch()}
                       />
-                      <Button onClick={handleSearch} disabled={isSearching}>
+                      <Button onClick={handleKnowledgeBaseSearch} disabled={isSearching}>
                         <Search className="h-4 w-4 mr-2" />
                         {isSearching ? "Searching..." : "Search"}
                       </Button>
+                      {(documentSearchQuery || showSemanticResults) && (
+                        <Button onClick={clearKnowledgeBaseSearch} variant="outline" size="sm">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                       <Label htmlFor="search-threshold">
@@ -4406,6 +4528,13 @@ export function DeepResearchComponent() {
                         className="w-20"
                       />
                     </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-500 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Search className="h-3 w-3" />
+                        <span className="font-medium">AI-Powered Semantic Search</span>
+                      </div>
+                      <p>Search by meaning, not just keywords. Shows relevant document chunks with similarity scores.</p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -4417,52 +4546,152 @@ export function DeepResearchComponent() {
                     <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Upload className="h-4 w-4 text-green-600" />
-                        User Documents ({getDocumentCategoryCounts().user})
+                        {showSemanticResults ? (
+                          `Semantic Search: User Documents (${getFilteredDocumentsByCategory("user").length} results)`
+                        ) : (
+                          `User Documents (${getDocumentCategoryCounts().user})`
+                        )}
                       </CardTitle>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Your uploaded files, scraped content, and personal documents. These are available for learning research attachment.
+                        {showSemanticResults ? (
+                          `Semantic search results from your uploaded files and scraped content. Showing relevant chunks with similarity scores.`
+                        ) : (
+                          `Your uploaded files, scraped content, and personal documents. These are available for learning research attachment.`
+                        )}
                       </p>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto">
-                      {getFilteredDocumentsByCategory("user").length > 0 ? (
-                        <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("user").map((doc) => (
-                            <Card key={doc.id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">{doc.title}</h4>
-                                    <Badge variant="outline" className="text-xs">
-                                      {doc.metadata.source === 'firecrawl' ? '🔍 Scraped' : '📄 Upload'}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
-                                    <span>Type: {doc.metadata.filetype}</span>
-                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
-                                    <Trash2 className="h-3 w-3" />
+                      {showSemanticResults ? (
+                        // Show semantic search results with chunks and similarity scores
+                        getFilteredDocumentsByCategory("user").length > 0 ? (
+                          <div className="space-y-3">
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-blue-800 dark:text-blue-200">
+                                  🔍 Semantic Search Results for "{currentSemanticQuery}"
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {getFilteredDocumentsByCategory("user").length} chunks found
+                                  </Badge>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={clearKnowledgeBaseSearch}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <X className="h-3 w-3" />
                                   </Button>
                                 </div>
                               </div>
-                            </Card>
-                          ))}
-                        </div>
+                            </div>
+                            {getFilteredDocumentsByCategory("user").map((searchResult, index) => (
+                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 border-l-4 border-l-green-500">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="default" className="text-xs bg-green-600">
+                                        {(searchResult.similarity * 100).toFixed(1)}% match
+                                      </Badge>
+                                      <Badge variant="outline" className="text-xs">
+                                        📄 User Document
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
+                                        title="View full chunk"
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
+                                        title="View full document"
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                      {searchResult.document.title}
+                                    </h4>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                      Type: {searchResult.document.metadata.filetype} • 
+                                      Size: {formatFileSize(searchResult.document.metadata.filesize)} • 
+                                      Source: {searchResult.document.metadata.source === 'firecrawl' ? 'Scraped' : 'Upload'}
+                                    </div>
+                                    <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md">
+                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                        {searchResult.chunk?.content || 'No content preview available'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No user documents found matching "{currentSemanticQuery}"</p>
+                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={clearKnowledgeBaseSearch} 
+                              className="mt-3"
+                            >
+                              Clear Search
+                            </Button>
+                          </div>
+                        )
                       ) : (
-                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                          <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No user documents found.</p>
-                          <p className="text-sm">Upload files or scrape URLs to add content to your knowledge base.</p>
-                        </div>
+                        // Show regular document list
+                        getFilteredDocumentsByCategory("user").length > 0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("user").map((doc) => (
+                              <Card key={doc.id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">{doc.title}</h4>
+                                      <Badge variant="outline" className="text-xs">
+                                        {doc.metadata.source === 'firecrawl' ? '🔍 Scraped' : '📄 Upload'}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
+                                      <span>Type: {doc.metadata?.filetype || 'unknown'}</span>
+                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No user documents found.</p>
+                            <p className="text-sm">Upload files or scrape URLs to add content to your knowledge base.</p>
+                          </div>
+                        )
                       )}
                     </CardContent>
                   </Card>
@@ -4473,48 +4702,118 @@ export function DeepResearchComponent() {
                     <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Bot className="h-4 w-4 text-blue-600" />
-                        AI Frames ({getDocumentCategoryCounts().aiFrames})
+                        {showSemanticResults ? (
+                          `Semantic Search: AI Frames (${getFilteredDocumentsByCategory("aiFrames").length} results)`
+                        ) : (
+                          `AI Frames (${getDocumentCategoryCounts().aiFrames})`
+                        )}
                       </CardTitle>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        AI-generated learning frames and educational content from the AI-Frames system.
+                        {showSemanticResults ? (
+                          `Semantic search results from AI-generated learning frames and educational content.`
+                        ) : (
+                          `AI-generated learning frames and educational content from the AI-Frames system.`
+                        )}
                       </p>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto">
-                      {getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
-                        <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("aiFrames").map((doc) => (
-                            <Card key={doc.id} className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">{doc.title}</h4>
-                                    <Badge variant="outline" className="text-xs text-blue-600">
-                                      🎓 AI Frame
-                                    </Badge>
+                      {showSemanticResults ? (
+                        // Show semantic search results for AI Frames
+                        getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
+                          <div className="space-y-3">
+                            {getFilteredDocumentsByCategory("aiFrames").map((searchResult, index) => (
+                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-l-4 border-l-blue-500">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="default" className="text-xs bg-blue-600">
+                                        {(searchResult.similarity * 100).toFixed(1)}% match
+                                      </Badge>
+                                      <Badge variant="outline" className="text-xs text-blue-600">
+                                        🎓 AI Frame
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
+                                        title="View full chunk"
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
+                                        title="View full document"
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
-                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                      {searchResult.document.title}
+                                    </h4>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                      AI Frame • Added: {new Date(searchResult.document.metadata.uploadedAt).toLocaleDateString()}
+                                    </div>
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                        {searchResult.chunk?.content || 'No content preview available'}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No AI frames found matching "{currentSemanticQuery}"</p>
+                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
+                          </div>
+                        )
                       ) : (
-                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                          <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No AI frames found.</p>
-                          <p className="text-sm">AI frames will appear here when synced from the AI-Frames system.</p>
-                        </div>
+                        // Show regular AI Frames list
+                        getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("aiFrames").map((doc) => (
+                              <Card key={doc.id} className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">{doc.title}</h4>
+                                      <Badge variant="outline" className="text-xs text-blue-600">
+                                        🎓 AI Frame
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
+                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No AI frames found.</p>
+                            <p className="text-sm">AI frames will appear here when synced from the AI-Frames system.</p>
+                          </div>
+                        )
                       )}
                     </CardContent>
                   </Card>
@@ -4525,52 +4824,123 @@ export function DeepResearchComponent() {
                     <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Package className="h-4 w-4 text-purple-600" />
-                        System & Metadata ({getDocumentCategoryCounts().system})
+                        {showSemanticResults ? (
+                          `Semantic Search: System & Metadata (${getFilteredDocumentsByCategory("system").length} results)`
+                        ) : (
+                          `System & Metadata (${getDocumentCategoryCounts().system})`
+                        )}
                       </CardTitle>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.
+                        {showSemanticResults ? (
+                          `Semantic search results from TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.`
+                        ) : (
+                          `TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.`
+                        )}
                       </p>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto">
-                      {getFilteredDocumentsByCategory("system").length > 0 ? (
-                        <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("system").map((doc) => (
-                            <Card key={doc.id} className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">{doc.title}</h4>
-                                    <Badge variant="outline" className="text-xs text-purple-600">
-                                      {doc.metadata.source === 'timecapsule_export' ? '📦 Export' : 
-                                       doc.metadata.isGenerated ? '🤖 Generated' : '⚙️ System'}
-                                    </Badge>
+                      {showSemanticResults ? (
+                        // Show semantic search results for System documents
+                        getFilteredDocumentsByCategory("system").length > 0 ? (
+                          <div className="space-y-3">
+                            {getFilteredDocumentsByCategory("system").map((searchResult, index) => (
+                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/20 border-l-4 border-l-purple-500">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="default" className="text-xs bg-purple-600">
+                                        {(searchResult.similarity * 100).toFixed(1)}% match
+                                      </Badge>
+                                      <Badge variant="outline" className="text-xs text-purple-600">
+                                        {searchResult.document.metadata?.source === 'timecapsule_export' ? '📦 Export' : 
+                                         searchResult.document.metadata?.isGenerated ? '🤖 Generated' : '⚙️ System'}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
+                                        title="View full chunk"
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
+                                        title="View full document"
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
-                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                      {searchResult.document.title}
+                                    </h4>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                      System Document • Added: {new Date(searchResult.document.metadata?.uploadedAt || Date.now()).toLocaleDateString()}
+                                    </div>
+                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                        {searchResult.chunk?.content || 'No content preview available'}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No system documents found matching "{currentSemanticQuery}"</p>
+                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
+                          </div>
+                        )
                       ) : (
-                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No system documents found.</p>
-                          <p className="text-sm">TimeCapsule exports and system content will appear here.</p>
-                        </div>
+                        // Show regular System documents list
+                        getFilteredDocumentsByCategory("system").length > 0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("system").map((doc) => (
+                              <Card key={doc.id} className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">{doc.title}</h4>
+                                      <Badge variant="outline" className="text-xs text-purple-600">
+                                        {doc.metadata?.source === 'timecapsule_export' ? '📦 Export' : 
+                                         doc.metadata?.isGenerated ? '🤖 Generated' : '⚙️ System'}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
+                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No system documents found.</p>
+                            <p className="text-sm">TimeCapsule exports and system content will appear here.</p>
+                          </div>
+                        )
                       )}
                     </CardContent>
                   </Card>
@@ -4581,51 +4951,121 @@ export function DeepResearchComponent() {
                     <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Settings className="h-4 w-4 text-orange-600" />
-                        Agent Logs ({getDocumentCategoryCounts().agentLogs})
+                        {showSemanticResults ? (
+                          `Semantic Search: Agent Logs (${getFilteredDocumentsByCategory("agentLogs").length} results)`
+                        ) : (
+                          `Agent Logs (${getDocumentCategoryCounts().agentLogs})`
+                        )}
                       </CardTitle>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Multi-agent research session logs, performance metrics, and processing details.
+                        {showSemanticResults ? (
+                          `Semantic search results from multi-agent research session logs, performance metrics, and processing details.`
+                        ) : (
+                          `Multi-agent research session logs, performance metrics, and processing details.`
+                        )}
                       </p>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto">
-                      {getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
-                        <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("agentLogs").map((doc) => (
-                            <Card key={doc.id} className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">{doc.title}</h4>
-                                    <Badge variant="outline" className="text-xs text-orange-600">
-                                      📋 Agent Log
-                                    </Badge>
+                      {showSemanticResults ? (
+                        // Show semantic search results for Agent Logs
+                        getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
+                          <div className="space-y-3">
+                            {getFilteredDocumentsByCategory("agentLogs").map((searchResult, index) => (
+                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-l-4 border-l-orange-500">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="default" className="text-xs bg-orange-600">
+                                        {(searchResult.similarity * 100).toFixed(1)}% match
+                                      </Badge>
+                                      <Badge variant="outline" className="text-xs text-orange-600">
+                                        📋 Agent Log
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
+                                        title="View full chunk"
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
+                                        title="View full document"
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
-                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                      {searchResult.document.title}
+                                    </h4>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                      Agent Log • Added: {new Date(searchResult.document.metadata?.uploadedAt || Date.now()).toLocaleDateString()}
+                                    </div>
+                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-md">
+                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                        {searchResult.chunk?.content || 'No content preview available'}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No agent logs found matching "{currentSemanticQuery}"</p>
+                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
+                          </div>
+                        )
                       ) : (
-                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                          <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No agent logs found.</p>
-                          <p className="text-sm">Agent processing logs will appear here after multi-agent research sessions.</p>
-                        </div>
+                        // Show regular Agent Logs list
+                        getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("agentLogs").map((doc) => (
+                              <Card key={doc.id} className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">{doc.title}</h4>
+                                      <Badge variant="outline" className="text-xs text-orange-600">
+                                        📋 Agent Log
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
+                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No agent logs found.</p>
+                            <p className="text-sm">Agent processing logs will appear here after multi-agent research sessions.</p>
+                          </div>
+                        )
                       )}
                     </CardContent>
                   </Card>
@@ -4636,7 +5076,7 @@ export function DeepResearchComponent() {
           
           <div className="flex justify-between items-center p-6 pt-4 flex-shrink-0 border-t">
             <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total: {documents.length} documents • {formatFileSize(documents.reduce((sum, doc) => sum + doc.metadata.filesize, 0))}
+              Total: {documents.length} documents • {formatFileSize(documents.reduce((sum, doc) => sum + (doc.metadata?.filesize || 0), 0))}
             </div>
             <Button variant="outline" onClick={() => app.hideDocumentManager()}>
               Close
@@ -4720,7 +5160,7 @@ export function DeepResearchComponent() {
               </DialogTitle>
               <DialogDescription>
                 Document preview -{" "}
-                {formatFileSize(previewDocument.metadata.filesize)}
+                {formatFileSize(previewDocument.metadata?.filesize || 0)}
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6">

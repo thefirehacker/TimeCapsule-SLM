@@ -192,34 +192,33 @@ export function ControlsPanel({
 
   const getUserDocuments = () => {
     // Filter to only show user-uploaded documents, exclude system-generated content
+    // Use the same logic as categorizeDocuments in DeepResearchApp for consistency
     return documents.filter(doc => {
-      // Exclude AI-generated content based on source
-      if (doc.metadata.source === 'ai-frames' || 
-          doc.metadata.source === 'timecapsule_export' ||
-          doc.metadata.source === 'timecapsule_import' ||
-          doc.metadata.source === 'aiframes_import' ||
-          doc.metadata.source === 'aiframes_combined' ||
+      // Exclude Agent Logs
+      if (doc.title.toLowerCase().includes('agent log') || 
           doc.metadata.source === 'research_state') {
         return false;
       }
-
-      // Exclude agent logs and system files
-      if (doc.title.toLowerCase().includes('agent log') ||
-          doc.title.toLowerCase().includes('ai-frame') ||
+      
+      // Exclude AI Frames
+      if (doc.metadata.source === 'ai-frames' || 
+          doc.title.toLowerCase().includes('ai-frame')) {
+        return false;
+      }
+      
+      // Exclude System & Metadata (TimeCapsules, BubblSpace, etc.)
+      if (doc.metadata.source === 'timecapsule_export' ||
+          doc.metadata.source === 'timecapsule_import' ||
+          doc.metadata.source === 'aiframes_import' ||
+          doc.metadata.source === 'aiframes_combined' ||
           doc.title.toLowerCase().includes('timecapsule') ||
-          doc.title.toLowerCase().includes('research state')) {
+          doc.metadata.isGenerated === true) {
         return false;
       }
-
-      // Exclude generated documents (research outputs)
-      if (doc.metadata.isGenerated === true) {
-        return false;
-      }
-
-      // Only include user uploads and external content (like firecrawl)
-      return doc.metadata.source === 'user_upload' || 
-             doc.metadata.source === 'firecrawl' || 
-             !doc.metadata.source; // Include documents without explicit source (legacy user uploads)
+      
+      // Include everything else as user documents (uploads, Firecrawl, etc.)
+      // This matches the logic in DeepResearchApp.categorizeDocuments()
+      return true;
     });
   };
 
