@@ -4349,7 +4349,7 @@ export function DeepResearchComponent() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-hidden px-6">
+          <div className="flex-1 overflow-y-auto px-6">
             <Tabs value={documentManagerTab} onValueChange={setDocumentManagerTab} className="flex flex-col h-full">
               <TabsList className="grid w-full grid-cols-4 mb-4">
                 <TabsTrigger value="user" className="flex items-center gap-2">
@@ -4411,10 +4411,10 @@ export function DeepResearchComponent() {
               </div>
 
               {/* Document Content Tabs */}
-              <div className="flex-1 overflow-hidden">
-                <TabsContent value="user" className="h-full overflow-y-auto">
-                  <Card>
-                    <CardHeader className="pb-3">
+              <div className="flex-1 overflow-y-auto">
+                <TabsContent value="user" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Upload className="h-4 w-4 text-green-600" />
                         User Documents ({getDocumentCategoryCounts().user})
@@ -4423,7 +4423,7 @@ export function DeepResearchComponent() {
                         Your uploaded files, scraped content, and personal documents. These are available for learning research attachment.
                       </p>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("user").length > 0 ? (
                         <div className="space-y-2">
                           {getFilteredDocumentsByCategory("user").map((doc) => (
@@ -4468,9 +4468,9 @@ export function DeepResearchComponent() {
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="aiFrames" className="h-full overflow-y-auto">
-                  <Card>
-                    <CardHeader className="pb-3">
+                <TabsContent value="aiFrames" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Bot className="h-4 w-4 text-blue-600" />
                         AI Frames ({getDocumentCategoryCounts().aiFrames})
@@ -4479,7 +4479,7 @@ export function DeepResearchComponent() {
                         AI-generated learning frames and educational content from the AI-Frames system.
                       </p>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
                         <div className="space-y-2">
                           {getFilteredDocumentsByCategory("aiFrames").map((doc) => (
@@ -4520,9 +4520,9 @@ export function DeepResearchComponent() {
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="system" className="h-full overflow-y-auto">
-                  <Card>
-                    <CardHeader className="pb-3">
+                <TabsContent value="system" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Package className="h-4 w-4 text-purple-600" />
                         System & Metadata ({getDocumentCategoryCounts().system})
@@ -4531,7 +4531,7 @@ export function DeepResearchComponent() {
                         TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.
                       </p>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("system").length > 0 ? (
                         <div className="space-y-2">
                           {getFilteredDocumentsByCategory("system").map((doc) => (
@@ -4576,9 +4576,9 @@ export function DeepResearchComponent() {
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="agentLogs" className="h-full overflow-y-auto">
-                  <Card>
-                    <CardHeader className="pb-3">
+                <TabsContent value="agentLogs" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Settings className="h-4 w-4 text-orange-600" />
                         Agent Logs ({getDocumentCategoryCounts().agentLogs})
@@ -4587,7 +4587,7 @@ export function DeepResearchComponent() {
                         Multi-agent research session logs, performance metrics, and processing details.
                       </p>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
                         <div className="space-y-2">
                           {getFilteredDocumentsByCategory("agentLogs").map((doc) => (
