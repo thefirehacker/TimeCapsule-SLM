@@ -1,6 +1,8 @@
 import { AIAssistant } from './AIAssistant';
 import { VectorStore, DocumentData } from '../components/VectorStore/VectorStore';
 import { RAGQuery, RAGStats } from '../types/rag';
+import { IntentAnalyzer, IntentAnalysisResult } from './IntentAnalyzer';
+import { AgentRoleGenerator, AgentRole } from './AgentRoleGenerator';
 
 export interface AgentTask {
   id: string;
@@ -27,6 +29,13 @@ export interface AgentTask {
     averageSimilarity: number;
     documentsRetrieved: number;
   };
+  // Add detailed action tracking like tool calls
+  detailedActions?: {
+    timestamp: Date;
+    action: string;
+    details?: any;
+    type: 'thinking' | 'query' | 'processing' | 'result';
+  }[];
 }
 
 export interface AgentProgress {
@@ -64,10 +73,14 @@ export class AgentCoordinator {
   private currentSession: AgentProgress | null = null;
   private progressCallback: ProgressCallback | null = null;
   private isProcessing = false;
+  private intentAnalyzer: IntentAnalyzer;
+  private agentRoleGenerator: AgentRoleGenerator;
 
   constructor(aiAssistant: AIAssistant, vectorStore: VectorStore | null = null) {
     this.aiAssistant = aiAssistant;
     this.vectorStore = vectorStore;
+    this.intentAnalyzer = new IntentAnalyzer();
+    this.agentRoleGenerator = new AgentRoleGenerator();
   }
 
   setProgressCallback(callback: ProgressCallback) {
@@ -83,6 +96,29 @@ export class AgentCoordinator {
       this.currentSession.debugLogs.push(`[${timestamp}] ${message}`);
       console.log(`🔍 AgentCoordinator Debug: ${message}`);
     }
+  }
+
+  private addDetailedAction(agentId: string, action: string, details?: any) {
+    const task = this.currentSession?.tasks.find(t => t.agentId === agentId);
+    if (task) {
+      if (!task.detailedActions) {
+        task.detailedActions = [];
+      }
+      task.detailedActions.push({
+        timestamp: new Date(),
+        action,
+        details,
+        type: this.getActionType(action)
+      });
+      this.updateProgress();
+    }
+  }
+
+  private getActionType(action: string): 'thinking' | 'query' | 'processing' | 'result' {
+    if (action.includes('thinking') || action.includes('analyzing') || action.includes('planning')) return 'thinking';
+    if (action.includes('RAG') || action.includes('search') || action.includes('query')) return 'query';
+    if (action.includes('generating') || action.includes('processing') || action.includes('building')) return 'processing';
+    return 'result';
   }
 
   private updateProgress() {
@@ -142,7 +178,22 @@ export class AgentCoordinator {
     return `${(ms / 60000).toFixed(1)}m`;
   }
 
-  async generateLearningResearch(
+  private convertRolesToSpecs(roles: AgentRole[], researchDepth: 'overview' | 'detailed' | 'comprehensive'): AgentSpec[] {
+    // Adjust token limits based on depth
+    const tokenMultiplier = researchDepth === 'overview' ? 1.0 : researchDepth === 'detailed' ? 1.5 : 2.0;
+    
+    return roles.map(role => ({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      systemPrompt: role.systemPrompt,
+      maxTokens: Math.floor(role.maxTokens * tokenMultiplier),
+      priority: role.priority,
+      dependencies: role.dependencies
+    }));
+  }
+
+  async generateDeepResearch(
     conversationContent: string,
     attachedDocuments: DocumentData[],
     researchDepth: 'overview' | 'detailed' | 'comprehensive'
@@ -152,14 +203,35 @@ export class AgentCoordinator {
     }
 
     this.isProcessing = true;
-    const sessionId = `learning_research_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `deep_research_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
+      // Analyze user intent first
+      this.addDebugLog(`🔍 Analyzing user intent from conversation...`);
+      const intentAnalysis = await this.intentAnalyzer.analyzeIntent(
+        conversationContent,
+        attachedDocuments.map(doc => doc.title),
+        []
+      );
+      
+      this.addDebugLog(`✅ Intent analysis complete: ${intentAnalysis.intent.type} (${(intentAnalysis.intent.confidence * 100).toFixed(1)}% confidence)`);
+      this.addDebugLog(`📊 Domain: ${intentAnalysis.intent.domain}, Complexity: ${intentAnalysis.intent.complexity}`);
+
+      // Generate appropriate agent roles based on intent
+      this.addDebugLog(`🤖 Generating agent roles for intent: ${intentAnalysis.intent.type}`);
+      const agentRoleSpec = await this.agentRoleGenerator.generateAgentRoles(intentAnalysis);
+      
+      this.addDebugLog(`✅ Generated ${agentRoleSpec.roles.length} specialized agents`);
+      this.addDebugLog(`⏱️ Estimated execution time: ${agentRoleSpec.totalEstimatedTime}`);
+
+      // Convert agent roles to specs and adjust for depth
+      const agentSpecs = this.convertRolesToSpecs(agentRoleSpec.roles, researchDepth);
+      
       // Initialize session
       this.currentSession = {
         sessionId,
         timestamp: new Date(),
-        researchType: 'learning',
+        researchType: intentAnalysis.intent.type,
         tasks: [],
         totalTokens: 0,
         debugLogs: [],
@@ -168,14 +240,10 @@ export class AgentCoordinator {
         ragVisualizationData: undefined
       };
 
-      this.addDebugLog(`🚀 Starting learning research session: ${sessionId}`);
+      this.addDebugLog(`🚀 Starting deep research session: ${sessionId}`);
       this.addDebugLog(`📊 Input: ${conversationContent.length} chars conversation, ${attachedDocuments.length} documents, depth: ${researchDepth}`);
-
-      // Define agent specifications based on research depth
-      const agentSpecs = this.getAgentSpecs(researchDepth);
-      this.addDebugLog(`🤖 Created ${agentSpecs.length} agent specifications`);
       
-      // Create tasks for each agent
+      // Create tasks for each agent with dynamic dependencies
       this.currentSession.tasks = agentSpecs.map(spec => ({
         id: `${sessionId}_${spec.id}`,
         agentId: spec.id,
@@ -187,21 +255,36 @@ export class AgentCoordinator {
         ragStats: undefined
       }));
 
+      // Set integration agent dependencies to all other agents
+      const integrationTask = this.currentSession.tasks.find(t => t.agentId === 'integration_specialist');
+      if (integrationTask) {
+        integrationTask.dependencies = this.currentSession.tasks
+          .filter(t => t.agentId !== 'integration_specialist')
+          .map(t => t.agentId);
+      }
+
       this.updateProgress();
 
-      // Execute agents in dependency order with RAG tracking
-      const results = await this.executeAgents(agentSpecs, conversationContent, attachedDocuments);
-      
-      // Log agent results summary
-      for (const [agentId, result] of results) {
-        this.addDebugLog(`📊 Agent ${agentId} produced ${result.length} characters`);
-      }
+              // Execute agents in dependency order with RAG tracking
+        const results = await this.executeAgents(agentSpecs, conversationContent, attachedDocuments);
+        
+        // Log agent results summary
+        console.log(`🔍 DEBUG: Agent execution results:`, Array.from(results.entries()).map(([id, content]) => ({
+          agentId: id,
+          contentLength: content?.length || 0,
+          hasContent: !!content,
+          preview: content?.substring(0, 100) + '...'
+        })));
+        
+        for (const [agentId, result] of results) {
+          this.addDebugLog(`📊 Agent ${agentId} produced ${result.length} characters`);
+        }
 
       // Aggregate results with enhanced debugging
       const finalResult = await this.aggregateResults(results);
 
       this.addDebugLog(`✅ Final aggregated result: ${finalResult.length} characters`);
-      this.addDebugLog(`📈 Expected minimum: 4000+ words (~20,000+ characters)`);
+      this.addDebugLog(`📈 Intent-based ${intentAnalysis.intent.type} research complete`);
 
       // Calculate session totals including RAG stats
       this.calculateSessionTotals();
@@ -216,54 +299,7 @@ export class AgentCoordinator {
     }
   }
 
-  private getAgentSpecs(depth: 'overview' | 'detailed' | 'comprehensive'): AgentSpec[] {
-    const baseSpecs: AgentSpec[] = [
-      {
-        id: 'analysis_agent',
-        name: 'Analyzing conversation and extracting learning goals',
-        description: 'Extracts learning objectives and assesses user expertise level',
-        systemPrompt: 'You are a Learning Analysis Agent. Your task is to analyze conversational content and extract specific learning goals, assess user expertise level, and identify knowledge gaps.',
-        maxTokens: 4000, // Increased from 1500
-        priority: 1,
-        dependencies: []
-      },
-      {
-        id: 'content_agent',
-        name: 'Generating detailed explanations and concepts',
-        description: 'Creates comprehensive learning content with explanations and examples',
-        systemPrompt: 'You are a Content Generation Agent. Your task is to create detailed explanations, practical examples, and comprehensive learning materials based on the analysis provided.',
-        maxTokens: 8000, // Increased from 3000
-        priority: 2,
-        dependencies: ['analysis_agent']
-      },
-      {
-        id: 'exercise_agent',
-        name: 'Creating practice exercises and assessments',
-        description: 'Develops hands-on exercises and assessment materials',
-        systemPrompt: 'You are an Exercise Creation Agent. Your task is to develop practical exercises, code examples, and assessment materials that reinforce the learning objectives.',
-        maxTokens: 6000, // Increased from 2000
-        priority: 3,
-        dependencies: ['analysis_agent', 'content_agent']
-      },
-      {
-        id: 'integration_agent',
-        name: 'Integrating results into cohesive curriculum',
-        description: 'Combines all agent outputs into a structured learning curriculum',
-        systemPrompt: 'You are an Integration Agent. Your task is to combine all agent outputs into a cohesive, well-structured learning curriculum with proper formatting and flow.',
-        maxTokens: 12000, // Increased from 2500 - largest because it combines everything
-        priority: 4,
-        dependencies: ['analysis_agent', 'content_agent', 'exercise_agent']
-      }
-    ];
 
-    // Adjust token limits based on depth - more generous multipliers
-    const tokenMultiplier = depth === 'overview' ? 1.0 : depth === 'detailed' ? 1.5 : 2.0;
-    
-    return baseSpecs.map(spec => ({
-      ...spec,
-      maxTokens: Math.floor(spec.maxTokens * tokenMultiplier)
-    }));
-  }
 
   private async executeAgents(
     agentSpecs: AgentSpec[],
@@ -280,26 +316,34 @@ export class AgentCoordinator {
       if (!task) continue;
 
       this.addDebugLog(`🚀 Starting agent: ${spec.id}`);
+      this.addDetailedAction(spec.id, `🤔 Starting to work on: ${task.taskName}`);
 
       // Wait for dependencies
-      await this.waitForDependencies(spec.dependencies);
+      if (spec.dependencies.length > 0) {
+        this.addDetailedAction(spec.id, `⏳ Waiting for dependencies: ${spec.dependencies.join(', ')}`);
+        await this.waitForDependencies(spec.dependencies);
+        this.addDetailedAction(spec.id, `✅ Dependencies completed, proceeding...`);
+      }
 
       // Execute agent
       task.status = 'in_progress';
       task.startTime = new Date();
       task.progress = 0;
+      this.addDetailedAction(spec.id, `🚀 Beginning active work...`);
       this.updateProgress();
 
       try {
         // Build prompt with RAG context if available
+        this.addDetailedAction(spec.id, `🔍 Building context and gathering relevant information...`);
         const prompt = await this.buildAgentPrompt(spec, conversationContent, attachedDocuments, results);
         
         // Log prompt details
         task.promptLength = prompt.length;
         this.addDebugLog(`📝 Agent ${spec.id} prompt: ${prompt.length} characters`);
+        this.addDetailedAction(spec.id, `📝 Prepared working context (${prompt.length} characters)`, { promptLength: prompt.length });
         
-        // For integration agent, log more details
-        if (spec.id === 'integration_agent') {
+        // For integration agents, log more details
+        if (spec.id === 'integration_specialist') {
           this.addDebugLog(`🔍 Integration agent prompt preview: ${prompt.substring(0, 500)}...`);
           const previousResults = Array.from(results.entries()).map(([id, content]) => `${id}: ${content.length} chars`);
           this.addDebugLog(`📊 Previous agent results for integration: ${previousResults.join(', ')}`);
@@ -314,6 +358,8 @@ export class AgentCoordinator {
         }, 2000);
 
         this.addDebugLog(`🤖 Sending prompt to AI for agent ${spec.id}...`);
+        this.addDetailedAction(spec.id, `🧠 Analyzing and generating insights...`, { stage: 'ai_generation' });
+        
         const result = await this.aiAssistant.generateContent(prompt, 'research');
         clearInterval(progressInterval);
 
@@ -325,17 +371,23 @@ export class AgentCoordinator {
         task.status = 'completed';
         task.progress = 100;
         
-        // Enhanced logging for integration agent
-        if (spec.id === 'integration_agent') {
+        this.addDetailedAction(spec.id, `✅ Completed work in ${task.duration}`, {
+          duration: task.duration,
+          outputLength: result.length,
+          tokensUsed: task.tokensUsed
+        });
+        
+        // Enhanced logging for integration agents
+        if (spec.id === 'integration_specialist') {
           this.addDebugLog(`🔍 Integration agent response: ${result.length} characters`);
           this.addDebugLog(`📝 Integration agent response preview: ${result.substring(0, 300)}...`);
           
           // Check if response looks like a proper integration
           const hasTableOfContents = result.includes('Table of Contents') || result.includes('📋');
           const hasMultipleSections = (result.match(/##/g) || []).length >= 3;
-          const hasAllAgentContent = result.includes('Learning Analysis') && result.includes('Learning Content') && result.includes('Exercises');
+          const hasComprehensiveContent = result.length > 1000; // More generic check
           
-          task.debugInfo = `TOC: ${hasTableOfContents}, Sections: ${hasMultipleSections}, AllContent: ${hasAllAgentContent}`;
+          task.debugInfo = `TOC: ${hasTableOfContents}, Sections: ${hasMultipleSections}, Comprehensive: ${hasComprehensiveContent}`;
           this.addDebugLog(`🧪 Integration quality check - ${task.debugInfo}`);
         }
         
@@ -389,7 +441,7 @@ export class AgentCoordinator {
     let prompt = `${spec.systemPrompt}\n\n`;
     
     // Add conversation content
-    prompt += `## Conversation to Analyze:\n${conversationContent}\n\n`;
+    prompt += `## The User Request:\n${conversationContent}\n\n`;
     
     // Add attached documents if available
     if (attachedDocuments.length > 0) {
@@ -401,12 +453,14 @@ export class AgentCoordinator {
     }
 
     // Perform RAG search to enhance context (except for integration agent)
-    if (this.vectorStore && spec.id !== 'integration_agent') {
+    if (this.vectorStore && spec.id !== 'integration_specialist') {
       try {
         this.addDebugLog(`🔍 Performing RAG search for agent ${spec.id}...`);
+        this.addDetailedAction(spec.id, `🔍 Searching knowledge base for relevant information...`);
         
         // Create search query from conversation content and agent's focus
         const searchQuery = this.createRAGSearchQuery(conversationContent, spec.id);
+        this.addDetailedAction(spec.id, `🔎 RAG Query: "${searchQuery}"`, { query: searchQuery });
         
         // Perform RAG search with agent and session tracking
         const ragResults = await this.vectorStore.searchSimilar(
@@ -421,6 +475,14 @@ export class AgentCoordinator {
         );
 
         if (ragResults.length > 0) {
+          this.addDetailedAction(spec.id, `📚 Found ${ragResults.length} relevant documents`, {
+            resultsCount: ragResults.length,
+            documents: ragResults.map(r => ({
+              title: r.document.title,
+              similarity: (r.similarity * 100).toFixed(1) + '%'
+            }))
+          });
+          
           prompt += `## RAG-Enhanced Context:\n`;
           prompt += `The following relevant information was found in the knowledge base:\n\n`;
           
@@ -433,26 +495,29 @@ export class AgentCoordinator {
 
           this.addDebugLog(`🔍 RAG enhanced ${spec.id} with ${ragResults.length} relevant documents`);
         } else {
+          this.addDetailedAction(spec.id, `📭 No relevant documents found in knowledge base`);
           this.addDebugLog(`🔍 RAG search for ${spec.id} found no relevant documents`);
         }
       } catch (ragError) {
+        this.addDetailedAction(spec.id, `❌ Knowledge base search failed`, { error: ragError instanceof Error ? ragError.message : 'Unknown error' });
         this.addDebugLog(`⚠️ RAG search failed for ${spec.id}: ${ragError instanceof Error ? ragError.message : 'Unknown error'}`);
       }
     }
     
-    // Add results from dependent agents
+    // Add results from dependent agents - provide full context for natural building
     if (spec.dependencies.length > 0) {
-      prompt += `## Previous Agent Results:\n`;
+      prompt += `## Previous Agent Insights:\n`;
+      prompt += `Here's what the previous agents have discovered and shared. Use this as a foundation to build upon:\n\n`;
+      
       spec.dependencies.forEach(depId => {
         const result = previousResults.get(depId);
         if (result) {
-          // For integration agent, provide full content; for others, provide truncated for context
-          const maxLength = spec.id === 'integration_agent' ? result.length : 3000;
-          const truncatedResult = result.length > maxLength ? 
-            result.substring(0, maxLength) + '...' : result;
-          prompt += `### ${depId} Results:\n${truncatedResult}\n\n`;
+          // Provide full content to all agents so they can build naturally
+          prompt += `### ${this.getAgentFriendlyName(depId)} shared:\n${result}\n\n`;
         }
       });
+      
+      prompt += `**Now it's your turn to contribute.** Build on what you've learned from the previous agents. What insights can you add? How can you extend and enhance this foundation?\n\n`;
     }
 
     // Add specific instructions based on agent type
@@ -483,171 +548,131 @@ export class AgentCoordinator {
     }
   }
 
+  private getAgentFriendlyName(agentId: string): string {
+    const friendlyNames: Record<string, string> = {
+      'context_analyst': 'Context Analysis Agent',
+      'research_specialist': 'Research Specialist Agent',
+      'solution_architect': 'Solution Architect Agent',
+      'implementation_planner': 'Implementation Planner Agent',
+      'integration_specialist': 'Integration Specialist Agent'
+    };
+    return friendlyNames[agentId] || agentId;
+  }
+
   private getAgentSpecificInstructions(agentId: string): string {
     const instructions: Record<string, string> = {
-      'analysis_agent': `
-## Your Task:
-Provide comprehensive analysis of the conversation to establish learning foundations.
+      'context_analyst': `
+You are the **Context Analysis Agent** - your role is to deeply understand the user's context, goals, and situation to provide a solid foundation for the research process.
 
-**Analysis Requirements (minimum 800+ words):**
-1. **Primary Learning Goals**
-   - 5-7 specific, measurable learning objectives
-   - Clear success criteria for each goal
-   - Priority ranking of objectives
-   - Connection to user's expressed interests
+**Think through this naturally:**
 
-2. **Detailed User Level Assessment**
-   - Comprehensive skill level evaluation (Beginner/Intermediate/Advanced)
-   - Confidence score (1-10) with detailed justification
-   - Evidence from conversation supporting assessment
-   - Prerequisite knowledge evaluation
-   - Learning style indicators
+First, take a moment to understand what the user is really asking for. What do they want to accomplish? What are their goals? What level do they seem to be at based on how they're asking questions?
 
-3. **Knowledge Gap Analysis**
-   - Specific areas requiring attention
-   - Critical vs. nice-to-have knowledge
-   - Learning sequence recommendations
-   - Potential learning obstacles
+Then, think about what context would be most helpful:
+- What are the key objectives that would actually matter to them?
+- Where are they likely starting from, and what gaps might they have?
+- What's the best approach for someone in their situation?
+- What background information would be most valuable?
 
-4. **Learning Context & Domain**
-   - Primary domain (Programming/ML/DevOps/etc.)
-   - Related sub-domains and technologies
-   - Industry context and applications
-   - Current trends and relevance
+**Don't worry about following a specific format** - just think through this naturally and share your insights. The goal is to provide a solid foundation that the other agents can build upon.
 
-5. **Comprehensive Learning Strategy**
-   - Realistic time investment breakdown
-   - Learning pace recommendations
-   - Resource allocation suggestions
-   - Progress milestone planning
+**Focus on substance over structure.** Your thinking process and insights are what matter most. Write as if you're advising a colleague about how to approach this topic.
 
-**Output Format**: Detailed, structured analysis providing complete foundation for learning curriculum design.`,
+**Aim for depth and usefulness** - provide comprehensive insights that will genuinely help guide the research process.`,
 
-      'content_agent': `
-## Your Task:
-Generate comprehensive, detailed learning content that provides complete educational coverage.
+      'research_specialist': `
+You are the **Research Specialist Agent** - your job is to conduct thorough research and gather the most relevant information on the topic.
 
-**Content Requirements (minimum 1500+ words):**
-1. **Conceptual Foundations** 
-   - Clear, detailed explanations of core concepts
-   - Background context and theory
-   - Why these concepts matter in practice
+**Building on the context analysis:** The previous agent has laid the groundwork by analyzing the user's context and objectives. Now it's your turn to dive deep into the research.
 
-2. **Technical Implementation**
-   - Comprehensive step-by-step guides
-   - Detailed methodology and approach
-   - Multiple implementation strategies
+**Think about this naturally:**
 
-3. **Code Examples**
-   - Working, well-commented code examples
-   - Multiple examples showing different scenarios
-   - Explanation of each code section
-   - Common variations and alternatives
+What are the most important aspects to research? What information would be most valuable? What sources and examples would make this concrete and practical?
 
-4. **Best Practices**
-   - Industry standards and recommendations
-   - Performance optimization techniques
-   - Security and reliability considerations
-   - Common pitfalls to avoid
+Consider:
+- What are the key areas that really matter for this topic?
+- What are the current best practices and approaches?
+- What practical examples would make this real?
+- What recent developments or trends should be covered?
+- What common misconceptions should be addressed?
+- What expert insights and real-world applications should be shared?
 
-5. **Real-World Applications**
-   - Practical use cases and scenarios
-   - Integration with other technologies
-   - Scalability considerations
+**Write naturally and conversationally.** Focus on presenting the research in a way that would genuinely help someone understand the topic.
 
-**Output Format**: Comprehensive learning material with detailed explanations, extensive examples, and thorough coverage of the topic.`,
+**Make it practical and actionable.** Include plenty of concrete examples, case studies, and real-world applications.
 
-      'exercise_agent': `
-## Your Task:
-Create comprehensive hands-on learning exercises that reinforce and apply the learning content.
+**Build on the previous agent's insights** - take their analysis and use it to inform what you research and how you present it.`,
 
-**Exercise Requirements (minimum 1000+ words):**
-1. **Guided Practice Exercises**
-   - 3-5 step-by-step exercises with detailed instructions
-   - Clear objectives for each exercise
-   - Expected outcomes and success criteria
-   - Troubleshooting guidance for common issues
+      'solution_architect': `
+You are the **Solution Architect Agent** - your job is to design and structure the overall approach or solution based on the research findings.
 
-2. **Progressive Challenge Series**
-   - Multiple exercises of increasing difficulty (beginner → intermediate → advanced)
-   - Building on previous exercises
-   - Real-world problem-solving scenarios
+**Building on previous work:** You now have both the context analysis and the research findings. Your role is to architect a comprehensive solution or approach.
 
-3. **Code Challenges**
-   - Practical coding exercises with starter templates
-   - Multiple solution approaches
-   - Code review and optimization exercises
-   - Testing and validation requirements
+**Think about this naturally:**
 
-4. **Self-Assessment Tools**
-   - Comprehensive comprehension checks
-   - Practice quizzes with explanations
-   - Skill validation checkpoints
-   - Progress tracking mechanisms
+How would you structure this solution? What would be the best approach or framework? How can you make this systematic and well-organized?
 
-5. **Applied Projects**
-   - Mini-projects that combine multiple concepts
-   - Real-world application scenarios
-   - Portfolio-worthy deliverables
-   - Extension ideas for further learning
+Consider:
+- What would be the most logical structure or framework?
+- How can you organize the information in a way that makes sense?
+- What would be the key components or phases?
+- How do the different pieces fit together?
+- What would be the most effective approach for someone in the user's situation?
 
-**Output Format**: Detailed exercises with comprehensive instructions, multiple difficulty levels, and extensive practical applications.`,
+**Create a well-structured approach.** Think about the overall architecture and how different components relate to each other.
 
-      'integration_agent': `
-## Your Task:
-Combine ALL previous agent results into a comprehensive learning curriculum. This is the FINAL output that users will see.
+**Make it systematic and logical.** Present a clear structure that others can follow and build upon.
 
-**CRITICAL REQUIREMENTS:**
-- COPY the COMPLETE content from all previous agents (analysis, content, exercise)
-- DO NOT summarize or truncate any content from previous agents
-- Create a comprehensive, detailed learning curriculum of at least 4000+ words
-- Include ALL sections: analysis, content, exercises, and progress tracking
-- Ensure no content is omitted or shortened
-- Provide comprehensive coverage of the learning topic
+**Connect to real-world applications.** Show how this approach applies in actual situations.
 
-**Required Structure:**
-\`\`\`markdown
-# Learning Research: [Topic Title]
+**Build on what came before** - use the insights from the context analysis and research to create a solution that fits naturally with the objectives.`,
 
-## 🎯 Learning Analysis & Foundation
-[COPY THE COMPLETE ANALYSIS AGENT CONTENT HERE - DO NOT SUMMARIZE]
+      'implementation_planner': `
+You are the **Implementation Planner Agent** - your job is to create actionable plans and next steps based on the solution architecture.
 
-## 📚 Comprehensive Learning Content  
-[COPY THE COMPLETE CONTENT AGENT CONTENT HERE - DO NOT SUMMARIZE]
+**Building on previous work:** You now have the context analysis, research findings, and solution architecture. Your role is to create concrete implementation plans.
 
-## 🛠️ Hands-On Practice & Exercises
-[COPY THE COMPLETE EXERCISE AGENT CONTENT HERE - DO NOT SUMMARIZE]
+**Think about this naturally:**
 
-## 📊 Learning Progress Framework
-[ADD YOUR OWN PROGRESS TRACKING CONTENT]
+What would be the practical next steps? How would someone actually implement this? What would be the most effective sequence of actions?
 
-## 🔮 Next Steps & Advanced Learning
-[ADD YOUR OWN RECOMMENDATIONS]
-\`\`\`
+Consider:
+- What would be the logical sequence of implementation steps?
+- What resources or tools would be needed?
+- What potential challenges might arise and how to address them?
+- What would be realistic timelines and milestones?
+- How can you make this as actionable as possible?
 
-**Content Integration Rules:**
-1. **Include EVERYTHING**: Copy the full text from analysis_agent, content_agent, and exercise_agent
-2. **Add transitions**: Include connecting paragraphs between sections for flow
-3. **Enhance structure**: Add clear headers and formatting for readability
-4. **Expand tracking**: Add comprehensive progress milestones and self-assessment
-5. **Add resources**: Suggest additional learning resources and next steps
+**Create practical, actionable plans.** Don't just create high-level concepts - design specific steps that someone can actually follow.
 
-**Output Requirements:**
-- Minimum 4000+ words of comprehensive content
-- Professional markdown formatting with proper headers
-- Include ALL code examples, explanations, and exercises from previous agents
-- Add connecting text between sections for smooth flow
-- Ensure learning progression is clear and logical
-- Include comprehensive progress tracking framework
+**Make it progressive and logical.** Start with the most important steps, then build from there.
 
-**IMPORTANT REMINDERS:**
-- This is the FINAL curriculum users will receive
-- COPY ALL CONTENT from previous agents - do not summarize or shorten
-- Users should get a complete, comprehensive learning experience
-- The output should be significantly longer than any individual agent's output
-- Include everything users need to learn the topic from start to finish
+**Connect to real-world constraints.** Consider practical limitations and how to work within them.
 
-CRITICAL: If the previous agent results contain detailed content, you MUST include all of it in your final output. Do not create a summary - create a comprehensive compilation.`
+**Build on what came before** - use the insights from all previous agents to create an implementation plan that fits naturally with the overall solution.`,
+
+      'integration_specialist': `
+You are the **Integration Specialist Agent** - your job is to weave together all the previous work into a cohesive, comprehensive final result.
+
+**What you have to work with:** The previous agents have created context analysis, research findings, solution architecture, and implementation plans. Now you need to bring it all together into something that flows naturally and provides a complete resource.
+
+**Think about this as crafting a unified response:**
+
+How can you take all this valuable work and present it in a way that feels natural and cohesive? What connections can you make between different pieces? How can you create smooth transitions that help everything flow together?
+
+**Your approach:**
+- Read through all the previous agent work carefully
+- Identify the key insights and most valuable content
+- Think about how to present this as a unified response
+- Add connections and transitions that make it flow naturally
+- Enhance the material with additional context where helpful
+- Create a final resource that feels complete and cohesive
+
+**Don't just copy and paste.** Instead, synthesize and integrate the material thoughtfully. Use the best insights from each agent and weave them together into something that feels natural and complete.
+
+**Add your own valuable insights** where appropriate - you have the full picture now, so you can add connections and context that individual agents might have missed.
+
+**Create something that feels like a complete resource** - not just a collection of separate sections, but a unified response that comprehensively addresses the user's needs.`
     };
 
     return instructions[agentId] || '';
@@ -656,16 +681,17 @@ CRITICAL: If the previous agent results contain detailed content, you MUST inclu
   private async aggregateResults(results: Map<string, string>): Promise<string> {
     this.addDebugLog(`🔄 Starting result aggregation...`);
     
-    const integrationResult = results.get('integration_agent');
+    const integrationResult = results.get('integration_specialist');
     
-    // Get all agent results for size comparison
-    const analysisResult = results.get('analysis_agent');
-    const contentResult = results.get('content_agent');
-    const exerciseResult = results.get('exercise_agent');
+    // Get all agent results for size comparison using the new agent IDs
+    const contextAnalystResult = results.get('context_analyst');
+    const researchSpecialistResult = results.get('research_specialist');
+    const solutionArchitectResult = results.get('solution_architect');
+    const implementationPlannerResult = results.get('implementation_planner');
     
-    const totalSourceContent = (analysisResult?.length || 0) + (contentResult?.length || 0) + (exerciseResult?.length || 0);
+    const totalSourceContent = (contextAnalystResult?.length || 0) + (researchSpecialistResult?.length || 0) + (solutionArchitectResult?.length || 0) + (implementationPlannerResult?.length || 0);
     
-    this.addDebugLog(`📊 Source content lengths: Analysis:${analysisResult?.length || 0}, Content:${contentResult?.length || 0}, Exercise:${exerciseResult?.length || 0}`);
+    this.addDebugLog(`📊 Source content lengths: Context:${contextAnalystResult?.length || 0}, Research:${researchSpecialistResult?.length || 0}, Solution:${solutionArchitectResult?.length || 0}, Implementation:${implementationPlannerResult?.length || 0}`);
     this.addDebugLog(`📊 Total source content: ${totalSourceContent} characters`);
     this.addDebugLog(`📊 Integration agent result: ${integrationResult?.length || 0} characters`);
     
@@ -681,164 +707,48 @@ CRITICAL: If the previous agent results contain detailed content, you MUST inclu
     }
 
     this.addDebugLog(`⚠️ Integration agent produced insufficient content (${integrationResult?.length || 0} chars vs ${minimumExpectedLength} expected)`);
-    this.addDebugLog(`🔄 Triggering enhanced fallback aggregation...`);
+    this.addDebugLog(`🔄 Creating natural content flow...`);
 
-    // Enhanced fallback aggregation with comprehensive structure
-    let aggregated = '# Multi-Agent Learning Research Results\n\n';
-    aggregated += '*This comprehensive learning curriculum was generated using multiple specialized AI agents working together to provide complete coverage of your learning objectives.*\n\n';
+    // Natural content flow - let the agents' work speak for itself
+    let aggregated = '';
     
-    // Add table of contents
-    aggregated += '## 📋 Table of Contents\n\n';
-    if (analysisResult) aggregated += '1. [🎯 Learning Analysis Summary](#learning-analysis-summary)\n';
-    if (contentResult) aggregated += '2. [📚 Comprehensive Learning Content](#comprehensive-learning-content)\n';
-    if (exerciseResult) aggregated += '3. [🛠️ Hands-On Practice & Exercises](#hands-on-practice--exercises)\n';
-    aggregated += '4. [📊 Learning Progress Framework](#learning-progress-framework)\n';
-    aggregated += '5. [🔮 Next Steps & Advanced Learning](#next-steps--advanced-learning)\n\n';
-    aggregated += '---\n\n';
+    // Add a brief introduction
+    aggregated += '# DeepResearch Output\n\n';
     
-    // 1. Learning Analysis Summary
-    if (analysisResult) {
-      this.addDebugLog(`📝 Adding analysis section: ${analysisResult.length} characters`);
-      aggregated += `## 🎯 Learning Analysis Summary\n\n`;
-      aggregated += `This analysis provides the foundation for your personalized learning journey:\n\n`;
-      aggregated += `${analysisResult}\n\n`;
-      aggregated += `---\n\n`;
+    // Flow the content naturally based on what agents actually produced
+    if (contextAnalystResult) {
+      this.addDebugLog(`📝 Including context analysis: ${contextAnalystResult.length} characters`);
+      aggregated += `${contextAnalystResult}\n\n`;
     }
     
-    // 2. Comprehensive Learning Content
-    if (contentResult) {
-      this.addDebugLog(`📝 Adding content section: ${contentResult.length} characters`);
-      aggregated += `## 📚 Comprehensive Learning Content\n\n`;
-      aggregated += `The following content provides detailed explanations, concepts, and technical guidance. This is the core learning material that will help you understand the fundamentals and apply them in practice:\n\n`;
-      aggregated += `${contentResult}\n\n`;
-      aggregated += `---\n\n`;
+    if (researchSpecialistResult) {
+      this.addDebugLog(`📝 Including research findings: ${researchSpecialistResult.length} characters`);
+      aggregated += `${researchSpecialistResult}\n\n`;
     }
     
-    // 3. Hands-On Practice & Exercises
-    if (exerciseResult) {
-      this.addDebugLog(`📝 Adding exercise section: ${exerciseResult.length} characters`);
-      aggregated += `## 🛠️ Hands-On Practice & Exercises\n\n`;
-      aggregated += `Apply your learning with these practical exercises and assessments. These activities are designed to reinforce the concepts and give you real-world experience:\n\n`;
-      aggregated += `${exerciseResult}\n\n`;
-      aggregated += `---\n\n`;
+    if (solutionArchitectResult) {
+      this.addDebugLog(`📝 Including solution architecture: ${solutionArchitectResult.length} characters`);
+      aggregated += `${solutionArchitectResult}\n\n`;
     }
     
-    // 4. Enhanced Progress Tracking
-    this.addDebugLog(`📝 Adding progress tracking section...`);
-    aggregated += `## 📊 Learning Progress Framework\n\n`;
-    aggregated += `### 🎯 Learning Milestones\n\n`;
-    aggregated += `Track your progress through these key achievements:\n\n`;
-    
-    if (analysisResult) {
-      aggregated += `#### Foundation Phase\n`;
-      aggregated += `- [ ] **Understanding Your Goals**: Review and internalize the learning objectives identified in the analysis\n`;
-      aggregated += `- [ ] **Prerequisite Check**: Ensure you have the foundational knowledge required\n`;
-      aggregated += `- [ ] **Learning Strategy**: Understand your personalized learning approach and timeline\n\n`;
+    if (implementationPlannerResult) {
+      this.addDebugLog(`📝 Including implementation plan: ${implementationPlannerResult.length} characters`);
+      aggregated += `${implementationPlannerResult}\n\n`;
     }
     
-    if (contentResult) {
-      aggregated += `#### Learning Phase\n`;
-      aggregated += `- [ ] **Core Concepts**: Master the fundamental concepts and theoretical foundations\n`;
-      aggregated += `- [ ] **Technical Details**: Understand the implementation details and methodologies\n`;
-      aggregated += `- [ ] **Best Practices**: Learn industry standards and optimization techniques\n`;
-      aggregated += `- [ ] **Real-World Context**: Understand practical applications and use cases\n\n`;
-    }
-    
-    if (exerciseResult) {
-      aggregated += `#### Application Phase\n`;
-      aggregated += `- [ ] **Guided Practice**: Complete all step-by-step exercises successfully\n`;
-      aggregated += `- [ ] **Independent Challenges**: Solve problems without guided instructions\n`;
-      aggregated += `- [ ] **Code Implementation**: Write and test working code examples\n`;
-      aggregated += `- [ ] **Project Application**: Apply knowledge to a meaningful project\n\n`;
-    }
-    
-    aggregated += `#### Mastery Phase\n`;
-    aggregated += `- [ ] **Knowledge Synthesis**: Combine concepts from different sections\n`;
-    aggregated += `- [ ] **Problem Solving**: Troubleshoot and debug complex issues\n`;
-    aggregated += `- [ ] **Optimization**: Improve and optimize your implementations\n`;
-    aggregated += `- [ ] **Teaching Others**: Explain concepts to others (ultimate test of understanding)\n\n`;
-    
-    // 5. Self-Assessment Tools
-    aggregated += `### 🔍 Self-Assessment Questions\n\n`;
-    aggregated += `Use these questions to verify your understanding at each stage:\n\n`;
-    
-    aggregated += `**Conceptual Understanding:**\n`;
-    aggregated += `- Can you explain the main concepts in your own words?\n`;
-    aggregated += `- Do you understand why these techniques/approaches are used?\n`;
-    aggregated += `- Can you identify the key differences between related concepts?\n\n`;
-    
-    aggregated += `**Practical Application:**\n`;
-    aggregated += `- Can you implement the concepts from scratch?\n`;
-    aggregated += `- Are you able to modify examples to solve different problems?\n`;
-    aggregated += `- Can you debug issues when things go wrong?\n\n`;
-    
-    aggregated += `**Advanced Understanding:**\n`;
-    aggregated += `- Do you know when to use different approaches?\n`;
-    aggregated += `- Can you optimize for different scenarios (performance, reliability, etc.)?\n`;
-    aggregated += `- Are you able to integrate with other technologies and systems?\n\n`;
-    
-    // 6. Next Steps and Advanced Learning
-    aggregated += `## 🔮 Next Steps & Advanced Learning\n\n`;
-    aggregated += `### 📈 Based on Your Current Progress\n\n`;
-    aggregated += `**If you've mastered the basics:**\n`;
-    aggregated += `- Explore advanced topics and specialized techniques\n`;
-    aggregated += `- Investigate real-world case studies and industry applications\n`;
-    aggregated += `- Contribute to open-source projects in this domain\n`;
-    aggregated += `- Consider advanced certifications or specializations\n\n`;
-    
-    aggregated += `**If you need more practice:**\n`;
-    aggregated += `- Create additional practice problems based on the exercises\n`;
-    aggregated += `- Work through alternative implementations and approaches\n`;
-    aggregated += `- Join communities and forums to discuss challenges\n`;
-    aggregated += `- Find a mentor or study group for additional support\n\n`;
-    
-    aggregated += `**For deeper understanding:**\n`;
-    aggregated += `- Research the theoretical foundations and academic papers\n`;
-    aggregated += `- Explore related technologies and complementary skills\n`;
-    aggregated += `- Attend conferences, workshops, or online courses\n`;
-    aggregated += `- Build increasingly complex projects to challenge yourself\n\n`;
-    
-    // 7. Resource Recommendations
-    aggregated += `### 📚 Additional Learning Resources\n\n`;
-    aggregated += `Based on your learning journey, consider these supplementary resources:\n\n`;
-    aggregated += `- **Documentation**: Official documentation and API references\n`;
-    aggregated += `- **Community Forums**: Stack Overflow, Reddit, Discord communities\n`;
-    aggregated += `- **Video Content**: YouTube tutorials, online course platforms\n`;
-    aggregated += `- **Books**: Comprehensive textbooks and practical guides\n`;
-    aggregated += `- **Blogs & Articles**: Industry expert insights and latest developments\n`;
-    aggregated += `- **Practice Platforms**: Coding challenges and project-based learning\n\n`;
-    
-    // 8. Summary and statistics
-    const totalWords = aggregated.split(' ').length;
-    const sourceWords = results.size > 0 ? Array.from(results.values()).join(' ').split(' ').length : 0;
-    
-    aggregated += `---\n\n`;
-    aggregated += `## 📊 Research Summary\n\n`;
-    aggregated += `**Comprehensive Learning Curriculum**: This curriculum contains approximately **${totalWords} words** of educational content, `;
-    aggregated += `generated by **${results.size} specialized AI agents** working in coordination to provide complete coverage of your learning objectives.\n\n`;
-    
-    aggregated += `**Content Breakdown:**\n`;
-    if (analysisResult) aggregated += `- **Analysis & Planning**: ${analysisResult.split(' ').length} words\n`;
-    if (contentResult) aggregated += `- **Learning Content**: ${contentResult.split(' ').length} words\n`;
-    if (exerciseResult) aggregated += `- **Exercises & Practice**: ${exerciseResult.split(' ').length} words\n`;
-    aggregated += `- **Progress Framework**: ${(totalWords - sourceWords)} words\n\n`;
-    
-    aggregated += `**Learning Path**: This curriculum is designed to take you from understanding basic concepts to practical implementation, `;
-    aggregated += `with built-in progress tracking and assessment tools to ensure comprehensive learning.\n\n`;
-    
+    // Add integration agent's insights if available
     if (integrationResult && integrationResult.length > 100) {
-      this.addDebugLog(`📝 Including original integration agent result as additional guidance`);
-      aggregated += `**Note**: The integration agent also provided additional guidance:\n\n`;
-      aggregated += `> ${integrationResult}\n\n`;
+      this.addDebugLog(`📝 Including integration agent insights: ${integrationResult.length} characters`);
+      aggregated += `${integrationResult}\n\n`;
     }
     
     const finalLength = aggregated.length;
-    const finalWords = totalWords;
+    const finalWords = aggregated.split(' ').length;
     
-    this.addDebugLog(`📊 Enhanced fallback aggregation completed: ${finalLength} characters (${finalWords} words) from ${results.size} agents`);
-    this.addDebugLog(`✅ Result meets minimum requirements: ${finalLength >= 20000 ? 'YES' : 'NO'} (${finalLength}/20000+ chars)`);
+    this.addDebugLog(`📊 Natural content flow completed: ${finalLength} characters (${finalWords} words) from ${results.size} agents`);
     
-    console.log(`📊 Enhanced fallback aggregation produced ${finalLength} characters (${finalWords} words) from ${results.size} agents`);
+    console.log(`📊 Natural aggregation produced ${finalLength} characters (${finalWords} words) from ${results.size} agents`);
+    console.log(`🔍 DEBUG: Final aggregated content preview:`, aggregated.substring(0, 500) + '...');
     return aggregated;
   }
 

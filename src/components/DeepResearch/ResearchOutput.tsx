@@ -8,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   FileText,
   BookOpen,
@@ -21,6 +23,10 @@ import {
   Eye,
   Edit3,
   Save,
+  Maximize2,
+  Minimize2,
+  Loader2,
+  X,
 } from "lucide-react";
 
 interface ResearchOutputProps {
@@ -28,6 +34,7 @@ interface ResearchOutputProps {
   currentTab: "research" | "sources" | "notes";
   onTabChange: (tab: "research" | "sources" | "notes") => void;
   onClearOutput: () => void;
+  aiAssistant?: any; // For summarization
 }
 
 export function ResearchOutput({
@@ -35,15 +42,41 @@ export function ResearchOutput({
   currentTab,
   onTabChange,
   onClearOutput,
+  aiAssistant,
 }: ResearchOutputProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editableContent, setEditableContent] = useState("");
+  
+  // Summarization state
+  const [summarizationLevel, setSummarizationLevel] = useState<'none' | 'brief' | 'moderate' | 'concise'>('none');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [originalContent, setOriginalContent] = useState<string>("");
+  const [summarizedContent, setSummarizedContent] = useState<string>("");
+  const [showSummaryControls, setShowSummaryControls] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Initialize editable content when research results change
   useEffect(() => {
+    console.log(`🔍 DEBUG: ResearchOutput received researchResults:`, {
+      hasResults: !!researchResults,
+      length: researchResults?.length || 0,
+      preview: researchResults?.substring(0, 200) + '...',
+      isEditing
+    });
+    
     if (researchResults && !isEditing) {
-      const htmlContent = convertMarkdownToHTML(researchResults);
+      const htmlContent = formatMarkdownToHTML(researchResults);
       setEditableContent(htmlContent);
+      
+      // Auto-show summary controls if content is long (>10,000 characters)
+      if (researchResults.length > 10000) {
+        setShowSummaryControls(true);
+      }
+      
+      // Store original content and reset summarization state
+      setOriginalContent(researchResults);
+      setSummarizedContent("");
+      setSummarizationLevel('none');
     }
   }, [researchResults, isEditing]);
 
@@ -51,7 +84,7 @@ export function ResearchOutput({
     if (!isEditing) {
       // Entering edit mode - initialize content
       const htmlContent = researchResults
-        ? convertMarkdownToHTML(researchResults)
+        ? formatMarkdownToHTML(researchResults)
         : "";
       setEditableContent(htmlContent);
     }
@@ -67,65 +100,201 @@ export function ResearchOutput({
   const handleContentChange = (content: string) => {
     setEditableContent(content);
   };
-  const convertMarkdownToHTML = (content: string) => {
-    if (!content) return "";
 
-    // Convert markdown to HTML for the rich text editor
-    let html = content
-      // Headers
-      .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
-      .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-      .replace(/^## (.*$)/gim, "<h2>$1</h2>")
-      .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-
-      // Bold and italic
-      .replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>")
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.*?)\*/g, "<em>$1</em>")
-
-      // Strikethrough
-      .replace(/~~(.*?)~~/g, "<s>$1</s>")
-
-      // Inline code
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-
-      // Math equations
-      .replace(/\$\$([^$]+)\$\$/g, '<span class="math-formula">$1</span>')
-      .replace(/\\\[(.*?)\\\]/g, '<span class="math-formula">$1</span>')
-      .replace(/\\\((.*?)\\\)/g, '<span class="math-formula">$1</span>')
-
-      // Links
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-
-      // Images
-      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
-
-      // Code blocks
-      .replace(/```(\w+)?\n([\s\S]*?)```/g, "<pre><code>$2</code></pre>")
-
-      // Blockquotes
-      .replace(/^> (.*$)/gim, "<blockquote>$1</blockquote>")
-
-      // Lists - handle nested structure
-      .replace(/^(\s*)- (.*$)/gim, "<li>$2</li>")
-      .replace(/^(\s*)\d+\. (.*$)/gim, "<li>$2</li>")
-
-      // Horizontal rules
-      .replace(/^---$/gim, "<hr>")
-      .replace(/^\*\*\*$/gim, "<hr>")
-
-      // Line breaks and paragraphs
-      .replace(/\n\n/g, "</p><p>")
-      .replace(/^\n/g, "<p>")
-      .replace(/\n$/g, "</p>");
-
-    // Wrap in paragraph tags if not already wrapped
-    if (!html.startsWith("<") && html.trim()) {
-      html = `<p>${html}</p>`;
+  // Summarization functionality
+  const handleSummarization = async (level: 'brief' | 'moderate' | 'concise') => {
+    if (!aiAssistant || !originalContent) {
+      console.warn('AI Assistant not available or no content to summarize');
+      return;
     }
 
-    // Clean up any double paragraph tags
-    html = html.replace(/<p><\/p>/g, "");
+    setIsSummarizing(true);
+    setSummarizationLevel(level);
+
+    try {
+      const summarizationPrompts = {
+        brief: {
+          instruction: 'Create a brief summary that captures the key points and essential information',
+          targetReduction: 0.3,
+          preserveElements: ['main headings', 'critical code blocks', 'important conclusions']
+        },
+        moderate: {
+          instruction: 'Create a moderate summary that maintains important details and examples',
+          targetReduction: 0.6,
+          preserveElements: ['headings', 'code blocks', 'key examples', 'important lists', 'conclusions']
+        },
+        concise: {
+          instruction: 'Create a very concise summary with only the most essential information',
+          targetReduction: 0.2,
+          preserveElements: ['main headings', 'critical code blocks', 'key conclusions']
+        }
+      };
+
+      const config = summarizationPrompts[level];
+      const targetLength = Math.round(originalContent.length * config.targetReduction);
+
+      const prompt = `You are an expert content summarizer. Create a ${level} summary of the following research content.
+
+## Instructions:
+- ${config.instruction}
+- Target length: approximately ${targetLength} characters (${Math.round(targetLength/5)} words)
+- Preserve: ${config.preserveElements.join(', ')}
+- Maintain the original markdown structure and formatting
+- Keep all essential code examples and technical details
+- Remove redundant explanations and verbose descriptions
+- Ensure the summary is complete and self-contained
+
+## Content to Summarize:
+${originalContent}
+
+## ${level.charAt(0).toUpperCase() + level.slice(1)} Summary:`;
+
+      const summarized = await aiAssistant.generateContent(prompt, 'research');
+      setSummarizedContent(summarized);
+      
+      // Update the display content
+      const htmlContent = formatMarkdownToHTML(summarized);
+      setEditableContent(htmlContent);
+
+      console.log(`✅ Summarization completed`, {
+        level,
+        originalLength: originalContent.length,
+        summarizedLength: summarized.length,
+        reductionAchieved: Math.round((1 - summarized.length / originalContent.length) * 100) + '%'
+      });
+
+    } catch (error) {
+      console.error('❌ Summarization failed:', error);
+      // Reset to original content on error
+      setSummarizationLevel('none');
+      const htmlContent = formatMarkdownToHTML(originalContent);
+      setEditableContent(htmlContent);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const resetToOriginal = () => {
+    setSummarizationLevel('none');
+    setSummarizedContent("");
+    const htmlContent = formatMarkdownToHTML(originalContent);
+    setEditableContent(htmlContent);
+  };
+
+  const toggleSummaryControls = () => {
+    setShowSummaryControls(!showSummaryControls);
+  };
+
+  // Utility function for markdown to HTML conversion
+  const formatMarkdownToHTML = (markdown: string): string => {
+    let html = markdown;
+
+    // Convert headers
+    html = html.replace(
+      /^#{6}\s(.+)$/gm,
+      '<h6 style="color: #4facfe; margin: 20px 0 10px 0; font-weight: 600; font-size: 14px;">$1</h6>'
+    );
+    html = html.replace(
+      /^#{5}\s(.+)$/gm,
+      '<h5 style="color: #4facfe; margin: 20px 0 10px 0; font-weight: 600; font-size: 16px;">$1</h5>'
+    );
+    html = html.replace(
+      /^#{4}\s(.+)$/gm,
+      '<h4 style="color: #4facfe; margin: 20px 0 10px 0; font-weight: 600; font-size: 18px;">$1</h4>'
+    );
+    html = html.replace(
+      /^#{3}\s(.+)$/gm,
+      '<h3 style="color: #4facfe; margin: 25px 0 15px 0; font-weight: 700; font-size: 20px;">$1</h3>'
+    );
+    html = html.replace(
+      /^#{2}\s(.+)$/gm,
+      '<h2 style="color: #00f2fe; margin: 30px 0 20px 0; font-weight: 700; font-size: 24px;">$1</h2>'
+    );
+    html = html.replace(
+      /^#{1}\s(.+)$/gm,
+      '<h1 style="color: #00f2fe; margin: 30px 0 20px 0; font-weight: 800; font-size: 28px; border-bottom: 2px solid rgba(79, 172, 254, 0.3); padding-bottom: 10px;">$1</h1>'
+    );
+
+    // Convert bold text
+    html = html.replace(
+      /\*\*(.+?)\*\*/g,
+      '<strong style="color: #4facfe; font-weight: 600;">$1</strong>'
+    );
+
+    // Convert italic text
+    html = html.replace(
+      /\*(.+?)\*/g,
+      '<em style="color: rgba(255, 255, 255, 0.8); font-style: italic;">$1</em>'
+    );
+
+    // Convert unordered lists
+    html = html.replace(
+      /^[\s]*[-*+]\s(.+)$/gm,
+      '<li style="margin: 5px 0; color: rgba(255, 255, 255, 0.9);">$1</li>'
+    );
+
+    // Convert ordered lists
+    html = html.replace(
+      /^[\s]*\d+\.\s(.+)$/gm,
+      '<li style="margin: 5px 0; color: rgba(255, 255, 255, 0.9);">$1</li>'
+    );
+
+    // Wrap consecutive list items in ul/ol tags
+    html = html.replace(/(<li[^>]*>.*?<\/li>[\s\S]*?)+/g, (match) => {
+      if (match.includes("- ") || match.includes("* ") || match.includes("+ ")) {
+        return `<ul style="margin: 15px 0; padding-left: 20px; list-style-type: disc;">${match}</ul>`;
+      } else {
+        return `<ol style="margin: 15px 0; padding-left: 20px; list-style-type: decimal;">${match}</ol>`;
+      }
+    });
+
+    // Convert code blocks
+    html = html.replace(/```[\s\S]*?```/g, (match) => {
+      const code = match.replace(/```/g, "").trim();
+      return `<pre style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 15px; margin: 15px 0; overflow-x: auto; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #a8f7a8;"><code>${code}</code></pre>`;
+    });
+
+    // Convert inline code
+    html = html.replace(
+      /`([^`]+)`/g,
+      '<code style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px; padding: 2px 6px; font-family: Monaco, Menlo, monospace; font-size: 12px; color: #a8f7a8;">$1</code>'
+    );
+
+    // Convert line breaks
+    html = html.replace(
+      /\n\n/g,
+      '</p><p style="margin: 15px 0; color: rgba(255, 255, 255, 0.9); line-height: 1.8;">'
+    );
+    html = html.replace(/\n/g, "<br/>");
+
+    // Wrap in paragraph tags
+    html = `<p style="margin: 15px 0; color: rgba(255, 255, 255, 0.9); line-height: 1.8;">${html}</p>`;
+
+    // Convert blockquotes
+    html = html.replace(
+      /^>\s(.+)$/gm,
+      '<blockquote style="border-left: 4px solid #4facfe; margin: 20px 0; padding: 15px 20px; background: rgba(79, 172, 254, 0.1); color: rgba(255, 255, 255, 0.8); font-style: italic;">$1</blockquote>'
+    );
+
+    // Convert tables (basic support)
+    html = html.replace(/\|(.+?)\|/g, (match) => {
+      const cells = match.split("|").filter((cell) => cell.trim());
+      const tableCells = cells
+        .map(
+          (cell) =>
+            `<td style="padding: 8px 12px; border: 1px solid rgba(255, 255, 255, 0.2);">${cell.trim()}</td>`
+        )
+        .join("");
+      return `<tr>${tableCells}</tr>`;
+    });
+
+    // Simple table wrapping
+    if (html.includes("<tr>")) {
+      html = html.replace(
+        /(<tr>.*?<\/tr>)/g,
+        '<table style="border-collapse: collapse; margin: 20px 0; width: 100%;">$1</table>'
+      );
+    }
 
     return html;
   };
@@ -229,14 +398,9 @@ export function ResearchOutput({
                 Available Research Types
               </h4>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+            <div className="grid grid-cols-1 gap-2 text-sm">
               {[
-                { type: "📚 Academic", desc: "Scholarly research" },
-                { type: "📈 Market", desc: "Industry analysis" },
-                { type: "⚙️ Technology", desc: "Technical deep-dive" },
-                { type: "🏆 Competitive", desc: "Competition study" },
-                { type: "📊 Trend", desc: "Pattern analysis" },
-                { type: "📖 Literature", desc: "Content review" },
+                { type: "🔬 Deep Research", desc: "AI-powered intent-based research that adapts to your specific goals" },
               ].map((item, index) => (
                 <Badge
                   key={index}
@@ -273,9 +437,27 @@ export function ResearchOutput({
                   Editing
                 </Badge>
               )}
+              {summarizationLevel !== 'none' && (
+                <Badge variant="outline" className="ml-2 text-purple-600 border-purple-200">
+                  {summarizationLevel.charAt(0).toUpperCase() + summarizationLevel.slice(1)} Summary
+                </Badge>
+              )}
             </CardTitle>
             {researchResults && (
               <div className="flex items-center gap-2">
+                {/* Summarization Toggle */}
+                {originalContent.length > 5000 && typeof window !== 'undefined' && (
+                  <Button
+                    onClick={toggleSummaryControls}
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                  >
+                    {showSummaryControls ? <Minimize2 className="h-4 w-4 mr-1" /> : <Maximize2 className="h-4 w-4 mr-1" />}
+                    {showSummaryControls ? 'Hide' : 'Summary'}
+                  </Button>
+                )}
+                
                 {isEditing ? (
                   <Button
                     onClick={handleSave}
@@ -297,6 +479,17 @@ export function ResearchOutput({
                     Edit
                   </Button>
                 )}
+                
+                <Button
+                  onClick={() => setIsFullScreen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="text-slate-600 hover:text-slate-700 border-slate-200 hover:border-slate-300"
+                >
+                  <Maximize2 className="h-4 w-4 mr-1" />
+                  Full Screen
+                </Button>
+                
                 <Button
                   onClick={onClearOutput}
                   variant="outline"
@@ -309,6 +502,89 @@ export function ResearchOutput({
               </div>
             )}
           </div>
+          
+          {/* Summarization Controls */}
+          {showSummaryControls && researchResults && aiAssistant && typeof window !== 'undefined' && (
+            <div className="mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                  Report Length Control
+                </Label>
+                <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-300">
+                  <span>Original: {Math.round(originalContent.length / 1000)}k chars</span>
+                  {summarizedContent && (
+                    <span>• Current: {Math.round(summarizedContent.length / 1000)}k chars</span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between text-xs text-purple-600 dark:text-purple-400">
+                    <span>Concise</span>
+                    <span>Brief</span>
+                    <span>Moderate</span>
+                    <span>Full</span>
+                  </div>
+                  <div className="relative">
+                    {/* Custom Range Input */}
+                    <input
+                      type="range"
+                      min="0"
+                      max="3"
+                      step="1"
+                      value={
+                        summarizationLevel === 'concise' ? 0 :
+                        summarizationLevel === 'brief' ? 1 :
+                        summarizationLevel === 'moderate' ? 2 : 3
+                      }
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (value === 0) handleSummarization('concise');
+                        else if (value === 1) handleSummarization('brief');
+                        else if (value === 2) handleSummarization('moderate');
+                        else resetToOriginal();
+                      }}
+                      disabled={isSummarizing}
+                      className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer dark:bg-purple-700 disabled:opacity-50"
+                      style={{
+                        background: `linear-gradient(to right, #8b5cf6 0%, #a855f7 33%, #c084fc 66%, #e9d5ff 100%)`
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {isSummarizing && (
+                  <div className="flex items-center gap-2 text-purple-600">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Summarizing...</span>
+                  </div>
+                )}
+                
+                {summarizationLevel !== 'none' && !isSummarizing && (
+                  <Button
+                    onClick={resetToOriginal}
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                  >
+                    Reset to Full
+                  </Button>
+                )}
+              </div>
+              
+              <div className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                <p>
+                  <strong>💡 Smart Summarization:</strong> AI preserves key information, code examples, and important conclusions while reducing length.
+                  {summarizationLevel !== 'none' && summarizedContent && (
+                    <span className="ml-2 font-medium">
+                      Reduced by {Math.round((1 - summarizedContent.length / originalContent.length) * 100)}%
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="p-0 h-[calc(100%-4rem)]">
@@ -351,11 +627,11 @@ export function ResearchOutput({
                   <div className="h-full p-6">
                     <RichTextEditor
                       key={isEditing ? "editing" : "viewing"} // Force re-mount when mode changes
-                      content={
-                        isEditing
-                          ? editableContent || "<p>Start writing here...</p>"
-                          : convertMarkdownToHTML(researchResults || "")
-                      }
+                                              content={
+                          isEditing
+                            ? editableContent || "<p>Start writing here...</p>"
+                            : editableContent || formatMarkdownToHTML(researchResults || "")
+                        }
                       onChange={isEditing ? handleContentChange : undefined}
                       editable={isEditing}
                       className="min-h-[600px]"
@@ -599,6 +875,69 @@ export function ResearchOutput({
           </div>
         )}
       </Card>
+
+      {/* Full Screen Modal */}
+      <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
+        <DialogContent className="max-w-[98vw] max-h-[98vh] h-[98vh] w-[98vw] p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Research Output - Full Screen
+                {summarizationLevel !== 'none' && (
+                  <Badge variant="outline" className="ml-2 text-purple-600 border-purple-200">
+                    {summarizationLevel.charAt(0).toUpperCase() + summarizationLevel.slice(1)} Summary
+                  </Badge>
+                )}
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {/* Mini Summary Controls in Full Screen */}
+                {originalContent.length > 5000 && aiAssistant && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-slate-600 dark:text-slate-400">Length:</Label>
+                    <select
+                      value={summarizationLevel}
+                      onChange={(e) => {
+                        const value = e.target.value as typeof summarizationLevel;
+                        if (value === 'none') resetToOriginal();
+                        else handleSummarization(value as 'brief' | 'moderate' | 'concise');
+                      }}
+                      disabled={isSummarizing}
+                      className="text-sm border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    >
+                      <option value="concise">Concise</option>
+                      <option value="brief">Brief</option>
+                      <option value="moderate">Moderate</option>
+                      <option value="none">Full</option>
+                    </select>
+                    {isSummarizing && (
+                      <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                    )}
+                  </div>
+                )}
+                <Button
+                  onClick={() => setIsFullScreen(false)}
+                  variant="outline"
+                  size="sm"
+                  className="text-slate-600 hover:text-slate-700"
+                >
+                  <Minimize2 className="h-4 w-4 mr-1" />
+                  Exit Full Screen
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="flex-1 p-6">
+            <RichTextEditor
+              content={editableContent || formatMarkdownToHTML(researchResults || "")}
+              onChange={undefined}
+              editable={false}
+              className="min-h-[calc(95vh-8rem)]"
+              placeholder="Research results will appear here..."
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

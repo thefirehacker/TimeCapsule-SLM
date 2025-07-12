@@ -54,6 +54,7 @@ interface ControlsPanelProps {
   setResearchDepth: (depth: ResearchDepth) => void;
   onAddTopic: (title: string, description: string) => void;
   onConnectAI: () => void;
+  onDisconnectAI: () => void;
   onGenerateResearch: () => void;
   onClearAll: () => void;
   onManageKnowledge: () => void;
@@ -82,6 +83,7 @@ export function ControlsPanel({
   setResearchDepth,
   onAddTopic,
   onConnectAI,
+  onDisconnectAI,
   onGenerateResearch,
   onClearAll,
   onManageKnowledge,
@@ -143,22 +145,10 @@ export function ControlsPanel({
 
   const getResearchTypeIcon = (type: ResearchType) => {
     switch (type) {
-      case "academic":
-        return "📚";
-      case "market":
-        return "📈";
-      case "technology":
-        return "⚙️";
-      case "competitive":
-        return "🏆";
-      case "trend":
-        return "📊";
-      case "literature":
-        return "📖";
-      case "learning":
-        return "🎓";
+      case "research":
+        return "🔬";
       default:
-        return "📚";
+        return "🔬";
     }
   };
 
@@ -269,63 +259,63 @@ export function ControlsPanel({
                         <span>Ollama</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="lmstudio">
-                      <div className="flex items-center gap-2">
+                    <SelectItem value="lmstudio" disabled>
+                      <div className="flex items-center gap-2 opacity-50">
                         <span>🏠</span>
-                        <span>LM Studio</span>
+                        <span>LM Studio (Coming Soon)</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="openai">
-                      <div className="flex items-center gap-2">
+                    <SelectItem value="openai" disabled>
+                      <div className="flex items-center gap-2 opacity-50">
                         <span>🤖</span>
-                        <span>OpenAI</span>
+                        <span>OpenAI (Coming Soon)</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="local">
-                      <div className="flex items-center gap-2">
+                    <SelectItem value="local" disabled>
+                      <div className="flex items-center gap-2 opacity-50">
                         <span>💻</span>
-                        <span>Local Qwen</span>
+                        <span>Local Qwen (Coming Soon)</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <Button
-                onClick={onConnectAI}
-                disabled={isGenerating}
-                className={`w-full ${
-                  aiStatus.connected
-                    ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "bg-primary hover:bg-primary/90"
-                }`}
-              >
-                {aiStatus.connected ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Connected ({aiStatus.model})
-                  </>
-                ) : (
-                  <>
-                    <Wifi className="h-4 w-4 mr-2" />
-                    Connect AI
-                  </>
-                )}
-              </Button>
-
-              {aiStatus.connected && (
-                <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-sm text-green-700 dark:text-green-300">
-                      Online
-                    </span>
+              {aiStatus.connected ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                        Connected ({aiStatus.model})
+                      </span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {getAIProviderIcon(aiStatus.provider)} {aiStatus.provider}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {getAIProviderIcon(aiStatus.provider)} {aiStatus.provider}
-                  </Badge>
+                  <Button
+                    onClick={onDisconnectAI}
+                    disabled={isGenerating}
+                    variant="outline"
+                    className="w-full text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <WifiOff className="h-4 w-4 mr-2" />
+                    Disconnect AI
+                  </Button>
                 </div>
+              ) : (
+                <Button
+                  onClick={onConnectAI}
+                  disabled={isGenerating}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  <Wifi className="h-4 w-4 mr-2" />
+                  Connect AI
+                </Button>
               )}
+
+
             </CardContent>
           </Card>
 
@@ -396,46 +386,10 @@ export function ControlsPanel({
                     <SelectValue placeholder="Select research type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="academic">
+                    <SelectItem value="research">
                       <div className="flex items-center gap-2">
-                        <span>📚</span>
-                        <span>Academic</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="market">
-                      <div className="flex items-center gap-2">
-                        <span>📈</span>
-                        <span>Market</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="technology">
-                      <div className="flex items-center gap-2">
-                        <span>⚙️</span>
-                        <span>Technology</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="competitive">
-                      <div className="flex items-center gap-2">
-                        <span>🏆</span>
-                        <span>Competitive</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="trend">
-                      <div className="flex items-center gap-2">
-                        <span>📊</span>
-                        <span>Trend</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="literature">
-                      <div className="flex items-center gap-2">
-                        <span>📖</span>
-                        <span>Literature</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="learning">
-                      <div className="flex items-center gap-2">
-                        <span>🎓</span>
-                        <span>Learning</span>
+                        <span>🔬</span>
+                        <span>Deep Research</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -478,8 +432,8 @@ export function ControlsPanel({
             </CardContent>
           </Card>
 
-          {/* Learning-Specific Controls */}
-          {researchType === "learning" && (
+          {/* Research-Specific Controls */}
+          {researchType === "research" && (
             <Card className="shadow-sm border-purple-200 dark:border-purple-800">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base text-purple-700 dark:text-purple-300">
@@ -597,25 +551,25 @@ Assistant: ONNX and PyTorch use different serialization formats..."
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <FileText className="h-4 w-4" />
-                {researchType === "learning" ? "Learning Topics" : "Add Topic"}
+                {researchType === "research" ? "Research Topics" : "Add Topic"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {researchType === "learning" ? (
+              {researchType === "research" ? (
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                   <div className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-                    📝 For Learning Research:
+                    📝 For Deep Research:
                   </div>
                   <div className="text-xs text-blue-700 dark:text-blue-300 space-y-2">
                     <p>
-                      Instead of manually adding topics, paste your conversation in the 
-                      <strong> Learning Research Input</strong> section above. The system will:
+                      Paste your conversation, query, or content in the 
+                      <strong> Research Input</strong> section above. The system will:
                     </p>
                     <ul className="list-disc ml-4 space-y-1">
-                      <li>Automatically extract learning goals</li>
-                      <li>Create relevant topics from the conversation</li>
-                      <li>Assess user expertise level</li>
-                      <li>Generate a structured curriculum</li>
+                      <li>Automatically analyze your intent and goals</li>
+                      <li>Create relevant research topics</li>
+                      <li>Assess complexity and scope</li>
+                      <li>Generate appropriate specialized content</li>
                     </ul>
                     <p className="mt-2 font-medium">
                       Or manually add topics below if you prefer traditional research approach.
@@ -631,7 +585,7 @@ Assistant: ONNX and PyTorch use different serialization formats..."
                   value={topicTitle}
                   onChange={(e) => setTopicTitle(e.target.value)}
                   placeholder={
-                    researchType === "learning" 
+                    researchType === "research" 
                       ? "e.g., ONNX to PyTorch Conversion" 
                       : "Enter topic title..."
                   }
@@ -646,7 +600,7 @@ Assistant: ONNX and PyTorch use different serialization formats..."
                   value={topicDescription}
                   onChange={(e) => setTopicDescription(e.target.value)}
                   placeholder={
-                    researchType === "learning"
+                    researchType === "research"
                       ? "User wants to convert ONNX model to PyTorch but unclear about file format differences"
                       : "Enter topic description..."
                   }

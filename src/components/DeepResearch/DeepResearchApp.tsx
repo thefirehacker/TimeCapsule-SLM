@@ -81,13 +81,7 @@ import {
 
 export type AIProvider = "ollama" | "lmstudio" | "openai" | "local";
 export type ResearchType =
-  | "academic"
-  | "market"
-  | "technology"
-  | "competitive"
-  | "trend"
-  | "literature"
-  | "learning";
+  | "research";
 export type ResearchDepth = "overview" | "detailed" | "comprehensive";
 export type AIStatus = AIConnectionStatus;
 
@@ -896,8 +890,8 @@ Duration: ${frame.duration || 0}s
     );
 
     try {
-      // Use AgentCoordinator for Learning Research
-      if (researchType === "learning" && this.agentCoordinator) {
+      // Use AgentCoordinator for Deep Research
+      if (researchType === "research" && this.agentCoordinator) {
         this.updateStatus("🤖 Initializing multi-agent learning research...");
         this.showAgentProgress = true;
         this.setShowAgentProgress?.(true);
@@ -907,12 +901,18 @@ Duration: ${frame.duration || 0}s
           .map((t) => `${t.title}: ${t.description}`)
           .join("\n");
         
-        // Generate comprehensive learning research using multiple agents
-        const researchContent = await this.agentCoordinator.generateLearningResearch(
+        // Generate comprehensive research using multiple agents with intent analysis
+        const researchContent = await this.agentCoordinator.generateDeepResearch(
           conversationContent,
           this.attachedDocuments,
           researchDepth
         );
+        
+        console.log(`🔍 DEBUG: Research content received from AgentCoordinator:`, {
+          length: researchContent?.length || 0,
+          preview: researchContent?.substring(0, 200) + '...',
+          hasContent: !!researchContent
+        });
         
         // Create research metadata
         const researchId = `learning-research-${Date.now()}-${Math.random()
@@ -941,6 +941,11 @@ Duration: ${frame.duration || 0}s
         this.researchResults["currentMetadata"] = researchMetadata as ResearchMetadata;
 
         // Update React state and save to storage
+        console.log(`🔍 DEBUG: Setting research results to UI state:`, {
+          contentLength: researchContent?.length || 0,
+          setResearchResultsExists: !!this.setResearchResults,
+          preview: researchContent?.substring(0, 100) + '...'
+        });
         this.setResearchResults?.(researchContent);
         this.saveToStorage();
 
@@ -1210,8 +1215,8 @@ Duration: ${frame.duration || 0}s
       .map((t) => `${t.title}: ${t.description}`)
       .join("\n");
 
-    // Handle learning research type with specialized logic
-    if (type === "learning") {
+    // Handle research type with specialized logic
+    if (type === "research") {
       return this.buildLearningResearchPrompt(selectedTopics, depth, relevantDocuments);
     }
 
@@ -3552,7 +3557,7 @@ export function DeepResearchComponent() {
     connected: false,
     provider: "ollama",
   });
-  const [researchType, setResearchType] = useState<ResearchType>("learning");
+  const [researchType, setResearchType] = useState<ResearchType>("research");
   const [researchDepth, setResearchDepth] = useState<ResearchDepth>("overview");
   const [researchResults, setResearchResults] = useState<string>("");
   const [currentTab, setCurrentTab] = useState<
@@ -4251,6 +4256,7 @@ export function DeepResearchComponent() {
               app.addTopic(title, description)
             }
             onConnectAI={() => app.connectAI()}
+            onDisconnectAI={() => app.disconnectAI()}
             onGenerateResearch={() => {
               const selectedTopics = topics.filter((t) => t.selected);
               if (selectedTopics.length === 0) {
@@ -4328,6 +4334,7 @@ export function DeepResearchComponent() {
               setResearchResults("");
               app.updateStatus("🗑️ Research output cleared");
             }}
+            aiAssistant={app?.aiAssistant}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
