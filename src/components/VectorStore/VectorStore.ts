@@ -12,6 +12,8 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument } from '../../lib/workers/DocumentProcessor';
+import { getRAGTracker } from '../../lib/RAGTracker';
+import { RAGDocument } from '../../types/rag';
 
 // Add RxDB plugins
 addRxPlugin(RxDBDevModePlugin);
@@ -159,8 +161,18 @@ export class VectorStore {
   private _downloadStatus = 'unknown';
   private _downloadError = '';
 
+  // RAG tracking
+  private ragTracker = getRAGTracker({
+    enableTracking: true,
+    enableVisualization: true,
+    enablePerformanceMetrics: true,
+    trackingLevel: 'detailed',
+    realTimeUpdates: true
+  });
+
   constructor() {
     console.log('🗂️ VectorStore constructor called');
+    console.log('🔍 RAG Tracker initialized for VectorStore');
   }
 
   async init(): Promise<void> {
@@ -597,7 +609,16 @@ export class VectorStore {
     }
   }
 
-  async searchSimilar(query: string, threshold: number = 0.3, limit: number = 10): Promise<SearchResult[]> {
+  async searchSimilar(
+    query: string, 
+    threshold: number = 0.3, 
+    limit: number = 10,
+    options: {
+      agentId?: string;
+      sessionId?: string;
+      queryType?: 'user_search' | 'agent_rag' | 'auto_enrichment';
+    } = {}
+  ): Promise<SearchResult[]> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
     }
@@ -613,15 +634,38 @@ export class VectorStore {
       throw new Error('Search is unavailable. Please refresh the page and try again.');
     }
 
-    try {
-      console.log(`🔍 Searching for: "${query}" with threshold: ${threshold}`);
+    // Start RAG query tracking
+    const startTime = Date.now();
+    const queryId = this.ragTracker.startQuery(query, {
+      agentId: options.agentId,
+      sessionId: options.sessionId,
+      queryType: options.queryType || 'user_search',
+      searchParameters: {
+        threshold,
+        limit,
+        searchMethod: 'semantic'
+      }
+    });
 
+    console.log(`🔍 RAG Query ${queryId}: Searching for "${query}" with threshold: ${threshold}`);
+
+    try {
       // Generate query embedding using Web Worker
+      const embeddingStartTime = Date.now();
       const queryEmbedding = await this.documentProcessor.generateEmbedding(query);
+      const embeddingTime = Date.now() - embeddingStartTime;
+
+      console.log(`🧠 RAG Query ${queryId}: Generated embedding in ${embeddingTime}ms`);
 
       // Get all documents
+      const documentsStartTime = Date.now();
       const documents = await this.getAllDocuments();
+      const documentsTime = Date.now() - documentsStartTime;
+
+      console.log(`📚 RAG Query ${queryId}: Retrieved ${documents.length} documents in ${documentsTime}ms`);
+
       const results: SearchResult[] = [];
+      const similarityStartTime = Date.now();
 
       // Calculate similarities
       for (const doc of documents) {
@@ -641,14 +685,61 @@ export class VectorStore {
         }
       }
 
+      const similarityTime = Date.now() - similarityStartTime;
+
       // Sort by similarity and limit results
+      const rankingStartTime = Date.now();
       results.sort((a, b) => b.similarity - a.similarity);
       const limitedResults = results.slice(0, limit);
+      const rankingTime = Date.now() - rankingStartTime;
 
-      console.log(`✅ Found ${limitedResults.length} similar chunks`);
+      const totalTime = Date.now() - startTime;
+
+      // Convert results to RAG format for tracking
+      const ragDocuments: RAGDocument[] = limitedResults.map(result => ({
+        id: result.document.id,
+        title: result.document.title,
+        similarity: result.similarity,
+        chunkContent: result.chunk.content,
+        chunkIndex: parseInt(result.chunk.id.split('_').pop() || '0'),
+        source: result.document.metadata.source || 'unknown',
+        metadata: result.document.metadata,
+        retrievalContext: {
+          queryId,
+          retrievalTime: totalTime,
+          processingTime: totalTime
+        }
+      }));
+
+      // Complete RAG query tracking with detailed performance metrics
+      this.ragTracker.completeQuery(queryId, ragDocuments, totalTime);
+
+      // Log detailed performance breakdown
+      console.log(`✅ RAG Query ${queryId} completed:`, {
+        totalTime: `${totalTime}ms`,
+        breakdown: {
+          embedding: `${embeddingTime}ms`,
+          documents: `${documentsTime}ms`, 
+          similarity: `${similarityTime}ms`,
+          ranking: `${rankingTime}ms`
+        },
+        results: `${limitedResults.length}/${results.length} (filtered by limit)`,
+        avgSimilarity: limitedResults.length > 0 ? 
+          (limitedResults.reduce((sum, r) => sum + r.similarity, 0) / limitedResults.length).toFixed(3) : '0',
+        threshold,
+        documentsScanned: documents.length,
+        vectorsProcessed: documents.reduce((sum, doc) => sum + doc.vectors.length, 0)
+      });
+
       return limitedResults;
     } catch (error) {
-      console.error('❌ Search failed:', error);
+      const errorTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown search error';
+      
+      // Fail RAG query tracking
+      this.ragTracker.failQuery(queryId, errorMessage);
+
+      console.error(`❌ RAG Query ${queryId} failed after ${errorTime}ms:`, errorMessage);
       throw error;
     }
   }
@@ -1283,6 +1374,41 @@ export class VectorStore {
       } catch (error) {
         console.warn(`⚠️ Database flush failed:`, error);
       }
+    }
+
+    // Add method to get RAG statistics
+    getRAGStats() {
+      return this.ragTracker.currentStats;
+    }
+
+    // Add method to get RAG queries for a session
+    getRAGQueriesBySession(sessionId: string) {
+      return this.ragTracker.getQueriesBySession(sessionId);
+    }
+
+    // Add method to get RAG queries for an agent
+    getRAGQueriesByAgent(agentId: string) {
+      return this.ragTracker.getQueriesByAgent(agentId);
+    }
+
+    // Add method to get RAG visualization data
+    getRAGVisualizationData(sessionId?: string) {
+      return this.ragTracker.getVisualizationData(sessionId);
+    }
+
+    // Add method to export RAG data
+    exportRAGData(format: 'json' | 'csv' = 'json') {
+      return this.ragTracker.exportData(format);
+    }
+
+    // Add method to clear RAG history
+    clearRAGHistory(olderThan?: Date) {
+      return this.ragTracker.clearHistory(olderThan);
+    }
+
+    // Add method to get RAG tracker instance
+    getRAGTracker() {
+      return this.ragTracker;
     }
   }
 

@@ -7,6 +7,11 @@ import {
   AIAssistant,
   AIStatus as AIConnectionStatus,
 } from "../../lib/AIAssistant";
+import { 
+  AgentCoordinator, 
+  AgentProgress, 
+  AgentTask 
+} from "../../lib/AgentCoordinator";
 import { analytics } from "../../lib/analytics";
 import { usePageAnalytics } from "../analytics/Analytics";
 import {
@@ -34,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Wifi,
   WifiOff,
@@ -53,6 +59,7 @@ import {
   FolderPlus,
   Upload,
   Loader2,
+  Settings,
 } from "lucide-react";
 
 // Import Metadata Management
@@ -79,7 +86,8 @@ export type ResearchType =
   | "technology"
   | "competitive"
   | "trend"
-  | "literature";
+  | "literature"
+  | "learning";
 export type ResearchDepth = "overview" | "detailed" | "comprehensive";
 export type AIStatus = AIConnectionStatus;
 
@@ -121,6 +129,11 @@ export class DeepResearchApp {
   isUploading = false;
   isVectorStoreLoading = true;
 
+  // Agent Coordination System
+  agentCoordinator: AgentCoordinator | null = null;
+  currentAgentProgress: AgentProgress | null = null;
+  showAgentProgress = false;
+
   // Modal states
   showOllamaConnectionModal = false;
   showModelSelectionModal = false;
@@ -147,6 +160,9 @@ export class DeepResearchApp {
   editingTimeCapsule: TimeCapsuleMetadata | null = null;
   importFile: File | null = null;
   isMetadataLoading = false;
+
+  // Learning Research Document Attachments
+  attachedDocuments: DocumentData[] = [];
 
   // Initialization state to prevent double initialization
   private static initializationPromise: Promise<void> | null = null;
@@ -206,6 +222,10 @@ export class DeepResearchApp {
   setShowFirecrawlModal: ((show: boolean) => void) | null = null;
   setIsScrapingUrl: ((scraping: boolean) => void) | null = null;
   setScrapingProgress: ((progress: { message: string; progress: number }) => void) | null = null;
+
+  // Agent Progress state setters
+  setCurrentAgentProgress: ((progress: AgentProgress | null) => void) | null = null;
+  setShowAgentProgress: ((show: boolean) => void) | null = null;
 
   constructor() {
     // Make this instance globally available - only in browser
@@ -607,6 +627,9 @@ Duration: ${frame.duration || 0}s
         );
         // Save connection state when successfully connected
         this.saveToStorage();
+        
+        // Initialize AgentCoordinator when AI is connected
+        this.initializeAgentCoordinator();
       } else {
         this.updateStatus(
           `❌ AI connection failed: ${status.error || "Unknown error"}`
@@ -617,6 +640,28 @@ Duration: ${frame.duration || 0}s
     });
 
     console.log("✅ AI Assistant initialized");
+  }
+
+  initializeAgentCoordinator() {
+    if (this.aiAssistant && this.aiAssistant.isConnected()) {
+      console.log("🤖 Initializing Agent Coordinator...");
+      this.agentCoordinator = new AgentCoordinator(this.aiAssistant, this.vectorStore);
+      
+      // Set up progress callback
+      this.agentCoordinator.setProgressCallback((progress) => {
+        this.currentAgentProgress = progress;
+        this.setCurrentAgentProgress?.(progress);
+        
+        // Update status message with current agent activity
+        const activeTasks = progress.tasks.filter(t => t.status === 'in_progress');
+        if (activeTasks.length > 0) {
+          const activeTask = activeTasks[0];
+          this.updateStatus(`🤖 ${activeTask.taskName}... (${activeTask.progress || 0}%)`);
+        }
+      });
+      
+      console.log("✅ Agent Coordinator initialized");
+    }
   }
 
   addTopic(title: string, description: string) {
@@ -851,7 +896,89 @@ Duration: ${frame.duration || 0}s
     );
 
     try {
-      // Step 1: Perform RAG - Search for relevant documents
+      // Use AgentCoordinator for Learning Research
+      if (researchType === "learning" && this.agentCoordinator) {
+        this.updateStatus("🤖 Initializing multi-agent learning research...");
+        this.showAgentProgress = true;
+        this.setShowAgentProgress?.(true);
+        
+        // Extract conversation content from topics
+        const conversationContent = selectedTopics
+          .map((t) => `${t.title}: ${t.description}`)
+          .join("\n");
+        
+        // Generate comprehensive learning research using multiple agents
+        const researchContent = await this.agentCoordinator.generateLearningResearch(
+          conversationContent,
+          this.attachedDocuments,
+          researchDepth
+        );
+        
+        // Create research metadata
+        const researchId = `learning-research-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const researchMetadata = {
+          id: researchId,
+          title: `Multi-Agent Learning Research: ${selectedTopics.map((t) => t.title).join(", ")}`,
+          type: researchType,
+          depth: researchDepth,
+          topics: selectedTopics.map((t) => t.title),
+          generatedAt: new Date().toISOString(),
+          aiProvider: this.aiAssistant.getSession()?.provider || "unknown",
+          model: this.aiAssistant.getSession()?.model || "unknown",
+          documentIntegration: this.attachedDocuments.length > 0,
+        };
+
+        // Store research results
+        this.researchResults[researchId] = {
+          content: researchContent,
+          metadata: researchMetadata,
+          timestamp: new Date().toISOString(),
+        } as ResearchItem;
+
+        this.researchResults["current"] = researchContent;
+        this.researchResults["currentMetadata"] = researchMetadata as ResearchMetadata;
+
+        // Update React state and save to storage
+        this.setResearchResults?.(researchContent);
+        this.saveToStorage();
+
+        // Save to vector store
+        if (this.vectorStore) {
+          await this.vectorStore.addGeneratedDocument(
+            researchMetadata.title,
+            researchContent,
+            (progress) => {
+              this.updateStatus(`💾 Saving research: ${progress.message}`);
+            }
+          );
+          this.updateDocumentStatus();
+        }
+
+        this.updateStatus("✅ Multi-agent learning research completed successfully");
+        this.showAgentProgress = false;
+        this.setShowAgentProgress?.(false);
+        
+        // Track successful research generation
+        if (pageAnalytics) {
+          pageAnalytics.trackFeatureUsage("multi_agent_research_completed", {
+            research_type: researchType,
+            research_depth: researchDepth,
+            ai_provider: aiSession?.provider || "unknown",
+            ai_model: aiSession?.model || "unknown",
+            content_length: researchContent.length,
+            attached_documents: this.attachedDocuments.length,
+            agent_session_id: this.currentAgentProgress?.sessionId,
+            total_tokens: this.currentAgentProgress?.totalTokens,
+            research_quality: this.currentAgentProgress?.researchQuality,
+          });
+        }
+        
+        return; // Exit early for multi-agent learning research
+      }
+
+      // Step 1: Perform RAG - Search for relevant documents (for non-learning research)
       let relevantDocuments: any[] = [];
       if (this.vectorStore && !this.isVectorStoreLoading) {
         // Enhanced fallback messaging for RAG search
@@ -1083,6 +1210,12 @@ Duration: ${frame.duration || 0}s
       .map((t) => `${t.title}: ${t.description}`)
       .join("\n");
 
+    // Handle learning research type with specialized logic
+    if (type === "learning") {
+      return this.buildLearningResearchPrompt(selectedTopics, depth, relevantDocuments);
+    }
+
+    
     let prompt = `You are a professional researcher. Generate a comprehensive ${depth} ${type} research report based on the provided topics and supporting documents.\n\n`;
 
     prompt += `## Research Topics:\n${topics}\n\n`;
@@ -1174,6 +1307,255 @@ Duration: ${frame.duration || 0}s
     return prompt;
   }
 
+  private async buildLearningResearchPrompt(
+    selectedTopics: Topic[],
+    depth: ResearchDepth,
+    relevantDocuments: any[]
+  ): Promise<string> {
+    // Extract conversation content from topics for analysis
+    const conversationContent = selectedTopics
+      .map((t) => `${t.title}: ${t.description}`)
+      .join("\n");
+
+    let prompt = `You are an expert Learning Research Coordinator specialized in converting conversations, technical discussions, and Q&A sessions into structured, personalized learning curricula. Your role is to analyze conversational content and create comprehensive educational pathways.\n\n`;
+
+    prompt += `## Conversation Analysis Task\n`;
+    prompt += `Analyze the following conversational content and create a structured learning research report:\n\n`;
+    prompt += `**Content to Analyze:**\n${conversationContent}\n\n`;
+
+    // Add RAG context if documents are available
+    if (relevantDocuments.length > 0) {
+      prompt += `## Supporting Learning Materials:\n`;
+      prompt += `The following documents from the knowledge base provide additional context:\n\n`;
+
+      relevantDocuments.forEach((result, index) => {
+        const matchPercentage = (result.similarity * 100).toFixed(1);
+        prompt += `### Document ${index + 1}: "${result.document.title}" (${matchPercentage}% match)\n`;
+        prompt += `**Content:** ${result.chunk.content.substring(0, 500)}${
+          result.chunk.content.length > 500 ? "..." : ""
+        }\n`;
+        prompt += `**Source:** Document ID ${result.document.id}\n\n`;
+      });
+    }
+
+    // Add attached documents if available
+    if (this.attachedDocuments.length > 0) {
+      prompt += `## Attached Reference Documents:\n`;
+      prompt += `The following documents have been specifically attached for this learning research:\n\n`;
+
+      this.attachedDocuments.forEach((doc, index) => {
+        prompt += `### Attached Document ${index + 1}: "${doc.title}"\n`;
+        prompt += `**Content:** ${doc.content.substring(0, 1000)}${
+          doc.content.length > 1000 ? "..." : ""
+        }\n`;
+        prompt += `**Source:** ${doc.metadata.filename || doc.title}\n`;
+        prompt += `**Type:** ${doc.metadata.filetype}\n\n`;
+      });
+
+      prompt += `**Important:** Use these attached documents as primary reference materials when creating the learning curriculum. Extract specific examples, code snippets, and concepts from these documents to enhance the learning experience.\n\n`;
+    }
+
+    prompt += `## Learning Analysis Framework\n\n`;
+    prompt += `### Phase 1: Conversation Analysis\n`;
+    prompt += `Analyze the content for:\n`;
+    prompt += `- **Direct Learning Requests**: "I want to learn...", "How do I...", "Can you explain..."\n`;
+    prompt += `- **Knowledge Gaps**: Questions indicating missing understanding\n`;
+    prompt += `- **Technical Context**: Programming languages, frameworks, tools mentioned\n`;
+    prompt += `- **Problem-Solving Patterns**: What user is trying to accomplish\n`;
+    prompt += `- **Confusion Points**: Areas where user expresses uncertainty\n`;
+    prompt += `- **Knowledge Base Connections**: Link conversation topics to available documents and references\n\n`;
+
+    prompt += `### Phase 2: User Level Assessment\n`;
+    prompt += `Determine user expertise level based on:\n`;
+    prompt += `- **Technical Vocabulary**: Complexity and accuracy of terms used\n`;
+    prompt += `- **Problem Complexity**: Sophistication of questions asked\n`;
+    prompt += `- **Prior Knowledge**: Evidence of previous experience\n`;
+    prompt += `- **Question Sophistication**: Level of inquiry demonstrated\n\n`;
+
+    prompt += `### Phase 3: Learning Curriculum Design\n`;
+    prompt += `Create structured learning path with:\n`;
+    prompt += `- **Prerequisite Mapping**: Required background knowledge\n`;
+    prompt += `- **Module Sequencing**: Logical progression of topics\n`;
+    prompt += `- **Learning Objectives**: Specific skills and knowledge goals\n`;
+    prompt += `- **Difficulty Progression**: Gradual complexity increase\n`;
+    prompt += `- **Knowledge Base Integration**: Leverage attached documents and relevant KB content for examples and exercises\n`;
+    prompt += `- **Document-Based Learning**: Create exercises and examples using the specific content from attached documents\n\n`;
+
+    prompt += `## Required Learning Research Report Structure\n\n`;
+
+    prompt += `Start with main title using single # header, then:\n\n`;
+
+    prompt += `### 🎯 Learning Analysis Summary\n`;
+    prompt += `**Primary Learning Goals:** List 3-5 key objectives\n`;
+    prompt += `**User Level Assessment:** Beginner/Intermediate/Advanced (confidence: X/10)\n`;
+    prompt += `**Knowledge Gaps:** Specific areas to address\n`;
+    prompt += `**Learning Domain:** Programming/ML/DevOps/etc.\n`;
+    prompt += `**Estimated Learning Time:** X hours\n\n`;
+
+    prompt += `### 📚 Learning Curriculum\n`;
+    prompt += `#### Prerequisites\n`;
+    prompt += `- Required background knowledge\n`;
+    prompt += `- Recommended experience level\n\n`;
+
+    prompt += `#### Module 1: [Foundation Topic]\n`;
+    prompt += `**Learning Objectives:** What you'll master\n`;
+    prompt += `**Duration:** X minutes/hours\n`;
+    prompt += `**Difficulty:** ⭐⭐☆☆☆\n\n`;
+
+    prompt += `#### Module 2: [Advanced Topic]\n`;
+    prompt += `**Learning Objectives:** Advanced skills\n`;
+    prompt += `**Duration:** X hours\n`;
+    prompt += `**Difficulty:** ⭐⭐⭐☆☆\n\n`;
+
+    prompt += `### 📖 Step-by-Step Learning Guide\n`;
+    prompt += `#### Module 1: [Topic Name]\n`;
+    prompt += `##### 1.1 Conceptual Foundation\n`;
+    prompt += `**What is [Concept]?** Clear, simple explanation.\n`;
+    prompt += `**Why is this important?** Practical relevance.\n\n`;
+
+    prompt += `##### 1.2 Technical Implementation\n`;
+    prompt += `**Basic Setup:**\n`;
+    prompt += `1. Step one\n`;
+    prompt += `2. Step two\n\n`;
+
+    prompt += `**Code Example:**\n`;
+    prompt += `\\\`\\\`\\\`python\n`;
+    prompt += `# Working code with detailed comments\n`;
+    prompt += `import example\n`;
+    prompt += `result = example.function()\n`;
+    prompt += `\\\`\\\`\\\`\n\n`;
+
+    prompt += `**Best Practices:**\n`;
+    prompt += `- Key recommendation one\n`;
+    prompt += `- Key recommendation two\n\n`;
+
+    prompt += `##### 1.3 Hands-On Practice\n`;
+    prompt += `**Exercise 1:** Clear objective\n`;
+    prompt += `- Goal: What to accomplish\n`;
+    prompt += `- Steps: Detailed instructions\n`;
+    prompt += `- Expected Output: Success criteria\n\n`;
+
+    prompt += `**Exercise 2:** Progressive challenge\n`;
+    prompt += `- Goal: Advanced objective\n`;
+    prompt += `- Steps: Complex instructions\n\n`;
+
+    prompt += `### 📊 Progress Tracking\n`;
+    prompt += `#### Completion Checklist\n`;
+    prompt += `- [ ] Understand core concepts\n`;
+    prompt += `- [ ] Complete all exercises\n`;
+    prompt += `- [ ] Can implement basic functionality\n`;
+    prompt += `- [ ] Ready for next module\n\n`;
+
+    prompt += `#### Skill Milestones\n`;
+    prompt += `- **Milestone 1:** Master the basics\n`;
+    prompt += `- **Milestone 2:** Apply advanced techniques\n`;
+    prompt += `- **Final Goal:** Complete practical implementation\n\n`;
+
+    prompt += `#### Next Steps\n`;
+    prompt += `- **If mastered:** Proceed to [next topic]\n`;
+    prompt += `- **Need practice:** Try [additional exercises]\n`;
+    prompt += `- **For deeper learning:** Explore [advanced resources]\n\n`;
+
+    // Add depth-specific guidelines
+    if (depth === "overview") {
+      prompt += `**Depth Guidelines (Overview):** Focus on 2-3 core modules, basic exercises, practical application. Target 2-4 hours total learning time.\n\n`;
+    } else if (depth === "detailed") {
+      prompt += `**Depth Guidelines (Detailed):** Provide 4-6 comprehensive modules with multiple exercises, troubleshooting, and real-world projects. Target 6-12 hours total learning time.\n\n`;
+    } else {
+      // comprehensive
+      prompt += `**Depth Guidelines (Comprehensive):** Create extensive 6+ module curriculum covering beginner to advanced levels with multiple learning paths, projects, and assessments. Target 15+ hours total learning time.\n\n`;
+    }
+
+    prompt += `## Critical Output Requirements:\n`;
+    prompt += `- **IMPORTANT**: Generate ONLY the final learning research report - NO analysis tags\n`;
+    prompt += `- **NO** <think>, <reasoning>, or <analysis> tags - clean markdown only\n`;
+    prompt += `- **FORMATTING**: Use CLEAN, professional markdown with NO unnecessary gaps or excessive line breaks\n`;
+    prompt += `- **STRUCTURE**: Follow the exact format shown in the example below\n`;
+    prompt += `- **CODE BLOCKS**: Use proper \`\`\`language formatting for all code examples\n`;
+    prompt += `- **SPACING**: Single line breaks between sections, no multiple empty lines\n`;
+    prompt += `- **HEADERS**: Use consistent header hierarchy (# ## ### #### #####)\n`;
+    prompt += `- Start directly with the main title using single # header\n`;
+    prompt += `- Make it practical, actionable, and immediately useful\n`;
+    prompt += `- Focus on the specific learning goals extracted from the conversation\n\n`;
+
+    if (relevantDocuments.length > 0) {
+      prompt += `- Reference specific information from the provided documents\n`;
+      prompt += `- Integrate document knowledge into the learning path\n\n`;
+    }
+
+    prompt += `## Example Clean Format Template:\n`;
+    prompt += `\`\`\`markdown\n`;
+    prompt += `# [Learning Topic] - Complete Guide\n`;
+    prompt += `\n`;
+    prompt += `## 🎯 Learning Analysis Summary\n`;
+    prompt += `**Primary Learning Goals:** Clear, concise bullet points\n`;
+    prompt += `**User Level Assessment:** Beginner/Intermediate/Advanced (confidence: X/10)\n`;
+    prompt += `**Knowledge Gaps:** Specific areas to address\n`;
+    prompt += `**Learning Domain:** Programming/ML/DevOps/etc.\n`;
+    prompt += `**Estimated Learning Time:** X hours\n`;
+    prompt += `\n`;
+    prompt += `## 📚 Learning Curriculum\n`;
+    prompt += `### Prerequisites\n`;
+    prompt += `- Required background knowledge\n`;
+    prompt += `- Recommended experience level\n`;
+    prompt += `\n`;
+    prompt += `### Module 1: Foundation Topic\n`;
+    prompt += `**Learning Objectives:** What you'll master\n`;
+    prompt += `**Duration:** X minutes\n`;
+    prompt += `**Difficulty:** ⭐⭐☆☆☆\n`;
+    prompt += `\n`;
+    prompt += `### Module 2: Progressive Topic\n`;
+    prompt += `**Learning Objectives:** Advanced skills\n`;
+    prompt += `**Duration:** X hours\n`;
+    prompt += `**Difficulty:** ⭐⭐⭐☆☆\n`;
+    prompt += `\n`;
+    prompt += `## 📖 Step-by-Step Learning Guide\n`;
+    prompt += `### Module 1: [Topic Name]\n`;
+    prompt += `#### 1.1 Conceptual Foundation\n`;
+    prompt += `**What is [Concept]?** Clear, simple explanation.\n`;
+    prompt += `**Why is this important?** Practical relevance.\n`;
+    prompt += `\n`;
+    prompt += `#### 1.2 Technical Implementation\n`;
+    prompt += `**Basic Setup:**\n`;
+    prompt += `1. Step one\n`;
+    prompt += `2. Step two\n`;
+    prompt += `\n`;
+    prompt += `**Code Example:**\n`;
+    prompt += `\\\`\\\`\\\`python\n`;
+    prompt += `import example\n`;
+    prompt += `# Working code with comments\n`;
+    prompt += `result = example.function()\n`;
+    prompt += `\\\`\\\`\\\`\n`;
+    prompt += `\n`;
+    prompt += `#### 1.3 Hands-On Practice\n`;
+    prompt += `**Exercise 1:** Clear objective\n`;
+    prompt += `- Goal: What to accomplish\n`;
+    prompt += `- Steps: Detailed instructions\n`;
+    prompt += `- Expected Output: Success criteria\n`;
+    prompt += `\n`;
+    prompt += `## 📊 Progress Tracking\n`;
+    prompt += `### Completion Checklist\n`;
+    prompt += `- [ ] Understand core concepts\n`;
+    prompt += `- [ ] Complete all exercises\n`;
+    prompt += `- [ ] Ready for next module\n`;
+    prompt += `\n`;
+    prompt += `### Next Steps\n`;
+    prompt += `- **If mastered:** Proceed to [next topic]\n`;
+    prompt += `- **Need practice:** Try [additional exercises]\n`;
+    prompt += `\\\`\\\`\\\`\n\n`;
+
+    prompt += `**CRITICAL FORMATTING REQUIREMENTS:**\n`;
+    prompt += `- Use EXACTLY the clean format shown in the template above\n`;
+    prompt += `- NO excessive line breaks or gaps between sections\n`;
+    prompt += `- Single blank line between major sections only\n`;
+    prompt += `- Start with # title, then ## sections, then ### subsections\n`;
+    prompt += `- Clean, professional formatting like the original scraped content\n`;
+    prompt += `- NO markdown formatting errors or inconsistent spacing\n\n`;
+    prompt += `Generate the complete learning research report now following this exact format.\n`;
+
+    return prompt;
+  }
+
   private cleanResearchOutput(rawContent: string): string {
     let cleanContent = rawContent;
 
@@ -1184,9 +1566,24 @@ Duration: ${frame.duration || 0}s
     cleanContent = cleanContent.replace(/<\/?reasoning>/gi, "");
     cleanContent = cleanContent.replace(/<\/?analysis>/gi, "");
 
-    // Clean up extra whitespace and newlines
-    cleanContent = cleanContent.replace(/\n\s*\n\s*\n/g, "\n\n");
+    // Fix excessive whitespace and newlines - be more aggressive
+    cleanContent = cleanContent.replace(/\n\s*\n\s*\n+/g, "\n\n"); // Max 2 newlines
+    cleanContent = cleanContent.replace(/\n{4,}/g, "\n\n"); // No more than 2 consecutive newlines
+    cleanContent = cleanContent.replace(/^\s+|\s+$/gm, ""); // Trim each line
     cleanContent = cleanContent.trim();
+
+    // Remove unnecessary gaps around headers
+    cleanContent = cleanContent.replace(/\n\n+(?=#)/g, "\n\n"); // Max one blank line before headers
+    cleanContent = cleanContent.replace(/(#{1,6}[^\n]*)\n\n+/g, "$1\n"); // Remove gaps after headers
+
+    // Clean up list formatting
+    cleanContent = cleanContent.replace(/(\n- [^\n]*)\n\n+(?=- )/g, "$1\n"); // Remove gaps between list items
+    cleanContent = cleanContent.replace(/(\n\d+\. [^\n]*)\n\n+(?=\d+\. )/g, "$1\n"); // Same for numbered lists
+
+    // Fix code block spacing
+    cleanContent = cleanContent.replace(/\n\n+```/g, "\n\n```"); // Max one line before code blocks
+    cleanContent = cleanContent.replace(/```\n\n+/g, "```\n"); // No gaps after opening code blocks
+    cleanContent = cleanContent.replace(/\n\n+```\n/g, "\n```\n"); // No gaps before closing code blocks
 
     // Ensure proper markdown formatting
     cleanContent = this.improveMarkdownFormatting(cleanContent);
@@ -1203,27 +1600,35 @@ Duration: ${frame.duration || 0}s
     // Ensure space after hash symbols in headings
     formatted = formatted.replace(/^(#+)([^\s#])/gm, "$1 $2");
 
-    // Improve list formatting
+    // Improve list formatting - ensure single space after bullets/numbers
     formatted = formatted.replace(/^(\s*)-([^\s])/gm, "$1- $2");
     formatted = formatted.replace(/^(\s*)\*([^\s])/gm, "$1* $2");
-    formatted = formatted.replace(/^(\s*)\d+\.([^\s])/gm, "$1$&");
+    formatted = formatted.replace(/^(\s*)\d+\.([^\s])/gm, "$1$2 ");
 
-    // Ensure proper spacing around code blocks
-    formatted = formatted.replace(/```/g, "\n```\n");
-    formatted = formatted.replace(/\n\n```\n/g, "\n```\n");
-    formatted = formatted.replace(/\n```\n\n/g, "\n```\n");
+    // Fix code block formatting - no extra newlines
+    formatted = formatted.replace(/\n*```([a-zA-Z]*)\n*/g, "\n\n```$1\n");
+    formatted = formatted.replace(/\n*```\n*/g, "\n```\n\n");
 
-    // Improve table formatting if present
-    formatted = formatted.replace(/\|([^|\n]*)\|/g, (match, content) => {
-      return "| " + content.trim() + " |";
-    });
+    // Ensure proper spacing around sections - single blank line
+    formatted = formatted.replace(/^(#{1,6}[^\n]*)\n+/gm, "$1\n");
+    formatted = formatted.replace(/\n+(#{1,6}[^\n]*)/gm, "\n\n$1");
 
-    // Ensure consistent emphasis formatting
-    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, "**$1**");
-    formatted = formatted.replace(/\*([^*]+)\*/g, "*$1*");
+    // Fix bold/italic formatting
+    formatted = formatted.replace(/\*\*([^*\n]+)\*\*/g, "**$1**");
+    formatted = formatted.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "*$1*");
 
-    // Clean up multiple consecutive newlines
-    formatted = formatted.replace(/\n{3,}/g, "\n\n");
+    // Clean up excessive whitespace more aggressively
+    formatted = formatted.replace(/[ \t]+$/gm, ""); // Remove trailing spaces
+    formatted = formatted.replace(/\n{3,}/g, "\n\n"); // Max 2 consecutive newlines
+    formatted = formatted.replace(/^\n+/, ""); // Remove leading newlines
+    formatted = formatted.replace(/\n+$/, ""); // Remove trailing newlines
+
+    // Ensure consistent list spacing
+    formatted = formatted.replace(/(\n- [^\n]*)\n+(?=- )/g, "$1\n");
+    formatted = formatted.replace(/(\n\d+\. [^\n]*)\n+(?=\d+\. )/g, "$1\n");
+
+    // Fix paragraph spacing
+    formatted = formatted.replace(/([^\n])\n([A-Z])/g, "$1\n\n$2"); // Add space between paragraphs
 
     return formatted.trim();
   }
@@ -3147,7 +3552,7 @@ export function DeepResearchComponent() {
     connected: false,
     provider: "ollama",
   });
-  const [researchType, setResearchType] = useState<ResearchType>("academic");
+  const [researchType, setResearchType] = useState<ResearchType>("learning");
   const [researchDepth, setResearchDepth] = useState<ResearchDepth>("overview");
   const [researchResults, setResearchResults] = useState<string>("");
   const [currentTab, setCurrentTab] = useState<
@@ -3222,6 +3627,14 @@ export function DeepResearchComponent() {
   const [isScrapingUrl, setIsScrapingUrl] = useState<boolean>(false);
   const [scrapingProgress, setScrapingProgress] = useState<{ message: string; progress: number }>({ message: "", progress: 0 });
 
+  // Agent Progress States
+  const [currentAgentProgress, setCurrentAgentProgress] = useState<AgentProgress | null>(null);
+  const [showAgentProgress, setShowAgentProgress] = useState<boolean>(false);
+
+  // Document Manager States
+  const [documentManagerTab, setDocumentManagerTab] = useState<string>("user");
+  const [documentSearchQuery, setDocumentSearchQuery] = useState<string>("");
+
   const appRef = useRef<DeepResearchApp | null>(null);
 
   useEffect(() => {
@@ -3266,6 +3679,10 @@ export function DeepResearchComponent() {
     app.setIsScrapingUrl = setIsScrapingUrl;
     app.setScrapingProgress = setScrapingProgress;
 
+    // Set Agent Progress setters
+    app.setCurrentAgentProgress = setCurrentAgentProgress;
+    app.setShowAgentProgress = setShowAgentProgress;
+
     // Initialize the app asynchronously (non-blocking)
     app.init();
 
@@ -3286,6 +3703,23 @@ export function DeepResearchComponent() {
       
       // Update document status
       app.updateDocumentStatus();
+      
+      // Initialize AgentCoordinator with VectorStore if AI is connected
+      if (app.agentCoordinator && app.aiAssistant && !app.agentCoordinator.isCurrentlyProcessing()) {
+        console.log('🔄 Updating AgentCoordinator with VectorStore...');
+        app.agentCoordinator = new AgentCoordinator(app.aiAssistant, vectorStore);
+        app.agentCoordinator.setProgressCallback((progress) => {
+          app.currentAgentProgress = progress;
+          app.setCurrentAgentProgress?.(progress);
+          
+          // Update status message with current agent activity
+          const activeTasks = progress.tasks.filter(t => t.status === 'in_progress');
+          if (activeTasks.length > 0) {
+            const activeTask = activeTasks[0];
+            app.updateStatus(`🤖 ${activeTask.taskName}... (${activeTask.progress || 0}%)`);
+          }
+        });
+      }
       
       console.log('✅ DeepResearch connected to VectorStoreProvider');
     }
@@ -3497,6 +3931,68 @@ export function DeepResearchComponent() {
     setCurrentChunk(null);
   };
 
+  // Document categorization functions
+  const categorizeDocuments = (docs: DocumentData[]) => {
+    const categories = {
+      user: [] as DocumentData[],
+      aiFrames: [] as DocumentData[],
+      system: [] as DocumentData[],
+      agentLogs: [] as DocumentData[]
+    };
+
+    docs.forEach(doc => {
+      // Agent Logs
+      if (doc.title.toLowerCase().includes('agent log') || 
+          doc.metadata.source === 'research_state') {
+        categories.agentLogs.push(doc);
+      }
+      // AI Frames
+      else if (doc.metadata.source === 'ai-frames' || 
+               doc.title.toLowerCase().includes('ai-frame')) {
+        categories.aiFrames.push(doc);
+      }
+      // System & Metadata (TimeCapsules, BubblSpace, etc.)
+      else if (doc.metadata.source === 'timecapsule_export' ||
+               doc.metadata.source === 'timecapsule_import' ||
+               doc.metadata.source === 'aiframes_import' ||
+               doc.metadata.source === 'aiframes_combined' ||
+               doc.title.toLowerCase().includes('timecapsule') ||
+               doc.metadata.isGenerated === true) {
+        categories.system.push(doc);
+      }
+      // User Documents (uploads, Firecrawl, etc.)
+      else {
+        categories.user.push(doc);
+      }
+    });
+
+    return categories;
+  };
+
+  const getFilteredDocumentsByCategory = (category: string) => {
+    const categorized = categorizeDocuments(documents);
+    const categoryDocs = categorized[category as keyof typeof categorized] || [];
+    
+    if (!documentSearchQuery.trim()) {
+      return categoryDocs;
+    }
+    
+    return categoryDocs.filter(doc => 
+      doc.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
+      doc.metadata.description?.toLowerCase().includes(documentSearchQuery.toLowerCase())
+    );
+  };
+
+  const getDocumentCategoryCounts = () => {
+    const categorized = categorizeDocuments(documents);
+    return {
+      user: categorized.user.length,
+      aiFrames: categorized.aiFrames.length,
+      system: categorized.system.length,
+      agentLogs: categorized.agentLogs.length
+    };
+  };
+
   return (
     <div className="pt-20 min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Metadata Management Header */}
@@ -3688,6 +4184,11 @@ export function DeepResearchComponent() {
             }}
             isGenerating={isGenerating}
             documentStatus={documentStatus}
+            documents={documents}
+            onDocumentsChange={(attachedDocs) => {
+              // Store attached documents for learning research
+              app.attachedDocuments = attachedDocs;
+            }}
           />
         </ResizablePanel>
 
@@ -3837,129 +4338,306 @@ export function DeepResearchComponent() {
           if (!open) app.hideDocumentManager();
         }}
       >
-        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 p-6 pb-4">
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-purple-600" />
               Knowledge Base Manager
             </DialogTitle>
             <DialogDescription>
-              Manage your uploaded documents and search through your knowledge
-              base.
+              Organized view of your documents by category. Search and manage your knowledge base content.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6">
-            <div className="space-y-4 py-4">
-              {/* Search Section */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Search Documents</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Search your knowledge base..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    />
-                    <Button onClick={handleSearch} disabled={isSearching}>
-                      <Search className="h-4 w-4 mr-2" />
-                      {isSearching ? "Searching..." : "Search"}
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Label htmlFor="search-threshold">
-                      Similarity threshold:
-                    </Label>
-                    <Input
-                      id="search-threshold"
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={searchThreshold}
-                      onChange={(e) =>
-                        setSearchThreshold(parseFloat(e.target.value))
-                      }
-                      className="w-20"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+          
+          <div className="flex-1 overflow-hidden px-6">
+            <Tabs value={documentManagerTab} onValueChange={setDocumentManagerTab} className="flex flex-col h-full">
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="user" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  User Docs ({getDocumentCategoryCounts().user})
+                </TabsTrigger>
+                <TabsTrigger value="aiFrames" className="flex items-center gap-2">
+                  <Bot className="h-4 w-4" />
+                  AI Frames ({getDocumentCategoryCounts().aiFrames})
+                </TabsTrigger>
+                <TabsTrigger value="system" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  System ({getDocumentCategoryCounts().system})
+                </TabsTrigger>
+                <TabsTrigger value="agentLogs" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Logs ({getDocumentCategoryCounts().agentLogs})
+                </TabsTrigger>
+              </TabsList>
 
-              {/* Documents List */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    Documents ({documents.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {documents.length > 0 ? (
-                    <div className="space-y-2">
-                      {documents.map((doc) => (
-                        <Card key={doc.id} className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium truncate">
-                                {doc.title}
-                              </h4>
-                              <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                <span>
-                                  Size: {formatFileSize(doc.metadata.filesize)}
-                                </span>
-                                <span>Type: {doc.metadata.filetype}</span>
-                                <span>
-                                  Added:{" "}
-                                  {new Date(
-                                    doc.metadata.uploadedAt
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePreviewDocument(doc.id)}
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => app.downloadDocument(doc.id)}
-                              >
-                                <Download className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => app.deleteDocument(doc.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
+              {/* Search Section */}
+              <div className="mb-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Search & Semantic Query</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={`Search ${documentManagerTab} documents...`}
+                        value={documentSearchQuery}
+                        onChange={(e) => setDocumentSearchQuery(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                      />
+                      <Button onClick={handleSearch} disabled={isSearching}>
+                        <Search className="h-4 w-4 mr-2" />
+                        {isSearching ? "Searching..." : "Search"}
+                      </Button>
                     </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No documents uploaded yet.</p>
-                      <p className="text-sm">
-                        Upload documents to enhance your research capabilities.
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                      <Label htmlFor="search-threshold">
+                        Similarity threshold:
+                      </Label>
+                      <Input
+                        id="search-threshold"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={searchThreshold}
+                        onChange={(e) =>
+                          setSearchThreshold(parseFloat(e.target.value))
+                        }
+                        className="w-20"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Document Content Tabs */}
+              <div className="flex-1 overflow-hidden">
+                <TabsContent value="user" className="h-full overflow-y-auto">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-green-600" />
+                        User Documents ({getDocumentCategoryCounts().user})
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Your uploaded files, scraped content, and personal documents. These are available for learning research attachment.
                       </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                    </CardHeader>
+                    <CardContent>
+                      {getFilteredDocumentsByCategory("user").length > 0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("user").map((doc) => (
+                            <Card key={doc.id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium truncate">{doc.title}</h4>
+                                    <Badge variant="outline" className="text-xs">
+                                      {doc.metadata.source === 'firecrawl' ? '🔍 Scraped' : '📄 Upload'}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
+                                    <span>Type: {doc.metadata.filetype}</span>
+                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No user documents found.</p>
+                          <p className="text-sm">Upload files or scrape URLs to add content to your knowledge base.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="aiFrames" className="h-full overflow-y-auto">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-blue-600" />
+                        AI Frames ({getDocumentCategoryCounts().aiFrames})
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        AI-generated learning frames and educational content from the AI-Frames system.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("aiFrames").map((doc) => (
+                            <Card key={doc.id} className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium truncate">{doc.title}</h4>
+                                    <Badge variant="outline" className="text-xs text-blue-600">
+                                      🎓 AI Frame
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
+                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No AI frames found.</p>
+                          <p className="text-sm">AI frames will appear here when synced from the AI-Frames system.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="system" className="h-full overflow-y-auto">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Package className="h-4 w-4 text-purple-600" />
+                        System & Metadata ({getDocumentCategoryCounts().system})
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {getFilteredDocumentsByCategory("system").length > 0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("system").map((doc) => (
+                            <Card key={doc.id} className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium truncate">{doc.title}</h4>
+                                    <Badge variant="outline" className="text-xs text-purple-600">
+                                      {doc.metadata.source === 'timecapsule_export' ? '📦 Export' : 
+                                       doc.metadata.isGenerated ? '🤖 Generated' : '⚙️ System'}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
+                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No system documents found.</p>
+                          <p className="text-sm">TimeCapsule exports and system content will appear here.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="agentLogs" className="h-full overflow-y-auto">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-orange-600" />
+                        Agent Logs ({getDocumentCategoryCounts().agentLogs})
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Multi-agent research session logs, performance metrics, and processing details.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("agentLogs").map((doc) => (
+                            <Card key={doc.id} className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium truncate">{doc.title}</h4>
+                                    <Badge variant="outline" className="text-xs text-orange-600">
+                                      📋 Agent Log
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                    <span>Size: {formatFileSize(doc.metadata.filesize)}</span>
+                                    <span>Added: {new Date(doc.metadata.uploadedAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No agent logs found.</p>
+                          <p className="text-sm">Agent processing logs will appear here after multi-agent research sessions.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </div>
+            </Tabs>
           </div>
-          <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
+          
+          <div className="flex justify-between items-center p-6 pt-4 flex-shrink-0 border-t">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Total: {documents.length} documents • {formatFileSize(documents.reduce((sum, doc) => sum + doc.metadata.filesize, 0))}
+            </div>
             <Button variant="outline" onClick={() => app.hideDocumentManager()}>
               Close
             </Button>
@@ -4289,6 +4967,374 @@ export function DeepResearchComponent() {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enhanced Agent Progress Modal with RAG Visualization */}
+      <Dialog open={showAgentProgress} onOpenChange={setShowAgentProgress}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="flex-shrink-0 p-6 pb-4">
+            <DialogTitle className="flex items-center gap-2">
+              <span>🤖</span>
+              Multi-Agent Research with RAG Analytics
+            </DialogTitle>
+            <DialogDescription>
+              Multiple specialized agents are working together with RAG-enhanced context to create comprehensive learning research.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-hidden px-6">
+            <Tabs defaultValue="progress" className="flex flex-col h-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="progress" className="flex items-center gap-2">
+                  <Bot className="h-4 w-4" />
+                  Agent Progress
+                </TabsTrigger>
+                <TabsTrigger value="rag" className="flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  RAG Queries ({currentAgentProgress?.ragQueries?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
+
+              <div className="flex-1 overflow-hidden">
+                <TabsContent value="progress" className="h-full overflow-y-auto">
+                  <div className="space-y-4">
+                    {currentAgentProgress && (
+                      <>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="font-medium">Session: {currentAgentProgress.sessionId}</span>
+                            <span className="text-gray-500">
+                              {currentAgentProgress.estimatedTimeRemaining && 
+                                `Est. ${currentAgentProgress.estimatedTimeRemaining} remaining`
+                              }
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Agent Progress:</h4>
+                            {currentAgentProgress.tasks.map((task, index) => (
+                              <div key={task.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div className="flex-shrink-0">
+                                  {task.status === 'completed' && (
+                                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                  )}
+                                  {task.status === 'in_progress' && (
+                                    <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                                  )}
+                                  {task.status === 'pending' && (
+                                    <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                                  )}
+                                  {task.status === 'failed' && (
+                                    <AlertCircle className="h-5 w-5 text-red-600" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-medium truncate">
+                                      {task.taskName}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      {task.status === 'completed' && task.duration && (
+                                        <span>{task.duration}</span>
+                                      )}
+                                      {task.status === 'in_progress' && task.progress && (
+                                        <span>{task.progress}%</span>
+                                      )}
+                                      {task.tokensUsed && (
+                                        <span>{task.tokensUsed} tokens</span>
+                                      )}
+                                      {task.ragStats && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {task.ragStats.totalQueries} RAG queries
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {task.status === 'in_progress' && task.progress && (
+                                    <div className="mt-2">
+                                      <Progress value={task.progress} className="h-2" />
+                                    </div>
+                                  )}
+                                  {task.ragStats && (
+                                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
+                                      <div className="flex justify-between">
+                                        <span>RAG Performance:</span>
+                                        <span>{task.ragStats.averageResponseTime.toFixed(0)}ms avg</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Retrieved:</span>
+                                        <span>{task.ragStats.documentsRetrieved} documents</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Relevance:</span>
+                                        <span>{(task.ragStats.averageSimilarity * 100).toFixed(1)}%</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {task.status === 'failed' && task.error && (
+                                    <p className="text-xs text-red-600 mt-1">{task.error}</p>
+                                  )}
+                                  {task.status === 'completed' && task.result && (
+                                    <p className="text-xs text-green-600 mt-1">{task.result}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {currentAgentProgress.totalTokens && (
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Total Tokens:</span>
+                                  <span className="font-medium">{currentAgentProgress.totalTokens}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Research Quality:</span>
+                                  <Badge variant={
+                                    currentAgentProgress.researchQuality === 'excellent' ? 'default' :
+                                    currentAgentProgress.researchQuality === 'good' ? 'secondary' : 'outline'
+                                  }>
+                                    {currentAgentProgress.researchQuality}
+                                  </Badge>
+                                </div>
+                                {currentAgentProgress.ragStats && (
+                                  <>
+                                    <div className="flex justify-between">
+                                      <span>RAG Queries:</span>
+                                      <span className="font-medium">{currentAgentProgress.ragStats.totalQueries}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>RAG Success Rate:</span>
+                                      <span className="font-medium">
+                                        {((currentAgentProgress.ragStats.successfulQueries / Math.max(1, currentAgentProgress.ragStats.totalQueries)) * 100).toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="rag" className="h-full overflow-y-auto">
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Search className="h-4 w-4 text-blue-600" />
+                          Real-Time RAG Query Monitoring
+                        </CardTitle>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Live view of knowledge base queries performed by each agent during research generation.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        {currentAgentProgress?.ragQueries && currentAgentProgress.ragQueries.length > 0 ? (
+                          <div className="space-y-3">
+                            {currentAgentProgress.ragQueries
+                              .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                              .map((query, index) => (
+                              <Card key={query.id} className="p-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs text-blue-600">
+                                        {query.agentId || 'unknown'}
+                                      </Badge>
+                                      <Badge variant={query.success ? 'default' : 'destructive'} className="text-xs">
+                                        {query.success ? '✅' : '❌'} {query.resultsCount} results
+                                      </Badge>
+                                      <span className="text-xs text-gray-500">
+                                        {query.responseTime}ms
+                                      </span>
+                                    </div>
+                                    <span className="text-xs text-gray-500">
+                                      {query.timestamp.toLocaleTimeString()}
+                                    </span>
+                                  </div>
+                                  
+                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                    "{query.queryText}"
+                                  </p>
+                                  
+                                  {query.success && query.averageSimilarity > 0 && (
+                                    <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                                      <span>Avg Similarity: {(query.averageSimilarity * 100).toFixed(1)}%</span>
+                                      <span>Max: {(query.maxSimilarity * 100).toFixed(1)}%</span>
+                                      <span>Threshold: {(query.searchParameters.threshold * 100).toFixed(1)}%</span>
+                                    </div>
+                                  )}
+                                  
+                                  {query.documents.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Retrieved Documents:
+                                      </p>
+                                      <div className="space-y-1">
+                                        {query.documents.slice(0, 3).map((doc, docIndex) => (
+                                          <div key={docIndex} className="flex items-center justify-between text-xs p-2 bg-white dark:bg-gray-800 rounded border">
+                                            <span className="truncate flex-1 mr-2">
+                                              {doc.title}
+                                            </span>
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                              <Badge variant="outline" className="text-xs">
+                                                {(doc.similarity * 100).toFixed(1)}%
+                                              </Badge>
+                                              <Badge variant="secondary" className="text-xs">
+                                                {doc.source}
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {query.documents.length > 3 && (
+                                          <p className="text-xs text-gray-500 text-center">
+                                            +{query.documents.length - 3} more documents
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {!query.success && query.errorMessage && (
+                                    <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                                      Error: {query.errorMessage}
+                                    </p>
+                                  )}
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No RAG queries yet.</p>
+                            <p className="text-sm">Queries will appear here as agents search the knowledge base.</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="analytics" className="h-full overflow-y-auto">
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-purple-600" />
+                          Session Analytics & Performance
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {currentAgentProgress?.ragStats ? (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm">RAG Performance</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Total Queries:</span>
+                                  <span className="font-medium">{currentAgentProgress.ragStats.totalQueries}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Successful:</span>
+                                  <span className="font-medium text-green-600">{currentAgentProgress.ragStats.successfulQueries}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Avg Response Time:</span>
+                                  <span className="font-medium">{currentAgentProgress.ragStats.averageResponseTime.toFixed(0)}ms</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Avg Similarity:</span>
+                                  <span className="font-medium">{(currentAgentProgress.ragStats.averageSimilarity * 100).toFixed(1)}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Document Hit Rate:</span>
+                                  <span className="font-medium">{currentAgentProgress.ragStats.documentHitRate.toFixed(1)}%</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm">Query Performance</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Fast (&lt;100ms):</span>
+                                  <span className="font-medium text-green-600">{currentAgentProgress.ragStats.performanceMetrics.fastQueries}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Medium (100-500ms):</span>
+                                  <span className="font-medium text-yellow-600">{currentAgentProgress.ragStats.performanceMetrics.mediumQueries}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Slow (&gt;500ms):</span>
+                                  <span className="font-medium text-red-600">{currentAgentProgress.ragStats.performanceMetrics.slowQueries}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Timeouts:</span>
+                                  <span className="font-medium text-red-600">{currentAgentProgress.ragStats.performanceMetrics.timeoutQueries}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {currentAgentProgress.ragStats.topDocuments.length > 0 && (
+                              <div className="col-span-2 space-y-3">
+                                <h4 className="font-medium text-sm">Most Retrieved Documents</h4>
+                                <div className="space-y-2">
+                                  {currentAgentProgress.ragStats.topDocuments.slice(0, 5).map((doc, index) => (
+                                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
+                                      <span className="truncate flex-1 mr-2">{doc.title}</span>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Badge variant="outline" className="text-xs">
+                                          {doc.hitCount} hits
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {(doc.averageSimilarity * 100).toFixed(1)}% avg
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>Analytics will appear here during research generation.</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+          
+          <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t">
+            <div className="flex justify-between items-center w-full">
+              <span className="text-xs text-gray-500">
+                Enhanced agent logs with RAG analytics will be automatically saved to Knowledge Base
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setShowAgentProgress(false)}
+                disabled={isGenerating}
+              >
+                {isGenerating ? 'Processing...' : 'Close'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

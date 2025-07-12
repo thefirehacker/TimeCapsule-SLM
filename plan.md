@@ -1,225 +1,186 @@
-# Canvas3D-LLM Development Plan
+# DeepResearch Learning System - Critical Fixes & RAG Enhancement Plan
 
-## Current Status: BubblSpace/TimeCapsule Architecture Implemented ✅
+## ❌ CRITICAL ISSUES TO FIX
 
-All major architectural improvements completed with comprehensive fixes and UI enhancements.
+### Issue 1: Small Output Problem (HIGH PRIORITY)
+**Problem**: Multi-agent learning research still produces very small output despite previous fixes
+**Root Cause**: Integration agent is not properly combining all agent outputs
 
-## Completed Major Features ✅
+### Issue 2: Missing RAG Visualization (HIGH PRIORITY)  
+**Problem**: Users cannot see RAG queries during agent progress
+**Requirement**: Show all RAG queries, results, and performance metrics in real-time
 
-### ✅ Phase 1: TimeCapsule Duplicate Detection & RxDB Conflict Resolution
-- Enhanced VectorStore duplicate detection for metadata and AI-frames sources
-- Implemented comprehensive RxDB conflict resolution with:
-  - Atomic updates for metadata operations
-  - Enhanced retry logic with exponential backoff (5 retries)
-  - Delete-then-insert fallback strategy
-  - Detailed conflict logging and error handling
-- Fixed "CONFLICT" errors when switching between pages
+### Issue 3: No RAG Monitoring System (HIGH PRIORITY)
+**Problem**: No way to track RAG performance, quality, or effectiveness
+**Requirement**: Comprehensive RAG analytics and logging system
 
-### ✅ Phase 2: AI-Frames Integration & Order Preservation
-- Enhanced AIFrame interface with hierarchy fields (order, bubblSpaceId, timeCapsuleId, parentFrameId, type)
-- Implemented order preservation in drag & drop operations
-- Enhanced Knowledge Base sync with complete metadata support
-- Real-time bidirectional synchronization between DeepResearch and AI-Frames pages
+## 🎯 COMPREHENSIVE TODO LIST
 
-### ✅ Phase 3: User Limits & UI Consistency
-- Enforced user limits: 1 BubblSpace maximum, 3 TimeCapsules per BubblSpace
-- Achieved UI consistency between DeepResearch and AI-Frames pages
-- Implemented click-to-edit functionality for both BubblSpace and TimeCapsule displays
-- Disabled BubblSpace creation for regular users (advanced users only)
+### Phase 1: Fix Integration Agent Output (CRITICAL)
+- [ ] **1.1 Debug Integration Agent Response**
+  - [ ] Add detailed logging to integration agent execution
+  - [ ] Track exact prompts sent to integration agent
+  - [ ] Monitor integration agent response lengths
+  - [ ] Identify why integration agent is not producing full content
 
-### ✅ Phase 4: Enhanced Metadata Storage & Auto-Sync
-- **Comprehensive Metadata Storage**: All UI values stored in Knowledge Base documents
-  - BubblSpace: ID, timestamps, color, isDefault, createdBy, tags, full object JSON
-  - TimeCapsule: Complete metadata including category, privacy, difficulty, estimatedDuration
-- **30-Second Auto-Sync**: Both DeepResearch and AI-Frames pages sync metadata automatically
-- **Enhanced Error Handling**: Comprehensive logging and conflict resolution
+- [ ] **1.2 Enhance Integration Agent Prompt**
+  - [ ] Revise integration agent system prompt for better results
+  - [ ] Add explicit requirements for minimum content length
+  - [ ] Include examples of proper integration formatting
+  - [ ] Add fallback instructions for content aggregation
 
-### ✅ Phase 5: Critical Issue Resolution (Latest Update)
-- **Fixed TimeCapsule Initialization**: AI-Frames now uses existing TimeCapsules instead of creating new ones
-- **Resolved Xenova 404 Errors**: Fixed CDN configuration for proper model loading from Hugging Face
-- **Enhanced RxDB Conflict Handling**: Improved deleteDocument method with robust retry logic
-- **TimeCapsule Selector UI**: Added dropdown showing all available TimeCapsules with switching capability
-- **Default Setup Optimization**: Start with 1 BubblSpace and 1 TimeCapsule (no unnecessary defaults)
+- [ ] **1.3 Improve Fallback Aggregation**
+  - [ ] Fix enhanced fallback aggregation logic
+  - [ ] Ensure all agent content is properly combined
+  - [ ] Add content validation and minimum length checks
+  - [ ] Implement progressive enhancement if content is too short
 
-## Latest Fixes & Improvements 🚀
+### Phase 2: RAG Visualization & Tracking (HIGH PRIORITY)
+- [ ] **2.1 RAG Query Tracking System**
+  - [ ] Create RAGQuery interface for tracking queries
+  - [ ] Add RAG query logging to VectorStore operations
+  - [ ] Track query text, results count, similarity scores
+  - [ ] Store query timestamp and performance metrics
 
-### TimeCapsule Synchronization Fixes
-- **Smart Initialization**: AI-Frames page now loads existing TimeCapsules instead of creating duplicates
-- **Fallback Strategy**: Graceful handling when TimeCapsule limit is reached
-- **Enhanced Logging**: Detailed console output for debugging TimeCapsule operations
+- [ ] **2.2 Agent Progress RAG Display**
+  - [ ] Add RAG queries section to Agent Progress Modal
+  - [ ] Show real-time RAG queries as they happen
+  - [ ] Display query results with similarity scores
+  - [ ] Add RAG performance metrics (response time, hit rate)
 
-### Xenova Embedding Service Resolution
-- **CDN Configuration**: Fixed environment settings to use Hugging Face CDN properly
-- **Removed Local Paths**: Eliminated localhost model loading attempts
-- **Browser Caching**: Optimized caching strategy for faster subsequent loads
+- [ ] **2.3 RAG Results Visualization**
+  - [ ] Create RAG results cards with document previews
+  - [ ] Show similarity scores with color-coded indicators
+  - [ ] Add document source information and metadata
+  - [ ] Enable click-to-expand for full document content
 
-### RxDB Conflict Resolution Enhancement
-- **Robust Deletion**: Enhanced deleteDocument with 5-retry exponential backoff
-- **Revision Tracking**: Detailed conflict logging with revision information
-- **Jitter Strategy**: Random delays to reduce collision probability
+### Phase 3: RAG Monitoring & Analytics (HIGH PRIORITY)
+- [ ] **3.1 RAG Performance Metrics**
+  - [ ] Track query response times and success rates
+  - [ ] Monitor similarity score distributions
+  - [ ] Measure document retrieval effectiveness
+  - [ ] Calculate RAG hit/miss ratios
 
-### UI/UX Improvements
-- **TimeCapsule Selector**: Dropdown showing all available TimeCapsules (up to 3)
-- **Click-to-Switch**: Easy switching between TimeCapsules with visual feedback
-- **Current Indicator**: Clear indication of which TimeCapsule is currently selected
-- **Create Option**: Quick access to create new TimeCapsules from selector
+- [ ] **3.2 RAG Analytics Dashboard**
+  - [ ] Create RAG analytics tab in document manager
+  - [ ] Show query history with performance metrics
+  - [ ] Display RAG effectiveness charts and graphs
+  - [ ] Add document usage statistics
 
-### System Architecture Optimizations
-- **Default Setup**: Single BubblSpace + single TimeCapsule initialization
-- **Cross-Page Sync**: Enhanced event system for real-time metadata updates
-- **Error Recovery**: Comprehensive fallback strategies for initialization failures
+- [ ] **3.3 RAG Quality Assessment**
+  - [ ] Implement RAG relevance scoring system
+  - [ ] Track user feedback on RAG results quality
+  - [ ] Monitor RAG contribution to research output
+  - [ ] Add RAG optimization recommendations
 
-## System Architecture Overview
+### Phase 4: Enhanced Agent Coordination (MEDIUM PRIORITY)
+- [ ] **4.1 Agent Debugging System**
+  - [ ] Add detailed agent execution logging
+  - [ ] Track agent input/output lengths and quality
+  - [ ] Monitor agent dependencies and timing
+  - [ ] Add agent performance metrics
 
-### Hierarchy Structure
+- [ ] **4.2 Agent Progress Enhancements**
+  - [ ] Add agent output preview in progress modal
+  - [ ] Show agent execution times and token usage
+  - [ ] Display agent success/failure rates
+  - [ ] Add agent retry mechanism for failures
+
+- [ ] **4.3 Agent Result Validation**
+  - [ ] Implement content length validation for each agent
+  - [ ] Add quality checks for agent outputs
+  - [ ] Ensure agents meet minimum content requirements
+  - [ ] Add automatic retry for insufficient output
+
+### Phase 5: System Improvements (LOW PRIORITY)
+- [ ] **5.1 Error Handling & Recovery**
+  - [ ] Add comprehensive error handling for agent failures
+  - [ ] Implement graceful degradation when agents fail
+  - [ ] Add retry mechanisms with exponential backoff
+  - [ ] Create fallback strategies for system failures
+
+- [ ] **5.2 Performance Optimization**
+  - [ ] Optimize agent execution for better performance
+  - [ ] Add caching for frequently used RAG queries
+  - [ ] Implement parallel processing where possible
+  - [ ] Add progress indicators for long-running operations
+
+- [ ] **5.3 User Experience Enhancements**
+  - [ ] Add agent execution timeline visualization
+  - [ ] Implement cancel/abort functionality for long tasks
+  - [ ] Add estimated completion times
+  - [ ] Create better error messages and guidance
+
+## 🔧 TECHNICAL IMPLEMENTATION DETAILS
+
+### RAG Query Tracking Interface
+```typescript
+interface RAGQuery {
+  id: string;
+  timestamp: Date;
+  queryText: string;
+  agentId: string;
+  resultsCount: number;
+  averageSimilarity: number;
+  responseTime: number;
+  success: boolean;
+  documents: RAGDocument[];
+}
+
+interface RAGDocument {
+  id: string;
+  title: string;
+  similarity: number;
+  chunkContent: string;
+  source: string;
+}
 ```
-🫧 BubblSpace (Root) - Maximum 1 per user
-  └── 📦 TimeCapsule (Children) - Maximum 3 per BubblSpace
-      └── 🎯 AI-Frames (Grandchildren) - Unlimited, with preserved order
+
+### Agent Progress with RAG
+```typescript
+interface AgentProgressWithRAG extends AgentProgress {
+  ragQueries: RAGQuery[];
+  ragStats: {
+    totalQueries: number;
+    averageResponseTime: number;
+    averageSimilarity: number;
+    documentHitRate: number;
+  };
+}
 ```
 
-### Knowledge Base Storage
-- **BubblSpace Documents**: Root level with type='bubblspace', complete UI metadata
-- **TimeCapsule Documents**: Child level with bubblSpaceId linking, full metadata
-- **AI-Frames Documents**: Grandchild level with order preservation and hierarchy links
+## 📊 SUCCESS METRICS
 
-### Cross-Page Integration
-- **Storage Events**: Automatic sync when switching between pages
-- **Custom Events**: Real-time updates within the same page
-- **Auto-Sync**: 30-second interval sync to Knowledge Base
+### Integration Agent Fix
+- [ ] Output length consistently > 4000 words
+- [ ] All agent content properly combined
+- [ ] No truncation or summarization of source content
+- [ ] Comprehensive learning curriculum generated
 
-## Next Development Priorities
+### RAG Visualization
+- [ ] Real-time RAG queries visible in agent progress
+- [ ] RAG results displayed with similarity scores
+- [ ] Document previews available for all RAG hits
+- [ ] RAG performance metrics visible
 
-### Future Enhancements (Optional)
-- [ ] Advanced TimeCapsule filtering and search
-- [ ] Bulk operations for AI-Frames management  
-- [ ] Enhanced export/import with validation
-- [ ] Performance optimizations for large datasets
+### RAG Monitoring
+- [ ] RAG analytics dashboard functional
+- [ ] Query history tracked and searchable
+- [ ] Performance metrics calculated and displayed
+- [ ] RAG effectiveness measured and reported
 
-## Testing Checklist ✅
+## 🎯 IMMEDIATE NEXT STEPS
 
-### Core Functionality
-- [x] TimeCapsule creation and editing works without conflicts
-- [x] AI-Frames sync properly between DeepResearch and AI-Frames pages
-- [x] BubblSpace management with user limits enforced
-- [x] Order preservation in AI-Frames drag & drop
-- [x] Export/import functionality maintains data integrity
+1. **Start with Phase 1.1**: Add detailed logging to debug integration agent
+2. **Implement Phase 2.1**: Create RAG query tracking system
+3. **Build Phase 2.2**: Add RAG visualization to agent progress
+4. **Complete Phase 1.2**: Fix integration agent prompts
+5. **Implement Phase 3.1**: Add RAG performance metrics
 
-### Error Handling
-- [x] RxDB conflicts resolved automatically with retry logic
-- [x] Xenova model loading works without 404 errors  
-- [x] Graceful fallback when hitting user limits
-- [x] Comprehensive error logging for debugging
+## 📋 CURRENT STATUS
+- **Multi-agent system**: ✅ Working but output too small
+- **RAG integration**: ✅ Working but not visible
+- **Agent progress**: ✅ Working but missing RAG info
+- **Output aggregation**: ❌ Not working properly
 
-### UI/UX
-- [x] TimeCapsule selector shows all available options
-- [x] Smooth switching between TimeCapsules
-- [x] Consistent styling across DeepResearch and AI-Frames
-- [x] Click-to-edit functionality works reliably
-
-## System Status: Production Ready ✅
-
-The Canvas3D-LLM BubblSpace/TimeCapsule architecture is now complete with:
-- Robust conflict resolution and error handling
-- Seamless cross-page synchronization
-- Intuitive user interface with proper limits
-- Comprehensive metadata storage and auto-sync
-- Enhanced TimeCapsule management with selector UI
-- Fixed Xenova embedding service integration
-- Optimized default setup (1 BubblSpace + 1 TimeCapsule)
-
-All critical issues have been resolved and the system is ready for production use. 
-
-## Latest Feature: Clear All AI-Frames with KB Sync ✅
-
-### New Functionality Added
-**Clear All AI-Frames Button:**
-- Added "Clear All" button to AI-Frames page header next to Import/Export buttons
-- Red styling to indicate destructive action, disabled when no frames exist
-- Confirmation dialog warns users about permanent deletion and KB removal
-
-**Enhanced Frame Management:**
-- `handleClearAllFrames()` function provides comprehensive clearing:
-  - Clears all AI frames from local state (`setFrames([])`)
-  - Removes all AI-Frame documents from Knowledge Base via VectorStore
-  - Clears related localStorage data (`ai_frames_timecapsule`, `timecapsule_combined`)
-  - Resets UI state (graph, chapters, concepts, current frame index)
-  - Provides detailed user feedback via chat messages
-  
-**Knowledge Base Integration:**
-- Searches for and removes all documents with `source: 'ai-frames'`
-- Deletes individual AI-Frame documents by ID (`aiframe-{frameId}`)
-- Handles cleanup of any orphaned AI-Frame documents
-- Comprehensive error handling for failed deletions
-
-**Cross-Page Synchronization:**
-- Dispatches `aiframes-cleared` event to notify other pages
-- Includes metadata about cleared frames (count, BubblSpace ID, TimeCapsule ID)
-- Analytics tracking for clear operations and error reporting
-
-### User Experience
-- **Clear All Button**: Prominently placed in header with destructive styling
-- **Confirmation Dialog**: Warns about permanent deletion and KB impact
-- **Progress Feedback**: Detailed chat messages about clearing progress
-- **Error Handling**: Graceful handling with specific error messages
-- **State Reset**: Complete UI reset to fresh state after clearing
-
-### Technical Implementation
-1. **Local State Clearing**: All frame-related state variables reset
-2. **Knowledge Base Cleanup**: Systematic deletion of all AI-Frame documents
-3. **Storage Cleanup**: localStorage entries removed 
-4. **Event Broadcasting**: Other pages notified of clearing action
-5. **Analytics Integration**: Feature usage and error tracking
-
-This feature provides users with a clean way to start fresh while ensuring complete synchronization between the UI state and Knowledge Base storage. 
-
-## Latest Feature: AI-Frames Create Button Fix ✅
-
-### Issue Resolution
-**Problem:** The "Create Frame" button on AI-Frames page was completely non-functional - clicking it produced no response or dialog.
-
-**Root Cause:** Radix UI Dialog component was failing to render due to z-index and positioning issues, even though button clicks and state changes were working correctly.
-
-**Solution:** Replaced dialog-based creation with direct inline form approach:
-- Added `showCreationForm` state to control form visibility
-- Modified empty state component to conditionally render creation form
-- Created comprehensive inline form with all necessary fields:
-  - Learning Goal (textarea)
-  - Video URL (input with validation)
-  - Start Time/Duration (number inputs)
-  - Cancel/Create buttons with loading states
-- Integrated with existing `handleCreateFrame()` function
-
-### Technical Implementation
-**State Management:**
-- Added `showCreationForm` boolean state
-- Replaced problematic `setShowCreateFrame` with `setShowCreationForm`
-- Fixed all remaining linter errors from state variable rename
-
-**UI/UX Enhancement:**
-- Form appears directly in main content area when "Create Frame" clicked
-- Clean, integrated creation experience without modal complexity
-- Proper form validation and error handling
-- Loading states during frame creation
-- Responsive design for mobile compatibility
-
-**Code Quality:**
-- Removed all problematic dialog-related code
-- Fixed 4 linter errors from incomplete state variable migration
-- Maintained existing functionality while improving user experience
-
-### User Experience
-- **Immediate Functionality**: Create button now works reliably
-- **Streamlined Process**: Direct form approach eliminates dialog issues
-- **Visual Feedback**: Clear form states and loading indicators
-- **Error Prevention**: Input validation and proper error messages
-- **Mobile Friendly**: Responsive design for all screen sizes
-
-### Testing Results
-- ✅ "Create Frame" button now functional
-- ✅ Form validation working correctly
-- ✅ Frame creation integrates with existing system
-- ✅ No linter errors remaining
-- ✅ Proper state management throughout
-
-This fix resolves the critical issue preventing users from creating new AI frames and provides a more streamlined creation experience. 
+**PRIMARY GOAL**: Fix output size issue and make RAG visible to users with comprehensive tracking and analytics. 
