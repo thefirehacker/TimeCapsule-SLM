@@ -104,7 +104,7 @@ export default function AIFrameNode({ data, selected }: AIFrameNodeProps) {
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="secondary" className="text-xs">
                     <Clock className="h-2 w-2 mr-1" />
-                    {formatTime(data.duration)}
+                    {formatTime(data.duration ?? 0)}
                   </Badge>
                   {data.isGenerated && (
                     <Badge variant="outline" className="text-xs">
@@ -207,8 +207,8 @@ export default function AIFrameNode({ data, selected }: AIFrameNodeProps) {
               </div>
             ) : (
               <div className="mt-1 text-xs text-gray-600">
-                <p>Start: {formatTime(data.startTime)}</p>
-                <p>Duration: {formatTime(data.duration)}</p>
+                <p>Start: {formatTime(data.startTime ?? 0)}</p>
+                <p>Duration: {formatTime(data.duration ?? 0)}</p>
               </div>
             )}
           </div>

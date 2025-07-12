@@ -54,6 +54,7 @@ interface ControlsPanelProps {
   onClearAll: () => void;
   onManageKnowledge: () => void;
   onUploadDocuments: () => void;
+  onScrapeUrl: () => void;
   onUploadRepository: () => void;
   onExportResults: () => void;
   onExportTimeCapsule: () => void;
@@ -79,6 +80,7 @@ export function ControlsPanel({
   onClearAll,
   onManageKnowledge,
   onUploadDocuments,
+  onScrapeUrl,
   onUploadRepository,
   onExportResults,
   onExportTimeCapsule,
@@ -444,6 +446,16 @@ export function ControlsPanel({
                   Manage
                 </Button>
               </div>
+              
+              <Button 
+                onClick={onScrapeUrl} 
+                variant="outline" 
+                size="sm"
+                className="w-full text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
+              >
+                <span className="mr-2">🔍</span>
+                Scrape URL with Firecrawl
+              </Button>
 
               <Button
                 onClick={onUploadRepository}

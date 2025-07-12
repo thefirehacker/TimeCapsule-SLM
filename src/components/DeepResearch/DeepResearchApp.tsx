@@ -24,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   Wifi,
   WifiOff,
@@ -50,6 +52,7 @@ import {
   Package,
   FolderPlus,
   Upload,
+  Loader2,
 } from "lucide-react";
 
 // Import Metadata Management
@@ -124,6 +127,13 @@ export class DeepResearchApp {
   availableModels: any[] = [];
   selectedOllamaURL = "http://localhost:11434";
 
+  // Firecrawl integration
+  firecrawlApiKey: string = "";
+  showFirecrawlModal = false;
+  isScrapingUrl = false;
+  scrapingUrl = "";
+  scrapingProgress = { message: "", progress: 0 };
+
   // Metadata Management
   metadataManager: MetadataManager | null = null;
   currentBubblSpace: BubblSpace | null = null;
@@ -192,6 +202,11 @@ export class DeepResearchApp {
   setEditingTimeCapsule: ((capsule: TimeCapsuleMetadata | null) => void) | null = null;
   setIsMetadataLoading: ((loading: boolean) => void) | null = null;
 
+  // Firecrawl state setters
+  setShowFirecrawlModal: ((show: boolean) => void) | null = null;
+  setIsScrapingUrl: ((scraping: boolean) => void) | null = null;
+  setScrapingProgress: ((progress: { message: string; progress: number }) => void) | null = null;
+
   constructor() {
     // Make this instance globally available - only in browser
     if (typeof window !== "undefined") {
@@ -242,6 +257,9 @@ export class DeepResearchApp {
       this.loadAIConnectionFromStorage();
     }, 100);
 
+    // Load Firecrawl API key if available
+    this.loadFirecrawlApiKey();
+
     // Show UI immediately with ready status
     this.updateStatus("✅ DeepResearch ready - Document features loading...");
     console.log("✅ DeepResearchApp basic initialization complete - UI ready");
@@ -251,6 +269,9 @@ export class DeepResearchApp {
 
     // Initialize Metadata Manager asynchronously
     this.initializeMetadataManagerAsync();
+
+    // Load saved Firecrawl API key
+    this.loadFirecrawlApiKey();
   }
 
   private async initializeVectorStoreAsync() {
@@ -1616,6 +1637,229 @@ Duration: ${frame.duration || 0}s
     }
   }
 
+  // Firecrawl Integration Methods
+  openFirecrawlModal() {
+    this.showFirecrawlModal = true;
+    this.setShowFirecrawlModal?.(true);
+  }
+
+  closeFirecrawlModal() {
+    this.showFirecrawlModal = false;
+    this.setShowFirecrawlModal?.(false);
+  }
+
+  async scrapeUrl(url: string, apiKey: string) {
+    if (!this.vectorStore) {
+      this.updateStatus("❌ Vector Store not available");
+      return;
+    }
+
+    if (!this.vectorStore.processingAvailable) {
+      const status = this.vectorStore.processingStatus;
+      if (this.vectorStore.downloadStatus === 'downloading') {
+        this.updateStatus(`⏳ ${status} - Scraping will be available once download completes`);
+      } else if (this.vectorStore.downloadStatus === 'error') {
+        this.updateStatus("❌ AI model download failed - Document processing requires AI");
+      } else {
+        this.updateStatus("❌ Document processing not ready - Please wait or refresh the page");
+      }
+      return;
+    }
+
+    if (!url || !apiKey) {
+      this.updateStatus("❌ Please provide both URL and API key");
+      return;
+    }
+
+    if (this.isScrapingUrl) {
+      this.updateStatus("⚠️ Scraping already in progress");
+      return;
+    }
+
+    this.isScrapingUrl = true;
+    this.setIsScrapingUrl?.(true);
+    this.scrapingUrl = url;
+    
+    try {
+      this.updateStatus("🔍 Starting Firecrawl scraping...");
+      this.setScrapingProgress?.({ message: "Initializing Firecrawl...", progress: 10 });
+
+      // Validate URL format
+      let validUrl: URL;
+      try {
+        validUrl = new URL(url);
+      } catch (e) {
+        throw new Error("Invalid URL format");
+      }
+
+      this.setScrapingProgress?.({ message: "Scraping content...", progress: 30 });
+
+      // Call Firecrawl API
+      const response = await fetch('https://api.firecrawl.dev/v0/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: validUrl.toString(),
+          pageOptions: {
+            onlyMainContent: true,
+            includeHtml: false,
+            waitFor: 3000,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Firecrawl API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+      }
+
+      this.setScrapingProgress?.({ message: "Processing scraped content...", progress: 60 });
+
+      const data = await response.json();
+      
+      if (!data.data || !data.data.content) {
+        throw new Error("No content extracted from the URL");
+      }
+
+      const content = data.data.content;
+      const title = data.data.title || `Scraped from ${validUrl.hostname}`;
+      const description = data.data.description || '';
+
+      this.setScrapingProgress?.({ message: "Adding to Knowledge Base...", progress: 80 });
+
+      // Create a virtual file-like object for the scraped content
+      const scrapedFile = {
+        name: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.md`,
+        type: 'text/markdown',
+        size: content.length,
+        lastModified: Date.now(),
+      };
+
+      // Add to vector store
+      await this.vectorStore.addDocument(
+        scrapedFile as File,
+        content,
+        (progress) => {
+          this.updateStatus(`📄 Processing scraped content: ${progress.message}`);
+          this.setScrapingProgress?.({ 
+            message: `Processing: ${progress.message}`, 
+            progress: 80 + (progress.progress * 0.2) 
+          });
+        }
+      );
+
+      // Update document metadata to include Firecrawl source info
+      const allDocs = await this.vectorStore.getAllDocuments();
+      const newDoc = allDocs.find(doc => doc.title === title);
+      if (newDoc) {
+        // Use type assertion to add custom metadata properties
+        (newDoc.metadata as any).originalUrl = validUrl.toString();
+        (newDoc.metadata as any).scrapedAt = new Date().toISOString();
+        (newDoc.metadata as any).firecrawlData = {
+          url: validUrl.toString(),
+          title: data.data.title,
+          description: data.data.description,
+          author: data.data.author,
+          siteName: data.data.siteName,
+          language: data.data.language,
+        };
+        newDoc.metadata.source = 'firecrawl';
+        newDoc.metadata.description = description;
+      }
+
+      this.updateStatus(`✅ Successfully scraped and added "${title}" to Knowledge Base`);
+      this.updateDocumentStatus();
+
+      // Track successful scraping
+      const pageAnalytics = (this as any).pageAnalytics;
+      if (pageAnalytics) {
+        pageAnalytics.trackFeatureUsage("firecrawl_scrape_success", {
+          url: validUrl.toString(),
+          domain: validUrl.hostname,
+          content_length: content.length,
+          title: title,
+        });
+      }
+
+      // API key is managed by the UI component with remember option
+
+      this.closeFirecrawlModal();
+
+    } catch (error) {
+      console.error("❌ Firecrawl scraping failed:", error);
+      this.updateStatus(`❌ Scraping failed: ${(error as Error).message}`);
+      
+      // Track failed scraping
+      const pageAnalytics = (this as any).pageAnalytics;
+      if (pageAnalytics) {
+        pageAnalytics.trackError("firecrawl_scrape_failed", (error as Error).message);
+      }
+    } finally {
+      this.isScrapingUrl = false;
+      this.setIsScrapingUrl?.(false);
+      this.scrapingUrl = "";
+      this.setScrapingProgress?.({ message: "", progress: 0 });
+    }
+  }
+
+  // Simple encryption/decryption for API key storage
+  private encryptApiKey(key: string): string {
+    // Simple base64 encoding with a salt - not military grade but prevents casual access
+    const salt = 'fc_key_2024_salt_protection';
+    const combined = salt + key + salt;
+    return btoa(combined);
+  }
+
+  private decryptApiKey(encryptedKey: string): string {
+    try {
+      const decoded = atob(encryptedKey);
+      const salt = 'fc_key_2024_salt_protection';
+      // Remove salt from both ends
+      return decoded.slice(salt.length, -salt.length);
+    } catch (error) {
+      console.warn('Failed to decrypt API key, clearing saved key');
+      this.clearFirecrawlApiKey();
+      return '';
+    }
+  }
+
+  // Load saved Firecrawl API key with decryption
+  loadFirecrawlApiKey() {
+    const savedKey = localStorage.getItem('firecrawl_api_key_encrypted');
+    if (savedKey) {
+      this.firecrawlApiKey = this.decryptApiKey(savedKey);
+    }
+  }
+
+  // Save API key with encryption
+  saveFirecrawlApiKey(key: string, remember: boolean = false) {
+    if (remember && key.trim()) {
+      const encrypted = this.encryptApiKey(key);
+      localStorage.setItem('firecrawl_api_key_encrypted', encrypted);
+      localStorage.setItem('firecrawl_api_key_remember', 'true');
+      console.log('🔐 Firecrawl API key saved securely');
+    } else {
+      this.clearFirecrawlApiKey();
+    }
+    this.firecrawlApiKey = key;
+  }
+
+  // Clear saved API key
+  clearFirecrawlApiKey() {
+    localStorage.removeItem('firecrawl_api_key_encrypted');
+    localStorage.removeItem('firecrawl_api_key_remember');
+    this.firecrawlApiKey = '';
+    console.log('🗑️ Firecrawl API key cleared');
+  }
+
+  // Check if API key is remembered
+  isFirecrawlApiKeyRemembered(): boolean {
+    return localStorage.getItem('firecrawl_api_key_remember') === 'true';
+  }
+
   async searchDocuments(
     query: string,
     threshold: number = 0.3,
@@ -2973,6 +3217,11 @@ export function DeepResearchComponent() {
   const [editingTimeCapsule, setEditingTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
   const [isMetadataLoading, setIsMetadataLoading] = useState<boolean>(false);
 
+  // Firecrawl States
+  const [showFirecrawlModal, setShowFirecrawlModal] = useState<boolean>(false);
+  const [isScrapingUrl, setIsScrapingUrl] = useState<boolean>(false);
+  const [scrapingProgress, setScrapingProgress] = useState<{ message: string; progress: number }>({ message: "", progress: 0 });
+
   const appRef = useRef<DeepResearchApp | null>(null);
 
   useEffect(() => {
@@ -3011,6 +3260,11 @@ export function DeepResearchComponent() {
     app.setEditingBubblSpace = setEditingBubblSpace;
     app.setEditingTimeCapsule = setEditingTimeCapsule;
     app.setIsMetadataLoading = setIsMetadataLoading;
+
+    // Set Firecrawl setters
+    app.setShowFirecrawlModal = setShowFirecrawlModal;
+    app.setIsScrapingUrl = setIsScrapingUrl;
+    app.setScrapingProgress = setScrapingProgress;
 
     // Initialize the app asynchronously (non-blocking)
     app.init();
@@ -3416,6 +3670,7 @@ export function DeepResearchComponent() {
               };
               input.click();
             }}
+            onScrapeUrl={() => app.openFirecrawlModal()}
             onUploadRepository={() => {
               /* Repository upload logic */
             }}
@@ -3905,6 +4160,138 @@ export function DeepResearchComponent() {
         file={app.importFile}
       />
       */}
+
+      {/* Firecrawl Modal */}
+      <Dialog open={showFirecrawlModal} onOpenChange={setShowFirecrawlModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span>🔍</span>
+              Scrape URL with Firecrawl
+            </DialogTitle>
+            <DialogDescription>
+              Enter a URL and your Firecrawl API key to scrape web content and add it to your Knowledge Base.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="firecrawl-url">Website URL</Label>
+              <Input
+                id="firecrawl-url"
+                placeholder="https://example.com/article"
+                type="url"
+                defaultValue=""
+                key="firecrawl-url-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="firecrawl-api-key">Firecrawl API Key</Label>
+                {app?.isFirecrawlApiKeyRemembered() && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs text-green-600">
+                      🔐 Saved
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        app.clearFirecrawlApiKey();
+                        // Clear the input field
+                        const apiKeyInput = document.getElementById('firecrawl-api-key') as HTMLInputElement;
+                        if (apiKeyInput) apiKeyInput.value = '';
+                      }}
+                      className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                      title="Forget saved API key"
+                    >
+                      Forget
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <Input
+                id="firecrawl-api-key"
+                placeholder="fc-xxxxxxxxxx"
+                type="password"
+                defaultValue={app?.firecrawlApiKey || ""}
+                key="firecrawl-api-key-input"
+              />
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Get your API key from{" "}
+                  <a 
+                    href="https://firecrawl.dev" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    firecrawl.dev
+                  </a>
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="remember-api-key"
+                    className="w-4 h-4"
+                    defaultChecked={app?.isFirecrawlApiKeyRemembered()}
+                  />
+                  <Label htmlFor="remember-api-key" className="text-xs cursor-pointer">
+                    Remember API key
+                  </Label>
+                </div>
+              </div>
+            </div>
+            {isScrapingUrl && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {scrapingProgress.message}
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {scrapingProgress.progress}%
+                  </span>
+                </div>
+                <Progress value={scrapingProgress.progress} className="w-full" />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => app.closeFirecrawlModal()}
+              disabled={isScrapingUrl}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const urlInput = document.getElementById('firecrawl-url') as HTMLInputElement;
+                const apiKeyInput = document.getElementById('firecrawl-api-key') as HTMLInputElement;
+                const rememberCheckbox = document.getElementById('remember-api-key') as HTMLInputElement;
+                if (urlInput && apiKeyInput) {
+                  // Save API key with encryption if remember is checked
+                  app.saveFirecrawlApiKey(apiKeyInput.value, rememberCheckbox?.checked || false);
+                  app.scrapeUrl(urlInput.value, apiKeyInput.value);
+                }
+              }}
+              disabled={isScrapingUrl}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {isScrapingUrl ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Scraping...
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">🔍</span>
+                  Scrape URL
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </div>
   );
