@@ -23,9 +23,9 @@ frontend:
         - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+set}"
         - echo "NEXTAUTH_URL is ${NEXTAUTH_URL:+set}"
         - echo "🗄️ Database variables check..."
-        - echo "AWS_REGION is ${AWS_REGION:+set}"
-        - echo "AWS_ACCESS_KEY_ID is ${AWS_ACCESS_KEY_ID:+set}"
-        - echo "AWS_SECRET_ACCESS_KEY is ${AWS_SECRET_ACCESS_KEY:+set}"
+        - echo "AWS_REGION is ${REGION_AWS:+set}"
+        - echo "AWS_ACCESS_KEY_ID is ${ACCESS_KEY_ID_AWS:+set}"
+        - echo "AWS_SECRET_ACCESS_KEY is ${SECRET_ACCESS_KEY_AWS:+set}"
         - echo "📧 Email service variables check..."
         - echo "RESEND_API_KEY is ${RESEND_API_KEY:+set}"
     build:
@@ -41,9 +41,9 @@ frontend:
         - echo "NEXTAUTH_SECRET=$AUTH_SECRET" >> .env.production
         - echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
         - echo "NODE_ENV=production" >> .env.production
-        - echo "AWS_REGION=$AWS_REGION" >> .env.production
-        - echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> .env.production
-        - echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> .env.production
+        - echo "AWS_REGION=$REGION_AWS" >> .env.production
+        - echo "AWS_ACCESS_KEY_ID=$ACCESS_KEY_ID_AWS" >> .env.production
+        - echo "AWS_SECRET_ACCESS_KEY=$SECRET_ACCESS_KEY_AWS" >> .env.production
         - echo "RESEND_API_KEY=$RESEND_API_KEY" >> .env.production
         - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL" >> .env.production
         - echo "✅ Environment variables written to .env.production"
