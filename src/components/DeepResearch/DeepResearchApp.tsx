@@ -7,10 +7,10 @@ import {
   AIAssistant,
   AIStatus as AIConnectionStatus,
 } from "../../lib/AIAssistant";
-import { 
-  AgentCoordinator, 
-  AgentProgress, 
-  AgentTask 
+import {
+  AgentCoordinator,
+  AgentProgress,
+  AgentTask,
 } from "../../lib/AgentCoordinator";
 import { analytics } from "../../lib/analytics";
 import { usePageAnalytics } from "../analytics/Analytics";
@@ -60,28 +60,28 @@ import {
   Upload,
   Loader2,
   Settings,
+  Book,
 } from "lucide-react";
 
 // Import Metadata Management
 import { BubblSpaceDialog } from "@/components/ui/bubblspace-dialog";
 import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
 import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
-import { 
-  getMetadataManager, 
-  MetadataManager 
-} from "@/lib/MetadataManager";
+import { getMetadataManager, MetadataManager } from "@/lib/MetadataManager";
 import {
   BubblSpace,
   TimeCapsuleMetadata,
   EnhancedTimeCapsule,
   ImportOptions,
   ImportResult,
-  MetadataUtils
+  MetadataUtils,
 } from "@/types/timecapsule";
+import Image from "next/image";
+import Link from "next/link";
+import SignInButton from "../ui/sign-in";
 
 export type AIProvider = "ollama" | "lmstudio" | "openai" | "local";
-export type ResearchType =
-  | "research";
+export type ResearchType = "research";
 export type ResearchDepth = "overview" | "detailed" | "comprehensive";
 export type AIStatus = AIConnectionStatus;
 
@@ -202,23 +202,30 @@ export class DeepResearchApp {
 
   // Metadata Management React state setters
   setCurrentBubblSpace: ((space: BubblSpace | null) => void) | null = null;
-  setCurrentTimeCapsule: ((capsule: TimeCapsuleMetadata | null) => void) | null = null;
+  setCurrentTimeCapsule:
+    | ((capsule: TimeCapsuleMetadata | null) => void)
+    | null = null;
   setShowBubblSpaceDialog: ((show: boolean) => void) | null = null;
   setShowTimeCapsuleDialog: ((show: boolean) => void) | null = null;
   setShowSafeImportDialog: ((show: boolean) => void) | null = null;
   setBubblSpaces: ((spaces: BubblSpace[]) => void) | null = null;
   setTimeCapsules: ((capsules: TimeCapsuleMetadata[]) => void) | null = null;
   setEditingBubblSpace: ((space: BubblSpace | null) => void) | null = null;
-  setEditingTimeCapsule: ((capsule: TimeCapsuleMetadata | null) => void) | null = null;
+  setEditingTimeCapsule:
+    | ((capsule: TimeCapsuleMetadata | null) => void)
+    | null = null;
   setIsMetadataLoading: ((loading: boolean) => void) | null = null;
 
   // Firecrawl state setters
   setShowFirecrawlModal: ((show: boolean) => void) | null = null;
   setIsScrapingUrl: ((scraping: boolean) => void) | null = null;
-  setScrapingProgress: ((progress: { message: string; progress: number }) => void) | null = null;
+  setScrapingProgress:
+    | ((progress: { message: string; progress: number }) => void)
+    | null = null;
 
   // Agent Progress state setters
-  setCurrentAgentProgress: ((progress: AgentProgress | null) => void) | null = null;
+  setCurrentAgentProgress: ((progress: AgentProgress | null) => void) | null =
+    null;
   setShowAgentProgress: ((show: boolean) => void) | null = null;
 
   constructor() {
@@ -239,7 +246,10 @@ export class DeepResearchApp {
     }
 
     // If another instance is already initializing, wait for it
-    if (DeepResearchApp.isInitializing && DeepResearchApp.initializationPromise) {
+    if (
+      DeepResearchApp.isInitializing &&
+      DeepResearchApp.initializationPromise
+    ) {
       console.log("⏳ Another instance is initializing, waiting...");
       await DeepResearchApp.initializationPromise;
       this.initialized = true;
@@ -292,7 +302,7 @@ export class DeepResearchApp {
     // VectorStore will be provided by VectorStoreProvider
     console.log("📊 VectorStore will be initialized by VectorStoreProvider...");
     this.updateStatus("📊 Waiting for VectorStore from provider...");
-    
+
     // The VectorStore will be set by the React component when the provider initializes it
     // This method is now primarily for backwards compatibility
   }
@@ -307,21 +317,27 @@ export class DeepResearchApp {
       const downloadError = (this.vectorStore as any).downloadError;
 
       switch (downloadStatus) {
-        case 'downloading':
-          this.updateStatus(`🧠 AI models downloading: ${downloadProgress}% (background process)`);
+        case "downloading":
+          this.updateStatus(
+            `🧠 AI models downloading: ${downloadProgress}% (background process)`
+          );
           setTimeout(checkProgress, 2000); // Check every 2 seconds
           break;
-          
-        case 'ready':
-          this.updateStatus("✅ AI models ready - Full document processing and search available");
+
+        case "ready":
+          this.updateStatus(
+            "✅ AI models ready - Full document processing and search available"
+          );
           console.log("🎉 Xenova download completed successfully");
           break;
-          
-        case 'error':
-          this.updateStatus("⚠️ AI model download failed - Basic document management still available");
+
+        case "error":
+          this.updateStatus(
+            "⚠️ AI model download failed - Basic document management still available"
+          );
           console.error("❌ Xenova download error:", downloadError);
           break;
-          
+
         default:
           // Keep checking if status is unclear
           setTimeout(checkProgress, 1000);
@@ -340,34 +356,40 @@ export class DeepResearchApp {
     }
 
     try {
-      console.log("🔄 Checking for AI-Frames data to sync with Knowledge Base...");
-      
+      console.log(
+        "🔄 Checking for AI-Frames data to sync with Knowledge Base..."
+      );
+
       // Check localStorage for AI-Frames data with correct keys
-      const aiFramesTimeCapsule = localStorage.getItem('ai_frames_timecapsule');
-      const timeCapsuleCombined = localStorage.getItem('timecapsule_combined');
-      
+      const aiFramesTimeCapsule = localStorage.getItem("ai_frames_timecapsule");
+      const timeCapsuleCombined = localStorage.getItem("timecapsule_combined");
+
       let aiFramesData = null;
-      
+
       // Try to parse AI-Frames TimeCapsule data first
       if (aiFramesTimeCapsule) {
         try {
           const parsedTimeCapsule = JSON.parse(aiFramesTimeCapsule);
           if (parsedTimeCapsule.data && parsedTimeCapsule.data.frames) {
             aiFramesData = parsedTimeCapsule.data.frames;
-            console.log(`📊 Found ${aiFramesData.length} AI-Frames from ai_frames_timecapsule`);
+            console.log(
+              `📊 Found ${aiFramesData.length} AI-Frames from ai_frames_timecapsule`
+            );
           }
         } catch (parseError) {
           console.warn("⚠️ Failed to parse ai_frames_timecapsule:", parseError);
         }
       }
-      
+
       // Fallback to combined TimeCapsule data
       if (!aiFramesData && timeCapsuleCombined) {
         try {
           const parsedCombined = JSON.parse(timeCapsuleCombined);
           if (parsedCombined.data && parsedCombined.data.frames) {
             aiFramesData = parsedCombined.data.frames;
-            console.log(`📊 Found ${aiFramesData.length} AI-Frames from timecapsule_combined`);
+            console.log(
+              `📊 Found ${aiFramesData.length} AI-Frames from timecapsule_combined`
+            );
           }
         } catch (parseError) {
           console.warn("⚠️ Failed to parse timecapsule_combined:", parseError);
@@ -379,7 +401,9 @@ export class DeepResearchApp {
         return;
       }
 
-      this.updateStatus(`🔄 Syncing ${aiFramesData.length} AI-Frames to Knowledge Base...`);
+      this.updateStatus(
+        `🔄 Syncing ${aiFramesData.length} AI-Frames to Knowledge Base...`
+      );
 
       let syncedCount = 0;
       const totalFrames = aiFramesData.length;
@@ -398,25 +422,28 @@ Information:
 ${frame.informationText}
 
 After Video Text:
-${frame.afterVideoText || 'No additional text'}
+${frame.afterVideoText || "No additional text"}
 
-AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(', ') : 'None'}
+AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 
-Video URL: ${frame.videoUrl || 'No video'}
+Video URL: ${frame.videoUrl || "No video"}
 Start Time: ${frame.startTime || 0}s
 Duration: ${frame.duration || 0}s
           `.trim();
 
           // Check if this AI-Frame is already in the KB using enhanced duplicate detection
           const existingDocs = await this.vectorStore.getAllDocuments();
-          const existingDoc = existingDocs.find(doc => 
-            (doc.metadata.source === 'ai-frames' && 
-             (doc.metadata as any).aiFrameId === frame.id) ||
-            (doc.title === title && doc.metadata.source === 'ai-frames')
+          const existingDoc = existingDocs.find(
+            (doc) =>
+              (doc.metadata.source === "ai-frames" &&
+                (doc.metadata as any).aiFrameId === frame.id) ||
+              (doc.title === title && doc.metadata.source === "ai-frames")
           );
 
           if (existingDoc) {
-            console.log(`⚠️ AI-Frame "${frame.title}" already exists in KB, skipping`);
+            console.log(
+              `⚠️ AI-Frame "${frame.title}" already exists in KB, skipping`
+            );
             continue;
           }
 
@@ -425,17 +452,21 @@ Duration: ${frame.duration || 0}s
             title,
             content,
             (progress) => {
-              this.updateStatus(`🔄 Syncing AI-Frame ${syncedCount + 1}/${totalFrames}: ${progress.message}`);
+              this.updateStatus(
+                `🔄 Syncing AI-Frame ${syncedCount + 1}/${totalFrames}: ${progress.message}`
+              );
             }
           );
 
           // Update the document metadata to mark it as from AI-Frames
           const allDocs = await this.vectorStore.getAllDocuments();
-          const newDoc = allDocs.find(doc => doc.title === title && !(doc.metadata as any).aiFrameId);
+          const newDoc = allDocs.find(
+            (doc) => doc.title === title && !(doc.metadata as any).aiFrameId
+          );
           if (newDoc) {
-            newDoc.metadata.source = 'ai-frames';
+            newDoc.metadata.source = "ai-frames";
             (newDoc.metadata as any).aiFrameId = frame.id;
-            (newDoc.metadata as any).aiFrameType = 'learning-frame';
+            (newDoc.metadata as any).aiFrameType = "learning-frame";
             (newDoc.metadata as any).videoUrl = frame.videoUrl;
             (newDoc.metadata as any).startTime = frame.startTime;
             (newDoc.metadata as any).duration = frame.duration;
@@ -444,22 +475,27 @@ Duration: ${frame.duration || 0}s
 
           syncedCount++;
           console.log(`✅ Synced AI-Frame: ${frame.title}`);
-
         } catch (frameError) {
-          console.warn(`⚠️ Failed to sync AI-Frame "${frame.title}":`, frameError);
+          console.warn(
+            `⚠️ Failed to sync AI-Frame "${frame.title}":`,
+            frameError
+          );
         }
       }
 
       if (syncedCount > 0) {
-        this.updateStatus(`✅ Successfully synced ${syncedCount} AI-Frames to Knowledge Base`);
+        this.updateStatus(
+          `✅ Successfully synced ${syncedCount} AI-Frames to Knowledge Base`
+        );
         this.updateDocumentStatus();
-        
+
         // Set up periodic sync to keep AI-Frames and KB in sync
         this.setupAIFramesSync();
       } else {
-        this.updateStatus("ℹ️ AI-Frames data already synced with Knowledge Base");
+        this.updateStatus(
+          "ℹ️ AI-Frames data already synced with Knowledge Base"
+        );
       }
-
     } catch (error) {
       console.error("❌ Failed to sync AI-Frames to KB:", error);
       this.updateStatus("❌ Failed to sync AI-Frames to Knowledge Base");
@@ -478,13 +514,17 @@ Duration: ${frame.duration || 0}s
 
     // Set up storage event listener to detect AI-Frames changes
     const handleStorageChange = (event: StorageEvent) => {
-      if ((event.key === 'ai_frames_timecapsule' || event.key === 'timecapsule_combined') && event.newValue) {
+      if (
+        (event.key === "ai_frames_timecapsule" ||
+          event.key === "timecapsule_combined") &&
+        event.newValue
+      ) {
         console.log("🔄 AI-Frames data changed, syncing to Knowledge Base...");
         setTimeout(() => this.syncAIFramesToKB(), 1000); // Small delay to ensure data is saved
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
 
     // Set up periodic sync (every 30 seconds)
     const syncInterval = setInterval(async () => {
@@ -495,7 +535,7 @@ Duration: ${frame.duration || 0}s
 
     // Store cleanup function
     (window as any).aiFramesSyncCleanup = () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
       clearInterval(syncInterval);
       (window as any).aiFramesSyncSetup = false;
     };
@@ -525,9 +565,9 @@ Duration: ${frame.duration || 0}s
       const maxWaitTime = 10000; // 10 seconds
       const checkInterval = 100; // 100ms
       let waitTime = 0;
-      
+
       while (!this.vectorStore && waitTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
       }
 
@@ -536,7 +576,9 @@ Duration: ${frame.duration || 0}s
         this.metadataManager.setVectorStore(this.vectorStore);
         console.log("🔗 Metadata manager linked to vector store");
       } else {
-        console.warn("⚠️ Vector store not available, metadata manager running without vector store");
+        console.warn(
+          "⚠️ Vector store not available, metadata manager running without vector store"
+        );
       }
 
       // Load existing metadata
@@ -557,14 +599,14 @@ Duration: ${frame.duration || 0}s
 
     try {
       console.log(`🔄 DeepResearch.loadMetadata called`);
-      
+
       // Load BubblSpaces and TimeCapsules
       const bubblSpaces = await this.metadataManager.loadBubblSpaces();
       const timeCapsules = await this.metadataManager.loadTimeCapsules();
 
       console.log(`📝 Loaded metadata:`, {
-        bubblSpaces: bubblSpaces.map(b => ({ id: b.id, name: b.name })),
-        timeCapsules: timeCapsules.map(t => ({ id: t.id, name: t.name }))
+        bubblSpaces: bubblSpaces.map((b) => ({ id: b.id, name: b.name })),
+        timeCapsules: timeCapsules.map((t) => ({ id: t.id, name: t.name })),
       });
 
       this.bubblSpaces = bubblSpaces;
@@ -572,22 +614,25 @@ Duration: ${frame.duration || 0}s
 
       // Set current BubblSpace and TimeCapsule
       this.currentBubblSpace = this.metadataManager.getDefaultBubblSpace();
-      
+
       // Get the most recent TimeCapsule for the current BubblSpace or create one
       if (this.currentBubblSpace) {
         const recentTimeCapsules = this.metadataManager
           .getTimeCapsulesByBubblSpace(this.currentBubblSpace.id)
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-        
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+
         if (recentTimeCapsules.length > 0) {
           this.currentTimeCapsule = recentTimeCapsules[0];
         } else {
           // Create default TimeCapsule for this BubblSpace
           this.currentTimeCapsule = this.metadataManager.createTimeCapsule(
-            'Research Session',
-            'Deep research and analysis',
+            "Research Session",
+            "Deep research and analysis",
             this.currentBubblSpace.id,
-            { category: 'research' }
+            { category: "research" }
           );
         }
       }
@@ -598,9 +643,11 @@ Duration: ${frame.duration || 0}s
       this.setCurrentBubblSpace?.(this.currentBubblSpace);
       this.setCurrentTimeCapsule?.(this.currentTimeCapsule);
 
-      console.log(`✅ Metadata loaded - Current BubblSpace: ${this.currentBubblSpace?.name}`);
+      console.log(
+        `✅ Metadata loaded - Current BubblSpace: ${this.currentBubblSpace?.name}`
+      );
     } catch (error) {
-      console.error('❌ Failed to load metadata:', error);
+      console.error("❌ Failed to load metadata:", error);
     }
   }
 
@@ -621,7 +668,7 @@ Duration: ${frame.duration || 0}s
         );
         // Save connection state when successfully connected
         this.saveToStorage();
-        
+
         // Initialize AgentCoordinator when AI is connected
         this.initializeAgentCoordinator();
       } else {
@@ -639,21 +686,28 @@ Duration: ${frame.duration || 0}s
   initializeAgentCoordinator() {
     if (this.aiAssistant && this.aiAssistant.isConnected()) {
       console.log("🤖 Initializing Agent Coordinator...");
-      this.agentCoordinator = new AgentCoordinator(this.aiAssistant, this.vectorStore);
-      
+      this.agentCoordinator = new AgentCoordinator(
+        this.aiAssistant,
+        this.vectorStore
+      );
+
       // Set up progress callback
       this.agentCoordinator.setProgressCallback((progress) => {
         this.currentAgentProgress = progress;
         this.setCurrentAgentProgress?.(progress);
-        
+
         // Update status message with current agent activity
-        const activeTasks = progress.tasks.filter(t => t.status === 'in_progress');
+        const activeTasks = progress.tasks.filter(
+          (t) => t.status === "in_progress"
+        );
         if (activeTasks.length > 0) {
           const activeTask = activeTasks[0];
-          this.updateStatus(`🤖 ${activeTask.taskName}... (${activeTask.progress || 0}%)`);
+          this.updateStatus(
+            `🤖 ${activeTask.taskName}... (${activeTask.progress || 0}%)`
+          );
         }
       });
-      
+
       console.log("✅ Agent Coordinator initialized");
     }
   }
@@ -895,25 +949,29 @@ Duration: ${frame.duration || 0}s
         this.updateStatus("🤖 Initializing multi-agent learning research...");
         this.showAgentProgress = true;
         this.setShowAgentProgress?.(true);
-        
+
         // Extract conversation content from topics
         const conversationContent = selectedTopics
           .map((t) => `${t.title}: ${t.description}`)
           .join("\n");
-        
+
         // Generate comprehensive research using multiple agents with intent analysis
-        const researchContent = await this.agentCoordinator.generateDeepResearch(
-          conversationContent,
-          this.attachedDocuments,
-          researchDepth
+        const researchContent =
+          await this.agentCoordinator.generateDeepResearch(
+            conversationContent,
+            this.attachedDocuments,
+            researchDepth
+          );
+
+        console.log(
+          `🔍 DEBUG: Research content received from AgentCoordinator:`,
+          {
+            length: researchContent?.length || 0,
+            preview: researchContent?.substring(0, 200) + "...",
+            hasContent: !!researchContent,
+          }
         );
-        
-        console.log(`🔍 DEBUG: Research content received from AgentCoordinator:`, {
-          length: researchContent?.length || 0,
-          preview: researchContent?.substring(0, 200) + '...',
-          hasContent: !!researchContent
-        });
-        
+
         // Create research metadata
         const researchId = `learning-research-${Date.now()}-${Math.random()
           .toString(36)
@@ -938,13 +996,14 @@ Duration: ${frame.duration || 0}s
         } as ResearchItem;
 
         this.researchResults["current"] = researchContent;
-        this.researchResults["currentMetadata"] = researchMetadata as ResearchMetadata;
+        this.researchResults["currentMetadata"] =
+          researchMetadata as ResearchMetadata;
 
         // Update React state and save to storage
         console.log(`🔍 DEBUG: Setting research results to UI state:`, {
           contentLength: researchContent?.length || 0,
           setResearchResultsExists: !!this.setResearchResults,
-          preview: researchContent?.substring(0, 100) + '...'
+          preview: researchContent?.substring(0, 100) + "...",
         });
         this.setResearchResults?.(researchContent);
         this.saveToStorage();
@@ -961,10 +1020,12 @@ Duration: ${frame.duration || 0}s
           this.updateDocumentStatus();
         }
 
-        this.updateStatus("✅ Multi-agent learning research completed successfully");
+        this.updateStatus(
+          "✅ Multi-agent learning research completed successfully"
+        );
         this.showAgentProgress = false;
         this.setShowAgentProgress?.(false);
-        
+
         // Track successful research generation
         if (pageAnalytics) {
           pageAnalytics.trackFeatureUsage("multi_agent_research_completed", {
@@ -979,7 +1040,7 @@ Duration: ${frame.duration || 0}s
             research_quality: this.currentAgentProgress?.researchQuality,
           });
         }
-        
+
         return; // Exit early for multi-agent learning research
       }
 
@@ -991,10 +1052,11 @@ Duration: ${frame.duration || 0}s
           this.updateStatus(
             "🔍 Searching knowledge base for relevant documents..."
           );
-          relevantDocuments = await this.searchRelevantDocuments(selectedTopics);
+          relevantDocuments =
+            await this.searchRelevantDocuments(selectedTopics);
         } else {
           const status = this.vectorStore.processingStatus;
-          if (this.vectorStore.downloadStatus === 'downloading') {
+          if (this.vectorStore.downloadStatus === "downloading") {
             this.updateStatus(
               `🧠 ${status} - Generating research without document context for now...`
             );
@@ -1217,10 +1279,13 @@ Duration: ${frame.duration || 0}s
 
     // Handle research type with specialized logic
     if (type === "research") {
-      return this.buildLearningResearchPrompt(selectedTopics, depth, relevantDocuments);
+      return this.buildLearningResearchPrompt(
+        selectedTopics,
+        depth,
+        relevantDocuments
+      );
     }
 
-    
     let prompt = `You are a professional researcher. Generate a comprehensive ${depth} ${type} research report based on the provided topics and supporting documents.\n\n`;
 
     prompt += `## Research Topics:\n${topics}\n\n`;
@@ -1583,7 +1648,10 @@ Duration: ${frame.duration || 0}s
 
     // Clean up list formatting
     cleanContent = cleanContent.replace(/(\n- [^\n]*)\n\n+(?=- )/g, "$1\n"); // Remove gaps between list items
-    cleanContent = cleanContent.replace(/(\n\d+\. [^\n]*)\n\n+(?=\d+\. )/g, "$1\n"); // Same for numbered lists
+    cleanContent = cleanContent.replace(
+      /(\n\d+\. [^\n]*)\n\n+(?=\d+\. )/g,
+      "$1\n"
+    ); // Same for numbered lists
 
     // Fix code block spacing
     cleanContent = cleanContent.replace(/\n\n+```/g, "\n\n```"); // Max one line before code blocks
@@ -1743,12 +1811,18 @@ Duration: ${frame.duration || 0}s
     // Enhanced fallback messaging for upload
     if (!this.vectorStore.processingAvailable) {
       const status = this.vectorStore.processingStatus;
-      if (this.vectorStore.downloadStatus === 'downloading') {
-        this.updateStatus(`⏳ ${status} - Upload will be available once download completes`);
-      } else if (this.vectorStore.downloadStatus === 'error') {
-        this.updateStatus("❌ AI model download failed - Document upload requires AI processing");
+      if (this.vectorStore.downloadStatus === "downloading") {
+        this.updateStatus(
+          `⏳ ${status} - Upload will be available once download completes`
+        );
+      } else if (this.vectorStore.downloadStatus === "error") {
+        this.updateStatus(
+          "❌ AI model download failed - Document upload requires AI processing"
+        );
       } else {
-        this.updateStatus("❌ Document processing not ready - Please wait or refresh the page");
+        this.updateStatus(
+          "❌ Document processing not ready - Please wait or refresh the page"
+        );
       }
       return;
     }
@@ -2066,12 +2140,18 @@ Duration: ${frame.duration || 0}s
 
     if (!this.vectorStore.processingAvailable) {
       const status = this.vectorStore.processingStatus;
-      if (this.vectorStore.downloadStatus === 'downloading') {
-        this.updateStatus(`⏳ ${status} - Scraping will be available once download completes`);
-      } else if (this.vectorStore.downloadStatus === 'error') {
-        this.updateStatus("❌ AI model download failed - Document processing requires AI");
+      if (this.vectorStore.downloadStatus === "downloading") {
+        this.updateStatus(
+          `⏳ ${status} - Scraping will be available once download completes`
+        );
+      } else if (this.vectorStore.downloadStatus === "error") {
+        this.updateStatus(
+          "❌ AI model download failed - Document processing requires AI"
+        );
       } else {
-        this.updateStatus("❌ Document processing not ready - Please wait or refresh the page");
+        this.updateStatus(
+          "❌ Document processing not ready - Please wait or refresh the page"
+        );
       }
       return;
     }
@@ -2089,10 +2169,13 @@ Duration: ${frame.duration || 0}s
     this.isScrapingUrl = true;
     this.setIsScrapingUrl?.(true);
     this.scrapingUrl = url;
-    
+
     try {
       this.updateStatus("🔍 Starting Firecrawl scraping...");
-      this.setScrapingProgress?.({ message: "Initializing Firecrawl...", progress: 10 });
+      this.setScrapingProgress?.({
+        message: "Initializing Firecrawl...",
+        progress: 10,
+      });
 
       // Validate URL format
       let validUrl: URL;
@@ -2102,14 +2185,17 @@ Duration: ${frame.duration || 0}s
         throw new Error("Invalid URL format");
       }
 
-      this.setScrapingProgress?.({ message: "Scraping content...", progress: 30 });
+      this.setScrapingProgress?.({
+        message: "Scraping content...",
+        progress: 30,
+      });
 
       // Call Firecrawl API
-      const response = await fetch('https://api.firecrawl.dev/v0/scrape', {
-        method: 'POST',
+      const response = await fetch("https://api.firecrawl.dev/v0/scrape", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           url: validUrl.toString(),
@@ -2123,27 +2209,35 @@ Duration: ${frame.duration || 0}s
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Firecrawl API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+        throw new Error(
+          `Firecrawl API error: ${response.status} - ${errorData.error || "Unknown error"}`
+        );
       }
 
-      this.setScrapingProgress?.({ message: "Processing scraped content...", progress: 60 });
+      this.setScrapingProgress?.({
+        message: "Processing scraped content...",
+        progress: 60,
+      });
 
       const data = await response.json();
-      
+
       if (!data.data || !data.data.content) {
         throw new Error("No content extracted from the URL");
       }
 
       const content = data.data.content;
       const title = data.data.title || `Scraped from ${validUrl.hostname}`;
-      const description = data.data.description || '';
+      const description = data.data.description || "";
 
-      this.setScrapingProgress?.({ message: "Adding to Knowledge Base...", progress: 80 });
+      this.setScrapingProgress?.({
+        message: "Adding to Knowledge Base...",
+        progress: 80,
+      });
 
       // Create a virtual file-like object for the scraped content
       const scrapedFile = {
-        name: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.md`,
-        type: 'text/markdown',
+        name: `${title.replace(/[^a-zA-Z0-9]/g, "_")}.md`,
+        type: "text/markdown",
         size: content.length,
         lastModified: Date.now(),
       };
@@ -2153,17 +2247,19 @@ Duration: ${frame.duration || 0}s
         scrapedFile as File,
         content,
         (progress) => {
-          this.updateStatus(`📄 Processing scraped content: ${progress.message}`);
-          this.setScrapingProgress?.({ 
-            message: `Processing: ${progress.message}`, 
-            progress: 80 + (progress.progress * 0.2) 
+          this.updateStatus(
+            `📄 Processing scraped content: ${progress.message}`
+          );
+          this.setScrapingProgress?.({
+            message: `Processing: ${progress.message}`,
+            progress: 80 + progress.progress * 0.2,
           });
         }
       );
 
       // Update document metadata to include Firecrawl source info
       const allDocs = await this.vectorStore.getAllDocuments();
-      const newDoc = allDocs.find(doc => doc.title === title);
+      const newDoc = allDocs.find((doc) => doc.title === title);
       if (newDoc) {
         // Use type assertion to add custom metadata properties
         (newDoc.metadata as any).originalUrl = validUrl.toString();
@@ -2176,11 +2272,13 @@ Duration: ${frame.duration || 0}s
           siteName: data.data.siteName,
           language: data.data.language,
         };
-        newDoc.metadata.source = 'firecrawl';
+        newDoc.metadata.source = "firecrawl";
         newDoc.metadata.description = description;
       }
 
-      this.updateStatus(`✅ Successfully scraped and added "${title}" to Knowledge Base`);
+      this.updateStatus(
+        `✅ Successfully scraped and added "${title}" to Knowledge Base`
+      );
       this.updateDocumentStatus();
 
       // Track successful scraping
@@ -2197,15 +2295,17 @@ Duration: ${frame.duration || 0}s
       // API key is managed by the UI component with remember option
 
       this.closeFirecrawlModal();
-
     } catch (error) {
       console.error("❌ Firecrawl scraping failed:", error);
       this.updateStatus(`❌ Scraping failed: ${(error as Error).message}`);
-      
+
       // Track failed scraping
       const pageAnalytics = (this as any).pageAnalytics;
       if (pageAnalytics) {
-        pageAnalytics.trackError("firecrawl_scrape_failed", (error as Error).message);
+        pageAnalytics.trackError(
+          "firecrawl_scrape_failed",
+          (error as Error).message
+        );
       }
     } finally {
       this.isScrapingUrl = false;
@@ -2218,7 +2318,7 @@ Duration: ${frame.duration || 0}s
   // Simple encryption/decryption for API key storage
   private encryptApiKey(key: string): string {
     // Simple base64 encoding with a salt - not military grade but prevents casual access
-    const salt = 'fc_key_2024_salt_protection';
+    const salt = "fc_key_2024_salt_protection";
     const combined = salt + key + salt;
     return btoa(combined);
   }
@@ -2226,19 +2326,19 @@ Duration: ${frame.duration || 0}s
   private decryptApiKey(encryptedKey: string): string {
     try {
       const decoded = atob(encryptedKey);
-      const salt = 'fc_key_2024_salt_protection';
+      const salt = "fc_key_2024_salt_protection";
       // Remove salt from both ends
       return decoded.slice(salt.length, -salt.length);
     } catch (error) {
-      console.warn('Failed to decrypt API key, clearing saved key');
+      console.warn("Failed to decrypt API key, clearing saved key");
       this.clearFirecrawlApiKey();
-      return '';
+      return "";
     }
   }
 
   // Load saved Firecrawl API key with decryption
   loadFirecrawlApiKey() {
-    const savedKey = localStorage.getItem('firecrawl_api_key_encrypted');
+    const savedKey = localStorage.getItem("firecrawl_api_key_encrypted");
     if (savedKey) {
       this.firecrawlApiKey = this.decryptApiKey(savedKey);
     }
@@ -2248,9 +2348,9 @@ Duration: ${frame.duration || 0}s
   saveFirecrawlApiKey(key: string, remember: boolean = false) {
     if (remember && key.trim()) {
       const encrypted = this.encryptApiKey(key);
-      localStorage.setItem('firecrawl_api_key_encrypted', encrypted);
-      localStorage.setItem('firecrawl_api_key_remember', 'true');
-      console.log('🔐 Firecrawl API key saved securely');
+      localStorage.setItem("firecrawl_api_key_encrypted", encrypted);
+      localStorage.setItem("firecrawl_api_key_remember", "true");
+      console.log("🔐 Firecrawl API key saved securely");
     } else {
       this.clearFirecrawlApiKey();
     }
@@ -2259,15 +2359,15 @@ Duration: ${frame.duration || 0}s
 
   // Clear saved API key
   clearFirecrawlApiKey() {
-    localStorage.removeItem('firecrawl_api_key_encrypted');
-    localStorage.removeItem('firecrawl_api_key_remember');
-    this.firecrawlApiKey = '';
-    console.log('🗑️ Firecrawl API key cleared');
+    localStorage.removeItem("firecrawl_api_key_encrypted");
+    localStorage.removeItem("firecrawl_api_key_remember");
+    this.firecrawlApiKey = "";
+    console.log("🗑️ Firecrawl API key cleared");
   }
 
   // Check if API key is remembered
   isFirecrawlApiKeyRemembered(): boolean {
-    return localStorage.getItem('firecrawl_api_key_remember') === 'true';
+    return localStorage.getItem("firecrawl_api_key_remember") === "true";
   }
 
   async searchDocuments(
@@ -2283,12 +2383,18 @@ Duration: ${frame.duration || 0}s
     // Enhanced fallback messaging for search
     if (!this.vectorStore.processingAvailable) {
       const status = this.vectorStore.processingStatus;
-      if (this.vectorStore.downloadStatus === 'downloading') {
-        this.updateStatus(`⏳ ${status} - Search will be available once download completes`);
-      } else if (this.vectorStore.downloadStatus === 'error') {
-        this.updateStatus("❌ AI model download failed - Semantic search requires AI processing");
+      if (this.vectorStore.downloadStatus === "downloading") {
+        this.updateStatus(
+          `⏳ ${status} - Search will be available once download completes`
+        );
+      } else if (this.vectorStore.downloadStatus === "error") {
+        this.updateStatus(
+          "❌ AI model download failed - Semantic search requires AI processing"
+        );
       } else {
-        this.updateStatus("❌ Search not ready - Please wait or refresh the page");
+        this.updateStatus(
+          "❌ Search not ready - Please wait or refresh the page"
+        );
       }
       return [];
     }
@@ -2443,7 +2549,7 @@ Duration: ${frame.duration || 0}s
       if (this.vectorStore) {
         try {
           const timeCapsuleId = `timecapsule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          
+
           // Store TimeCapsule as a special document in VectorStore (IndexedDB)
           const timeCapsuleDoc = {
             id: timeCapsuleId,
@@ -2452,36 +2558,45 @@ Duration: ${frame.duration || 0}s
             metadata: {
               filename: `timecapsule_${new Date().toISOString().split("T")[0]}.json`,
               filesize: JSON.stringify(timeCapsuleData).length,
-              filetype: 'application/json',
+              filetype: "application/json",
               uploadedAt: new Date().toISOString(),
-              source: 'timecapsule_export',
-              description: 'TimeCapsule export data stored in IndexedDB',
-              isGenerated: true
+              source: "timecapsule_export",
+              description: "TimeCapsule export data stored in IndexedDB",
+              isGenerated: true,
             },
             chunks: [],
-            vectors: []
+            vectors: [],
           };
 
           await this.vectorStore.insertDocument(timeCapsuleDoc);
-          
+
           // Save only minimal reference in localStorage
           const timeCapsuleRef = {
             id: timeCapsuleId,
             exportedAt: new Date().toISOString(),
             filename: timeCapsuleDoc.metadata.filename,
-            fileSize: timeCapsuleDoc.metadata.filesize
+            fileSize: timeCapsuleDoc.metadata.filesize,
           };
-          
-          localStorage.setItem("deepresearch_data", JSON.stringify({
-            topics: this.topics,
-            researchResults: this.researchResults,
-            currentTab: this.currentTab
-          }));
-          localStorage.setItem("timecapsule_combined_ref", JSON.stringify(timeCapsuleRef));
-          
+
+          localStorage.setItem(
+            "deepresearch_data",
+            JSON.stringify({
+              topics: this.topics,
+              researchResults: this.researchResults,
+              currentTab: this.currentTab,
+            })
+          );
+          localStorage.setItem(
+            "timecapsule_combined_ref",
+            JSON.stringify(timeCapsuleRef)
+          );
+
           this.updateStatus("📊 TimeCapsule stored in IndexedDB");
         } catch (storageError) {
-          console.warn("⚠️ Could not store in IndexedDB, using direct export:", storageError);
+          console.warn(
+            "⚠️ Could not store in IndexedDB, using direct export:",
+            storageError
+          );
           // Fallback to direct export without storing in IndexedDB
         }
       }
@@ -2498,9 +2613,9 @@ Duration: ${frame.duration || 0}s
 
       const fileSize = blob.size;
       const hasAIFrames = !!timeCapsuleData.aiFramesData;
-      
+
       this.updateStatus(
-        `✅ TimeCapsule exported successfully (${Math.round(fileSize / 1024)}KB)${hasAIFrames ? ' - includes AI-Frames data' : ''}`
+        `✅ TimeCapsule exported successfully (${Math.round(fileSize / 1024)}KB)${hasAIFrames ? " - includes AI-Frames data" : ""}`
       );
     } catch (error) {
       console.error("❌ TimeCapsule export failed:", error);
@@ -2524,41 +2639,55 @@ Duration: ${frame.duration || 0}s
       }
 
       // Handle AI-Frames TimeCapsule format
-      if (timeCapsuleData.type === "ai-frames-timecapsule" && timeCapsuleData.data) {
+      if (
+        timeCapsuleData.type === "ai-frames-timecapsule" &&
+        timeCapsuleData.data
+      ) {
         this.updateStatus("🎥 Detected AI-Frames TimeCapsule format...");
-        
+
         // Extract AI-Frames data and convert to DeepResearch format
         const aiFramesData = timeCapsuleData.data;
-        
+
         // Convert AI-Frames to research topics
         if (aiFramesData.frames && Array.isArray(aiFramesData.frames)) {
-          const convertedTopics = aiFramesData.frames.map((frame: any, index: number) => ({
-            id: frame.id || `frame-${index}`,
-            title: frame.goal || `Frame ${index + 1}`,
-            description: frame.description || frame.transcript || `Learning frame about ${frame.goal}`,
-            selected: true,
-            order: index,
-            concepts: frame.aiConcepts || [],
-            video: frame.video || null,
-            timestamp: frame.timestamp || null,
-          }));
+          const convertedTopics = aiFramesData.frames.map(
+            (frame: any, index: number) => ({
+              id: frame.id || `frame-${index}`,
+              title: frame.goal || `Frame ${index + 1}`,
+              description:
+                frame.description ||
+                frame.transcript ||
+                `Learning frame about ${frame.goal}`,
+              selected: true,
+              order: index,
+              concepts: frame.aiConcepts || [],
+              video: frame.video || null,
+              timestamp: frame.timestamp || null,
+            })
+          );
 
           this.topics = convertedTopics;
           this.setTopics?.(this.topics);
-          
-          this.updateStatus(`📚 Converted ${convertedTopics.length} AI-Frames to research topics`);
+
+          this.updateStatus(
+            `📚 Converted ${convertedTopics.length} AI-Frames to research topics`
+          );
         }
 
         // Import DeepResearch data if available
         if (aiFramesData.deepResearchData) {
           if (aiFramesData.deepResearchData.research) {
             if (aiFramesData.deepResearchData.research.topics) {
-              this.topics = [...this.topics, ...aiFramesData.deepResearchData.research.topics];
+              this.topics = [
+                ...this.topics,
+                ...aiFramesData.deepResearchData.research.topics,
+              ];
               this.setTopics?.(this.topics);
             }
-            
+
             if (aiFramesData.deepResearchData.research.researchResults) {
-              this.researchResults = aiFramesData.deepResearchData.research.researchResults;
+              this.researchResults =
+                aiFramesData.deepResearchData.research.researchResults;
               this.setResearchResults?.(this.getCurrentResearchContent());
             }
           }
@@ -2568,7 +2697,7 @@ Duration: ${frame.duration || 0}s
         if (this.vectorStore) {
           try {
             const aiFramesId = `aiframes_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            
+
             const aiFramesDoc = {
               id: aiFramesId,
               title: `AI-Frames TimeCapsule ${new Date().toLocaleDateString()}`,
@@ -2576,37 +2705,48 @@ Duration: ${frame.duration || 0}s
               metadata: {
                 filename: `ai_frames_timecapsule.json`,
                 filesize: JSON.stringify(timeCapsuleData).length,
-                filetype: 'application/json',
+                filetype: "application/json",
                 uploadedAt: new Date().toISOString(),
-                source: 'aiframes_import',
-                description: 'AI-Frames TimeCapsule data stored in IndexedDB',
-                isGenerated: true
+                source: "aiframes_import",
+                description: "AI-Frames TimeCapsule data stored in IndexedDB",
+                isGenerated: true,
               },
               chunks: [],
-              vectors: []
+              vectors: [],
             };
 
             await this.vectorStore.insertDocument(aiFramesDoc);
-            
+
             // Store only minimal reference in localStorage
-            localStorage.setItem("ai_frames_timecapsule_ref", JSON.stringify({
-              id: aiFramesId,
-              importedAt: new Date().toISOString()
-            }));
-            
+            localStorage.setItem(
+              "ai_frames_timecapsule_ref",
+              JSON.stringify({
+                id: aiFramesId,
+                importedAt: new Date().toISOString(),
+              })
+            );
+
             this.updateStatus("📊 AI-Frames data stored in IndexedDB");
           } catch (storageError) {
-            console.warn("⚠️ Could not store AI-Frames in IndexedDB:", storageError);
+            console.warn(
+              "⚠️ Could not store AI-Frames in IndexedDB:",
+              storageError
+            );
             // Fallback to localStorage for small data only
-            localStorage.setItem("ai_frames_timecapsule_ref", JSON.stringify({
-              type: "legacy",
-              importedAt: new Date().toISOString()
-            }));
+            localStorage.setItem(
+              "ai_frames_timecapsule_ref",
+              JSON.stringify({
+                type: "legacy",
+                importedAt: new Date().toISOString(),
+              })
+            );
           }
         }
 
         this.saveToStorage();
-        this.updateStatus("✅ AI-Frames TimeCapsule imported successfully - can now export as combined format");
+        this.updateStatus(
+          "✅ AI-Frames TimeCapsule imported successfully - can now export as combined format"
+        );
         return;
       }
 
@@ -2630,18 +2770,18 @@ Duration: ${frame.duration || 0}s
       if (timeCapsuleData.aiFramesData) {
         try {
           this.updateStatus("🎥 Restoring AI-Frames data...");
-          
+
           if (this.vectorStore) {
             // Store in IndexedDB
             const aiFramesId = `aiframes_combined_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            
+
             const aiFramesTimeCapsule = {
               version: "1.0",
               timestamp: new Date().toISOString(),
               type: "ai-frames-timecapsule",
               data: timeCapsuleData.aiFramesData,
             };
-            
+
             const aiFramesDoc = {
               id: aiFramesId,
               title: `AI-Frames Combined Data ${new Date().toLocaleDateString()}`,
@@ -2649,25 +2789,28 @@ Duration: ${frame.duration || 0}s
               metadata: {
                 filename: `ai_frames_combined.json`,
                 filesize: JSON.stringify(aiFramesTimeCapsule).length,
-                filetype: 'application/json',
+                filetype: "application/json",
                 uploadedAt: new Date().toISOString(),
-                source: 'aiframes_combined',
-                description: 'AI-Frames combined data from TimeCapsule',
-                isGenerated: true
+                source: "aiframes_combined",
+                description: "AI-Frames combined data from TimeCapsule",
+                isGenerated: true,
               },
               chunks: [],
-              vectors: []
+              vectors: [],
             };
 
             await this.vectorStore.insertDocument(aiFramesDoc);
-            
+
             // Store only reference in localStorage
-            localStorage.setItem("ai_frames_timecapsule_ref", JSON.stringify({
-              id: aiFramesId,
-              importedAt: new Date().toISOString()
-            }));
+            localStorage.setItem(
+              "ai_frames_timecapsule_ref",
+              JSON.stringify({
+                id: aiFramesId,
+                importedAt: new Date().toISOString(),
+              })
+            );
           }
-          
+
           this.updateStatus("✅ AI-Frames data available for AI-Frames page");
         } catch (aiFramesError) {
           console.warn("⚠️ Could not restore AI-Frames data:", aiFramesError);
@@ -2708,7 +2851,7 @@ Duration: ${frame.duration || 0}s
       if (this.vectorStore) {
         try {
           const timeCapsuleId = `timecapsule_import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          
+
           // Store TimeCapsule as a special document in VectorStore (IndexedDB)
           const timeCapsuleDoc = {
             id: timeCapsuleId,
@@ -2717,39 +2860,47 @@ Duration: ${frame.duration || 0}s
             metadata: {
               filename: `imported_timecapsule.json`,
               filesize: JSON.stringify(timeCapsuleData).length,
-              filetype: 'application/json',
+              filetype: "application/json",
               uploadedAt: new Date().toISOString(),
-              source: 'timecapsule_import',
-              description: 'TimeCapsule import data stored in IndexedDB',
-              isGenerated: true
+              source: "timecapsule_import",
+              description: "TimeCapsule import data stored in IndexedDB",
+              isGenerated: true,
             },
             chunks: [],
-            vectors: []
+            vectors: [],
           };
 
           await this.vectorStore.insertDocument(timeCapsuleDoc);
-          
+
           // Save only minimal reference in localStorage
           const timeCapsuleRef = {
             id: timeCapsuleId,
             importedAt: new Date().toISOString(),
-            hasAIFrames: !!timeCapsuleData.aiFramesData
+            hasAIFrames: !!timeCapsuleData.aiFramesData,
           };
-          
-          localStorage.setItem("timecapsule_combined_ref", JSON.stringify(timeCapsuleRef));
-          
+
+          localStorage.setItem(
+            "timecapsule_combined_ref",
+            JSON.stringify(timeCapsuleRef)
+          );
+
           this.updateStatus("📊 TimeCapsule stored in IndexedDB");
         } catch (storageError) {
-          console.warn("⚠️ Could not store TimeCapsule in IndexedDB:", storageError);
-          this.updateStatus("⚠️ TimeCapsule imported but not stored for cross-page compatibility");
+          console.warn(
+            "⚠️ Could not store TimeCapsule in IndexedDB:",
+            storageError
+          );
+          this.updateStatus(
+            "⚠️ TimeCapsule imported but not stored for cross-page compatibility"
+          );
         }
       }
 
       this.saveToStorage();
-      
+
       const hasAIFrames = !!timeCapsuleData.aiFramesData;
       this.updateStatus(
-        `✅ TimeCapsule imported successfully${hasAIFrames ? ' - AI-Frames data ready for AI-Frames page' : ''}`
+        `✅ TimeCapsule imported successfully${hasAIFrames ? " - AI-Frames data ready for AI-Frames page" : ""}`
       );
     } catch (error) {
       console.error("❌ TimeCapsule import failed:", error);
@@ -2839,31 +2990,45 @@ Duration: ${frame.duration || 0}s
           ollamaURL: this.selectedOllamaURL,
         },
       };
-      
+
       const dataString = JSON.stringify(data);
       const dataSize = dataString.length;
-      
+
       // Check if data is getting too large (> 2MB)
       if (dataSize > 2 * 1024 * 1024) {
-        console.warn(`⚠️ Research data is large (${Math.round(dataSize / 1024)}KB), considering IndexedDB storage`);
-        
+        console.warn(
+          `⚠️ Research data is large (${Math.round(dataSize / 1024)}KB), considering IndexedDB storage`
+        );
+
         // Try to store in IndexedDB if VectorStore is available
         if (this.vectorStore) {
-          this.saveToIndexedDB(data).then(() => {
-            // Store only minimal data in localStorage
-            const minimalData = {
-              topics: this.topics,
-              researchResults: { current: this.researchResults.current || "" }, // Only current research
-              aiConnection: data.aiConnection,
-              _storedInIndexedDB: true,
-              _lastSaved: new Date().toISOString()
-            };
-            localStorage.setItem("deepresearch_data", JSON.stringify(minimalData));
-            console.log("💾 Large data moved to IndexedDB, minimal data saved to localStorage");
-          }).catch((indexedDBError) => {
-            console.warn("⚠️ Failed to store in IndexedDB, trying localStorage with reduced data:", indexedDBError);
-            this.saveReducedToLocalStorage(data);
-          });
+          this.saveToIndexedDB(data)
+            .then(() => {
+              // Store only minimal data in localStorage
+              const minimalData = {
+                topics: this.topics,
+                researchResults: {
+                  current: this.researchResults.current || "",
+                }, // Only current research
+                aiConnection: data.aiConnection,
+                _storedInIndexedDB: true,
+                _lastSaved: new Date().toISOString(),
+              };
+              localStorage.setItem(
+                "deepresearch_data",
+                JSON.stringify(minimalData)
+              );
+              console.log(
+                "💾 Large data moved to IndexedDB, minimal data saved to localStorage"
+              );
+            })
+            .catch((indexedDBError) => {
+              console.warn(
+                "⚠️ Failed to store in IndexedDB, trying localStorage with reduced data:",
+                indexedDBError
+              );
+              this.saveReducedToLocalStorage(data);
+            });
           return;
         } else {
           // Fallback: store reduced data in localStorage
@@ -2871,14 +3036,15 @@ Duration: ${frame.duration || 0}s
           return;
         }
       }
-      
+
       // Try normal localStorage save
       localStorage.setItem("deepresearch_data", dataString);
       console.log("💾 Saved state to localStorage:", data.aiConnection);
-      
     } catch (error) {
       if (error instanceof Error && error.name === "QuotaExceededError") {
-        console.error("❌ localStorage quota exceeded, trying IndexedDB storage");
+        console.error(
+          "❌ localStorage quota exceeded, trying IndexedDB storage"
+        );
         this.handleQuotaExceeded();
       } else {
         console.error("Failed to save to storage:", error);
@@ -2890,9 +3056,9 @@ Duration: ${frame.duration || 0}s
     if (!this.vectorStore) {
       throw new Error("VectorStore not available");
     }
-    
+
     const researchId = `research_state_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const researchDoc = {
       id: researchId,
       title: `Research State ${new Date().toLocaleDateString()}`,
@@ -2900,23 +3066,26 @@ Duration: ${frame.duration || 0}s
       metadata: {
         filename: `research_state.json`,
         filesize: JSON.stringify(data).length,
-        filetype: 'application/json',
+        filetype: "application/json",
         uploadedAt: new Date().toISOString(),
-        source: 'research_state',
-        description: 'DeepResearch state data stored in IndexedDB',
-        isGenerated: true
+        source: "research_state",
+        description: "DeepResearch state data stored in IndexedDB",
+        isGenerated: true,
       },
       chunks: [],
-      vectors: []
+      vectors: [],
     };
 
     await this.vectorStore.insertDocument(researchDoc);
-    
+
     // Store reference in localStorage
-    localStorage.setItem("deepresearch_state_ref", JSON.stringify({
-      id: researchId,
-      savedAt: new Date().toISOString()
-    }));
+    localStorage.setItem(
+      "deepresearch_state_ref",
+      JSON.stringify({
+        id: researchId,
+        savedAt: new Date().toISOString(),
+      })
+    );
   }
 
   private saveReducedToLocalStorage(originalData: any) {
@@ -2924,33 +3093,39 @@ Duration: ${frame.duration || 0}s
       // Save only essential data to localStorage
       const reducedData = {
         topics: this.topics,
-        researchResults: { 
+        researchResults: {
           current: this.researchResults.current || "",
           // Keep only the last 3 research items to reduce size
           ...Object.fromEntries(
             Object.entries(this.researchResults)
-              .filter(([key, value]) => key !== 'current' && typeof value === 'object')
+              .filter(
+                ([key, value]) => key !== "current" && typeof value === "object"
+              )
               .slice(-3)
-          )
+          ),
         },
         aiConnection: originalData.aiConnection,
         _reducedStorage: true,
-        _lastSaved: new Date().toISOString()
+        _lastSaved: new Date().toISOString(),
       };
-      
+
       localStorage.setItem("deepresearch_data", JSON.stringify(reducedData));
-      console.log("💾 Saved reduced data to localStorage due to size constraints");
-      
+      console.log(
+        "💾 Saved reduced data to localStorage due to size constraints"
+      );
     } catch (reduceError) {
       console.error("❌ Failed to save even reduced data:", reduceError);
       // Last resort: save only connection state
       try {
-        localStorage.setItem("deepresearch_data", JSON.stringify({
-          topics: [],
-          researchResults: {},
-          aiConnection: originalData.aiConnection,
-          _emergencyMode: true
-        }));
+        localStorage.setItem(
+          "deepresearch_data",
+          JSON.stringify({
+            topics: [],
+            researchResults: {},
+            aiConnection: originalData.aiConnection,
+            _emergencyMode: true,
+          })
+        );
         console.log("🚨 Emergency save: only connection state preserved");
       } catch (emergencyError) {
         console.error("❌ Complete localStorage failure:", emergencyError);
@@ -2960,17 +3135,17 @@ Duration: ${frame.duration || 0}s
 
   private handleQuotaExceeded() {
     console.log("🧹 Handling localStorage quota exceeded...");
-    
+
     // Clear old TimeCapsule references that might be taking space
     try {
       const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.includes('timecapsule') || key.includes('ai_frames')) {
+      keys.forEach((key) => {
+        if (key.includes("timecapsule") || key.includes("ai_frames")) {
           console.log(`🗑️ Removing old reference: ${key}`);
           localStorage.removeItem(key);
         }
       });
-      
+
       // Try saving again with minimal data
       this.saveReducedToLocalStorage({
         topics: this.topics,
@@ -2979,11 +3154,11 @@ Duration: ${frame.duration || 0}s
           provider: this.aiAssistant?.getSession()?.provider || "ollama",
           connected: this.aiAssistant?.isConnected() || false,
           model: this.aiAssistant?.getSession()?.model || null,
-          baseURL: this.aiAssistant?.getSession()?.baseURL || this.selectedOllamaURL,
+          baseURL:
+            this.aiAssistant?.getSession()?.baseURL || this.selectedOllamaURL,
           ollamaURL: this.selectedOllamaURL,
-        }
+        },
       });
-      
     } catch (cleanupError) {
       console.error("❌ Failed to clean up localStorage:", cleanupError);
     }
@@ -3166,27 +3341,45 @@ Duration: ${frame.duration || 0}s
     this.setEditingBubblSpace?.(null);
   }
 
-  async saveBubblSpace(name: string, description: string, options: Partial<BubblSpace> = {}) {
+  async saveBubblSpace(
+    name: string,
+    description: string,
+    options: Partial<BubblSpace> = {}
+  ) {
     if (!this.metadataManager) return;
 
     try {
-      console.log(`🔄 DeepResearch.saveBubblSpace called:`, { name, description, options, editingBubblSpace: this.editingBubblSpace?.id });
-      
+      console.log(`🔄 DeepResearch.saveBubblSpace called:`, {
+        name,
+        description,
+        options,
+        editingBubblSpace: this.editingBubblSpace?.id,
+      });
+
       let bubblSpace: BubblSpace;
-      
+
       if (this.editingBubblSpace) {
         // Update existing
-        console.log(`🔄 Updating existing BubblSpace: ${this.editingBubblSpace.id}`);
-        bubblSpace = this.metadataManager.updateBubblSpace(this.editingBubblSpace.id, {
-          name,
-          description,
-          ...options,
-        });
+        console.log(
+          `🔄 Updating existing BubblSpace: ${this.editingBubblSpace.id}`
+        );
+        bubblSpace = this.metadataManager.updateBubblSpace(
+          this.editingBubblSpace.id,
+          {
+            name,
+            description,
+            ...options,
+          }
+        );
         this.updateStatus(`✅ Updated BubblSpace: ${name}`);
       } else {
         // Create new
         console.log(`🔄 Creating new BubblSpace`);
-        bubblSpace = this.metadataManager.createBubblSpace(name, description, options);
+        bubblSpace = this.metadataManager.createBubblSpace(
+          name,
+          description,
+          options
+        );
         this.updateStatus(`✅ Created BubblSpace: ${name}`);
       }
 
@@ -3195,8 +3388,10 @@ Duration: ${frame.duration || 0}s
       await this.loadMetadata();
       this.closeBubblSpaceDialog();
     } catch (error) {
-      console.error('❌ Failed to save BubblSpace:', error);
-      this.updateStatus(`❌ Failed to save BubblSpace: ${(error as Error).message}`);
+      console.error("❌ Failed to save BubblSpace:", error);
+      this.updateStatus(
+        `❌ Failed to save BubblSpace: ${(error as Error).message}`
+      );
     }
   }
 
@@ -3207,18 +3402,20 @@ Duration: ${frame.duration || 0}s
       const success = this.metadataManager.deleteBubblSpace(id);
       if (success) {
         await this.loadMetadata();
-        this.updateStatus('✅ BubblSpace deleted');
+        this.updateStatus("✅ BubblSpace deleted");
       }
     } catch (error) {
-      console.error('Failed to delete BubblSpace:', error);
-      this.updateStatus(`❌ Failed to delete BubblSpace: ${(error as Error).message}`);
+      console.error("Failed to delete BubblSpace:", error);
+      this.updateStatus(
+        `❌ Failed to delete BubblSpace: ${(error as Error).message}`
+      );
     }
   }
 
   selectBubblSpace(bubblSpace: BubblSpace) {
     this.currentBubblSpace = bubblSpace;
     this.setCurrentBubblSpace?.(bubblSpace);
-    
+
     // Set as default
     if (this.metadataManager) {
       this.metadataManager.setDefaultBubblSpace(bubblSpace.id);
@@ -3228,8 +3425,11 @@ Duration: ${frame.duration || 0}s
     if (this.metadataManager) {
       const timeCapsules = this.metadataManager
         .getTimeCapsulesByBubblSpace(bubblSpace.id)
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+
       if (timeCapsules.length > 0) {
         this.currentTimeCapsule = timeCapsules[0];
         this.setCurrentTimeCapsule?.(this.currentTimeCapsule);
@@ -3265,38 +3465,48 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
-      console.log(`🔄 DeepResearch.saveTimeCapsule called:`, { 
-        name, 
-        description, 
-        bubblSpaceId, 
-        options, 
-        editingTimeCapsule: this.editingTimeCapsule?.id 
+      console.log(`🔄 DeepResearch.saveTimeCapsule called:`, {
+        name,
+        description,
+        bubblSpaceId,
+        options,
+        editingTimeCapsule: this.editingTimeCapsule?.id,
       });
-      
+
       let timeCapsule: TimeCapsuleMetadata;
-      
+
       if (this.editingTimeCapsule) {
         // Update existing
-        console.log(`🔄 Updating existing TimeCapsule: ${this.editingTimeCapsule.id}`);
-        timeCapsule = this.metadataManager.updateTimeCapsule(this.editingTimeCapsule.id, {
-          name,
-          description,
-          bubblSpaceId,
-          ...options,
-        });
-        
+        console.log(
+          `🔄 Updating existing TimeCapsule: ${this.editingTimeCapsule.id}`
+        );
+        timeCapsule = this.metadataManager.updateTimeCapsule(
+          this.editingTimeCapsule.id,
+          {
+            name,
+            description,
+            bubblSpaceId,
+            ...options,
+          }
+        );
+
         // Immediately update current TimeCapsule if it's the one being edited
         if (this.currentTimeCapsule?.id === this.editingTimeCapsule.id) {
           console.log(`🔄 Updating current TimeCapsule in DeepResearch UI`);
           this.currentTimeCapsule = timeCapsule;
           this.setCurrentTimeCapsule?.(timeCapsule);
         }
-        
+
         this.updateStatus(`✅ Updated TimeCapsule: ${name}`);
       } else {
         // Create new
         console.log(`🔄 Creating new TimeCapsule`);
-        timeCapsule = this.metadataManager.createTimeCapsule(name, description, bubblSpaceId, options);
+        timeCapsule = this.metadataManager.createTimeCapsule(
+          name,
+          description,
+          bubblSpaceId,
+          options
+        );
         this.updateStatus(`✅ Created TimeCapsule: ${name}`);
       }
 
@@ -3311,8 +3521,10 @@ Duration: ${frame.duration || 0}s
       await this.loadMetadata();
       this.closeTimeCapsuleDialog();
     } catch (error) {
-      console.error('❌ Failed to save TimeCapsule:', error);
-      this.updateStatus(`❌ Failed to save TimeCapsule: ${(error as Error).message}`);
+      console.error("❌ Failed to save TimeCapsule:", error);
+      this.updateStatus(
+        `❌ Failed to save TimeCapsule: ${(error as Error).message}`
+      );
     }
   }
 
@@ -3327,11 +3539,13 @@ Duration: ${frame.duration || 0}s
           this.setCurrentTimeCapsule?.(null);
         }
         await this.loadMetadata();
-        this.updateStatus('✅ TimeCapsule deleted');
+        this.updateStatus("✅ TimeCapsule deleted");
       }
     } catch (error) {
-      console.error('Failed to delete TimeCapsule:', error);
-      this.updateStatus(`❌ Failed to delete TimeCapsule: ${(error as Error).message}`);
+      console.error("Failed to delete TimeCapsule:", error);
+      this.updateStatus(
+        `❌ Failed to delete TimeCapsule: ${(error as Error).message}`
+      );
     }
   }
 
@@ -3355,15 +3569,18 @@ Duration: ${frame.duration || 0}s
 
   async performSafeImport(options: ImportOptions): Promise<ImportResult> {
     if (!this.metadataManager || !this.importFile) {
-      throw new Error('No metadata manager or import file available');
+      throw new Error("No metadata manager or import file available");
     }
 
     try {
       const content = await this.readFileContent(this.importFile);
       const data: EnhancedTimeCapsule = JSON.parse(content);
 
-      const result = await this.metadataManager.importTimeCapsule(data, options);
-      
+      const result = await this.metadataManager.importTimeCapsule(
+        data,
+        options
+      );
+
       if (result.success) {
         await this.loadMetadata();
         this.updateStatus(`✅ Import completed successfully`);
@@ -3374,7 +3591,7 @@ Duration: ${frame.duration || 0}s
       this.closeSafeImportDialog();
       return result;
     } catch (error) {
-      console.error('Safe import failed:', error);
+      console.error("Safe import failed:", error);
       this.updateStatus(`❌ Import failed: ${(error as Error).message}`);
       throw error;
     }
@@ -3549,7 +3766,7 @@ export function DeepResearchComponent() {
     processingAvailable,
     processingStatus,
     downloadProgress,
-    stats: vectorStoreStats
+    stats: vectorStoreStats,
   } = useVectorStore();
 
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -3616,32 +3833,46 @@ export function DeepResearchComponent() {
   );
 
   // Metadata Management States
-  const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(null);
-  const [currentTimeCapsule, setCurrentTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
-  const [showBubblSpaceDialog, setShowBubblSpaceDialog] = useState<boolean>(false);
-  const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] = useState<boolean>(false);
-  const [showSafeImportDialog, setShowSafeImportDialog] = useState<boolean>(false);
+  const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(
+    null
+  );
+  const [currentTimeCapsule, setCurrentTimeCapsule] =
+    useState<TimeCapsuleMetadata | null>(null);
+  const [showBubblSpaceDialog, setShowBubblSpaceDialog] =
+    useState<boolean>(false);
+  const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] =
+    useState<boolean>(false);
+  const [showSafeImportDialog, setShowSafeImportDialog] =
+    useState<boolean>(false);
   const [bubblSpaces, setBubblSpaces] = useState<BubblSpace[]>([]);
   const [timeCapsules, setTimeCapsules] = useState<TimeCapsuleMetadata[]>([]);
-  const [editingBubblSpace, setEditingBubblSpace] = useState<BubblSpace | null>(null);
-  const [editingTimeCapsule, setEditingTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
+  const [editingBubblSpace, setEditingBubblSpace] = useState<BubblSpace | null>(
+    null
+  );
+  const [editingTimeCapsule, setEditingTimeCapsule] =
+    useState<TimeCapsuleMetadata | null>(null);
   const [isMetadataLoading, setIsMetadataLoading] = useState<boolean>(false);
 
   // Firecrawl States
   const [showFirecrawlModal, setShowFirecrawlModal] = useState<boolean>(false);
   const [isScrapingUrl, setIsScrapingUrl] = useState<boolean>(false);
-  const [scrapingProgress, setScrapingProgress] = useState<{ message: string; progress: number }>({ message: "", progress: 0 });
+  const [scrapingProgress, setScrapingProgress] = useState<{
+    message: string;
+    progress: number;
+  }>({ message: "", progress: 0 });
 
   // Agent Progress States
-  const [currentAgentProgress, setCurrentAgentProgress] = useState<AgentProgress | null>(null);
+  const [currentAgentProgress, setCurrentAgentProgress] =
+    useState<AgentProgress | null>(null);
   const [showAgentProgress, setShowAgentProgress] = useState<boolean>(false);
 
   // Document Manager States
   const [documentManagerTab, setDocumentManagerTab] = useState<string>("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState<string>("");
-  
+
   // Semantic Search States for Knowledge Base Manager
-  const [showSemanticResults, setShowSemanticResults] = useState<boolean>(false);
+  const [showSemanticResults, setShowSemanticResults] =
+    useState<boolean>(false);
   const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
   const [currentSemanticQuery, setCurrentSemanticQuery] = useState<string>("");
 
@@ -3704,34 +3935,45 @@ export function DeepResearchComponent() {
   useEffect(() => {
     const app = appRef.current;
     if (app && vectorStore) {
-      console.log('🔗 Connecting DeepResearch to VectorStoreProvider...');
+      console.log("🔗 Connecting DeepResearch to VectorStoreProvider...");
       app.vectorStore = vectorStore;
-      
+
       // Update loading state based on provider state
       app.isVectorStoreLoading = !vectorStoreInitialized;
       app.setIsVectorStoreLoading?.(!vectorStoreInitialized);
-      
+
       // Update document status
       app.updateDocumentStatus();
-      
+
       // Initialize AgentCoordinator with VectorStore if AI is connected
-      if (app.agentCoordinator && app.aiAssistant && !app.agentCoordinator.isCurrentlyProcessing()) {
-        console.log('🔄 Updating AgentCoordinator with VectorStore...');
-        app.agentCoordinator = new AgentCoordinator(app.aiAssistant, vectorStore);
+      if (
+        app.agentCoordinator &&
+        app.aiAssistant &&
+        !app.agentCoordinator.isCurrentlyProcessing()
+      ) {
+        console.log("🔄 Updating AgentCoordinator with VectorStore...");
+        app.agentCoordinator = new AgentCoordinator(
+          app.aiAssistant,
+          vectorStore
+        );
         app.agentCoordinator.setProgressCallback((progress) => {
           app.currentAgentProgress = progress;
           app.setCurrentAgentProgress?.(progress);
-          
+
           // Update status message with current agent activity
-          const activeTasks = progress.tasks.filter(t => t.status === 'in_progress');
+          const activeTasks = progress.tasks.filter(
+            (t) => t.status === "in_progress"
+          );
           if (activeTasks.length > 0) {
             const activeTask = activeTasks[0];
-            app.updateStatus(`🤖 ${activeTask.taskName}... (${activeTask.progress || 0}%)`);
+            app.updateStatus(
+              `🤖 ${activeTask.taskName}... (${activeTask.progress || 0}%)`
+            );
           }
         });
       }
-      
-      console.log('✅ DeepResearch connected to VectorStoreProvider');
+
+      console.log("✅ DeepResearch connected to VectorStoreProvider");
     }
   }, [vectorStore, vectorStoreInitialized]);
 
@@ -3742,14 +3984,19 @@ export function DeepResearchComponent() {
       if (vectorStoreError) {
         app.updateStatus(`❌ VectorStore error: ${vectorStoreError}`);
       } else if (vectorStoreInitializing) {
-        app.updateStatus('🚀 Initializing VectorStore...');
+        app.updateStatus("🚀 Initializing VectorStore...");
       } else if (!vectorStoreInitialized) {
-        app.updateStatus('⏳ Waiting for VectorStore...');
+        app.updateStatus("⏳ Waiting for VectorStore...");
       } else if (processingStatus) {
         app.updateStatus(processingStatus);
       }
     }
-  }, [vectorStoreError, vectorStoreInitializing, vectorStoreInitialized, processingStatus]);
+  }, [
+    vectorStoreError,
+    vectorStoreInitializing,
+    vectorStoreInitialized,
+    processingStatus,
+  ]);
 
   // Listen for metadata changes from other pages (like AI-Frames) + Auto-sync
   useEffect(() => {
@@ -3757,8 +4004,13 @@ export function DeepResearchComponent() {
     if (!app) return;
 
     const handleMetadataStorageChange = (event: StorageEvent) => {
-      if (event.key === 'bubblspaces_metadata' || event.key === 'timecapsules_metadata') {
-        console.log('🔄 Metadata changed in another page, refreshing DeepResearch...');
+      if (
+        event.key === "bubblspaces_metadata" ||
+        event.key === "timecapsules_metadata"
+      ) {
+        console.log(
+          "🔄 Metadata changed in another page, refreshing DeepResearch..."
+        );
         // Reload metadata from localStorage
         setTimeout(() => {
           app.loadMetadata?.();
@@ -3767,15 +4019,20 @@ export function DeepResearchComponent() {
     };
 
     const handleBubblSpaceChange = (event: CustomEvent) => {
-      console.log('🔄 BubblSpace changed in same page, refreshing DeepResearch...', event.detail);
+      console.log(
+        "🔄 BubblSpace changed in same page, refreshing DeepResearch...",
+        event.detail
+      );
       setTimeout(() => {
-        console.log('🔄 Calling app.loadMetadata from event handler...');
+        console.log("🔄 Calling app.loadMetadata from event handler...");
         app.loadMetadata?.();
       }, 50);
     };
 
     const handleTimeCapsuleChange = (event: CustomEvent) => {
-      console.log('🔄 TimeCapsule changed in same page, refreshing DeepResearch...');
+      console.log(
+        "🔄 TimeCapsule changed in same page, refreshing DeepResearch..."
+      );
       setTimeout(() => {
         app.loadMetadata?.();
       }, 50);
@@ -3783,39 +4040,66 @@ export function DeepResearchComponent() {
 
     // AUTO-SYNC: Sync metadata to Knowledge Base every 30 seconds
     const autoSyncInterval = setInterval(() => {
-      if (app && app.metadataManager && app.vectorStore && app.vectorStore.initialized) {
-        console.log('🔄 Auto-sync: Syncing DeepResearch metadata to Knowledge Base...');
-        
+      if (
+        app &&
+        app.metadataManager &&
+        app.vectorStore &&
+        app.vectorStore.initialized
+      ) {
+        console.log(
+          "🔄 Auto-sync: Syncing DeepResearch metadata to Knowledge Base..."
+        );
+
         const bubblSpaces = app.metadataManager.getAllBubblSpaces();
         const timeCapsules = app.metadataManager.getAllTimeCapsules();
-        
-        app.metadataManager.saveMetadataToVectorStore(bubblSpaces, timeCapsules)
+
+        app.metadataManager
+          .saveMetadataToVectorStore(bubblSpaces, timeCapsules)
           .then(() => {
-            console.log('✅ Auto-sync: DeepResearch metadata synced successfully');
+            console.log(
+              "✅ Auto-sync: DeepResearch metadata synced successfully"
+            );
           })
           .catch((error: any) => {
-            console.warn('⚠️ Auto-sync: Failed to sync DeepResearch metadata:', error.message);
+            console.warn(
+              "⚠️ Auto-sync: Failed to sync DeepResearch metadata:",
+              error.message
+            );
           });
       } else {
-        console.log('⏳ Auto-sync: Waiting for DeepResearch metadata manager and vector store...');
+        console.log(
+          "⏳ Auto-sync: Waiting for DeepResearch metadata manager and vector store..."
+        );
       }
     }, 30000); // 30 seconds
 
     // Listen for storage events from other pages
-    window.addEventListener('storage', handleMetadataStorageChange);
-    
+    window.addEventListener("storage", handleMetadataStorageChange);
+
     // Listen for custom events from same page
-    window.addEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
-    window.addEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+    window.addEventListener(
+      "bubblspace-metadata-changed",
+      handleBubblSpaceChange as EventListener
+    );
+    window.addEventListener(
+      "timecapsule-metadata-changed",
+      handleTimeCapsuleChange as EventListener
+    );
 
     return () => {
-      window.removeEventListener('storage', handleMetadataStorageChange);
-      window.removeEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
-      window.removeEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
-      
+      window.removeEventListener("storage", handleMetadataStorageChange);
+      window.removeEventListener(
+        "bubblspace-metadata-changed",
+        handleBubblSpaceChange as EventListener
+      );
+      window.removeEventListener(
+        "timecapsule-metadata-changed",
+        handleTimeCapsuleChange as EventListener
+      );
+
       // Clear auto-sync interval
       clearInterval(autoSyncInterval);
-      console.log('🛑 Auto-sync: DeepResearch auto-sync stopped');
+      console.log("🛑 Auto-sync: DeepResearch auto-sync stopped");
     };
   }, []);
 
@@ -3865,7 +4149,6 @@ export function DeepResearchComponent() {
               results.length
             : 0,
       });
-
     } catch (error) {
       console.error("KB Semantic search failed:", error);
       app.updateStatus("❌ Search failed: " + (error as Error).message);
@@ -4015,27 +4298,33 @@ export function DeepResearchComponent() {
       user: [] as DocumentData[],
       aiFrames: [] as DocumentData[],
       system: [] as DocumentData[],
-      agentLogs: [] as DocumentData[]
+      agentLogs: [] as DocumentData[],
     };
 
-    docs.forEach(doc => {
+    docs.forEach((doc) => {
       // Agent Logs
-      if (doc.title.toLowerCase().includes('agent log') || 
-          doc.metadata.source === 'research_state') {
+      if (
+        doc.title.toLowerCase().includes("agent log") ||
+        doc.metadata.source === "research_state"
+      ) {
         categories.agentLogs.push(doc);
       }
       // AI Frames
-      else if (doc.metadata.source === 'ai-frames' || 
-               doc.title.toLowerCase().includes('ai-frame')) {
+      else if (
+        doc.metadata.source === "ai-frames" ||
+        doc.title.toLowerCase().includes("ai-frame")
+      ) {
         categories.aiFrames.push(doc);
       }
       // System & Metadata (TimeCapsules, BubblSpace, etc.)
-      else if (doc.metadata.source === 'timecapsule_export' ||
-               doc.metadata.source === 'timecapsule_import' ||
-               doc.metadata.source === 'aiframes_import' ||
-               doc.metadata.source === 'aiframes_combined' ||
-               doc.title.toLowerCase().includes('timecapsule') ||
-               doc.metadata.isGenerated === true) {
+      else if (
+        doc.metadata.source === "timecapsule_export" ||
+        doc.metadata.source === "timecapsule_import" ||
+        doc.metadata.source === "aiframes_import" ||
+        doc.metadata.source === "aiframes_combined" ||
+        doc.title.toLowerCase().includes("timecapsule") ||
+        doc.metadata.isGenerated === true
+      ) {
         categories.system.push(doc);
       }
       // User Documents (uploads, Firecrawl, etc.)
@@ -4052,45 +4341,65 @@ export function DeepResearchComponent() {
     if (showSemanticResults && semanticSearchResults.length > 0) {
       return getSemanticResultsByCategory(category);
     }
-    
+
     // Otherwise use normal document filtering
     const categorized = categorizeDocuments(documents);
-    const categoryDocs = categorized[category as keyof typeof categorized] || [];
-    
+    const categoryDocs =
+      categorized[category as keyof typeof categorized] || [];
+
     if (!documentSearchQuery.trim()) {
       return categoryDocs;
     }
-    
-    return categoryDocs.filter(doc => 
-      doc.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
-      doc.metadata.description?.toLowerCase().includes(documentSearchQuery.toLowerCase())
+
+    return categoryDocs.filter(
+      (doc) =>
+        doc.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
+        doc.metadata.description
+          ?.toLowerCase()
+          .includes(documentSearchQuery.toLowerCase())
     );
   };
 
   const getSemanticResultsByCategory = (category: string) => {
     // Filter semantic search results by document category
-    return semanticSearchResults.filter(result => {
+    return semanticSearchResults.filter((result) => {
       const doc = result.document;
       if (!doc) return false;
-      
+
       // Use same categorization logic
       switch (category) {
-        case 'user':
+        case "user":
           return !(
-            (doc.title.toLowerCase().includes('agent log') || doc.metadata.source === 'research_state') ||
-            (doc.metadata.source === 'ai-frames' || doc.title.toLowerCase().includes('ai-frame')) ||
-            (doc.metadata.source === 'timecapsule_export' || doc.metadata.source === 'timecapsule_import' ||
-             doc.metadata.source === 'aiframes_import' || doc.metadata.source === 'aiframes_combined' ||
-             doc.title.toLowerCase().includes('timecapsule') || doc.metadata.isGenerated === true)
+            doc.title.toLowerCase().includes("agent log") ||
+            doc.metadata.source === "research_state" ||
+            doc.metadata.source === "ai-frames" ||
+            doc.title.toLowerCase().includes("ai-frame") ||
+            doc.metadata.source === "timecapsule_export" ||
+            doc.metadata.source === "timecapsule_import" ||
+            doc.metadata.source === "aiframes_import" ||
+            doc.metadata.source === "aiframes_combined" ||
+            doc.title.toLowerCase().includes("timecapsule") ||
+            doc.metadata.isGenerated === true
           );
-        case 'aiFrames':
-          return (doc.metadata.source === 'ai-frames' || doc.title.toLowerCase().includes('ai-frame'));
-        case 'system':
-          return (doc.metadata.source === 'timecapsule_export' || doc.metadata.source === 'timecapsule_import' ||
-                  doc.metadata.source === 'aiframes_import' || doc.metadata.source === 'aiframes_combined' ||
-                  doc.title.toLowerCase().includes('timecapsule') || doc.metadata.isGenerated === true);
-        case 'agentLogs':
-          return (doc.title.toLowerCase().includes('agent log') || doc.metadata.source === 'research_state');
+        case "aiFrames":
+          return (
+            doc.metadata.source === "ai-frames" ||
+            doc.title.toLowerCase().includes("ai-frame")
+          );
+        case "system":
+          return (
+            doc.metadata.source === "timecapsule_export" ||
+            doc.metadata.source === "timecapsule_import" ||
+            doc.metadata.source === "aiframes_import" ||
+            doc.metadata.source === "aiframes_combined" ||
+            doc.title.toLowerCase().includes("timecapsule") ||
+            doc.metadata.isGenerated === true
+          );
+        case "agentLogs":
+          return (
+            doc.title.toLowerCase().includes("agent log") ||
+            doc.metadata.source === "research_state"
+          );
         default:
           return false;
       }
@@ -4103,31 +4412,45 @@ export function DeepResearchComponent() {
       user: categorized.user.length,
       aiFrames: categorized.aiFrames.length,
       system: categorized.system.length,
-      agentLogs: categorized.agentLogs.length
+      agentLogs: categorized.agentLogs.length,
     };
   };
 
   return (
-    <div className="pt-20 min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Metadata Management Header */}
-      <div className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+      <div className="fixed left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
         <div className="px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+              <Link href="/">
+                <Image
+                  src="/Media/TimeCapsule_04.png"
+                  alt="DeepResearch Logo"
+                  width={32}
+                  height={32}
+                />
+              </Link>
               <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
                 DeepResearch Platform
               </h2>
               <Badge variant="outline" className="text-xs">
-                {topics.length} Topic{topics.length !== 1 ? 's' : ''}
+                {topics.length} Topic{topics.length !== 1 ? "s" : ""}
               </Badge>
             </div>
-            
-            {/* BubblSpace & TimeCapsule Management - AI-Frames Style */} 
+
+            {/* BubblSpace & TimeCapsule Management - AI-Frames Style */}
             <div className="flex items-center gap-4">
+              <Link href="/ai-frames" className="cursor-pointer">
+                <Button variant="outline" size="sm">
+                  <Book className="h-4 w-4 mr-2" />
+                  AI Frames
+                </Button>
+              </Link>
               {/* Current BubblSpace Display - Click to Edit */}
               {currentBubblSpace && (
                 <div className="flex items-center gap-2">
-                  <div 
+                  <div
                     className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     onClick={() => {
                       app.editingBubblSpace = currentBubblSpace;
@@ -4136,15 +4459,19 @@ export function DeepResearchComponent() {
                     }}
                     title={`Current BubblSpace: ${currentBubblSpace.name}. Click to edit.`}
                   >
-                    <div 
+                    <div
                       className="w-3 h-3 rounded"
-                      style={{ backgroundColor: currentBubblSpace.color || '#3B82F6' }}
+                      style={{
+                        backgroundColor: currentBubblSpace.color || "#3B82F6",
+                      }}
                     />
                     <span className="text-sm font-medium truncate max-w-[120px]">
                       {currentBubblSpace.name}
                     </span>
                     {currentBubblSpace.isDefault && (
-                      <Badge variant="secondary" className="text-xs">Default</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        Default
+                      </Badge>
                     )}
                   </div>
                   <Button
@@ -4162,15 +4489,15 @@ export function DeepResearchComponent() {
                   </Button>
                 </div>
               )}
-              
-                          {/* BubblSpace Management - Disabled for regular users */}
-            {/* Advanced users only: BubblSpace creation disabled */}
+
+              {/* BubblSpace Management - Disabled for regular users */}
+              {/* Advanced users only: BubblSpace creation disabled */}
 
               <Separator orientation="vertical" className="h-6" />
 
               {/* Current TimeCapsule Display - Click to Edit */}
               {currentTimeCapsule && (
-                <div 
+                <div
                   className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   onClick={() => {
                     app.editingTimeCapsule = currentTimeCapsule;
@@ -4188,7 +4515,7 @@ export function DeepResearchComponent() {
                   </Badge>
                 </div>
               )}
-              
+
               {/* TimeCapsule Management */}
               <Button
                 variant="outline"
@@ -4208,9 +4535,9 @@ export function DeepResearchComponent() {
               <Separator orientation="vertical" className="h-6" />
 
               {/* Enhanced TimeCapsule Export/Import */}
-              <Button 
-                variant="outline" 
-                size="sm"
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => {
                   const input = document.createElement("input");
                   input.type = "file";
@@ -4223,19 +4550,19 @@ export function DeepResearchComponent() {
                 }}
                 title="Import Enhanced TimeCapsule with full metadata support"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Import
+                <Upload className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => app.exportTimeCapsule()}
                 title="Export Enhanced TimeCapsule with BubblSpace and metadata"
                 disabled={!currentTimeCapsule}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export
+                <Download className="h-4 w-4" />
               </Button>
+
+              <SignInButton />
             </div>
           </div>
         </div>
@@ -4243,1038 +4570,1407 @@ export function DeepResearchComponent() {
 
       <div className="pt-16">
         <ResizablePanelGroup direction="horizontal" className="h-screen">
-        {/* Left Panel - Controls */}
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
-          <ControlsPanel
-            aiStatus={aiStatus}
-            setAIStatus={setAIStatus}
-            researchType={researchType}
-            setResearchType={setResearchType}
-            researchDepth={researchDepth}
-            setResearchDepth={setResearchDepth}
-            onAddTopic={(title, description) =>
-              app.addTopic(title, description)
-            }
-            onConnectAI={() => app.connectAI()}
-            onDisconnectAI={() => app.disconnectAI()}
-            onGenerateResearch={() => {
-              const selectedTopics = topics.filter((t) => t.selected);
-              if (selectedTopics.length === 0) {
-                app.updateStatus("❌ Please select at least one topic first");
-                return;
+          {/* Left Panel - Controls */}
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+            <ControlsPanel
+              aiStatus={aiStatus}
+              setAIStatus={setAIStatus}
+              researchType={researchType}
+              setResearchType={setResearchType}
+              researchDepth={researchDepth}
+              setResearchDepth={setResearchDepth}
+              onAddTopic={(title, description) =>
+                app.addTopic(title, description)
               }
-              if (!aiStatus.connected) {
-                app.updateStatus("❌ Please connect to AI first");
-                return;
+              onConnectAI={() => app.connectAI()}
+              onDisconnectAI={() => app.disconnectAI()}
+              onGenerateResearch={() => {
+                const selectedTopics = topics.filter((t) => t.selected);
+                if (selectedTopics.length === 0) {
+                  app.updateStatus("❌ Please select at least one topic first");
+                  return;
+                }
+                if (!aiStatus.connected) {
+                  app.updateStatus("❌ Please connect to AI first");
+                  return;
+                }
+                app.generateResearch(researchType, researchDepth);
+              }}
+              onClearAll={() => app.clearAll()}
+              onManageKnowledge={() => app.showDocumentManager()}
+              onUploadDocuments={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.multiple = true;
+                input.onchange = (e) => {
+                  const files = (e.target as HTMLInputElement).files;
+                  if (files) app.handleFileUpload(files);
+                };
+                input.click();
+              }}
+              onScrapeUrl={() => app.openFirecrawlModal()}
+              onUploadRepository={() => {
+                /* Repository upload logic */
+              }}
+              onExportResults={() => app.exportResults()}
+              onExportTimeCapsule={() => app.exportTimeCapsule()}
+              onLoadTimeCapsule={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".json";
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) app.importTimeCapsule(file);
+                };
+                input.click();
+              }}
+              isGenerating={isGenerating}
+              documentStatus={documentStatus}
+              documents={documents}
+              onDocumentsChange={(attachedDocs) => {
+                // Store attached documents for learning research
+                app.attachedDocuments = attachedDocs;
+              }}
+            />
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Center Panel - Structure Builder */}
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+            <StructureBuilder
+              topics={topics}
+              onSelectTopic={(topicId) => app.selectTopic(topicId)}
+              onDeleteTopic={(topicId) => app.deleteTopic(topicId)}
+              onMoveTopic={(topicId, direction) =>
+                app.moveTopic(topicId, direction)
               }
-              app.generateResearch(researchType, researchDepth);
-            }}
-            onClearAll={() => app.clearAll()}
-            onManageKnowledge={() => app.showDocumentManager()}
-            onUploadDocuments={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.multiple = true;
-              input.onchange = (e) => {
-                const files = (e.target as HTMLInputElement).files;
-                if (files) app.handleFileUpload(files);
-              };
-              input.click();
-            }}
-            onScrapeUrl={() => app.openFirecrawlModal()}
-            onUploadRepository={() => {
-              /* Repository upload logic */
-            }}
-            onExportResults={() => app.exportResults()}
-            onExportTimeCapsule={() => app.exportTimeCapsule()}
-            onLoadTimeCapsule={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.accept = ".json";
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) app.importTimeCapsule(file);
-              };
-              input.click();
-            }}
-            isGenerating={isGenerating}
-            documentStatus={documentStatus}
-            documents={documents}
-            onDocumentsChange={(attachedDocs) => {
-              // Store attached documents for learning research
-              app.attachedDocuments = attachedDocs;
-            }}
-          />
-        </ResizablePanel>
+              documentStatus={documentStatus}
+            />
+          </ResizablePanel>
 
-        <ResizableHandle withHandle />
+          <ResizableHandle withHandle />
 
-        {/* Center Panel - Structure Builder */}
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
-          <StructureBuilder
-            topics={topics}
-            onSelectTopic={(topicId) => app.selectTopic(topicId)}
-            onDeleteTopic={(topicId) => app.deleteTopic(topicId)}
-            onMoveTopic={(topicId, direction) =>
-              app.moveTopic(topicId, direction)
-            }
-            documentStatus={documentStatus}
-          />
-        </ResizablePanel>
+          {/* Right Panel - Research Output */}
+          <ResizablePanel defaultSize={50} minSize={40}>
+            <ResearchOutput
+              researchResults={researchResults}
+              currentTab={currentTab}
+              onTabChange={setCurrentTab}
+              onClearOutput={() => {
+                setResearchResults("");
+                app.updateStatus("🗑️ Research output cleared");
+              }}
+              aiAssistant={app?.aiAssistant}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
 
-        <ResizableHandle withHandle />
+        {/* Status Bar */}
+        <StatusBar message={statusMessage} />
 
-        {/* Right Panel - Research Output */}
-        <ResizablePanel defaultSize={50} minSize={40}>
-          <ResearchOutput
-            researchResults={researchResults}
-            currentTab={currentTab}
-            onTabChange={setCurrentTab}
-            onClearOutput={() => {
-              setResearchResults("");
-              app.updateStatus("🗑️ Research output cleared");
-            }}
-            aiAssistant={app?.aiAssistant}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
-
-      {/* Status Bar */}
-      <StatusBar message={statusMessage} />
-
-      {/* AI Connection Modal */}
-      <Dialog
-        open={showOllamaConnectionModal}
-        onOpenChange={(open) => {
-          if (!open) app.cancelConnection();
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-blue-600" />
-              Connect to Ollama
-            </DialogTitle>
-            <DialogDescription>
-              Enter your Ollama server URL to connect to your local AI models.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ollama-url">Ollama Server URL</Label>
-              <Input
-                id="ollama-url"
-                value={selectedOllamaURL}
-                onChange={(e) => setSelectedOllamaURL(e.target.value)}
-                placeholder="http://localhost:11434"
-                className="font-mono"
-              />
+        {/* AI Connection Modal */}
+        <Dialog
+          open={showOllamaConnectionModal}
+          onOpenChange={(open) => {
+            if (!open) app.cancelConnection();
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5 text-blue-600" />
+                Connect to Ollama
+              </DialogTitle>
+              <DialogDescription>
+                Enter your Ollama server URL to connect to your local AI models.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ollama-url">Ollama Server URL</Label>
+                <Input
+                  id="ollama-url"
+                  value={selectedOllamaURL}
+                  onChange={(e) => setSelectedOllamaURL(e.target.value)}
+                  placeholder="http://localhost:11434"
+                  className="font-mono"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => app.cancelConnection()}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => app.testOllamaConnection(selectedOllamaURL)}
+                >
+                  <Wifi className="h-4 w-4 mr-2" />
+                  Test Connection
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => app.cancelConnection()}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => app.testOllamaConnection(selectedOllamaURL)}
-              >
-                <Wifi className="h-4 w-4 mr-2" />
-                Test Connection
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      {/* Model Selection Modal */}
-      <Dialog
-        open={showModelSelectionModal}
-        onOpenChange={(open) => {
-          if (!open) app.cancelConnection();
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-green-600" />
-              Select AI Model
-            </DialogTitle>
-            <DialogDescription>
-              Choose from available models on your Ollama server.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {availableModels.length > 0 ? (
-              <ScrollArea className="max-h-64">
-                <div className="space-y-2">
-                  {availableModels.map((model) => (
-                    <Card
-                      key={model.name}
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => app.selectModel(model.name)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">{model.name}</h4>
-                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                              Size: {model.size || "Unknown"}
-                            </p>
+        {/* Model Selection Modal */}
+        <Dialog
+          open={showModelSelectionModal}
+          onOpenChange={(open) => {
+            if (!open) app.cancelConnection();
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-green-600" />
+                Select AI Model
+              </DialogTitle>
+              <DialogDescription>
+                Choose from available models on your Ollama server.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {availableModels.length > 0 ? (
+                <ScrollArea className="max-h-64">
+                  <div className="space-y-2">
+                    {availableModels.map((model) => (
+                      <Card
+                        key={model.name}
+                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => app.selectModel(model.name)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{model.name}</h4>
+                              <p className="text-sm text-slate-600 dark:text-slate-400">
+                                Size: {model.size || "Unknown"}
+                              </p>
+                            </div>
+                            <Badge variant="outline">
+                              {model.name.includes("chat") ? "Chat" : "Base"}
+                            </Badge>
                           </div>
-                          <Badge variant="outline">
-                            {model.name.includes("chat") ? "Chat" : "Base"}
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                  <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>
+                    No models found. Make sure Ollama is running with models
+                    installed.
+                  </p>
                 </div>
-              </ScrollArea>
-            ) : (
-              <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>
-                  No models found. Make sure Ollama is running with models
-                  installed.
-                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => app.cancelConnection()}
+                >
+                  Cancel
+                </Button>
               </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => app.cancelConnection()}>
-                Cancel
-              </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      {/* Document Manager Modal */}
-      <Dialog
-        open={showDocumentManager}
-        onOpenChange={(open) => {
-          if (!open) app.hideDocumentManager();
-        }}
-      >
-        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="flex-shrink-0 p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
-              Knowledge Base Manager
-            </DialogTitle>
-            <DialogDescription>
-              Organized view of your documents by category. Search and manage your knowledge base content.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto px-6">
-            <Tabs value={documentManagerTab} onValueChange={setDocumentManagerTab} className="flex flex-col h-full">
-              <TabsList className="grid w-full grid-cols-4 mb-4">
-                <TabsTrigger value="user" className="flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  User Docs ({getDocumentCategoryCounts().user})
-                </TabsTrigger>
-                <TabsTrigger value="aiFrames" className="flex items-center gap-2">
-                  <Bot className="h-4 w-4" />
-                  AI Frames ({getDocumentCategoryCounts().aiFrames})
-                </TabsTrigger>
-                <TabsTrigger value="system" className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  System ({getDocumentCategoryCounts().system})
-                </TabsTrigger>
-                <TabsTrigger value="agentLogs" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Logs ({getDocumentCategoryCounts().agentLogs})
-                </TabsTrigger>
-              </TabsList>
+        {/* Document Manager Modal */}
+        <Dialog
+          open={showDocumentManager}
+          onOpenChange={(open) => {
+            if (!open) app.hideDocumentManager();
+          }}
+        >
+          <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-purple-600" />
+                Knowledge Base Manager
+              </DialogTitle>
+              <DialogDescription>
+                Organized view of your documents by category. Search and manage
+                your knowledge base content.
+              </DialogDescription>
+            </DialogHeader>
 
-              {/* Search Section */}
-              <div className="mb-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Search & Semantic Query</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder={`Semantic search ${documentManagerTab} documents...`}
-                        value={documentSearchQuery}
-                        onChange={(e) => {
-                          setDocumentSearchQuery(e.target.value);
-                          // Clear semantic search results when input is cleared
-                          if (!e.target.value.trim() && showSemanticResults) {
-                            setShowSemanticResults(false);
-                            setSemanticSearchResults([]);
-                            setCurrentSemanticQuery("");
-                          }
-                        }}
-                        onKeyPress={(e) => e.key === "Enter" && handleKnowledgeBaseSearch()}
-                      />
-                      <Button onClick={handleKnowledgeBaseSearch} disabled={isSearching}>
-                        <Search className="h-4 w-4 mr-2" />
-                        {isSearching ? "Searching..." : "Search"}
-                      </Button>
-                      {(documentSearchQuery || showSemanticResults) && (
-                        <Button onClick={clearKnowledgeBaseSearch} variant="outline" size="sm">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                      <Label htmlFor="search-threshold">
-                        Similarity threshold:
-                      </Label>
-                      <Input
-                        id="search-threshold"
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={searchThreshold}
-                        onChange={(e) =>
-                          setSearchThreshold(parseFloat(e.target.value))
-                        }
-                        className="w-20"
-                      />
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-500 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Search className="h-3 w-3" />
-                        <span className="font-medium">AI-Powered Semantic Search</span>
-                      </div>
-                      <p>Search by meaning, not just keywords. Shows relevant document chunks with similarity scores.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+            <div className="flex-1 overflow-y-auto px-6">
+              <Tabs
+                value={documentManagerTab}
+                onValueChange={setDocumentManagerTab}
+                className="flex flex-col h-full"
+              >
+                <TabsList className="grid w-full grid-cols-4 mb-4">
+                  <TabsTrigger value="user" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    User Docs ({getDocumentCategoryCounts().user})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="aiFrames"
+                    className="flex items-center gap-2"
+                  >
+                    <Bot className="h-4 w-4" />
+                    AI Frames ({getDocumentCategoryCounts().aiFrames})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="system"
+                    className="flex items-center gap-2"
+                  >
+                    <Package className="h-4 w-4" />
+                    System ({getDocumentCategoryCounts().system})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="agentLogs"
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Logs ({getDocumentCategoryCounts().agentLogs})
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* Document Content Tabs */}
-              <div className="flex-1 overflow-y-auto">
-                <TabsContent value="user" className="h-full">
-                  <Card className="h-full flex flex-col">
-                    <CardHeader className="pb-3 flex-shrink-0">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Upload className="h-4 w-4 text-green-600" />
-                        {showSemanticResults ? (
-                          `Semantic Search: User Documents (${getFilteredDocumentsByCategory("user").length} results)`
-                        ) : (
-                          `User Documents (${getDocumentCategoryCounts().user})`
-                        )}
+                {/* Search Section */}
+                <div className="mb-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">
+                        Search & Semantic Query
                       </CardTitle>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {showSemanticResults ? (
-                          `Semantic search results from your uploaded files and scraped content. Showing relevant chunks with similarity scores.`
-                        ) : (
-                          `Your uploaded files, scraped content, and personal documents. These are available for learning research attachment.`
-                        )}
-                      </p>
                     </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto">
-                      {showSemanticResults ? (
-                        // Show semantic search results with chunks and similarity scores
-                        getFilteredDocumentsByCategory("user").length > 0 ? (
-                          <div className="space-y-3">
-                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="font-medium text-blue-800 dark:text-blue-200">
-                                  🔍 Semantic Search Results for "{currentSemanticQuery}"
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {getFilteredDocumentsByCategory("user").length} chunks found
-                                  </Badge>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={clearKnowledgeBaseSearch}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
+                    <CardContent className="space-y-3">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder={`Semantic search ${documentManagerTab} documents...`}
+                          value={documentSearchQuery}
+                          onChange={(e) => {
+                            setDocumentSearchQuery(e.target.value);
+                            // Clear semantic search results when input is cleared
+                            if (!e.target.value.trim() && showSemanticResults) {
+                              setShowSemanticResults(false);
+                              setSemanticSearchResults([]);
+                              setCurrentSemanticQuery("");
+                            }
+                          }}
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && handleKnowledgeBaseSearch()
+                          }
+                        />
+                        <Button
+                          onClick={handleKnowledgeBaseSearch}
+                          disabled={isSearching}
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          {isSearching ? "Searching..." : "Search"}
+                        </Button>
+                        {(documentSearchQuery || showSemanticResults) && (
+                          <Button
+                            onClick={clearKnowledgeBaseSearch}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                        <Label htmlFor="search-threshold">
+                          Similarity threshold:
+                        </Label>
+                        <Input
+                          id="search-threshold"
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={searchThreshold}
+                          onChange={(e) =>
+                            setSearchThreshold(parseFloat(e.target.value))
+                          }
+                          className="w-20"
+                        />
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-500 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Search className="h-3 w-3" />
+                          <span className="font-medium">
+                            AI-Powered Semantic Search
+                          </span>
+                        </div>
+                        <p>
+                          Search by meaning, not just keywords. Shows relevant
+                          document chunks with similarity scores.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Document Content Tabs */}
+                <div className="flex-1 overflow-y-auto">
+                  <TabsContent value="user" className="h-full">
+                    <Card className="h-full flex flex-col">
+                      <CardHeader className="pb-3 flex-shrink-0">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Upload className="h-4 w-4 text-green-600" />
+                          {showSemanticResults
+                            ? `Semantic Search: User Documents (${getFilteredDocumentsByCategory("user").length} results)`
+                            : `User Documents (${getDocumentCategoryCounts().user})`}
+                        </CardTitle>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          {showSemanticResults
+                            ? `Semantic search results from your uploaded files and scraped content. Showing relevant chunks with similarity scores.`
+                            : `Your uploaded files, scraped content, and personal documents. These are available for learning research attachment.`}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="flex-1 overflow-y-auto">
+                        {showSemanticResults ? (
+                          // Show semantic search results with chunks and similarity scores
+                          getFilteredDocumentsByCategory("user").length > 0 ? (
+                            <div className="space-y-3">
+                              <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium text-blue-800 dark:text-blue-200">
+                                    🔍 Semantic Search Results for "
+                                    {currentSemanticQuery}"
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {
+                                        getFilteredDocumentsByCategory("user")
+                                          .length
+                                      }{" "}
+                                      chunks found
+                                    </Badge>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={clearKnowledgeBaseSearch}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
+                              {getFilteredDocumentsByCategory("user").map(
+                                (searchResult, index) => (
+                                  <Card
+                                    key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`}
+                                    className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 border-l-4 border-l-green-500"
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-green-600"
+                                          >
+                                            {(
+                                              searchResult.similarity * 100
+                                            ).toFixed(1)}
+                                            % match
+                                          </Badge>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            📄 User Document
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleViewChunk(
+                                                searchResult,
+                                                searchResult.document
+                                              )
+                                            }
+                                            title="View full chunk"
+                                          >
+                                            <Eye className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handlePreviewDocument(
+                                                searchResult.document.id
+                                              )
+                                            }
+                                            title="View full document"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                          {searchResult.document.title}
+                                        </h4>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                          Type:{" "}
+                                          {
+                                            searchResult.document.metadata
+                                              .filetype
+                                          }{" "}
+                                          • Size:{" "}
+                                          {formatFileSize(
+                                            searchResult.document.metadata
+                                              .filesize
+                                          )}{" "}
+                                          • Source:{" "}
+                                          {searchResult.document.metadata
+                                            .source === "firecrawl"
+                                            ? "Scraped"
+                                            : "Upload"}
+                                        </div>
+                                        <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md">
+                                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                            {searchResult.chunk?.content ||
+                                              "No content preview available"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                )
+                              )}
                             </div>
-                            {getFilteredDocumentsByCategory("user").map((searchResult, index) => (
-                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 border-l-4 border-l-green-500">
-                                <div className="space-y-3">
+                          ) : (
+                            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>
+                                No user documents found matching "
+                                {currentSemanticQuery}"
+                              </p>
+                              <p className="text-sm">
+                                Try adjusting your search terms or similarity
+                                threshold.
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={clearKnowledgeBaseSearch}
+                                className="mt-3"
+                              >
+                                Clear Search
+                              </Button>
+                            </div>
+                          )
+                        ) : // Show regular document list
+                        getFilteredDocumentsByCategory("user").length > 0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("user").map(
+                              (doc) => (
+                                <Card
+                                  key={doc.id}
+                                  className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                >
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="default" className="text-xs bg-green-600">
-                                        {(searchResult.similarity * 100).toFixed(1)}% match
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs">
-                                        📄 User Document
-                                      </Badge>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium truncate">
+                                          {doc.title}
+                                        </h4>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          {doc.metadata.source === "firecrawl"
+                                            ? "🔍 Scraped"
+                                            : "📄 Upload"}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                        <span>
+                                          Size:{" "}
+                                          {formatFileSize(
+                                            doc.metadata?.filesize || 0
+                                          )}
+                                        </span>
+                                        <span>
+                                          Type:{" "}
+                                          {doc.metadata?.filetype || "unknown"}
+                                        </span>
+                                        <span>
+                                          Added:{" "}
+                                          {new Date(
+                                            doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
-                                        title="View full chunk"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handlePreviewDocument(doc.id)
+                                        }
                                       >
                                         <Eye className="h-3 w-3" />
                                       </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
-                                        title="View full document"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.downloadDocument(doc.id)
+                                        }
                                       >
-                                        <FileText className="h-3 w-3" />
+                                        <Download className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.deleteDocument(doc.id)
+                                        }
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </div>
-                                  <div>
-                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
-                                      {searchResult.document.title}
-                                    </h4>
-                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                                      Type: {searchResult.document.metadata.filetype} • 
-                                      Size: {formatFileSize(searchResult.document.metadata.filesize)} • 
-                                      Source: {searchResult.document.metadata.source === 'firecrawl' ? 'Scraped' : 'Upload'}
-                                    </div>
-                                    <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md">
-                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
-                                        {searchResult.chunk?.content || 'No content preview available'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No user documents found matching "{currentSemanticQuery}"</p>
-                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={clearKnowledgeBaseSearch} 
-                              className="mt-3"
-                            >
-                              Clear Search
-                            </Button>
-                          </div>
-                        )
-                      ) : (
-                        // Show regular document list
-                        getFilteredDocumentsByCategory("user").length > 0 ? (
-                          <div className="space-y-2">
-                            {getFilteredDocumentsByCategory("user").map((doc) => (
-                              <Card key={doc.id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-medium truncate">{doc.title}</h4>
-                                      <Badge variant="outline" className="text-xs">
-                                        {doc.metadata.source === 'firecrawl' ? '🔍 Scraped' : '📄 Upload'}
-                                      </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
-                                      <span>Type: {doc.metadata?.filetype || 'unknown'}</span>
-                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                      <Download className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
+                                </Card>
+                              )
+                            )}
                           </div>
                         ) : (
                           <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                             <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No user documents found.</p>
-                            <p className="text-sm">Upload files or scrape URLs to add content to your knowledge base.</p>
+                            <p className="text-sm">
+                              Upload files or scrape URLs to add content to your
+                              knowledge base.
+                            </p>
                           </div>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-                <TabsContent value="aiFrames" className="h-full">
-                  <Card className="h-full flex flex-col">
-                    <CardHeader className="pb-3 flex-shrink-0">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Bot className="h-4 w-4 text-blue-600" />
+                  <TabsContent value="aiFrames" className="h-full">
+                    <Card className="h-full flex flex-col">
+                      <CardHeader className="pb-3 flex-shrink-0">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Bot className="h-4 w-4 text-blue-600" />
+                          {showSemanticResults
+                            ? `Semantic Search: AI Frames (${getFilteredDocumentsByCategory("aiFrames").length} results)`
+                            : `AI Frames (${getDocumentCategoryCounts().aiFrames})`}
+                        </CardTitle>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          {showSemanticResults
+                            ? `Semantic search results from AI-generated learning frames and educational content.`
+                            : `AI-generated learning frames and educational content from the AI-Frames system.`}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="flex-1 overflow-y-auto">
                         {showSemanticResults ? (
-                          `Semantic Search: AI Frames (${getFilteredDocumentsByCategory("aiFrames").length} results)`
-                        ) : (
-                          `AI Frames (${getDocumentCategoryCounts().aiFrames})`
-                        )}
-                      </CardTitle>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {showSemanticResults ? (
-                          `Semantic search results from AI-generated learning frames and educational content.`
-                        ) : (
-                          `AI-generated learning frames and educational content from the AI-Frames system.`
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto">
-                      {showSemanticResults ? (
-                        // Show semantic search results for AI Frames
-                        getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
-                          <div className="space-y-3">
-                            {getFilteredDocumentsByCategory("aiFrames").map((searchResult, index) => (
-                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-l-4 border-l-blue-500">
-                                <div className="space-y-3">
+                          // Show semantic search results for AI Frames
+                          getFilteredDocumentsByCategory("aiFrames").length >
+                          0 ? (
+                            <div className="space-y-3">
+                              {getFilteredDocumentsByCategory("aiFrames").map(
+                                (searchResult, index) => (
+                                  <Card
+                                    key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`}
+                                    className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-l-4 border-l-blue-500"
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-blue-600"
+                                          >
+                                            {(
+                                              searchResult.similarity * 100
+                                            ).toFixed(1)}
+                                            % match
+                                          </Badge>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs text-blue-600"
+                                          >
+                                            🎓 AI Frame
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleViewChunk(
+                                                searchResult,
+                                                searchResult.document
+                                              )
+                                            }
+                                            title="View full chunk"
+                                          >
+                                            <Eye className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handlePreviewDocument(
+                                                searchResult.document.id
+                                              )
+                                            }
+                                            title="View full document"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                          {searchResult.document.title}
+                                        </h4>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                          AI Frame • Added:{" "}
+                                          {new Date(
+                                            searchResult.document.metadata.uploadedAt
+                                          ).toLocaleDateString()}
+                                        </div>
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                            {searchResult.chunk?.content ||
+                                              "No content preview available"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>
+                                No AI frames found matching "
+                                {currentSemanticQuery}"
+                              </p>
+                              <p className="text-sm">
+                                Try adjusting your search terms or similarity
+                                threshold.
+                              </p>
+                            </div>
+                          )
+                        ) : // Show regular AI Frames list
+                        getFilteredDocumentsByCategory("aiFrames").length >
+                          0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("aiFrames").map(
+                              (doc) => (
+                                <Card
+                                  key={doc.id}
+                                  className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                >
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="default" className="text-xs bg-blue-600">
-                                        {(searchResult.similarity * 100).toFixed(1)}% match
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs text-blue-600">
-                                        🎓 AI Frame
-                                      </Badge>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium truncate">
+                                          {doc.title}
+                                        </h4>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs text-blue-600"
+                                        >
+                                          🎓 AI Frame
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                        <span>
+                                          Size:{" "}
+                                          {formatFileSize(
+                                            doc.metadata?.filesize || 0
+                                          )}
+                                        </span>
+                                        <span>
+                                          Added:{" "}
+                                          {new Date(
+                                            doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
-                                        title="View full chunk"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handlePreviewDocument(doc.id)
+                                        }
                                       >
                                         <Eye className="h-3 w-3" />
                                       </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
-                                        title="View full document"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.downloadDocument(doc.id)
+                                        }
                                       >
-                                        <FileText className="h-3 w-3" />
+                                        <Download className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </div>
-                                  <div>
-                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
-                                      {searchResult.document.title}
-                                    </h4>
-                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                                      AI Frame • Added: {new Date(searchResult.document.metadata.uploadedAt).toLocaleDateString()}
-                                    </div>
-                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
-                                        {searchResult.chunk?.content || 'No content preview available'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No AI frames found matching "{currentSemanticQuery}"</p>
-                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
-                          </div>
-                        )
-                      ) : (
-                        // Show regular AI Frames list
-                        getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
-                          <div className="space-y-2">
-                            {getFilteredDocumentsByCategory("aiFrames").map((doc) => (
-                              <Card key={doc.id} className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-medium truncate">{doc.title}</h4>
-                                      <Badge variant="outline" className="text-xs text-blue-600">
-                                        🎓 AI Frame
-                                      </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
-                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                      <Download className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
+                                </Card>
+                              )
+                            )}
                           </div>
                         ) : (
                           <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                             <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No AI frames found.</p>
-                            <p className="text-sm">AI frames will appear here when synced from the AI-Frames system.</p>
+                            <p className="text-sm">
+                              AI frames will appear here when synced from the
+                              AI-Frames system.
+                            </p>
                           </div>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-                <TabsContent value="system" className="h-full">
-                  <Card className="h-full flex flex-col">
-                    <CardHeader className="pb-3 flex-shrink-0">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Package className="h-4 w-4 text-purple-600" />
+                  <TabsContent value="system" className="h-full">
+                    <Card className="h-full flex flex-col">
+                      <CardHeader className="pb-3 flex-shrink-0">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Package className="h-4 w-4 text-purple-600" />
+                          {showSemanticResults
+                            ? `Semantic Search: System & Metadata (${getFilteredDocumentsByCategory("system").length} results)`
+                            : `System & Metadata (${getDocumentCategoryCounts().system})`}
+                        </CardTitle>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          {showSemanticResults
+                            ? `Semantic search results from TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.`
+                            : `TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.`}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="flex-1 overflow-y-auto">
                         {showSemanticResults ? (
-                          `Semantic Search: System & Metadata (${getFilteredDocumentsByCategory("system").length} results)`
-                        ) : (
-                          `System & Metadata (${getDocumentCategoryCounts().system})`
-                        )}
-                      </CardTitle>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {showSemanticResults ? (
-                          `Semantic search results from TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.`
-                        ) : (
-                          `TimeCapsules, BubblSpace exports, research outputs, and other system-generated content.`
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto">
-                      {showSemanticResults ? (
-                        // Show semantic search results for System documents
+                          // Show semantic search results for System documents
+                          getFilteredDocumentsByCategory("system").length >
+                          0 ? (
+                            <div className="space-y-3">
+                              {getFilteredDocumentsByCategory("system").map(
+                                (searchResult, index) => (
+                                  <Card
+                                    key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`}
+                                    className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/20 border-l-4 border-l-purple-500"
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-purple-600"
+                                          >
+                                            {(
+                                              searchResult.similarity * 100
+                                            ).toFixed(1)}
+                                            % match
+                                          </Badge>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs text-purple-600"
+                                          >
+                                            {searchResult.document.metadata
+                                              ?.source === "timecapsule_export"
+                                              ? "📦 Export"
+                                              : searchResult.document.metadata
+                                                    ?.isGenerated
+                                                ? "🤖 Generated"
+                                                : "⚙️ System"}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleViewChunk(
+                                                searchResult,
+                                                searchResult.document
+                                              )
+                                            }
+                                            title="View full chunk"
+                                          >
+                                            <Eye className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handlePreviewDocument(
+                                                searchResult.document.id
+                                              )
+                                            }
+                                            title="View full document"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                          {searchResult.document.title}
+                                        </h4>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                          System Document • Added:{" "}
+                                          {new Date(
+                                            searchResult.document.metadata
+                                              ?.uploadedAt || Date.now()
+                                          ).toLocaleDateString()}
+                                        </div>
+                                        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                            {searchResult.chunk?.content ||
+                                              "No content preview available"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>
+                                No system documents found matching "
+                                {currentSemanticQuery}"
+                              </p>
+                              <p className="text-sm">
+                                Try adjusting your search terms or similarity
+                                threshold.
+                              </p>
+                            </div>
+                          )
+                        ) : // Show regular System documents list
                         getFilteredDocumentsByCategory("system").length > 0 ? (
-                          <div className="space-y-3">
-                            {getFilteredDocumentsByCategory("system").map((searchResult, index) => (
-                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/20 border-l-4 border-l-purple-500">
-                                <div className="space-y-3">
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("system").map(
+                              (doc) => (
+                                <Card
+                                  key={doc.id}
+                                  className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                                >
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="default" className="text-xs bg-purple-600">
-                                        {(searchResult.similarity * 100).toFixed(1)}% match
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs text-purple-600">
-                                        {searchResult.document.metadata?.source === 'timecapsule_export' ? '📦 Export' : 
-                                         searchResult.document.metadata?.isGenerated ? '🤖 Generated' : '⚙️ System'}
-                                      </Badge>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium truncate">
+                                          {doc.title}
+                                        </h4>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs text-purple-600"
+                                        >
+                                          {doc.metadata?.source ===
+                                          "timecapsule_export"
+                                            ? "📦 Export"
+                                            : doc.metadata?.isGenerated
+                                              ? "🤖 Generated"
+                                              : "⚙️ System"}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                        <span>
+                                          Size:{" "}
+                                          {formatFileSize(
+                                            doc.metadata?.filesize || 0
+                                          )}
+                                        </span>
+                                        <span>
+                                          Added:{" "}
+                                          {new Date(
+                                            doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
-                                        title="View full chunk"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handlePreviewDocument(doc.id)
+                                        }
                                       >
                                         <Eye className="h-3 w-3" />
                                       </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
-                                        title="View full document"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.downloadDocument(doc.id)
+                                        }
                                       >
-                                        <FileText className="h-3 w-3" />
+                                        <Download className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.deleteDocument(doc.id)
+                                        }
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </div>
-                                  <div>
-                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
-                                      {searchResult.document.title}
-                                    </h4>
-                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                                      System Document • Added: {new Date(searchResult.document.metadata?.uploadedAt || Date.now()).toLocaleDateString()}
-                                    </div>
-                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
-                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
-                                        {searchResult.chunk?.content || 'No content preview available'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No system documents found matching "{currentSemanticQuery}"</p>
-                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
-                          </div>
-                        )
-                      ) : (
-                        // Show regular System documents list
-                        getFilteredDocumentsByCategory("system").length > 0 ? (
-                          <div className="space-y-2">
-                            {getFilteredDocumentsByCategory("system").map((doc) => (
-                              <Card key={doc.id} className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-medium truncate">{doc.title}</h4>
-                                      <Badge variant="outline" className="text-xs text-purple-600">
-                                        {doc.metadata?.source === 'timecapsule_export' ? '📦 Export' : 
-                                         doc.metadata?.isGenerated ? '🤖 Generated' : '⚙️ System'}
-                                      </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
-                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                      <Download className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
+                                </Card>
+                              )
+                            )}
                           </div>
                         ) : (
                           <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                             <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No system documents found.</p>
-                            <p className="text-sm">TimeCapsule exports and system content will appear here.</p>
+                            <p className="text-sm">
+                              TimeCapsule exports and system content will appear
+                              here.
+                            </p>
                           </div>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-                <TabsContent value="agentLogs" className="h-full">
-                  <Card className="h-full flex flex-col">
-                    <CardHeader className="pb-3 flex-shrink-0">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Settings className="h-4 w-4 text-orange-600" />
+                  <TabsContent value="agentLogs" className="h-full">
+                    <Card className="h-full flex flex-col">
+                      <CardHeader className="pb-3 flex-shrink-0">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-orange-600" />
+                          {showSemanticResults
+                            ? `Semantic Search: Agent Logs (${getFilteredDocumentsByCategory("agentLogs").length} results)`
+                            : `Agent Logs (${getDocumentCategoryCounts().agentLogs})`}
+                        </CardTitle>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          {showSemanticResults
+                            ? `Semantic search results from multi-agent research session logs, performance metrics, and processing details.`
+                            : `Multi-agent research session logs, performance metrics, and processing details.`}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="flex-1 overflow-y-auto">
                         {showSemanticResults ? (
-                          `Semantic Search: Agent Logs (${getFilteredDocumentsByCategory("agentLogs").length} results)`
-                        ) : (
-                          `Agent Logs (${getDocumentCategoryCounts().agentLogs})`
-                        )}
-                      </CardTitle>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {showSemanticResults ? (
-                          `Semantic search results from multi-agent research session logs, performance metrics, and processing details.`
-                        ) : (
-                          `Multi-agent research session logs, performance metrics, and processing details.`
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto">
-                      {showSemanticResults ? (
-                        // Show semantic search results for Agent Logs
-                        getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
-                          <div className="space-y-3">
-                            {getFilteredDocumentsByCategory("agentLogs").map((searchResult, index) => (
-                              <Card key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`} className="p-4 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-l-4 border-l-orange-500">
-                                <div className="space-y-3">
+                          // Show semantic search results for Agent Logs
+                          getFilteredDocumentsByCategory("agentLogs").length >
+                          0 ? (
+                            <div className="space-y-3">
+                              {getFilteredDocumentsByCategory("agentLogs").map(
+                                (searchResult, index) => (
+                                  <Card
+                                    key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`}
+                                    className="p-4 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-l-4 border-l-orange-500"
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-orange-600"
+                                          >
+                                            {(
+                                              searchResult.similarity * 100
+                                            ).toFixed(1)}
+                                            % match
+                                          </Badge>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs text-orange-600"
+                                          >
+                                            📋 Agent Log
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleViewChunk(
+                                                searchResult,
+                                                searchResult.document
+                                              )
+                                            }
+                                            title="View full chunk"
+                                          >
+                                            <Eye className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handlePreviewDocument(
+                                                searchResult.document.id
+                                              )
+                                            }
+                                            title="View full document"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                          {searchResult.document.title}
+                                        </h4>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                          Agent Log • Added:{" "}
+                                          {new Date(
+                                            searchResult.document.metadata
+                                              ?.uploadedAt || Date.now()
+                                          ).toLocaleDateString()}
+                                        </div>
+                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-md">
+                                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                            {searchResult.chunk?.content ||
+                                              "No content preview available"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>
+                                No agent logs found matching "
+                                {currentSemanticQuery}"
+                              </p>
+                              <p className="text-sm">
+                                Try adjusting your search terms or similarity
+                                threshold.
+                              </p>
+                            </div>
+                          )
+                        ) : // Show regular Agent Logs list
+                        getFilteredDocumentsByCategory("agentLogs").length >
+                          0 ? (
+                          <div className="space-y-2">
+                            {getFilteredDocumentsByCategory("agentLogs").map(
+                              (doc) => (
+                                <Card
+                                  key={doc.id}
+                                  className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                >
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="default" className="text-xs bg-orange-600">
-                                        {(searchResult.similarity * 100).toFixed(1)}% match
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs text-orange-600">
-                                        📋 Agent Log
-                                      </Badge>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium truncate">
+                                          {doc.title}
+                                        </h4>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs text-orange-600"
+                                        >
+                                          📋 Agent Log
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                        <span>
+                                          Size:{" "}
+                                          {formatFileSize(
+                                            doc.metadata?.filesize || 0
+                                          )}
+                                        </span>
+                                        <span>
+                                          Added:{" "}
+                                          {new Date(
+                                            doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handleViewChunk(searchResult, searchResult.document)}
-                                        title="View full chunk"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handlePreviewDocument(doc.id)
+                                        }
                                       >
                                         <Eye className="h-3 w-3" />
                                       </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => handlePreviewDocument(searchResult.document.id)}
-                                        title="View full document"
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.downloadDocument(doc.id)
+                                        }
                                       >
-                                        <FileText className="h-3 w-3" />
+                                        <Download className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          app.deleteDocument(doc.id)
+                                        }
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </div>
-                                  <div>
-                                    <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
-                                      {searchResult.document.title}
-                                    </h4>
-                                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                                      Agent Log • Added: {new Date(searchResult.document.metadata?.uploadedAt || Date.now()).toLocaleDateString()}
-                                    </div>
-                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-md">
-                                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
-                                        {searchResult.chunk?.content || 'No content preview available'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No agent logs found matching "{currentSemanticQuery}"</p>
-                            <p className="text-sm">Try adjusting your search terms or similarity threshold.</p>
-                          </div>
-                        )
-                      ) : (
-                        // Show regular Agent Logs list
-                        getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
-                          <div className="space-y-2">
-                            {getFilteredDocumentsByCategory("agentLogs").map((doc) => (
-                              <Card key={doc.id} className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-medium truncate">{doc.title}</h4>
-                                      <Badge variant="outline" className="text-xs text-orange-600">
-                                        📋 Agent Log
-                                      </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                      <span>Size: {formatFileSize(doc.metadata?.filesize || 0)}</span>
-                                      <span>Added: {new Date(doc.metadata?.uploadedAt || Date.now()).toLocaleDateString()}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc.id)}>
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.downloadDocument(doc.id)}>
-                                      <Download className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => app.deleteDocument(doc.id)} className="text-red-600 hover:text-red-700">
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
+                                </Card>
+                              )
+                            )}
                           </div>
                         ) : (
                           <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                             <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No agent logs found.</p>
-                            <p className="text-sm">Agent processing logs will appear here after multi-agent research sessions.</p>
+                            <p className="text-sm">
+                              Agent processing logs will appear here after
+                              multi-agent research sessions.
+                            </p>
                           </div>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </div>
-            </Tabs>
-          </div>
-          
-          <div className="flex justify-between items-center p-6 pt-4 flex-shrink-0 border-t">
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total: {documents.length} documents • {formatFileSize(documents.reduce((sum, doc) => sum + (doc.metadata?.filesize || 0), 0))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </div>
+              </Tabs>
             </div>
-            <Button variant="outline" onClick={() => app.hideDocumentManager()}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Search Results Modal */}
-      {showSearchResults && (
-        <Dialog
-          open={showSearchResults}
-          onOpenChange={(open) => {
-            if (!open) closeSearchResults();
-          }}
-        >
-          <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col p-0">
-            <DialogHeader className="flex-shrink-0 p-6 pb-4">
-              <DialogTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5 text-blue-600" />
-                Search Results for "{currentSearchQuery}"
-              </DialogTitle>
-              <DialogDescription>
-                Found {searchResults.length} relevant chunks in your knowledge
-                base.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6">
-              <div className="space-y-3 py-4">
-                {searchResults.map((result, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline">
-                          Similarity: {(result.similarity * 100).toFixed(1)}%
-                        </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleViewChunk(result, result.document)
-                          }
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                      </div>
-                      <h4 className="font-medium">
-                        {result.document?.title || "Unknown Document"}
-                      </h4>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">
-                        {result.chunk?.content || "No content available"}
-                      </p>
-                    </div>
-                  </Card>
-                ))}
+            <div className="flex justify-between items-center p-6 pt-4 flex-shrink-0 border-t">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                Total: {documents.length} documents •{" "}
+                {formatFileSize(
+                  documents.reduce(
+                    (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                    0
+                  )
+                )}
               </div>
-            </div>
-            <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
-              <Button variant="outline" onClick={closeSearchResults}>
-                Close
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Document Preview Modal */}
-      {showDocumentPreview && previewDocument && (
-        <Dialog
-          open={showDocumentPreview}
-          onOpenChange={(open) => {
-            if (!open) closeDocumentPreview();
-          }}
-        >
-          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
-            <DialogHeader className="flex-shrink-0 p-6 pb-4">
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-green-600" />
-                {previewDocument.title}
-              </DialogTitle>
-              <DialogDescription>
-                Document preview -{" "}
-                {formatFileSize(previewDocument.metadata?.filesize || 0)}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6">
-              <div className="whitespace-pre-wrap text-sm font-mono bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
-                {previewDocument.content}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-6 pt-4 flex-shrink-0 border-t">
               <Button
                 variant="outline"
-                onClick={() => app.downloadDocument(previewDocument.id)}
+                onClick={() => app.hideDocumentManager()}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button variant="outline" onClick={closeDocumentPreview}>
                 Close
               </Button>
             </div>
           </DialogContent>
         </Dialog>
-      )}
 
-      {/* Chunk View Modal */}
-      {showChunkView && currentChunk && (
-        <Dialog
-          open={showChunkView}
-          onOpenChange={(open) => {
-            if (!open) closeChunkView();
-          }}
-        >
-          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
-            <DialogHeader className="flex-shrink-0 p-6 pb-4">
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-orange-600" />
-                Document Chunk
-              </DialogTitle>
-              <DialogDescription>
-                From:{" "}
-                {currentChunk.document?.title ||
-                  currentChunk.document?.name ||
-                  "Unknown Document"}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6">
-              {/* Chunk metadata */}
-              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
-                <div className="flex justify-between items-center">
-                  <span>
-                    <strong>Similarity Match:</strong>{" "}
-                    {currentChunk.similarity
-                      ? (currentChunk.similarity * 100).toFixed(1) + "%"
-                      : "N/A"}
-                  </span>
-                  <span>
-                    <strong>Content Length:</strong>{" "}
-                    {currentChunk.content?.length || 0} characters
-                  </span>
+        {/* Search Results Modal */}
+        {showSearchResults && (
+          <Dialog
+            open={showSearchResults}
+            onOpenChange={(open) => {
+              if (!open) closeSearchResults();
+            }}
+          >
+            <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+              <DialogHeader className="flex-shrink-0 p-6 pb-4">
+                <DialogTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5 text-blue-600" />
+                  Search Results for "{currentSearchQuery}"
+                </DialogTitle>
+                <DialogDescription>
+                  Found {searchResults.length} relevant chunks in your knowledge
+                  base.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6">
+                <div className="space-y-3 py-4">
+                  {searchResults.map((result, index) => (
+                    <Card key={index} className="p-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline">
+                            Similarity: {(result.similarity * 100).toFixed(1)}%
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleViewChunk(result, result.document)
+                            }
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                        <h4 className="font-medium">
+                          {result.document?.title || "Unknown Document"}
+                        </h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">
+                          {result.chunk?.content || "No content available"}
+                        </p>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </div>
-
-              {/* Chunk content */}
-              <div className="whitespace-pre-wrap text-sm bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
-                {currentChunk.content || "No content available"}
+              <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
+                <Button variant="outline" onClick={closeSearchResults}>
+                  Close
+                </Button>
               </div>
-            </div>
-            <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
-              <Button variant="outline" onClick={closeChunkView}>
-                Close
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )}
 
-      {/* Metadata Management Dialogs */}
-      <BubblSpaceDialog
-        isOpen={showBubblSpaceDialog}
-        onClose={() => app.closeBubblSpaceDialog()}
-        onSave={(bubblSpace: Partial<BubblSpace>) => {
-          if (bubblSpace.name && bubblSpace.description) {
-            app.saveBubblSpace(bubblSpace.name, bubblSpace.description, bubblSpace);
-          }
-        }}
-        onDelete={(id: string) => {
-          app.deleteBubblSpace(id);
-        }}
-        bubblSpace={editingBubblSpace}
-        existingBubblSpaces={bubblSpaces}
-      />
+        {/* Document Preview Modal */}
+        {showDocumentPreview && previewDocument && (
+          <Dialog
+            open={showDocumentPreview}
+            onOpenChange={(open) => {
+              if (!open) closeDocumentPreview();
+            }}
+          >
+            <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+              <DialogHeader className="flex-shrink-0 p-6 pb-4">
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  {previewDocument.title}
+                </DialogTitle>
+                <DialogDescription>
+                  Document preview -{" "}
+                  {formatFileSize(previewDocument.metadata?.filesize || 0)}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6">
+                <div className="whitespace-pre-wrap text-sm font-mono bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
+                  {previewDocument.content}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 p-6 pt-4 flex-shrink-0 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => app.downloadDocument(previewDocument.id)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button variant="outline" onClick={closeDocumentPreview}>
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
-      <TimeCapsuleDialog
-        isOpen={showTimeCapsuleDialog}
-        onClose={() => app.closeTimeCapsuleDialog()}
-        onSave={(timeCapsule: Partial<TimeCapsuleMetadata>) => {
-          if (timeCapsule.name && timeCapsule.description && timeCapsule.bubblSpaceId) {
-            app.saveTimeCapsule(timeCapsule.name, timeCapsule.description, timeCapsule.bubblSpaceId, timeCapsule);
-          }
-        }}
-        onDelete={(id: string) => {
-          app.deleteTimeCapsule(id);
-        }}
-        timeCapsule={editingTimeCapsule}
-        bubblSpaces={bubblSpaces}
-      />
+        {/* Chunk View Modal */}
+        {showChunkView && currentChunk && (
+          <Dialog
+            open={showChunkView}
+            onOpenChange={(open) => {
+              if (!open) closeChunkView();
+            }}
+          >
+            <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+              <DialogHeader className="flex-shrink-0 p-6 pb-4">
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-orange-600" />
+                  Document Chunk
+                </DialogTitle>
+                <DialogDescription>
+                  From:{" "}
+                  {currentChunk.document?.title ||
+                    currentChunk.document?.name ||
+                    "Unknown Document"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6">
+                {/* Chunk metadata */}
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <strong>Similarity Match:</strong>{" "}
+                      {currentChunk.similarity
+                        ? (currentChunk.similarity * 100).toFixed(1) + "%"
+                        : "N/A"}
+                    </span>
+                    <span>
+                      <strong>Content Length:</strong>{" "}
+                      {currentChunk.content?.length || 0} characters
+                    </span>
+                  </div>
+                </div>
 
-      {/* TODO: Fix SafeImportDialog props interface 
+                {/* Chunk content */}
+                <div className="whitespace-pre-wrap text-sm bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
+                  {currentChunk.content || "No content available"}
+                </div>
+              </div>
+              <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
+                <Button variant="outline" onClick={closeChunkView}>
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Metadata Management Dialogs */}
+        <BubblSpaceDialog
+          isOpen={showBubblSpaceDialog}
+          onClose={() => app.closeBubblSpaceDialog()}
+          onSave={(bubblSpace: Partial<BubblSpace>) => {
+            if (bubblSpace.name && bubblSpace.description) {
+              app.saveBubblSpace(
+                bubblSpace.name,
+                bubblSpace.description,
+                bubblSpace
+              );
+            }
+          }}
+          onDelete={(id: string) => {
+            app.deleteBubblSpace(id);
+          }}
+          bubblSpace={editingBubblSpace}
+          existingBubblSpaces={bubblSpaces}
+        />
+
+        <TimeCapsuleDialog
+          isOpen={showTimeCapsuleDialog}
+          onClose={() => app.closeTimeCapsuleDialog()}
+          onSave={(timeCapsule: Partial<TimeCapsuleMetadata>) => {
+            if (
+              timeCapsule.name &&
+              timeCapsule.description &&
+              timeCapsule.bubblSpaceId
+            ) {
+              app.saveTimeCapsule(
+                timeCapsule.name,
+                timeCapsule.description,
+                timeCapsule.bubblSpaceId,
+                timeCapsule
+              );
+            }
+          }}
+          onDelete={(id: string) => {
+            app.deleteTimeCapsule(id);
+          }}
+          timeCapsule={editingTimeCapsule}
+          bubblSpaces={bubblSpaces}
+        />
+
+        {/* TODO: Fix SafeImportDialog props interface 
       <SafeImportDialog
         isOpen={showSafeImportDialog && !!app.importFile}
         onClose={() => app.closeSafeImportDialog()}
@@ -5286,505 +5982,730 @@ export function DeepResearchComponent() {
       />
       */}
 
-      {/* Firecrawl Modal */}
-      <Dialog open={showFirecrawlModal} onOpenChange={setShowFirecrawlModal}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span>🔍</span>
-              Scrape URL with Firecrawl
-            </DialogTitle>
-            <DialogDescription>
-              Enter a URL and your Firecrawl API key to scrape web content and add it to your Knowledge Base.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="firecrawl-url">Website URL</Label>
-              <Input
-                id="firecrawl-url"
-                placeholder="https://example.com/article"
-                type="url"
-                defaultValue=""
-                key="firecrawl-url-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="firecrawl-api-key">Firecrawl API Key</Label>
-                {app?.isFirecrawlApiKeyRemembered() && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs text-green-600">
-                      🔐 Saved
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        app.clearFirecrawlApiKey();
-                        // Clear the input field
-                        const apiKeyInput = document.getElementById('firecrawl-api-key') as HTMLInputElement;
-                        if (apiKeyInput) apiKeyInput.value = '';
-                      }}
-                      className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
-                      title="Forget saved API key"
-                    >
-                      Forget
-                    </Button>
-                  </div>
-                )}
+        {/* Firecrawl Modal */}
+        <Dialog open={showFirecrawlModal} onOpenChange={setShowFirecrawlModal}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <span>🔍</span>
+                Scrape URL with Firecrawl
+              </DialogTitle>
+              <DialogDescription>
+                Enter a URL and your Firecrawl API key to scrape web content and
+                add it to your Knowledge Base.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firecrawl-url">Website URL</Label>
+                <Input
+                  id="firecrawl-url"
+                  placeholder="https://example.com/article"
+                  type="url"
+                  defaultValue=""
+                  key="firecrawl-url-input"
+                />
               </div>
-              <Input
-                id="firecrawl-api-key"
-                placeholder="fc-xxxxxxxxxx"
-                type="password"
-                defaultValue={app?.firecrawlApiKey || ""}
-                key="firecrawl-api-key-input"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Get your API key from{" "}
-                  <a 
-                    href="https://firecrawl.dev" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    firecrawl.dev
-                  </a>
-                </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="remember-api-key"
-                    className="w-4 h-4"
-                    defaultChecked={app?.isFirecrawlApiKeyRemembered()}
-                  />
-                  <Label htmlFor="remember-api-key" className="text-xs cursor-pointer">
-                    Remember API key
-                  </Label>
-                </div>
-              </div>
-            </div>
-            {isScrapingUrl && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {scrapingProgress.message}
-                  </span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {scrapingProgress.progress}%
-                  </span>
+                  <Label htmlFor="firecrawl-api-key">Firecrawl API Key</Label>
+                  {app?.isFirecrawlApiKeyRemembered() && (
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-green-600"
+                      >
+                        🔐 Saved
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          app.clearFirecrawlApiKey();
+                          // Clear the input field
+                          const apiKeyInput = document.getElementById(
+                            "firecrawl-api-key"
+                          ) as HTMLInputElement;
+                          if (apiKeyInput) apiKeyInput.value = "";
+                        }}
+                        className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                        title="Forget saved API key"
+                      >
+                        Forget
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <Progress value={scrapingProgress.progress} className="w-full" />
-              </div>
-            )}
-          </div>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => app.closeFirecrawlModal()}
-              disabled={isScrapingUrl}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const urlInput = document.getElementById('firecrawl-url') as HTMLInputElement;
-                const apiKeyInput = document.getElementById('firecrawl-api-key') as HTMLInputElement;
-                const rememberCheckbox = document.getElementById('remember-api-key') as HTMLInputElement;
-                if (urlInput && apiKeyInput) {
-                  // Save API key with encryption if remember is checked
-                  app.saveFirecrawlApiKey(apiKeyInput.value, rememberCheckbox?.checked || false);
-                  app.scrapeUrl(urlInput.value, apiKeyInput.value);
-                }
-              }}
-              disabled={isScrapingUrl}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              {isScrapingUrl ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Scraping...
-                </>
-              ) : (
-                <>
-                  <span className="mr-2">🔍</span>
-                  Scrape URL
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Enhanced Agent Progress Modal with RAG Visualization */}
-      <Dialog open={showAgentProgress} onOpenChange={setShowAgentProgress}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="flex-shrink-0 p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <span>🤖</span>
-              Multi-Agent Research with RAG Analytics
-            </DialogTitle>
-            <DialogDescription>
-              Multiple specialized agents are working together with RAG-enhanced context to create comprehensive learning research.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto px-6">
-            <Tabs defaultValue="progress" className="flex flex-col h-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4 flex-shrink-0">
-                <TabsTrigger value="progress" className="flex items-center gap-2">
-                  <Bot className="h-4 w-4" />
-                  Agent Progress
-                </TabsTrigger>
-                <TabsTrigger value="rag" className="flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  RAG Queries ({currentAgentProgress?.ragQueries?.length || 0})
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Analytics
-                </TabsTrigger>
-              </TabsList>
-
-              <div className="flex-1 overflow-y-auto">
-                <TabsContent value="progress" className="h-full overflow-y-auto">
-                  <div className="space-y-4">
-                    {currentAgentProgress && (
-                      <>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="font-medium">Session: {currentAgentProgress.sessionId}</span>
-                            <span className="text-gray-500">
-                              {currentAgentProgress.estimatedTimeRemaining && 
-                                `Est. ${currentAgentProgress.estimatedTimeRemaining} remaining`
-                              }
-                            </span>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Agent Progress:</h4>
-                            {currentAgentProgress.tasks.map((task, index) => (
-                              <div key={task.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <div className="flex-shrink-0">
-                                  {task.status === 'completed' && (
-                                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                  )}
-                                  {task.status === 'in_progress' && (
-                                    <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                                  )}
-                                  {task.status === 'pending' && (
-                                    <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
-                                  )}
-                                  {task.status === 'failed' && (
-                                    <AlertCircle className="h-5 w-5 text-red-600" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium truncate">
-                                      {task.taskName}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                      {task.status === 'completed' && task.duration && (
-                                        <span>{task.duration}</span>
-                                      )}
-                                      {task.status === 'in_progress' && task.progress && (
-                                        <span>{task.progress}%</span>
-                                      )}
-                                      {task.tokensUsed && (
-                                        <span>{task.tokensUsed} tokens</span>
-                                      )}
-                                      {task.ragStats && (
-                                        <Badge variant="outline" className="text-xs">
-                                          {task.ragStats.totalQueries} RAG queries
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {task.status === 'in_progress' && task.progress && (
-                                    <div className="mt-2">
-                                      <Progress value={task.progress} className="h-2" />
-                                    </div>
-                                  )}
-                                  {task.ragStats && (
-                                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-                                      <div className="flex justify-between">
-                                        <span>RAG Performance:</span>
-                                        <span>{task.ragStats.averageResponseTime.toFixed(0)}ms avg</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span>Retrieved:</span>
-                                        <span>{task.ragStats.documentsRetrieved} documents</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span>Relevance:</span>
-                                        <span>{(task.ragStats.averageSimilarity * 100).toFixed(1)}%</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {task.status === 'failed' && task.error && (
-                                    <p className="text-xs text-red-600 mt-1">{task.error}</p>
-                                  )}
-                                  {task.status === 'completed' && task.result && (
-                                    <p className="text-xs text-green-600 mt-1">{task.result}</p>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          
-                          {currentAgentProgress.totalTokens && (
-                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Total Tokens:</span>
-                                  <span className="font-medium">{currentAgentProgress.totalTokens}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Research Quality:</span>
-                                  <Badge variant={
-                                    currentAgentProgress.researchQuality === 'excellent' ? 'default' :
-                                    currentAgentProgress.researchQuality === 'good' ? 'secondary' : 'outline'
-                                  }>
-                                    {currentAgentProgress.researchQuality}
-                                  </Badge>
-                                </div>
-                                {currentAgentProgress.ragStats && (
-                                  <>
-                                    <div className="flex justify-between">
-                                      <span>RAG Queries:</span>
-                                      <span className="font-medium">{currentAgentProgress.ragStats.totalQueries}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>RAG Success Rate:</span>
-                                      <span className="font-medium">
-                                        {((currentAgentProgress.ragStats.successfulQueries / Math.max(1, currentAgentProgress.ragStats.totalQueries)) * 100).toFixed(1)}%
-                                      </span>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                <Input
+                  id="firecrawl-api-key"
+                  placeholder="fc-xxxxxxxxxx"
+                  type="password"
+                  defaultValue={app?.firecrawlApiKey || ""}
+                  key="firecrawl-api-key-input"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Get your API key from{" "}
+                    <a
+                      href="https://firecrawl.dev"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      firecrawl.dev
+                    </a>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="remember-api-key"
+                      className="w-4 h-4"
+                      defaultChecked={app?.isFirecrawlApiKeyRemembered()}
+                    />
+                    <Label
+                      htmlFor="remember-api-key"
+                      className="text-xs cursor-pointer"
+                    >
+                      Remember API key
+                    </Label>
                   </div>
-                </TabsContent>
+                </div>
+              </div>
+              {isScrapingUrl && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {scrapingProgress.message}
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {scrapingProgress.progress}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={scrapingProgress.progress}
+                    className="w-full"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => app.closeFirecrawlModal()}
+                disabled={isScrapingUrl}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const urlInput = document.getElementById(
+                    "firecrawl-url"
+                  ) as HTMLInputElement;
+                  const apiKeyInput = document.getElementById(
+                    "firecrawl-api-key"
+                  ) as HTMLInputElement;
+                  const rememberCheckbox = document.getElementById(
+                    "remember-api-key"
+                  ) as HTMLInputElement;
+                  if (urlInput && apiKeyInput) {
+                    // Save API key with encryption if remember is checked
+                    app.saveFirecrawlApiKey(
+                      apiKeyInput.value,
+                      rememberCheckbox?.checked || false
+                    );
+                    app.scrapeUrl(urlInput.value, apiKeyInput.value);
+                  }
+                }}
+                disabled={isScrapingUrl}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isScrapingUrl ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Scraping...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">🔍</span>
+                    Scrape URL
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-                <TabsContent value="rag" className="h-full overflow-y-auto">
-                  <div className="space-y-4">
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Search className="h-4 w-4 text-blue-600" />
-                          Real-Time RAG Query Monitoring
-                        </CardTitle>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Live view of knowledge base queries performed by each agent during research generation.
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        {currentAgentProgress?.ragQueries && currentAgentProgress.ragQueries.length > 0 ? (
+        {/* Enhanced Agent Progress Modal with RAG Visualization */}
+        <Dialog open={showAgentProgress} onOpenChange={setShowAgentProgress}>
+          <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
+              <DialogTitle className="flex items-center gap-2">
+                <span>🤖</span>
+                Multi-Agent Research with RAG Analytics
+              </DialogTitle>
+              <DialogDescription>
+                Multiple specialized agents are working together with
+                RAG-enhanced context to create comprehensive learning research.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto px-6">
+              <Tabs defaultValue="progress" className="flex flex-col h-full">
+                <TabsList className="grid w-full grid-cols-3 mb-4 flex-shrink-0">
+                  <TabsTrigger
+                    value="progress"
+                    className="flex items-center gap-2"
+                  >
+                    <Bot className="h-4 w-4" />
+                    Agent Progress
+                  </TabsTrigger>
+                  <TabsTrigger value="rag" className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    RAG Queries ({currentAgentProgress?.ragQueries?.length || 0}
+                    )
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="analytics"
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Analytics
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="flex-1 overflow-y-auto">
+                  <TabsContent
+                    value="progress"
+                    className="h-full overflow-y-auto"
+                  >
+                    <div className="space-y-4">
+                      {currentAgentProgress && (
+                        <>
                           <div className="space-y-3">
-                            {currentAgentProgress.ragQueries
-                              .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                              .map((query, index) => (
-                              <Card key={query.id} className="p-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="text-xs text-blue-600">
-                                        {query.agentId || 'unknown'}
-                                      </Badge>
-                                      <Badge variant={query.success ? 'default' : 'destructive'} className="text-xs">
-                                        {query.success ? '✅' : '❌'} {query.resultsCount} results
-                                      </Badge>
-                                      <span className="text-xs text-gray-500">
-                                        {query.responseTime}ms
-                                      </span>
-                                    </div>
-                                    <span className="text-xs text-gray-500">
-                                      {query.timestamp.toLocaleTimeString()}
-                                    </span>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-medium">
+                                Session: {currentAgentProgress.sessionId}
+                              </span>
+                              <span className="text-gray-500">
+                                {currentAgentProgress.estimatedTimeRemaining &&
+                                  `Est. ${currentAgentProgress.estimatedTimeRemaining} remaining`}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">
+                                Agent Progress:
+                              </h4>
+                              {currentAgentProgress.tasks.map((task, index) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                >
+                                  <div className="flex-shrink-0">
+                                    {task.status === "completed" && (
+                                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                    )}
+                                    {task.status === "in_progress" && (
+                                      <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                                    )}
+                                    {task.status === "pending" && (
+                                      <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                                    )}
+                                    {task.status === "failed" && (
+                                      <AlertCircle className="h-5 w-5 text-red-600" />
+                                    )}
                                   </div>
-                                  
-                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                    "{query.queryText}"
-                                  </p>
-                                  
-                                  {query.success && query.averageSimilarity > 0 && (
-                                    <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                                      <span>Avg Similarity: {(query.averageSimilarity * 100).toFixed(1)}%</span>
-                                      <span>Max: {(query.maxSimilarity * 100).toFixed(1)}%</span>
-                                      <span>Threshold: {(query.searchParameters.threshold * 100).toFixed(1)}%</span>
-                                    </div>
-                                  )}
-                                  
-                                  {query.documents.length > 0 && (
-                                    <div className="mt-2">
-                                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Retrieved Documents:
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-sm font-medium truncate">
+                                        {task.taskName}
                                       </p>
-                                      <div className="space-y-1">
-                                        {query.documents.slice(0, 3).map((doc, docIndex) => (
-                                          <div key={docIndex} className="flex items-center justify-between text-xs p-2 bg-white dark:bg-gray-800 rounded border">
-                                            <span className="truncate flex-1 mr-2">
-                                              {doc.title}
-                                            </span>
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                              <Badge variant="outline" className="text-xs">
-                                                {(doc.similarity * 100).toFixed(1)}%
-                                              </Badge>
-                                              <Badge variant="secondary" className="text-xs">
-                                                {doc.source}
-                                              </Badge>
-                                            </div>
-                                          </div>
-                                        ))}
-                                        {query.documents.length > 3 && (
-                                          <p className="text-xs text-gray-500 text-center">
-                                            +{query.documents.length - 3} more documents
-                                          </p>
+                                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        {task.status === "completed" &&
+                                          task.duration && (
+                                            <span>{task.duration}</span>
+                                          )}
+                                        {task.status === "in_progress" &&
+                                          task.progress && (
+                                            <span>{task.progress}%</span>
+                                          )}
+                                        {task.tokensUsed && (
+                                          <span>{task.tokensUsed} tokens</span>
+                                        )}
+                                        {task.ragStats && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            {task.ragStats.totalQueries} RAG
+                                            queries
+                                          </Badge>
                                         )}
                                       </div>
                                     </div>
-                                  )}
-                                  
-                                  {!query.success && query.errorMessage && (
-                                    <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">
-                                      Error: {query.errorMessage}
-                                    </p>
-                                  )}
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No RAG queries yet.</p>
-                            <p className="text-sm">Queries will appear here as agents search the knowledge base.</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="analytics" className="h-full overflow-y-auto">
-                  <div className="space-y-4">
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Settings className="h-4 w-4 text-purple-600" />
-                          Session Analytics & Performance
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {currentAgentProgress?.ragStats ? (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-3">
-                              <h4 className="font-medium text-sm">RAG Performance</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Total Queries:</span>
-                                  <span className="font-medium">{currentAgentProgress.ragStats.totalQueries}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Successful:</span>
-                                  <span className="font-medium text-green-600">{currentAgentProgress.ragStats.successfulQueries}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Avg Response Time:</span>
-                                  <span className="font-medium">{currentAgentProgress.ragStats.averageResponseTime.toFixed(0)}ms</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Avg Similarity:</span>
-                                  <span className="font-medium">{(currentAgentProgress.ragStats.averageSimilarity * 100).toFixed(1)}%</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Document Hit Rate:</span>
-                                  <span className="font-medium">{currentAgentProgress.ragStats.documentHitRate.toFixed(1)}%</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <h4 className="font-medium text-sm">Query Performance</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Fast (&lt;100ms):</span>
-                                  <span className="font-medium text-green-600">{currentAgentProgress.ragStats.performanceMetrics.fastQueries}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Medium (100-500ms):</span>
-                                  <span className="font-medium text-yellow-600">{currentAgentProgress.ragStats.performanceMetrics.mediumQueries}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Slow (&gt;500ms):</span>
-                                  <span className="font-medium text-red-600">{currentAgentProgress.ragStats.performanceMetrics.slowQueries}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Timeouts:</span>
-                                  <span className="font-medium text-red-600">{currentAgentProgress.ragStats.performanceMetrics.timeoutQueries}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {currentAgentProgress.ragStats.topDocuments.length > 0 && (
-                              <div className="col-span-2 space-y-3">
-                                <h4 className="font-medium text-sm">Most Retrieved Documents</h4>
-                                <div className="space-y-2">
-                                  {currentAgentProgress.ragStats.topDocuments.slice(0, 5).map((doc, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
-                                      <span className="truncate flex-1 mr-2">{doc.title}</span>
-                                      <div className="flex items-center gap-2 flex-shrink-0">
-                                        <Badge variant="outline" className="text-xs">
-                                          {doc.hitCount} hits
-                                        </Badge>
-                                        <Badge variant="secondary" className="text-xs">
-                                          {(doc.averageSimilarity * 100).toFixed(1)}% avg
-                                        </Badge>
+                                    {task.status === "in_progress" &&
+                                      task.progress && (
+                                        <div className="mt-2">
+                                          <Progress
+                                            value={task.progress}
+                                            className="h-2"
+                                          />
+                                        </div>
+                                      )}
+                                    {task.ragStats && (
+                                      <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
+                                        <div className="flex justify-between">
+                                          <span>RAG Performance:</span>
+                                          <span>
+                                            {task.ragStats.averageResponseTime.toFixed(
+                                              0
+                                            )}
+                                            ms avg
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Retrieved:</span>
+                                          <span>
+                                            {task.ragStats.documentsRetrieved}{" "}
+                                            documents
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Relevance:</span>
+                                          <span>
+                                            {(
+                                              task.ragStats.averageSimilarity *
+                                              100
+                                            ).toFixed(1)}
+                                            %
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    )}
+                                    {task.status === "failed" && task.error && (
+                                      <p className="text-xs text-red-600 mt-1">
+                                        {task.error}
+                                      </p>
+                                    )}
+                                    {task.status === "completed" &&
+                                      task.result && (
+                                        <p className="text-xs text-green-600 mt-1">
+                                          {task.result}
+                                        </p>
+                                      )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {currentAgentProgress.totalTokens && (
+                              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Total Tokens:</span>
+                                    <span className="font-medium">
+                                      {currentAgentProgress.totalTokens}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Research Quality:</span>
+                                    <Badge
+                                      variant={
+                                        currentAgentProgress.researchQuality ===
+                                        "excellent"
+                                          ? "default"
+                                          : currentAgentProgress.researchQuality ===
+                                              "good"
+                                            ? "secondary"
+                                            : "outline"
+                                      }
+                                    >
+                                      {currentAgentProgress.researchQuality}
+                                    </Badge>
+                                  </div>
+                                  {currentAgentProgress.ragStats && (
+                                    <>
+                                      <div className="flex justify-between">
+                                        <span>RAG Queries:</span>
+                                        <span className="font-medium">
+                                          {
+                                            currentAgentProgress.ragStats
+                                              .totalQueries
+                                          }
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>RAG Success Rate:</span>
+                                        <span className="font-medium">
+                                          {(
+                                            (currentAgentProgress.ragStats
+                                              .successfulQueries /
+                                              Math.max(
+                                                1,
+                                                currentAgentProgress.ragStats
+                                                  .totalQueries
+                                              )) *
+                                            100
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>Analytics will appear here during research generation.</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-              </div>
-            </Tabs>
-          </div>
-          
-          <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t">
-            <div className="flex justify-between items-center w-full">
-              <span className="text-xs text-gray-500">
-                Enhanced agent logs with RAG analytics will be automatically saved to Knowledge Base
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setShowAgentProgress(false)}
-                disabled={isGenerating}
-              >
-                {isGenerating ? 'Processing...' : 'Close'}
-              </Button>
+                        </>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="rag" className="h-full overflow-y-auto">
+                    <div className="space-y-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Search className="h-4 w-4 text-blue-600" />
+                            Real-Time RAG Query Monitoring
+                          </CardTitle>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Live view of knowledge base queries performed by
+                            each agent during research generation.
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          {currentAgentProgress?.ragQueries &&
+                          currentAgentProgress.ragQueries.length > 0 ? (
+                            <div className="space-y-3">
+                              {currentAgentProgress.ragQueries
+                                .sort(
+                                  (a, b) =>
+                                    b.timestamp.getTime() -
+                                    a.timestamp.getTime()
+                                )
+                                .map((query, index) => (
+                                  <Card
+                                    key={query.id}
+                                    className="p-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                  >
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs text-blue-600"
+                                          >
+                                            {query.agentId || "unknown"}
+                                          </Badge>
+                                          <Badge
+                                            variant={
+                                              query.success
+                                                ? "default"
+                                                : "destructive"
+                                            }
+                                            className="text-xs"
+                                          >
+                                            {query.success ? "✅" : "❌"}{" "}
+                                            {query.resultsCount} results
+                                          </Badge>
+                                          <span className="text-xs text-gray-500">
+                                            {query.responseTime}ms
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-gray-500">
+                                          {query.timestamp.toLocaleTimeString()}
+                                        </span>
+                                      </div>
+
+                                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                        "{query.queryText}"
+                                      </p>
+
+                                      {query.success &&
+                                        query.averageSimilarity > 0 && (
+                                          <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                                            <span>
+                                              Avg Similarity:{" "}
+                                              {(
+                                                query.averageSimilarity * 100
+                                              ).toFixed(1)}
+                                              %
+                                            </span>
+                                            <span>
+                                              Max:{" "}
+                                              {(
+                                                query.maxSimilarity * 100
+                                              ).toFixed(1)}
+                                              %
+                                            </span>
+                                            <span>
+                                              Threshold:{" "}
+                                              {(
+                                                query.searchParameters
+                                                  .threshold * 100
+                                              ).toFixed(1)}
+                                              %
+                                            </span>
+                                          </div>
+                                        )}
+
+                                      {query.documents.length > 0 && (
+                                        <div className="mt-2">
+                                          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Retrieved Documents:
+                                          </p>
+                                          <div className="space-y-1">
+                                            {query.documents
+                                              .slice(0, 3)
+                                              .map((doc, docIndex) => (
+                                                <div
+                                                  key={docIndex}
+                                                  className="flex items-center justify-between text-xs p-2 bg-white dark:bg-gray-800 rounded border"
+                                                >
+                                                  <span className="truncate flex-1 mr-2">
+                                                    {doc.title}
+                                                  </span>
+                                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="text-xs"
+                                                    >
+                                                      {(
+                                                        doc.similarity * 100
+                                                      ).toFixed(1)}
+                                                      %
+                                                    </Badge>
+                                                    <Badge
+                                                      variant="secondary"
+                                                      className="text-xs"
+                                                    >
+                                                      {doc.source}
+                                                    </Badge>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            {query.documents.length > 3 && (
+                                              <p className="text-xs text-gray-500 text-center">
+                                                +{query.documents.length - 3}{" "}
+                                                more documents
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {!query.success && query.errorMessage && (
+                                        <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                                          Error: {query.errorMessage}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </Card>
+                                ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>No RAG queries yet.</p>
+                              <p className="text-sm">
+                                Queries will appear here as agents search the
+                                knowledge base.
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent
+                    value="analytics"
+                    className="h-full overflow-y-auto"
+                  >
+                    <div className="space-y-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Settings className="h-4 w-4 text-purple-600" />
+                            Session Analytics & Performance
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {currentAgentProgress?.ragStats ? (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-sm">
+                                  RAG Performance
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Total Queries:</span>
+                                    <span className="font-medium">
+                                      {
+                                        currentAgentProgress.ragStats
+                                          .totalQueries
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Successful:</span>
+                                    <span className="font-medium text-green-600">
+                                      {
+                                        currentAgentProgress.ragStats
+                                          .successfulQueries
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Avg Response Time:</span>
+                                    <span className="font-medium">
+                                      {currentAgentProgress.ragStats.averageResponseTime.toFixed(
+                                        0
+                                      )}
+                                      ms
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Avg Similarity:</span>
+                                    <span className="font-medium">
+                                      {(
+                                        currentAgentProgress.ragStats
+                                          .averageSimilarity * 100
+                                      ).toFixed(1)}
+                                      %
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Document Hit Rate:</span>
+                                    <span className="font-medium">
+                                      {currentAgentProgress.ragStats.documentHitRate.toFixed(
+                                        1
+                                      )}
+                                      %
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-sm">
+                                  Query Performance
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Fast (&lt;100ms):</span>
+                                    <span className="font-medium text-green-600">
+                                      {
+                                        currentAgentProgress.ragStats
+                                          .performanceMetrics.fastQueries
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Medium (100-500ms):</span>
+                                    <span className="font-medium text-yellow-600">
+                                      {
+                                        currentAgentProgress.ragStats
+                                          .performanceMetrics.mediumQueries
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Slow (&gt;500ms):</span>
+                                    <span className="font-medium text-red-600">
+                                      {
+                                        currentAgentProgress.ragStats
+                                          .performanceMetrics.slowQueries
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Timeouts:</span>
+                                    <span className="font-medium text-red-600">
+                                      {
+                                        currentAgentProgress.ragStats
+                                          .performanceMetrics.timeoutQueries
+                                      }
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {currentAgentProgress.ragStats.topDocuments
+                                .length > 0 && (
+                                <div className="col-span-2 space-y-3">
+                                  <h4 className="font-medium text-sm">
+                                    Most Retrieved Documents
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {currentAgentProgress.ragStats.topDocuments
+                                      .slice(0, 5)
+                                      .map((doc, index) => (
+                                        <div
+                                          key={index}
+                                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm"
+                                        >
+                                          <span className="truncate flex-1 mr-2">
+                                            {doc.title}
+                                          </span>
+                                          <div className="flex items-center gap-2 flex-shrink-0">
+                                            <Badge
+                                              variant="outline"
+                                              className="text-xs"
+                                            >
+                                              {doc.hitCount} hits
+                                            </Badge>
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-xs"
+                                            >
+                                              {(
+                                                doc.averageSimilarity * 100
+                                              ).toFixed(1)}
+                                              % avg
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>
+                                Analytics will appear here during research
+                                generation.
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+            <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t">
+              <div className="flex justify-between items-center w-full">
+                <span className="text-xs text-gray-500">
+                  Enhanced agent logs with RAG analytics will be automatically
+                  saved to Knowledge Base
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAgentProgress(false)}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? "Processing..." : "Close"}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

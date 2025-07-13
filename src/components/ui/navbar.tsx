@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./separator";
+import SignInButton from "./sign-in";
 
 const menuItems = [
   { name: "Home", href: "/" },
@@ -26,92 +27,6 @@ const menuItems = [
   { name: "AI-Frames", href: "/ai-frames" },
   { name: "Vision & Roadmap", href: "/vision" },
 ];
-
-function AuthSection({ isScrolled }: { isScrolled: boolean }) {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-  if (status === "loading") {
-    return (
-      <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-        <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-        <Button
-          onClick={() => signIn()}
-          size="sm"
-          variant="outline"
-          className="gap-2 bg-background/50 backdrop-blur-sm border-primary/20 hover:bg-primary/5"
-        >
-          <LogIn className="h-4 w-4" />
-          <span>Sign In</span>
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="relative h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm border border-primary/20 hover:bg-primary/5"
-          >
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={session.user?.image || ""}
-                alt={session.user?.name || ""}
-              />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm font-medium">
-                {session.user?.name ? (
-                  session.user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                ) : (
-                  <User className="h-4 w-4" />
-                )}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end" forceMount>
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">
-                {session.user?.name}
-              </p>
-              <p className="text-xs leading-none text-muted-foreground">
-                {session.user?.email}
-              </p>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/profile" className="cursor-pointer">
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="cursor-pointer text-red-600 focus:text-red-600"
-            onClick={() => signOut()}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Sign out</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
 
 export function Navbar() {
   const [menuState, setMenuState] = React.useState(false);
@@ -202,7 +117,7 @@ export function Navbar() {
                   ))}
                 </ul>
               </div>
-              <AuthSection isScrolled={isScrolled} />
+              <SignInButton />
             </div>
           </div>
         </div>

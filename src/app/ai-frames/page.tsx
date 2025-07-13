@@ -63,6 +63,7 @@ import {
   Package,
   FolderPlus,
   ChevronDown,
+  RefreshCcw,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -78,13 +79,10 @@ import { FrameGraphIntegration } from "@/components/ai-graphs";
 import { BubblSpaceDialog } from "@/components/ui/bubblspace-dialog";
 import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
 import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
-import { 
-  getMetadataManager, 
-  MetadataManager 
-} from "@/lib/MetadataManager";
-import { 
-  getGraphStorageManager, 
-  GraphStorageManager 
+import { getMetadataManager, MetadataManager } from "@/lib/MetadataManager";
+import {
+  getGraphStorageManager,
+  GraphStorageManager,
 } from "@/lib/GraphStorageManager";
 import {
   BubblSpace,
@@ -92,9 +90,12 @@ import {
   EnhancedTimeCapsule,
   ImportOptions,
   ImportResult,
-  MetadataUtils
+  MetadataUtils,
 } from "@/types/timecapsule";
-import { debugFrames, debugStorage, debugSync } from '@/lib/debugUtils';
+import { debugFrames, debugStorage, debugSync } from "@/lib/debugUtils";
+import Link from "next/link";
+import Image from "next/image";
+import SignInButton from "@/components/ui/sign-in";
 
 interface AIFrame {
   id: string;
@@ -114,7 +115,7 @@ interface AIFrame {
   bubblSpaceId?: string; // Link to BubblSpace
   timeCapsuleId?: string; // Link to TimeCapsule
   parentFrameId?: string; // For chapter/module hierarchy
-  type: 'frame' | 'chapter' | 'module'; // Frame type
+  type: "frame" | "chapter" | "module"; // Frame type
   createdAt: string;
   updatedAt: string;
 }
@@ -139,25 +140,25 @@ export default function AIFramesPage() {
     isInitializing: vectorStoreInitializing,
     error: vectorStoreError,
     processingAvailable,
-    processingStatus
+    processingStatus,
   } = useVectorStore();
 
   // Mode state
   const [isCreationMode, setIsCreationMode] = useState(true);
   const [showCreationForm, setShowCreationForm] = useState(false);
-  
+
   // NEW: Graph view state
   const [showGraphView, setShowGraphView] = useState(false);
 
   // Frame state - Always start empty, load from localStorage if available
   const [frames, setFrames] = useState<AIFrame[]>([]);
-  
+
   // Debug: Track frames changes
   useEffect(() => {
-    debugFrames('Frames state updated', {
+    debugFrames("Frames state updated", {
       count: frames.length,
-      frameIds: frames.map(f => f.id),
-      frameTitles: frames.map(f => f.title)
+      frameIds: frames.map((f) => f.id),
+      frameTitles: frames.map((f) => f.title),
     });
   }, [frames]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
@@ -195,21 +196,33 @@ export default function AIFramesPage() {
   const [ttsReady, setTtsReady] = useState(false);
 
   // Metadata Management State
-  const [metadataManager, setMetadataManager] = useState<MetadataManager | null>(null);
-  const [graphStorageManager, setGraphStorageManager] = useState<GraphStorageManager | null>(null);
-  const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(null);
-  const [currentTimeCapsule, setCurrentTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
+  const [metadataManager, setMetadataManager] =
+    useState<MetadataManager | null>(null);
+  const [graphStorageManager, setGraphStorageManager] =
+    useState<GraphStorageManager | null>(null);
+  const [currentBubblSpace, setCurrentBubblSpace] = useState<BubblSpace | null>(
+    null
+  );
+  const [currentTimeCapsule, setCurrentTimeCapsule] =
+    useState<TimeCapsuleMetadata | null>(null);
   const [allBubblSpaces, setAllBubblSpaces] = useState<BubblSpace[]>([]);
-  const [allTimeCapsules, setAllTimeCapsules] = useState<TimeCapsuleMetadata[]>([]);
-  const [showTimeCapsuleSelector, setShowTimeCapsuleSelector] = useState<boolean>(false);
-  
+  const [allTimeCapsules, setAllTimeCapsules] = useState<TimeCapsuleMetadata[]>(
+    []
+  );
+  const [showTimeCapsuleSelector, setShowTimeCapsuleSelector] =
+    useState<boolean>(false);
+
   // Dialog states
   const [showBubblSpaceDialog, setShowBubblSpaceDialog] = useState(false);
   const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] = useState(false);
   const [showSafeImportDialog, setShowSafeImportDialog] = useState(false);
-  const [editingBubblSpace, setEditingBubblSpace] = useState<BubblSpace | null>(null);
-  const [editingTimeCapsule, setEditingTimeCapsule] = useState<TimeCapsuleMetadata | null>(null);
-  const [importTimeCapsuleData, setImportTimeCapsuleData] = useState<EnhancedTimeCapsule | null>(null);
+  const [editingBubblSpace, setEditingBubblSpace] = useState<BubblSpace | null>(
+    null
+  );
+  const [editingTimeCapsule, setEditingTimeCapsule] =
+    useState<TimeCapsuleMetadata | null>(null);
+  const [importTimeCapsuleData, setImportTimeCapsuleData] =
+    useState<EnhancedTimeCapsule | null>(null);
   const [currentNarration, setCurrentNarration] = useState<string>("");
   const [narrationQueue, setNarrationQueue] = useState<string[]>([]);
   const [autoPlayAfterNarration, setAutoPlayAfterNarration] = useState(false);
@@ -240,20 +253,26 @@ export default function AIFramesPage() {
   // Graph state for TimeCapsule integration
   const [graphState, setGraphState] = useState<any>(null);
   const [chapters, setChapters] = useState<any[]>([]);
-  const [conceptExplanations, setConceptExplanations] = useState<Record<string, string>>({});
+  const [conceptExplanations, setConceptExplanations] = useState<
+    Record<string, string>
+  >({});
 
   // Confirmation dialog states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [showClearAllConfirmation, setShowClearAllConfirmation] = useState(false);
+  const [showClearAllConfirmation, setShowClearAllConfirmation] =
+    useState(false);
   const [frameToDelete, setFrameToDelete] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLIFrameElement>(null);
 
   // Callback for TimeCapsule updates from FrameGraphIntegration
-  const handleTimeCapsuleUpdate = useCallback((newGraphState: any, newChapters: any[]) => {
-    setGraphState(newGraphState);
-    setChapters(newChapters);
-  }, []);
+  const handleTimeCapsuleUpdate = useCallback(
+    (newGraphState: any, newChapters: any[]) => {
+      setGraphState(newGraphState);
+      setChapters(newChapters);
+    },
+    []
+  );
 
   // Enhanced TimeCapsule Export with Metadata
   const handleExportTimeCapsule = async () => {
@@ -265,13 +284,18 @@ export default function AIFramesPage() {
 
     try {
       // Update current TimeCapsule with latest progress
-      const updatedTimeCapsule = metadataManager.updateTimeCapsule(currentTimeCapsule.id, {
-        estimatedDuration: frames.length * 10,
-        description: `Learning session with ${frames.length} AI frames. Progress: ${Math.round((currentFrameIndex / frames.length) * 100)}%`,
-      });
+      const updatedTimeCapsule = metadataManager.updateTimeCapsule(
+        currentTimeCapsule.id,
+        {
+          estimatedDuration: frames.length * 10,
+          description: `Learning session with ${frames.length} AI frames. Progress: ${Math.round((currentFrameIndex / frames.length) * 100)}%`,
+        }
+      );
 
       // Export using the enhanced format
-      const enhancedTimeCapsule = await metadataManager.exportTimeCapsule(updatedTimeCapsule.id);
+      const enhancedTimeCapsule = await metadataManager.exportTimeCapsule(
+        updatedTimeCapsule.id
+      );
 
       // Create downloadable file
       const blob = new Blob([JSON.stringify(enhancedTimeCapsule, null, 2)], {
@@ -280,7 +304,7 @@ export default function AIFramesPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${currentBubblSpace?.name || 'BubblSpace'}-${enhancedTimeCapsule.timeCapsuleMetadata.name}-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `${currentBubblSpace?.name || "BubblSpace"}-${enhancedTimeCapsule.timeCapsuleMetadata.name}-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -296,7 +320,7 @@ export default function AIFramesPage() {
 🏢 BubblSpace: ${currentBubblSpace?.name}
 📋 TimeCapsule: ${enhancedTimeCapsule.timeCapsuleMetadata.name}
 🎯 Contains: ${frames.length} AI frames, research data, and complete session state
-📊 Size: ${enhancedTimeCapsule.metadata.fileSize ? MetadataUtils.formatFileSize(enhancedTimeCapsule.metadata.fileSize) : 'Unknown'}
+📊 Size: ${enhancedTimeCapsule.metadata.fileSize ? MetadataUtils.formatFileSize(enhancedTimeCapsule.metadata.fileSize) : "Unknown"}
 
 This can be imported in any page with full compatibility!`,
         },
@@ -312,14 +336,13 @@ This can be imported in any page with full compatibility!`,
         category: enhancedTimeCapsule.timeCapsuleMetadata.category,
         file_size: enhancedTimeCapsule.metadata.fileSize,
       });
-
     } catch (error) {
       console.error("Failed to export TimeCapsule:", error);
       setChatMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: `❌ Failed to export TimeCapsule: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          content: `❌ Failed to export TimeCapsule: ${error instanceof Error ? error.message : "Unknown error"}`,
         },
       ]);
     }
@@ -349,7 +372,6 @@ This can be imported in any page with full compatibility!`,
 
           // Handle legacy format with direct import (for backward compatibility)
           handleLegacyImport(importedData);
-          
         } catch (error) {
           console.error("Failed to parse TimeCapsule data:", error);
           setChatMessages((prev) => [
@@ -367,44 +389,54 @@ This can be imported in any page with full compatibility!`,
   };
 
   // Handle enhanced TimeCapsule import with metadata manager
-  const handleEnhancedImport = async (options: ImportOptions): Promise<ImportResult> => {
+  const handleEnhancedImport = async (
+    options: ImportOptions
+  ): Promise<ImportResult> => {
     if (!metadataManager || !importTimeCapsuleData) {
       return {
         success: false,
-        message: 'Metadata manager not initialized',
-        details: { itemsImported: {} }
+        message: "Metadata manager not initialized",
+        details: { itemsImported: {} },
       };
     }
 
     try {
-      const result = await metadataManager.importTimeCapsule(importTimeCapsuleData, options);
-      
+      const result = await metadataManager.importTimeCapsule(
+        importTimeCapsuleData,
+        options
+      );
+
       if (result.success) {
         // Refresh local state
         setAllBubblSpaces(metadataManager.getAllBubblSpaces());
         setAllTimeCapsules(metadataManager.getAllTimeCapsules());
-        
+
         // Set imported BubblSpace and TimeCapsule as current
         setCurrentBubblSpace(importTimeCapsuleData.bubblSpace);
         setCurrentTimeCapsule(importTimeCapsuleData.timeCapsuleMetadata);
-        
+
         // If AI-Frames data was imported, update local state
-        if (options.selectiveImport.aiFrames && importTimeCapsuleData.aiFramesData) {
+        if (
+          options.selectiveImport.aiFrames &&
+          importTimeCapsuleData.aiFramesData
+        ) {
           const aiFramesData = importTimeCapsuleData.aiFramesData;
           setFrames(aiFramesData.frames || []);
           setCurrentFrameIndex(aiFramesData.currentFrameIndex || 0);
           setIsCreationMode(aiFramesData.isCreationMode || false);
           setShowGraphView(aiFramesData.showGraphView || false);
-          
+
           // Clear the cleared flag since we're importing new frames
           localStorage.removeItem("ai_frames_cleared");
-          
+
           if (aiFramesData.graphState) setGraphState(aiFramesData.graphState);
           if (aiFramesData.chapters) setChapters(aiFramesData.chapters);
-          if (aiFramesData.voiceSettings) setVoiceSettings(aiFramesData.voiceSettings);
-          if (aiFramesData.chatMessages) setChatMessages(aiFramesData.chatMessages);
+          if (aiFramesData.voiceSettings)
+            setVoiceSettings(aiFramesData.voiceSettings);
+          if (aiFramesData.chatMessages)
+            setChatMessages(aiFramesData.chatMessages);
         }
-        
+
         // Show success message with details
         setChatMessages((prev) => [
           ...prev,
@@ -413,20 +445,20 @@ This can be imported in any page with full compatibility!`,
             content: `✅ ${result.message}
             
 🎯 Items imported:
-${result.details.itemsImported.frames ? `• ${result.details.itemsImported.frames} AI frames` : ''}
-${result.details.itemsImported.topics ? `• ${result.details.itemsImported.topics} research topics` : ''}
-${result.details.itemsImported.documents ? `• ${result.details.itemsImported.documents} documents` : ''}
-${result.details.backupCreated ? `• Backup created: ${result.details.backupCreated}` : ''}`,
+${result.details.itemsImported.frames ? `• ${result.details.itemsImported.frames} AI frames` : ""}
+${result.details.itemsImported.topics ? `• ${result.details.itemsImported.topics} research topics` : ""}
+${result.details.itemsImported.documents ? `• ${result.details.itemsImported.documents} documents` : ""}
+${result.details.backupCreated ? `• Backup created: ${result.details.backupCreated}` : ""}`,
           },
         ]);
       }
-      
+
       return result;
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: { itemsImported: {} }
+        message: error instanceof Error ? error.message : "Unknown error",
+        details: { itemsImported: {} },
       };
     }
   };
@@ -435,7 +467,10 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
   const handleLegacyImport = (importedData: any) => {
     try {
       // Validate the data structure
-      if (!importedData.data || (!importedData.data.frames && !importedData.research)) {
+      if (
+        !importedData.data ||
+        (!importedData.data.frames && !importedData.research)
+      ) {
         throw new Error("Invalid TimeCapsule format");
       }
 
@@ -443,14 +478,14 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       if (importedData.data.frames) {
         setFrames(importedData.data.frames);
         setCurrentFrameIndex(importedData.data.currentFrameIndex || 0);
-        
+
         // Clear the cleared flag since we're importing new frames
         localStorage.removeItem("ai_frames_cleared");
-        
+
         if (importedData.data.isCreationMode !== undefined) {
           setIsCreationMode(importedData.data.isCreationMode);
         }
-        
+
         if (importedData.data.showGraphView !== undefined) {
           setShowGraphView(importedData.data.showGraphView);
         }
@@ -459,7 +494,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         if (importedData.data.graphState) {
           setGraphState(importedData.data.graphState);
         }
-        
+
         if (importedData.data.chapters) {
           setChapters(importedData.data.chapters);
         }
@@ -468,11 +503,11 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         if (importedData.data.voiceSettings) {
           setVoiceSettings(importedData.data.voiceSettings);
         }
-        
+
         if (importedData.data.isVoiceEnabled !== undefined) {
           setIsVoiceEnabled(importedData.data.isVoiceEnabled);
         }
-        
+
         if (importedData.data.autoAdvanceEnabled !== undefined) {
           setAutoAdvanceEnabled(importedData.data.autoAdvanceEnabled);
         }
@@ -485,24 +520,36 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
       // Handle DeepResearch data
       if (importedData.data.deepResearchData || importedData.research) {
-        const deepResearchData = importedData.data.deepResearchData || importedData;
+        const deepResearchData =
+          importedData.data.deepResearchData || importedData;
         setTimeCapsuleData(deepResearchData);
-        localStorage.setItem("deepresearch_data", JSON.stringify(deepResearchData));
+        localStorage.setItem(
+          "deepresearch_data",
+          JSON.stringify(deepResearchData)
+        );
       }
 
       // Save the imported data
-      localStorage.setItem("ai_frames_timecapsule", JSON.stringify(importedData));
-      localStorage.setItem("timecapsule_combined", JSON.stringify(importedData));
+      localStorage.setItem(
+        "ai_frames_timecapsule",
+        JSON.stringify(importedData)
+      );
+      localStorage.setItem(
+        "timecapsule_combined",
+        JSON.stringify(importedData)
+      );
 
       // Show success message
       const frameCount = importedData.data.frames?.length || 0;
-      const hasDeepResearch = !!(importedData.data.deepResearchData || importedData.research);
-      
+      const hasDeepResearch = !!(
+        importedData.data.deepResearchData || importedData.research
+      );
+
       setChatMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: `🎉 Legacy TimeCapsule imported successfully! Loaded ${frameCount} AI frames${hasDeepResearch ? ' and DeepResearch data' : ''}. You can continue where you left off.`,
+          content: `🎉 Legacy TimeCapsule imported successfully! Loaded ${frameCount} AI frames${hasDeepResearch ? " and DeepResearch data" : ""}. You can continue where you left off.`,
         },
       ]);
 
@@ -512,33 +559,34 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         has_deep_research: hasDeepResearch,
         data_type: importedData.type || "unknown",
       });
-
     } catch (error) {
       console.error("Failed to import TimeCapsule:", error);
       setChatMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: `❌ Failed to import TimeCapsule: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          content: `❌ Failed to import TimeCapsule: ${error instanceof Error ? error.message : "Unknown error"}`,
         },
       ]);
     }
   };
 
   // BubblSpace Management Handlers
-  const handleCreateBubblSpace = async (bubblSpaceData: Partial<BubblSpace>) => {
+  const handleCreateBubblSpace = async (
+    bubblSpaceData: Partial<BubblSpace>
+  ) => {
     if (!metadataManager) return;
-    
+
     try {
       const newBubblSpace = metadataManager.createBubblSpace(
         bubblSpaceData.name!,
         bubblSpaceData.description!,
         bubblSpaceData
       );
-      
+
       setAllBubblSpaces(metadataManager.getAllBubblSpaces());
       setCurrentBubblSpace(newBubblSpace);
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -547,24 +595,24 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         },
       ]);
     } catch (error) {
-      console.error('Failed to create BubblSpace:', error);
+      console.error("Failed to create BubblSpace:", error);
     }
   };
 
   const handleEditBubblSpace = async (bubblSpaceData: Partial<BubblSpace>) => {
     if (!metadataManager || !editingBubblSpace) return;
-    
+
     try {
       const updatedBubblSpace = metadataManager.updateBubblSpace(
         editingBubblSpace.id,
         bubblSpaceData
       );
-      
+
       setAllBubblSpaces(metadataManager.getAllBubblSpaces());
       if (currentBubblSpace?.id === updatedBubblSpace.id) {
         setCurrentBubblSpace(updatedBubblSpace);
       }
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -573,25 +621,25 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         },
       ]);
     } catch (error) {
-      console.error('Failed to update BubblSpace:', error);
+      console.error("Failed to update BubblSpace:", error);
     }
   };
 
   const handleDeleteBubblSpace = async (id: string) => {
     if (!metadataManager) return;
-    
+
     try {
       const bubblSpace = metadataManager.getBubblSpace(id);
       metadataManager.deleteBubblSpace(id);
-      
+
       setAllBubblSpaces(metadataManager.getAllBubblSpaces());
-      
+
       // If we deleted the current BubblSpace, switch to another one
       if (currentBubblSpace?.id === id) {
         const remaining = metadataManager.getAllBubblSpaces();
         setCurrentBubblSpace(remaining[0] || null);
       }
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -600,14 +648,16 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         },
       ]);
     } catch (error) {
-      console.error('Failed to delete BubblSpace:', error);
+      console.error("Failed to delete BubblSpace:", error);
     }
   };
 
   // TimeCapsule Management Handlers
-  const handleCreateTimeCapsule = async (timeCapsuleData: Partial<TimeCapsuleMetadata>) => {
+  const handleCreateTimeCapsule = async (
+    timeCapsuleData: Partial<TimeCapsuleMetadata>
+  ) => {
     if (!metadataManager) return;
-    
+
     try {
       const newTimeCapsule = metadataManager.createTimeCapsule(
         timeCapsuleData.name!,
@@ -615,10 +665,10 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         timeCapsuleData.bubblSpaceId!,
         timeCapsuleData
       );
-      
+
       setAllTimeCapsules(metadataManager.getAllTimeCapsules());
       setCurrentTimeCapsule(newTimeCapsule);
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -627,24 +677,26 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         },
       ]);
     } catch (error) {
-      console.error('Failed to create TimeCapsule:', error);
+      console.error("Failed to create TimeCapsule:", error);
     }
   };
 
-  const handleEditTimeCapsule = async (timeCapsuleData: Partial<TimeCapsuleMetadata>) => {
+  const handleEditTimeCapsule = async (
+    timeCapsuleData: Partial<TimeCapsuleMetadata>
+  ) => {
     if (!metadataManager || !editingTimeCapsule) return;
-    
+
     try {
       const updatedTimeCapsule = metadataManager.updateTimeCapsule(
         editingTimeCapsule.id,
         timeCapsuleData
       );
-      
+
       setAllTimeCapsules(metadataManager.getAllTimeCapsules());
       if (currentTimeCapsule?.id === updatedTimeCapsule.id) {
         setCurrentTimeCapsule(updatedTimeCapsule);
       }
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -653,25 +705,25 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         },
       ]);
     } catch (error) {
-      console.error('Failed to update TimeCapsule:', error);
+      console.error("Failed to update TimeCapsule:", error);
     }
   };
 
   const handleDeleteTimeCapsule = async (id: string) => {
     if (!metadataManager) return;
-    
+
     try {
       const timeCapsule = metadataManager.getTimeCapsule(id);
       metadataManager.deleteTimeCapsule(id);
-      
+
       setAllTimeCapsules(metadataManager.getAllTimeCapsules());
-      
+
       // If we deleted the current TimeCapsule, switch to another one or create new
       if (currentTimeCapsule?.id === id) {
         const remaining = metadataManager.getAllTimeCapsules();
         setCurrentTimeCapsule(remaining[0] || null);
       }
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -680,7 +732,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         },
       ]);
     } catch (error) {
-      console.error('Failed to delete TimeCapsule:', error);
+      console.error("Failed to delete TimeCapsule:", error);
     }
   };
 
@@ -689,16 +741,21 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     try {
       // Primary: Try to load from GraphStorageManager (IndexedDB) if available
       if (graphStorageManager) {
-        console.log('📊 Loading frames from IndexedDB via GraphStorageManager...');
-        
+        console.log(
+          "📊 Loading frames from IndexedDB via GraphStorageManager..."
+        );
+
         const frameSequence = await graphStorageManager.loadFrameSequence();
         const sessionState = await graphStorageManager.loadSessionState();
-        
+
         if (frameSequence && frameSequence.frames.length > 0) {
-          console.log('📊 Loading frames from IndexedDB:', frameSequence.frames.length);
+          console.log(
+            "📊 Loading frames from IndexedDB:",
+            frameSequence.frames.length
+          );
           setFrames(frameSequence.frames);
           setCurrentFrameIndex(frameSequence.currentFrameIndex || 0);
-          
+
           // Update session state if available
           if (sessionState) {
             setIsCreationMode(sessionState.isCreationMode);
@@ -706,21 +763,24 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             setChapters(sessionState.chapters || []);
             setGraphState(sessionState.graphState);
           }
-          
-          console.log('✅ Frames loaded from IndexedDB successfully');
+
+          console.log("✅ Frames loaded from IndexedDB successfully");
           return true;
         }
       }
-      
+
       // Fallback: Try to load from TimeCapsule data in localStorage
       const timeCapsuleData = localStorage.getItem("ai_frames_timecapsule");
       if (timeCapsuleData) {
         const parsed = JSON.parse(timeCapsuleData);
         if (parsed.data?.frames && Array.isArray(parsed.data.frames)) {
-          console.log('📊 Loading frames from localStorage TimeCapsule:', parsed.data.frames.length);
+          console.log(
+            "📊 Loading frames from localStorage TimeCapsule:",
+            parsed.data.frames.length
+          );
           setFrames(parsed.data.frames);
           setCurrentFrameIndex(parsed.data.currentFrameIndex || 0);
-          
+
           // Update other state if available
           if (parsed.data.isCreationMode !== undefined) {
             setIsCreationMode(parsed.data.isCreationMode);
@@ -734,30 +794,37 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           if (parsed.data.chapters) {
             setChapters(parsed.data.chapters);
           }
-          
-          console.log('✅ Frames loaded from localStorage TimeCapsule successfully');
+
+          console.log(
+            "✅ Frames loaded from localStorage TimeCapsule successfully"
+          );
           return true;
         }
       }
-      
+
       // Final fallback: Try to load from graph state storage
       const graphData = localStorage.getItem("ai_frames_graph_state");
       if (graphData) {
         const parsed = JSON.parse(graphData);
         if (parsed.frames && Array.isArray(parsed.frames)) {
-          console.log('📊 Loading frames from localStorage graph storage:', parsed.frames.length);
+          console.log(
+            "📊 Loading frames from localStorage graph storage:",
+            parsed.frames.length
+          );
           setFrames(parsed.frames);
           setCurrentFrameIndex(0); // Reset to first frame
-          
-          console.log('✅ Frames loaded from localStorage graph storage successfully');
+
+          console.log(
+            "✅ Frames loaded from localStorage graph storage successfully"
+          );
           return true;
         }
       }
-      
-      console.log('ℹ️ No frames found in any storage');
+
+      console.log("ℹ️ No frames found in any storage");
       return false;
     } catch (error) {
-      console.error('❌ Failed to load frames from storage:', error);
+      console.error("❌ Failed to load frames from storage:", error);
       return false;
     }
   }, [graphStorageManager]);
@@ -767,14 +834,14 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     try {
       // Primary: Save to GraphStorageManager (IndexedDB) if available
       if (graphStorageManager) {
-        console.log('💾 Saving frames to IndexedDB via GraphStorageManager...');
-        
+        console.log("💾 Saving frames to IndexedDB via GraphStorageManager...");
+
         // Save frame sequence
         await graphStorageManager.saveFrameSequence(frames, currentFrameIndex, {
           bubblSpaceId: currentBubblSpace?.id,
           timeCapsuleId: currentTimeCapsule?.id,
         });
-        
+
         // Save session state
         await graphStorageManager.saveSessionState({
           isCreationMode,
@@ -783,10 +850,10 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           graphState,
           lastActiveFrame: currentFrameIndex,
         });
-        
-        console.log('✅ Frames saved to IndexedDB successfully');
+
+        console.log("✅ Frames saved to IndexedDB successfully");
       }
-      
+
       // Fallback/Compatibility: Save to localStorage
       const timeCapsuleData = {
         data: {
@@ -797,60 +864,73 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           graphState: graphState,
           chapters: chapters,
           lastSaved: new Date().toISOString(),
-        }
+        },
       };
-      
-      localStorage.setItem("ai_frames_timecapsule", JSON.stringify(timeCapsuleData));
-      
+
+      localStorage.setItem(
+        "ai_frames_timecapsule",
+        JSON.stringify(timeCapsuleData)
+      );
+
       // Also save to graph state format for compatibility
       const graphData = {
         frames: frames,
         graphState: graphState,
         chapters: chapters,
-        activeView: showGraphView ? 'graph' : 'linear',
+        activeView: showGraphView ? "graph" : "linear",
         lastSaved: new Date().toISOString(),
       };
-      
+
       localStorage.setItem("ai_frames_graph_state", JSON.stringify(graphData));
-      
-      console.log('💾 Frames saved to localStorage (compatibility)');
+
+      console.log("💾 Frames saved to localStorage (compatibility)");
     } catch (error) {
-      console.error('❌ Failed to save frames to storage:', error);
+      console.error("❌ Failed to save frames to storage:", error);
     }
-  }, [frames, currentFrameIndex, isCreationMode, showGraphView, graphState, chapters, graphStorageManager, currentBubblSpace, currentTimeCapsule]);
+  }, [
+    frames,
+    currentFrameIndex,
+    isCreationMode,
+    showGraphView,
+    graphState,
+    chapters,
+    graphStorageManager,
+    currentBubblSpace,
+    currentTimeCapsule,
+  ]);
 
   // App initialization - Check for existing data
   useEffect(() => {
-    console.log('🎯 AI-Frames app initializing...');
-    
+    console.log("🎯 AI-Frames app initializing...");
+
     // Check if user explicitly cleared data
     const wasCleared = localStorage.getItem("ai_frames_cleared");
     if (wasCleared) {
-      console.log('🗑️ App was previously cleared, staying empty');
+      console.log("🗑️ App was previously cleared, staying empty");
       localStorage.removeItem("ai_frames_cleared");
       return;
     }
-    
+
     // Try to load existing frame data
-    loadFramesFromStorage().then((loaded) => {
-      if (loaded) {
-        console.log('✅ AI-Frames initialized with existing data');
-        // Note: Don't show welcome message here, it will be set by loadFramesFromStorage
-      } else {
-        console.log('🎯 AI-Frames initialized with empty state');
-        setChatMessages([
-          {
-            role: "ai",
-            content: `👋 Welcome to AI-Frames! I'm here to help you create interactive learning experiences.\n\n🎯 Get started by:\n• Switching to **Creator Mode** and creating your first frame\n• Or **importing a TimeCapsule** to load existing content\n\nBoth Linear and Graph views are available for organizing your frames.`,
-          },
-        ]);
-      }
-    }).catch((error) => {
-      console.error('❌ Failed to load frames during initialization:', error);
-    });
+    loadFramesFromStorage()
+      .then((loaded) => {
+        if (loaded) {
+          console.log("✅ AI-Frames initialized with existing data");
+          // Note: Don't show welcome message here, it will be set by loadFramesFromStorage
+        } else {
+          console.log("🎯 AI-Frames initialized with empty state");
+          setChatMessages([
+            {
+              role: "ai",
+              content: `👋 Welcome to AI-Frames! I'm here to help you create interactive learning experiences.\n\n🎯 Get started by:\n• Switching to **Creator Mode** and creating your first frame\n• Or **importing a TimeCapsule** to load existing content\n\nBoth Linear and Graph views are available for organizing your frames.`,
+            },
+          ]);
+        }
+      })
+      .catch((error) => {
+        console.error("❌ Failed to load frames during initialization:", error);
+      });
   }, [loadFramesFromStorage]);
-
-
 
   // Initialize metadata manager and load BubblSpaces/TimeCapsules
   useEffect(() => {
@@ -862,58 +942,69 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         // Load BubblSpaces and TimeCapsules
         const bubblSpaces = manager.getAllBubblSpaces();
         const timeCapsules = manager.getAllTimeCapsules();
-        
+
         setAllBubblSpaces(bubblSpaces);
         setAllTimeCapsules(timeCapsules);
-        
+
         // Set current BubblSpace (default or first available)
         const defaultBubblSpace = manager.getDefaultBubblSpace();
         setCurrentBubblSpace(defaultBubblSpace || bubblSpaces[0] || null);
-        
+
         // FIXED: Use existing TimeCapsules instead of creating new ones
         if (bubblSpaces.length > 0) {
           const targetBubblSpace = defaultBubblSpace || bubblSpaces[0];
-          
+
           // Get existing TimeCapsules for this BubblSpace
           const existingTimeCapsules = manager
             .getTimeCapsulesByBubblSpace(targetBubblSpace.id)
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-          
+            .sort(
+              (a, b) =>
+                new Date(b.updatedAt).getTime() -
+                new Date(a.updatedAt).getTime()
+            );
+
           if (existingTimeCapsules.length > 0) {
             // Use the most recent existing TimeCapsule
             setCurrentTimeCapsule(existingTimeCapsules[0]);
-            console.log(`✅ Using existing TimeCapsule: ${existingTimeCapsules[0].name}`);
+            console.log(
+              `✅ Using existing TimeCapsule: ${existingTimeCapsules[0].name}`
+            );
           } else {
             // Only create a new TimeCapsule if none exist for this BubblSpace
             try {
               const newTimeCapsule = manager.createTimeCapsule(
-                'AI-Frames Session',
-                'Learning session with AI-Frames',
+                "AI-Frames Session",
+                "Learning session with AI-Frames",
                 targetBubblSpace.id,
                 {
-                  category: 'learning',
-                  difficulty: 'intermediate',
+                  category: "learning",
+                  difficulty: "intermediate",
                   estimatedDuration: frames.length * 10, // Estimate 10 mins per frame
                 }
               );
               setCurrentTimeCapsule(newTimeCapsule);
-              setAllTimeCapsules(prev => [...prev, newTimeCapsule]);
+              setAllTimeCapsules((prev) => [...prev, newTimeCapsule]);
               console.log(`✅ Created new TimeCapsule: ${newTimeCapsule.name}`);
             } catch (createError) {
-              console.warn('⚠️ Could not create TimeCapsule (may have hit limit), using first available:', createError);
+              console.warn(
+                "⚠️ Could not create TimeCapsule (may have hit limit), using first available:",
+                createError
+              );
               // If we can't create a new TimeCapsule, use the first available one from any BubblSpace
-              const anyTimeCapsule = timeCapsules.length > 0 ? timeCapsules[0] : null;
+              const anyTimeCapsule =
+                timeCapsules.length > 0 ? timeCapsules[0] : null;
               setCurrentTimeCapsule(anyTimeCapsule);
               if (anyTimeCapsule) {
-                console.log(`✅ Using fallback TimeCapsule: ${anyTimeCapsule.name}`);
+                console.log(
+                  `✅ Using fallback TimeCapsule: ${anyTimeCapsule.name}`
+                );
               }
             }
           }
         }
-        
       } catch (error) {
-        console.error('Failed to initialize metadata manager:', error);
-        
+        console.error("Failed to initialize metadata manager:", error);
+
         // Fallback: try to load any existing TimeCapsules
         try {
           const manager = getMetadataManager(vectorStore);
@@ -921,10 +1012,12 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           if (existingTimeCapsules.length > 0) {
             setCurrentTimeCapsule(existingTimeCapsules[0]);
             setAllTimeCapsules(existingTimeCapsules);
-            console.log(`✅ Fallback: Using existing TimeCapsule: ${existingTimeCapsules[0].name}`);
+            console.log(
+              `✅ Fallback: Using existing TimeCapsule: ${existingTimeCapsules[0].name}`
+            );
           }
         } catch (fallbackError) {
-          console.error('Failed to load existing TimeCapsules:', fallbackError);
+          console.error("Failed to load existing TimeCapsules:", fallbackError);
         }
       }
     };
@@ -955,15 +1048,15 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
   // Update VectorStore when provider makes it available
   useEffect(() => {
     if (providerVectorStore) {
-      console.log('🔗 AI-Frames connecting to VectorStoreProvider...');
+      console.log("🔗 AI-Frames connecting to VectorStoreProvider...");
       setVectorStore(providerVectorStore);
-      
+
       // Make it available globally for compatibility
       if (typeof window !== "undefined") {
         (window as any).sharedVectorStore = providerVectorStore;
       }
-      
-      console.log('✅ AI-Frames connected to VectorStoreProvider');
+
+      console.log("✅ AI-Frames connected to VectorStoreProvider");
     }
   }, [providerVectorStore]);
 
@@ -972,13 +1065,13 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     const initializeGraphStorage = async () => {
       if (vectorStore && vectorStoreInitialized && !graphStorageManager) {
         try {
-          console.log('🗂️ Initializing GraphStorageManager...');
+          console.log("🗂️ Initializing GraphStorageManager...");
           const graphManager = getGraphStorageManager(vectorStore);
           await graphManager.initialize();
           setGraphStorageManager(graphManager);
-          console.log('✅ GraphStorageManager initialized successfully');
+          console.log("✅ GraphStorageManager initialized successfully");
         } catch (error) {
-          console.error('❌ Failed to initialize GraphStorageManager:', error);
+          console.error("❌ Failed to initialize GraphStorageManager:", error);
         }
       }
     };
@@ -993,13 +1086,17 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
 
     if (!processingAvailable) {
-      console.log('⏳ VectorStore not ready for processing, skipping AI-Frames KB save');
+      console.log(
+        "⏳ VectorStore not ready for processing, skipping AI-Frames KB save"
+      );
       return;
     }
 
     try {
-      console.log(`📊 Saving ${frames.length} AI-Frames to Knowledge Base with order preservation...`);
-      
+      console.log(
+        `📊 Saving ${frames.length} AI-Frames to Knowledge Base with order preservation...`
+      );
+
       // Process frames in order to maintain sequence
       for (let index = 0; index < frames.length; index++) {
         const frame = frames[index];
@@ -1007,35 +1104,35 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
         // Enhanced document title with order information
         const title = `AI-Frame [${frame.order || index + 1}]: ${frame.title}`;
-        
+
         // Enhanced content with hierarchy and relationship information
         const content = `
 Learning Goal: ${frame.goal}
 
 Order: ${frame.order || index + 1} of ${frames.length}
-Type: ${frame.type || 'frame'}
-${frame.parentFrameId ? `Parent Frame: ${frame.parentFrameId}` : ''}
-BubblSpace: ${frame.bubblSpaceId || currentBubblSpace?.id || 'default'}
-TimeCapsule: ${frame.timeCapsuleId || currentTimeCapsule?.id || 'default'}
+Type: ${frame.type || "frame"}
+${frame.parentFrameId ? `Parent Frame: ${frame.parentFrameId}` : ""}
+BubblSpace: ${frame.bubblSpaceId || currentBubblSpace?.id || "default"}
+TimeCapsule: ${frame.timeCapsuleId || currentTimeCapsule?.id || "default"}
 
 Context & Background:
 ${frame.informationText}
 
 After Video Content:
-${frame.afterVideoText || 'No additional content'}
+${frame.afterVideoText || "No additional content"}
 
-AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(', ') : 'None'}
+AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 
 Video Details:
-- URL: ${frame.videoUrl || 'No video'}
+- URL: ${frame.videoUrl || "No video"}
 - Start Time: ${frame.startTime || 0}s
 - Duration: ${frame.duration || 0}s
 
 Metadata:
-- Generated: ${frame.isGenerated ? 'Yes' : 'No'}
-- Created: ${frame.createdAt || 'Unknown'}
-- Updated: ${frame.updatedAt || 'Unknown'}
-${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
+- Generated: ${frame.isGenerated ? "Yes" : "No"}
+- Created: ${frame.createdAt || "Unknown"}
+- Updated: ${frame.updatedAt || "Unknown"}
+${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         `.trim();
 
         // Generate unique document ID for this frame
@@ -1043,20 +1140,26 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
 
         // Check if this AI-Frame already exists in KB
         const existingDocs = await vectorStore.getAllDocuments();
-        const existingDoc = existingDocs.find(doc => 
-          doc.id === docId || 
-          (doc.metadata.source === 'ai-frames' && (doc.metadata as any).aiFrameId === frame.id)
+        const existingDoc = existingDocs.find(
+          (doc) =>
+            doc.id === docId ||
+            (doc.metadata.source === "ai-frames" &&
+              (doc.metadata as any).aiFrameId === frame.id)
         );
 
         if (existingDoc) {
-          console.log(`🔄 AI-Frame "${frame.title}" exists in KB, updating with current order and data...`);
-          
+          console.log(
+            `🔄 AI-Frame "${frame.title}" exists in KB, updating with current order and data...`
+          );
+
           // Delete existing document first to ensure clean update
           try {
             await vectorStore.deleteDocument(existingDoc.id);
             console.log(`🗑️ Deleted old AI-Frame document: ${existingDoc.id}`);
           } catch (deleteError) {
-            console.warn(`⚠️ Failed to delete old AI-Frame document: ${deleteError}`);
+            console.warn(
+              `⚠️ Failed to delete old AI-Frame document: ${deleteError}`
+            );
           }
         }
 
@@ -1068,19 +1171,21 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
           metadata: {
             filename: `aiframe-${frame.id}.json`,
             filesize: JSON.stringify(frame).length,
-            filetype: 'application/json',
+            filetype: "application/json",
             uploadedAt: frame.createdAt || new Date().toISOString(),
-            source: 'ai-frames',
+            source: "ai-frames",
             description: `AI-Frame: ${frame.title} (Order: ${frame.order || index + 1})`,
             isGenerated: true,
             // Enhanced AI-Frame specific metadata
             aiFrameId: frame.id,
-            aiFrameType: frame.type || 'frame',
+            aiFrameType: frame.type || "frame",
             aiFrameOrder: frame.order || index + 1,
             aiFrameTotalFrames: frames.length,
             parentFrameId: frame.parentFrameId,
-            bubblSpaceId: frame.bubblSpaceId || currentBubblSpace?.id || 'default',
-            timeCapsuleId: frame.timeCapsuleId || currentTimeCapsule?.id || 'default',
+            bubblSpaceId:
+              frame.bubblSpaceId || currentBubblSpace?.id || "default",
+            timeCapsuleId:
+              frame.timeCapsuleId || currentTimeCapsule?.id || "default",
             videoUrl: frame.videoUrl,
             startTime: frame.startTime,
             duration: frame.duration,
@@ -1090,10 +1195,10 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
             frameHierarchy: {
               order: frame.order || index + 1,
               total: frames.length,
-              type: frame.type || 'frame',
+              type: frame.type || "frame",
               hasParent: !!frame.parentFrameId,
-              parentId: frame.parentFrameId
-            }
+              parentId: frame.parentFrameId,
+            },
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
@@ -1102,35 +1207,48 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
         // Insert the enhanced document
         try {
           await vectorStore.insertDocument(aiFrameDoc);
-          console.log(`✅ Saved AI-Frame to KB: ${frame.title} (Order: ${frame.order || index + 1})`);
+          console.log(
+            `✅ Saved AI-Frame to KB: ${frame.title} (Order: ${frame.order || index + 1})`
+          );
         } catch (error) {
-          console.warn(`⚠️ Failed to save AI-Frame "${frame.title}" to KB:`, error);
+          console.warn(
+            `⚠️ Failed to save AI-Frame "${frame.title}" to KB:`,
+            error
+          );
         }
       }
 
-      console.log(`✅ Finished saving AI-Frames to Knowledge Base with order preservation`);
-      
+      console.log(
+        `✅ Finished saving AI-Frames to Knowledge Base with order preservation`
+      );
+
       // Dispatch event to notify other pages of AI-Frames update
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('aiframes-kb-synced', {
-          detail: { 
-            frameCount: frames.length, 
-            bubblSpaceId: currentBubblSpace?.id,
-            timeCapsuleId: currentTimeCapsule?.id,
-            timestamp: new Date().toISOString()
-          }
-        }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("aiframes-kb-synced", {
+            detail: {
+              frameCount: frames.length,
+              bubblSpaceId: currentBubblSpace?.id,
+              timeCapsuleId: currentTimeCapsule?.id,
+              timestamp: new Date().toISOString(),
+            },
+          })
+        );
       }
-      
     } catch (error) {
-      console.error('❌ Failed to save AI-Frames to Knowledge Base:', error);
+      console.error("❌ Failed to save AI-Frames to Knowledge Base:", error);
     }
   };
 
   // Save frames to KB when VectorStore becomes ready or frames change
   useEffect(() => {
-    if (vectorStore && vectorStoreInitialized && processingAvailable && frames.length > 0) {
-      console.log('🔄 AI-Frames detected, saving to Knowledge Base...');
+    if (
+      vectorStore &&
+      vectorStoreInitialized &&
+      processingAvailable &&
+      frames.length > 0
+    ) {
+      console.log("🔄 AI-Frames detected, saving to Knowledge Base...");
       saveAllFramesToKB();
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
@@ -1138,35 +1256,40 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
   // Listen for localStorage changes (cross-tab sync and graph updates)
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'ai_frames_timecapsule' || event.key === 'ai_frames_graph_state') {
-        console.log('🔄 Storage change detected:', event.key);
-        
+      if (
+        event.key === "ai_frames_timecapsule" ||
+        event.key === "ai_frames_graph_state"
+      ) {
+        console.log("🔄 Storage change detected:", event.key);
+
         // Small delay to ensure write is complete
         setTimeout(async () => {
           try {
             const loaded = await loadFramesFromStorage();
             if (loaded) {
-              console.log('✅ Frames reloaded from storage due to external change');
-              
+              console.log(
+                "✅ Frames reloaded from storage due to external change"
+              );
+
               setChatMessages((prev) => [
                 ...prev,
                 {
                   role: "ai",
-                  content: `🔄 Frames updated from ${event.key === 'ai_frames_graph_state' ? 'graph view' : 'storage'}! Changes have been synchronized.`,
+                  content: `🔄 Frames updated from ${event.key === "ai_frames_graph_state" ? "graph view" : "storage"}! Changes have been synchronized.`,
                 },
               ]);
             }
           } catch (error) {
-            console.error('❌ Failed to reload frames from storage:', error);
+            console.error("❌ Failed to reload frames from storage:", error);
           }
         }, 100);
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, [loadFramesFromStorage]);
 
@@ -1180,17 +1303,17 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
   // Listen for graph save events
   useEffect(() => {
     const handleGraphSaved = (event: CustomEvent) => {
-      console.log('📊 Graph saved successfully!', event.detail);
-      
+      console.log("📊 Graph saved successfully!", event.detail);
+
       // Reload frames from storage to sync with graph changes
       setTimeout(async () => {
         try {
           await loadFramesFromStorage();
         } catch (error) {
-          console.error('❌ Failed to reload frames after graph save:', error);
+          console.error("❌ Failed to reload frames after graph save:", error);
         }
       }, 200);
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -1204,10 +1327,10 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     const handleGraphFrameSelected = (event: CustomEvent) => {
       const { frameId, frameIndex } = event.detail;
       if (frameIndex !== -1 && frameIndex !== currentFrameIndex) {
-        console.log('🔄 Graph frame selection → Frame Navigation sync:', {
+        console.log("🔄 Graph frame selection → Frame Navigation sync:", {
           frameId,
           frameIndex,
-          currentFrameIndex
+          currentFrameIndex,
         });
         setCurrentFrameIndex(frameIndex);
       }
@@ -1216,14 +1339,14 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     // Listen for graph actions that modify frames
     const handleGraphFrameAdded = (event: CustomEvent) => {
       const { newFrame } = event.detail;
-      console.log('🔄 Graph frame added → Frame Navigation sync:', newFrame);
-      
-      setFrames(prev => {
+      console.log("🔄 Graph frame added → Frame Navigation sync:", newFrame);
+
+      setFrames((prev) => {
         const updatedFrames = [...prev, newFrame];
         setCurrentFrameIndex(updatedFrames.length - 1); // Navigate to new frame
         return updatedFrames;
       });
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -1235,15 +1358,18 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
 
     const handleGraphFrameDeleted = (event: CustomEvent) => {
       const { deletedFrameId, remainingFrames } = event.detail;
-      console.log('🔄 Graph frame deleted → Frame Navigation sync:', deletedFrameId);
-      
+      console.log(
+        "🔄 Graph frame deleted → Frame Navigation sync:",
+        deletedFrameId
+      );
+
       setFrames(remainingFrames);
-      
+
       // Update current index if needed
       if (currentFrameIndex >= remainingFrames.length) {
         setCurrentFrameIndex(Math.max(0, remainingFrames.length - 1));
       }
-      
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -1255,24 +1381,29 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
 
     const handleGraphAttachmentChanged = (event: CustomEvent) => {
       const { frameId, attachment, action } = event.detail;
-      console.log('🔄 Graph attachment change → Frame Navigation sync:', { frameId, action });
-      
-      setFrames(prev => prev.map(frame => 
-        frame.id === frameId 
-          ? { 
-              ...frame, 
-              attachment,
-              // Update legacy fields for backward compatibility
-              ...(attachment?.type === 'video' && {
-                videoUrl: attachment.data?.videoUrl || '',
-                startTime: attachment.data?.startTime || 0,
-                duration: attachment.data?.duration || 300
-              }),
-              updatedAt: new Date().toISOString()
-            }
-          : frame
-      ));
-      
+      console.log("🔄 Graph attachment change → Frame Navigation sync:", {
+        frameId,
+        action,
+      });
+
+      setFrames((prev) =>
+        prev.map((frame) =>
+          frame.id === frameId
+            ? {
+                ...frame,
+                attachment,
+                // Update legacy fields for backward compatibility
+                ...(attachment?.type === "video" && {
+                  videoUrl: attachment.data?.videoUrl || "",
+                  startTime: attachment.data?.startTime || 0,
+                  duration: attachment.data?.duration || 300,
+                }),
+                updatedAt: new Date().toISOString(),
+              }
+            : frame
+        )
+      );
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -1282,18 +1413,45 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
       ]);
     };
 
-    window.addEventListener('graph-saved', handleGraphSaved as EventListener);
-    window.addEventListener('graph-frame-selected', handleGraphFrameSelected as EventListener);
-    window.addEventListener('graph-frame-added', handleGraphFrameAdded as EventListener);
-    window.addEventListener('graph-frame-deleted', handleGraphFrameDeleted as EventListener);
-    window.addEventListener('graph-attachment-changed', handleGraphAttachmentChanged as EventListener);
-    
+    window.addEventListener("graph-saved", handleGraphSaved as EventListener);
+    window.addEventListener(
+      "graph-frame-selected",
+      handleGraphFrameSelected as EventListener
+    );
+    window.addEventListener(
+      "graph-frame-added",
+      handleGraphFrameAdded as EventListener
+    );
+    window.addEventListener(
+      "graph-frame-deleted",
+      handleGraphFrameDeleted as EventListener
+    );
+    window.addEventListener(
+      "graph-attachment-changed",
+      handleGraphAttachmentChanged as EventListener
+    );
+
     return () => {
-      window.removeEventListener('graph-saved', handleGraphSaved as EventListener);
-      window.removeEventListener('graph-frame-selected', handleGraphFrameSelected as EventListener);
-      window.removeEventListener('graph-frame-added', handleGraphFrameAdded as EventListener);
-      window.removeEventListener('graph-frame-deleted', handleGraphFrameDeleted as EventListener);
-      window.removeEventListener('graph-attachment-changed', handleGraphAttachmentChanged as EventListener);
+      window.removeEventListener(
+        "graph-saved",
+        handleGraphSaved as EventListener
+      );
+      window.removeEventListener(
+        "graph-frame-selected",
+        handleGraphFrameSelected as EventListener
+      );
+      window.removeEventListener(
+        "graph-frame-added",
+        handleGraphFrameAdded as EventListener
+      );
+      window.removeEventListener(
+        "graph-frame-deleted",
+        handleGraphFrameDeleted as EventListener
+      );
+      window.removeEventListener(
+        "graph-attachment-changed",
+        handleGraphAttachmentChanged as EventListener
+      );
     };
   }, [loadFramesFromStorage, currentFrameIndex]);
 
@@ -1303,99 +1461,127 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
 
     const refreshMetadata = () => {
       try {
-        console.log('🔄 AI-Frames: Refreshing metadata from storage...');
+        console.log("🔄 AI-Frames: Refreshing metadata from storage...");
         const updatedBubblSpaces = metadataManager.getAllBubblSpaces();
         const updatedTimeCapsules = metadataManager.getAllTimeCapsules();
-        
-        console.log('📦 AI-Frames metadata refresh:', {
+
+        console.log("📦 AI-Frames metadata refresh:", {
           bubblSpaces: updatedBubblSpaces.length,
           timeCapsules: updatedTimeCapsules.length,
           currentBubblSpace: currentBubblSpace?.name,
-          currentTimeCapsule: currentTimeCapsule?.name
+          currentTimeCapsule: currentTimeCapsule?.name,
         });
-        
+
         setAllBubblSpaces(updatedBubblSpaces);
         setAllTimeCapsules(updatedTimeCapsules);
-        
+
         // Update current selections if they were modified
-        const currentBubblSpaceUpdated = updatedBubblSpaces.find(b => b.id === currentBubblSpace?.id);
-        if (currentBubblSpaceUpdated && JSON.stringify(currentBubblSpaceUpdated) !== JSON.stringify(currentBubblSpace)) {
-          console.log('🏢 Current BubblSpace updated, applying changes...');
+        const currentBubblSpaceUpdated = updatedBubblSpaces.find(
+          (b) => b.id === currentBubblSpace?.id
+        );
+        if (
+          currentBubblSpaceUpdated &&
+          JSON.stringify(currentBubblSpaceUpdated) !==
+            JSON.stringify(currentBubblSpace)
+        ) {
+          console.log("🏢 Current BubblSpace updated, applying changes...");
           setCurrentBubblSpace(currentBubblSpaceUpdated);
         }
-        
-        const currentTimeCapsuleUpdated = updatedTimeCapsules.find(t => t.id === currentTimeCapsule?.id);
-        if (currentTimeCapsuleUpdated && JSON.stringify(currentTimeCapsuleUpdated) !== JSON.stringify(currentTimeCapsule)) {
-          console.log('🕰️ Current TimeCapsule updated, applying changes...');
+
+        const currentTimeCapsuleUpdated = updatedTimeCapsules.find(
+          (t) => t.id === currentTimeCapsule?.id
+        );
+        if (
+          currentTimeCapsuleUpdated &&
+          JSON.stringify(currentTimeCapsuleUpdated) !==
+            JSON.stringify(currentTimeCapsule)
+        ) {
+          console.log("🕰️ Current TimeCapsule updated, applying changes...");
           setCurrentTimeCapsule(currentTimeCapsuleUpdated);
         }
-        
-        console.log('✅ AI-Frames metadata refresh completed');
+
+        console.log("✅ AI-Frames metadata refresh completed");
       } catch (error) {
-        console.error('❌ AI-Frames metadata refresh failed:', error);
+        console.error("❌ AI-Frames metadata refresh failed:", error);
       }
     };
 
     const handleMetadataStorageChange = (event: StorageEvent) => {
-      if (event.key === 'bubblspaces_metadata' || event.key === 'timecapsules_metadata') {
-        console.log('🔄 Cross-page metadata storage change detected in AI-Frames:', {
-          key: event.key,
-          hasNewValue: !!event.newValue,
-          timestamp: new Date().toISOString()
-        });
-        
+      if (
+        event.key === "bubblspaces_metadata" ||
+        event.key === "timecapsules_metadata"
+      ) {
+        console.log(
+          "🔄 Cross-page metadata storage change detected in AI-Frames:",
+          {
+            key: event.key,
+            hasNewValue: !!event.newValue,
+            timestamp: new Date().toISOString(),
+          }
+        );
+
         // Reload metadata from storage with delay to ensure write completion
         setTimeout(() => {
-          console.log('📦 Executing AI-Frames metadata refresh from cross-page storage change...');
+          console.log(
+            "📦 Executing AI-Frames metadata refresh from cross-page storage change..."
+          );
           refreshMetadata();
         }, 100);
       }
     };
 
     const handleBubblSpaceChange = (event: CustomEvent) => {
-      console.log('🏢 Same-page BubblSpace change detected in AI-Frames:', {
+      console.log("🏢 Same-page BubblSpace change detected in AI-Frames:", {
         type: event.detail?.type,
         bubblSpaceName: event.detail?.bubblSpace?.name,
         bubblSpaceId: event.detail?.bubblSpace?.id,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-      
+
       setTimeout(() => {
-        console.log('📦 Executing AI-Frames metadata refresh from BubblSpace change...');
+        console.log(
+          "📦 Executing AI-Frames metadata refresh from BubblSpace change..."
+        );
         refreshMetadata();
-        
+
         // Update AI-Frames with new BubblSpace relationship if needed
         if (event.detail?.bubblSpace && frames.length > 0) {
-          console.log('🔗 Updating AI-Frames BubblSpace relationship...');
-          setFrames(prev => prev.map(frame => ({
-            ...frame,
-            bubblSpaceId: event.detail.bubblSpace.id,
-            updatedAt: new Date().toISOString()
-          })));
+          console.log("🔗 Updating AI-Frames BubblSpace relationship...");
+          setFrames((prev) =>
+            prev.map((frame) => ({
+              ...frame,
+              bubblSpaceId: event.detail.bubblSpace.id,
+              updatedAt: new Date().toISOString(),
+            }))
+          );
         }
       }, 50);
     };
 
     const handleTimeCapsuleChange = (event: CustomEvent) => {
-      console.log('🕰️ Same-page TimeCapsule change detected in AI-Frames:', {
+      console.log("🕰️ Same-page TimeCapsule change detected in AI-Frames:", {
         type: event.detail?.type,
         timeCapsuleName: event.detail?.timeCapsule?.name,
         timeCapsuleId: event.detail?.timeCapsule?.id,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-      
+
       setTimeout(() => {
-        console.log('📦 Executing AI-Frames metadata refresh from TimeCapsule change...');
+        console.log(
+          "📦 Executing AI-Frames metadata refresh from TimeCapsule change..."
+        );
         refreshMetadata();
-        
+
         // Update AI-Frames with new TimeCapsule relationship if needed
         if (event.detail?.timeCapsule && frames.length > 0) {
-          console.log('🔗 Updating AI-Frames TimeCapsule relationship...');
-          setFrames(prev => prev.map(frame => ({
-            ...frame,
-            timeCapsuleId: event.detail.timeCapsule.id,
-            updatedAt: new Date().toISOString()
-          })));
+          console.log("🔗 Updating AI-Frames TimeCapsule relationship...");
+          setFrames((prev) =>
+            prev.map((frame) => ({
+              ...frame,
+              timeCapsuleId: event.detail.timeCapsule.id,
+              updatedAt: new Date().toISOString(),
+            }))
+          );
         }
       }, 50);
     };
@@ -1403,45 +1589,67 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     // AUTO-SYNC: Sync metadata to Knowledge Base every 30 seconds
     const autoSyncInterval = setInterval(() => {
       if (metadataManager && vectorStore && vectorStore.initialized) {
-        console.log('🔄 Auto-sync: Syncing AI-Frames metadata to Knowledge Base...');
-        
+        console.log(
+          "🔄 Auto-sync: Syncing AI-Frames metadata to Knowledge Base..."
+        );
+
         const bubblSpaces = metadataManager.getAllBubblSpaces();
         const timeCapsules = metadataManager.getAllTimeCapsules();
-        
-        metadataManager.saveMetadataToVectorStore(bubblSpaces, timeCapsules)
+
+        metadataManager
+          .saveMetadataToVectorStore(bubblSpaces, timeCapsules)
           .then(() => {
-            console.log('✅ Auto-sync: AI-Frames metadata synced successfully');
-            
+            console.log("✅ Auto-sync: AI-Frames metadata synced successfully");
+
             // Also sync AI-Frames data to Knowledge Base
             return saveAllFramesToKB();
           })
           .then(() => {
-            console.log('✅ Auto-sync: AI-Frames data synced successfully');
+            console.log("✅ Auto-sync: AI-Frames data synced successfully");
           })
           .catch((error: any) => {
-            console.warn('⚠️ Auto-sync: Failed to sync AI-Frames data:', error.message);
+            console.warn(
+              "⚠️ Auto-sync: Failed to sync AI-Frames data:",
+              error.message
+            );
           });
       } else {
-        console.log('⏳ Auto-sync: Waiting for AI-Frames metadata manager and vector store...');
+        console.log(
+          "⏳ Auto-sync: Waiting for AI-Frames metadata manager and vector store..."
+        );
       }
     }, 30000); // 30 seconds
 
     // Enhanced event listeners
-    window.addEventListener('storage', handleMetadataStorageChange);
-    window.addEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
-    window.addEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
+    window.addEventListener("storage", handleMetadataStorageChange);
+    window.addEventListener(
+      "bubblspace-metadata-changed",
+      handleBubblSpaceChange as EventListener
+    );
+    window.addEventListener(
+      "timecapsule-metadata-changed",
+      handleTimeCapsuleChange as EventListener
+    );
 
-    console.log('🔄 Enhanced cross-page sync established for AI-Frames with auto-sync every 30 seconds');
+    console.log(
+      "🔄 Enhanced cross-page sync established for AI-Frames with auto-sync every 30 seconds"
+    );
 
     return () => {
-      window.removeEventListener('storage', handleMetadataStorageChange);
-      window.removeEventListener('bubblspace-metadata-changed', handleBubblSpaceChange as EventListener);
-      window.removeEventListener('timecapsule-metadata-changed', handleTimeCapsuleChange as EventListener);
-      
+      window.removeEventListener("storage", handleMetadataStorageChange);
+      window.removeEventListener(
+        "bubblspace-metadata-changed",
+        handleBubblSpaceChange as EventListener
+      );
+      window.removeEventListener(
+        "timecapsule-metadata-changed",
+        handleTimeCapsuleChange as EventListener
+      );
+
       // Clear auto-sync interval
       clearInterval(autoSyncInterval);
-      console.log('🛑 Auto-sync: AI-Frames auto-sync stopped');
-      console.log('🔄 AI-Frames cross-page sync listeners removed');
+      console.log("🛑 Auto-sync: AI-Frames auto-sync stopped");
+      console.log("🔄 AI-Frames cross-page sync listeners removed");
     };
   }, [metadataManager, currentBubblSpace, currentTimeCapsule, frames.length]);
 
@@ -1541,7 +1749,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
   useEffect(() => {
     // Get current frame safely
     const currentFrameInEffect = frames[currentFrameIndex];
-    
+
     if (
       !isCreationMode &&
       isVoiceEnabled &&
@@ -1888,7 +2096,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
     try {
       // Get current frame safely
       const currentFrame = frames[currentFrameIndex];
-      
+
       if (videoRef.current && currentFrame && currentFrame.videoUrl) {
         // Send play command to YouTube iframe
         const iframe = videoRef.current;
@@ -2013,7 +2221,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     // Get current frame safely
     const currentFrame = frames[currentFrameIndex];
 
-    let aiResponse = `Great question! Based on your current frame "${currentFrame?.title || 'your current learning session'}" and your learning journey, let me help you understand this concept better.`;
+    let aiResponse = `Great question! Based on your current frame "${currentFrame?.title || "your current learning session"}" and your learning journey, let me help you understand this concept better.`;
 
     // Enhanced AI response with knowledge base integration
     if (vectorStore) {
@@ -2117,11 +2325,11 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         isGenerated: true,
         sourceGoal: frameData.goal,
         sourceUrl: frameData.videoUrl,
-                  order: frames.length + 1,
-          bubblSpaceId: "default",
-          timeCapsuleId: "default",
-          parentFrameId: undefined,
-          type: 'frame',
+        order: frames.length + 1,
+        bubblSpaceId: "default",
+        timeCapsuleId: "default",
+        parentFrameId: undefined,
+        type: "frame",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -2141,9 +2349,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       const newFrame = await generateFrameContent(newFrameData);
       setFrames((prev) => [...prev, newFrame]);
       setCurrentFrameIndex(frames.length); // Switch to new frame
-              setShowCreationForm(false);
+      setShowCreationForm(false);
       setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
-      
+
       // Clear the cleared flag since we're creating new frames
       localStorage.removeItem("ai_frames_cleared");
 
@@ -2222,35 +2430,52 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     try {
       // Clear from Knowledge Base first
       if (vectorStore && vectorStoreInitialized) {
-        console.log(`🗑️ Clearing ${frames.length} AI-Frames from Knowledge Base...`);
-        
+        console.log(
+          `🗑️ Clearing ${frames.length} AI-Frames from Knowledge Base...`
+        );
+
         for (const frame of frames) {
           const docId = `aiframe-${frame.id}`;
           try {
             await vectorStore.deleteDocument(docId);
             console.log(`✅ Deleted AI-Frame from KB: ${frame.title}`);
           } catch (deleteError) {
-            console.warn(`⚠️ Failed to delete AI-Frame "${frame.title}" from KB:`, deleteError);
+            console.warn(
+              `⚠️ Failed to delete AI-Frame "${frame.title}" from KB:`,
+              deleteError
+            );
           }
         }
-        
+
         // Also search for any other AI-Frames documents that might exist
         try {
           const allDocs = await vectorStore.getAllDocuments();
-          const aiFramesDocs = allDocs.filter(doc => doc.metadata?.source === 'ai-frames');
-          
+          const aiFramesDocs = allDocs.filter(
+            (doc) => doc.metadata?.source === "ai-frames"
+          );
+
           for (const doc of aiFramesDocs) {
             try {
               await vectorStore.deleteDocument(doc.id);
-              console.log(`✅ Deleted additional AI-Frame document from KB: ${doc.title}`);
+              console.log(
+                `✅ Deleted additional AI-Frame document from KB: ${doc.title}`
+              );
             } catch (deleteError) {
-              console.warn(`⚠️ Failed to delete AI-Frame document "${doc.title}" from KB:`, deleteError);
+              console.warn(
+                `⚠️ Failed to delete AI-Frame document "${doc.title}" from KB:`,
+                deleteError
+              );
             }
           }
-          
-          console.log(`✅ Cleared all AI-Frames from Knowledge Base (${frames.length} frames + ${aiFramesDocs.length} additional documents)`);
+
+          console.log(
+            `✅ Cleared all AI-Frames from Knowledge Base (${frames.length} frames + ${aiFramesDocs.length} additional documents)`
+          );
         } catch (searchError) {
-          console.warn('⚠️ Failed to search for additional AI-Frames documents:', searchError);
+          console.warn(
+            "⚠️ Failed to search for additional AI-Frames documents:",
+            searchError
+          );
         }
       }
 
@@ -2258,17 +2483,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       const clearedCount = frames.length;
       setFrames([]);
       setCurrentFrameIndex(0);
-      
+
       // Emit event to clear graph nodes
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('clear-all-frames', {
-          detail: {
-            clearedCount,
-            timestamp: new Date().toISOString()
-          }
-        }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("clear-all-frames", {
+            detail: {
+              clearedCount,
+              timestamp: new Date().toISOString(),
+            },
+          })
+        );
       }
-      
+
       // Comprehensively clear localStorage data
       try {
         localStorage.removeItem("ai_frames_timecapsule");
@@ -2276,17 +2503,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         localStorage.removeItem("deepresearch_data");
         localStorage.removeItem("ai_frames_cleared");
         localStorage.removeItem("ai_frames_graph_state");
-        console.log('🗑️ Completely cleared AI-Frames localStorage data including graph state');
+        console.log(
+          "🗑️ Completely cleared AI-Frames localStorage data including graph state"
+        );
       } catch (storageError) {
-        console.warn('⚠️ Failed to clear localStorage:', storageError);
+        console.warn("⚠️ Failed to clear localStorage:", storageError);
       }
-      
+
       // Reset other related state
       setGraphState(null);
       setChapters([]);
       setSelectedConcept(null);
       setShowAIConcepts(false);
-      
+
       // Add success message to chat
       setChatMessages((prev) => [
         ...prev,
@@ -2305,27 +2534,28 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       });
 
       // Dispatch event to notify other pages of AI-Frames clear
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('aiframes-cleared', {
-          detail: { 
-            frameCount: clearedCount,
-            bubblSpaceId: currentBubblSpace?.id,
-            timeCapsuleId: currentTimeCapsule?.id,
-            timestamp: new Date().toISOString()
-          }
-        }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("aiframes-cleared", {
+            detail: {
+              frameCount: clearedCount,
+              bubblSpaceId: currentBubblSpace?.id,
+              timeCapsuleId: currentTimeCapsule?.id,
+              timestamp: new Date().toISOString(),
+            },
+          })
+        );
       }
-
     } catch (error) {
-      console.error('❌ Failed to clear AI frames:', error);
+      console.error("❌ Failed to clear AI frames:", error);
       setChatMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: `❌ Failed to clear AI frames: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          content: `❌ Failed to clear AI frames: ${error instanceof Error ? error.message : "Unknown error"}`,
         },
       ]);
-      
+
       pageAnalytics.trackError(
         "clear_all_frames_failed",
         error instanceof Error ? error.message : "Unknown error"
@@ -2387,7 +2617,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     const reorderedFrames = newFrames.map((frame, index) => ({
       ...frame,
       order: index + 1,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     }));
 
     setFrames(reorderedFrames);
@@ -2408,16 +2638,21 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     }
 
     // Emit event to sync with graph view
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('frames-reordered', {
-        detail: {
-          fromIndex: draggedIndex,
-          toIndex: dropIndex,
-          draggedFrameId: draggedFrame.id,
-          reorderedFrames: reorderedFrames,
-          newCurrentIndex: currentFrameIndex === draggedIndex ? dropIndex : currentFrameIndex
-        }
-      }));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("frames-reordered", {
+          detail: {
+            fromIndex: draggedIndex,
+            toIndex: dropIndex,
+            draggedFrameId: draggedFrame.id,
+            reorderedFrames: reorderedFrames,
+            newCurrentIndex:
+              currentFrameIndex === draggedIndex
+                ? dropIndex
+                : currentFrameIndex,
+          },
+        })
+      );
     }
 
     // Add success message to chat
@@ -2434,12 +2669,15 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     setDraggedFrameId(null);
     setDragOverIndex(null);
 
-    console.log('🔄 Frame order updated via drag & drop → Graph sync triggered:', {
-      fromIndex: draggedIndex,
-      toIndex: dropIndex,
-      frameTitle: draggedFrame.title,
-      totalFrames: reorderedFrames.length
-    });
+    console.log(
+      "🔄 Frame order updated via drag & drop → Graph sync triggered:",
+      {
+        fromIndex: draggedIndex,
+        toIndex: dropIndex,
+        frameTitle: draggedFrame.title,
+        totalFrames: reorderedFrames.length,
+      }
+    );
   };
 
   const handleDragEnd = () => {
@@ -2449,12 +2687,17 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   // Get current frame safely for video display
   const currentFrame = frames[currentFrameIndex];
-  const videoId = currentFrame?.videoUrl ? extractVideoId(currentFrame.videoUrl) : null;
-  const embedUrl = currentFrame && videoId && currentFrame.videoUrl ? `https://www.youtube.com/embed/${videoId}?start=${
-    currentFrame.startTime
-  }&end=${
-    currentFrame.startTime + currentFrame.duration
-  }&autoplay=0&controls=1&modestbranding=1&rel=0` : null;
+  const videoId = currentFrame?.videoUrl
+    ? extractVideoId(currentFrame.videoUrl)
+    : null;
+  const embedUrl =
+    currentFrame && videoId && currentFrame.videoUrl
+      ? `https://www.youtube.com/embed/${videoId}?start=${
+          currentFrame.startTime
+        }&end=${
+          currentFrame.startTime + currentFrame.duration
+        }&autoplay=0&controls=1&modestbranding=1&rel=0`
+      : null;
 
   const nextFrame = () => {
     if (currentFrameIndex < frames.length - 1) {
@@ -2514,41 +2757,58 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   // Close TimeCapsule selector when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showTimeCapsuleSelector && !(event.target as Element)?.closest('.timecapsule-selector')) {
+      if (
+        showTimeCapsuleSelector &&
+        !(event.target as Element)?.closest(".timecapsule-selector")
+      ) {
         setShowTimeCapsuleSelector(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showTimeCapsuleSelector]);
 
   // Skip early return - always show main interface
 
   return (
-    <div className="pt-20 min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
-      
-
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Top Navigation Header */}
-      <div className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+      <div className="fixed left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Link href="/">
+              <Image
+                src="/Media/TimeCapsule_04.png"
+                alt="AI Frames Logo"
+                width={32}
+                height={32}
+              />
+            </Link>
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
               AI-Frames Learning Platform
             </h2>
             <Badge variant="outline" className="text-xs">
-              {frames.length === 0 ? 'No Frames' : `Frame ${currentFrameIndex + 1} of ${frames.length}`}
+              {frames.length === 0
+                ? "No Frames"
+                : `Frame ${currentFrameIndex + 1} of ${frames.length}`}
             </Badge>
           </div>
-          
+
           {/* BubblSpace & TimeCapsule Management */}
           <div className="flex items-center gap-4">
             {/* Current BubblSpace Display */}
+            <Link href="/deep-research" className="cursor-pointer">
+              <Button variant="outline" size="sm">
+                <Brain className="h-4 w-4 mr-2" />
+                DeepResearch
+              </Button>
+            </Link>
             {currentBubblSpace && (
               <div className="flex items-center gap-2">
-                <div 
+                <div
                   className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   onClick={() => {
                     setEditingBubblSpace(currentBubblSpace);
@@ -2556,32 +2816,24 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   }}
                   title={`Current BubblSpace: ${currentBubblSpace.name}. Click to edit.`}
                 >
-                  <div 
+                  <div
                     className="w-3 h-3 rounded"
-                    style={{ backgroundColor: currentBubblSpace.color || '#3B82F6' }}
+                    style={{
+                      backgroundColor: currentBubblSpace.color || "#3B82F6",
+                    }}
                   />
                   <span className="text-sm font-medium truncate max-w-[120px]">
                     {currentBubblSpace.name}
                   </span>
                   {currentBubblSpace.isDefault && (
-                    <Badge variant="secondary" className="text-xs">Default</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      Default
+                    </Badge>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingBubblSpace(currentBubblSpace);
-                    setShowBubblSpaceDialog(true);
-                  }}
-                  className="h-8 w-8 p-0"
-                  title="Edit BubblSpace"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
               </div>
             )}
-            
+
             {/* BubblSpace Management - Disabled for regular users */}
             {/* Advanced users only: BubblSpace creation disabled */}
 
@@ -2594,12 +2846,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 <div className="relative timecapsule-selector">
                   <button
                     className="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                    onClick={() => setShowTimeCapsuleSelector(!showTimeCapsuleSelector)}
+                    onClick={() =>
+                      setShowTimeCapsuleSelector(!showTimeCapsuleSelector)
+                    }
                     title="Select TimeCapsule"
                   >
                     <Package className="w-3 h-3" />
                     <span className="text-sm font-medium truncate max-w-[120px]">
-                      {currentTimeCapsule?.name || 'Select TimeCapsule'}
+                      {currentTimeCapsule?.name || "Select TimeCapsule"}
                     </span>
                     {currentTimeCapsule && (
                       <Badge variant="outline" className="text-xs">
@@ -2608,7 +2862,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     )}
                     <ChevronDown className="w-3 h-3" />
                   </button>
-                  
+
                   {/* TimeCapsule Dropdown */}
                   {showTimeCapsuleSelector && (
                     <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg z-50 min-w-[280px]">
@@ -2622,19 +2876,23 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           <button
                             key={timeCapsule.id}
                             className={`w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 ${
-                              currentTimeCapsule?.id === timeCapsule.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                              currentTimeCapsule?.id === timeCapsule.id
+                                ? "bg-blue-50 dark:bg-blue-900/20"
+                                : ""
                             }`}
                             onClick={() => {
                               setCurrentTimeCapsule(timeCapsule);
                               setShowTimeCapsuleSelector(false);
                               // Update frames with new TimeCapsule ID
-                              const updatedFrames = frames.map(frame => ({
+                              const updatedFrames = frames.map((frame) => ({
                                 ...frame,
                                 timeCapsuleId: timeCapsule.id,
-                                updatedAt: new Date().toISOString()
+                                updatedAt: new Date().toISOString(),
                               }));
                               setFrames(updatedFrames);
-                              console.log(`✅ Switched to TimeCapsule: ${timeCapsule.name}`);
+                              console.log(
+                                `✅ Switched to TimeCapsule: ${timeCapsule.name}`
+                              );
                             }}
                           >
                             <div className="flex items-center gap-2 flex-1">
@@ -2653,7 +2911,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                                 {timeCapsule.category}
                               </Badge>
                               {currentTimeCapsule?.id === timeCapsule.id && (
-                                <Badge variant="default" className="text-xs">Current</Badge>
+                                <Badge variant="default" className="text-xs">
+                                  Current
+                                </Badge>
                               )}
                             </div>
                           </button>
@@ -2674,7 +2934,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     </div>
                   )}
                 </div>
-                
+
                 {/* Edit Current TimeCapsule */}
                 {currentTimeCapsule && (
                   <Button
@@ -2692,7 +2952,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 )}
               </div>
             )}
-            
+
             {/* TimeCapsule Management */}
             <Button
               variant="outline"
@@ -2710,32 +2970,30 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             <Separator orientation="vertical" className="h-6" />
 
             {/* Enhanced TimeCapsule Export/Import */}
-            <Button 
-              variant="outline" 
-              size="sm"
+            <Button
+              variant="outline"
+              size="icon"
               onClick={handleImportTimeCapsule}
               title="Import Enhanced TimeCapsule with full metadata support"
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Import
+              <Upload className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
+            <Button
+              variant="outline"
+              size="icon"
               onClick={handleExportTimeCapsule}
               title="Export Enhanced TimeCapsule with BubblSpace and metadata"
               disabled={!currentTimeCapsule}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export
+              <Download className="h-4 w-4" />
             </Button>
 
             <Separator orientation="vertical" className="h-6" />
 
             {/* Refresh from Storage */}
-            <Button 
-              variant="outline" 
-              size="sm"
+            <Button
+              variant="outline"
+              size="icon"
               onClick={async () => {
                 try {
                   const loaded = await loadFramesFromStorage();
@@ -2757,7 +3015,10 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                     ]);
                   }
                 } catch (error) {
-                  console.error('❌ Failed to refresh frames from storage:', error);
+                  console.error(
+                    "❌ Failed to refresh frames from storage:",
+                    error
+                  );
                   setChatMessages((prev) => [
                     ...prev,
                     {
@@ -2770,13 +3031,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               title="Refresh frames from storage to sync with Graph view changes"
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
             >
-              <ArrowRight className="h-4 w-4 mr-2 transform rotate-45" />
-              Refresh
+              <RefreshCcw className="h-4 w-4 transform rotate-45" />
             </Button>
 
             {/* Clear All AI-Frames */}
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleClearAllFrames}
               title="Clear all AI frames and remove from Knowledge Base"
@@ -2786,6 +3046,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               <Trash2 className="h-4 w-4 mr-2" />
               Clear All
             </Button>
+            <SignInButton />
           </div>
         </div>
       </div>
@@ -2795,810 +3056,907 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         <div className="flex h-screen">
           {/* Left Sidebar */}
           <div className="w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto">
-        <div className="p-4 space-y-6">
-          {/* App Title */}
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
-              <Video className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                AI-Frames
-              </h1>
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                Interactive AI learning
-              </p>
-            </div>
-          </div>
-
-          {/* Mode Controls */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Mode & View</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Mode Toggle */}
-              <div className="flex items-center justify-between">
-                <Label htmlFor="mode-toggle" className="text-sm font-medium">
-                  Mode
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="mode-toggle"
-                    checked={isCreationMode}
-                    onCheckedChange={(checked) => {
-                      setIsCreationMode(checked);
-                      pageAnalytics.trackFeatureUsage("mode_switch", {
-                        mode: checked ? "creation" : "learning",
-                        current_frame: currentFrameIndex,
-                        total_frames: frames.length,
-                      });
-                    }}
-                  />
-                  <Badge variant={isCreationMode ? "default" : "secondary"} className="text-xs">
-                    {isCreationMode ? (
-                      <Edit3 className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Eye className="h-3 w-3 mr-1" />
-                    )}
-                    {isCreationMode ? "Create" : "Learn"}
-                  </Badge>
+            <div className="p-4 space-y-6">
+              {/* App Title */}
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
+                  <Video className="h-5 w-5 text-white" />
                 </div>
-              </div>
-
-                        {/* Graph View Toggle - Enhanced */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="graph-toggle" className="text-sm font-medium">
-              View Mode
-            </Label>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="graph-toggle"
-                checked={showGraphView}
-                onCheckedChange={(checked) => {
-                  setShowGraphView(checked);
-                  pageAnalytics.trackFeatureUsage("graph_view_toggle", {
-                    enabled: checked,
-                    mode: isCreationMode ? "creation" : "learning",
-                    current_frame: currentFrameIndex,
-                  });
-                }}
-              />
-              <Badge variant={showGraphView ? "default" : "secondary"} className="text-xs">
-                {showGraphView ? (
-                  <Network className="h-3 w-3 mr-1" />
-                ) : (
-                  <Database className="h-3 w-3 mr-1" />
-                )}
-                {showGraphView ? "Dual-Pane" : "Linear Only"}
-              </Badge>
-            </div>
-          </div>
-          
-          {/* Graph View Description */}
-          {showGraphView && (
-            <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-              💡 Dual-pane mode: Graph view (left) + Linear view (right) with full sync
-            </div>
-          )}
-            </CardContent>
-          </Card>
-
-          {/* Voice Controls - Only in Learn Mode */}
-          {!isCreationMode && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Voice Controls</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="voice-toggle" className="text-sm font-medium flex items-center gap-2">
-                    {isVoiceEnabled ? (
-                      <Volume2 className="h-4 w-4" />
-                    ) : (
-                      <VolumeX className="h-4 w-4" />
-                    )}
-                    Voice
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="voice-toggle"
-                      checked={isVoiceEnabled}
-                      onCheckedChange={(checked) => {
-                        setIsVoiceEnabled(checked);
-                        if (!checked) {
-                          stopSpeaking();
-                        }
-                        if (!userHasInteracted) {
-                          setUserHasInteracted(true);
-                        }
-                        pageAnalytics.trackFeatureUsage("voice_toggle", {
-                          enabled: checked,
-                          tts_ready: ttsReady,
-                          current_frame: currentFrameIndex,
-                        });
-                      }}
-                    />
-                    {isSpeaking && (
-                      <Badge variant="default" className="bg-green-500 animate-pulse text-xs">
-                        <Mic className="h-3 w-3 mr-1" />
-                        Speaking
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {!userHasInteracted && isVoiceEnabled && (
-                  <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-900/20 w-full justify-center">
-                    Click to enable
-                  </Badge>
-                )}
-
-                {isVoiceEnabled && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowVoiceSettings(true);
-                        if (!userHasInteracted) {
-                          setUserHasInteracted(true);
-                        }
-                      }}
-                      className="flex-1"
-                    >
-                      <Sliders className="h-4 w-4 mr-2" />
-                      Settings
-                    </Button>
-                    {selectedVoice && (
-                      <Badge variant="outline" className="text-xs">
-                        {selectedVoice.name.split(" ")[0]}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-
-                {/* Auto-advance toggle */}
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <Label htmlFor="auto-advance" className="text-sm font-medium">
-                    Auto-advance
-                  </Label>
-                  <Switch
-                    id="auto-advance"
-                    checked={autoAdvanceEnabled}
-                    onCheckedChange={setAutoAdvanceEnabled}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Frame Navigation */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center justify-between">
-                Frame Navigation
-                {isCreationMode && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCreationForm(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {frames.map((frame, index) => (
-                  <div
-                    key={frame.id}
-                    className={`relative transition-all duration-200 ${
-                      dragOverIndex === index
-                        ? "transform scale-105 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
-                        : ""
-                    } ${draggedFrameId === frame.id ? "opacity-50" : ""}`}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, index)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <div
-                      className={`flex items-center gap-2 ${
-                        isCreationMode ? "cursor-move" : ""
-                      }`}
-                      draggable={isCreationMode}
-                      onDragStart={(e) => handleDragStart(e, frame.id, index)}
-                    >
-                      {isCreationMode && (
-                        <div className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                          <GripVertical className="h-4 w-4" />
-                        </div>
-                      )}
-                      <Button
-                        variant={
-                          index === currentFrameIndex ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => {
-                          setCurrentFrameIndex(index);
-                          // Emit event to sync with graph view
-                          if (typeof window !== 'undefined') {
-                            window.dispatchEvent(new CustomEvent('frame-navigation-selected', {
-                              detail: {
-                                frameId: frame.id,
-                                frameIndex: index,
-                                frameTitle: frame.title
-                              }
-                            }));
-                          }
-                          console.log('🔄 Frame Navigation → Graph sync:', {
-                            frameId: frame.id,
-                            frameIndex: index,
-                            frameTitle: frame.title
-                          });
-                        }}
-                        className="flex-1 justify-start text-left h-auto p-3"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-xs">
-                              Frame {index + 1}
-                            </span>
-                            {frame.isGenerated && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Wand2 className="h-2 w-2 mr-1" />
-                                AI
-                              </Badge>
-                            )}
-                            {showGraphView && index === currentFrameIndex && (
-                              <Badge variant="default" className="text-xs bg-purple-500">
-                                <Network className="h-2 w-2 mr-1" />
-                                Synced
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs opacity-75 truncate">
-                            {frame.title}
-                          </div>
-                        </div>
-                      </Button>
-                    </div>
-                    {isCreationMode && (
-                      <div className="absolute top-2 right-2 flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditFrame(frame);
-                          }}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Assistant */}
-          <Card className="flex-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <MessageCircle className="h-4 w-4 text-blue-600" />
-                AI Assistant
-                {deepResearchApp && (
-                  <Badge variant="outline" className="text-xs">
-                    <Database className="h-3 w-3 mr-1" />
-                    Connected
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col h-64">
-              {/* Current Narration Display */}
-              {isSpeaking && currentNarration && (
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mic className="h-4 w-4 text-blue-600 animate-pulse" />
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Currently Speaking:
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 line-clamp-3">
-                    {currentNarration}
+                <div>
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+                    AI-Frames
+                  </h1>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Interactive AI learning
                   </p>
                 </div>
-              )}
-
-              {/* Auto-advance Countdown */}
-              {autoAdvanceCountdown > 0 && (
-                <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-orange-600 animate-pulse" />
-                      <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                        Auto-advancing in {autoAdvanceCountdown} seconds...
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={cancelAutoAdvance}
-                      className="text-orange-600 hover:text-orange-700 border-orange-300"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <ScrollArea className="flex-1 mb-4">
-                <div className="space-y-4">
-                  {chatMessages.length === 0 ? (
-                    <div className="text-center text-slate-500 dark:text-slate-400 py-8">
-                      <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">
-                        Ask questions about the content or click on AI
-                        concepts to learn more
-                      </p>
-                      {timeCapsuleData && (
-                        <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
-                          Connected to your TimeCapsule knowledge
-                        </p>
-                      )}
-                      {!isCreationMode &&
-                        isVoiceEnabled &&
-                        !userHasInteracted && (
-                          <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
-                            🎙️ Click anywhere to enable voice narration
-                          </p>
-                        )}
-                      {!isCreationMode &&
-                        isVoiceEnabled &&
-                        userHasInteracted && (
-                          <p className="text-xs mt-2 text-green-600 dark:text-green-400">
-                            🎙️ Voice narration enabled - Navigate frames to
-                            hear explanations
-                          </p>
-                        )}
-                    </div>
-                  ) : (
-                    chatMessages.map((message, index) => (
-                      <div
-                        key={index}
-                        className={`flex ${
-                          message.role === "user"
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[80%] p-3 rounded-lg ${
-                            message.role === "user"
-                              ? "bg-blue-600 text-white"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                          }`}
-                        >
-                          <div className="text-sm whitespace-pre-wrap">
-                            {message.content}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleChatSubmit()}
-                  placeholder="Ask about the content..."
-                  className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
-                />
-                <Button size="sm" onClick={handleChatSubmit}>
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
-              {/* Main Content Area */}
-        <div className="flex-1 overflow-auto h-screen">
-          <div className="p-6">
-            {/* Conditional rendering based on graph view */}
-            {showGraphView ? (
-              /* Graph View */
-              <FrameGraphIntegration
-                frames={frames}
-                onFramesChange={setFrames as any} // TODO: Fix type compatibility after updating FrameGraphIntegration
-                isCreationMode={isCreationMode}
-                currentFrameIndex={currentFrameIndex}
-                onFrameIndexChange={setCurrentFrameIndex}
-                                    onCreateFrame={() => setShowCreationForm(true)}
-                onTimeCapsuleUpdate={handleTimeCapsuleUpdate}
-              />
-            ) : (
-              /* Traditional Linear View */
-              <div className="max-w-4xl mx-auto space-y-6">
-                {/* Creation Mode Panel */}
-                {isCreationMode && (
-                  <Card className="border-2 border-dashed border-blue-300 dark:border-blue-600">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Wand2 className="h-5 w-5 text-blue-600" />
-                        AI Frame Creation
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {showCreationForm ? (
-                        <div className="max-w-2xl mx-auto text-left">
-                          <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold">Create New AI Frame</h2>
-                            <Button 
-                              variant="ghost" 
-                              onClick={() => setShowCreationForm(false)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              ✕ Cancel
-                            </Button>
-                          </div>
-                          <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            Generate a new learning frame with AI assistance
-                          </p>
-                          
-                          <div className="space-y-6">
-                            <div>
-                              <Label htmlFor="goal" className="text-base font-medium">Learning Goal</Label>
-                              <Textarea
-                                id="goal"
-                                placeholder="What should learners understand after this frame?"
-                                value={newFrameData.goal}
-                                onChange={(e) => setNewFrameData({ ...newFrameData, goal: e.target.value })}
-                                rows={4}
-                                className="mt-2"
-                              />
-                            </div>
-                            
-                            <div>
-                              <Label htmlFor="videoUrl" className="text-base font-medium">Video URL</Label>
-                              <Input
-                                id="videoUrl"
-                                placeholder="https://youtube.com/watch?v=..."
-                                value={newFrameData.videoUrl}
-                                onChange={(e) => setNewFrameData({ ...newFrameData, videoUrl: e.target.value })}
-                                className="mt-2"
-                              />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="startTime" className="text-base font-medium">Start Time (seconds)</Label>
-                                <Input
-                                  id="startTime"
-                                  type="number"
-                                  placeholder="0"
-                                  value={newFrameData.startTime || ""}
-                                  onChange={(e) => setNewFrameData({ ...newFrameData, startTime: parseInt(e.target.value) || 0 })}
-                                  className="mt-2"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="duration" className="text-base font-medium">Duration (seconds)</Label>
-                                <Input
-                                  id="duration"
-                                  type="number"
-                                  placeholder="300"
-                                  value={newFrameData.duration || ""}
-                                  onChange={(e) => setNewFrameData({ ...newFrameData, duration: parseInt(e.target.value) || 300 })}
-                                  className="mt-2"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-end gap-3 pt-4">
-                              <Button
-                                variant="outline"
-                                onClick={() => setShowCreationForm(false)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button 
-                                onClick={() => {
-                                  handleCreateFrame();
-                                  setShowCreationForm(false);
-                                }} 
-                                disabled={isGeneratingFrame}
-                              >
-                                {isGeneratingFrame ? (
-                                  <>
-                                    <Wand2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Creating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Create Frame
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center py-8">
-                          <Button
-                            onClick={() => setShowCreationForm(true)}
-                            size="lg"
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                          >
-                            <Plus className="h-5 w-5 mr-2" />
-                            Create New AI Frame
-                          </Button>
-                        </div>
-                      )}
-                      {timeCapsuleData && (
-                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Database className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium">
-                              Connected to TimeCapsule
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-600 dark:text-slate-400">
-                            {timeCapsuleData.research?.topics?.length || 0} research
-                            topics •
-                            {vectorStore
-                              ? " Knowledge base connected"
-                              : " No knowledge base"}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
+              {/* Mode Controls */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Mode & View</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Mode Toggle */}
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="mode-toggle"
+                      className="text-sm font-medium"
+                    >
+                      Mode
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="mode-toggle"
+                        checked={isCreationMode}
+                        onCheckedChange={(checked) => {
+                          setIsCreationMode(checked);
+                          pageAnalytics.trackFeatureUsage("mode_switch", {
+                            mode: checked ? "creation" : "learning",
+                            current_frame: currentFrameIndex,
+                            total_frames: frames.length,
+                          });
+                        }}
+                      />
+                      <Badge
+                        variant={isCreationMode ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {isCreationMode ? (
+                          <Edit3 className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Eye className="h-3 w-3 mr-1" />
+                        )}
+                        {isCreationMode ? "Create" : "Learn"}
+                      </Badge>
+                    </div>
+                  </div>
 
-                {/* Frame Content - Only show if frames exist */}
-                {frames.length > 0 && currentFrame && (
-                  <>
-                    {/* Frame Header */}
-                    <Card>
-                  <CardHeader>
+                  {/* Graph View Toggle - Enhanced */}
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="graph-toggle"
+                      className="text-sm font-medium"
+                    >
+                      View Mode
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="graph-toggle"
+                        checked={showGraphView}
+                        onCheckedChange={(checked) => {
+                          setShowGraphView(checked);
+                          pageAnalytics.trackFeatureUsage("graph_view_toggle", {
+                            enabled: checked,
+                            mode: isCreationMode ? "creation" : "learning",
+                            current_frame: currentFrameIndex,
+                          });
+                        }}
+                      />
+                      <Badge
+                        variant={showGraphView ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {showGraphView ? (
+                          <Network className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Database className="h-3 w-3 mr-1" />
+                        )}
+                        {showGraphView ? "Dual-Pane" : "Linear Only"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Graph View Description */}
+                  {showGraphView && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                      💡 Dual-pane mode: Graph view (left) + Linear view (right)
+                      with full sync
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Voice Controls - Only in Learn Mode */}
+              {!isCreationMode && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Voice Controls</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Badge variant="secondary">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatTime(currentFrame.duration)}
-                        </Badge>
-                        {currentFrame.isGenerated && (
-                          <Badge variant="default" className="bg-purple-500">
-                            <Wand2 className="h-3 w-3 mr-1" />
-                            AI Generated
+                      <Label
+                        htmlFor="voice-toggle"
+                        className="text-sm font-medium flex items-center gap-2"
+                      >
+                        {isVoiceEnabled ? (
+                          <Volume2 className="h-4 w-4" />
+                        ) : (
+                          <VolumeX className="h-4 w-4" />
+                        )}
+                        Voice
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="voice-toggle"
+                          checked={isVoiceEnabled}
+                          onCheckedChange={(checked) => {
+                            setIsVoiceEnabled(checked);
+                            if (!checked) {
+                              stopSpeaking();
+                            }
+                            if (!userHasInteracted) {
+                              setUserHasInteracted(true);
+                            }
+                            pageAnalytics.trackFeatureUsage("voice_toggle", {
+                              enabled: checked,
+                              tts_ready: ttsReady,
+                              current_frame: currentFrameIndex,
+                            });
+                          }}
+                        />
+                        {isSpeaking && (
+                          <Badge
+                            variant="default"
+                            className="bg-green-500 animate-pulse text-xs"
+                          >
+                            <Mic className="h-3 w-3 mr-1" />
+                            Speaking
                           </Badge>
                         )}
                       </div>
+                    </div>
+
+                    {!userHasInteracted && isVoiceEnabled && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-yellow-50 dark:bg-yellow-900/20 w-full justify-center"
+                      >
+                        Click to enable
+                      </Badge>
+                    )}
+
+                    {isVoiceEnabled && (
                       <div className="flex items-center gap-2">
-                        {isCreationMode && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditFrame(currentFrame)}
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteFrame(currentFrame.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowVoiceSettings(true);
+                            if (!userHasInteracted) {
+                              setUserHasInteracted(true);
+                            }
+                          }}
+                          className="flex-1"
+                        >
+                          <Sliders className="h-4 w-4 mr-2" />
+                          Settings
+                        </Button>
+                        {selectedVoice && (
+                          <Badge variant="outline" className="text-xs">
+                            {selectedVoice.name.split(" ")[0]}
+                          </Badge>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={prevFrame}
-                          disabled={currentFrameIndex === 0}
-                        >
-                          <SkipBack className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={nextFrame}
-                          disabled={currentFrameIndex === frames.length - 1}
-                        >
-                          <SkipForward className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <CardTitle className="text-2xl">{currentFrame.title}</CardTitle>
-                  </CardHeader>
-                </Card>
-
-                {/* Goal Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-blue-600" />
-                      Learning Goal
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                      {currentFrame.goal}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Information Text */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-green-600" />
-                      Context & Background
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="prose prose-slate dark:prose-invert max-w-none">
-                      {currentFrame.informationText
-                        .split("\n")
-                        .map((paragraph, index) => (
-                          <p key={index} className="mb-4 leading-relaxed">
-                            {paragraph.trim()}
-                          </p>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Video Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Video className="h-5 w-5 text-purple-600" />
-                      Video Content
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                                      <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-                    {embedUrl ? (
-                      <iframe
-                        ref={videoRef}
-                        src={embedUrl}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700">
-                        <div className="text-center">
-                          <Video className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
-                            No video available
-                          </p>
-                        </div>
                       </div>
                     )}
-                  </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="text-sm text-slate-600 dark:text-slate-400">
-                        Playing from {formatTime(currentFrame.startTime)} for{" "}
-                        {formatTime(currentFrame.duration)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isCreationMode && isVoiceEnabled && (
-                          <>
-                            {isSpeaking ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={stopSpeaking}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Pause className="h-4 w-4 mr-2" />
-                                Stop Voice
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleReplayNarration}
-                                disabled={!ttsReady}
-                              >
-                                <Volume2 className="h-4 w-4 mr-2" />
-                                Replay Narration
-                              </Button>
-                            )}
-                          </>
+
+                    {/* Auto-advance toggle */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <Label
+                        htmlFor="auto-advance"
+                        className="text-sm font-medium"
+                      >
+                        Auto-advance
+                      </Label>
+                      <Switch
+                        id="auto-advance"
+                        checked={autoAdvanceEnabled}
+                        onCheckedChange={setAutoAdvanceEnabled}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Frame Navigation */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center justify-between">
+                    Frame Navigation
+                    {isCreationMode && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCreationForm(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {frames.map((frame, index) => (
+                      <div
+                        key={frame.id}
+                        className={`relative transition-all duration-200 ${
+                          dragOverIndex === index
+                            ? "transform scale-105 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                            : ""
+                        } ${draggedFrameId === frame.id ? "opacity-50" : ""}`}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <div
+                          className={`flex items-center gap-2 ${
+                            isCreationMode ? "cursor-move" : ""
+                          }`}
+                          draggable={isCreationMode}
+                          onDragStart={(e) =>
+                            handleDragStart(e, frame.id, index)
+                          }
+                        >
+                          {isCreationMode && (
+                            <div className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                              <GripVertical className="h-4 w-4" />
+                            </div>
+                          )}
+                          <Button
+                            variant={
+                              index === currentFrameIndex
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() => {
+                              setCurrentFrameIndex(index);
+                              // Emit event to sync with graph view
+                              if (typeof window !== "undefined") {
+                                window.dispatchEvent(
+                                  new CustomEvent("frame-navigation-selected", {
+                                    detail: {
+                                      frameId: frame.id,
+                                      frameIndex: index,
+                                      frameTitle: frame.title,
+                                    },
+                                  })
+                                );
+                              }
+                              console.log("🔄 Frame Navigation → Graph sync:", {
+                                frameId: frame.id,
+                                frameIndex: index,
+                                frameTitle: frame.title,
+                              });
+                            }}
+                            className="flex-1 justify-start text-left h-auto p-3"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-xs">
+                                  Frame {index + 1}
+                                </span>
+                                {frame.isGenerated && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    <Wand2 className="h-2 w-2 mr-1" />
+                                    AI
+                                  </Badge>
+                                )}
+                                {showGraphView &&
+                                  index === currentFrameIndex && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs bg-purple-500"
+                                    >
+                                      <Network className="h-2 w-2 mr-1" />
+                                      Synced
+                                    </Badge>
+                                  )}
+                              </div>
+                              <div className="text-xs opacity-75 truncate">
+                                {frame.title}
+                              </div>
+                            </div>
+                          </Button>
+                        </div>
+                        {isCreationMode && (
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditFrame(frame);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* AI Assistant */}
+              <Card className="flex-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4 text-blue-600" />
+                    AI Assistant
+                    {deepResearchApp && (
+                      <Badge variant="outline" className="text-xs">
+                        <Database className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col h-64">
+                  {/* Current Narration Display */}
+                  {isSpeaking && currentNarration && (
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Mic className="h-4 w-4 text-blue-600 animate-pulse" />
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          Currently Speaking:
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 line-clamp-3">
+                        {currentNarration}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Auto-advance Countdown */}
+                  {autoAdvanceCountdown > 0 && (
+                    <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-orange-600 animate-pulse" />
+                          <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                            Auto-advancing in {autoAdvanceCountdown} seconds...
+                          </span>
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setShowAIConcepts(!showAIConcepts)}
+                          onClick={cancelAutoAdvance}
+                          className="text-orange-600 hover:text-orange-700 border-orange-300"
                         >
-                          <Brain className="h-4 w-4 mr-2" />
-                          AI Concepts
+                          Cancel
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
 
-                {/* AI Concepts (triggered by video pause or user action) */}
-                {showAIConcepts && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Lightbulb className="h-5 w-5 text-yellow-600" />
-                        Related Concepts
-                        {timeCapsuleData && (
-                          <Badge variant="outline" className="ml-2">
-                            <Database className="h-3 w-3 mr-1" />
-                            KB Connected
-                          </Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {currentFrame.aiConcepts.map((concept, index) => (
-                          <Button
-                            key={index}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleConceptClick(concept)}
-                            className="h-auto p-3 text-left justify-start"
-                          >
-                            <Brain className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <span className="text-sm">{concept}</span>
-                          </Button>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* After Video Text */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ArrowRight className="h-5 w-5 text-indigo-600" />
-                      Key Takeaways
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="prose prose-slate dark:prose-invert max-w-none">
-                      {currentFrame.afterVideoText
-                        .split("\n")
-                        .map((paragraph, index) => (
-                          <p key={index} className="mb-4 leading-relaxed">
-                            {paragraph.trim()}
+                  <ScrollArea className="flex-1 mb-4">
+                    <div className="space-y-4">
+                      {chatMessages.length === 0 ? (
+                        <div className="text-center text-slate-500 dark:text-slate-400 py-8">
+                          <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">
+                            Ask questions about the content or click on AI
+                            concepts to learn more
                           </p>
-                        ))}
+                          {timeCapsuleData && (
+                            <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
+                              Connected to your TimeCapsule knowledge
+                            </p>
+                          )}
+                          {!isCreationMode &&
+                            isVoiceEnabled &&
+                            !userHasInteracted && (
+                              <p className="text-xs mt-2 text-yellow-600 dark:text-yellow-400">
+                                🎙️ Click anywhere to enable voice narration
+                              </p>
+                            )}
+                          {!isCreationMode &&
+                            isVoiceEnabled &&
+                            userHasInteracted && (
+                              <p className="text-xs mt-2 text-green-600 dark:text-green-400">
+                                🎙️ Voice narration enabled - Navigate frames to
+                                hear explanations
+                              </p>
+                            )}
+                        </div>
+                      ) : (
+                        chatMessages.map((message, index) => (
+                          <div
+                            key={index}
+                            className={`flex ${
+                              message.role === "user"
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[80%] p-3 rounded-lg ${
+                                message.role === "user"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                              }`}
+                            >
+                              <div className="text-sm whitespace-pre-wrap">
+                                {message.content}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-                  </>
-                )}
-              </div>
-            )}
+                  </ScrollArea>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && handleChatSubmit()
+                      }
+                      placeholder="Ask about the content..."
+                      className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
+                    />
+                    <Button size="sm" onClick={handleChatSubmit}>
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-auto h-screen">
+            <div className="p-6">
+              {/* Conditional rendering based on graph view */}
+              {showGraphView ? (
+                /* Graph View */
+                <FrameGraphIntegration
+                  frames={frames}
+                  onFramesChange={setFrames as any} // TODO: Fix type compatibility after updating FrameGraphIntegration
+                  isCreationMode={isCreationMode}
+                  currentFrameIndex={currentFrameIndex}
+                  onFrameIndexChange={setCurrentFrameIndex}
+                  onCreateFrame={() => setShowCreationForm(true)}
+                  onTimeCapsuleUpdate={handleTimeCapsuleUpdate}
+                />
+              ) : (
+                /* Traditional Linear View */
+                <div className="max-w-4xl mx-auto space-y-6">
+                  {/* Creation Mode Panel */}
+                  {isCreationMode && (
+                    <Card className="border-2 border-dashed border-blue-300 dark:border-blue-600">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Wand2 className="h-5 w-5 text-blue-600" />
+                          AI Frame Creation
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {showCreationForm ? (
+                          <div className="max-w-2xl mx-auto text-left">
+                            <div className="flex items-center justify-between mb-6">
+                              <h2 className="text-2xl font-bold">
+                                Create New AI Frame
+                              </h2>
+                              <Button
+                                variant="ghost"
+                                onClick={() => setShowCreationForm(false)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                ✕ Cancel
+                              </Button>
+                            </div>
+                            <p className="text-gray-600 dark:text-gray-400 mb-6">
+                              Generate a new learning frame with AI assistance
+                            </p>
+
+                            <div className="space-y-6">
+                              <div>
+                                <Label
+                                  htmlFor="goal"
+                                  className="text-base font-medium"
+                                >
+                                  Learning Goal
+                                </Label>
+                                <Textarea
+                                  id="goal"
+                                  placeholder="What should learners understand after this frame?"
+                                  value={newFrameData.goal}
+                                  onChange={(e) =>
+                                    setNewFrameData({
+                                      ...newFrameData,
+                                      goal: e.target.value,
+                                    })
+                                  }
+                                  rows={4}
+                                  className="mt-2"
+                                />
+                              </div>
+
+                              <div>
+                                <Label
+                                  htmlFor="videoUrl"
+                                  className="text-base font-medium"
+                                >
+                                  Video URL
+                                </Label>
+                                <Input
+                                  id="videoUrl"
+                                  placeholder="https://youtube.com/watch?v=..."
+                                  value={newFrameData.videoUrl}
+                                  onChange={(e) =>
+                                    setNewFrameData({
+                                      ...newFrameData,
+                                      videoUrl: e.target.value,
+                                    })
+                                  }
+                                  className="mt-2"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label
+                                    htmlFor="startTime"
+                                    className="text-base font-medium"
+                                  >
+                                    Start Time (seconds)
+                                  </Label>
+                                  <Input
+                                    id="startTime"
+                                    type="number"
+                                    placeholder="0"
+                                    value={newFrameData.startTime || ""}
+                                    onChange={(e) =>
+                                      setNewFrameData({
+                                        ...newFrameData,
+                                        startTime:
+                                          parseInt(e.target.value) || 0,
+                                      })
+                                    }
+                                    className="mt-2"
+                                  />
+                                </div>
+                                <div>
+                                  <Label
+                                    htmlFor="duration"
+                                    className="text-base font-medium"
+                                  >
+                                    Duration (seconds)
+                                  </Label>
+                                  <Input
+                                    id="duration"
+                                    type="number"
+                                    placeholder="300"
+                                    value={newFrameData.duration || ""}
+                                    onChange={(e) =>
+                                      setNewFrameData({
+                                        ...newFrameData,
+                                        duration:
+                                          parseInt(e.target.value) || 300,
+                                      })
+                                    }
+                                    className="mt-2"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-3 pt-4">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowCreationForm(false)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    handleCreateFrame();
+                                    setShowCreationForm(false);
+                                  }}
+                                  disabled={isGeneratingFrame}
+                                >
+                                  {isGeneratingFrame ? (
+                                    <>
+                                      <Wand2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Creating...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Create Frame
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center py-8">
+                            <Button
+                              onClick={() => setShowCreationForm(true)}
+                              size="lg"
+                              className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                            >
+                              <Plus className="h-5 w-5 mr-2" />
+                              Create New AI Frame
+                            </Button>
+                          </div>
+                        )}
+                        {timeCapsuleData && (
+                          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Database className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium">
+                                Connected to TimeCapsule
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400">
+                              {timeCapsuleData.research?.topics?.length || 0}{" "}
+                              research topics •
+                              {vectorStore
+                                ? " Knowledge base connected"
+                                : " No knowledge base"}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Frame Content - Only show if frames exist */}
+                  {frames.length > 0 && currentFrame && (
+                    <>
+                      {/* Frame Header */}
+                      <Card>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Badge variant="secondary">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {formatTime(currentFrame.duration)}
+                              </Badge>
+                              {currentFrame.isGenerated && (
+                                <Badge
+                                  variant="default"
+                                  className="bg-purple-500"
+                                >
+                                  <Wand2 className="h-3 w-3 mr-1" />
+                                  AI Generated
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isCreationMode && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleEditFrame(currentFrame)
+                                    }
+                                  >
+                                    <Edit3 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteFrame(currentFrame.id)
+                                    }
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={prevFrame}
+                                disabled={currentFrameIndex === 0}
+                              >
+                                <SkipBack className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={nextFrame}
+                                disabled={
+                                  currentFrameIndex === frames.length - 1
+                                }
+                              >
+                                <SkipForward className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <CardTitle className="text-2xl">
+                            {currentFrame.title}
+                          </CardTitle>
+                        </CardHeader>
+                      </Card>
+
+                      {/* Goal Section */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Target className="h-5 w-5 text-blue-600" />
+                            Learning Goal
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {currentFrame.goal}
+                          </p>
+                        </CardContent>
+                      </Card>
+
+                      {/* Information Text */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <BookOpen className="h-5 w-5 text-green-600" />
+                            Context & Background
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="prose prose-slate dark:prose-invert max-w-none">
+                            {currentFrame.informationText
+                              .split("\n")
+                              .map((paragraph, index) => (
+                                <p key={index} className="mb-4 leading-relaxed">
+                                  {paragraph.trim()}
+                                </p>
+                              ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Video Section */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Video className="h-5 w-5 text-purple-600" />
+                            Video Content
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                            {embedUrl ? (
+                              <iframe
+                                ref={videoRef}
+                                src={embedUrl}
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+                                <div className="text-center">
+                                  <Video className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    No video available
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-4 flex items-center justify-between">
+                            <div className="text-sm text-slate-600 dark:text-slate-400">
+                              Playing from {formatTime(currentFrame.startTime)}{" "}
+                              for {formatTime(currentFrame.duration)}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {!isCreationMode && isVoiceEnabled && (
+                                <>
+                                  {isSpeaking ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={stopSpeaking}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Pause className="h-4 w-4 mr-2" />
+                                      Stop Voice
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleReplayNarration}
+                                      disabled={!ttsReady}
+                                    >
+                                      <Volume2 className="h-4 w-4 mr-2" />
+                                      Replay Narration
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setShowAIConcepts(!showAIConcepts)
+                                }
+                              >
+                                <Brain className="h-4 w-4 mr-2" />
+                                AI Concepts
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* AI Concepts (triggered by video pause or user action) */}
+                      {showAIConcepts && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Lightbulb className="h-5 w-5 text-yellow-600" />
+                              Related Concepts
+                              {timeCapsuleData && (
+                                <Badge variant="outline" className="ml-2">
+                                  <Database className="h-3 w-3 mr-1" />
+                                  KB Connected
+                                </Badge>
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {currentFrame.aiConcepts.map((concept, index) => (
+                                <Button
+                                  key={index}
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleConceptClick(concept)}
+                                  className="h-auto p-3 text-left justify-start"
+                                >
+                                  <Brain className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <span className="text-sm">{concept}</span>
+                                </Button>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* After Video Text */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <ArrowRight className="h-5 w-5 text-indigo-600" />
+                            Key Takeaways
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="prose prose-slate dark:prose-invert max-w-none">
+                            {currentFrame.afterVideoText
+                              .split("\n")
+                              .map((paragraph, index) => (
+                                <p key={index} className="mb-4 leading-relaxed">
+                                  {paragraph.trim()}
+                                </p>
+                              ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* Dialogs */}
       {/* BubblSpace Dialog */}
@@ -3609,7 +3967,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           setEditingBubblSpace(null);
         }}
         bubblSpace={editingBubblSpace}
-        onSave={editingBubblSpace ? handleEditBubblSpace : handleCreateBubblSpace}
+        onSave={
+          editingBubblSpace ? handleEditBubblSpace : handleCreateBubblSpace
+        }
         onDelete={handleDeleteBubblSpace}
         existingBubblSpaces={allBubblSpaces}
       />
@@ -3622,7 +3982,9 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           setEditingTimeCapsule(null);
         }}
         timeCapsule={editingTimeCapsule}
-        onSave={editingTimeCapsule ? handleEditTimeCapsule : handleCreateTimeCapsule}
+        onSave={
+          editingTimeCapsule ? handleEditTimeCapsule : handleCreateTimeCapsule
+        }
         onDelete={handleDeleteTimeCapsule}
         bubblSpaces={allBubblSpaces}
         defaultBubblSpaceId={currentBubblSpace?.id}
@@ -3642,12 +4004,6 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           hasVectorStoreData: true,
         }}
       />
-
-
-
-
-
-      
 
       {/* Voice Settings Dialog */}
       <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
@@ -3691,7 +4047,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 max="2"
                 step="0.1"
                 value={voiceSettings.rate}
-                onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                onChange={(e) =>
+                  setVoiceSettings((prev) => ({
+                    ...prev,
+                    rate: parseFloat(e.target.value),
+                  }))
+                }
                 className="w-full"
               />
               <div className="text-sm text-gray-600">
@@ -3707,7 +4068,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 max="2"
                 step="0.1"
                 value={voiceSettings.pitch}
-                onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                onChange={(e) =>
+                  setVoiceSettings((prev) => ({
+                    ...prev,
+                    pitch: parseFloat(e.target.value),
+                  }))
+                }
                 className="w-full"
               />
               <div className="text-sm text-gray-600">
@@ -3786,17 +4152,23 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       </Dialog>
 
       {/* Delete Frame Confirmation Dialog */}
-      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+      <AlertDialog
+        open={showDeleteConfirmation}
+        onOpenChange={setShowDeleteConfirmation}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Frame</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this frame? This action cannot be undone.
+              Are you sure you want to delete this frame? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDeleteFrame}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel onClick={cancelDeleteFrame}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={confirmDeleteFrame}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
@@ -3807,19 +4179,29 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       </AlertDialog>
 
       {/* Clear All Frames Confirmation Dialog */}
-      <AlertDialog open={showClearAllConfirmation} onOpenChange={setShowClearAllConfirmation}>
+      <AlertDialog
+        open={showClearAllConfirmation}
+        onOpenChange={setShowClearAllConfirmation}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Clear All AI Frames</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to clear all {frames.length} AI frames? This action cannot be undone.
-              <br /><br />
-              <strong>This will also remove all AI-Frames from the Knowledge Base and keep them cleared even after page reload.</strong>
+              Are you sure you want to clear all {frames.length} AI frames? This
+              action cannot be undone.
+              <br />
+              <br />
+              <strong>
+                This will also remove all AI-Frames from the Knowledge Base and
+                keep them cleared even after page reload.
+              </strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelClearAllFrames}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel onClick={cancelClearAllFrames}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={confirmClearAllFrames}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

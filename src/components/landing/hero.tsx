@@ -7,7 +7,6 @@ import { ArrowRight, ChevronDown, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedGroup } from "@/components/ui/animated-group";
-import { Navbar } from "@/components/ui/navbar";
 
 const transitionVariants = {
   item: {
@@ -55,7 +54,6 @@ const majorFeatures = [
 export function HeroSection() {
   return (
     <>
-      <Navbar />
       <main className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900 min-h-screen">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -118,9 +116,17 @@ export function HeroSection() {
                   </div>
                   <div className="text-lg md:text-xl lg:text-2xl font-medium text-gray-600 dark:text-gray-400 mt-3">
                     for{" "}
-                    <span className="text-blue-600 dark:text-blue-400 font-semibold">Research</span>,{" "}
-                    <span className="text-purple-600 dark:text-purple-400 font-semibold">Creativity</span>, and{" "}
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Collaboration</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                      Research
+                    </span>
+                    ,{" "}
+                    <span className="text-purple-600 dark:text-purple-400 font-semibold">
+                      Creativity
+                    </span>
+                    , and{" "}
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                      Collaboration
+                    </span>
                   </div>
                 </div>
 
