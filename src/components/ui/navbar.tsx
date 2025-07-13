@@ -42,7 +42,7 @@ function AuthSection({ isScrolled }: { isScrolled: boolean }) {
     return (
       <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
         <Button
-          onClick={() => router.push("/auth/signin")}
+          onClick={() => signIn()}
           size="sm"
           variant="outline"
           className="gap-2 bg-background/50 backdrop-blur-sm border-primary/20 hover:bg-primary/5"

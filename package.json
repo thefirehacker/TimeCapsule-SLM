@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.844.0",
+    "@aws-sdk/lib-dynamodb": "^3.844.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -22,6 +24,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tabs": "^1.1.12",
+    "@react-email/components": "^0.3.1",
     "@tailwindcss/postcss": "^4",
     "@tiptap/extension-code-block-lowlight": "^2.25.0",
     "@tiptap/extension-color": "^2.25.0",
@@ -40,6 +43,7 @@
     "@types/react-dom": "^19",
     "@xenova/transformers": "^2.17.2",
     "@xyflow/react": "^12.8.1",
+    "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -54,6 +58,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-resizable-panels": "^3.0.3",
+    "resend": "^4.6.0",
     "rxdb": "^16.15.0",
     "rxjs": "^7.8.2",
     "sonner": "^2.0.6",

@@ -1,10 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
 import Link from "next/link";
-import { Github } from "lucide-react";
+import { Github, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 function GoogleIcon() {
   return (
@@ -29,7 +41,138 @@ function GoogleIcon() {
   );
 }
 
+interface CredentialsFormData {
+  email: string;
+  password: string;
+}
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+  general?: string;
+}
+
 export default function SignInPage() {
+  const [formData, setFormData] = useState<CredentialsFormData>({
+    email: "",
+    password: "",
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const result = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        // Handle specific error messages
+        if (result.error.includes("verify your email")) {
+          setErrors({
+            general:
+              "Please verify your email address before signing in. Check your inbox for the verification link.",
+          });
+        } else if (result.error.includes("suspended")) {
+          setErrors({
+            general:
+              "Your account has been suspended. Please contact support for assistance.",
+          });
+        } else if (result.error.includes("No account found")) {
+          setErrors({
+            general:
+              "No account found with this email address. Please check your email or create a new account.",
+          });
+        } else if (result.error.includes("Invalid password")) {
+          setErrors({
+            password: "Invalid password. Please try again.",
+          });
+        } else {
+          setErrors({
+            general: result.error || "Sign in failed. Please try again.",
+          });
+        }
+      } else if (result?.ok) {
+        // Successful sign in
+        window.location.href = "/";
+      }
+    } catch (error) {
+      console.error("Sign in error:", error);
+      setErrors({ general: "An unexpected error occurred. Please try again." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (
+    field: keyof CredentialsFormData,
+    value: string
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setErrors({ email: "Please enter your email address first" });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Password reset email sent! Please check your inbox.");
+        setErrors({});
+      } else {
+        setErrors({ general: data.error || "Failed to send reset email" });
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      setErrors({ general: "An unexpected error occurred. Please try again." });
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 p-4">
       <div className="w-full max-w-md">
@@ -50,30 +193,144 @@ export default function SignInPage() {
               </span>
             </div>
           </Link>
-
           <p className="text-gray-600 dark:text-gray-400">
             Sign in to continue your AI-powered innovation journey
           </p>
         </div>
 
-        {/* Sign In Buttons */}
-        <div className="space-y-4">
-          {/* Google */}
-          <Button
-            onClick={() => signIn("google", { callbackUrl: "/" })}
-            className="w-full h-12 gap-3 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400"
-          >
-            <GoogleIcon /> Continue with Google
-          </Button>
+        {/* Sign In Options */}
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle>Welcome Back</CardTitle>
+            <CardDescription>
+              Choose your preferred sign in method
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="oauth" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="oauth">Quick Sign In</TabsTrigger>
+                <TabsTrigger value="credentials">Email & Password</TabsTrigger>
+              </TabsList>
 
-          {/* GitHub */}
-          <Button
-            onClick={() => signIn("github", { callbackUrl: "/" })}
-            className="w-full h-12 gap-3 text-base font-medium bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
-          >
-            <Github className="h-5 w-5" /> Continue with GitHub
-          </Button>
-        </div>
+              <TabsContent value="oauth" className="space-y-4 mt-6">
+                {/* Google */}
+                <Button
+                  onClick={() => signIn("google", { callbackUrl: "/" })}
+                  className="w-full h-12 gap-3 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400"
+                >
+                  <GoogleIcon /> Continue with Google
+                </Button>
+
+                {/* GitHub */}
+                <Button
+                  onClick={() => signIn("github", { callbackUrl: "/" })}
+                  className="w-full h-12 gap-3 text-base font-medium bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
+                >
+                  <Github className="h-5 w-5" /> Continue with GitHub
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="credentials" className="space-y-4 mt-6">
+                <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+                  {errors.general && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{errors.general}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
+                      className={
+                        errors.email
+                          ? "border-red-500 focus:border-red-500"
+                          : ""
+                      }
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-red-500">{errors.email}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={formData.password}
+                        onChange={(e) =>
+                          handleInputChange("password", e.target.value)
+                        }
+                        className={
+                          errors.password
+                            ? "border-red-500 focus:border-red-500"
+                            : ""
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-sm text-red-500">{errors.password}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-base font-medium"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing in..." : "Sign In"}
+                  </Button>
+                </form>
+
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Don't have an account?{" "}
+                    <Link
+                      href="/auth/signup"
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                    >
+                      Create one
+                    </Link>
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Legal Links */}
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-8">
