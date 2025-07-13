@@ -22,6 +22,12 @@ frontend:
         - echo "AUTH_GOOGLE_ID is ${AUTH_GOOGLE_ID:+set}"
         - echo "AUTH_GOOGLE_SECRET is ${AUTH_GOOGLE_SECRET:+set}"
         - echo "NEXTAUTH_URL is ${NEXTAUTH_URL:+set}"
+        - echo "🗄️ Database variables check..."
+        - echo "AWS_REGION is ${AWS_REGION:+set}"
+        - echo "AWS_ACCESS_KEY_ID is ${AWS_ACCESS_KEY_ID:+set}"
+        - echo "AWS_SECRET_ACCESS_KEY is ${AWS_SECRET_ACCESS_KEY:+set}"
+        - echo "📧 Email service variables check..."
+        - echo "RESEND_API_KEY is ${RESEND_API_KEY:+set}"
     build:
       commands:
         - echo "🔨 Building Next.js application..."
@@ -35,6 +41,11 @@ frontend:
         - echo "NEXTAUTH_SECRET=$AUTH_SECRET" >> .env.production
         - echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
         - echo "NODE_ENV=production" >> .env.production
+        - echo "AWS_REGION=$AWS_REGION" >> .env.production
+        - echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> .env.production
+        - echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> .env.production
+        - echo "RESEND_API_KEY=$RESEND_API_KEY" >> .env.production
+        - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL" >> .env.production
         - echo "✅ Environment variables written to .env.production"
         - echo "🔍 Verifying .env.production contents:"
         - cat .env.production
@@ -52,35 +63,35 @@ frontend:
   artifacts:
     baseDirectory: .next
     files:
-      - '**/*'
-      - '.env.production'
+      - "**/*"
+      - ".env.production"
   cache:
     paths:
       - node_modules/**/*
       - .next/cache/**/*
       - .npm/**/*
   customHeaders:
-    - pattern: '**/*'
+    - pattern: "**/*"
       headers:
-        - key: 'X-Frame-Options'
-          value: 'DENY'
-        - key: 'X-XSS-Protection'
-          value: '1; mode=block'
-        - key: 'X-Content-Type-Options'
-          value: 'nosniff'
-        - key: 'Referrer-Policy'
-          value: 'strict-origin-when-cross-origin'
-        - key: 'Permissions-Policy'
-          value: 'camera=(), microphone=(), geolocation=()'
-    - pattern: '/favicon.ico'
+        - key: "X-Frame-Options"
+          value: "DENY"
+        - key: "X-XSS-Protection"
+          value: "1; mode=block"
+        - key: "X-Content-Type-Options"
+          value: "nosniff"
+        - key: "Referrer-Policy"
+          value: "strict-origin-when-cross-origin"
+        - key: "Permissions-Policy"
+          value: "camera=(), microphone=(), geolocation=()"
+    - pattern: "/favicon.ico"
       headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=86400'
-    - pattern: '/Media/**/*'
+        - key: "Cache-Control"
+          value: "public, max-age=86400"
+    - pattern: "/Media/**/*"
       headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=31536000, immutable'
-    - pattern: '/_next/static/**/*'
+        - key: "Cache-Control"
+          value: "public, max-age=31536000, immutable"
+    - pattern: "/_next/static/**/*"
       headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=31536000, immutable' 
+        - key: "Cache-Control"
+          value: "public, max-age=31536000, immutable"
