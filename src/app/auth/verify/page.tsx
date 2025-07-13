@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 
-export default function VerifyEmailPage() {
+export function VerifyEmailPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -279,5 +279,13 @@ export default function VerifyEmailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense>
+      <VerifyEmailPageContent />
+    </Suspense>
   );
 }
