@@ -1,80 +1,75 @@
-# Implementation Plan - UI Fixes for Deep Research
+### SEO Implementation Plan for TimeCapsuleSLM
 
-## Current Status
-✅ Intent Understanding System Complete
-✅ Agent Coordination System Complete  
-✅ Research Type Simplification Complete
-✅ AI Provider Updates Complete
-✅ Full Screen Fix for formatMarkdownToHTML Complete
+This plan outlines the steps to improve the Search Engine Optimization (SEO) of the TimeCapsuleSLM application.
 
-## Completed Issues
+#### **Part 1: Metadata and SEO Basics**
 
-### 1. Disconnect AI Button ✅
-**Problem**: Missing disconnect AI button in the UI
-**Solution**: Added disconnect button to ControlsPanel when AI is connected
+1.  **Generate `robots.txt`:** ✅ COMPLETED
+    - Created `src/app/robots.ts` file to generate `robots.txt`.
+    - Configured to allow crawlers to access most of the site while disallowing private routes like `/api/*` and specific `/auth/*` pages.
+    - Linked to the sitemap.
 
-**Changes Made**:
-- Added `onDisconnectAI` prop to ControlsPanelProps interface
-- Updated ControlsPanel component to show disconnect button when AI is connected
-- Added proper styling (red/warning color) for the disconnect button
-- Connected `onDisconnectAI` prop to existing `app.disconnectAI()` method in DeepResearchApp
-- Improved AI connection status display with integrated disconnect functionality
+2.  **Generate `sitemap.xml`:** ✅ COMPLETED
+    - Created `src/app/sitemap.ts` to dynamically generate a sitemap.
+    - Included main static pages: `/`, `/ai-frames`, `/ai-graphs`, `/deep-research`, `/auth/signin`, `/auth/signup`, `/privacy`, `/terms`.
+    - Set appropriate priorities and change frequencies.
 
-### 2. Research Output Full Screen/Scrollable ✅
-**Problem**: Research output modal not properly full screen and scrollable
-**Solution**: Fixed modal sizing and scrolling behavior
+3.  **Global Metadata Setup:** ✅ COMPLETED
+    - Updated `src/app/layout.tsx` with comprehensive metadata.
+    - Added `metadataBase`, title template, enhanced description, and keywords.
+    - Configured Open Graph and Twitter card information.
+    - Added verification codes and canonical URLs.
 
-**Changes Made**:
-- Changed modal content area from `overflow-hidden` to `ScrollArea` component
-- Updated RichTextEditor className from `h-full` to `min-h-[calc(95vh-8rem)]`
-- Improved modal size from 95vw/95vh to 98vw/98vh with explicit width
-- Added proper scrolling support for long research content
-- Maintained full screen functionality while ensuring content is scrollable
+#### **Part 2: Page-Level SEO Enhancements**
 
-## Implementation Details
+4.  **Homepage Metadata (`src/app/page.tsx`):** ✅ COMPLETED
+    - Added JSON-LD structured data with Organization, WebSite, and SoftwareApplication schemas.
+    - Enhanced with comprehensive feature descriptions and metadata.
 
-### Files Modified:
-1. **src/components/DeepResearch/ControlsPanel.tsx**
-   - Added `onDisconnectAI` prop to interface
-   - Updated component to show context-appropriate Connect/Disconnect buttons
-   - Styled disconnect button with red/warning appearance
-   - Improved AI connection status display
+5.  **AI-Frames Page Metadata (`src/app/ai-frames/page.tsx`):** ⏳ SKIPPED (User requested to skip page-specific metadata)
+    - Skipped as per user request to focus on global metadata only.
 
-2. **src/components/DeepResearch/DeepResearchApp.tsx**
-   - Added `onDisconnectAI={() => app.disconnectAI()}` prop to ControlsPanel usage
-   - Leveraged existing `disconnectAI()` method (no new implementation needed)
+6.  **Other Key Pages Metadata:** ⏳ SKIPPED (User requested to skip page-specific metadata)
+    - Skipped as per user request to focus on global metadata only.
 
-3. **src/components/DeepResearch/ResearchOutput.tsx**
-   - Fixed full screen modal content area scrolling
-   - Updated modal dimensions for better full screen experience
-   - Improved RichTextEditor sizing for proper content display
+#### **Part 3: Open Graph Image Generation**
 
-## Technical Implementation
+7.  **Default Open Graph Image:** ✅ COMPLETED
+    - Created `src/app/opengraph-image.tsx` with dynamic image generation.
+    - Features TimeCapsule branding with gradient background and key features.
+    - Optimized for social media sharing (1200x630px).
 
-### Disconnect AI Button
-- **UI State**: Button only appears when AI is connected
-- **Styling**: Red/warning color scheme to indicate disconnection action
-- **Functionality**: Calls existing `app.disconnectAI()` method
-- **Integration**: Seamlessly integrated with existing AI connection flow
+8.  **Homepage Open Graph Image:** ⏳ SKIPPED (Using default OG image)
+    - Using the default OG image for all pages as per user request.
 
-### Research Output Modal
-- **Modal Size**: 98vw x 98vh for near-full screen experience
-- **Scrolling**: Uses ScrollArea component for proper content scrolling
-- **Content Height**: Calculated height to account for header space
-- **Responsive**: Maintains functionality across different screen sizes
+#### **Part 4: Structured Data (JSON-LD)**
 
-## Testing Status
-🔄 **In Progress**: Development server running for testing both features
+9.  **Add JSON-LD to Homepage:** ✅ COMPLETED
+    - Added comprehensive JSON-LD structured data to `src/app/page.tsx`.
+    - Included Organization, WebSite, and SoftwareApplication schemas.
+    - Enhanced knowledge graph presence with detailed application information.
 
-## Next Steps
-- [x] Test disconnect AI button functionality
-- [x] Test research output modal full screen and scrolling
-- [x] Verify responsive behavior
-- [x] Confirm integration with existing workflows
+#### **Implementation Summary**
 
-## Success Criteria Met
-✅ Disconnect AI button added and properly styled
-✅ Research output modal is now properly full screen
-✅ Modal content is scrollable for long research results
-✅ All changes integrate seamlessly with existing functionality
-✅ No breaking changes to existing features 
+✅ **Completed:**
+
+- robots.txt generation
+- sitemap.xml generation
+- Global metadata in layout.tsx
+- Default Open Graph image
+- JSON-LD structured data for homepage
+
+⏳ **Skipped (as requested):**
+
+- Page-specific metadata for individual pages
+- Page-specific Open Graph images
+
+**SEO Best Practices Implemented:**
+
+- Proper robots.txt with sitemap reference
+- Dynamic sitemap with appropriate priorities
+- Comprehensive metadata with keywords and descriptions
+- Open Graph and Twitter card optimization
+- Structured data for better search engine understanding
+- Canonical URLs and verification codes
+- Mobile-friendly viewport configuration

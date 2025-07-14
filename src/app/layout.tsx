@@ -11,14 +11,39 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "DeepResearch TimeCapsule - AI-Powered Research Studio",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://timecapsuleslm.com"
+  ),
+  title: {
+    default: "TimeCapsule - AI-Powered Learning Platform",
+    template: "%s | TimeCapsule",
+  },
   description:
-    "Professional AI-powered research platform with advanced document analysis, vector search, and comprehensive research generation using multiple AI providers.",
-  keywords:
-    "AI research, document analysis, vector search, machine learning, academic research, market analysis",
+    "Transform your learning with TimeCapsule's AI-powered platform featuring AI-Frames, Deep Research, and Interactive Knowledge Graphs. Create personalized learning experiences with advanced AI technology.",
+  keywords: [
+    "AI learning platform",
+    "AI-Frames",
+    "Deep Research",
+    "Knowledge Graphs",
+    "Machine Learning",
+    "Educational Technology",
+    "Personalized Learning",
+    "AI-powered education",
+    "Interactive Learning",
+    "TimeCapsule",
+    "Learning Management System",
+  ],
   authors: [{ name: "FireHacker", url: "https://x.com/thefirehacker" }],
   creator: "FireHacker",
   publisher: "TimeCapsule",
+  category: "Education",
+  classification: "Educational Technology",
+  referrer: "origin-when-cross-origin",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
@@ -38,27 +63,28 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_SITE_URL,
-    siteName: "DeepResearch TimeCapsule",
-    title: "DeepResearch TimeCapsule - AI-Powered Research Studio",
+    url: "/",
+    siteName: "TimeCapsule",
+    title: "TimeCapsule - AI-Powered Learning Platform",
     description:
-      "Professional AI-powered research platform with advanced document analysis, vector search, and comprehensive research generation.",
+      "Transform your learning with AI-Frames, Deep Research, and Interactive Knowledge Graphs. Create personalized learning experiences with advanced AI technology.",
     images: [
       {
-        url: "/Media/TimeCapsule_04.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "DeepResearch TimeCapsule",
+        alt: "TimeCapsule - AI-Powered Learning Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "DeepResearch TimeCapsule - AI-Powered Research Studio",
+    title: "TimeCapsule - AI-Powered Learning Platform",
     description:
-      "Professional AI-powered research platform with advanced document analysis and research generation.",
-    images: ["/Media/TimeCapsule_04.png"],
+      "Transform your learning with AI-Frames, Deep Research, and Interactive Knowledge Graphs. Create personalized learning experiences with advanced AI technology.",
+    images: ["/opengraph-image"],
     creator: "@thefirehacker",
+    site: "@thefirehacker",
   },
   robots: {
     index: true,
@@ -70,6 +96,14 @@ export const metadata: Metadata = {
       "max-image-preview": "large",
       "max-snippet": -1,
     },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    yandex: process.env.YANDEX_VERIFICATION,
+    yahoo: process.env.YAHOO_VERIFICATION,
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 
