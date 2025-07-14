@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   Pause,
@@ -64,6 +65,9 @@ import {
   FolderPlus,
   ChevronDown,
   RefreshCcw,
+  FileText,
+  Bot,
+  X,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -79,6 +83,7 @@ import { FrameGraphIntegration } from "@/components/ai-graphs";
 import { BubblSpaceDialog } from "@/components/ui/bubblspace-dialog";
 import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
 import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
+import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
 import { getMetadataManager, MetadataManager } from "@/lib/MetadataManager";
 import {
   getGraphStorageManager,
@@ -247,6 +252,30 @@ export default function AIFramesPage() {
   // DeepResearch integration
   const [deepResearchApp, setDeepResearchApp] =
     useState<DeepResearchApp | null>(null);
+  
+  // Knowledge Base state
+  const [documentStatus, setDocumentStatus] = useState({
+    count: 0,
+    totalSize: 0,
+    vectorCount: 0,
+  });
+  const [showDocumentManager, setShowDocumentManager] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  
+  // Document Manager states
+  const [documentManagerTab, setDocumentManagerTab] = useState<string>("user");
+  const [documentSearchQuery, setDocumentSearchQuery] = useState<string>("");
+  const [showSemanticResults, setShowSemanticResults] = useState<boolean>(false);
+  const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
+  const [currentSemanticQuery, setCurrentSemanticQuery] = useState<string>("");
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchThreshold, setSearchThreshold] = useState<number>(0.1);
+  
+  // Document preview states
+  const [previewDocument, setPreviewDocument] = useState<any>(null);
+  const [showDocumentPreview, setShowDocumentPreview] = useState<boolean>(false);
+  const [showChunkView, setShowChunkView] = useState<boolean>(false);
+  const [currentChunk, setCurrentChunk] = useState<any>(null);
   const [vectorStore, setVectorStore] = useState<VectorStore | null>(null);
   const [timeCapsuleData, setTimeCapsuleData] = useState<any>(null);
 
@@ -2567,6 +2596,256 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     setShowClearAllConfirmation(false);
   };
 
+  // Knowledge Base handlers
+  const handleUploadDocuments = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files && deepResearchApp) {
+        deepResearchApp.handleFileUpload(files);
+      }
+    };
+    input.click();
+  };
+
+  const handleManageKnowledge = () => {
+    // Open the local Document Manager dialog
+    setShowDocumentManager(true);
+  };
+
+  const handleScrapeUrl = () => {
+    if (deepResearchApp) {
+      deepResearchApp.openFirecrawlModal();
+    }
+  };
+
+  const handleUploadRepository = () => {
+    // Repository upload logic - placeholder for now
+  };
+
+  // Update document status when vectorStore changes
+  useEffect(() => {
+    const updateDocumentStatus = async () => {
+      if (vectorStore && vectorStoreInitialized) {
+        try {
+          const stats = await vectorStore.getStats();
+          const documents = await vectorStore.getAllDocuments();
+          const totalSize = documents.reduce(
+            (sum, doc) => sum + (doc.metadata?.filesize || 0),
+            0
+          );
+
+          setDocumentStatus({
+            count: stats.documentCount,
+            totalSize: totalSize,
+            vectorCount: stats.vectorCount,
+          });
+          
+          setDocuments(documents);
+        } catch (error) {
+          console.error("Failed to update document status:", error);
+        }
+      }
+    };
+
+    updateDocumentStatus();
+  }, [vectorStore, vectorStoreInitialized]);
+
+  // Document Manager handlers
+  const handleKnowledgeBaseSearch = async () => {
+    if (!vectorStore || !documentSearchQuery.trim()) {
+      setShowSemanticResults(false);
+      setSemanticSearchResults([]);
+      setCurrentSemanticQuery("");
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await vectorStore.searchSimilar(
+        documentSearchQuery,
+        searchThreshold,
+        30
+      );
+
+      setSemanticSearchResults(results);
+      setCurrentSemanticQuery(documentSearchQuery);
+      setShowSemanticResults(results.length > 0);
+    } catch (error) {
+      console.error("KB Semantic search failed:", error);
+      setSemanticSearchResults([]);
+      setShowSemanticResults(false);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearKnowledgeBaseSearch = () => {
+    setDocumentSearchQuery("");
+    setShowSemanticResults(false);
+    setSemanticSearchResults([]);
+    setCurrentSemanticQuery("");
+  };
+
+  const handlePreviewDocument = async (docId: string) => {
+    if (!vectorStore) return;
+    
+    try {
+      const doc = await vectorStore.getDocument(docId);
+      if (doc) {
+        setPreviewDocument(doc);
+        setShowDocumentPreview(true);
+      }
+    } catch (error) {
+      console.error("Failed to preview document:", error);
+    }
+  };
+
+  const closeDocumentPreview = () => {
+    setShowDocumentPreview(false);
+    setPreviewDocument(null);
+  };
+
+  const handleViewChunk = (searchResult: any, document: any) => {
+    const chunkData = {
+      content: searchResult?.chunk?.content || "No content available",
+      similarity: searchResult?.similarity || 0,
+      chunkIndex: searchResult?.chunk?.id || "unknown",
+      documentId: searchResult?.document?.id || "unknown",
+      document: searchResult?.document || document || { title: "Unknown Document" },
+    };
+
+    setCurrentChunk(chunkData);
+    setShowChunkView(true);
+  };
+
+  const closeChunkView = () => {
+    setShowChunkView(false);
+    setCurrentChunk(null);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  // Document categorization
+  const categorizeDocuments = (docs: any[]) => {
+    const categories = {
+      user: [] as any[],
+      aiFrames: [] as any[],
+      system: [] as any[],
+      agentLogs: [] as any[],
+    };
+
+    docs.forEach((doc) => {
+      if (
+        doc.title.toLowerCase().includes("agent log") ||
+        doc.metadata.source === "research_state"
+      ) {
+        categories.agentLogs.push(doc);
+      } else if (
+        doc.metadata.source === "ai-frames" ||
+        doc.title.toLowerCase().includes("ai-frame")
+      ) {
+        categories.aiFrames.push(doc);
+      } else if (
+        doc.metadata.source === "timecapsule_export" ||
+        doc.metadata.source === "timecapsule_import" ||
+        doc.metadata.source === "aiframes_import" ||
+        doc.metadata.source === "aiframes_combined" ||
+        doc.title.toLowerCase().includes("timecapsule") ||
+        doc.metadata.isGenerated === true
+      ) {
+        categories.system.push(doc);
+      } else {
+        categories.user.push(doc);
+      }
+    });
+
+    return categories;
+  };
+
+  const getFilteredDocumentsByCategory = (category: string) => {
+    if (showSemanticResults && semanticSearchResults.length > 0) {
+      return getSemanticResultsByCategory(category);
+    }
+
+    const categorized = categorizeDocuments(documents);
+    const categoryDocs = categorized[category as keyof typeof categorized] || [];
+
+    if (!documentSearchQuery.trim()) {
+      return categoryDocs;
+    }
+
+    return categoryDocs.filter(
+      (doc) =>
+        doc.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
+        doc.metadata.description
+          ?.toLowerCase()
+          .includes(documentSearchQuery.toLowerCase())
+    );
+  };
+
+  const getSemanticResultsByCategory = (category: string) => {
+    return semanticSearchResults.filter((result) => {
+      const doc = result.document;
+      if (!doc) return false;
+
+      switch (category) {
+        case "user":
+          return !(
+            doc.title.toLowerCase().includes("agent log") ||
+            doc.metadata.source === "research_state" ||
+            doc.metadata.source === "ai-frames" ||
+            doc.title.toLowerCase().includes("ai-frame") ||
+            doc.metadata.source === "timecapsule_export" ||
+            doc.metadata.source === "timecapsule_import" ||
+            doc.metadata.source === "aiframes_import" ||
+            doc.metadata.source === "aiframes_combined" ||
+            doc.title.toLowerCase().includes("timecapsule") ||
+            doc.metadata.isGenerated === true
+          );
+        case "aiFrames":
+          return (
+            doc.metadata.source === "ai-frames" ||
+            doc.title.toLowerCase().includes("ai-frame")
+          );
+        case "system":
+          return (
+            doc.metadata.source === "timecapsule_export" ||
+            doc.metadata.source === "timecapsule_import" ||
+            doc.metadata.source === "aiframes_import" ||
+            doc.metadata.source === "aiframes_combined" ||
+            doc.title.toLowerCase().includes("timecapsule") ||
+            doc.metadata.isGenerated === true
+          );
+        case "agentLogs":
+          return (
+            doc.title.toLowerCase().includes("agent log") ||
+            doc.metadata.source === "research_state"
+          );
+        default:
+          return false;
+      }
+    });
+  };
+
+  const getDocumentCategoryCounts = () => {
+    const categorized = categorizeDocuments(documents);
+    return {
+      user: categorized.user.length,
+      aiFrames: categorized.aiFrames.length,
+      system: categorized.system.length,
+      agentLogs: categorized.agentLogs.length,
+    };
+  };
+
   const handleDragStart = (
     e: React.DragEvent,
     frameId: string,
@@ -3157,6 +3436,16 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                   )}
                 </CardContent>
               </Card>
+
+              {/* Knowledge Base Section */}
+              <KnowledgeBaseSection
+                documentStatus={documentStatus}
+                onUploadDocuments={handleUploadDocuments}
+                onManageKnowledge={handleManageKnowledge}
+                onScrapeUrl={handleScrapeUrl}
+                onUploadRepository={handleUploadRepository}
+                isCompact={true}
+              />
 
               {/* Voice Controls - Only in Learn Mode */}
               {!isCreationMode && (
@@ -4004,6 +4293,892 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           hasVectorStoreData: true,
         }}
       />
+
+      {/* Document Manager Modal */}
+      <Dialog
+        open={showDocumentManager}
+        onOpenChange={(open) => {
+          if (!open) setShowDocumentManager(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="flex-shrink-0 p-6 pb-4">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-purple-600" />
+              Knowledge Base Manager
+            </DialogTitle>
+            <DialogDescription>
+              Organized view of your documents by category. Search and manage
+              your knowledge base content.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6">
+            <Tabs
+              value={documentManagerTab}
+              onValueChange={setDocumentManagerTab}
+              className="flex flex-col h-full"
+            >
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="user" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  User Docs ({getDocumentCategoryCounts().user})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="aiFrames"
+                  className="flex items-center gap-2"
+                >
+                  <Bot className="h-4 w-4" />
+                  AI Frames ({getDocumentCategoryCounts().aiFrames})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="system"
+                  className="flex items-center gap-2"
+                >
+                  <Package className="h-4 w-4" />
+                  System ({getDocumentCategoryCounts().system})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="agentLogs"
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Logs ({getDocumentCategoryCounts().agentLogs})
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Search Section */}
+              <div className="mb-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">
+                      Search & Semantic Query
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={`Semantic search ${documentManagerTab} documents...`}
+                        value={documentSearchQuery}
+                        onChange={(e) => {
+                          setDocumentSearchQuery(e.target.value);
+                          // Clear semantic search results when input is cleared
+                          if (!e.target.value.trim() && showSemanticResults) {
+                            setShowSemanticResults(false);
+                            setSemanticSearchResults([]);
+                            setCurrentSemanticQuery("");
+                          }
+                        }}
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleKnowledgeBaseSearch()
+                        }
+                      />
+                      <Button
+                        onClick={handleKnowledgeBaseSearch}
+                        disabled={isSearching}
+                      >
+                        <Search className="h-4 w-4 mr-2" />
+                        {isSearching ? "Searching..." : "Search"}
+                      </Button>
+                      {(documentSearchQuery || showSemanticResults) && (
+                        <Button
+                          onClick={clearKnowledgeBaseSearch}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                      <Label htmlFor="search-threshold">
+                        Similarity threshold:
+                      </Label>
+                      <Input
+                        id="search-threshold"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={searchThreshold}
+                        onChange={(e) =>
+                          setSearchThreshold(parseFloat(e.target.value))
+                        }
+                        className="w-20"
+                      />
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-500 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Search className="h-3 w-3" />
+                        <span className="font-medium">
+                          AI-Powered Semantic Search
+                        </span>
+                      </div>
+                      <p>
+                        Search by meaning, not just keywords. Shows relevant
+                        document chunks with similarity scores.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Document Content Tabs */}
+              <div className="flex-1 overflow-y-auto">
+                <TabsContent value="user" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-green-600" />
+                        {showSemanticResults
+                          ? `Semantic Search: User Documents (${getFilteredDocumentsByCategory("user").length} results)`
+                          : `User Documents (${getDocumentCategoryCounts().user})`}
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {showSemanticResults
+                          ? `Semantic search results from your uploaded files and scraped content. Showing relevant chunks with similarity scores.`
+                          : `Your uploaded files, scraped content, and personal documents.`}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto">
+                      {showSemanticResults ? (
+                        // Show semantic search results with chunks and similarity scores
+                        getFilteredDocumentsByCategory("user").length > 0 ? (
+                          <div className="space-y-3">
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-blue-800 dark:text-blue-200">
+                                  🔍 Semantic Search Results for "
+                                  {currentSemanticQuery}"
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {
+                                      getFilteredDocumentsByCategory("user")
+                                        .length
+                                    }{" "}
+                                    chunks found
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearKnowledgeBaseSearch}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                            {getFilteredDocumentsByCategory("user").map(
+                              (searchResult, index) => (
+                                <Card
+                                  key={`${searchResult.document.id}-${searchResult.chunk.id}-${index}`}
+                                  className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 border-l-4 border-l-green-500"
+                                >
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs bg-green-600"
+                                        >
+                                          {(
+                                            searchResult.similarity * 100
+                                          ).toFixed(1)}
+                                          % match
+                                        </Badge>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          📄 User Document
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            handleViewChunk(
+                                              searchResult,
+                                              searchResult.document
+                                            )
+                                          }
+                                          title="View full chunk"
+                                        >
+                                          <Eye className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            handlePreviewDocument(
+                                              searchResult.document.id
+                                            )
+                                          }
+                                          title="View full document"
+                                        >
+                                          <FileText className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
+                                        {searchResult.document.title}
+                                      </h4>
+                                      <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                        Type:{" "}
+                                        {
+                                          searchResult.document.metadata
+                                            .filetype
+                                        }{" "}
+                                        • Size:{" "}
+                                        {formatFileSize(
+                                          searchResult.document.metadata
+                                            .filesize
+                                        )}{" "}
+                                        • Source:{" "}
+                                        {searchResult.document.metadata
+                                          .source === "firecrawl"
+                                          ? "Scraped"
+                                          : "Upload"}
+                                      </div>
+                                      <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md">
+                                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-4">
+                                          {searchResult.chunk?.content ||
+                                            "No content preview available"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Card>
+                              )
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>
+                              No user documents found matching "
+                              {currentSemanticQuery}"
+                            </p>
+                            <p className="text-sm">
+                              Try adjusting your search terms or similarity
+                              threshold.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={clearKnowledgeBaseSearch}
+                              className="mt-3"
+                            >
+                              Clear Search
+                            </Button>
+                          </div>
+                        )
+                      ) : // Show regular document list
+                      getFilteredDocumentsByCategory("user").length > 0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("user").map((doc) => (
+                            <Card
+                              key={doc.id}
+                              className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium truncate">
+                                      {doc.title}
+                                    </h4>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {doc.metadata.source === "firecrawl"
+                                        ? "🔍 Scraped"
+                                        : "📄 Upload"}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                    <span>
+                                      Size:{" "}
+                                      {formatFileSize(
+                                        doc.metadata?.filesize || 0
+                                      )}
+                                    </span>
+                                    <span>
+                                      Type:{" "}
+                                      {doc.metadata?.filetype || "unknown"}
+                                    </span>
+                                    <span>
+                                      Added:{" "}
+                                      {new Date(
+                                        doc.metadata?.uploadedAt || Date.now()
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handlePreviewDocument(doc.id)
+                                    }
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // AI-Frames download implementation
+                                      const blob = new Blob([doc.content], {
+                                        type: "text/plain",
+                                      });
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement("a");
+                                      a.href = url;
+                                      a.download = `${doc.title}.txt`;
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                                                      >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (vectorStore) {
+                                          await vectorStore.deleteDocument(doc.id);
+                                          // Refresh document list
+                                          try {
+                                            const updatedDocuments = await vectorStore.getAllDocuments();
+                                            setDocuments(updatedDocuments);
+                                            const stats = await vectorStore.getStats();
+                                            const totalSize = updatedDocuments.reduce(
+                                              (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                                              0
+                                            );
+                                            setDocumentStatus({
+                                              count: stats.documentCount,
+                                              totalSize: totalSize,
+                                              vectorCount: stats.vectorCount,
+                                            });
+                                          } catch (error) {
+                                            console.error("Failed to refresh documents:", error);
+                                          }
+                                        }
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                            <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No user documents found.</p>
+                          <p className="text-sm">
+                            Upload files or scrape URLs to add content to your
+                            knowledge base.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="aiFrames" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-blue-600" />
+                        {showSemanticResults
+                          ? `Semantic Search: AI Frames (${getFilteredDocumentsByCategory("aiFrames").length} results)`
+                          : `AI Frames (${getDocumentCategoryCounts().aiFrames})`}
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {showSemanticResults
+                          ? `Semantic search results from AI-generated learning frames and educational content.`
+                          : `AI-generated learning frames and educational content from the AI-Frames system.`}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto">
+                      {/* Similar structure for AI Frames tab content */}
+                      {getFilteredDocumentsByCategory("aiFrames").length >
+                      0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("aiFrames").map(
+                            (doc) => (
+                              <Card
+                                key={doc.id}
+                                className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {doc.title}
+                                      </h4>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-blue-600"
+                                      >
+                                        🎓 AI Frame
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          doc.metadata?.uploadedAt ||
+                                            Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(doc.id)
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const blob = new Blob([doc.content], {
+                                          type: "text/plain",
+                                        });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${doc.title}.txt`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                      }}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            )
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No AI frames found.</p>
+                          <p className="text-sm">
+                            AI frames will appear here when synced to the
+                            Knowledge Base.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="system" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Package className="h-4 w-4 text-purple-600" />
+                        System & Metadata ({getDocumentCategoryCounts().system})
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        TimeCapsules, exports, and system-generated content.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto">
+                      {/* Similar structure for System tab content */}
+                      {getFilteredDocumentsByCategory("system").length > 0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("system").map(
+                            (doc) => (
+                              <Card
+                                key={doc.id}
+                                className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {doc.title}
+                                      </h4>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-purple-600"
+                                      >
+                                        {doc.metadata?.source ===
+                                        "timecapsule_export"
+                                          ? "📦 Export"
+                                          : doc.metadata?.isGenerated
+                                            ? "🤖 Generated"
+                                            : "⚙️ System"}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          doc.metadata?.uploadedAt ||
+                                            Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(doc.id)
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const blob = new Blob([doc.content], {
+                                          type: "text/plain",
+                                        });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${doc.title}.txt`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                      }}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (vectorStore) {
+                                          await vectorStore.deleteDocument(doc.id);
+                                          // Refresh document list
+                                          try {
+                                            const updatedDocuments = await vectorStore.getAllDocuments();
+                                            setDocuments(updatedDocuments);
+                                            const stats = await vectorStore.getStats();
+                                            const totalSize = updatedDocuments.reduce(
+                                              (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                                              0
+                                            );
+                                            setDocumentStatus({
+                                              count: stats.documentCount,
+                                              totalSize: totalSize,
+                                              vectorCount: stats.vectorCount,
+                                            });
+                                          } catch (error) {
+                                            console.error("Failed to refresh documents:", error);
+                                          }
+                                        }
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            )
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No system documents found.</p>
+                          <p className="text-sm">
+                            TimeCapsule exports and system content will appear
+                            here.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="agentLogs" className="h-full">
+                  <Card className="h-full flex flex-col">
+                    <CardHeader className="pb-3 flex-shrink-0">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-orange-600" />
+                        Agent Logs ({getDocumentCategoryCounts().agentLogs})
+                      </CardTitle>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Multi-agent session logs and processing details.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto">
+                      {/* Similar structure for Agent Logs tab content */}
+                      {getFilteredDocumentsByCategory("agentLogs").length >
+                      0 ? (
+                        <div className="space-y-2">
+                          {getFilteredDocumentsByCategory("agentLogs").map(
+                            (doc) => (
+                              <Card
+                                key={doc.id}
+                                className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {doc.title}
+                                      </h4>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-orange-600"
+                                      >
+                                        📋 Agent Log
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          doc.metadata?.uploadedAt ||
+                                            Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(doc.id)
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const blob = new Blob([doc.content], {
+                                          type: "text/plain",
+                                        });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${doc.title}.txt`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                      }}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (vectorStore) {
+                                          await vectorStore.deleteDocument(doc.id);
+                                          // Refresh document list
+                                          try {
+                                            const updatedDocuments = await vectorStore.getAllDocuments();
+                                            setDocuments(updatedDocuments);
+                                            const stats = await vectorStore.getStats();
+                                            const totalSize = updatedDocuments.reduce(
+                                              (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                                              0
+                                            );
+                                            setDocumentStatus({
+                                              count: stats.documentCount,
+                                              totalSize: totalSize,
+                                              vectorCount: stats.vectorCount,
+                                            });
+                                          } catch (error) {
+                                            console.error("Failed to refresh documents:", error);
+                                          }
+                                        }
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            )
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+                          <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No agent logs found.</p>
+                          <p className="text-sm">
+                            Agent processing logs will appear here after
+                            multi-agent sessions.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+
+          <div className="flex justify-between items-center p-6 pt-4 flex-shrink-0 border-t">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Total: {documents.length} documents •{" "}
+              {formatFileSize(
+                documents.reduce(
+                  (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                  0
+                )
+              )}
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowDocumentManager(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Modal */}
+      {showDocumentPreview && previewDocument && (
+        <Dialog
+          open={showDocumentPreview}
+          onOpenChange={(open) => {
+            if (!open) closeDocumentPreview();
+          }}
+        >
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-green-600" />
+                {previewDocument.title}
+              </DialogTitle>
+              <DialogDescription>
+                Document preview -{" "}
+                {formatFileSize(previewDocument.metadata?.filesize || 0)}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6">
+              <div className="whitespace-pre-wrap text-sm font-mono bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
+                {previewDocument.content}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-6 pt-4 flex-shrink-0 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const blob = new Blob([previewDocument.content], {
+                    type: "text/plain",
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${previewDocument.title}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+              <Button variant="outline" onClick={closeDocumentPreview}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Chunk View Modal */}
+      {showChunkView && currentChunk && (
+        <Dialog
+          open={showChunkView}
+          onOpenChange={(open) => {
+            if (!open) closeChunkView();
+          }}
+        >
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4">
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-orange-600" />
+                Document Chunk
+              </DialogTitle>
+              <DialogDescription>
+                From:{" "}
+                {currentChunk.document?.title ||
+                  currentChunk.document?.name ||
+                  "Unknown Document"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6">
+              {/* Chunk metadata */}
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+                <div className="flex justify-between items-center">
+                  <span>
+                    <strong>Similarity Match:</strong>{" "}
+                    {currentChunk.similarity
+                      ? (currentChunk.similarity * 100).toFixed(1) + "%"
+                      : "N/A"}
+                  </span>
+                  <span>
+                    <strong>Content Length:</strong>{" "}
+                    {currentChunk.content?.length || 0} characters
+                  </span>
+                </div>
+              </div>
+
+              {/* Chunk content */}
+              <div className="whitespace-pre-wrap text-sm bg-slate-50 dark:bg-slate-800 p-4 rounded-lg leading-relaxed my-4">
+                {currentChunk.content || "No content available"}
+              </div>
+            </div>
+            <div className="flex justify-end p-6 pt-4 flex-shrink-0 border-t">
+              <Button variant="outline" onClick={closeChunkView}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Voice Settings Dialog */}
       <Dialog open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>

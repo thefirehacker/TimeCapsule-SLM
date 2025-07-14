@@ -22,12 +22,21 @@ if (!global.dynamoDb) {
 const initializeDynamoDBClients = () => {
   if (!global.dynamoDb.client || !global.dynamoDb.documentClient) {
     try {
+      // Check if we can find AWS credentials
+      const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.ACCESS_KEY_ID_AWS || "";
+      const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || process.env.SECRET_ACCESS_KEY_AWS || "";
+      const region = process.env.AWS_REGION || process.env.REGION_AWS || "ap-south-1";
+
+      if (!accessKeyId || !secretAccessKey) {
+        throw new Error(`Missing AWS credentials for DynamoDB`);
+      }
+
       // Initialize the DynamoDB client
       const dynamoClient = new DynamoDBClient({
-        region: process.env.AWS_REGION || "ap-south-1",
+        region: region,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+          accessKeyId: accessKeyId,
+          secretAccessKey: secretAccessKey,
         },
       });
 
@@ -47,6 +56,7 @@ const initializeDynamoDBClients = () => {
       console.error("Error initializing DynamoDB clients:", error);
 
       // Fallback initialization
+      console.warn("Using fallback DynamoDB client - authentication may fail");
       const fallbackClient = new DynamoDBClient({ region: "us-east-1" });
       const fallbackDocClient = DynamoDBDocumentClient.from(fallbackClient, {
         marshallOptions: { removeUndefinedValues: true },

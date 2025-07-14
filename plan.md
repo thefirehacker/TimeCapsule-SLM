@@ -1,75 +1,53 @@
-### SEO Implementation Plan for TimeCapsuleSLM
+# Development Plan - Authentication & Manage Button Fix
 
-This plan outlines the steps to improve the Search Engine Optimization (SEO) of the TimeCapsuleSLM application.
+## Issues Identified
 
-#### **Part 1: Metadata and SEO Basics**
+### 1. NextAuth Authentication Error ✅ FIXED
+- **Error**: `ClientFetchError: Failed to fetch` with "Authentication Error: You do not have permission to sign in"
+- **Error Code**: `AccessDenied`
+- **Root Cause**: Missing `AUTH_SECRET` environment variable
+- **Solution**: Added AUTH_SECRET to .env.local
+- **Status**: ✅ RESOLVED
 
-1.  **Generate `robots.txt`:** ✅ COMPLETED
-    - Created `src/app/robots.ts` file to generate `robots.txt`.
-    - Configured to allow crawlers to access most of the site while disallowing private routes like `/api/*` and specific `/auth/*` pages.
-    - Linked to the sitemap.
+### 2. Manage Button Not Working in AI Frames ✅ FIXED
+- **Issue**: Manage button called `deepResearchApp.showDocumentManager()` but didn't open dialog
+- **Root Cause**: The button was calling external DeepResearch method instead of local state
+- **Solution**: Changed to `setShowDocumentManager(true)` to use local Document Manager
+- **Status**: ✅ RESOLVED
 
-2.  **Generate `sitemap.xml`:** ✅ COMPLETED
-    - Created `src/app/sitemap.ts` to dynamically generate a sitemap.
-    - Included main static pages: `/`, `/ai-frames`, `/ai-graphs`, `/deep-research`, `/auth/signin`, `/auth/signup`, `/privacy`, `/terms`.
-    - Set appropriate priorities and change frequencies.
+### 3. NEW ISSUE: DynamoDB Environment Variable Mismatch 🔥 CRITICAL
+- **Error**: `UnrecognizedClientException: The security token included in the request is invalid`
+- **Root Cause**: Environment variable naming mismatch
+  - Code expects: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+  - .env.local has: `ACCESS_KEY_ID_AWS` and `SECRET_ACCESS_KEY_AWS`
+- **Impact**: Authentication fails when trying to access DynamoDB
+- **Status**: 🔥 NEEDS IMMEDIATE FIX
 
-3.  **Global Metadata Setup:** ✅ COMPLETED
-    - Updated `src/app/layout.tsx` with comprehensive metadata.
-    - Added `metadataBase`, title template, enhanced description, and keywords.
-    - Configured Open Graph and Twitter card information.
-    - Added verification codes and canonical URLs.
+## Solution Plan
 
-#### **Part 2: Page-Level SEO Enhancements**
+### Phase 1: Fix DynamoDB Environment Variables (URGENT)
+- [ ] Update .env.local to use correct AWS environment variable names
+- [ ] Test authentication flow works
+- [ ] Verify DynamoDB connection
 
-4.  **Homepage Metadata (`src/app/page.tsx`):** ✅ COMPLETED
-    - Added JSON-LD structured data with Organization, WebSite, and SoftwareApplication schemas.
-    - Enhanced with comprehensive feature descriptions and metadata.
+### Phase 2: Test All Functionality
+- [x] Test Manage button opens Document Manager dialog in AI Frames
+- [x] Test NextAuth authentication flow works locally
+- [ ] Test full authentication flow with DynamoDB
+- [ ] Verify user creation and login works
 
-5.  **AI-Frames Page Metadata (`src/app/ai-frames/page.tsx`):** ⏳ SKIPPED (User requested to skip page-specific metadata)
-    - Skipped as per user request to focus on global metadata only.
+## Implementation Status
 
-6.  **Other Key Pages Metadata:** ⏳ SKIPPED (User requested to skip page-specific metadata)
-    - Skipped as per user request to focus on global metadata only.
+### Completed ✅
+1. **Authentication Error**: Fixed missing AUTH_SECRET
+2. **Manage Button**: Fixed to use local Document Manager dialog
+3. **Identified root cause**: DynamoDB environment variable mismatch
 
-#### **Part 3: Open Graph Image Generation**
+### Pending ⏳
+1. **Fix DynamoDB environment variables**: Update variable names in .env.local
+2. **Test full authentication**: Verify complete auth flow works
 
-7.  **Default Open Graph Image:** ✅ COMPLETED
-    - Created `src/app/opengraph-image.tsx` with dynamic image generation.
-    - Features TimeCapsule branding with gradient background and key features.
-    - Optimized for social media sharing (1200x630px).
-
-8.  **Homepage Open Graph Image:** ⏳ SKIPPED (Using default OG image)
-    - Using the default OG image for all pages as per user request.
-
-#### **Part 4: Structured Data (JSON-LD)**
-
-9.  **Add JSON-LD to Homepage:** ✅ COMPLETED
-    - Added comprehensive JSON-LD structured data to `src/app/page.tsx`.
-    - Included Organization, WebSite, and SoftwareApplication schemas.
-    - Enhanced knowledge graph presence with detailed application information.
-
-#### **Implementation Summary**
-
-✅ **Completed:**
-
-- robots.txt generation
-- sitemap.xml generation
-- Global metadata in layout.tsx
-- Default Open Graph image
-- JSON-LD structured data for homepage
-
-⏳ **Skipped (as requested):**
-
-- Page-specific metadata for individual pages
-- Page-specific Open Graph images
-
-**SEO Best Practices Implemented:**
-
-- Proper robots.txt with sitemap reference
-- Dynamic sitemap with appropriate priorities
-- Comprehensive metadata with keywords and descriptions
-- Open Graph and Twitter card optimization
-- Structured data for better search engine understanding
-- Canonical URLs and verification codes
-- Mobile-friendly viewport configuration
+### Next Steps
+1. Fix environment variable names immediately
+2. Test authentication end-to-end
+3. Verify all functionality works as expected
