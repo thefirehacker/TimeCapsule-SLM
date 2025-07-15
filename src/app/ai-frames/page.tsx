@@ -839,13 +839,13 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             afterVideoText: extractFromContent(doc.content, 'After Video:') || 'No after video text',
             aiConcepts: extractFromContent(doc.content, 'Concepts:')?.split(', ').filter((c: string) => c.trim()) || [],
             isGenerated: doc.metadata?.isGenerated || false,
-            order: doc.metadata?.frameOrder || 1,
-            bubblSpaceId: doc.metadata?.bubblSpaceId || 'default',
-            timeCapsuleId: doc.metadata?.timeCapsuleId || 'default',
-            type: doc.metadata?.frameType || 'frame',
-            createdAt: doc.metadata?.createdAt || new Date().toISOString(),
-            updatedAt: doc.metadata?.updatedAt || new Date().toISOString(),
-            attachment: doc.metadata?.attachment
+            order: (doc.metadata as any)?.frameOrder || 1,
+            bubblSpaceId: (doc.metadata as any)?.bubblSpaceId || 'default',
+            timeCapsuleId: (doc.metadata as any)?.timeCapsuleId || 'default',
+            type: (doc.metadata as any)?.frameType || 'frame',
+            createdAt: (doc.metadata as any)?.createdAt || new Date().toISOString(),
+            updatedAt: (doc.metadata as any)?.updatedAt || new Date().toISOString(),
+            attachment: (doc.metadata as any)?.attachment
           };
           validFrames.push(frame);
         } catch (docError) {
