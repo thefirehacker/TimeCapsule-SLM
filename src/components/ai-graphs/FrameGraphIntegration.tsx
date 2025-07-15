@@ -622,6 +622,34 @@ Updated: ${new Date().toISOString()}`,
     }
   };
 
+  // FIX 2: Initialize real-time sync tracking when KB loads
+  useEffect(() => {
+    const handleKBFramesLoaded = (event: CustomEvent) => {
+      const { frames: kbFrames }: { frames: AIFrame[] } = event.detail;
+      
+      console.log('📡 KB-frames-loaded event received, initializing tracking states:', {
+        frameCount: kbFrames.length,
+        frameIds: kbFrames.map((f: AIFrame) => f.id)
+      });
+      
+      // Initialize tracking states with KB data
+      const frameIds = kbFrames.map((f: AIFrame) => f.id);
+      const frameStates: Record<string, string> = {};
+      
+      kbFrames.forEach((frame: AIFrame) => {
+        frameStates[frame.id] = `${frame.title}|${frame.goal}|${frame.informationText}|${frame.afterVideoText}|${frame.aiConcepts?.join(',')}`;
+      });
+      
+      setLastFrameIds(frameIds);
+      setLastFrameStates(frameStates);
+      
+      console.log('✅ Real-time sync tracking initialized from KB load');
+    };
+
+    window.addEventListener('kb-frames-loaded', handleKBFramesLoaded as EventListener);
+    return () => window.removeEventListener('kb-frames-loaded', handleKBFramesLoaded as EventListener);
+  }, []);
+
   // REAL-TIME SYNC: Enhanced drag and drop handler
   useEffect(() => {
     const handleGraphFrameAdded = (event: CustomEvent) => {

@@ -783,23 +783,155 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
   };
 
-  // Load frames from IndexedDB/localStorage storage with unified approach
+  // Load frames from Knowledge Base for real-time consistency
+  const loadFramesFromKnowledgeBase = useCallback(async (): Promise<AIFrame[]> => {
+    try {
+      if (!vectorStore || !vectorStoreInitialized) {
+        console.log("📊 VectorStore not available for loading frames");
+        return [];
+      }
+
+      console.log("🔍 Loading frames from Knowledge Base...");
+
+      // Get all documents and filter for AI-Frame documents
+      const allDocuments = await vectorStore.getAllDocuments();
+      const aiFrameDocuments = allDocuments.filter(doc => 
+        doc.metadata?.source === 'ai-frames-auto-sync' && doc.id?.startsWith('aiframe-')
+      );
+
+      console.log(`📊 Found ${aiFrameDocuments.length} AI-Frame documents in Knowledge Base`);
+      
+      // FIXED: Add more detailed logging for debugging
+      if (aiFrameDocuments.length > 0) {
+        console.log("📊 AI-Frame documents found:", aiFrameDocuments.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          hasMetadata: !!doc.metadata,
+          source: doc.metadata?.source
+        })));
+      }
+
+      if (aiFrameDocuments.length === 0) {
+        console.log("📊 No AI-Frame documents found in Knowledge Base");
+        return [];
+      }
+
+      // Helper function to extract content between markers
+      const extractFromContent = (content: string, marker: string): string => {
+        const lines = content.split('\n');
+        const markerLine = lines.find(line => line.startsWith(marker));
+        return markerLine ? markerLine.substring(marker.length).trim() : '';
+      };
+
+      // Convert KB documents back to AIFrame objects
+      const validFrames: AIFrame[] = [];
+      
+      for (const doc of aiFrameDocuments) {
+        try {
+          const frame: AIFrame = {
+            id: doc.id?.replace('aiframe-', '') || doc.id,
+            title: extractFromContent(doc.content, 'Frame:') || doc.title?.replace('AI-Frame: ', '') || 'Untitled',
+            goal: extractFromContent(doc.content, 'Goal:') || 'No goal specified',
+            informationText: extractFromContent(doc.content, 'Information:') || 'No information provided',
+            videoUrl: extractFromContent(doc.content, 'Video URL:') || '',
+            startTime: 0,
+            duration: 300,
+            afterVideoText: extractFromContent(doc.content, 'After Video:') || 'No after video text',
+            aiConcepts: extractFromContent(doc.content, 'Concepts:')?.split(', ').filter((c: string) => c.trim()) || [],
+            isGenerated: doc.metadata?.isGenerated || false,
+            order: doc.metadata?.frameOrder || 1,
+            bubblSpaceId: doc.metadata?.bubblSpaceId || 'default',
+            timeCapsuleId: doc.metadata?.timeCapsuleId || 'default',
+            type: doc.metadata?.frameType || 'frame',
+            createdAt: doc.metadata?.createdAt || new Date().toISOString(),
+            updatedAt: doc.metadata?.updatedAt || new Date().toISOString(),
+            attachment: doc.metadata?.attachment
+          };
+          validFrames.push(frame);
+        } catch (docError) {
+          console.warn("⚠️ Failed to parse KB document:", doc.id, docError);
+        }
+      }
+      
+      // Sort by order
+      const kbFrames = validFrames.sort((a: AIFrame, b: AIFrame) => (a.order || 1) - (b.order || 1));
+
+      console.log(`✅ Successfully loaded ${kbFrames.length} frames from Knowledge Base`);
+      
+      // FIXED: Add validation to ensure we have valid frames
+      if (kbFrames.length === 0) {
+        console.log("⚠️ Knowledge Base documents found but no valid frames could be parsed");
+        return [];
+      }
+      
+      return kbFrames;
+
+    } catch (error) {
+      console.error("❌ Failed to load frames from Knowledge Base:", error);
+      return [];
+    }
+  }, [vectorStore, vectorStoreInitialized]);
+
+  // Load frames from storage with Knowledge Base priority for real-time consistency
   const loadFramesFromStorage = useCallback(async () => {
     try {
-      // Primary: Try to load from GraphStorageManager (IndexedDB) if available
+      // PRIORITY 1: Try to load from Knowledge Base first (most recent data)
+      // FIXED: Remove processingAvailable restriction to make KB truly the priority
+      if (vectorStore && vectorStoreInitialized) {
+        console.log("🔍 Priority 1: Checking Knowledge Base for latest frames...");
+        
+        try {
+          const kbFrames = await loadFramesFromKnowledgeBase();
+          if (kbFrames && kbFrames.length > 0) {
+            console.log(`📊 Found ${kbFrames.length} frames in Knowledge Base, using as primary source`);
+            setFrames(kbFrames);
+            setCurrentFrameIndex(0); // Start with first frame
+            
+            // Sync IndexedDB with KB data to keep it updated
+            if (graphStorageManager) {
+              try {
+                await graphStorageManager.saveFrameSequence(kbFrames, 0, {
+                  updatedAt: new Date().toISOString(),
+                  bubblSpaceId: 'default',
+                  timeCapsuleId: 'default'
+                });
+                console.log("✅ IndexedDB synced with Knowledge Base data");
+              } catch (syncError) {
+                console.warn("⚠️ Failed to sync IndexedDB with KB data:", syncError);
+              }
+            }
+            
+            // FIX 1: Dispatch event to initialize real-time sync tracking
+            window.dispatchEvent(new CustomEvent('kb-frames-loaded', {
+              detail: { 
+                frames: kbFrames,
+                source: 'knowledge-base-load',
+                timestamp: new Date().toISOString()
+              }
+            }));
+            console.log("📡 Dispatched kb-frames-loaded event for real-time sync initialization");
+            
+            console.log("✅ Frames loaded from Knowledge Base successfully");
+            return true;
+          } else {
+            console.log("📊 Knowledge Base is available but contains no frames");
+          }
+        } catch (kbError) {
+          console.warn("⚠️ Failed to load from Knowledge Base, falling back to IndexedDB:", kbError);
+        }
+      } else {
+        console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStoreInitialized, ")");
+      }
+
+      // PRIORITY 2: Fall back to GraphStorageManager (IndexedDB) if KB is not available
       if (graphStorageManager) {
-        console.log(
-          "📊 Loading frames from IndexedDB via GraphStorageManager..."
-        );
+        console.log("📊 Priority 2: Loading frames from IndexedDB via GraphStorageManager...");
 
         const frameSequence = await graphStorageManager.loadFrameSequence();
         const sessionState = await graphStorageManager.loadSessionState();
 
         if (frameSequence && frameSequence.frames.length > 0) {
-          console.log(
-            "📊 Loading frames from IndexedDB:",
-            frameSequence.frames.length
-          );
+          console.log("📊 Loading frames from IndexedDB:", frameSequence.frames.length);
           setFrames(frameSequence.frames);
           setCurrentFrameIndex(frameSequence.currentFrameIndex || 0);
 
@@ -835,6 +967,9 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         }
       }
 
+      // PRIORITY 3: Fall back to localStorage (final fallback)
+      console.log("📊 Priority 3: Loading frames from localStorage as final fallback...");
+      
       // UNIFIED STORAGE APPROACH: Check both storage locations and use the most recent
       const timeCapsuleData = localStorage.getItem("ai_frames_timecapsule");
       const graphData = localStorage.getItem("ai_frames_graph_state");
