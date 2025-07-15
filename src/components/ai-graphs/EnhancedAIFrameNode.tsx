@@ -61,6 +61,22 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
         };
         
         await data.onFrameUpdate(data.frameId, updatedFrameData);
+        
+        // REAL-TIME SYNC: Emit graph frame edited event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-frame-edited', {
+            detail: {
+              frameId: data.frameId,
+              updatedFrame: updatedFrameData,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+        
+        console.log('✏️ Enhanced AI Frame Node: Frame edit event emitted:', {
+          frameId: data.frameId,
+          title: editData.title
+        });
       }
       
       setIsEditing(false);

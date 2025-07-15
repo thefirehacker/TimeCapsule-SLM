@@ -74,6 +74,7 @@ export default function EnhancedLearningGraph({
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
+  const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -188,6 +189,53 @@ export default function EnhancedLearningGraph({
       action: 'detached'
     });
   }, [frames, onFramesChange]);
+
+  // REAL-TIME SYNC: Handle node deletion
+  useEffect(() => {
+    if (previousNodes.length > 0) {
+      const deletedNodes = previousNodes.filter(prevNode => 
+        !nodes.some(currentNode => currentNode.id === prevNode.id)
+      );
+
+      if (deletedNodes.length > 0) {
+        console.log('🗑️ REAL-TIME: Nodes deleted from graph:', {
+          deletedNodes: deletedNodes.map(n => ({ id: n.id, type: n.type }))
+        });
+
+        // Handle AI frame node deletions
+        const deletedAIFrameNodes = deletedNodes.filter(node => 
+          node.type === 'aiframe' && node.data?.frameId
+        );
+
+        if (deletedAIFrameNodes.length > 0 && onFramesChange) {
+          const deletedFrameIds = deletedAIFrameNodes.map(node => node.data.frameId);
+          console.log('🗑️ REAL-TIME: AI Frame nodes deleted, removing from frames array:', {
+            deletedFrameIds
+          });
+
+          // Remove frames from frames array
+          const updatedFrames = frames.filter(frame => !deletedFrameIds.includes(frame.id));
+          onFramesChange(updatedFrames);
+
+          // Emit events for each deleted frame
+          deletedFrameIds.forEach(frameId => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
+                detail: { frameId }
+              }));
+            }
+          });
+
+          console.log('✅ REAL-TIME: Deleted AI Frame nodes synced to frames array:', {
+            deletedFrameIds,
+            remainingFrames: updatedFrames.length
+          });
+        }
+      }
+    }
+
+    setPreviousNodes(nodes);
+  }, [nodes, frames, onFramesChange]);
 
   // Sync frames to enhanced graph nodes on initial load
   useEffect(() => {
@@ -379,8 +427,68 @@ export default function EnhancedLearningGraph({
       };
       
       setEdges((eds) => addEdge(edge, eds));
+      
+      // Emit connection event for real-time sync
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('graph-connection-added', {
+          detail: {
+            connection: edge,
+            sourceNode: nodes.find(n => n.id === params.source),
+            targetNode: nodes.find(n => n.id === params.target),
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
     },
     [nodes, edges, handleAttachContent]
+  );
+
+  // REAL-TIME SYNC: Handle edge/connection deletion
+  const onEdgesDelete = useCallback(
+    (edgesToDelete: Edge[]) => {
+      console.log('🗑️ Enhanced: Connections being deleted:', {
+        count: edgesToDelete.length,
+        edges: edgesToDelete.map(e => ({ id: e.id, source: e.source, target: e.target }))
+      });
+
+      edgesToDelete.forEach(edge => {
+        // Check if this is an attachment connection
+        if ((edge as any).targetHandle === 'attachment-slot') {
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          const targetNode = nodes.find(n => n.id === edge.target);
+          
+          if (sourceNode && targetNode && targetNode.data.frameId) {
+            console.log('🔗 Enhanced: Removing attachment connection:', {
+              sourceNodeId: sourceNode.id,
+              targetFrameId: targetNode.data.frameId
+            });
+            
+            // Detach content from frame
+            handleDetachContent(targetNode.data.frameId);
+            
+            // Update source node as detached
+            setNodes(nds => nds.map(node => 
+              node.id === sourceNode.id 
+                ? { ...node, data: { ...node.data, isAttached: false, attachedToFrameId: undefined } }
+                : node
+            ));
+          }
+        }
+        
+        // Emit connection removal event for real-time sync
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-connection-removed', {
+            detail: {
+              connection: edge,
+              sourceNode: nodes.find(n => n.id === edge.source),
+              targetNode: nodes.find(n => n.id === edge.target),
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+      });
+    },
+    [nodes, handleDetachContent]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -608,6 +716,7 @@ export default function EnhancedLearningGraph({
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
           onInit={setReactFlowInstance}
           onDrop={onDrop}

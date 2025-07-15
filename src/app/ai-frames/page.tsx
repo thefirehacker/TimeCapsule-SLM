@@ -123,6 +123,23 @@ interface AIFrame {
   type: "frame" | "chapter" | "module"; // Frame type
   createdAt: string;
   updatedAt: string;
+  // NEW: Attachment and media fields
+  attachment?: {
+    type: string;
+    name: string;
+    size?: number;
+    data?: any;
+    url?: string;
+    content?: string;
+  };
+  notes?: string; // Text notes attached to frame
+  documents?: Array<{
+    name: string;
+    type: string;
+    size?: number;
+    content?: string;
+    url?: string;
+  }>; // Document attachments
 }
 
 interface FrameCreationData {
@@ -153,7 +170,7 @@ export default function AIFramesPage() {
   const [showCreationForm, setShowCreationForm] = useState(false);
 
   // NEW: Graph view state
-  const [showGraphView, setShowGraphView] = useState(false);
+  const [showGraphView, setShowGraphView] = useState(true); // Changed to true - show Graph View by default
 
   // Frame state - Always start empty, load from localStorage if available
   const [frames, setFrames] = useState<AIFrame[]>([]);
@@ -1263,7 +1280,8 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           }
         }
 
-        // Create enhanced document content
+        // Create enhanced document content with attachment details
+        const frameWithAttachment = frame as any; // Type assertion to access attachment properties
         const content = `
 Learning Goal: ${frame.goal}
 
@@ -1281,16 +1299,38 @@ ${frame.afterVideoText || "No additional content"}
 
 AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 
-Video Details:
-- URL: ${frame.videoUrl || "No video"}
+ATTACHMENTS & MEDIA:
+Video Attachment:
+- URL: ${frame.videoUrl || "No video attachment"}
 - Start Time: ${frame.startTime || 0}s
 - Duration: ${frame.duration || 0}s
+- Type: ${frame.videoUrl ? "YouTube Video" : "No video"}
+
+${frameWithAttachment.attachment ? `
+Additional Attachment:
+- Type: ${frameWithAttachment.attachment.type || "Unknown"}
+- Name: ${frameWithAttachment.attachment.name || "Unnamed"}
+- Size: ${frameWithAttachment.attachment.size ? `${frameWithAttachment.attachment.size} bytes` : "Unknown"}
+- Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
+- URL: ${frameWithAttachment.attachment.url || "No URL"}
+- Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
+` : "Additional Attachments: None"}
+
+Text Notes:
+${frameWithAttachment.notes || "No text notes"}
+
+Document Attachments:
+${frameWithAttachment.documents ? frameWithAttachment.documents.map((doc: any) => `- ${doc.name || "Unnamed"} (${doc.type || "Unknown type"})`).join('\n') : "No document attachments"}
 
 Metadata:
 - Generated: ${frame.isGenerated ? "Yes" : "No"}
 - Created: ${frame.createdAt || "Unknown"}
 - Updated: ${frame.updatedAt || "Unknown"}
 ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
+- Attachment Count: ${frameWithAttachment.attachment ? 1 : 0}
+- Has Video: ${frame.videoUrl ? "Yes" : "No"}
+- Has Text Notes: ${frameWithAttachment.notes ? "Yes" : "No"}
+- Has Documents: ${frameWithAttachment.documents ? frameWithAttachment.documents.length : 0}
         `.trim();
 
         // Insert the enhanced document
@@ -3081,7 +3121,7 @@ Based on your TimeCapsule data and knowledge base, here's what you need to know 
       }
     }
 
-    aiResponse += `\n\nThis concept connects to your current frame "${currentFrame.title}" and will help you achieve your goal: "${currentFrame.goal}"
+    aiResponse += `\n\nThis concept connects to your current frame "${currentFrameForConcept.title}" and will help you achieve your goal: "${currentFrameForConcept.goal}"
 
 Would you like me to create a new frame focused specifically on ${concept}?`;
 
@@ -3097,7 +3137,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         Let me explain ${concept}. 
         
         ${concept} is a key concept in your current learning path. 
-        It relates directly to ${currentFrame.title} and helps you understand ${currentFrame.goal}.
+        It relates directly to ${currentFrameForConcept.title} and helps you understand ${currentFrameForConcept.goal}.
         
         This concept is fundamental for your learning journey and connects to the other topics you're exploring.
       `
@@ -3478,7 +3518,31 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     input.click();
   };
 
-  const handleManageKnowledge = () => {
+  const handleManageKnowledge = async () => {
+    // Force refresh documents before opening dialog
+    if (vectorStore && vectorStoreInitialized) {
+      try {
+        console.log("🔄 Force refreshing Knowledge Base before opening manager...");
+        const stats = await vectorStore.getStats();
+        const documents = await vectorStore.getAllDocuments();
+        const totalSize = documents.reduce(
+          (sum, doc) => sum + (doc.metadata?.filesize || 0),
+          0
+        );
+
+        setDocumentStatus({
+          count: stats.documentCount,
+          totalSize: totalSize,
+          vectorCount: stats.vectorCount,
+        });
+        
+        setDocuments(documents);
+        console.log("✅ Knowledge Base force refreshed before opening manager");
+      } catch (error) {
+        console.error("Failed to force refresh documents:", error);
+      }
+    }
+
     // Open the local Document Manager dialog
     setShowDocumentManager(true);
   };
@@ -3519,6 +3583,64 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     };
 
     updateDocumentStatus();
+  }, [vectorStore, vectorStoreInitialized]);
+
+  // FIXED: Listen for KB sync events to refresh documents list
+  useEffect(() => {
+    const refreshDocuments = async () => {
+      if (vectorStore && vectorStoreInitialized) {
+        try {
+          console.log("🔄 Refreshing Knowledge Base documents after sync event...");
+          const stats = await vectorStore.getStats();
+          const documents = await vectorStore.getAllDocuments();
+          const totalSize = documents.reduce(
+            (sum, doc) => sum + (doc.metadata?.filesize || 0),
+            0
+          );
+
+          setDocumentStatus({
+            count: stats.documentCount,
+            totalSize: totalSize,
+            vectorCount: stats.vectorCount,
+          });
+          
+          setDocuments(documents);
+          console.log("✅ Knowledge Base documents refreshed:", {
+            documentCount: stats.documentCount,
+            totalSize: totalSize,
+            vectorCount: stats.vectorCount
+          });
+        } catch (error) {
+          console.error("Failed to refresh documents after sync:", error);
+        }
+      }
+    };
+
+    const handleKBRefresh = (event: CustomEvent) => {
+      console.log("🔄 KB refresh event received:", event.detail);
+      refreshDocuments();
+    };
+
+    const handleKBDocumentsChanged = (event: CustomEvent) => {
+      console.log("🔄 KB documents changed event received:", event.detail);
+      refreshDocuments();
+    };
+
+    const handleAIFramesKBUpdated = (event: CustomEvent) => {
+      console.log("🔄 AI-Frames KB updated event received:", event.detail);
+      refreshDocuments();
+    };
+
+    // Listen for KB sync events
+    window.addEventListener('kb-force-refresh', handleKBRefresh as EventListener);
+    window.addEventListener('kb-documents-changed', handleKBDocumentsChanged as EventListener);
+    window.addEventListener('aiframes-kb-updated', handleAIFramesKBUpdated as EventListener);
+
+    return () => {
+      window.removeEventListener('kb-force-refresh', handleKBRefresh as EventListener);
+      window.removeEventListener('kb-documents-changed', handleKBDocumentsChanged as EventListener);
+      window.removeEventListener('aiframes-kb-updated', handleAIFramesKBUpdated as EventListener);
+    };
   }, [vectorStore, vectorStoreInitialized]);
 
   // Document Manager handlers
@@ -3741,6 +3863,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     }
   };
 
+  // Optimized drag and drop handler
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
 
@@ -3755,76 +3878,72 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       return;
     }
 
-    // Create new array with reordered frames
+    // Optimized: Create new array with reordered frames in one pass
     const newFrames = [...frames];
     const [draggedFrame] = newFrames.splice(draggedIndex, 1);
     newFrames.splice(dropIndex, 0, draggedFrame);
 
-    // Update order field for all frames to maintain sequence
+    // Optimized: Only update order for affected frames (minimal changes)
     const reorderedFrames = newFrames.map((frame, index) => ({
       ...frame,
       order: index + 1,
       updatedAt: new Date().toISOString(),
     }));
 
-    setFrames(reorderedFrames);
-
-    // Update current frame index if needed
+    // Optimized: Update current frame index calculation
+    let newCurrentIndex = currentFrameIndex;
     if (currentFrameIndex === draggedIndex) {
-      setCurrentFrameIndex(dropIndex);
-    } else if (
-      draggedIndex < currentFrameIndex &&
-      dropIndex >= currentFrameIndex
-    ) {
-      setCurrentFrameIndex(currentFrameIndex - 1);
-    } else if (
-      draggedIndex > currentFrameIndex &&
-      dropIndex <= currentFrameIndex
-    ) {
-      setCurrentFrameIndex(currentFrameIndex + 1);
+      newCurrentIndex = dropIndex;
+    } else if (draggedIndex < currentFrameIndex && dropIndex >= currentFrameIndex) {
+      newCurrentIndex = currentFrameIndex - 1;
+    } else if (draggedIndex > currentFrameIndex && dropIndex <= currentFrameIndex) {
+      newCurrentIndex = currentFrameIndex + 1;
     }
 
-    // Emit event to sync with graph view
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("frames-reordered", {
-          detail: {
-            fromIndex: draggedIndex,
-            toIndex: dropIndex,
-            draggedFrameId: draggedFrame.id,
-            reorderedFrames: reorderedFrames,
-            newCurrentIndex:
-              currentFrameIndex === draggedIndex
-                ? dropIndex
-                : currentFrameIndex,
-          },
-        })
-      );
-    }
-
-    // Add success message to chat
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        role: "ai",
-        content: `✅ Frame reordered successfully! Frame "${
-          draggedFrame.title
-        }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.\n\n🔄 Graph view synchronized with new order.`,
-      },
-    ]);
-
+    // Optimized: Batch state updates
+    setFrames(reorderedFrames);
+    setCurrentFrameIndex(newCurrentIndex);
     setDraggedFrameId(null);
     setDragOverIndex(null);
 
-    console.log(
-      "🔄 Frame order updated via drag & drop → Graph sync triggered:",
-      {
-        fromIndex: draggedIndex,
-        toIndex: dropIndex,
-        frameTitle: draggedFrame.title,
-        totalFrames: reorderedFrames.length,
+    // Optimized: Async operations (non-blocking)
+    setTimeout(() => {
+      // Emit event to sync with graph view (async)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("frames-reordered", {
+            detail: {
+              fromIndex: draggedIndex,
+              toIndex: dropIndex,
+              draggedFrameId: draggedFrame.id,
+              reorderedFrames: reorderedFrames,
+              newCurrentIndex: newCurrentIndex,
+            },
+          })
+        );
       }
-    );
+
+      // Add success message to chat (async)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `✅ Frame reordered successfully! Frame "${
+            draggedFrame.title
+          }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.\n\n🔄 Graph view synchronized with new order.`,
+        },
+      ]);
+
+      console.log(
+        "🔄 Frame order updated via drag & drop → Graph sync triggered:",
+        {
+          fromIndex: draggedIndex,
+          toIndex: dropIndex,
+          frameTitle: draggedFrame.title,
+          totalFrames: reorderedFrames.length,
+        }
+      );
+    }, 0);
   };
 
   const handleDragEnd = () => {
@@ -4677,7 +4796,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               {showGraphView ? (
                 /* Graph View */
                 <FrameGraphIntegration
-                  frames={frames}
+                  frames={frames as any} // FIXED: Type cast to resolve attachment interface mismatch
                   onFramesChange={setFrames as any} // TODO: Fix type compatibility after updating FrameGraphIntegration
                   isCreationMode={isCreationMode}
                   currentFrameIndex={currentFrameIndex}
@@ -5172,14 +5291,50 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       >
         <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
-              Knowledge Base Manager
-            </DialogTitle>
-            <DialogDescription>
-              Organized view of your documents by category. Search and manage
-              your knowledge base content.
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                  Knowledge Base Manager
+                </DialogTitle>
+                <DialogDescription>
+                  Organized view of your documents by category. Search and manage
+                  your knowledge base content.
+                </DialogDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (vectorStore && vectorStoreInitialized) {
+                    try {
+                      console.log("🔄 Manual refresh of Knowledge Base documents...");
+                      const stats = await vectorStore.getStats();
+                      const documents = await vectorStore.getAllDocuments();
+                      const totalSize = documents.reduce(
+                        (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                        0
+                      );
+
+                      setDocumentStatus({
+                        count: stats.documentCount,
+                        totalSize: totalSize,
+                        vectorCount: stats.vectorCount,
+                      });
+                      
+                      setDocuments(documents);
+                      console.log("✅ Knowledge Base documents manually refreshed");
+                    } catch (error) {
+                      console.error("Failed to manually refresh documents:", error);
+                    }
+                  }
+                }}
+                title="Refresh document list"
+              >
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6">

@@ -180,23 +180,79 @@ export class GraphStorageManager {
       throw new Error('GraphStorageManager not initialized');
     }
 
+    // FIXED: Ensure frames is an array
+    const validFrames = Array.isArray(frames) ? frames : [];
+    const safeCurrentFrameIndex = Math.max(0, Math.min(currentFrameIndex || 0, validFrames.length - 1));
+
+    console.log(`📊 Saving frame sequence with ${validFrames.length} frames (currentIndex: ${safeCurrentFrameIndex})`);
+
     const frameSequence: FrameSequence = {
       id: this.generateDocumentId('frames'),
       sessionId: this.sessionId,
-      frames,
-      currentFrameIndex,
+      frames: validFrames,
+      currentFrameIndex: safeCurrentFrameIndex,
       metadata: {
-        totalFrames: frames.length,
+        totalFrames: validFrames.length,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...metadata,
       },
     };
 
+    // Create detailed sequence content with full frame data
+    const sequenceContent = `AI-Frames Learning Sequence
+
+Total Frames: ${validFrames.length}
+Current Frame: ${safeCurrentFrameIndex + 1} of ${validFrames.length}
+Session ID: ${this.sessionId}
+Last Updated: ${frameSequence.metadata.updatedAt}
+
+FRAME SEQUENCE DETAILS:
+${validFrames.map((frame, index) => `
+=== FRAME ${index + 1} OF ${validFrames.length} ===
+Title: ${frame?.title || 'Untitled'}
+Learning Goal: ${frame?.goal || 'No goal specified'}
+Order: ${frame?.order || index + 1}
+Type: ${frame?.type || 'frame'}
+Created: ${frame?.createdAt || 'Unknown'}
+Updated: ${frame?.updatedAt || 'Unknown'}
+
+Context & Background:
+${frame?.informationText || 'No content'}
+
+After Video Content:
+${frame?.afterVideoText || 'No additional content'}
+
+Video Details:
+- URL: ${frame?.videoUrl || 'No video'}
+- Start Time: ${frame?.startTime || 0}s
+- Duration: ${frame?.duration || 0}s
+
+AI Concepts: ${frame?.aiConcepts ? frame.aiConcepts.join(', ') : 'None'}
+
+Metadata:
+- Generated: ${frame?.isGenerated ? 'Yes' : 'No'}
+- BubblSpace: ${frame?.bubblSpaceId || 'default'}
+- TimeCapsule: ${frame?.timeCapsuleId || 'default'}
+${frame?.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ''}
+
+---
+`).join('\n')}
+
+SEQUENCE METADATA:
+- Total Learning Frames: ${validFrames.length}
+- Current Active Frame: ${safeCurrentFrameIndex + 1}
+- Session Type: Learning Sequence
+- BubblSpace: ${metadata.bubblSpaceId || 'default'}
+- TimeCapsule: ${metadata.timeCapsuleId || 'default'}
+- Created: ${frameSequence.metadata.createdAt}
+- Last Updated: ${frameSequence.metadata.updatedAt}
+`;
+
     const document = {
       id: frameSequence.id,
       title: `Frame Sequence - ${frames.length} frames`,
-      content: `AI-Frames sequence with ${frames.length} learning frames`,
+      content: sequenceContent,
       metadata: {
         filename: `frame_sequence_${this.sessionId}.json`,
         filesize: JSON.stringify(frameSequence).length,
@@ -264,10 +320,54 @@ export class GraphStorageManager {
       ...state,
     };
 
+    // Create detailed session content
+    const sessionContent = `AI-Frames Session State
+
+Session ID: ${this.sessionId}
+Mode: ${state.isCreationMode ? 'Creator Mode' : 'Learning Mode'}
+View: ${state.showGraphView ? 'Graph View' : 'Linear View'}
+Last Active Frame: ${state.lastActiveFrame + 1}
+Session Created: ${sessionState.createdAt}
+Last Updated: ${sessionState.updatedAt}
+
+SESSION DETAILS:
+- Current Mode: ${state.isCreationMode ? 'Creator Mode - Building learning content' : 'Learning Mode - Consuming content'}
+- View Mode: ${state.showGraphView ? 'Graph View - Visual node-based interface' : 'Linear View - Traditional sequential interface'}
+- Last Active Frame: Frame ${state.lastActiveFrame + 1}
+- Chapters: ${state.chapters.length} chapters configured
+- Graph State: ${state.graphState ? 'Active graph state available' : 'No graph state'}
+
+VOICE SETTINGS:
+${state.voiceSettings ? `- Voice Enabled: ${state.voiceSettings.enabled ? 'Yes' : 'No'}
+- Speech Rate: ${state.voiceSettings.rate || 1.0}x
+- Voice Pitch: ${state.voiceSettings.pitch || 1.0}
+- Voice Volume: ${state.voiceSettings.volume || 1.0}` : '- Voice Settings: Not configured'}
+
+CHAPTERS CONFIGURATION:
+${state.chapters.length > 0 ? state.chapters.map((chapter, index) => `
+Chapter ${index + 1}: ${chapter.title || 'Untitled'}
+- Description: ${chapter.description || 'No description'}
+- Frames: ${chapter.frames?.length || 0} frames
+`).join('\n') : '- No chapters configured'}
+
+GRAPH STATE:
+${state.graphState ? `- Graph Nodes: ${state.graphState.nodes?.length || 0} nodes
+- Graph Edges: ${state.graphState.edges?.length || 0} connections
+- Selected Node: ${state.graphState.selectedNodeId || 'None'}
+- Graph Layout: ${state.graphState.layout || 'Auto'}` : '- No graph state available'}
+
+SESSION METADATA:
+- Session Type: AI-Frames Interactive Learning
+- User Interaction: ${state.isCreationMode ? 'Content Creation' : 'Content Learning'}
+- Interface Mode: ${state.showGraphView ? 'Visual Graph Interface' : 'Linear Sequential Interface'}
+- Session Duration: Active since ${sessionState.createdAt}
+- Last Activity: ${sessionState.updatedAt}
+`;
+
     const document = {
       id: sessionState.id,
-      title: `Session State - ${this.sessionId}`,
-      content: `AI-Frames session state (${state.isCreationMode ? 'Creator' : 'Learning'} mode)`,
+      title: `AI-Frames Session - ${state.isCreationMode ? 'Creator' : 'Learning'} Mode`,
+      content: sessionContent,
       metadata: {
         filename: `session_state_${this.sessionId}.json`,
         filesize: JSON.stringify(sessionState).length,

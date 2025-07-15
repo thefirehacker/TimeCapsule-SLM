@@ -835,8 +835,8 @@ export class VectorStore {
     try {
       const documents = await this.getAllDocuments();
       const documentCount = documents.length;
-      const chunkCount = documents.reduce((sum, doc) => sum + doc.chunks.length, 0);
-      const vectorCount = documents.reduce((sum, doc) => sum + doc.vectors.length, 0);
+      const chunkCount = documents.reduce((sum, doc) => sum + (doc.chunks?.length || 0), 0);
+      const vectorCount = documents.reduce((sum, doc) => sum + (doc.vectors?.length || 0), 0);
 
       return { documentCount, chunkCount, vectorCount };
     } catch (error) {
