@@ -40,11 +40,29 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (menuState && !target.closest("nav")) {
+        setMenuState(false);
+      }
+    };
+
+    if (menuState) {
+      document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [menuState]);
+
   return (
     <header>
       <nav
-        data-state={menuState && "active"}
-        className={`fixed z-20 w-full px-2 ${isScrolled ? "" : ""}`}
+        data-state={menuState ? "active" : ""}
+        className={`fixed z-50 w-full px-2 group ${isScrolled ? "" : ""}`}
       >
         <div
           className={cn(
@@ -78,7 +96,10 @@ export function Navbar() {
               </Link>
 
               <button
-                onClick={() => setMenuState(!menuState)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuState(!menuState);
+                }}
                 aria-label={menuState ? "Close Menu" : "Open Menu"}
                 className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden"
               >
@@ -102,22 +123,37 @@ export function Navbar() {
               </ul>
             </div>
 
-            <div className="bg-background group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent">
-              <div className="lg:hidden">
-                <ul className="space-y-6 text-base">
+            <div className="hidden lg:flex lg:w-fit lg:gap-6 lg:items-center">
+              <SignInButton />
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          <div
+            className={cn(
+              "lg:hidden transition-all duration-300 ease-in-out overflow-hidden",
+              menuState ? "max-h-96 opacity-100 mt-4" : "max-h-0 opacity-0 mt-0"
+            )}
+          >
+            <div className="bg-background/95 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-2xl">
+              <div className="space-y-6">
+                <ul className="space-y-4">
                   {menuItems.map((item, index) => (
                     <li key={index}>
                       <Link
                         href={item.href}
-                        className="text-muted-foreground hover:text-accent-foreground block duration-150"
+                        onClick={() => setMenuState(false)}
+                        className="text-muted-foreground hover:text-accent-foreground block duration-150 text-lg font-medium py-2"
                       >
                         <span>{item.name}</span>
                       </Link>
                     </li>
                   ))}
                 </ul>
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <SignInButton />
+                </div>
               </div>
-              <SignInButton />
             </div>
           </div>
         </div>

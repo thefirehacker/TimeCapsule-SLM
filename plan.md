@@ -1,164 +1,135 @@
-# MetadataManager Infinite Polling - Complete Solution
+# UI Improvement Plan
 
-## **Problem Resolved**
+## Issues Identified:
 
-MetadataManager was stuck in infinite polling with messages like:
+1. Hero section needs better responsiveness and UI improvements
+2. Navbar hamburger menu not working on mobile
+3. Need to add sign-in call to action
+4. **NEW**: Add login tracking functionality
 
-```
-⏳ Checking VectorStore initialization (attempt 14/30)... {hasVectorStore: false, isInitialized: undefined, processingAvailable: undefined}
-```
+## Todo List:
 
-Even though VectorStore was fully ready:
+### 1. Fix Navbar Hamburger Menu Issue ✅ COMPLETED
 
-```
-✅ Xenova model downloaded and cached - all features ready
-🔍 Status set to ready. Full status: {isInitialized: true, downloadStatus: 'ready', hasDocumentProcessor: true, processorAvailable: true, processingAvailable: true}
-```
+- [x] Debug the hamburger menu state management
+- [x] Fix the mobile menu toggle functionality
+- [x] Ensure proper z-index and positioning
+- [x] Test mobile responsiveness
 
-## **Root Cause Analysis**
+**Changes Made:**
 
-The issue was a **timing and connection problem**:
+- Added missing `group` class to nav element
+- Fixed data-state attribute logic
+- Improved mobile menu structure with proper transitions
+- Added click outside to close functionality
+- Enhanced mobile menu styling and layout
 
-1. **VectorStore initializes** and becomes available in DeepResearchApp
-2. **MetadataManager initializes later** but can't find the VectorStore reference
-3. **MetadataManager starts polling** with `hasVectorStore: false`
-4. **VectorStore is attached to app instance** but MetadataManager doesn't know about it
-5. **Infinite polling continues** because MetadataManager never gets the VectorStore reference
+### 2. Improve Hero Section UI & Responsiveness ✅ COMPLETED
 
-## **Complete Solution Implemented**
+- [x] Enhance mobile responsiveness for all screen sizes
+- [x] Improve text scaling and spacing on mobile
+- [x] Optimize feature grid layout for mobile
+- [x] Add better animations and transitions
+- [x] Improve button layouts for mobile
+- [x] Enhance visual hierarchy
 
-### **1. Global App Instance Access**
+**Changes Made:**
 
-```typescript
-// In DeepResearchApp.tsx
-if (typeof window !== "undefined") {
-  (window as any).deepResearchApp = app;
-  console.log("🌍 DeepResearchApp instance made globally available");
-}
-```
+- Added responsive breakpoints (sm, md, lg, xl)
+- Improved text sizing across all screen sizes
+- Enhanced button layouts with full-width on mobile
+- Optimized spacing and padding for mobile
+- Improved feature grid with better mobile layout
+- Enhanced visual elements scaling
 
-- Made DeepResearchApp globally accessible so MetadataManager can find it
-- Allows MetadataManager to check for VectorStore even after initialization
+### 3. Add Sign-In Call to Action ✅ COMPLETED
 
-### **2. Event-Driven Connection**
+- [x] Add sign-in button to hero section
+- [x] Position it appropriately in the CTA section
+- [x] Ensure it doesn't conflict with existing buttons
+- [x] Make it visually appealing and prominent
 
-```typescript
-// In DeepResearchApp.tsx - When VectorStore becomes ready
-window.dispatchEvent(
-  new CustomEvent("vectorstore-ready", {
-    detail: { vectorStore: vectorStore },
-  })
-);
-```
+**Changes Made:**
 
-- Fires custom event when VectorStore is ready
-- Allows immediate notification to waiting MetadataManager
+- Added Sign In button to hero CTA section
+- Used ghost variant with backdrop blur for clean look
+- Positioned as third button in the CTA row
+- Added LogIn icon for visual consistency
+- Made it responsive with full-width on mobile
 
-### **3. Enhanced Polling with Global Check**
+### 4. Add Login Tracking Functionality ✅ COMPLETED
 
-```typescript
-// In MetadataManager.ts
-// CRITICAL FIX: Check if VectorStore is already available on the global app instance
-if (typeof window !== "undefined" && (window as any).deepResearchApp) {
-  const app = (window as any).deepResearchApp;
-  if (app.vectorStore && app.vectorStore.initialized) {
-    console.log(
-      "🔗 Found VectorStore on global app instance, linking immediately..."
-    );
-    this.vectorStore = app.vectorStore;
-    this.syncWithVectorStore();
-    return; // No polling needed!
-  }
-}
-```
+- [x] Update User interface to include login tracking fields
+- [x] Add login tracking functions to auth.ts
+- [x] Update signIn callback to track login information
+- [x] Store provider, login count, and session history
+- [x] Update database schema for new fields
 
-- Checks global app instance before starting polling
-- Immediate connection if VectorStore is already ready
+**Changes Made:**
 
-### **4. Event Listener for Immediate Detection**
+- Added `provider`, `loginCount`, `sessionHistory`, `lastLoginAt` fields to User interface
+- Created `updateUserLoginInfo()` function to track login events
+- Created `getUserLoginStats()` function to retrieve user login statistics
+- Created `getLoginStatsByProvider()` function for analytics
+- Updated signIn callback to track login information for all providers (Google, GitHub, email)
+- Updated createUser functions to initialize login tracking fields
+- Added error handling to prevent login tracking failures from blocking sign-in
 
-```typescript
-// In MetadataManager.ts
-const handleVectorStoreReady = () => {
-  if (this._pollingActive) {
-    console.log("🔥 VectorStore ready event received, checking global app...");
-    const app = (window as any).deepResearchApp;
-    if (app.vectorStore && app.vectorStore.initialized) {
-      console.log("✅ VectorStore found via event, linking immediately...");
-      this._pollingActive = false;
-      this.vectorStore = app.vectorStore;
-      this.syncWithVectorStore();
-      return;
-    }
-  }
-};
-window.addEventListener("vectorstore-ready", handleVectorStoreReady);
-```
+**Login Tracking Features:**
 
-- Listens for vectorstore-ready event to stop polling immediately
-- Provides instant connection when VectorStore becomes available
+- **Provider Tracking**: Records whether user logged in via Google, GitHub, or email
+- **Login Count**: Increments with each successful login
+- **Session History**: Stores last 50 sessions with timestamp, provider, user agent, and IP
+- **Last Login**: Tracks the most recent login timestamp
+- **Analytics**: Provides statistics by provider and overall usage
 
-### **5. Proper Cleanup**
+### 5. Testing
 
-```typescript
-// Clean up event listener
-window.removeEventListener("vectorstore-ready", handleVectorStoreReady);
-```
+- [ ] Test on various screen sizes
+- [ ] Verify hamburger menu functionality
+- [ ] Check all links and interactions
+- [ ] Ensure smooth animations
+- [ ] Test login tracking functionality
 
-- Prevents memory leaks by cleaning up event listeners
-- Ensures no duplicate listeners
+## Implementation Order:
 
-## **Expected Behavior Now**
+1. ✅ Fix navbar hamburger menu first (critical functionality)
+2. ✅ Improve hero section responsiveness
+3. ✅ Add sign-in CTA
+4. ✅ Add login tracking functionality
+5. 🔄 Final testing and refinements
 
-### **Scenario 1: VectorStore Ready Before MetadataManager**
+## Key Improvements Made:
 
-1. VectorStore initializes and becomes available
-2. MetadataManager starts and checks global app instance
-3. **Finds VectorStore immediately** - no polling needed
-4. **Result**: `🔗 Found VectorStore on global app instance, linking immediately...`
+### Navbar:
 
-### **Scenario 2: MetadataManager Starts Before VectorStore**
+- Fixed hamburger menu toggle functionality
+- Added proper mobile menu with smooth transitions
+- Improved z-index and positioning
+- Added click outside to close functionality
+- Enhanced mobile menu styling
 
-1. MetadataManager starts polling
-2. VectorStore becomes ready and fires 'vectorstore-ready' event
-3. **Event listener catches it immediately** and stops polling
-4. **Result**: `🔥 VectorStore ready event received, checking global app...`
+### Hero Section:
 
-### **Scenario 3: Normal Polling (Fallback)**
+- Fully responsive design across all screen sizes
+- Improved text scaling and spacing
+- Better button layouts for mobile
+- Enhanced feature grid responsiveness
+- Added sign-in call to action
+- Optimized visual hierarchy
 
-1. If global check and event fail, normal polling continues
-2. **But now checks global app instance on each poll attempt**
-3. **Stops as soon as VectorStore is found**
+### Sign-In Integration:
 
-## **Key Improvements**
+- Added prominent sign-in button to hero section
+- Clean, modern design that fits the overall aesthetic
+- Responsive design that works on all devices
+- Direct integration with NextAuth signIn function
 
-✅ **No More Infinite Polling**: MetadataManager finds VectorStore immediately  
-✅ **Event-Driven Architecture**: Instant notification when VectorStore is ready  
-✅ **Multiple Detection Methods**: Global check + event listener + polling fallback  
-✅ **Proper Cleanup**: No memory leaks from event listeners  
-✅ **Backward Compatible**: All existing functionality preserved
+### Login Tracking:
 
-## **Testing Expected Results**
-
-Instead of:
-
-```
-⏳ Checking VectorStore initialization (attempt 14/30)... {hasVectorStore: false}
-```
-
-You should see:
-
-```
-🔗 Found VectorStore on global app instance, linking immediately...
-✅ Immediate metadata sync completed
-```
-
-Or:
-
-```
-🔥 VectorStore ready event received, checking global app...
-✅ VectorStore found via event, linking immediately...
-✅ Event-triggered metadata sync completed
-```
-
-**The infinite polling should be completely eliminated!**
+- ✅ Tracks login provider (Google/GitHub/email)
+- ✅ Maintains login count for each user
+- ✅ Stores session history with timestamps
+- ✅ Updates user records on each login
+- ✅ Provides analytics functions for admin use
+- ✅ Error handling to prevent tracking failures from blocking sign-in
