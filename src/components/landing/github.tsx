@@ -221,7 +221,8 @@ export function GitHubSection() {
                     <div>
                       <div className="font-medium">Apache 2.0 License</div>
                       <div className="text-sm text-muted-foreground">
-                        Apache 2.0 Licensed • Community driven • Optional paid add-ons
+                        Apache 2.0 Licensed • Community driven • Optional paid
+                        add-ons
                       </div>
                     </div>
                   </div>
@@ -280,7 +281,7 @@ export function GitHubSection() {
                     asChild
                     size="lg"
                     variant={action.variant}
-                    className={`flex-1 ${action.className} shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 `}
+                    className={`flex-1 ${action.className} shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-8 `}
                   >
                     <a
                       href={action.href}
@@ -321,7 +322,8 @@ export function GitHubSection() {
                   </a>
                 </div>
                 <p className="text-white/50 text-xs mt-4">
-               Free to get started • Community driven • Premium features available
+                  Free to get started • Community driven • Premium features
+                  available
                 </p>
               </div>
             </CardContent>
