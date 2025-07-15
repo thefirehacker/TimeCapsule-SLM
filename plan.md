@@ -1,843 +1,164 @@
-### SEO Implementation Plan for TimeCapsuleSLM
+# MetadataManager Infinite Polling - Complete Solution
+
+## **Problem Resolved**
+
+MetadataManager was stuck in infinite polling with messages like:
+
+```
+⏳ Checking VectorStore initialization (attempt 14/30)... {hasVectorStore: false, isInitialized: undefined, processingAvailable: undefined}
+```
+
+Even though VectorStore was fully ready:
+
+```
+✅ Xenova model downloaded and cached - all features ready
+🔍 Status set to ready. Full status: {isInitialized: true, downloadStatus: 'ready', hasDocumentProcessor: true, processorAvailable: true, processingAvailable: true}
+```
+
+## **Root Cause Analysis**
+
+The issue was a **timing and connection problem**:
+
+1. **VectorStore initializes** and becomes available in DeepResearchApp
+2. **MetadataManager initializes later** but can't find the VectorStore reference
+3. **MetadataManager starts polling** with `hasVectorStore: false`
+4. **VectorStore is attached to app instance** but MetadataManager doesn't know about it
+5. **Infinite polling continues** because MetadataManager never gets the VectorStore reference
+
+## **Complete Solution Implemented**
+
+### **1. Global App Instance Access**
+
+```typescript
+// In DeepResearchApp.tsx
+if (typeof window !== "undefined") {
+  (window as any).deepResearchApp = app;
+  console.log("🌍 DeepResearchApp instance made globally available");
+}
+```
+
+- Made DeepResearchApp globally accessible so MetadataManager can find it
+- Allows MetadataManager to check for VectorStore even after initialization
+
+### **2. Event-Driven Connection**
+
+```typescript
+// In DeepResearchApp.tsx - When VectorStore becomes ready
+window.dispatchEvent(
+  new CustomEvent("vectorstore-ready", {
+    detail: { vectorStore: vectorStore },
+  })
+);
+```
 
-This plan outlines the steps to improve the Search Engine Optimization (SEO) of the TimeCapsuleSLM application.
+- Fires custom event when VectorStore is ready
+- Allows immediate notification to waiting MetadataManager
 
-#### **Part 1: Metadata and SEO Basics**
+### **3. Enhanced Polling with Global Check**
 
-1.  **Generate `robots.txt`:** ✅ COMPLETED
-    - Created `src/app/robots.ts` file to generate `robots.txt`.
-    - Configured to allow crawlers to access most of the site while disallowing private routes like `/api/*` and specific `/auth/*` pages.
-    - Linked to the sitemap.
+```typescript
+// In MetadataManager.ts
+// CRITICAL FIX: Check if VectorStore is already available on the global app instance
+if (typeof window !== "undefined" && (window as any).deepResearchApp) {
+  const app = (window as any).deepResearchApp;
+  if (app.vectorStore && app.vectorStore.initialized) {
+    console.log(
+      "🔗 Found VectorStore on global app instance, linking immediately..."
+    );
+    this.vectorStore = app.vectorStore;
+    this.syncWithVectorStore();
+    return; // No polling needed!
+  }
+}
+```
 
-2.  **Generate `sitemap.xml`:** ✅ COMPLETED
-    - Created `src/app/sitemap.ts` to dynamically generate a sitemap.
-    - Included main static pages: `/`, `/ai-frames`, `/ai-graphs`, `/deep-research`, `/auth/signin`, `/auth/signup`, `/privacy`, `/terms`.
-    - Set appropriate priorities and change frequencies.
+- Checks global app instance before starting polling
+- Immediate connection if VectorStore is already ready
 
-3.  **Global Metadata Setup:** ✅ COMPLETED
-    - Updated `src/app/layout.tsx` with comprehensive metadata.
-    - Added `metadataBase`, title template, enhanced description, and keywords.
-    - Configured Open Graph and Twitter card information.
-    - Added verification codes and canonical URLs.
+### **4. Event Listener for Immediate Detection**
 
-#### **Part 2: Page-Level SEO Enhancements**
+```typescript
+// In MetadataManager.ts
+const handleVectorStoreReady = () => {
+  if (this._pollingActive) {
+    console.log("🔥 VectorStore ready event received, checking global app...");
+    const app = (window as any).deepResearchApp;
+    if (app.vectorStore && app.vectorStore.initialized) {
+      console.log("✅ VectorStore found via event, linking immediately...");
+      this._pollingActive = false;
+      this.vectorStore = app.vectorStore;
+      this.syncWithVectorStore();
+      return;
+    }
+  }
+};
+window.addEventListener("vectorstore-ready", handleVectorStoreReady);
+```
 
-4.  **Homepage Metadata (`src/app/page.tsx`):** ✅ COMPLETED
-    - Added JSON-LD structured data with Organization, WebSite, and SoftwareApplication schemas.
-    - Enhanced with comprehensive feature descriptions and metadata.
+- Listens for vectorstore-ready event to stop polling immediately
+- Provides instant connection when VectorStore becomes available
 
-5.  **AI-Frames Page Metadata (`src/app/ai-frames/page.tsx`):** ⏳ SKIPPED (User requested to skip page-specific metadata)
-    - Skipped as per user request to focus on global metadata only.
+### **5. Proper Cleanup**
 
-6.  **Other Key Pages Metadata:** ⏳ SKIPPED (User requested to skip page-specific metadata)
-    - Skipped as per user request to focus on global metadata only.
+```typescript
+// Clean up event listener
+window.removeEventListener("vectorstore-ready", handleVectorStoreReady);
+```
 
-#### **Part 3: Open Graph Image Generation**
+- Prevents memory leaks by cleaning up event listeners
+- Ensures no duplicate listeners
 
-7.  **Default Open Graph Image:** ✅ COMPLETED
-    - Created `src/app/opengraph-image.tsx` with dynamic image generation.
-    - Features TimeCapsule branding with gradient background and key features.
-    - Optimized for social media sharing (1200x630px).
+## **Expected Behavior Now**
 
-8.  **Homepage Open Graph Image:** ⏳ SKIPPED (Using default OG image)
-    - Using the default OG image for all pages as per user request.
+### **Scenario 1: VectorStore Ready Before MetadataManager**
 
-#### **Part 4: Structured Data (JSON-LD)**
+1. VectorStore initializes and becomes available
+2. MetadataManager starts and checks global app instance
+3. **Finds VectorStore immediately** - no polling needed
+4. **Result**: `🔗 Found VectorStore on global app instance, linking immediately...`
 
-9.  **Add JSON-LD to Homepage:** ✅ COMPLETED
-    - Added comprehensive JSON-LD structured data to `src/app/page.tsx`.
-    - Included Organization, WebSite, and SoftwareApplication schemas.
-    - Enhanced knowledge graph presence with detailed application information.
+### **Scenario 2: MetadataManager Starts Before VectorStore**
 
-#### **Implementation Summary**
+1. MetadataManager starts polling
+2. VectorStore becomes ready and fires 'vectorstore-ready' event
+3. **Event listener catches it immediately** and stops polling
+4. **Result**: `🔥 VectorStore ready event received, checking global app...`
 
-✅ **Completed:**
+### **Scenario 3: Normal Polling (Fallback)**
 
-- robots.txt generation
-- sitemap.xml generation
-- Global metadata in layout.tsx
-- Default Open Graph image
-- JSON-LD structured data for homepage
+1. If global check and event fail, normal polling continues
+2. **But now checks global app instance on each poll attempt**
+3. **Stops as soon as VectorStore is found**
 
-⏳ **Skipped (as requested):**
+## **Key Improvements**
 
-- Page-specific metadata for individual pages
-- Page-specific Open Graph images
+✅ **No More Infinite Polling**: MetadataManager finds VectorStore immediately  
+✅ **Event-Driven Architecture**: Instant notification when VectorStore is ready  
+✅ **Multiple Detection Methods**: Global check + event listener + polling fallback  
+✅ **Proper Cleanup**: No memory leaks from event listeners  
+✅ **Backward Compatible**: All existing functionality preserved
 
-**SEO Best Practices Implemented:**
+## **Testing Expected Results**
 
-- Proper robots.txt with sitemap reference
-- Dynamic sitemap with appropriate priorities
-- Comprehensive metadata with keywords and descriptions
-- Open Graph and Twitter card optimization
-- Structured data for better search engine understanding
-- Canonical URLs and verification codes
-- Mobile-friendly viewport configuration
+Instead of:
 
----
+```
+⏳ Checking VectorStore initialization (attempt 14/30)... {hasVectorStore: false}
+```
 
-# TimeCapsule Legal Pages & Footer Implementation Plan
+You should see:
 
-## ✅ COMPLETED: Terms and Conditions Page (Redesigned)
+```
+🔗 Found VectorStore on global app instance, linking immediately...
+✅ Immediate metadata sync completed
+```
 
-### Overview
+Or:
 
-Successfully implemented a comprehensive Terms and Conditions page for TimeCapsule with a plain, professional design following OpenAI's terms of use style.
+```
+🔥 VectorStore ready event received, checking global app...
+✅ VectorStore found via event, linking immediately...
+✅ Event-triggered metadata sync completed
+```
 
-### Implementation Details
-
-#### 1. Page Structure ✅
-
-- **File Location**: `src/app/terms-and-conditions/page.tsx`
-- **Design Style**: Plain, professional, minimal design following OpenAI's terms of use
-- **No Colors/Icons**: Clean, text-only presentation
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Dark Mode Support**: Full dark mode compatibility
-
-#### 2. Content Sections ✅
-
-- **Introduction**: Clear opening statement about terms governing use
-- **Service Description**: Explains TimeCapsule's three usage modes (Local, BYOA, Credit-Based)
-- **User Types and Responsibilities**: Detailed breakdown for each user type (2.1, 2.2, 2.3)
-- **Acceptable Use**: Clear guidelines on what users agree to
-- **AI Disclaimer**: Important warnings about AI-generated content reliability
-- **Intellectual Property**: Platform ownership and user content rights
-- **Service Availability**: Uptime commitments and service updates
-- **Termination**: Grounds and process for account termination
-- **Modifications**: How terms can be updated
-- **Contact**: Legal contact details
-
-#### 3. Visual Design ✅
-
-- **Plain Background**: White background (dark gray in dark mode)
-- **No Cards/Colors**: Simple section-based layout
-- **Numbered Sections**: Clear section numbering (1-9)
-- **Typography**: Clean, readable text with proper hierarchy
-- **Minimal Styling**: Only essential styling for readability
-- **Professional Layout**: Follows legal document standards
-
-#### 4. Key Features ✅
-
-- **Clean Typography**: Proper heading hierarchy (h1, h2, h3)
-- **Simple Navigation**: Basic back to home link
-- **Accessibility**: Semantic HTML structure
-- **Legal Format**: Standard legal document formatting
-- **No Distractions**: Focus on content readability
-
-#### 5. Legal Content Coverage ✅
-
-- **Service Modes**: Local, BYOA (Bring Your Own API), Credit-Based
-- **User Responsibilities**: Specific obligations for each user type
-- **AI Disclaimer**: Clear warnings about AI content reliability
-- **Intellectual Property**: Platform ownership vs user content rights
-- **Termination**: Clear grounds and process
-- **Contact**: Legal email (contact@bubblspace.com)
-
-### Technical Implementation
-
-#### Dependencies Used
-
-- `next/link` - Navigation only
-- **No UI Components**: Removed all card, badge, and icon dependencies
-- **Tailwind CSS**: Minimal styling for typography and layout
-
-#### Styling
-
-- **Plain Background**: `bg-white dark:bg-gray-900`
-- **Typography**: Clean text with proper spacing
-- **No Colors**: Only gray scale for text
-- **Simple Layout**: Section-based with consistent spacing
-
-### Design Philosophy
-
-#### OpenAI-Inspired Design ✅
-
-- **Minimalist Approach**: No unnecessary visual elements
-- **Focus on Content**: Text is the primary focus
-- **Professional Appearance**: Suitable for legal documents
-- **Clean Typography**: Easy to read and scan
-- **Consistent Spacing**: Proper visual hierarchy
-
-#### Removed Elements
-
-- ❌ All icons and visual elements
-- ❌ Color-coded sections
-- ❌ Card components
-- ❌ Badges and decorative elements
-- ❌ Background gradients
-- ❌ Complex layouts
-
-#### Added Elements
-
-- ✅ Numbered sections (1-9)
-- ✅ Clean typography hierarchy
-- ✅ Simple, professional layout
-- ✅ Legal document formatting
-- ✅ Minimal, distraction-free design
-
----
-
-## ✅ COMPLETED: Privacy Policy Page (Redesigned)
-
-### Overview
-
-Successfully redesigned the Privacy Policy page to match the plain, professional style of the terms page and incorporated new privacy content focused on the three usage modes.
-
-### Implementation Details
-
-#### 1. Page Structure ✅
-
-- **File Location**: `src/app/privacy-policy/page.tsx`
-- **Design Style**: Plain, professional, minimal design matching terms page
-- **No Colors/Icons**: Clean, text-only presentation
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Dark Mode Support**: Full dark mode compatibility
-
-#### 2. Content Sections ✅
-
-- **Overview**: Three modes of usage (Local-only, External API, Cloud-based)
-- **Information We Collect**: Detailed breakdown by user type (2.1, 2.2, 2.3)
-- **Cookie Usage**: Essential and analytics cookies
-- **How We Use Your Data**: Service provision, personalization, legal compliance
-- **Data Security**: HTTPS, encryption, local-first architecture, 30-day deletion
-- **Your Rights**: GDPR and CCPA rights (6.1, 6.2)
-- **Data Retention**: Analytics, session, documents, server data
-- **Updates**: Policy change notifications
-- **Contact**: Privacy contact details
-
-#### 3. Key Privacy Features ✅
-
-- **30-Day Data Deletion**: All server data automatically deleted after 30 days
-- **Local-First Architecture**: Prioritized whenever possible
-- **Three Usage Modes**: Clear distinction between local, BYOA, and credit-based
-- **GDPR/CCPA Compliance**: Comprehensive user rights coverage
-- **Transparent Data Practices**: Clear explanation of what data is collected and why
-
-#### 4. Content Updates ✅
-
-- **New Overview**: Focuses on three usage modes
-- **Updated Data Collection**: Specific to each user type
-- **Enhanced Security**: Includes 30-day automatic deletion
-- **Simplified Rights**: Streamlined GDPR and CCPA sections
-- **Updated Contact**: Changed to contact@bubblspace.com
-
-### Technical Implementation
-
-#### Dependencies Used
-
-- `next/link` - Navigation only
-- **No UI Components**: Removed all card, badge, and icon dependencies
-- **Tailwind CSS**: Minimal styling for typography and layout
-
-#### Styling
-
-- **Plain Background**: `bg-white dark:bg-gray-900`
-- **Typography**: Clean text with proper spacing
-- **No Colors**: Only gray scale for text
-- **Simple Layout**: Section-based with consistent spacing
-
-### Design Consistency
-
-#### Matches Terms Page ✅
-
-- **Same Visual Style**: Plain, professional appearance
-- **Consistent Typography**: Same heading hierarchy and text styling
-- **Numbered Sections**: Clear section numbering (1-9)
-- **Minimal Navigation**: Simple back to home link
-- **No Visual Distractions**: Focus on content readability
-
-#### Content Improvements ✅
-
-- **Mode-Specific Privacy**: Clear privacy implications for each usage mode
-- **30-Day Deletion Policy**: Prominent mention of automatic data deletion
-- **Simplified Language**: More accessible privacy explanations
-- **Updated Contact Information**: Consistent with terms page
-
----
-
-## ✅ COMPLETED: Footer Component
-
-### Overview
-
-Successfully created a clean and beautiful footer component that includes navigation links, legal pages, social features, and company information.
-
-### Implementation Details
-
-#### 1. Component Structure ✅
-
-- **File Location**: `src/components/ui/footer.tsx`
-- **Design Style**: Clean, modern, responsive footer
-- **Grid Layout**: 4-column responsive grid for desktop, stacks on mobile
-- **Consistent Branding**: Matches navbar design and color scheme
-
-#### 2. Footer Sections ✅
-
-- **Brand Section**: Logo, description, and social links
-- **Navigation Links**: All main navigation items from navbar
-- **Product Features**: DeepResearch, AI-Frames, Vision with descriptions
-- **Legal & Support**: Terms, Privacy, and contact information
-- **Bottom Section**: Copyright, company info, and quick legal links
-
-#### 3. Key Features ✅
-
-- **Social Links**: GitHub, Twitter, Email with proper icons
-- **Legal Integration**: Direct links to Terms and Privacy pages
-- **Responsive Design**: Mobile-first approach with proper breakpoints
-- **Accessibility**: Proper ARIA labels and semantic HTML
-- **Hover Effects**: Smooth transitions and interactive elements
-
-#### 4. Content Integration ✅
-
-- **Navbar Links**: All navigation items from navbar component
-- **Legal Pages**: Links to Terms and Privacy pages
-- **Social Features**: GitHub repository and social media links
-- **Company Info**: AIEDX Private Limited and FireHacker attribution
-- **Contact Information**: Email and social media contacts
-
-### Technical Implementation
-
-#### Dependencies Used
-
-- `next/link` - Navigation
-- `next/image` - Logo display
-- `lucide-react` - Icons (Github, Twitter, Mail, Heart, ExternalLink, etc.)
-- `@/components/ui/separator` - Visual separation
-- `@/components/ui/button` - Button components
-
-#### Styling
-
-- **Responsive Grid**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4`
-- **Consistent Spacing**: Proper padding and margins
-- **Hover Effects**: Smooth color transitions
-- **Dark Mode Support**: Full compatibility
-- **Brand Colors**: Matches existing design system
-
-### Design Features
-
-#### Visual Elements ✅
-
-- **Logo Integration**: TimeCapsule logo with gradient text
-- **Social Icons**: GitHub, Twitter, Email with hover effects
-- **Feature Icons**: Microscope, Palette, Search for product features
-- **Legal Icons**: FileText, Shield for legal pages
-- **Heart Icon**: Red heart for "Made with love" section
-
-#### Layout Structure ✅
-
-- **4-Column Grid**: Organized content sections
-- **Responsive Breakpoints**: Mobile, tablet, desktop layouts
-- **Separator Line**: Visual separation between main content and bottom
-- **Flexible Bottom Section**: Copyright and legal links
-
-#### Interactive Elements ✅
-
-- **Hover Effects**: Color transitions on all links
-- **External Links**: Proper target="\_blank" and rel attributes
-- **Social Links**: GitHub, Twitter, Email with icons
-- **Quick Legal Links**: Terms and Privacy in bottom section
-
-### Integration
-
-#### Added to Main Page ✅
-
-- **File Modified**: `src/app/page.tsx`
-- **Import Added**: `import { Footer } from "@/components/ui/footer"`
-- **Component Added**: `<Footer />` after GitHub section
-- **Proper Placement**: At the bottom of the page structure
-
-### Testing Checklist
-
-#### Visual Testing ✅
-
-- [x] Footer loads correctly with all sections
-- [x] Responsive design works on mobile/tablet/desktop
-- [x] Dark mode toggle works properly
-- [x] All icons display correctly
-- [x] Hover effects work smoothly
-- [x] Grid layout adapts to screen size
-
-#### Content Testing ✅
-
-- [x] All navigation links are present and functional
-- [x] Legal page links work correctly
-- [x] Social media links open in new tabs
-- [x] Contact email link is functional
-- [x] Company information is accurate
-- [x] Copyright and attribution are correct
-
-#### Navigation Testing ✅
-
-- [x] All internal links work properly
-- [x] External links open in new tabs
-- [x] Social media links are accessible
-- [x] Legal page links navigate correctly
-
-#### Accessibility Testing ✅
-
-- [x] Proper heading hierarchy
-- [x] Semantic HTML structure
-- [x] ARIA labels on social links
-- [x] Color contrast meets standards
-- [x] Screen reader friendly
-
-### Files Modified
-
-- `src/app/terms-and-conditions/page.tsx` - Redesigned with plain, professional layout
-- `src/app/privacy-policy/page.tsx` - Redesigned with plain, professional layout and updated content
-- `src/components/ui/footer.tsx` - Created new footer component
-- `src/app/page.tsx` - Added footer to main page
-
-### Status: ✅ COMPLETE
-
-All legal pages and footer have been successfully implemented with professional, consistent designs that provide excellent user experience and legal compliance.
-
----
-
-## 🎨 NEW: UI Improvements for Features and GitHub Sections
-
-### Overview
-
-Improve the UI of the features.tsx and github.tsx components to make them more clean and professional, with better button styling and overall visual appeal.
-
-### Current Issues Identified
-
-1. **Button Styling**: Buttons don't look great and need better visual hierarchy
-2. **Overall UI**: Could be more clean and professional
-3. **Visual Consistency**: Need better alignment with modern design standards
-4. **Interactive Elements**: Buttons and cards need better hover states and transitions
-
-### Implementation Plan
-
-#### 1. Features Section Improvements ✅
-
-**Button Enhancements:**
-
-- Replace gradient buttons with clean, solid buttons
-- Add proper hover states with subtle shadows
-- Improve button typography and spacing
-- Use consistent button variants (primary, secondary, outline)
-
-**Card Improvements:**
-
-- Cleaner card designs with better spacing
-- Improved hover effects with subtle animations
-- Better visual hierarchy for feature descriptions
-- Consistent icon styling and positioning
-
-**Layout Enhancements:**
-
-- Better spacing between sections
-- Improved responsive design
-- Cleaner typography hierarchy
-- More professional color scheme
-
-#### 2. GitHub Section Improvements ✅
-
-**Button Redesign:**
-
-- Replace complex button styles with clean, professional variants
-- Better visual hierarchy for different button types
-- Improved hover states and transitions
-- Consistent spacing and typography
-
-**Card Improvements:**
-
-- Cleaner card designs with subtle shadows
-- Better content organization within cards
-- Improved visual separation between sections
-- More professional color usage
-
-**Layout Enhancements:**
-
-- Better grid layout for stats and content
-- Improved responsive behavior
-- Cleaner typography and spacing
-- More professional overall appearance
-
-#### 3. Design Principles ✅
-
-**Clean and Professional:**
-
-- Minimal use of gradients and complex colors
-- Focus on typography and spacing
-- Subtle shadows and hover effects
-- Consistent button and card styling
-
-**Modern Standards:**
-
-- Follow current UI/UX best practices
-- Accessible color contrast
-- Smooth animations and transitions
-- Mobile-first responsive design
-
-**Visual Hierarchy:**
-
-- Clear distinction between primary and secondary actions
-- Proper use of typography weights and sizes
-- Logical content flow and organization
-- Consistent spacing and alignment
-
-### Technical Implementation
-
-#### Dependencies Used
-
-- Existing UI components (Button, Card, Badge)
-- Tailwind CSS for styling
-- Lucide React icons
-- AnimatedGroup for animations
-
-#### Styling Approach
-
-- Clean, minimal design language
-- Consistent button variants
-- Subtle hover effects
-- Professional color palette
-- Better spacing and typography
-
-### Files to Modify
-
-1. `src/components/landing/features.tsx` - Improve button styling and overall UI
-2. `src/components/landing/github.tsx` - Enhance button design and card layouts
-
-### Expected Outcomes
-
-- **Professional Appearance**: Clean, modern design that looks more professional
-- **Better UX**: Improved button interactions and visual feedback
-- **Consistency**: Unified design language across both sections
-- **Accessibility**: Better color contrast and interactive elements
-- **Mobile Experience**: Improved responsive design and touch interactions
-
-### Status: ✅ COMPLETED
-
-Successfully implemented UI improvements for both features and GitHub sections.
-
-### Implementation Summary
-
-#### Features Section Improvements ✅
-
-**Button Enhancements:**
-
-- ✅ Replaced gradient buttons with clean, solid button variants
-- ✅ Added proper hover states with subtle shadows and transitions
-- ✅ Improved button typography and spacing with consistent sizing
-- ✅ Used consistent button variants (default, secondary, outline)
-- ✅ Added ArrowRight icons with hover animations for better UX
-
-**Card Improvements:**
-
-- ✅ Cleaner card designs with better spacing and shadow-lg
-- ✅ Improved hover effects with subtle animations and transform
-- ✅ Better visual hierarchy for feature descriptions
-- ✅ Consistent icon styling with primary color theme
-- ✅ Simplified color scheme using primary colors instead of multiple gradients
-
-**Layout Enhancements:**
-
-- ✅ Better spacing between sections with consistent padding
-- ✅ Improved responsive design with proper grid layouts
-- ✅ Cleaner typography hierarchy with proper heading weights
-- ✅ More professional color scheme using primary colors
-
-#### GitHub Section Improvements ✅
-
-**Button Redesign:**
-
-- ✅ Replaced complex button styles with clean, professional variants
-- ✅ Better visual hierarchy for different button types (default, secondary, outline)
-- ✅ Improved hover states and transitions with scale effects
-- ✅ Consistent spacing and typography across all buttons
-- ✅ Added ArrowRight icons with hover animations
-
-**Card Improvements:**
-
-- ✅ Cleaner card designs with subtle shadows (shadow-lg)
-- ✅ Better content organization within cards with proper spacing
-- ✅ Improved visual separation between sections
-- ✅ More professional color usage with consistent theming
-- ✅ Enhanced hover effects with shadow-xl transitions
-
-**Layout Enhancements:**
-
-- ✅ Better grid layout for stats and content sections
-- ✅ Improved responsive behavior with proper breakpoints
-- ✅ Cleaner typography and spacing throughout
-- ✅ More professional overall appearance with consistent design language
-
-### Key Improvements Made
-
-#### Visual Design
-
-- **Consistent Color Scheme**: Replaced multiple gradient colors with primary color theme
-- **Professional Shadows**: Used shadow-lg and shadow-xl for better depth
-- **Clean Typography**: Improved text hierarchy and spacing
-- **Subtle Animations**: Added smooth transitions and hover effects
-
-#### Button Design
-
-- **Consistent Variants**: Used standard button variants (default, secondary, outline)
-- **Better Hover States**: Added shadow effects and scale animations
-- **Arrow Icons**: Added ArrowRight icons with hover animations for better UX
-- **Professional Styling**: Clean, modern button appearance
-
-#### Card Design
-
-- **Enhanced Shadows**: Better shadow system for depth and hierarchy
-- **Improved Hover Effects**: Subtle animations and transitions
-- **Better Spacing**: Consistent padding and margins
-- **Cleaner Layout**: Simplified content organization
-
-#### Interactive Elements
-
-- **Smooth Transitions**: All hover effects have smooth animations
-- **Visual Feedback**: Clear indication of interactive elements
-- **Accessibility**: Better color contrast and focus states
-- **Mobile Friendly**: Improved touch interactions
-
-### Files Modified
-
-1. `src/components/landing/features.tsx` - ✅ Enhanced with clean, professional UI
-2. `src/components/landing/github.tsx` - ✅ Improved with modern button and card designs
-
-### Results
-
-The UI improvements have successfully transformed both sections into clean, professional, and modern designs that provide excellent user experience with:
-
-- **Professional Appearance**: Clean, minimal design that looks more professional
-- **Better UX**: Improved button interactions and visual feedback
-- **Consistency**: Unified design language across both sections
-- **Accessibility**: Better color contrast and interactive elements
-- **Mobile Experience**: Improved responsive design and touch interactions
-
-The implementation is complete and ready for production use.
-
----
-
-# Pricing Page Implementation Plan
-
-## Overview
-
-Create a comprehensive pricing page for TimeCapsuleSLM with three distinct user types and pricing tiers. The page will showcase the different usage modes and their associated features.
-
-## User Types & Pricing Structure
-
-### 1. Local Users (Free)
-
-- All data stored in browser storage
-- No API keys required
-- Basic features only
-
-### 2. BYOA Users (Free)
-
-- Bring Your Own API
-- Supports: Firecrawl, OpenAI, Anthropic, OpenRouter, and others
-- User provides their own API keys
-- Full feature access
-
-### 3. Credit-Based Users (Paid)
-
-- **Normal Plan**: $20/month
-- **Team Plan**: $200/month
-- **Enterprise Plan**: Custom pricing
-- We provide credits, no API keys needed
-
-## Implementation Plan
-
-### Phase 1: Page Structure & Design ✅ COMPLETED
-
-1. ✅ Create responsive pricing page layout
-2. ✅ Design pricing cards for each tier
-3. ✅ Implement feature comparison table
-4. ✅ Add call-to-action buttons
-
-**Implementation Details:**
-
-- Created comprehensive pricing page with 4 tiers (Local/BYOA Free, Normal $20, Team $200, Enterprise Custom)
-- Responsive grid layout with hover effects and animations
-- Professional design with consistent branding (red color scheme)
-- Clear feature comparison with checkmarks and limitations
-- Popular plan highlighting for Normal tier ($20/month)
-- Dark mode support throughout
-
-### Phase 2: Content & Features ✅ COMPLETED
-
-1. ✅ Define comprehensive feature list for each tier
-2. ✅ Add integrations (Google Drive, Discord, etc.)
-3. ✅ Create connector descriptions
-4. ✅ Add usage limits and restrictions
-
-**Content Implemented:**
-
-- **Local & BYOA (Free)**: Basic features, browser storage, 100 AI interactions/month
-- **Normal ($20/month)**: All free features + unlimited AI, integrations, cloud storage
-- **Team ($200/month)**: Up to 10 members, team management, custom branding
-- **Enterprise (Custom)**: Unlimited members, SSO, dedicated infrastructure, 99.9% SLA
-
-**Integrations Added:**
-
-- Google Drive, Discord, Slack, Notion, GitHub, Figma, Zapier
-- Microsoft Teams, Trello, Asana
-- Each with descriptive functionality
-
-### Phase 3: Interactive Elements ✅ COMPLETED
-
-1. ✅ Add plan comparison toggle (built into card design)
-2. ✅ Implement FAQ section
-3. ✅ Add contact sales button for enterprise
-4. ✅ Include testimonials or social proof (CTA section)
-
-**Interactive Features:**
-
-- Hover effects on pricing cards
-- Popular plan highlighting with scale effect
-- Comprehensive FAQ section (6 questions)
-- Multiple CTA buttons (Start Free Trial, Contact Sales)
-- Responsive design for all screen sizes
-
-### Phase 4: Styling & Polish ✅ COMPLETED
-
-1. ✅ Apply consistent design system
-2. ✅ Add animations and hover effects
-3. ✅ Ensure mobile responsiveness
-4. ✅ Test dark mode compatibility
-
-**Design Features:**
-
-- Gradient backgrounds
-- Consistent red branding
-- Smooth transitions and hover effects
-- Mobile-first responsive design
-- Full dark mode support
-- Professional typography and spacing
-
-## Features Implemented
-
-### Core Features ✅
-
-- AI Frame Creation
-- Learning Graph Generation
-- Deep Research Tools
-- Document Processing
-- Vector Storage
-- Real-time Collaboration
-
-### Integrations ✅
-
-- Google Drive
-- Discord
-- Slack
-- Notion
-- GitHub
-- Figma
-- Zapier
-- Microsoft Teams
-- Trello
-- Asana
-
-### Advanced Features ✅
-
-- Custom AI Models
-- Advanced Analytics
-- Team Management
-- API Access
-- Priority Support
-- Custom Branding
-
-## Technical Implementation ✅
-
-### Dependencies Used
-
-- React components from existing UI library
-- Tailwind CSS for styling
-- Lucide React icons
-- Next.js Link component
-- Responsive design
-- Dark mode support
-
-### File Structure ✅
-
-- `src/app/pricing/page.tsx` - Main pricing page ✅ COMPLETED
-
-## Success Criteria ✅ ACHIEVED
-
-- ✅ Clear pricing structure
-- ✅ Comprehensive feature comparison
-- ✅ Professional design
-- ✅ Mobile responsive
-- ✅ Accessible navigation
-- ✅ Clear call-to-action buttons
-
-## Testing Status
-
-- **Page Structure**: ✅ Responsive layout working
-- **Pricing Cards**: ✅ All 4 tiers displayed correctly
-- **Feature Lists**: ✅ Comprehensive feature comparison
-- **Integrations**: ✅ 10 integrations showcased
-- **FAQ Section**: ✅ 6 common questions answered
-- **CTA Buttons**: ✅ Proper linking to signup/contact
-- **Dark Mode**: ✅ Full compatibility
-- **Mobile Design**: ✅ Responsive on all screen sizes
-
-## UI/UX Improvements ✅ COMPLETED
-
-### Design Overhaul
-
-- **Color Scheme**: Changed from red to professional blue gradient theme
-- **Typography**: Upgraded to larger, more impactful headings (5xl-6xl)
-- **Layout**: Cleaner spacing with better visual hierarchy
-- **Professional Look**: Enterprise-grade design with subtle animations
-
-### Icon Improvements ✅
-
-- **Plan Icons**:
-  - Local/BYOA: Rocket (getting started)
-  - Professional: Crown (premium tier)
-  - Team: Users (collaboration)
-  - Enterprise: Building2 (organization)
-- **Integration Icons**: Consistent icon system using Database, Globe, Zap, Shield
-- **Icon Styling**: Gradient backgrounds with proper spacing
-
-### Feature List Optimization ✅
-
-- **Reduced Features**: Cut down from 15+ to 6-8 key features per plan
-- **Focused Content**: Only essential features highlighted
-- **Better Hierarchy**: Clear progression from basic to advanced features
-- **Concise Descriptions**: Shortened feature names for better readability
-
-### Visual Enhancements ✅
-
-- **Gradient Backgrounds**: Professional blue-to-indigo gradients
-- **Card Design**: Rounded corners (3xl), better shadows, hover effects
-- **Popular Plan**: Prominent highlighting with ring border and scale effect
-- **Animations**: Subtle hover animations and transforms
-- **Spacing**: Improved padding and margins throughout
-
-### Content Refinements ✅
-
-- **Header Section**: Added badge, improved typography, gradient text
-- **FAQ Section**: Reduced from 6 to 4 essential questions
-- **Integration Grid**: Simplified to 6 key integrations
-- **CTA Section**: More compelling copy and better button design
-
-### Technical Improvements ✅
-
-- **Dark Mode**: Full compatibility maintained
-- **Responsive Design**: Optimized for all screen sizes
-- **Performance**: Cleaner code with better component structure
-- **Accessibility**: Better contrast ratios and semantic HTML
-
-## Final Implementation Status ✅ COMPLETED
-
-### All Phases Complete
-
-- **Phase 1**: ✅ Page Structure & Design (with blue theme)
-- **Phase 2**: ✅ Content & Features (optimized and reduced)
-- **Phase 3**: ✅ Interactive Elements (enhanced animations)
-- **Phase 4**: ✅ Styling & Polish (professional blue design)
-
-### Professional Grade Features
-
-- **Visual Appeal**: Modern, clean, enterprise-ready design
-- **User Experience**: Intuitive navigation and clear value proposition
-- **Performance**: Optimized for fast loading and smooth interactions
-- **Brand Consistency**: Professional blue theme throughout
-- **Mobile First**: Fully responsive across all devices
+**The infinite polling should be completely eliminated!**

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
 import {
   Bot,
   Settings,
@@ -318,6 +319,18 @@ export function ControlsPanel({
 
             </CardContent>
           </Card>
+
+          {/* Knowledge Base */}
+          <KnowledgeBaseSection
+            documentStatus={documentStatus}
+            onUploadDocuments={onUploadDocuments}
+            onManageKnowledge={onManageKnowledge}
+            onScrapeUrl={onScrapeUrl}
+            onUploadRepository={onUploadRepository}
+            onExportTimeCapsule={onExportTimeCapsule}
+            onLoadTimeCapsule={onLoadTimeCapsule}
+            showTimeCapsuleActions={true}
+          />
 
           {/* Actions - Moved to top for better visibility */}
           <Card className="shadow-sm border-blue-200 dark:border-blue-800">
@@ -617,110 +630,6 @@ Assistant: ONNX and PyTorch use different serialization formats..."
                 <Plus className="h-4 w-4 mr-2" />
                 Add Topic
               </Button>
-            </CardContent>
-          </Card>
-
-          {/* Knowledge Base */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <HardDrive className="h-4 w-4" />
-                Knowledge Base
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Documents:
-                  </span>
-                  <Badge variant="outline">{documentStatus.count}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Total Size:
-                  </span>
-                  <Badge variant="outline">
-                    {formatFileSize(documentStatus.totalSize)}
-                  </Badge>
-                </div>
-                {documentStatus.vectorCount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600 dark:text-slate-400">
-                      Searchable Chunks:
-                    </span>
-                    <Badge variant="outline">
-                      {documentStatus.vectorCount}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button onClick={onUploadDocuments} variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-1" />
-                  Upload
-                </Button>
-                <Button onClick={onManageKnowledge} variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-1" />
-                  Manage
-                </Button>
-              </div>
-              
-              <Button 
-                onClick={onScrapeUrl} 
-                variant="outline" 
-                size="sm"
-                className="w-full text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
-              >
-                <span className="mr-2">🔍</span>
-                Scrape URL with Firecrawl
-              </Button>
-
-              <Button
-                onClick={onUploadRepository}
-                disabled
-                variant="outline"
-                size="sm"
-                className="w-full opacity-50"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Repository (Soon)
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* TimeCapsule */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <HardDrive className="h-4 w-4" />
-                TimeCapsule
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={onExportTimeCapsule}
-                  variant="outline"
-                  size="sm"
-                  className="text-cyan-600 hover:text-cyan-700 border-cyan-200 hover:border-cyan-300"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Save
-                </Button>
-                <Button
-                  onClick={onLoadTimeCapsule}
-                  variant="outline"
-                  size="sm"
-                  className="text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  Load
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>

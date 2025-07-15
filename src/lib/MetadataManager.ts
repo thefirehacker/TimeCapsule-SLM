@@ -118,15 +118,14 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     this.bubblSpaces.set(bubblSpace.id, bubblSpace);
     this.saveBubblSpaces(Array.from(this.bubblSpaces.values()));
     
-    // Auto-sync to Knowledge Base when BubblSpace is created
-    if (this.vectorStore && this.vectorStore.initialized) {
-      this.saveMetadataToVectorStore(
-        Array.from(this.bubblSpaces.values()),
-        Array.from(this.timeCapsules.values())
-      ).catch(error => {
-        console.warn('Failed to sync BubblSpace to Knowledge Base:', error);
-      });
-    }
+    // ENHANCED: Immediate sync to Knowledge Base when BubblSpace is created
+    this.forceSyncToVectorStore().then(success => {
+      if (success) {
+        console.log(`✅ BubblSpace immediately synced to Knowledge Base: ${bubblSpace.name}`);
+      } else {
+        console.warn(`⚠️ BubblSpace sync deferred - VectorStore not ready: ${bubblSpace.name}`);
+      }
+    });
     
     // Dispatch custom event for same-page updates
     if (typeof window !== 'undefined') {
@@ -177,24 +176,17 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     this.saveBubblSpaces(Array.from(this.bubblSpaces.values()));
     console.log(`💾 BubblSpace saved to localStorage`);
     
-    // Auto-sync to Knowledge Base when BubblSpace is updated
-    if (this.vectorStore && this.vectorStore.initialized) {
-      console.log(`🔄 Syncing BubblSpace to Knowledge Base...`);
-      this.saveMetadataToVectorStore(
-        Array.from(this.bubblSpaces.values()),
-        Array.from(this.timeCapsules.values())
-      ).then(() => {
-        console.log(`✅ BubblSpace synced to Knowledge Base successfully`);
-      }).catch(error => {
-        console.warn('❌ Failed to sync updated BubblSpace to Knowledge Base:', error);
-      });
-    } else {
-      console.warn(`⚠️ VectorStore not available for sync - initialized: ${this.vectorStore?.initialized}, hasVectorStore: ${!!this.vectorStore}`);
-    }
+    // ENHANCED: Immediate sync to Knowledge Base when BubblSpace is updated
+    this.forceSyncToVectorStore().then(success => {
+      if (success) {
+        console.log(`✅ BubblSpace immediately synced to Knowledge Base: ${updated.name}`);
+      } else {
+        console.warn(`⚠️ BubblSpace sync deferred - VectorStore not ready: ${updated.name}`);
+      }
+    });
     
     // Dispatch custom event for same-page updates
     if (typeof window !== 'undefined') {
-      console.log(`📢 Dispatching bubblspace-metadata-changed event`);
       window.dispatchEvent(new CustomEvent('bubblspace-metadata-changed', {
         detail: { type: 'updated', bubblSpace: updated }
       }));
@@ -306,15 +298,14 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     this.timeCapsules.set(timeCapsule.id, timeCapsule);
     this.saveTimeCapsules(Array.from(this.timeCapsules.values()));
     
-    // Auto-sync to Knowledge Base when TimeCapsule is created
-    if (this.vectorStore && this.vectorStore.initialized) {
-      this.saveMetadataToVectorStore(
-        Array.from(this.bubblSpaces.values()),
-        Array.from(this.timeCapsules.values())
-      ).catch(error => {
-        console.warn('Failed to sync TimeCapsule to Knowledge Base:', error);
-      });
-    }
+    // ENHANCED: Immediate sync to Knowledge Base when TimeCapsule is created
+    this.forceSyncToVectorStore().then(success => {
+      if (success) {
+        console.log(`✅ TimeCapsule immediately synced to Knowledge Base: ${timeCapsule.name}`);
+      } else {
+        console.warn(`⚠️ TimeCapsule sync deferred - VectorStore not ready: ${timeCapsule.name}`);
+      }
+    });
     
     // Dispatch custom event for same-page updates
     if (typeof window !== 'undefined') {
@@ -347,15 +338,14 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
     this.timeCapsules.set(id, updated);
     this.saveTimeCapsules(Array.from(this.timeCapsules.values()));
     
-    // Auto-sync to Knowledge Base when TimeCapsule is updated
-    if (this.vectorStore && this.vectorStore.initialized) {
-      this.saveMetadataToVectorStore(
-        Array.from(this.bubblSpaces.values()),
-        Array.from(this.timeCapsules.values())
-      ).catch(error => {
-        console.warn('Failed to sync updated TimeCapsule to Knowledge Base:', error);
-      });
-    }
+    // ENHANCED: Immediate sync to Knowledge Base when TimeCapsule is updated
+    this.forceSyncToVectorStore().then(success => {
+      if (success) {
+        console.log(`✅ TimeCapsule immediately synced to Knowledge Base: ${updated.name}`);
+      } else {
+        console.warn(`⚠️ TimeCapsule sync deferred - VectorStore not ready: ${updated.name}`);
+      }
+    });
     
     // Dispatch custom event for same-page updates
     if (typeof window !== 'undefined') {
@@ -610,37 +600,44 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
 
   async saveMetadataToVectorStore(bubblSpaces: BubblSpace[], timeCapsules: TimeCapsuleMetadata[]): Promise<void> {
     if (!this.vectorStore || !this.vectorStore.initialized) {
-      console.log('📋 Vector store not ready for metadata sync, skipping...');
+      console.log('📋 Vector store not ready for metadata sync, skipping...', {
+        hasVectorStore: !!this.vectorStore,
+        isInitialized: this.vectorStore?.initialized,
+        processingAvailable: this.vectorStore?.processingAvailable
+      });
       return;
     }
 
-    console.log('🔄 Starting metadata sync to Knowledge Base...');
+    console.log('🔄 Starting enhanced metadata sync to Knowledge Base...', {
+      bubblSpacesCount: bubblSpaces.length,
+      timeCapslesCount: timeCapsules.length,
+      vectorStoreStatus: {
+        initialized: this.vectorStore.initialized,
+        processingAvailable: this.vectorStore.processingAvailable
+      }
+    });
     
     let syncSuccessful = false;
     let syncErrors: string[] = [];
+    let syncedItems = { bubblSpaces: 0, timeCapsules: 0 };
 
     try {
-      // Store BubblSpaces as searchable documents
+      // Store BubblSpaces as searchable documents with retry logic
       for (const space of bubblSpaces) {
         const docId = `bubblspace-${space.id}`;
         console.log(`📝 Syncing BubblSpace: ${space.name} (ID: ${docId})`);
-        console.log(`📋 BubblSpace data:`, {
-          name: space.name,
-          description: space.description,
-          tags: space.tags,
-          updatedAt: space.updatedAt
-        });
         
-        // Delete existing document first to ensure fresh update
         try {
-          await this.vectorStore.deleteDocument(docId);
-          console.log(`🗑️ Deleted old BubblSpace document: ${docId}`);
-        } catch (deleteError) {
-          // Document might not exist, that's OK
-          console.log(`ℹ️ Old BubblSpace document not found (first time sync): ${docId}`);
-        }
-        
-        const contentText = `BubblSpace: ${space.name}
+          // Enhanced deletion with error handling
+          try {
+            await this.vectorStore.deleteDocument(docId);
+            console.log(`🗑️ Deleted old BubblSpace document: ${docId}`);
+          } catch (deleteError) {
+            // Document might not exist, that's OK for first-time sync
+            console.log(`ℹ️ Old BubblSpace document not found (first time sync): ${docId}`);
+          }
+          
+          const contentText = `BubblSpace: ${space.name}
 Description: ${space.description}
 ID: ${space.id}
 Created: ${new Date(space.createdAt).toLocaleString()}
@@ -649,83 +646,88 @@ Color: ${space.color || 'default'}
 Is Default: ${space.isDefault ? 'Yes' : 'No'}
 Created By: ${space.createdBy || 'unknown'}
 Tags: ${space.tags?.join(', ') || 'none'}`;
-        console.log(`📄 Document content being saved:`, contentText);
-        
-        const doc = {
-          id: docId,
-          title: `BubblSpace: ${space.name}`, // Required by VectorStore schema
-          content: contentText,
-          metadata: {
-            filename: `bubblspace-${space.name}.json`,
-            filesize: JSON.stringify(space).length,
-            filetype: 'application/json',
-            uploadedAt: space.createdAt,
-            source: 'metadata',
-            description: `BubblSpace metadata: ${space.name}`,
-            isGenerated: true,
-            // Enhanced metadata for BubblSpace - ALL UI VALUES
-            type: 'bubblspace',
-            bubblSpaceId: space.id,
-            name: space.name,
-            createdAt: space.createdAt,
-            updatedAt: space.updatedAt,
-            // Additional UI fields from BubblSpace interface
-            color: space.color,
-            isDefault: space.isDefault,
-            createdBy: space.createdBy,
-            tags: space.tags,
-            // Full object for reference
-            fullObject: JSON.stringify(space)
-          },
-          chunks: [], // Required by VectorStore schema
-          vectors: [], // Required by VectorStore schema
-        };
-        
-        try {
-          await this.vectorStore.insertDocument(doc);
-          console.log(`✅ BubblSpace synced to Knowledge Base: ${space.name}`);
+
+          const doc = {
+            id: docId,
+            title: `BubblSpace: ${space.name}`,
+            content: contentText,
+            metadata: {
+              filename: `${space.name}.md`,
+              filesize: contentText.length,
+              filetype: 'text/markdown',
+              uploadedAt: new Date().toISOString(),
+              source: 'metadata',
+              description: `BubblSpace metadata for ${space.name}`,
+              isGenerated: true,
+              bubblSpaceId: space.id,
+              type: 'bubblspace',
+              name: space.name,
+              category: 'metadata',
+              updatedAt: space.updatedAt
+            },
+            chunks: [],
+            vectors: []
+          };
           
-          // Additional verification for critical documents
-          const verificationDoc = await this.vectorStore.getDocument(docId);
-          if (verificationDoc) {
-            console.log(`✅ BubblSpace persistence verified: ${space.name}`);
-          } else {
-            console.warn(`⚠️ BubblSpace persistence verification failed: ${space.name}`);
-            syncErrors.push(`BubblSpace ${space.name} was not properly persisted`);
+          // Insert with retry logic
+          let insertAttempts = 0;
+          const maxInsertAttempts = 3;
+          
+          while (insertAttempts < maxInsertAttempts) {
+            try {
+              await this.vectorStore.insertDocument(doc);
+              console.log(`✅ BubblSpace synced to Knowledge Base: ${space.name}`);
+              
+              // Verification step
+              const verificationDoc = await this.vectorStore.getDocument(docId);
+              if (verificationDoc) {
+                console.log(`✅ BubblSpace persistence verified: ${space.name}`);
+                syncedItems.bubblSpaces++;
+                break; // Success, exit retry loop
+              } else {
+                throw new Error('Document not found after insertion');
+              }
+            } catch (insertError) {
+              insertAttempts++;
+              console.warn(`⚠️ BubblSpace sync attempt ${insertAttempts}/${maxInsertAttempts} failed:`, insertError);
+              
+              if (insertAttempts >= maxInsertAttempts) {
+                throw insertError; // Final attempt failed
+              }
+              
+              // Wait before retry (progressive delay)
+              await new Promise(resolve => setTimeout(resolve, 500 * insertAttempts));
+            }
           }
-        } catch (insertError) {
-          console.error(`❌ Failed to sync BubblSpace ${space.name}:`, insertError);
-          syncErrors.push(`BubblSpace ${space.name}: ${insertError instanceof Error ? insertError.message : String(insertError)}`);
+          
+        } catch (spaceError) {
+          const errorMessage = `BubblSpace ${space.name}: ${spaceError instanceof Error ? spaceError.message : String(spaceError)}`;
+          console.error(`❌ Failed to sync BubblSpace ${space.name}:`, spaceError);
+          syncErrors.push(errorMessage);
         }
       }
 
-      // Store TimeCapsules as searchable documents
+      // Store TimeCapsules as searchable documents with retry logic
       for (const tc of timeCapsules) {
         const docId = `timecapsule-${tc.id}`;
         console.log(`📝 Syncing TimeCapsule: ${tc.name} (ID: ${docId})`);
-        console.log(`📋 TimeCapsule data:`, {
-          name: tc.name,
-          description: tc.description,
-          tags: tc.tags,
-          updatedAt: tc.updatedAt
-        });
         
-        // Delete existing document first to ensure fresh update
         try {
-          console.log(`🔍 Checking for existing TimeCapsule document: ${docId}`);
-          const existingDoc = await this.vectorStore.getDocument(docId);
-          if (existingDoc) {
-            console.log(`🗑️ Found existing TimeCapsule document, deleting: ${docId}`);
-            await this.vectorStore.deleteDocument(docId);
-            console.log(`✅ Deleted old TimeCapsule document: ${docId}`);
-          } else {
-            console.log(`ℹ️ No existing TimeCapsule document found (first time sync): ${docId}`);
+          // Enhanced deletion with error handling
+          try {
+            const existingDoc = await this.vectorStore.getDocument(docId);
+            if (existingDoc) {
+              console.log(`🗑️ Found existing TimeCapsule document, deleting: ${docId}`);
+              await this.vectorStore.deleteDocument(docId);
+              console.log(`✅ Deleted old TimeCapsule document: ${docId}`);
+            } else {
+              console.log(`ℹ️ No existing TimeCapsule document found (first time sync): ${docId}`);
+            }
+          } catch (deleteError) {
+            console.warn(`⚠️ Error checking/deleting TimeCapsule document ${docId}:`, deleteError);
           }
-        } catch (deleteError) {
-          console.warn(`⚠️ Error checking/deleting TimeCapsule document ${docId}:`, deleteError);
-        }
-        
-        const contentText = `TimeCapsule: ${tc.name}
+          
+          const contentText = `TimeCapsule: ${tc.name}
 Description: ${tc.description}
 ID: ${tc.id}
 BubblSpace ID: ${tc.bubblSpaceId}
@@ -737,72 +739,99 @@ Privacy: ${tc.privacy || 'private'}
 Difficulty: ${tc.difficulty || 'beginner'}
 Estimated Duration: ${tc.estimatedDuration ? `${tc.estimatedDuration} minutes` : 'not specified'}
 Tags: ${tc.tags?.join(', ') || 'none'}`;
-        console.log(`📄 Document content being saved:`, contentText);
-        
-        const doc = {
-          id: docId,
-          title: `TimeCapsule: ${tc.name}`, // Required by VectorStore schema
-          content: contentText,
-          metadata: {
-            filename: `timecapsule-${tc.name}.json`,
-            filesize: JSON.stringify(tc).length,
-            filetype: 'application/json',
-            uploadedAt: tc.createdAt,
-            source: 'metadata',
-            description: `TimeCapsule metadata: ${tc.name}`,
-            isGenerated: true,
-            // Enhanced metadata for TimeCapsule - ALL UI VALUES
-            type: 'timecapsule',
-            timeCapsuleId: tc.id,
-            bubblSpaceId: tc.bubblSpaceId,
-            name: tc.name,
-            category: tc.category,
-            createdAt: tc.createdAt,
-            updatedAt: tc.updatedAt,
-            // Additional UI fields from TimeCapsuleMetadata interface
-            version: tc.version,
-            privacy: tc.privacy,
-            difficulty: tc.difficulty,
-            estimatedDuration: tc.estimatedDuration,
-            tags: tc.tags,
-            // Full object for reference
-            fullObject: JSON.stringify(tc)
-          },
-          chunks: [], // Required by VectorStore schema
-          vectors: [], // Required by VectorStore schema
-        };
-        
-        console.log(`📋 About to insert document with ID: ${docId} and title: ${doc.title}`);
-        
-        try {
-          await this.vectorStore.insertDocument(doc);
-          console.log(`✅ TimeCapsule synced to Knowledge Base: ${tc.name}`);
+
+          const doc = {
+            id: docId,
+            title: `TimeCapsule: ${tc.name}`,
+            content: contentText,
+            metadata: {
+              filename: `${tc.name}.md`,
+              filesize: contentText.length,
+              filetype: 'text/markdown',
+              uploadedAt: new Date().toISOString(),
+              source: 'metadata',
+              description: `TimeCapsule metadata for ${tc.name}`,
+              isGenerated: true,
+              timeCapsuleId: tc.id,
+              bubblSpaceId: tc.bubblSpaceId,
+              type: 'timecapsule',
+              name: tc.name,
+              category: tc.category || 'other',
+              updatedAt: tc.updatedAt
+            },
+            chunks: [],
+            vectors: []
+          };
           
-          // Additional verification for critical documents
-          const verificationDoc = await this.vectorStore.getDocument(docId);
-          if (verificationDoc) {
-            console.log(`✅ TimeCapsule persistence verified: ${tc.name}`);
-          } else {
-            console.warn(`⚠️ TimeCapsule persistence verification failed: ${tc.name}`);
-            syncErrors.push(`TimeCapsule ${tc.name} was not properly persisted`);
+          // Insert with retry logic
+          let insertAttempts = 0;
+          const maxInsertAttempts = 3;
+          
+          while (insertAttempts < maxInsertAttempts) {
+            try {
+              await this.vectorStore.insertDocument(doc);
+              console.log(`✅ TimeCapsule synced to Knowledge Base: ${tc.name}`);
+              
+              // Verification step
+              const verificationDoc = await this.vectorStore.getDocument(docId);
+              if (verificationDoc) {
+                console.log(`✅ TimeCapsule persistence verified: ${tc.name}`);
+                syncedItems.timeCapsules++;
+                break; // Success, exit retry loop
+              } else {
+                throw new Error('Document not found after insertion');
+              }
+            } catch (insertError) {
+              insertAttempts++;
+              console.warn(`⚠️ TimeCapsule sync attempt ${insertAttempts}/${maxInsertAttempts} failed:`, insertError);
+              
+              if (insertAttempts >= maxInsertAttempts) {
+                throw insertError; // Final attempt failed
+              }
+              
+              // Wait before retry (progressive delay)
+              await new Promise(resolve => setTimeout(resolve, 500 * insertAttempts));
+            }
           }
-        } catch (insertError) {
-          console.error(`❌ Failed to sync TimeCapsule ${tc.name}:`, insertError);
-          syncErrors.push(`TimeCapsule ${tc.name}: ${insertError instanceof Error ? insertError.message : String(insertError)}`);
+          
+        } catch (tcError) {
+          const errorMessage = `TimeCapsule ${tc.name}: ${tcError instanceof Error ? tcError.message : String(tcError)}`;
+          console.error(`❌ Failed to sync TimeCapsule ${tc.name}:`, tcError);
+          syncErrors.push(errorMessage);
         }
       }
       
-      // Final verification step
+      // Enhanced final verification and reporting
       if (syncErrors.length === 0) {
         syncSuccessful = true;
-        console.log('✅ All metadata synced to Knowledge Base successfully');
+        console.log('✅ All metadata synced to Knowledge Base successfully', {
+          syncedBubblSpaces: syncedItems.bubblSpaces,
+          syncedTimeCapsules: syncedItems.timeCapsules,
+          totalItems: syncedItems.bubblSpaces + syncedItems.timeCapsules
+        });
       } else {
-        console.warn(`⚠️ Metadata sync completed with ${syncErrors.length} errors:`, syncErrors);
-        throw new Error(`Metadata sync failed: ${syncErrors.join(', ')}`);
+        const partialSuccess = syncedItems.bubblSpaces > 0 || syncedItems.timeCapsules > 0;
+        console.warn(`⚠️ Metadata sync completed with ${syncErrors.length} errors (${partialSuccess ? 'partial success' : 'complete failure'}):`, {
+          errors: syncErrors,
+          syncedBubblSpaces: syncedItems.bubblSpaces,
+          syncedTimeCapsules: syncedItems.timeCapsules,
+          expectedBubblSpaces: bubblSpaces.length,
+          expectedTimeCapsules: timeCapsules.length
+        });
+        
+        if (!partialSuccess) {
+          throw new Error(`Metadata sync completely failed: ${syncErrors.join(', ')}`);
+        }
       }
       
     } catch (error) {
       console.error('❌ Failed to save metadata to vector store:', error);
+      console.error('🔍 Vector store diagnostic info:', {
+        hasVectorStore: !!this.vectorStore,
+        isInitialized: this.vectorStore?.initialized,
+        processingAvailable: this.vectorStore?.processingAvailable,
+        errorDetails: error instanceof Error ? error.message : String(error)
+      });
       throw error; // Re-throw to ensure caller knows about the failure
     }
   }
@@ -906,9 +935,87 @@ Tags: ${tc.tags?.join(', ') || 'none'}`;
     }
   }
 
+  // ENHANCED: Force sync method for immediate synchronization
+  async forceSyncToVectorStore(): Promise<boolean> {
+    if (!this.vectorStore?.initialized) {
+      console.log('🔄 VectorStore not ready for force sync, will retry when ready...');
+      
+      // If not ready, start polling again
+      this.startVectorStorePolling();
+      return false;
+    }
+
+    try {
+      console.log('🔄 Force syncing metadata to Knowledge Base...');
+      await this.saveMetadataToVectorStore(
+        Array.from(this.bubblSpaces.values()),
+        Array.from(this.timeCapsules.values())
+      );
+      console.log('✅ Force metadata sync completed successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Force metadata sync failed:', error);
+      return false;
+    }
+  }
+
+  // ENHANCED: Sync status monitoring and diagnostics
+  getSyncStatus(): {
+    vectorStoreReady: boolean;
+    metadataCount: { bubblSpaces: number; timeCapsules: number };
+    lastSyncAttempt?: string;
+    syncErrors?: string[];
+    recommendations: string[];
+  } {
+    const status = {
+      vectorStoreReady: !!(this.vectorStore && this.vectorStore.initialized),
+      metadataCount: {
+        bubblSpaces: this.bubblSpaces.size,
+        timeCapsules: this.timeCapsules.size
+      },
+      lastSyncAttempt: this._lastSyncAttempt,
+      syncErrors: this._recentSyncErrors.slice(-5), // Last 5 errors
+      recommendations: [] as string[]
+    };
+
+    // Add recommendations based on current state
+    if (!this.vectorStore) {
+      status.recommendations.push('VectorStore not initialized - ensure VectorStoreProvider is working');
+    } else if (!this.vectorStore.initialized) {
+      status.recommendations.push('VectorStore initializing - sync will start automatically when ready');
+    } else if (this.vectorStore.processingAvailable === false) {
+      status.recommendations.push('VectorStore processing not available - check Xenova download status');
+    }
+
+    if (this.bubblSpaces.size === 0) {
+      status.recommendations.push('No BubblSpaces found - create a BubblSpace first');
+    }
+
+    if (this.timeCapsules.size === 0) {
+      status.recommendations.push('No TimeCapsules found - create a TimeCapsule to organize your work');
+    }
+
+    if (this._pollingActive) {
+      status.recommendations.push('VectorStore polling active - waiting for initialization');
+    }
+
+    return status;
+  }
+
+  // Track sync attempts and errors for debugging
+  private _lastSyncAttempt?: string;
+  private _recentSyncErrors: string[] = [];
+  private _maxStoredErrors = 10;
+
+  // Enhanced sync method with status tracking
   private async syncWithVectorStore(): Promise<void> {
+    this._lastSyncAttempt = new Date().toISOString();
+    
     if (!this.vectorStore || !this.vectorStore.initialized) {
-      console.log('📋 Vector store not ready for sync, will retry later...');
+      const error = 'Vector store not ready for sync';
+      console.log(`📋 ${error}, will retry later...`);
+      this._recentSyncErrors.push(`${this._lastSyncAttempt}: ${error}`);
+      this.trimErrorHistory();
       return;
     }
     
@@ -919,9 +1026,126 @@ Tags: ${tc.tags?.join(', ') || 'none'}`;
         Array.from(this.timeCapsules.values())
       );
       console.log('✅ Metadata synced with vector store');
+      
+      // Clear old errors on successful sync
+      this._recentSyncErrors = this._recentSyncErrors.filter((error: string) => 
+        !error.includes('Vector store not ready')
+      );
     } catch (error) {
-      console.error('Failed to sync with vector store:', error);
+      const errorMessage = `Failed to sync: ${error instanceof Error ? error.message : String(error)}`;
+      console.error('❌ Metadata sync with vector store failed:', error);
+      this._recentSyncErrors.push(`${this._lastSyncAttempt}: ${errorMessage}`);
+      this.trimErrorHistory();
     }
+  }
+
+  private trimErrorHistory(): void {
+    if (this._recentSyncErrors.length > this._maxStoredErrors) {
+      this._recentSyncErrors = this._recentSyncErrors.slice(-this._maxStoredErrors);
+    }
+  }
+
+  // Enhanced diagnostic method
+  async runSyncDiagnostics(): Promise<{
+    status: string;
+    vectorStore: any;
+    metadata: any;
+    recommendations: string[];
+    testResults: any;
+  }> {
+    console.log('🔍 Running comprehensive sync diagnostics...');
+    
+    const diagnostics = {
+      status: 'unknown',
+      vectorStore: {
+        exists: !!this.vectorStore,
+        initialized: this.vectorStore?.initialized || false,
+        processingAvailable: this.vectorStore?.processingAvailable || false,
+        downloadStatus: this.vectorStore?.downloadStatus || 'unknown'
+      },
+      metadata: {
+        bubblSpaces: Array.from(this.bubblSpaces.values()).map(b => ({
+          id: b.id,
+          name: b.name,
+          updatedAt: b.updatedAt
+        })),
+        timeCapsules: Array.from(this.timeCapsules.values()).map(t => ({
+          id: t.id,
+          name: t.name,
+          bubblSpaceId: t.bubblSpaceId,
+          updatedAt: t.updatedAt
+        }))
+      },
+      recommendations: [] as string[],
+      testResults: {
+        canCreateDocument: false,
+        canSearchDocuments: false,
+        existingMetadataDocuments: []
+      }
+    };
+
+    // Test basic VectorStore functionality
+    if (this.vectorStore && this.vectorStore.initialized) {
+      try {
+        // Test document creation
+        const testDoc = {
+          id: 'sync-test-' + Date.now(),
+          title: 'Sync Test Document',
+          content: 'This is a test document for sync diagnostics',
+          metadata: {
+            filename: 'sync-test.txt',
+            filesize: 100,
+            filetype: 'text/plain',
+            uploadedAt: new Date().toISOString(),
+            source: 'sync-test',
+            description: 'Test document for diagnostics',
+            isGenerated: true
+          },
+          chunks: [],
+          vectors: []
+        };
+
+        await this.vectorStore.insertDocument(testDoc);
+        diagnostics.testResults.canCreateDocument = true;
+        console.log('✅ VectorStore document creation test passed');
+        
+        // Clean up test document
+        await this.vectorStore.deleteDocument(testDoc.id);
+        console.log('🧹 Test document cleaned up');
+
+        // Test search functionality
+        if (this.vectorStore.processingAvailable) {
+          const searchResults = await this.vectorStore.searchSimilar('BubblSpace', 0.1, 5);
+          diagnostics.testResults.canSearchDocuments = true;
+          console.log(`✅ VectorStore search test passed (${searchResults.length} results)`);
+        }
+
+        // Check for existing metadata documents
+        const allDocs = await this.vectorStore.getAllDocuments();
+        diagnostics.testResults.existingMetadataDocuments = allDocs
+          .filter((doc: any) => doc.metadata.source === 'metadata')
+          .map((doc: any) => ({
+            id: doc.id,
+            title: doc.title,
+            type: doc.metadata.type,
+            updatedAt: doc.metadata.updatedAt
+          }));
+
+        diagnostics.status = 'healthy';
+        diagnostics.recommendations.push('VectorStore is functioning properly');
+
+      } catch (error) {
+        diagnostics.status = 'error';
+        diagnostics.recommendations.push(`VectorStore error: ${error instanceof Error ? error.message : String(error)}`);
+        console.error('❌ VectorStore diagnostics failed:', error);
+      }
+    } else {
+      diagnostics.status = 'not_ready';
+      diagnostics.recommendations.push('VectorStore is not ready - check initialization');
+    }
+
+    console.log('🔍 Sync diagnostics completed:', diagnostics);
+    return diagnostics;
   }
 
   // Public getter for external access
@@ -935,32 +1159,146 @@ Tags: ${tc.tags?.join(', ') || 'none'}`;
     
     this.vectorStore = vectorStore;
     
-    // Only sync if the vector store is already initialized
+    // ENHANCED: Immediate sync if already initialized and force sync on changes
     if (vectorStore && vectorStore.initialized) {
       console.log('✅ VectorStore is ready, syncing metadata immediately...');
-      this.syncWithVectorStore();
+      this.syncWithVectorStore().then(() => {
+        console.log('✅ Immediate metadata sync completed');
+      }).catch(error => {
+        console.warn('⚠️ Immediate metadata sync failed:', error);
+      });
     } else if (vectorStore) {
       console.log('⏳ Vector store set but not initialized yet, will sync when ready');
       
-      // Poll for initialization (with exponential backoff)
-      let attempts = 0;
-      const maxAttempts = 20;
-      const checkInterval = () => setTimeout(() => {
-        attempts++;
-        console.log(`⏳ Checking VectorStore initialization (attempt ${attempts}/${maxAttempts})...`);
-        if (this.vectorStore?.initialized) {
-          console.log('✅ Vector store now ready, syncing metadata...');
-          this.syncWithVectorStore();
-        } else if (attempts < maxAttempts) {
-          checkInterval();
-        } else {
-          console.warn('⚠️ Vector store initialization timeout, metadata will not be synced');
-        }
-      }, Math.min(1000 * Math.pow(1.5, attempts), 5000)); // Exponential backoff capped at 5 seconds
-      
-      checkInterval();
+      // ENHANCED: More robust polling with better error handling
+      this.startVectorStorePolling();
     }
   }
+
+  // ENHANCED: Better polling logic with global app instance check and event listener
+  private startVectorStorePolling(): void {
+    if (this._pollingActive) {
+      console.log('🔄 Polling already active, skipping duplicate');
+      return;
+    }
+
+    // CRITICAL FIX: Check if VectorStore is already available on the global app instance
+    if (typeof window !== 'undefined' && (window as any).deepResearchApp) {
+      const app = (window as any).deepResearchApp;
+      if (app.vectorStore && app.vectorStore.initialized) {
+        console.log('🔗 Found VectorStore on global app instance, linking immediately...');
+        this.vectorStore = app.vectorStore;
+        this.syncWithVectorStore().then(() => {
+          console.log('✅ Immediate metadata sync completed');
+        }).catch(error => {
+          console.warn('⚠️ Immediate metadata sync failed:', error);
+        });
+        return;
+      }
+    }
+
+    this._pollingActive = true;
+    let attempts = 0;
+    const maxAttempts = 30; // Increased from 20
+    
+    // CRITICAL FIX: Listen for vectorstore-ready event to stop polling immediately
+    const handleVectorStoreReady = () => {
+      if (this._pollingActive) {
+        console.log('🔥 VectorStore ready event received, checking global app...');
+        if (typeof window !== 'undefined' && (window as any).deepResearchApp) {
+          const app = (window as any).deepResearchApp;
+          if (app.vectorStore && app.vectorStore.initialized) {
+            console.log('✅ VectorStore found via event, linking immediately...');
+            this._pollingActive = false;
+            this.vectorStore = app.vectorStore;
+            this.syncWithVectorStore().then(() => {
+              console.log('✅ Event-triggered metadata sync completed');
+            }).catch(error => {
+              console.warn('⚠️ Event-triggered metadata sync failed:', error);
+            });
+            // Remove event listener
+            window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+            return;
+          }
+        }
+      }
+    };
+    
+    // Add event listener for immediate detection
+    if (typeof window !== 'undefined') {
+      window.addEventListener('vectorstore-ready', handleVectorStoreReady);
+    }
+    
+    const pollForInitialization = () => {
+      if (!this._pollingActive) {
+        console.log('🛑 Polling cancelled');
+        // Clean up event listener
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+        }
+        return;
+      }
+
+      attempts++;
+      
+      // CRITICAL FIX: Check global app instance first
+      if (typeof window !== 'undefined' && (window as any).deepResearchApp) {
+        const app = (window as any).deepResearchApp;
+        if (app.vectorStore && app.vectorStore.initialized) {
+          console.log('✅ Found VectorStore on global app instance during polling, linking...');
+          this._pollingActive = false;
+          this.vectorStore = app.vectorStore;
+          this.syncWithVectorStore().then(() => {
+            console.log('✅ Polled metadata sync completed');
+          }).catch(error => {
+            console.warn('⚠️ Polled metadata sync failed:', error);
+          });
+          // Clean up event listener
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+          return;
+        }
+      }
+
+      console.log(`⏳ Checking VectorStore initialization (attempt ${attempts}/${maxAttempts})...`, {
+        hasVectorStore: !!this.vectorStore,
+        isInitialized: this.vectorStore?.initialized,
+        processingAvailable: this.vectorStore?.processingAvailable,
+        globalAppExists: !!(typeof window !== 'undefined' && (window as any).deepResearchApp),
+        globalAppVectorStore: !!(typeof window !== 'undefined' && (window as any).deepResearchApp?.vectorStore)
+      });
+      
+      if (this.vectorStore?.initialized) {
+        console.log('✅ Vector store now ready, syncing metadata...');
+        this._pollingActive = false;
+        this.syncWithVectorStore().then(() => {
+          console.log('✅ Polled metadata sync completed');
+        }).catch(error => {
+          console.warn('⚠️ Polled metadata sync failed:', error);
+        });
+        // Clean up event listener
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+        }
+      } else if (attempts < maxAttempts) {
+        // Progressive backoff: 500ms, 750ms, 1000ms, 1500ms, 2000ms, max 3000ms
+        const delay = Math.min(500 * Math.pow(1.5, Math.floor(attempts / 3)), 3000);
+        setTimeout(pollForInitialization, delay);
+      } else {
+        console.warn('⚠️ Vector store initialization timeout after 30 attempts, metadata will not be auto-synced');
+        this._pollingActive = false;
+        // Clean up event listener
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+        }
+      }
+    };
+    
+    // Start polling immediately
+    setTimeout(pollForInitialization, 100);
+  }
+
+  // Add polling state tracking
+  private _pollingActive: boolean = false;
 }
 
 // Singleton instance

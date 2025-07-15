@@ -561,27 +561,15 @@ Duration: ${frame.duration || 0}s
       // Get metadata manager singleton (it auto-initializes)
       this.metadataManager = getMetadataManager();
 
-      // Wait for vector store to be ready before linking it
-      const maxWaitTime = 10000; // 10 seconds
-      const checkInterval = 100; // 100ms
-      let waitTime = 0;
-
-      while (!this.vectorStore && waitTime < maxWaitTime) {
-        await new Promise((resolve) => setTimeout(resolve, checkInterval));
-        waitTime += checkInterval;
-      }
-
-      // Link vector store to metadata manager
-      if (this.vectorStore) {
+      // CRITICAL FIX: Always link VectorStore if available and initialized
+      if (this.vectorStore && this.vectorStore.initialized) {
         this.metadataManager.setVectorStore(this.vectorStore);
-        console.log("🔗 Metadata manager linked to vector store");
+        console.log("🔗 Metadata manager linked to vector store at creation");
       } else {
-        console.warn(
-          "⚠️ Vector store not available, metadata manager running without vector store"
-        );
+        console.log("📝 Metadata manager initialized without vector store - will link when available");
       }
 
-      // Load existing metadata
+      // Load existing metadata immediately
       await this.loadMetadata();
 
       console.log("✅ Metadata manager initialization complete");
@@ -598,7 +586,7 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
-      console.log(`🔄 DeepResearch.loadMetadata called`);
+      // Load metadata from storage
 
       // Load BubblSpaces and TimeCapsules
       const bubblSpaces = await this.metadataManager.loadBubblSpaces();
@@ -2014,33 +2002,51 @@ Duration: ${frame.duration || 0}s
   }
 
   async showDocumentManager() {
+    // OPTIMIZED: Check VectorStore state first without expensive operations
     if (!this.vectorStore) {
       this.updateStatus("❌ Vector Store not initialized");
       return;
     }
 
+    // OPTIMIZED: Set modal open immediately for better user experience
     this.setShowDocumentManager?.(true);
     this.updateStatus("📚 Opening document manager...");
 
-    // Track manage knowledge event
-    try {
-      const stats = await this.vectorStore.getStats();
-      analytics.trackEvent("knowledge_management", {
-        action: "manage_knowledge_opened",
-        document_count: stats.documentCount,
-        vector_count: stats.vectorCount,
-        event_category: "knowledge",
-        event_label: "manage_knowledge_opened",
-      });
-    } catch (error) {
-      analytics.trackEvent("knowledge_management", {
-        action: "manage_knowledge_opened",
-        document_count: 0,
-        vector_count: 0,
-        event_category: "knowledge",
-        event_label: "manage_knowledge_opened",
-      });
-    }
+    // OPTIMIZED: Run analytics tracking asynchronously to avoid blocking UI
+    setTimeout(async () => {
+      try {
+        // Only get stats if VectorStore is fully ready
+        if (this.vectorStore && this.vectorStore.initialized) {
+          const stats = await this.vectorStore.getStats();
+          analytics.trackEvent("knowledge_management", {
+            action: "manage_knowledge_opened",
+            document_count: stats.documentCount,
+            vector_count: stats.vectorCount,
+            event_category: "knowledge",
+            event_label: "manage_knowledge_opened",
+          });
+        } else {
+          // Track with default values if VectorStore not ready
+          analytics.trackEvent("knowledge_management", {
+            action: "manage_knowledge_opened",
+            document_count: 0,
+            vector_count: 0,
+            event_category: "knowledge",
+            event_label: "manage_knowledge_opened",
+          });
+        }
+      } catch (error) {
+        // OPTIMIZED: Fail silently on analytics errors to avoid user impact
+        console.warn("Analytics tracking failed for manage knowledge:", error);
+        analytics.trackEvent("knowledge_management", {
+          action: "manage_knowledge_opened",
+          document_count: 0,
+          vector_count: 0,
+          event_category: "knowledge",
+          event_label: "manage_knowledge_opened",
+        });
+      }
+    }, 0); // Run on next tick to avoid blocking
   }
 
   hideDocumentManager() {
@@ -2447,6 +2453,13 @@ Duration: ${frame.duration || 0}s
       return;
     }
 
+    // FIXED: Check if VectorStore is properly initialized before calling methods
+    if (!this.vectorStore.initialized) {
+      console.log('📊 VectorStore not initialized yet, skipping document status update');
+      this.setDocumentStatus?.({ count: 0, totalSize: 0, vectorCount: 0 });
+      return;
+    }
+
     try {
       const stats = await this.vectorStore.getStats();
       const documents = await this.vectorStore.getAllDocuments();
@@ -2464,6 +2477,8 @@ Duration: ${frame.duration || 0}s
       this.setDocuments?.(documents);
     } catch (error) {
       console.error("Failed to update document status:", error);
+      // Set default values on error
+      this.setDocumentStatus?.({ count: 0, totalSize: 0, vectorCount: 0 });
     }
   }
 
@@ -3349,20 +3364,13 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
-      console.log(`🔄 DeepResearch.saveBubblSpace called:`, {
-        name,
-        description,
-        options,
-        editingBubblSpace: this.editingBubblSpace?.id,
-      });
+      // Save or update BubblSpace
 
       let bubblSpace: BubblSpace;
 
       if (this.editingBubblSpace) {
         // Update existing
-        console.log(
-          `🔄 Updating existing BubblSpace: ${this.editingBubblSpace.id}`
-        );
+        // Update existing BubblSpace
         bubblSpace = this.metadataManager.updateBubblSpace(
           this.editingBubblSpace.id,
           {
@@ -3374,7 +3382,7 @@ Duration: ${frame.duration || 0}s
         this.updateStatus(`✅ Updated BubblSpace: ${name}`);
       } else {
         // Create new
-        console.log(`🔄 Creating new BubblSpace`);
+        // Create new BubblSpace
         bubblSpace = this.metadataManager.createBubblSpace(
           name,
           description,
@@ -3383,7 +3391,7 @@ Duration: ${frame.duration || 0}s
         this.updateStatus(`✅ Created BubblSpace: ${name}`);
       }
 
-      console.log(`✅ BubblSpace operation completed, refreshing data...`);
+      // Refresh metadata and close dialog
       // Refresh data
       await this.loadMetadata();
       this.closeBubblSpaceDialog();
@@ -3392,6 +3400,7 @@ Duration: ${frame.duration || 0}s
       this.updateStatus(
         `❌ Failed to save BubblSpace: ${(error as Error).message}`
       );
+      throw error; // Re-throw so dialog can handle it
     }
   }
 
@@ -3409,6 +3418,7 @@ Duration: ${frame.duration || 0}s
       this.updateStatus(
         `❌ Failed to delete BubblSpace: ${(error as Error).message}`
       );
+      throw error; // Re-throw so dialog can handle it
     }
   }
 
@@ -3465,21 +3475,13 @@ Duration: ${frame.duration || 0}s
     if (!this.metadataManager) return;
 
     try {
-      console.log(`🔄 DeepResearch.saveTimeCapsule called:`, {
-        name,
-        description,
-        bubblSpaceId,
-        options,
-        editingTimeCapsule: this.editingTimeCapsule?.id,
-      });
+      // Save or update TimeCapsule
 
       let timeCapsule: TimeCapsuleMetadata;
 
       if (this.editingTimeCapsule) {
         // Update existing
-        console.log(
-          `🔄 Updating existing TimeCapsule: ${this.editingTimeCapsule.id}`
-        );
+        // Update existing TimeCapsule
         timeCapsule = this.metadataManager.updateTimeCapsule(
           this.editingTimeCapsule.id,
           {
@@ -3492,7 +3494,7 @@ Duration: ${frame.duration || 0}s
 
         // Immediately update current TimeCapsule if it's the one being edited
         if (this.currentTimeCapsule?.id === this.editingTimeCapsule.id) {
-          console.log(`🔄 Updating current TimeCapsule in DeepResearch UI`);
+          // Update current TimeCapsule in UI
           this.currentTimeCapsule = timeCapsule;
           this.setCurrentTimeCapsule?.(timeCapsule);
         }
@@ -3500,7 +3502,7 @@ Duration: ${frame.duration || 0}s
         this.updateStatus(`✅ Updated TimeCapsule: ${name}`);
       } else {
         // Create new
-        console.log(`🔄 Creating new TimeCapsule`);
+        // Create new TimeCapsule
         timeCapsule = this.metadataManager.createTimeCapsule(
           name,
           description,
@@ -3516,7 +3518,7 @@ Duration: ${frame.duration || 0}s
         this.setCurrentTimeCapsule?.(timeCapsule);
       }
 
-      console.log(`✅ TimeCapsule operation completed, refreshing data...`);
+      // Refresh metadata and close dialog
       // Refresh data
       await this.loadMetadata();
       this.closeTimeCapsuleDialog();
@@ -3883,6 +3885,12 @@ export function DeepResearchComponent() {
     const app = new DeepResearchApp();
     appRef.current = app;
 
+    // CRITICAL FIX: Make app globally accessible for MetadataManager to find VectorStore
+    if (typeof window !== 'undefined') {
+      (window as any).deepResearchApp = app;
+      console.log("🌍 DeepResearchApp instance made globally available");
+    }
+
     // Set React state setters
     app.setTopics = setTopics;
     app.setAIStatus = setAIStatus;
@@ -3929,18 +3937,43 @@ export function DeepResearchComponent() {
 
     // Set analytics for the app instance
     (app as any).pageAnalytics = pageAnalytics;
+
+    // Cleanup function
+    return () => {
+      // Clean up global reference
+      if (typeof window !== 'undefined') {
+        delete (window as any).deepResearchApp;
+      }
+    };
   }, []);
 
   // Update app when VectorStore from provider becomes available
   useEffect(() => {
     const app = appRef.current;
-    if (app && vectorStore) {
+    if (app && vectorStore && vectorStoreInitialized) {
       console.log("🔗 Connecting DeepResearch to VectorStoreProvider...");
       app.vectorStore = vectorStore;
 
-      // Update loading state based on provider state
-      app.isVectorStoreLoading = !vectorStoreInitialized;
-      app.setIsVectorStoreLoading?.(!vectorStoreInitialized);
+      // Update loading state - VectorStore is ready
+      app.isVectorStoreLoading = false;
+      app.setIsVectorStoreLoading?.(false);
+
+      // CRITICAL FIX: Ensure MetadataManager gets VectorStore reference immediately
+      if (app.metadataManager) {
+        console.log("🔗 Linking existing MetadataManager to VectorStore...");
+        app.metadataManager.setVectorStore(vectorStore);
+      } else {
+        console.log("📝 MetadataManager not ready yet, will find VectorStore via global app");
+      }
+
+      // CRITICAL FIX: Trigger any waiting MetadataManager to check global app
+      // This ensures that any polling MetadataManager finds the VectorStore immediately
+      if (typeof window !== 'undefined') {
+        // Fire a custom event to notify MetadataManager that VectorStore is ready
+        window.dispatchEvent(new CustomEvent('vectorstore-ready', { 
+          detail: { vectorStore: vectorStore } 
+        }));
+      }
 
       // Update document status
       app.updateDocumentStatus();
@@ -3987,15 +4020,18 @@ export function DeepResearchComponent() {
         app.updateStatus("🚀 Initializing VectorStore...");
       } else if (!vectorStoreInitialized) {
         app.updateStatus("⏳ Waiting for VectorStore...");
-      } else if (processingStatus) {
+      } else if (processingStatus && processingStatus !== "Not initialized") {
         app.updateStatus(processingStatus);
+      } else if (vectorStoreInitialized) {
+        // Only update status once when VectorStore is ready
+        app.updateStatus("✅ Document processing ready - All features available");
       }
     }
   }, [
     vectorStoreError,
     vectorStoreInitializing,
     vectorStoreInitialized,
-    processingStatus,
+    // FIXED: Don't depend on processingStatus to prevent infinite updates
   ]);
 
   // Listen for metadata changes from other pages (like AI-Frames) + Auto-sync
@@ -5930,17 +5966,30 @@ export function DeepResearchComponent() {
         <BubblSpaceDialog
           isOpen={showBubblSpaceDialog}
           onClose={() => app.closeBubblSpaceDialog()}
-          onSave={(bubblSpace: Partial<BubblSpace>) => {
-            if (bubblSpace.name && bubblSpace.description) {
-              app.saveBubblSpace(
-                bubblSpace.name,
-                bubblSpace.description,
-                bubblSpace
-              );
+          onSave={async (bubblSpace: Partial<BubblSpace>) => {
+            // Only require name (description can be empty)
+            if (bubblSpace.name?.trim()) {
+              try {
+                await app.saveBubblSpace(
+                  bubblSpace.name.trim(),
+                  bubblSpace.description?.trim() || "",
+                  bubblSpace
+                );
+              } catch (error) {
+                console.error("Failed to save BubblSpace:", error);
+                throw error; // Re-throw for dialog error handling
+              }
+            } else {
+              throw new Error("BubblSpace name is required");
             }
           }}
-          onDelete={(id: string) => {
-            app.deleteBubblSpace(id);
+          onDelete={async (id: string) => {
+            try {
+              await app.deleteBubblSpace(id);
+            } catch (error) {
+              console.error("Failed to delete BubblSpace:", error);
+              throw error;
+            }
           }}
           bubblSpace={editingBubblSpace}
           existingBubblSpaces={bubblSpaces}

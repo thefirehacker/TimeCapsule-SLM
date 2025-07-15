@@ -73,29 +73,18 @@ class EmbeddingService {
         progress: 5
       });
 
-      // Check if model is already cached
-      const cacheKey = 'xenova-embeddings-model-cached';
-      const isCached = localStorage.getItem(cacheKey) === 'true';
-      
-      if (isCached) {
-        console.log('🎯 Model appears to be cached, attempting to load from cache...');
-        onProgress?.({
-          message: 'Loading model from cache...',
-          progress: 20
-        });
-      } else {
-        console.log('📦 Model not cached, starting download...');
-        onProgress?.({
-          message: 'Downloading Xenova transformers.js...',
-          progress: 10
-        });
-      }
+      // FIXED: Optimistic loading - assume cached and detect download if needed
+      console.log('✅ Loading model (checking cache)...');
+      onProgress?.({
+        message: 'Loading model from cache...',
+        progress: 20
+      });
 
       // Load the embedding model with enhanced CDN loading
       console.log('📦 Loading Xenova/all-MiniLM-L6-v2 model from Hugging Face CDN...');
       
       onProgress?.({
-        message: isCached ? 'Loading from browser cache...' : 'Downloading from CDN...',
+        message: 'Loading from browser cache...',
         progress: 30
       });
 
@@ -151,10 +140,11 @@ class EmbeddingService {
         }
       );
 
-      // Mark as cached for future sessions
+      // FIXED: Detect if download actually occurred vs cache load
       if (downloadDetected) {
-        localStorage.setItem(cacheKey, 'true');
-        console.log('💾 Model cached for future sessions');
+        console.log('📦 Model downloaded from CDN and cached');
+      } else {
+        console.log('✅ Model loaded from cache instantly');
       }
 
       onProgress?.({
@@ -285,11 +275,7 @@ class EmbeddingService {
     this.initializationPromise = null;
   }
 
-  // Clear cache marker if needed (for debugging or cache invalidation)
-  static clearCacheMarker(): void {
-    localStorage.removeItem('xenova-embeddings-model-cached');
-    console.log('🗑️ Xenova cache marker cleared');
-  }
+  // FIXED: Cache detection no longer uses localStorage - method removed
 }
 
 // Export singleton instance
