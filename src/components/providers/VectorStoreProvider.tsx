@@ -117,15 +117,15 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
 
   // Update status and stats
   const updateStatus = useCallback(() => {
-    if (!singletonVectorStore || !singletonVectorStore.initialized) return;
+    if (!singletonVectorStore) return;
 
     try {
       setProcessingAvailable(singletonVectorStore.processingAvailable);
       setProcessingStatus(singletonVectorStore.processingStatus);
       setDownloadProgress(singletonVectorStore.downloadProgress);
       
-      // Update stats only if vectorStore is properly initialized
-      if (singletonVectorStore.processingAvailable) {
+      // Update stats only if vectorStore is properly initialized and processing is available
+      if (singletonVectorStore.initialized && singletonVectorStore.processingAvailable) {
         singletonVectorStore.getStats().then(newStats => {
           setStats(newStats);
         }).catch(err => {
@@ -149,14 +149,14 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
 
   // Periodic status updates
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!singletonVectorStore) return;
 
     const interval = setInterval(() => {
       updateStatus();
-    }, 2000); // Update every 2 seconds
+    }, 1000); // Update every 1 second for more responsive progress
 
     return () => clearInterval(interval);
-  }, [isInitialized, updateStatus]);
+  }, [singletonVectorStore, updateStatus]);
 
   // Context value
   const contextValue: VectorStoreContextType = {

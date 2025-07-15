@@ -632,7 +632,8 @@ Duration: ${frame.duration || 0}s
       this.setCurrentTimeCapsule?.(this.currentTimeCapsule);
 
       console.log(
-        `✅ Metadata loaded - Current BubblSpace: ${this.currentBubblSpace?.name}`
+        `✅ Metadata loaded - Current BubblSpace: ${this.currentBubblSpace?.name}`,
+        "BubblSpaces:", bubblSpaces.map(b => ({ id: b.id, name: b.name }))
       );
     } catch (error) {
       console.error("❌ Failed to load metadata:", error);
@@ -2453,7 +2454,7 @@ Duration: ${frame.duration || 0}s
       return;
     }
 
-    // FIXED: Check if VectorStore is properly initialized before calling methods
+    // CRITICAL FIX: Check if VectorStore is properly initialized before calling methods
     if (!this.vectorStore.initialized) {
       console.log('📊 VectorStore not initialized yet, skipping document status update');
       this.setDocumentStatus?.({ count: 0, totalSize: 0, vectorCount: 0 });
@@ -3361,16 +3362,37 @@ Duration: ${frame.duration || 0}s
     description: string,
     options: Partial<BubblSpace> = {}
   ) {
-    if (!this.metadataManager) return;
+    // CRITICAL FIX: Ensure MetadataManager is available before operations
+    if (!this.metadataManager) {
+      console.error("❌ MetadataManager not available for saveBubblSpace, reinitializing...");
+      this.metadataManager = getMetadataManager();
+      
+      // Link VectorStore if available
+      if (this.vectorStore && this.vectorStore.initialized) {
+        this.metadataManager.setVectorStore(this.vectorStore);
+      }
+    }
+    
+    if (!this.metadataManager) {
+      console.error("❌ Failed to reinitialize MetadataManager, cannot save BubblSpace");
+      return;
+    }
 
     try {
-      // Save or update BubblSpace
+      console.log("🔄 Starting saveBubblSpace process:", {
+        name,
+        description,
+        options,
+        isEditing: !!this.editingBubblSpace,
+        editingId: this.editingBubblSpace?.id
+      });
 
+      // Save or update BubblSpace
       let bubblSpace: BubblSpace;
 
       if (this.editingBubblSpace) {
         // Update existing
-        // Update existing BubblSpace
+        console.log("📝 Updating existing BubblSpace:", this.editingBubblSpace.name, "->", name);
         bubblSpace = this.metadataManager.updateBubblSpace(
           this.editingBubblSpace.id,
           {
@@ -3964,6 +3986,12 @@ export function DeepResearchComponent() {
         app.metadataManager.setVectorStore(vectorStore);
       } else {
         console.log("📝 MetadataManager not ready yet, will find VectorStore via global app");
+        // CRITICAL FIX: Try to initialize MetadataManager if it's not available
+        app.metadataManager = getMetadataManager();
+        if (app.metadataManager) {
+          app.metadataManager.setVectorStore(vectorStore);
+          console.log("🔗 MetadataManager initialized and linked to VectorStore");
+        }
       }
 
       // CRITICAL FIX: Trigger any waiting MetadataManager to check global app
@@ -4019,7 +4047,12 @@ export function DeepResearchComponent() {
       } else if (vectorStoreInitializing) {
         app.updateStatus("🚀 Initializing VectorStore...");
       } else if (!vectorStoreInitialized) {
-        app.updateStatus("⏳ Waiting for VectorStore...");
+        // CRITICAL FIX: Check if VectorStore is actually available on the app instance
+        if (app.vectorStore && app.vectorStore.initialized) {
+          app.updateStatus("✅ Document processing ready - All features available");
+        } else {
+          app.updateStatus("⏳ Waiting for VectorStore...");
+        }
       } else if (processingStatus && processingStatus !== "Not initialized") {
         app.updateStatus(processingStatus);
       } else if (vectorStoreInitialized) {
@@ -4103,8 +4136,15 @@ export function DeepResearchComponent() {
             );
           });
       } else {
+        // DEBUG: Log what's missing
         console.log(
-          "⏳ Auto-sync: Waiting for DeepResearch metadata manager and vector store..."
+          "⏳ Auto-sync: Waiting for DeepResearch metadata manager and vector store...",
+          {
+            hasApp: !!app,
+            hasMetadataManager: !!app?.metadataManager,
+            hasVectorStore: !!app?.vectorStore,
+            vectorStoreInitialized: app?.vectorStore?.initialized
+          }
         );
       }
     }, 30000); // 30 seconds

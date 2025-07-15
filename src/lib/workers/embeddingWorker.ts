@@ -10,7 +10,7 @@ export interface WorkerMessage {
 }
 
 export interface WorkerResponse {
-  type: 'initialized' | 'progress' | 'chunkComplete' | 'documentComplete' | 'embeddingComplete' | 'error';
+  type: 'init_complete' | 'progress' | 'chunkComplete' | 'documentComplete' | 'embeddingComplete' | 'error';
   data?: any;
 }
 
@@ -41,7 +41,7 @@ class EmbeddingWorker {
       console.log('✅ Web Worker: Embedding pipeline initialized');
       
       self.postMessage({
-        type: 'initialized',
+        type: 'init_complete',
         data: { message: 'Embedding pipeline ready' }
       } as WorkerResponse);
 
@@ -228,33 +228,40 @@ class EmbeddingWorker {
 const worker = new EmbeddingWorker();
 
 // Handle messages from main thread
-self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+self.onmessage = (event: MessageEvent<WorkerMessage>) => {
   const { type, data } = event.data;
   
-  try {
-    switch (type) {
-      case 'init':
-        await worker.init();
-        break;
-        
-      case 'processDocument':
-        await worker.processDocument(data);
-        break;
-        
-      case 'generateEmbedding':
-        await worker.generateEmbedding(data.text);
-        break;
-        
-      default:
-        console.warn('🔧 Web Worker: Unknown message type:', type);
+  // Handle messages asynchronously but don't make the handler itself async
+  (async () => {
+    try {
+      switch (type) {
+        case 'init':
+          await worker.init();
+          break;
+          
+        case 'processDocument':
+          await worker.processDocument(data);
+          break;
+          
+        case 'generateEmbedding':
+          await worker.generateEmbedding(data.text);
+          break;
+          
+        default:
+          console.warn('🔧 Web Worker: Unknown message type:', type);
+          self.postMessage({
+            type: 'error',
+            data: { message: `Unknown message type: ${type}` }
+          } as WorkerResponse);
+      }
+    } catch (error) {
+      console.error('❌ Web Worker: Error handling message:', error);
+      self.postMessage({
+        type: 'error',
+        data: { message: `Worker error: ${(error as Error).message}` }
+      } as WorkerResponse);
     }
-  } catch (error) {
-    console.error('❌ Web Worker: Error handling message:', error);
-    self.postMessage({
-      type: 'error',
-      data: { message: `Worker error: ${(error as Error).message}` }
-    } as WorkerResponse);
-  }
+  })();
 };
 
 // Types exported at the top of the file 
