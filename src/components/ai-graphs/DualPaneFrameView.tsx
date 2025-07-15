@@ -222,14 +222,63 @@ export default function DualPaneFrameView({
       console.log('✅ Dual-pane: Graph cleared successfully');
     };
 
+    // Listen for individual frame edits and sync to graph
+    const handleFrameEdited = (event: CustomEvent) => {
+      const { frameId, frame } = event.detail;
+      console.log('🔄 Dual-pane: Frame edited event received, syncing to graph:', {
+        frameId,
+        frameName: frame.title
+      });
+      
+      // Update the specific frame in the frames array
+      const updatedFrames = frames.map(f => 
+        f.id === frameId 
+          ? { ...frame, updatedAt: new Date().toISOString() }
+          : f
+      );
+      onFramesChange(updatedFrames);
+      
+      // Update graph nodes to reflect the changes
+      setGraphState(prev => {
+        const updatedNodes = prev.nodes.map(node => {
+          if (node.data?.frameId === frameId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                title: frame.title,
+                goal: frame.goal,
+                informationText: frame.informationText,
+                afterVideoText: frame.afterVideoText,
+                aiConcepts: frame.aiConcepts,
+                videoUrl: frame.videoUrl,
+                startTime: frame.startTime,
+                duration: frame.duration,
+              }
+            };
+          }
+          return node;
+        });
+        
+        return {
+          ...prev,
+          nodes: updatedNodes
+        };
+      });
+      
+      console.log('✅ Dual-pane: Frame edit synced to graph successfully');
+    };
+
     window.addEventListener('frames-reordered', handleFramesReordered as EventListener);
     window.addEventListener('frame-navigation-selected', handleFrameNavigationSelected as EventListener);
     window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+    window.addEventListener('frame-edited', handleFrameEdited as EventListener);
     
     return () => {
       window.removeEventListener('frames-reordered', handleFramesReordered as EventListener);
       window.removeEventListener('frame-navigation-selected', handleFrameNavigationSelected as EventListener);
       window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+      window.removeEventListener('frame-edited', handleFrameEdited as EventListener);
     };
   }, [onFramesChange, graphState.nodes]);
 

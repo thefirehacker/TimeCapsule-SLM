@@ -28,6 +28,29 @@ interface AIFrame {
   isGenerated?: boolean;
   sourceGoal?: string;
   sourceUrl?: string;
+  // NEW: Hierarchy and relationship fields
+  order?: number; // Preserve frame order
+  bubblSpaceId?: string; // Link to BubblSpace
+  timeCapsuleId?: string; // Link to TimeCapsule
+  parentFrameId?: string; // For chapter/module hierarchy
+  type?: "frame" | "chapter" | "module"; // Frame type
+  createdAt?: string;
+  updatedAt?: string;
+  // CRITICAL FIX: Add attachment field for graph attachment system
+  attachment?: {
+    id: string;
+    type: "video" | "pdf" | "text";
+    data: {
+      videoUrl?: string;
+      startTime?: number;
+      duration?: number;
+      pdfUrl?: string;
+      pages?: string;
+      text?: string;
+      title?: string;
+      notes?: string;
+    };
+  };
 }
 
 interface FrameGraphIntegrationProps {
@@ -38,6 +61,7 @@ interface FrameGraphIntegrationProps {
   onFrameIndexChange: (index: number) => void;
   onCreateFrame?: () => void;
   onTimeCapsuleUpdate?: (graphState: GraphState, chapters: any[]) => void;
+  graphStorageManager?: any; // Add graphStorageManager prop
 }
 
 export default function FrameGraphIntegration({
@@ -48,6 +72,7 @@ export default function FrameGraphIntegration({
   onFrameIndexChange,
   onCreateFrame,
   onTimeCapsuleUpdate,
+  graphStorageManager,
 }: FrameGraphIntegrationProps) {
   
   // Debug: Track when frames prop changes
@@ -150,73 +175,220 @@ export default function FrameGraphIntegration({
 
 
 
-  const handleSaveGraph = useCallback(async () => {
+  const handleSaveGraph = async () => {
     try {
-      debugStorage('handleSaveGraph called with frames', {
-        frameCount: frames.length,
-        frames: frames,
-        nodes: graphState.nodes.length,
-        edges: graphState.edges.length
-      });
+      // Get current frames from storage (same as before)
+      let currentFrames: AIFrame[] = [];
       
-      // Save current graph state to localStorage
-      const graphData = {
-        graphState: graphState,
-        chapters: chapters,
-        frames: frames,
-        lastSaved: new Date().toISOString(),
-      };
-      
-      localStorage.setItem("ai_frames_graph_state", JSON.stringify(graphData));
-      
-      // Also update TimeCapsule data
-      const existingData = localStorage.getItem("ai_frames_timecapsule");
-      if (existingData) {
-        const parsedData = JSON.parse(existingData);
-        const updatedData = {
-          ...parsedData,
-          data: {
-            ...parsedData.data,
-            graphState: graphState,
-            chapters: chapters,
-            lastGraphSave: new Date().toISOString(),
+      if (graphStorageManager) {
+        try {
+          const frameSequence = await graphStorageManager.loadFrameSequence();
+          currentFrames = frameSequence?.frames || [];
+        } catch (error) {
+          console.warn("Failed to load from IndexedDB, trying TimeCapsule:", error);
+          try {
+            const timeCapsuleData = localStorage.getItem("timecapsule_combined");
+            if (timeCapsuleData) {
+              const parsed = JSON.parse(timeCapsuleData);
+              currentFrames = parsed.data?.frames || [];
+            }
+          } catch (fallbackError) {
+            console.warn("Failed to load from TimeCapsule:", fallbackError);
           }
-        };
-        localStorage.setItem("ai_frames_timecapsule", JSON.stringify(updatedData));
+        }
       }
+
+      console.log(`🔄 Starting Save Graph with ${currentFrames.length} existing frames`);
+
+             // Convert graph nodes to frames
+       const graphFrames: AIFrame[] = graphState.nodes
+         .filter((node: any) => node.type === 'aiFrame')
+                  .map((node: any) => ({
+           id: node.id,
+           title: node.data.title || 'Untitled Frame',
+           goal: node.data.goal || node.data.learningGoal || 'No learning goal specified',
+           informationText: node.data.informationText || node.data.summary || '',
+           videoUrl: node.data.videoUrl || '',
+           startTime: node.data.startTime || 0,
+           duration: node.data.duration || 30,
+           afterVideoText: node.data.afterVideoText || '',
+           aiConcepts: node.data.aiConcepts || node.data.keyPoints || [],
+           // CRITICAL: Include attachment data
+           attachment: node.data.attachment || (node.data.videoUrl ? {
+             type: 'video' as const,
+             url: node.data.videoUrl,
+             title: node.data.title || 'Video',
+             startTime: node.data.startTime || 0,
+             duration: node.data.duration || 30
+           } : undefined),
+           timestamp: node.data.timestamp || new Date().toISOString(),
+           createdAt: node.data.createdAt || new Date().toISOString(),
+           updatedAt: new Date().toISOString()
+         }));
+
+      console.log(`📊 Converted ${graphFrames.length} graph nodes to frames`);
+
+      // Merge frames (same logic as before)
+      const mergedFrames = [...currentFrames];
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      for (const graphFrame of graphFrames) {
+        const existingIndex = mergedFrames.findIndex(f => f.id === graphFrame.id);
+        if (existingIndex !== -1) {
+          mergedFrames[existingIndex] = graphFrame;
+          updatedCount++;
+        } else {
+          mergedFrames.push(graphFrame);
+          addedCount++;
+        }
+      }
+
+      console.log(`📊 Frame merge complete: ${currentFrames.length} + ${addedCount} new + ${updatedCount} updated = ${mergedFrames.length} total`);
+
+      // DEEP RESEARCH PATTERN: Immediate storage save
+      const frameSequence = {
+        frames: mergedFrames,
+        metadata: {
+          version: "1.0",
+          lastUpdated: new Date().toISOString(),
+          source: "graph-save"
+        }
+      };
+
+      // Save to IndexedDB
+      if (graphStorageManager) {
+        await graphStorageManager.saveFrameSequence(frameSequence);
+        console.log("✅ Frames saved to IndexedDB");
+      }
+
+      // Save to TimeCapsule (fallback)
+      localStorage.setItem("timecapsule_combined", JSON.stringify({
+        data: frameSequence,
+        timestamp: new Date().toISOString()
+      }));
+      console.log("✅ Frames saved to TimeCapsule");
+
+      // DEEP RESEARCH PATTERN: Immediate VectorStore sync
+      // Find the main page's VectorStore instance
+      let vectorStore: any = null;
+      let vectorStoreInitialized = false;
       
-      // Dispatch custom event to notify parent components
+      // Try to get VectorStore from global scope (like Deep Research does)
+      if (typeof window !== 'undefined') {
+        const aiFramesApp = (window as any).aiFramesApp;
+        if (aiFramesApp?.vectorStore) {
+          vectorStore = aiFramesApp.vectorStore;
+          vectorStoreInitialized = aiFramesApp.vectorStoreInitialized;
+        }
+      }
+
+      if (vectorStore && vectorStoreInitialized && mergedFrames.length > 0) {
+        console.log("🔄 Immediately syncing frames to Knowledge Base...");
+        
+                 try {
+           // Use the same sync method as main page - insertDocument
+           for (const frame of mergedFrames) {
+             const content = `Frame: ${frame.title}
+Goal: ${frame.goal}
+Information: ${frame.informationText}
+After Video: ${frame.afterVideoText}
+Concepts: ${frame.aiConcepts.join(', ')}
+Video URL: ${frame.videoUrl}
+Created: ${frame.createdAt}
+Updated: ${frame.updatedAt}`;
+
+             // Create document in same format as main page
+             const aiFrameDoc = {
+               id: `aiframe-${frame.id}`,
+               title: `AI-Frame: ${frame.title}`,
+               content: content,
+               metadata: {
+                 filename: `${frame.title}.txt`,
+                 filesize: content.length,
+                 filetype: "text/plain",
+                 uploadedAt: new Date().toISOString(),
+                 source: "ai-frames-graph",
+                 description: `AI Frame: ${frame.title}`,
+                 isGenerated: true,
+                 frameId: frame.id,
+                 frameOrder: frame.order || 1,
+                 frameType: frame.type || "frame",
+                 createdAt: frame.createdAt,
+                 updatedAt: frame.updatedAt,
+               },
+               chunks: [],
+               vectors: [],
+             };
+
+             await vectorStore.insertDocument(aiFrameDoc);
+             console.log(`📊 Synced frame ${frame.title} to Knowledge Base`);
+           }
+          
+          console.log("✅ All frames synced to Knowledge Base immediately");
+          
+          // DEEP RESEARCH PATTERN: Dispatch success event
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('graph-saved', {
+              detail: {
+                success: true,
+                frameCount: mergedFrames.length,
+                frames: mergedFrames,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
+          
+        } catch (syncError) {
+          console.error("❌ Failed to sync to Knowledge Base:", syncError);
+          // Still dispatch event but mark as partial success
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('graph-saved', {
+              detail: {
+                success: false,
+                error: syncError,
+                frameCount: mergedFrames.length,
+                frames: mergedFrames,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
+        }
+      } else {
+        console.warn("⚠️ VectorStore not available, frames saved to storage only");
+        // Dispatch event anyway
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-saved', {
+            detail: {
+              success: false,
+              error: "VectorStore not available",
+              frameCount: mergedFrames.length,
+              frames: mergedFrames,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+      }
+
+      console.log("✅ Save Graph completed successfully");
+      
+    } catch (error) {
+      console.error("❌ Save Graph failed:", error);
+      
+      // Dispatch failure event
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('graph-saved', {
           detail: {
-            frameCount: frames.length,
-            nodeCount: graphState.nodes.length,
-            edgeCount: graphState.edges.length,
+            success: false,
+            error: error,
+            frameCount: 0,
+            frames: [],
             timestamp: new Date().toISOString()
           }
         }));
-        
-        // Also trigger a storage event to sync with linear view
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'ai_frames_graph_state',
-          newValue: JSON.stringify(graphData),
-          url: window.location.href
-        }));
       }
-      
-      debugStorage('Graph saved successfully!', {
-        frames: frames.length,
-        nodes: graphState.nodes.length,
-        connections: graphState.edges.length
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save graph:', error);
-      return false;
     }
-      }, [graphState, chapters, frames]);
-
+  };
 
 
   return (
