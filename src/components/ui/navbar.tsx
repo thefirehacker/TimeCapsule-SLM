@@ -22,9 +22,9 @@ import SignInButton from "./sign-in";
 
 const menuItems = [
   { name: "Home", href: "/" },
-  { name: "About Us", href: "/about" },
+  { name: "About Us", href: "https://www.bubblspace.com/about-aiedx" },
   { name: "DeepResearch", href: "/deep-research" },
-  { name: "AI-Frames", href: "https://www.bubblspace.com/about-aiedx" },
+  { name: "AI-Frames", href: "/ai-frames" },
   { name: "contact", href: "/contact" },
 ];
 
@@ -93,6 +93,7 @@ export function Navbar() {
                   <li key={index}>
                     <Link
                       href={item.href}
+                      {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       className="text-muted-foreground hover:text-accent-foreground block duration-150"
                     >
                       <span>{item.name}</span>
@@ -109,6 +110,7 @@ export function Navbar() {
                     <li key={index}>
                       <Link
                         href={item.href}
+                        {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                         className="text-muted-foreground hover:text-accent-foreground block duration-150"
                       >
                         <span>{item.name}</span>
