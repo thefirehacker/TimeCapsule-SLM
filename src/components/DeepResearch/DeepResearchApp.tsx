@@ -2013,6 +2013,14 @@ Duration: ${frame.duration || 0}s
     this.setShowDocumentManager?.(true);
     this.updateStatus("📚 Opening document manager...");
 
+    // CRITICAL FIX: Refresh document list when opening Knowledge Base Manager
+    try {
+      await this.updateDocumentStatus();
+      console.log("✅ Document list refreshed for Knowledge Base Manager");
+    } catch (error) {
+      console.warn("⚠️ Failed to refresh document list:", error);
+    }
+
     // OPTIMIZED: Run analytics tracking asynchronously to avoid blocking UI
     setTimeout(async () => {
       try {
