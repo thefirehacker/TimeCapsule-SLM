@@ -24,8 +24,8 @@ const menuItems = [
   { name: "Home", href: "/" },
   { name: "About Us", href: "/about" },
   { name: "DeepResearch", href: "/deep-research" },
-  { name: "AI-Frames", href: "/ai-frames" },
-  { name: "Vision & Roadmap", href: "/vision" },
+  { name: "AI-Frames", href: "https://www.bubblspace.com/about-aiedx" },
+  { name: "contact", href: "/contact" },
 ];
 
 export function Navbar() {
