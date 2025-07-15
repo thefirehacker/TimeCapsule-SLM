@@ -1175,28 +1175,96 @@ Tags: ${tc.tags?.join(', ') || 'none'}`;
     }
   }
 
-  // ENHANCED: Better polling logic with immediate retry on state changes
+  // ENHANCED: Better polling logic with global app instance check and event listener
   private startVectorStorePolling(): void {
     if (this._pollingActive) {
       console.log('🔄 Polling already active, skipping duplicate');
       return;
     }
 
+    // CRITICAL FIX: Check if VectorStore is already available on the global app instance
+    if (typeof window !== 'undefined' && (window as any).deepResearchApp) {
+      const app = (window as any).deepResearchApp;
+      if (app.vectorStore && app.vectorStore.initialized) {
+        console.log('🔗 Found VectorStore on global app instance, linking immediately...');
+        this.vectorStore = app.vectorStore;
+        this.syncWithVectorStore().then(() => {
+          console.log('✅ Immediate metadata sync completed');
+        }).catch(error => {
+          console.warn('⚠️ Immediate metadata sync failed:', error);
+        });
+        return;
+      }
+    }
+
     this._pollingActive = true;
     let attempts = 0;
     const maxAttempts = 30; // Increased from 20
     
+    // CRITICAL FIX: Listen for vectorstore-ready event to stop polling immediately
+    const handleVectorStoreReady = () => {
+      if (this._pollingActive) {
+        console.log('🔥 VectorStore ready event received, checking global app...');
+        if (typeof window !== 'undefined' && (window as any).deepResearchApp) {
+          const app = (window as any).deepResearchApp;
+          if (app.vectorStore && app.vectorStore.initialized) {
+            console.log('✅ VectorStore found via event, linking immediately...');
+            this._pollingActive = false;
+            this.vectorStore = app.vectorStore;
+            this.syncWithVectorStore().then(() => {
+              console.log('✅ Event-triggered metadata sync completed');
+            }).catch(error => {
+              console.warn('⚠️ Event-triggered metadata sync failed:', error);
+            });
+            // Remove event listener
+            window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+            return;
+          }
+        }
+      }
+    };
+    
+    // Add event listener for immediate detection
+    if (typeof window !== 'undefined') {
+      window.addEventListener('vectorstore-ready', handleVectorStoreReady);
+    }
+    
     const pollForInitialization = () => {
       if (!this._pollingActive) {
         console.log('🛑 Polling cancelled');
+        // Clean up event listener
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+        }
         return;
       }
 
       attempts++;
+      
+      // CRITICAL FIX: Check global app instance first
+      if (typeof window !== 'undefined' && (window as any).deepResearchApp) {
+        const app = (window as any).deepResearchApp;
+        if (app.vectorStore && app.vectorStore.initialized) {
+          console.log('✅ Found VectorStore on global app instance during polling, linking...');
+          this._pollingActive = false;
+          this.vectorStore = app.vectorStore;
+          this.syncWithVectorStore().then(() => {
+            console.log('✅ Polled metadata sync completed');
+          }).catch(error => {
+            console.warn('⚠️ Polled metadata sync failed:', error);
+          });
+          // Clean up event listener
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+          return;
+        }
+      }
+
       console.log(`⏳ Checking VectorStore initialization (attempt ${attempts}/${maxAttempts})...`, {
         hasVectorStore: !!this.vectorStore,
         isInitialized: this.vectorStore?.initialized,
-        processingAvailable: this.vectorStore?.processingAvailable
+        processingAvailable: this.vectorStore?.processingAvailable,
+        globalAppExists: !!(typeof window !== 'undefined' && (window as any).deepResearchApp),
+        globalAppVectorStore: !!(typeof window !== 'undefined' && (window as any).deepResearchApp?.vectorStore)
       });
       
       if (this.vectorStore?.initialized) {
@@ -1207,6 +1275,10 @@ Tags: ${tc.tags?.join(', ') || 'none'}`;
         }).catch(error => {
           console.warn('⚠️ Polled metadata sync failed:', error);
         });
+        // Clean up event listener
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+        }
       } else if (attempts < maxAttempts) {
         // Progressive backoff: 500ms, 750ms, 1000ms, 1500ms, 2000ms, max 3000ms
         const delay = Math.min(500 * Math.pow(1.5, Math.floor(attempts / 3)), 3000);
@@ -1214,6 +1286,10 @@ Tags: ${tc.tags?.join(', ') || 'none'}`;
       } else {
         console.warn('⚠️ Vector store initialization timeout after 30 attempts, metadata will not be auto-synced');
         this._pollingActive = false;
+        // Clean up event listener
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('vectorstore-ready', handleVectorStoreReady);
+        }
       }
     };
     

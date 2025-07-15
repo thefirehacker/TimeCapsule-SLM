@@ -183,25 +183,42 @@ export class VectorStore {
       console.log('🤖 Loading document processor and starting immediate Xenova download...');
       this.documentProcessor = getDocumentProcessor();
       
-      // Start IMMEDIATE background download - this is the key change
+      // FIXED: Start immediate background download with cache detection
       console.log('🧠 Starting immediate background Xenova download...');
       this._processorAvailable = false;
       this._downloadProgress = 0;
       this._downloadStatus = 'downloading';
       
+      // Track initialization time to detect cache vs download
+      const startTime = performance.now();
+      
       // Start background initialization immediately (non-blocking)
       this.startImmediateBackgroundDownload()
         .then(() => {
-          console.log('✅ Xenova download complete - all features ready');
+          const endTime = performance.now();
+          const initDuration = endTime - startTime;
+          
+          // FIXED: Detect cache vs download based on initialization time
+          const wasFromCache = initDuration < 2000; // Less than 2 seconds = cache
+          
+          if (wasFromCache) {
+            console.log('✅ Xenova model loaded from cache - all features ready');
+          } else {
+            console.log('✅ Xenova model downloaded and cached - all features ready');
+          }
+          
           this._processorAvailable = true;
           this._downloadProgress = 100;
           this._downloadStatus = 'ready';
+          
           console.log('🔍 Status set to ready. Full status:', {
             isInitialized: this.isInitialized,
             downloadStatus: this._downloadStatus,
             hasDocumentProcessor: !!this.documentProcessor,
             processorAvailable: this._processorAvailable,
-            processingAvailable: this.processingAvailable
+            processingAvailable: this.processingAvailable,
+            loadedFromCache: wasFromCache,
+            initDuration: Math.round(initDuration) + 'ms'
           });
         })
         .catch((error: any) => {
@@ -1242,10 +1259,10 @@ export class VectorStore {
           await embeddingService.init((progress: any) => {
             this._downloadProgress = progress.progress;
             
-            // Throttle console logging to every 2 seconds to prevent spam
+            // FIXED: Reduced logging spam - only log significant progress milestones
             const now = Date.now();
-            if (now - lastProgressLog >= 2000) {
-              console.log(`📊 Xenova download progress: ${progress.message} (${progress.progress}%)`);
+            if (now - lastProgressLog >= 3000 && progress.progress % 25 === 0) {
+              console.log(`📊 Xenova progress: ${progress.message} (${progress.progress}%)`);
               lastProgressLog = now;
             }
           });
@@ -1291,16 +1308,7 @@ export class VectorStore {
       const downloadStatus = this._downloadStatus;
       const result = this.isInitialized && downloadStatus === 'ready' && this.documentProcessor && this._processorAvailable;
       
-      // Debug logging to help identify the issue
-      if (!result) {
-        console.log('🔍 VectorStore.processingAvailable = false. Status check:', {
-          isInitialized: this.isInitialized,
-          downloadStatus: downloadStatus,
-          hasDocumentProcessor: !!this.documentProcessor,
-          processorAvailable: this._processorAvailable
-        });
-      }
-      
+      // FIXED: Only log when debugging is needed, not constantly
       return result;
     }
 

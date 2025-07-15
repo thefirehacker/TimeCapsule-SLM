@@ -47,7 +47,13 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
 
   // Initialize VectorStore singleton
   const initializeVectorStore = useCallback(async () => {
-    if (isInitializing || singletonVectorStore) {
+    if (isInitializing) {
+      return;
+    }
+
+    // CRITICAL FIX: Don't re-initialize if already initialized in this context
+    if (vectorStore && isInitialized) {
+      console.log('✅ VectorStoreProvider: Already initialized in this context, skipping...');
       return;
     }
 
@@ -55,7 +61,37 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     setError(null);
 
     try {
-      console.log('🚀 VectorStoreProvider: Initializing singleton VectorStore...');
+      // FIXED: Reuse existing singleton in new provider context
+      if (singletonVectorStore && singletonVectorStore.initialized) {
+        console.log('🔄 VectorStoreProvider: Reusing existing singleton VectorStore...');
+        
+        // Connect existing singleton to THIS provider context
+        setVectorStore(singletonVectorStore);
+        setIsInitialized(true);
+        setProcessingAvailable(singletonVectorStore.processingAvailable);
+        setProcessingStatus(singletonVectorStore.processingStatus);
+        setDownloadProgress(singletonVectorStore.downloadProgress);
+        
+        // Update stats immediately
+        try {
+          const currentStats = await singletonVectorStore.getStats();
+          setStats(currentStats);
+        } catch (err) {
+          console.warn('⚠️ Failed to get existing VectorStore stats:', err);
+        }
+        
+        console.log('✅ VectorStoreProvider: Successfully connected to existing singleton');
+        setIsInitializing(false);
+        return;
+      }
+      
+      // ENHANCED: Handle broken/uninitialized singleton
+      if (singletonVectorStore && !singletonVectorStore.initialized) {
+        console.log('🔧 VectorStoreProvider: Found broken singleton, recreating...');
+        singletonVectorStore = null; // Clear broken instance
+      }
+
+      console.log('🚀 VectorStoreProvider: Creating new singleton VectorStore...');
       
       // Create singleton instance if it doesn't exist
       if (!singletonVectorStore) {
@@ -77,23 +113,25 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     } finally {
       setIsInitializing(false);
     }
-  }, [isInitializing]);
+  }, []); // FIXED: Remove dependencies to prevent infinite re-creation
 
   // Update status and stats
   const updateStatus = useCallback(() => {
-    if (!singletonVectorStore) return;
+    if (!singletonVectorStore || !singletonVectorStore.initialized) return;
 
     try {
       setProcessingAvailable(singletonVectorStore.processingAvailable);
       setProcessingStatus(singletonVectorStore.processingStatus);
       setDownloadProgress(singletonVectorStore.downloadProgress);
       
-      // Update stats
-      singletonVectorStore.getStats().then(newStats => {
-        setStats(newStats);
-      }).catch(err => {
-        console.warn('⚠️ Failed to get VectorStore stats:', err);
-      });
+      // Update stats only if vectorStore is properly initialized
+      if (singletonVectorStore.processingAvailable) {
+        singletonVectorStore.getStats().then(newStats => {
+          setStats(newStats);
+        }).catch(err => {
+          console.warn('⚠️ Failed to get VectorStore stats:', err);
+        });
+      }
     } catch (err) {
       console.warn('⚠️ Failed to update VectorStore status:', err);
     }
@@ -104,10 +142,10 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     return singletonVectorStore;
   }, []);
 
-  // Initialize on mount
+  // Initialize on mount (FIXED: Remove dependency to prevent infinite loop)
   useEffect(() => {
     initializeVectorStore();
-  }, [initializeVectorStore]);
+  }, []); // Empty dependency array to run only once on mount
 
   // Periodic status updates
   useEffect(() => {

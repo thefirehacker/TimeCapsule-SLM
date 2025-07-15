@@ -561,11 +561,10 @@ Duration: ${frame.duration || 0}s
       // Get metadata manager singleton (it auto-initializes)
       this.metadataManager = getMetadataManager();
 
-      // FIXED: Don't wait for vector store - show metadata immediately like AI Frames
-      // Link vector store to metadata manager if available
-      if (this.vectorStore) {
+      // CRITICAL FIX: Always link VectorStore if available and initialized
+      if (this.vectorStore && this.vectorStore.initialized) {
         this.metadataManager.setVectorStore(this.vectorStore);
-        console.log("🔗 Metadata manager linked to vector store");
+        console.log("🔗 Metadata manager linked to vector store at creation");
       } else {
         console.log("📝 Metadata manager initialized without vector store - will link when available");
       }
@@ -2454,6 +2453,13 @@ Duration: ${frame.duration || 0}s
       return;
     }
 
+    // FIXED: Check if VectorStore is properly initialized before calling methods
+    if (!this.vectorStore.initialized) {
+      console.log('📊 VectorStore not initialized yet, skipping document status update');
+      this.setDocumentStatus?.({ count: 0, totalSize: 0, vectorCount: 0 });
+      return;
+    }
+
     try {
       const stats = await this.vectorStore.getStats();
       const documents = await this.vectorStore.getAllDocuments();
@@ -2471,6 +2477,8 @@ Duration: ${frame.duration || 0}s
       this.setDocuments?.(documents);
     } catch (error) {
       console.error("Failed to update document status:", error);
+      // Set default values on error
+      this.setDocumentStatus?.({ count: 0, totalSize: 0, vectorCount: 0 });
     }
   }
 
@@ -3877,6 +3885,12 @@ export function DeepResearchComponent() {
     const app = new DeepResearchApp();
     appRef.current = app;
 
+    // CRITICAL FIX: Make app globally accessible for MetadataManager to find VectorStore
+    if (typeof window !== 'undefined') {
+      (window as any).deepResearchApp = app;
+      console.log("🌍 DeepResearchApp instance made globally available");
+    }
+
     // Set React state setters
     app.setTopics = setTopics;
     app.setAIStatus = setAIStatus;
@@ -3923,31 +3937,46 @@ export function DeepResearchComponent() {
 
     // Set analytics for the app instance
     (app as any).pageAnalytics = pageAnalytics;
+
+    // Cleanup function
+    return () => {
+      // Clean up global reference
+      if (typeof window !== 'undefined') {
+        delete (window as any).deepResearchApp;
+      }
+    };
   }, []);
 
   // Update app when VectorStore from provider becomes available
   useEffect(() => {
     const app = appRef.current;
-    if (app && vectorStore) {
+    if (app && vectorStore && vectorStoreInitialized) {
       console.log("🔗 Connecting DeepResearch to VectorStoreProvider...");
       app.vectorStore = vectorStore;
 
-      // Update loading state based on provider state
-      app.isVectorStoreLoading = !vectorStoreInitialized;
-      app.setIsVectorStoreLoading?.(!vectorStoreInitialized);
+      // Update loading state - VectorStore is ready
+      app.isVectorStoreLoading = false;
+      app.setIsVectorStoreLoading?.(false);
+
+      // CRITICAL FIX: Ensure MetadataManager gets VectorStore reference immediately
+      if (app.metadataManager) {
+        console.log("🔗 Linking existing MetadataManager to VectorStore...");
+        app.metadataManager.setVectorStore(vectorStore);
+      } else {
+        console.log("📝 MetadataManager not ready yet, will find VectorStore via global app");
+      }
+
+      // CRITICAL FIX: Trigger any waiting MetadataManager to check global app
+      // This ensures that any polling MetadataManager finds the VectorStore immediately
+      if (typeof window !== 'undefined') {
+        // Fire a custom event to notify MetadataManager that VectorStore is ready
+        window.dispatchEvent(new CustomEvent('vectorstore-ready', { 
+          detail: { vectorStore: vectorStore } 
+        }));
+      }
 
       // Update document status
       app.updateDocumentStatus();
-
-      // FIXED: Link metadata manager to VectorStore when it becomes available
-      if (app.metadataManager) {
-        try {
-          app.metadataManager.setVectorStore(vectorStore);
-          console.log("🔗 Metadata manager linked to VectorStore (delayed connection)");
-        } catch (error) {
-          console.warn("Could not link metadata manager to VectorStore:", error);
-        }
-      }
 
       // Initialize AgentCoordinator with VectorStore if AI is connected
       if (
@@ -3991,15 +4020,18 @@ export function DeepResearchComponent() {
         app.updateStatus("🚀 Initializing VectorStore...");
       } else if (!vectorStoreInitialized) {
         app.updateStatus("⏳ Waiting for VectorStore...");
-      } else if (processingStatus) {
+      } else if (processingStatus && processingStatus !== "Not initialized") {
         app.updateStatus(processingStatus);
+      } else if (vectorStoreInitialized) {
+        // Only update status once when VectorStore is ready
+        app.updateStatus("✅ Document processing ready - All features available");
       }
     }
   }, [
     vectorStoreError,
     vectorStoreInitializing,
     vectorStoreInitialized,
-    processingStatus,
+    // FIXED: Don't depend on processingStatus to prevent infinite updates
   ]);
 
   // Listen for metadata changes from other pages (like AI-Frames) + Auto-sync
