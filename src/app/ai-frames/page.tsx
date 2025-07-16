@@ -127,8 +127,9 @@ interface AIFrame {
   updatedAt: string;
   // NEW: Attachment and media fields
   attachment?: {
+    id: string;
     type: string;
-    name: string;
+    name?: string;
     size?: number;
     data?: any;
     url?: string;
@@ -910,6 +911,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
               const durationMatch = doc.content.match(/- Duration: (\d+)s/);
               
               frame.attachment = {
+                id: `video-${frame.id}`,
                 type: 'video',
                 name: 'Video Attachment',
                 data: {
@@ -928,6 +930,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
                 const pdfNotesMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Notes: (.*?)(?:\n|$)/);
                 
                 frame.attachment = {
+                  id: `pdf-${frame.id}`,
                   type: 'pdf',
                   name: 'PDF Attachment',
                   data: {
@@ -946,6 +949,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
                   const textNotesMatch = doc.content.match(/Text Attachment:[\s\S]*?- Notes: (.*?)(?:\n|$)/);
                   
                   frame.attachment = {
+                    id: `text-${frame.id}`,
                     type: 'text',
                     name: 'Text Attachment',
                     data: {
@@ -969,6 +973,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
                         
                         if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
                           frame.attachment = {
+                            id: `video-${frame.id}`,
                             type: 'video',
                             name: name || 'Video Attachment',
                             data: {
@@ -997,6 +1002,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
               fullAttachment: frame.attachment,
               restoredFromContent: !!(doc.metadata as any)?.attachment ? false : true
             });
+            
           } else {
             console.log('📹 Frame has no attachment:', {
               frameId: frame.id,
@@ -1016,6 +1022,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       const kbFrames = validFrames.sort((a: AIFrame, b: AIFrame) => (a.order || 1) - (b.order || 1));
 
       console.log(`✅ Successfully loaded ${kbFrames.length} frames from Knowledge Base`);
+      
       
       // FIXED: Add validation to ensure we have valid frames
       if (kbFrames.length === 0) {
@@ -1335,10 +1342,10 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             edges: graphState.edges,
             viewport: graphState.viewport
           });
-          console.log("🔗 Graph connections saved to IndexedDB");
+          // console.log("🔗 Graph connections saved to IndexedDB");
         }
 
-        console.log("✅ Frames and connections saved to IndexedDB successfully");
+        // console.log("✅ Frames and connections saved to IndexedDB successfully");
       }
 
       // Fallback/Compatibility: Save to localStorage
@@ -1363,7 +1370,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           lastSaved: new Date().toISOString(),
         };
         localStorage.setItem("ai_frames_graph_connections", JSON.stringify(graphConnectionsData));
-        console.log("🔗 Graph connections saved to localStorage backup");
+        // console.log("🔗 Graph connections saved to localStorage backup");
       }
 
       localStorage.setItem(
@@ -1382,7 +1389,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
       localStorage.setItem("ai_frames_graph_state", JSON.stringify(graphData));
 
-      console.log("💾 Frames saved to localStorage (compatibility)");
+      // console.log("💾 Frames saved to localStorage (compatibility)");
     } catch (error) {
       console.error("❌ Failed to save frames to storage:", error);
     }

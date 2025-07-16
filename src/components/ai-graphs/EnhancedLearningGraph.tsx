@@ -78,6 +78,7 @@ export default function EnhancedLearningGraph({
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
+    // CRITICAL FIX: Update both frames array AND graph node data
     if (onFramesChange) {
       const updatedFrames = frames.map(frame => 
         frame.id === frameId ? { ...frame, ...updatedData } : frame
@@ -85,6 +86,37 @@ export default function EnhancedLearningGraph({
       onFramesChange(updatedFrames);
       console.log('🔄 Enhanced: Frame updated via graph node:', { frameId, updatedData });
     }
+    
+    // CRITICAL FIX: Also update the graph node data to keep it in sync
+    setNodes(nds => nds.map(node => {
+      if (node.data.frameId === frameId) {
+        console.log('🔄 Enhanced: Updating graph node data for frame:', {
+          frameId,
+          nodeId: node.id,
+          oldTitle: node.data.title,
+          newTitle: updatedData.title,
+          updatedData
+        });
+        
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            title: updatedData.title || node.data.title,
+            goal: updatedData.goal || node.data.goal,
+            informationText: updatedData.informationText || node.data.informationText,
+            afterVideoText: updatedData.afterVideoText || node.data.afterVideoText,
+            aiConcepts: updatedData.aiConcepts || node.data.aiConcepts,
+            isGenerated: updatedData.isGenerated !== undefined ? updatedData.isGenerated : node.data.isGenerated,
+            sourceGoal: updatedData.sourceGoal || node.data.sourceGoal,
+            sourceUrl: updatedData.sourceUrl || node.data.sourceUrl,
+            attachment: updatedData.attachment || node.data.attachment,
+            updatedAt: new Date().toISOString()
+          }
+        };
+      }
+      return node;
+    }));
   }, [frames, onFramesChange]);
 
   // Handle content attachment to frames
@@ -786,8 +818,30 @@ export default function EnhancedLearningGraph({
       console.log('📡 Enhanced Graph: Attachment node updated event received:', {
         frameId, 
         nodeId, 
-        attachmentType: attachment.type
+        attachmentType: attachment.type,
+        attachmentData: attachment.data
       });
+      
+      // CRITICAL: Update the graph node itself to reflect the latest attachment data
+      setNodes(nds => nds.map(node => {
+        if (node.id === nodeId) {
+          console.log('🔄 Updating graph node with latest attachment data:', {
+            nodeId,
+            oldData: node.data,
+            newAttachmentData: attachment.data
+          });
+          
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...attachment.data, // Update node data with latest attachment data
+              attachment: attachment // Also store the complete attachment object
+            }
+          };
+        }
+        return node;
+      }));
       
       // Update the connected frame
       handleAttachContent(frameId, attachment);

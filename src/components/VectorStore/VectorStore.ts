@@ -186,7 +186,7 @@ export class VectorStore {
   ): Promise<T> {
     // If operation is already in progress, wait for it
     if (this.operationQueue.has(operationId)) {
-      console.log(`⏳ Operation ${operationId} already in progress, waiting...`);
+      // console.log(`⏳ Operation ${operationId} already in progress, waiting...`);
       return this.operationQueue.get(operationId);
     }
 
@@ -219,7 +219,7 @@ export class VectorStore {
 
     // Lock the operation
     this.operationLocks.add(operationId);
-    console.log(`🔒 Locked operation: ${operationId}`);
+    // console.log(`🔒 Locked operation: ${operationId}`);
 
     try {
       const result = await operation();
@@ -231,7 +231,7 @@ export class VectorStore {
     } finally {
       // Always unlock
       this.operationLocks.delete(operationId);
-      console.log(`🔓 Unlocked operation: ${operationId}`);
+      // console.log(`🔓 Unlocked operation: ${operationId}`);
     }
   }
 
@@ -991,7 +991,7 @@ export class VectorStore {
     // Enhanced duplicate detection before insertion
     const duplicateDoc = await this.findDuplicateDocument(documentData);
     if (duplicateDoc) {
-      console.log(`⚠️ Duplicate document detected: "${documentData.title}" (similar to "${duplicateDoc.title}"), skipping insertion`);
+      // console.log(`⚠️ Duplicate document detected: "${documentData.title}" (similar to "${duplicateDoc.title}"), skipping insertion`);
       return; // Skip insertion of duplicate
     }
 

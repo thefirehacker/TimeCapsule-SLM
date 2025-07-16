@@ -124,7 +124,7 @@ export class GraphStorageManager {
     };
 
     await this.vectorStore.insertDocument(document);
-    console.log(`💾 Graph layout saved to IndexedDB: ${graphLayout.id}`);
+    // console.log(`💾 Graph layout saved to IndexedDB: ${graphLayout.id}`);
     
     return graphLayout.id;
   }
@@ -273,7 +273,7 @@ SEQUENCE METADATA:
     };
 
     await this.vectorStore.insertDocument(document);
-    console.log(`💾 Frame sequence saved to IndexedDB: ${frameSequence.id} (${frames.length} frames)`);
+    // console.log(`💾 Frame sequence saved to IndexedDB: ${frameSequence.id} (${frames.length} frames)`);
     
     return frameSequence.id;
   }
@@ -386,7 +386,7 @@ SESSION METADATA:
     };
 
     await this.vectorStore.insertDocument(document);
-    console.log(`💾 Session state saved to IndexedDB: ${sessionState.id}`);
+    // console.log(`💾 Session state saved to IndexedDB: ${sessionState.id}`);
     
     return sessionState.id;
   }

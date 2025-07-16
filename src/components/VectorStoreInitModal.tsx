@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Database, Shield, CheckCircle } from 'lucide-react';
 
@@ -17,8 +17,64 @@ export default function VectorStoreInitModal({
   status = 'initializing',
   message
 }: VectorStoreInitModalProps) {
+  const [internalOpen, setInternalOpen] = useState(isOpen);
+  const [showingReady, setShowingReady] = useState(false);
+  const [minDisplayTime] = useState(Date.now());
+
+  // Enhanced timing control
+  useEffect(() => {
+    if (isOpen && !internalOpen) {
+      setInternalOpen(true);
+      setShowingReady(false);
+    }
+  }, [isOpen, internalOpen]);
+
+  // Handle ready state with proper timing
+  useEffect(() => {
+    if (!isOpen && status === 'ready' && internalOpen) {
+      setShowingReady(true);
+      
+      // Calculate delays
+      const timeSinceStart = Date.now() - minDisplayTime;
+      const minTotalTime = 3000;
+      const minReadyTime = 2000;
+      
+      const remainingTotalTime = Math.max(0, minTotalTime - timeSinceStart);
+      const finalDelay = Math.max(remainingTotalTime, minReadyTime);
+      
+      // Close after calculated delay
+      const timeoutId = setTimeout(() => {
+        setInternalOpen(false);
+        setShowingReady(false);
+      }, finalDelay);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOpen, status, internalOpen, minDisplayTime]);
+
+  // Handle non-ready closing
+  useEffect(() => {
+    if (!isOpen && status !== 'ready' && internalOpen && !showingReady) {
+      const timeSinceStart = Date.now() - minDisplayTime;
+      const minTotalTime = 3000;
+      
+      if (timeSinceStart < minTotalTime) {
+        const timeoutId = setTimeout(() => {
+          setInternalOpen(false);
+        }, minTotalTime - timeSinceStart);
+        
+        return () => clearTimeout(timeoutId);
+      } else {
+        setInternalOpen(false);
+      }
+    }
+  }, [isOpen, status, internalOpen, showingReady, minDisplayTime]);
+
+  // Use internal open state for better timing control
+  const effectiveStatus = showingReady ? 'ready' : status;
+  
   const getStatusIcon = () => {
-    switch (status) {
+    switch (effectiveStatus) {
       case 'initializing':
         return <Loader2 className="w-8 h-8 animate-spin text-blue-500" />;
       case 'loading':
@@ -33,9 +89,9 @@ export default function VectorStoreInitModal({
   };
 
   const getStatusMessage = () => {
-    if (message) return message;
+    if (message && !showingReady) return message;
     
-    switch (status) {
+    switch (effectiveStatus) {
       case 'initializing':
         return 'Preparing your secure local Knowledge Base...';
       case 'loading':
@@ -57,7 +113,7 @@ export default function VectorStoreInitModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog open={internalOpen} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md [&>button]:hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
@@ -77,7 +133,7 @@ export default function VectorStoreInitModal({
             <p className="text-lg font-medium text-gray-800 dark:text-gray-200">
               {getStatusMessage()}
             </p>
-            {getProgressMessage() && (
+            {getProgressMessage() && effectiveStatus !== 'ready' && (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {getProgressMessage()}
               </p>
@@ -85,7 +141,7 @@ export default function VectorStoreInitModal({
           </div>
           
           {/* Progress Bar */}
-          {progress > 0 && progress < 100 && (
+          {progress > 0 && progress < 100 && effectiveStatus !== 'ready' && (
             <div className="w-full max-w-sm">
               <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                 <div 
@@ -108,7 +164,7 @@ export default function VectorStoreInitModal({
           </div>
           
           {/* Loading States */}
-          {status === 'initializing' && (
+          {effectiveStatus === 'initializing' && (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -119,14 +175,14 @@ export default function VectorStoreInitModal({
             </div>
           )}
           
-          {status === 'loading' && (
+          {effectiveStatus === 'loading' && (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Database className="w-4 h-4 animate-pulse" />
               <span>Loading your knowledge base...</span>
             </div>
           )}
           
-          {status === 'ready' && (
+          {effectiveStatus === 'ready' && (
             <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
               <CheckCircle className="w-4 h-4" />
               <span>Ready to use!</span>
