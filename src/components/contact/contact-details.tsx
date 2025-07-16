@@ -13,7 +13,7 @@ import {
   Facebook,
   Clock,
   MessageSquare,
-  HeadphonesIcon,
+  Headphones,
 } from "lucide-react";
 
 export default function ContactPageClient() {
@@ -57,7 +57,7 @@ export default function ContactPageClient() {
     },
     {
       icon: (
-        <HeadphonesIcon className="h-6 w-6 text-primary" strokeWidth={1.5} />
+        <Headphones className="h-6 w-6 text-primary" strokeWidth={1.5} />
       ),
       title: "Technical Support",
       description: "Get help with implementation and troubleshooting",
@@ -201,7 +201,7 @@ export default function ContactPageClient() {
           </div>
           <div className="bg-gradient-to-br from-background/90 to-white dark:from-background/90 dark:to-background/90 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col items-center text-center">
             <div className="bg-primary/10 p-2.5 sm:p-3 rounded-full mb-3 sm:mb-4">
-              <HeadphonesIcon
+              <Headphones
                 className="h-5 w-5 sm:h-6 sm:w-6 text-primary"
                 strokeWidth={1.5}
               />

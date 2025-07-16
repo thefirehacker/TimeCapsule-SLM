@@ -161,6 +161,10 @@ export class VectorStore {
   private _downloadStatus = 'unknown';
   private _downloadError = '';
 
+  // Operation queue and locking for concurrent operations
+  private operationQueue: Map<string, Promise<any>> = new Map();
+  private operationLocks: Set<string> = new Set();
+
   // RAG tracking
   private ragTracker = getRAGTracker({
     enableTracking: true,
@@ -173,6 +177,62 @@ export class VectorStore {
   constructor() {
     console.log('🗂️ VectorStore constructor called');
     console.log('🔍 RAG Tracker initialized for VectorStore');
+  }
+
+  // Operation queue methods for handling concurrent operations
+  private async queueOperation<T>(
+    operationId: string,
+    operation: () => Promise<T>
+  ): Promise<T> {
+    // If operation is already in progress, wait for it
+    if (this.operationQueue.has(operationId)) {
+      console.log(`⏳ Operation ${operationId} already in progress, waiting...`);
+      return this.operationQueue.get(operationId);
+    }
+
+    // Create and queue the operation
+    const operationPromise = this.executeOperation(operationId, operation);
+    this.operationQueue.set(operationId, operationPromise);
+
+    try {
+      const result = await operationPromise;
+      return result;
+    } finally {
+      // Clean up after operation completes
+      this.operationQueue.delete(operationId);
+      this.operationLocks.delete(operationId);
+    }
+  }
+
+  private async executeOperation<T>(
+    operationId: string,
+    operation: () => Promise<T>
+  ): Promise<T> {
+    // Check if operation is locked
+    if (this.operationLocks.has(operationId)) {
+      console.log(`🔒 Operation ${operationId} is locked, waiting...`);
+      // Wait for lock to be released
+      while (this.operationLocks.has(operationId)) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+
+    // Lock the operation
+    this.operationLocks.add(operationId);
+    console.log(`🔒 Locked operation: ${operationId}`);
+
+    try {
+      const result = await operation();
+      console.log(`✅ Operation ${operationId} completed successfully`);
+      return result;
+    } catch (error) {
+      console.error(`❌ Operation ${operationId} failed:`, error);
+      throw error;
+    } finally {
+      // Always unlock
+      this.operationLocks.delete(operationId);
+      console.log(`🔓 Unlocked operation: ${operationId}`);
+    }
   }
 
   async init(): Promise<void> {
@@ -550,6 +610,14 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
+    // Use operation queue to prevent concurrent operations on the same document
+    return this.queueOperation(
+      `delete-${id}`,
+      () => this.performDocumentDeletion(id)
+    );
+  }
+
+  private async performDocumentDeletion(id: string): Promise<void> {
     const maxRetries = 5;
     let retryCount = 0;
     let backoffDelay = 100; // Start with 100ms delay
@@ -558,8 +626,8 @@ export class VectorStore {
       try {
         console.log(`🗑️ Deleting document: ${id} (attempt ${retryCount + 1}/${maxRetries})`);
         
-        // Fresh fetch of the document for each attempt
-        const doc = await this.documentsCollection.documents.findOne(id).exec();
+        // Use enhanced revision handling to get latest document
+        const doc = await this.getLatestDocumentRevision(id);
         
         if (doc) {
           // Get current revision for debugging
@@ -579,28 +647,26 @@ export class VectorStore {
       } catch (error: any) {
         retryCount++;
         
-        // Check if this is a revision conflict error
+        // Enhanced error handling for different types of conflicts
         if (error.name === 'RxError' && error.code === 'CONFLICT') {
-          console.warn(`⚠️ Document deletion conflict for ${id}, retry ${retryCount}/${maxRetries}`, {
+          const dbRevision = error.parameters?.writeError?.documentInDb?._rev;
+          const attemptedRevision = error.parameters?.writeError?.writeRow?.document?._rev;
+          
+          console.warn(`⚠️ Document deletion revision conflict for ${id}, retry ${retryCount}/${maxRetries}`, {
             errorCode: error.code,
             documentId: error.parameters?.id,
-            currentRevision: error.parameters?.writeError?.documentInDb?._rev,
-            attemptedRevision: error.parameters?.writeError?.writeRow?.document?._rev,
+            currentRevision: dbRevision,
+            attemptedRevision: attemptedRevision,
+            revisionMismatch: dbRevision !== attemptedRevision,
             conflictType: 'deletion'
           });
           
-          // For deletion conflicts, try to refresh and re-attempt
-          if (retryCount < maxRetries) {
-            // Add jitter to reduce collision probability
-            const jitter = Math.random() * 50; // 0-50ms random jitter
-            const delay = backoffDelay + jitter;
-            console.log(`⏳ Waiting ${Math.round(delay)}ms before deletion retry ${retryCount + 1}/${maxRetries}...`);
-            
-            await new Promise(resolve => setTimeout(resolve, delay));
-            backoffDelay *= 1.5; // Exponential backoff: 100ms, 150ms, 225ms, etc.
-            
-            continue; // Retry the deletion
-          }
+          // For deletion conflicts, add extra delay to let other operations complete
+          backoffDelay = Math.max(backoffDelay, 200); // Minimum 200ms for conflicts
+        } else if (error.message?.includes('Document update conflict')) {
+          console.warn(`⚠️ Document deletion update conflict for ${id}, retry ${retryCount}/${maxRetries}:`, error.message);
+          // Add extra delay for general update conflicts
+          backoffDelay = Math.max(backoffDelay, 150);
         } else {
           console.warn(`⚠️ Document deletion error for ${id}, retry ${retryCount}/${maxRetries}:`, error.message);
         }
@@ -615,13 +681,13 @@ export class VectorStore {
           throw error;
         }
         
-        // Exponential backoff with jitter for non-conflict errors too
-        const jitter = Math.random() * 50;
+        // Exponential backoff with jitter to reduce collision probability
+        const jitter = Math.random() * 50; // 0-50ms random jitter
         const delay = backoffDelay + jitter;
-        console.log(`⏳ Waiting ${Math.round(delay)}ms before retry ${retryCount + 1}/${maxRetries}...`);
+        console.log(`⏳ Waiting ${Math.round(delay)}ms before deletion retry ${retryCount + 1}/${maxRetries}...`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
-        backoffDelay *= 1.5;
+        backoffDelay *= 1.5; // Exponential backoff: 100ms, 150ms, 225ms, etc.
       }
     }
   }
@@ -769,8 +835,8 @@ export class VectorStore {
     try {
       const documents = await this.getAllDocuments();
       const documentCount = documents.length;
-      const chunkCount = documents.reduce((sum, doc) => sum + doc.chunks.length, 0);
-      const vectorCount = documents.reduce((sum, doc) => sum + doc.vectors.length, 0);
+      const chunkCount = documents.reduce((sum, doc) => sum + (doc.chunks?.length || 0), 0);
+      const vectorCount = documents.reduce((sum, doc) => sum + (doc.vectors?.length || 0), 0);
 
       return { documentCount, chunkCount, vectorCount };
     } catch (error) {
@@ -799,6 +865,108 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
+    // Use operation queue to prevent concurrent operations on the same document
+    return this.queueOperation(
+      `doc-${documentData.id}`,
+      () => this.performDocumentInsertion(documentData)
+    );
+  }
+
+  async upsertDocument(documentData: DocumentData): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+
+    // Use operation queue to prevent concurrent operations on the same document
+    return this.queueOperation(
+      `upsert-${documentData.id}`,
+      () => this.performDocumentUpsert(documentData)
+    );
+  }
+
+  private async performDocumentUpsert(documentData: DocumentData): Promise<void> {
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Get the latest revision of the document
+        const latestDoc = await this.getLatestDocumentRevision(documentData.id);
+        
+        if (latestDoc) {
+          // Update existing document with latest revision
+          await latestDoc.update({
+            $set: {
+              title: documentData.title,
+              content: documentData.content,
+              metadata: documentData.metadata,
+              chunks: documentData.chunks,
+              vectors: documentData.vectors
+            }
+          });
+          console.log(`📊 Synced frame ${documentData.title} to Knowledge Base (updated)`);
+        } else {
+          // Insert new document
+          await this.documentsCollection.documents.insert(documentData);
+          console.log(`📊 Synced frame ${documentData.title} to Knowledge Base (inserted)`);
+          
+          // Ensure database flush after insertion
+          await this.flushDatabase();
+        }
+        
+        // Ensure document persistence
+        await this.ensureDocumentPersistence(documentData.id, documentData.title);
+        return; // Success, exit retry loop
+        
+      } catch (error: any) {
+        retryCount++;
+        
+        // Handle revision conflicts with retry
+        if (error.name === 'RxError' && error.code === 'CONFLICT' && retryCount < maxRetries) {
+          console.warn(`⚠️ Document upsert revision conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
+          
+          // Wait before retry with exponential backoff
+          const delay = Math.pow(2, retryCount) * 100;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        console.error(`❌ Failed to upsert document ${documentData.id}:`, error);
+        throw error;
+      }
+    }
+  }
+
+  // Enhanced method to get latest document revision with retry logic
+  private async getLatestDocumentRevision(documentId: string): Promise<any> {
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Force a fresh query to get the latest revision
+        const doc = await this.documentsCollection.documents.findOne(documentId).exec();
+        if (doc) {
+          console.log(`📋 Retrieved latest revision for ${documentId}: ${doc._rev}`);
+        }
+        return doc;
+      } catch (error) {
+        retryCount++;
+        console.warn(`⚠️ Failed to fetch latest revision for ${documentId}, attempt ${retryCount}/${maxRetries}:`, error);
+        
+        if (retryCount >= maxRetries) {
+          throw error;
+        }
+        
+        // Exponential backoff delay before retry
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 50));
+      }
+    }
+    
+    return null;
+  }
+
+  private async performDocumentInsertion(documentData: DocumentData): Promise<void> {
     // Enhanced duplicate detection before insertion
     const duplicateDoc = await this.findDuplicateDocument(documentData);
     if (duplicateDoc) {
@@ -824,10 +992,11 @@ export class VectorStore {
 
     while (retryCount < maxRetries) {
       try {
-        // Fresh fetch of the document for each attempt with proper error handling
+        // Enhanced revision handling: Always fetch latest document with proper retry
         let existingDoc = null;
         try {
-          existingDoc = await this.documentsCollection.documents.findOne(documentData.id).exec();
+          // Force fresh fetch to get latest revision
+          existingDoc = await this.getLatestDocumentRevision(documentData.id);
         } catch (findError) {
           console.warn(`⚠️ Error finding document ${documentData.id}:`, findError);
           // Continue with insertion if document doesn't exist
@@ -929,14 +1098,25 @@ export class VectorStore {
       } catch (error: any) {
         retryCount++;
         
-        // Check if this is a revision conflict error
+        // Enhanced error handling for different types of conflicts
         if (error.name === 'RxError' && error.code === 'CONFLICT') {
-          console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`, {
+          const dbRevision = error.parameters?.writeError?.documentInDb?._rev;
+          const attemptedRevision = error.parameters?.writeError?.writeRow?.document?._rev;
+          
+          console.warn(`⚠️ Document revision conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`, {
             errorCode: error.code,
             documentId: error.parameters?.id,
-            currentRevision: error.parameters?.writeError?.documentInDb?._rev,
-            attemptedRevision: error.parameters?.writeError?.writeRow?.document?._rev
+            currentRevision: dbRevision,
+            attemptedRevision: attemptedRevision,
+            revisionMismatch: dbRevision !== attemptedRevision
           });
+          
+          // For revision conflicts, add extra delay to let other operations complete
+          backoffDelay = Math.max(backoffDelay, 200); // Minimum 200ms for conflicts
+        } else if (error.message?.includes('Document update conflict')) {
+          console.warn(`⚠️ Document update conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}:`, error.message);
+          // Add extra delay for general update conflicts
+          backoffDelay = Math.max(backoffDelay, 150);
         } else {
           console.warn(`⚠️ Document operation error for ${documentData.id}, retry ${retryCount}/${maxRetries}:`, error.message);
         }
@@ -994,7 +1174,7 @@ export class VectorStore {
         }
 
         // SPECIAL CASE: Allow AI-Frames updates to bypass duplicate detection for order preservation
-        if (newMeta.source === 'ai-frames') {
+        if (newMeta.source === 'ai-frames' || newMeta.source === 'ai-frames-auto-sync') {
           console.log(`🔄 Bypassing duplicate detection for AI-Frames update: ${documentData.title}`);
           return null; // No duplicate found, allow insertion
         }
@@ -1014,8 +1194,9 @@ export class VectorStore {
           const existingMeta = existingDoc.metadata as any;
           
           // AI-Frames specific duplicate detection
-          if (newMeta.source === 'ai-frames' && existingMeta.source === 'ai-frames') {
-            if (newMeta.aiFrameId && existingMeta.aiFrameId && newMeta.aiFrameId === existingMeta.aiFrameId) {
+          if ((newMeta.source === 'ai-frames' || newMeta.source === 'ai-frames-auto-sync') && 
+              (existingMeta.source === 'ai-frames' || existingMeta.source === 'ai-frames-auto-sync')) {
+            if (newMeta.frameId && existingMeta.frameId && newMeta.frameId === existingMeta.frameId) {
               return existingDoc;
             }
           }
@@ -1347,29 +1528,50 @@ export class VectorStore {
       return this.isInitialized && this.documentsCollection !== null;
     }
 
-    // NEW METHOD: Ensure document persistence to IndexedDB
+    // Enhanced document persistence verification with retry logic
     private async ensureDocumentPersistence(documentId: string, documentTitle: string): Promise<void> {
-      try {
-        console.log(`🔍 Verifying document persistence: ${documentId}`);
-        
-        // Force IndexedDB flush by triggering a read operation
-        await this.flushDatabase();
-        
-        // Small delay to ensure IndexedDB has time to commit
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Verify the document is actually persisted
-        const verificationDoc = await this.documentsCollection.documents.findOne(documentId).exec();
-        
-        if (verificationDoc) {
-          console.log(`✅ Document persistence verified: ${documentTitle} (ID: ${documentId})`);
-        } else {
-          console.warn(`⚠️ Document persistence verification failed: ${documentTitle} (ID: ${documentId})`);
-          throw new Error(`Document ${documentId} was not properly persisted to IndexedDB`);
+      const maxRetries = 3;
+      let retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`🔍 Verifying document persistence: ${documentId} (attempt ${retryCount + 1}/${maxRetries})`);
+          
+          // Force IndexedDB flush by triggering a read operation
+          await this.flushDatabase();
+          
+          // Adaptive delay based on retry count for concurrent scenarios
+          const delay = 50 + (retryCount * 50); // 50ms, 100ms, 150ms
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Verify the document is actually persisted using our enhanced method
+          const verificationDoc = await this.getLatestDocumentRevision(documentId);
+          
+          if (verificationDoc) {
+            console.log(`✅ Document persistence verified: ${documentTitle} (ID: ${documentId}, Rev: ${verificationDoc._rev})`);
+            return; // Success
+          } else {
+            console.warn(`⚠️ Document persistence verification failed: ${documentTitle} (ID: ${documentId}), attempt ${retryCount + 1}`);
+            
+            // Don't throw error immediately, retry first
+            if (retryCount === maxRetries - 1) {
+              throw new Error(`Document ${documentId} was not properly persisted to IndexedDB after ${maxRetries} attempts`);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Document persistence verification error for ${documentId} (attempt ${retryCount + 1}):`, error);
+          
+          // If this is the last attempt, throw the error
+          if (retryCount === maxRetries - 1) {
+            throw error;
+          }
         }
-      } catch (error) {
-        console.error(`❌ Document persistence verification failed for ${documentId}:`, error);
-        throw error;
+        
+        retryCount++;
+        
+        // Exponential backoff for retries
+        const backoffDelay = Math.min(100 * Math.pow(2, retryCount), 1000);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
       }
     }
 

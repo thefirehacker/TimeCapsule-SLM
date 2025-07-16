@@ -628,10 +628,12 @@ export class MetadataManager implements BubblSpaceManager, TimeCapsuleManager, M
         console.log(`📝 Syncing BubblSpace: ${space.name} (ID: ${docId})`);
         
         try {
-          // Enhanced deletion with error handling
+          // FIXED: Simple delete with proper delay to avoid conflicts
           try {
             await this.vectorStore.deleteDocument(docId);
             console.log(`🗑️ Deleted old BubblSpace document: ${docId}`);
+            // Add delay to ensure deletion completes and avoid revision conflicts
+            await new Promise(resolve => setTimeout(resolve, 200));
           } catch (deleteError) {
             // Document might not exist, that's OK for first-time sync
             console.log(`ℹ️ Old BubblSpace document not found (first time sync): ${docId}`);
@@ -669,7 +671,7 @@ Tags: ${space.tags?.join(', ') || 'none'}`;
             vectors: []
           };
           
-          // Insert with retry logic
+          // Insert with retry logic and conflict handling
           let insertAttempts = 0;
           const maxInsertAttempts = 3;
           
@@ -713,18 +715,15 @@ Tags: ${space.tags?.join(', ') || 'none'}`;
         console.log(`📝 Syncing TimeCapsule: ${tc.name} (ID: ${docId})`);
         
         try {
-          // Enhanced deletion with error handling
+          // FIXED: Simple delete with proper delay to avoid conflicts  
           try {
-            const existingDoc = await this.vectorStore.getDocument(docId);
-            if (existingDoc) {
-              console.log(`🗑️ Found existing TimeCapsule document, deleting: ${docId}`);
-              await this.vectorStore.deleteDocument(docId);
-              console.log(`✅ Deleted old TimeCapsule document: ${docId}`);
-            } else {
-              console.log(`ℹ️ No existing TimeCapsule document found (first time sync): ${docId}`);
-            }
+            await this.vectorStore.deleteDocument(docId);
+            console.log(`🗑️ Deleted old TimeCapsule document: ${docId}`);
+            // Add delay to ensure deletion completes and avoid revision conflicts
+            await new Promise(resolve => setTimeout(resolve, 200));
           } catch (deleteError) {
-            console.warn(`⚠️ Error checking/deleting TimeCapsule document ${docId}:`, deleteError);
+            // Document might not exist, that's OK for first-time sync
+            console.log(`ℹ️ Old TimeCapsule document not found (first time sync): ${docId}`);
           }
           
           const contentText = `TimeCapsule: ${tc.name}

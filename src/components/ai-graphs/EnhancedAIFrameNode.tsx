@@ -61,6 +61,22 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
         };
         
         await data.onFrameUpdate(data.frameId, updatedFrameData);
+        
+        // REAL-TIME SYNC: Emit graph frame edited event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-frame-edited', {
+            detail: {
+              frameId: data.frameId,
+              updatedFrame: updatedFrameData,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+        
+        console.log('✏️ Enhanced AI Frame Node: Frame edit event emitted:', {
+          frameId: data.frameId,
+          title: editData.title
+        });
       }
       
       setIsEditing(false);
@@ -270,6 +286,16 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
                 </p>
                 <p className="text-xs text-gray-400">
                   (One attachment per frame)
+                </p>
+              </div>
+            )}
+            
+            {/* ENHANCED: Video attachment validation */}
+            {data.attachment?.type === 'video' && !data.attachment.data?.videoUrl && (
+              <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                <p className="text-xs text-red-600 font-medium">⚠️ Video attachment has no URL!</p>
+                <p className="text-xs text-red-500 mt-1">
+                  Edit the VideoAttachmentNode and add a YouTube URL
                 </p>
               </div>
             )}

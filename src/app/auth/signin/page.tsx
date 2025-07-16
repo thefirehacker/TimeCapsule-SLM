@@ -337,14 +337,18 @@ export default function SignInPage() {
           <p className="text-xs text-center text-gray-500 dark:text-gray-400">
             By signing in, you agree to our{" "}
             <Link
-              href="/terms"
+              href="https://timecapsule.bubblspace.com/terms-and-conditions"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline hover:text-gray-700 dark:hover:text-gray-300"
             >
               Terms of Service
             </Link>{" "}
             and{" "}
             <Link
-              href="/privacy"
+              href="https://timecapsule.bubblspace.com/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline hover:text-gray-700 dark:hover:text-gray-300"
             >
               Privacy Policy
