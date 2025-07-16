@@ -1,126 +1,118 @@
-# Canvas3D-LLM Development Plan
+# AI Frame Saving Error Fix Plan
 
-## Current Status: Video Attachment Persistence After Refresh - FIXING
+## Problem Analysis
+**Error**: `RxError (CONFLICT): Document update conflict. When changing a document you must work on the previous revision`
 
-### New Issue Identified
-Video attachments are not persisting after page refresh due to **localStorage loading priority** over Knowledge Base.
+**Root Cause**: Multiple components are simultaneously trying to update the same RxDB document, causing revision conflicts:
+1. **FrameGraphIntegration component** (100ms delay)
+2. **Main page component** (200ms delay) 
+3. **Multiple attachment/edit operations** triggering concurrent syncs
 
-### Root Cause Analysis
-1. **VectorStore Initialization Delay**: When page refreshes, VectorStore is not ready immediately
-2. **localStorage Fallback**: System falls back to localStorage (TimeCapsule/Graph state) which lacks attachment data
-3. **Missing Attachment Data**: localStorage only stores basic frame data, not attachment metadata
-4. **Priority Issue**: Frames loaded from localStorage are not being updated with KB attachment data
+## Issues Identified
 
-### Timeline of Issue
-```
-T+0ms:    Page refresh starts
-T+100ms:  Frame loading begins, VectorStore not ready
-T+200ms:  Falls back to localStorage (no attachment data)
-T+1000ms: VectorStore becomes ready, but frames already loaded from localStorage
-T+2000ms: User sees video attachment is missing
-```
+### 1. Broken Sync Coordination
+- The previously implemented sync coordination mechanism using `window.aiFramesApp.syncInProgress` flag is not working properly
+- Multiple sync operations are bypassing the coordination checks
+- Race conditions between different sync sources
 
-### Solution Implemented
+### 2. Concurrent Document Updates
+- `upsertDocument()` calls happening simultaneously on the same document ID
+- RxDB requires working on the latest document revision, but multiple operations are using stale revisions
+- The VectorStore retry logic (lines 920-940) is not sufficient for this level of concurrency
 
-#### 1. VectorStore Availability Monitor
-Added a useEffect to monitor VectorStore readiness and reload frames from KB when available:
+### 3. Event-Driven Sync Conflicts
+- Graph attachment events trigger multiple sync paths
+- Frame edit events cause cascading sync operations
+- Real-time sync conflicts with manual save operations
 
-```typescript
-useEffect(() => {
-  if (!vectorStore || !vectorStoreInitialized || !processingAvailable) {
-    return;
-  }
+## Solution Strategy
 
-  const reloadFromKBIfNeeded = async () => {
-    // Check if current frames have attachment data
-    const hasAttachmentData = frames.some(frame => (frame as any).attachment);
-    
-    if (!hasAttachmentData && frames.length > 0) {
-      console.log("⚠️ Current frames lack attachment data, reloading from Knowledge Base...");
-      
-      // Reload frames from Knowledge Base
-      const kbFrames = await loadFramesFromKnowledgeBase();
-      
-      if (kbFrames.length > 0) {
-        setFrames(kbFrames); // Update with KB data including attachments
-      }
-    }
-  };
+### Phase 1: Implement Proper Sync Coordination ✅
+- [ ] Fix sync flag coordination mechanism
+- [ ] Implement mutex-like locking for VectorStore operations
+- [ ] Add proper delay sequencing between sync sources
 
-  const reloadTimer = setTimeout(reloadFromKBIfNeeded, 1000);
-  return () => clearTimeout(reloadTimer);
-}, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
-```
+### Phase 2: Enhance RxDB Conflict Resolution ✅
+- [ ] Improve document revision handling in VectorStore
+- [ ] Add exponential backoff for conflict retries
+- [ ] Implement queue-based sync operations
 
-#### 2. Enhanced localStorage Sync
-Updated localStorage loading to reload from KB after sync to restore attachment data:
+### Phase 3: Optimize Sync Event Handling ✅
+- [ ] Consolidate multiple sync triggers into single operations
+- [ ] Add debouncing for rapid consecutive updates
+- [ ] Implement smart sync scheduling
 
-```typescript
-// After syncing localStorage frames to KB
-await syncGraphChangesToKB(localStorageFrames);
+### Phase 4: Add Comprehensive Error Handling ✅
+- [ ] Graceful degradation for persistent conflicts
+- [ ] User-friendly error messages
+- [ ] Automatic recovery mechanisms
 
-// CRITICAL FIX: Reload frames from KB to get attachment data
-const kbFrames = await loadFramesFromKnowledgeBase();
-if (kbFrames.length > 0) {
-  setFrames(kbFrames); // Restore attachment data
-}
-```
+## Implementation Tasks
 
-### Expected Behavior After Fix
-1. ✅ Page refreshes, falls back to localStorage
-2. ✅ VectorStore becomes ready
-3. ✅ System detects missing attachment data
-4. ✅ Frames are reloaded from Knowledge Base
-5. ✅ Video attachment data is restored
-6. ✅ Video displays correctly after refresh
+### Task 1: Fix Sync Coordination Flag System
+**File**: `src/app/ai-frames/page.tsx` - `handleGraphAttachmentChanged()`
+- Ensure sync flag is properly set and cleared
+- Add timeout protection for stuck flags
+- Implement proper flag checking in all sync paths
 
-## TODO List
+### Task 2: Enhance VectorStore Conflict Resolution
+**File**: `src/components/VectorStore/VectorStore.ts` - `upsertDocument()`
+- Implement document revision fetching before each update
+- Add progressive retry delays (100ms, 200ms, 400ms, 800ms)
+- Add conflict detection and graceful skipping
 
-### Phase 1: Investigation ✅ COMPLETED
-- [x] **task_6_1**: Analyze current frame merge logic in handleGraphAttachmentChanged
-- [x] **task_6_2**: Check if the delayed KB sync fix is still in place and working
-- [x] **task_6_3**: Verify the mergeFrameUpdates function is preserving attachment data correctly
-- [x] **task_6_4**: Identify what changed since the last working version
+### Task 3: Implement Sync Operation Queue
+**File**: `src/components/VectorStore/VectorStore.ts`
+- Create a queue system for document operations
+- Ensure sequential processing of same document ID
+- Add operation prioritization (user actions > auto-sync)
 
-### Phase 2: Fix Implementation ✅ COMPLETED
-- [x] **task_6_5**: Restore proper frame state synchronization without circular updates
-- [x] **task_6_6**: Ensure attachment data is preserved during frame merging
-- [x] **task_6_7**: Implement proper error handling for document conflicts
-- [x] **task_6_8**: Add debug logging to track document revision conflicts
+### Task 4: Fix FrameGraphIntegration Sync Timing
+**File**: `src/components/ai-graphs/FrameGraphIntegration.tsx`
+- Increase sync delay from 100ms to 500ms (as documented)
+- Add proper sync flag checking before operations
+- Implement fallback sync scheduling
 
-### Phase 3: Testing and Validation 🔄 IN PROGRESS
-- [x] **task_6_9**: Test video attachment workflow end-to-end
-- [x] **task_6_10**: Verify no RxDB conflicts occur during attachment
-- [ ] **task_6_11**: Confirm video persists after page refresh
-- [ ] **task_6_12**: Test multiple rapid attachments to ensure stability
+### Task 5: Add Debug Logging and Monitoring
+- Comprehensive logging for all sync operations
+- Conflict detection and reporting
+- Performance monitoring for sync operations
 
-### Phase 4: New Fix Implementation 🔄 IN PROGRESS
-- [ ] **task_6_15**: Fix video attachment not persisting after page refresh due to localStorage loading
+## Testing Strategy
 
-### Phase 5: Documentation Update
-- [ ] **task_6_13**: Update aiframes.md with any new fixes implemented
-- [ ] **task_6_14**: Document the regression and resolution steps
+### Test Cases:
+1. **Rapid Attachment Changes**: Connect multiple attachments quickly
+2. **Concurrent Frame Edits**: Edit frame while attachments are being processed
+3. **Graph Save During Sync**: Trigger manual save during auto-sync
+4. **Page Refresh During Sync**: Reload page during active sync operations
 
-## Technical Changes Made
+### Success Criteria:
+- ✅ No RxDB CONFLICT errors in console
+- ✅ All frame data persists correctly
+- ✅ Attachments remain connected after operations
+- ✅ Smooth user experience without sync delays
 
-### Previous Fixes (Completed)
-- **File**: `src/app/ai-frames/page.tsx` - Added sync coordination flags
-- **File**: `src/components/ai-graphs/FrameGraphIntegration.tsx` - Increased delay, added coordination check, enhanced error handling
+## Risk Assessment
 
-### New Fixes (In Progress)
-- **File**: `src/app/ai-frames/page.tsx` - Added VectorStore availability monitor
-- **File**: `src/app/ai-frames/page.tsx` - Enhanced localStorage sync to reload from KB
+### High Risk:
+- Breaking existing sync functionality
+- Data loss during transition
+- Performance degradation from excessive queuing
 
-## Testing Required
-Please test the video attachment workflow to confirm:
-1. Video attaches successfully without RxDB errors ✅
-2. Video persists after page refresh ⏳ (Testing)
-3. Multiple rapid attachments work correctly ⏳ (Pending)
+### Mitigation:
+- Implement changes incrementally
+- Add extensive logging for debugging
+- Maintain backward compatibility
+- Test thoroughly before deployment
 
-## Debug Information
-Look for these log messages to verify the fix is working:
-- `🔄 VectorStore is now ready, checking if frames need to be reloaded from KB...`
-- `⚠️ Current frames lack attachment data, reloading from Knowledge Base...`
-- `✅ Reloaded frames from KB with attachment data:`
-- `🔄 Reloading frames from KB to restore attachment data...`
-- `✅ Frames reloaded from KB with attachment data restored`
+## Timeline
+- **Phase 1**: Immediate (highest priority)
+- **Phase 2**: 1-2 hours
+- **Phase 3**: 2-3 hours
+- **Phase 4**: 1 hour
+
+## Notes
+- The "orange button" refers to the attachment handle system
+- Previous sync coordination was working but has been broken
+- Documentation shows this exact issue was solved before
+- Focus on preventing conflicts rather than just handling them

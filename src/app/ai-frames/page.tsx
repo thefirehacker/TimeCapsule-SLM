@@ -2888,21 +2888,53 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         setTimeout(() => {
           console.log("🔄 Syncing attachment changes to KB after delay");
           
-          // CRITICAL FIX: Set sync flag to coordinate with FrameGraphIntegration
+          // ENHANCED: Set sync flag with timeout protection to coordinate with FrameGraphIntegration
           if (typeof window !== 'undefined') {
             const aiFramesApp = (window as any).aiFramesApp || {};
             aiFramesApp.syncInProgress = true;
+            aiFramesApp.syncStartTime = Date.now();
+            aiFramesApp.syncSource = 'main-page-attachment';
             (window as any).aiFramesApp = aiFramesApp;
+            
+            console.log("🔒 Main page sync flag set:", {
+              syncInProgress: aiFramesApp.syncInProgress,
+              syncSource: aiFramesApp.syncSource,
+              startTime: aiFramesApp.syncStartTime
+            });
           }
           
           syncGraphChangesToKB(updatedFrames).finally(() => {
-            // Clear sync flag after completion
+            // ENHANCED: Always clear sync flag with error handling
             if (typeof window !== 'undefined') {
               const aiFramesApp = (window as any).aiFramesApp || {};
               aiFramesApp.syncInProgress = false;
+              aiFramesApp.syncStartTime = null;
+              aiFramesApp.syncSource = null;
               (window as any).aiFramesApp = aiFramesApp;
+              
+              console.log("🔓 Main page sync flag cleared");
             }
           });
+          
+          // ENHANCED: Add timeout protection for stuck sync flags
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              const aiFramesApp = (window as any).aiFramesApp || {};
+              if (aiFramesApp.syncInProgress && aiFramesApp.syncStartTime) {
+                const syncDuration = Date.now() - aiFramesApp.syncStartTime;
+                if (syncDuration > 5000) { // 5 second timeout
+                  console.warn("⚠️ Sync flag stuck, force clearing after 5 seconds:", {
+                    syncDuration,
+                    syncSource: aiFramesApp.syncSource
+                  });
+                  aiFramesApp.syncInProgress = false;
+                  aiFramesApp.syncStartTime = null;
+                  aiFramesApp.syncSource = null;
+                  (window as any).aiFramesApp = aiFramesApp;
+                }
+              }
+            }
+          }, 5000);
         }, 200);
 
         setChatMessages((prev) => [

@@ -113,10 +113,10 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
         style={{
           width: '24px',
           height: '24px',
-          backgroundColor: '#000000',
+          backgroundColor: '#f97316',
           border: '2px solid white',
           borderRadius: '50%',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)',
           zIndex: 5
         }}
       />

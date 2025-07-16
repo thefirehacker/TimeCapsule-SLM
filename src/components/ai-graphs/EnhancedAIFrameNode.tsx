@@ -136,10 +136,10 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
         style={{
           width: '24px',
           height: '24px',
-          backgroundColor: '#000000',
+          backgroundColor: '#9468e6',
           border: '2px solid white',
           borderRadius: '50%',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 2px 8px rgba(148, 104, 230, 0.3)',
           zIndex: 5
         }}
       />
@@ -363,10 +363,10 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
         style={{
           width: '24px',
           height: '24px',
-          backgroundColor: '#000000',
+          backgroundColor: '#9468e6',
           border: '2px solid white',
           borderRadius: '50%',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 2px 8px rgba(148, 104, 230, 0.3)',
           zIndex: 5
         }}
       />

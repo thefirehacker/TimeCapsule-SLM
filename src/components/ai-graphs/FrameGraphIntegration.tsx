@@ -218,17 +218,36 @@ export default function FrameGraphIntegration({
           updatedAt: new Date().toISOString()
         };
         
-        // CRITICAL FIX: Use longer delay and coordination to prevent RxDB conflicts
+        // ENHANCED: Use longer delay and improved coordination to prevent RxDB conflicts
         // Delay by 500ms to ensure main page component sync completes first
         setTimeout(() => {
-          // Check if another sync is in progress before proceeding
+          // ENHANCED: Check if another sync is in progress with timeout detection
           if (typeof window !== 'undefined') {
             const aiFramesApp = (window as any).aiFramesApp;
             if (aiFramesApp?.syncInProgress) {
-              console.log('⏳ Main page sync in progress, skipping FrameGraphIntegration sync for:', frame.id);
-              return;
+              console.log('⏳ Main page sync in progress, skipping FrameGraphIntegration sync:', {
+                frameId: frame.id,
+                frameTitle: frame.title,
+                syncSource: aiFramesApp.syncSource,
+                syncStartTime: aiFramesApp.syncStartTime,
+                syncDuration: aiFramesApp.syncStartTime ? Date.now() - aiFramesApp.syncStartTime : 0
+              });
+              
+              // ENHANCED: Check if sync is stuck (more than 10 seconds)
+              if (aiFramesApp.syncStartTime && (Date.now() - aiFramesApp.syncStartTime) > 10000) {
+                console.warn('⚠️ Sync appears stuck, proceeding with FrameGraphIntegration sync anyway');
+              } else {
+                return;
+              }
             }
           }
+          
+          console.log('🔄 FrameGraphIntegration proceeding with sync:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            delay: '500ms'
+          });
+          
           syncFrameToKnowledgeBase(updatedFrame);
         }, 500);
       }
@@ -285,20 +304,27 @@ Updated: ${frame.updatedAt}`;
           vectors: [],
         };
 
-        // FIXED: Use upsert instead of delete-then-insert to prevent race conditions
+        // ENHANCED: Use upsert with comprehensive error handling to prevent race conditions
         await vectorStore.upsertDocument(aiFrameDoc);
         console.log("✅ Frame synced to Knowledge Base:", {
           frameId: frame.id,
           title: frame.title,
-          documentId
+          documentId,
+          source: 'FrameGraphIntegration'
         });
       }
-          } catch (error) {
-        // CRITICAL FIX: Handle RxDB conflicts gracefully
-        const errorObj = error as any;
-        if (errorObj.code === 'CONFLICT' || errorObj.message?.includes('CONFLICT')) {
-          console.warn("⚠️ RxDB conflict detected, skipping sync for frame:", frame.id);
-          console.log("💡 This is expected when multiple components sync simultaneously");
+    } catch (error) {
+      // ENHANCED: Handle RxDB conflicts gracefully with detailed logging
+      const errorObj = error as any;
+      if (errorObj.code === 'CONFLICT' || errorObj.message?.includes('CONFLICT') || errorObj.name === 'RxError') {
+        console.warn("⚠️ RxDB conflict detected in FrameGraphIntegration, skipping sync:", {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          errorCode: errorObj.code,
+          errorName: errorObj.name,
+          errorMessage: errorObj.message
+        });
+        console.log("💡 This is expected when multiple components sync simultaneously - main page sync takes priority");
           return; // Gracefully skip this sync attempt
         }
         console.error("❌ Failed to sync frame to Knowledge Base:", error);
