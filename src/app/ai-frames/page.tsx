@@ -1799,8 +1799,12 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
 
-  // Enhanced AI-Frames Knowledge Base sync with order preservation
+  // TEMPORARILY DISABLED: Auto-save bypasses Save Graph fix
   const saveAllFramesToKB = useCallback(async () => {
+    console.log("⏸️ Auto-save disabled - use Save Graph button for manual save");
+    return Promise.resolve();
+    
+    /* DISABLED CODE:
     if (!vectorStore || !vectorStoreInitialized || frames.length === 0) {
       return;
     }
@@ -2142,6 +2146,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     } catch (error) {
       console.error("❌ Failed to save AI-Frames to Knowledge Base:", error);
     }
+    */ // END DISABLED CODE
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
 
   // FIXED: Load graph connections from storage

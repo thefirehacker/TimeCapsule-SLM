@@ -850,9 +850,40 @@ export default function EnhancedLearningGraph({
     window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
     window.addEventListener('attachment-node-updated', handleAttachmentNodeUpdated as EventListener);
     
+    // CRITICAL FIX: Handle node data updates to ensure text content persists in React Flow
+    const handleNodeDataUpdate = (event: CustomEvent) => {
+      const { nodeId, newData } = event.detail;
+      console.log('🔄 REACT FLOW NODE UPDATE:', { 
+        nodeId, 
+        hasText: !!newData.text, 
+        textLength: newData.text?.length || 0,
+        isAttached: newData.isAttached,
+        attachedToFrameId: newData.attachedToFrameId
+      });
+      
+      setNodes(currentNodes => 
+        currentNodes.map(node => {
+          if (node.id === nodeId) {
+            console.log('🔄 UPDATING NODE DATA:', {
+              nodeId,
+              oldIsAttached: node.data.isAttached,
+              newIsAttached: newData.isAttached,
+              oldFrameId: node.data.attachedToFrameId,
+              newFrameId: newData.attachedToFrameId
+            });
+            return { ...node, data: newData };
+          }
+          return node;
+        })
+      );
+    };
+    
+    window.addEventListener('update-node-data', handleNodeDataUpdate as EventListener);
+    
     return () => {
       window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
       window.removeEventListener('attachment-node-updated', handleAttachmentNodeUpdated as EventListener);
+      window.removeEventListener('update-node-data', handleNodeDataUpdate as EventListener);
     };
   }, [nodes.length, edges.length, handleAttachContent]);
 

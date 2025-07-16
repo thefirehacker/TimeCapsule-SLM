@@ -32,6 +32,23 @@ export default function TextAttachmentNode({ data, selected }: TextAttachmentNod
       // Update the node data
       Object.assign(data, editData);
       
+      // CRITICAL FIX: Update React Flow node data through proper mechanism
+      // This ensures the graph nodes reflect the current text content
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('update-node-data', {
+          detail: {
+            nodeId: data.id,
+            newData: {
+              ...data,
+              ...editData,
+              // CRITICAL: Preserve connection state when updating text content
+              isAttached: data.isAttached,
+              attachedToFrameId: data.attachedToFrameId
+            }
+          }
+        }));
+      }
+      
       // If this attachment is connected to a frame, update the frame's attachment
       if (data.isAttached && data.attachedToFrameId) {
         const updatedAttachment = {

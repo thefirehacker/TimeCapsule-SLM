@@ -774,6 +774,8 @@ Updated: ${new Date().toISOString()}`,
   // FIX 2: Initialize real-time sync tracking when KB loads with sync pause
   const [isKbLoading, setIsKbLoading] = useState(false);
   const [currentGraphStateRef, setCurrentGraphStateRef] = useState<GraphState | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
   
   // SILENT: Get current graph state from DualPaneFrameView when needed (no logging)
   const getCurrentGraphState = useCallback(() => {
@@ -783,8 +785,36 @@ Updated: ${new Date().toISOString()}`,
   // SILENT: Stable callback to update graph state reference (prevents infinite re-renders)
   const handleGraphStateUpdate = useCallback((state: GraphState) => {
     setCurrentGraphStateRef(state);
-  }, []);
+    
+    // CHANGE DETECTION: Check if there are unsaved changes
+    const currentSnapshot = JSON.stringify({
+      nodes: state.nodes.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.data?.title,
+        goal: n.data?.goal,
+        text: n.data?.text,
+        position: n.position
+      })),
+      edges: state.edges
+    });
+    
+    if (currentSnapshot !== lastSavedSnapshot && lastSavedSnapshot !== '') {
+      setHasUnsavedChanges(true);
+    }
+  }, [lastSavedSnapshot]);
   
+  // Initialize saved snapshot when frames are first loaded
+  useEffect(() => {
+    if (frames.length > 0 && lastSavedSnapshot === '') {
+      const initialSnapshot = JSON.stringify({
+        nodes: [],
+        edges: []
+      });
+      setLastSavedSnapshot(initialSnapshot);
+    }
+  }, [frames, lastSavedSnapshot]);
+
   useEffect(() => {
     const handleKBFramesLoaded = (event: CustomEvent) => {
       const { frames: kbFrames }: { frames: AIFrame[] } = event.detail;
@@ -972,9 +1002,25 @@ Updated: ${new Date().toISOString()}`,
       // SILENT: Get current graph state and convert nodes to frames (no spam logging)
       const currentGraphState = getCurrentGraphState();
       
+      // Helper function to determine if a value is a user edit vs system default
+      const defaults = {
+        title: ['Untitled Frame', 'Frame 1', 'AI-Frame [1]'],
+        goal: ['No learning goal specified', 'No goal specified', ''],
+        informationText: ['', 'No information provided'],
+        afterVideoText: ['', 'No takeaways provided']
+      } as const;
+      
+      const isUserEdit = (value: string, field: keyof typeof defaults) => {
+        return value && value.trim() && !defaults[field]?.some((d: string) => 
+          value.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(value.toLowerCase())
+        );
+      };
+      
+      // Get all frame nodes for deduplication
+      const allFrameNodes = currentGraphState.nodes.filter((node: any) => node.type === 'aiframe');
+
       // CRITICAL FIX: Deduplicate frame nodes before conversion to prevent duplicate frames
-      const uniqueFrameNodes = currentGraphState.nodes
-        .filter((node: any) => node.type === 'aiframe')
+      const uniqueFrameNodes = allFrameNodes
         .reduce((acc: any[], node: any) => {
           // Find existing frame node with same frameId or title
           const existingNode = acc.find(n => 
@@ -985,16 +1031,44 @@ Updated: ${new Date().toISOString()}`,
           if (!existingNode) {
             acc.push(node);
           } else {
-            // Keep the node with more complete data or newer timestamp
+            // Keep the node with more complete data - prioritize custom titles and attachments
             const nodeScore = (n: any) => {
               let score = 0;
-              if (n.data.attachment) score += 2;
-              if (n.data.title && n.data.title !== 'Untitled Frame') score += 1;
-              if (n.data.goal && n.data.goal !== 'No learning goal specified') score += 1;
+              
+              // CRITICAL: Check for connected text attachments
+              const hasConnectedAttachment = currentGraphState.nodes.some((attachNode: any) => 
+                attachNode.type?.includes('-attachment') && 
+                attachNode.data.isAttached && 
+                (attachNode.data.attachedToFrameId === n.id || attachNode.data.attachedToFrameId === n.data.frameId)
+              );
+              
+              // HIGHEST PRIORITY: Has connected attachment or attachment data
+              if (n.data.attachment || hasConnectedAttachment) score += 20;
+              
+              // HIGH PRIORITY: Custom title (not generic defaults)
+              const title = n.data.title || '';
+              if (title && title !== 'Untitled Frame' && title !== 'Frame 1' && !title.startsWith('AI-Frame')) {
+                score += 15;
+              }
+              
+              // MEDIUM PRIORITY: Has meaningful goal
+              if (n.data.goal && n.data.goal !== 'No learning goal specified' && n.data.goal !== 'No goal specified') {
+                score += 8;
+              }
+              
+              // LOW PRIORITY: Has content
+              if (n.data.informationText && n.data.informationText.trim()) score += 4;
+              if (n.data.afterVideoText && n.data.afterVideoText.trim()) score += 2;
+              
               return score;
             };
             
-            if (nodeScore(node) > nodeScore(existingNode)) {
+            const nodeScoreValue = nodeScore(node);
+            const existingScoreValue = nodeScore(existingNode);
+            
+            // SILENT: Frame selection made (no logging to prevent spam)
+            
+            if (nodeScoreValue > existingScoreValue) {
               const index = acc.indexOf(existingNode);
               acc[index] = node;
             }
@@ -1002,9 +1076,40 @@ Updated: ${new Date().toISOString()}`,
           
           return acc;
         }, []);
+        
+      // SILENT: Frame deduplication complete (no logging to prevent spam)
+      
+      // CRITICAL FIX: Merge current frames (user edits) with graph frames (structure)
+      // This ensures user edits like "f1" title and text content are preserved
+      const currentFramesMap = new Map(currentFrames.map(f => [f.id, f]));
       
       const graphFrames: AIFrame[] = uniqueFrameNodes
         .map((node: any, index: number) => {
+          // CRITICAL: Find existing frame with user edits
+          const existingFrame = currentFramesMap.get(node.data.frameId || node.id) || 
+                               currentFrames.find(f => f.title === node.data.title) ||
+                               (currentFrames.length === 1 ? currentFrames[0] : null);
+          
+          // DEBUG: Log merge details to understand content loss
+          console.log("🔄 FRAME MERGE DEBUG:", {
+            nodeId: node.id,
+            nodeTitle: node.data.title,
+            nodeData: {
+              goal: node.data.goal?.substring(0, 50),
+              informationText: node.data.informationText?.substring(0, 50),
+              summary: node.data.summary?.substring(0, 50)
+            },
+            existingFrame: existingFrame ? {
+              id: existingFrame.id,
+              title: existingFrame.title,
+              goal: existingFrame.goal?.substring(0, 50),
+              informationText: existingFrame.informationText?.substring(0, 50),
+              hasAttachment: !!existingFrame.attachment,
+              attachmentType: existingFrame.attachment?.type
+            } : null,
+            willMerge: !!existingFrame
+          });
+          
           // SILENT: Enhanced attachment handling for all types
           let attachment = node.data.attachment;
           
@@ -1024,14 +1129,30 @@ Updated: ${new Date().toISOString()}`,
 
           // CRITICAL: Get the latest attachment data from connected attachment nodes
           // Try multiple search strategies to find the connected attachment
+          console.log("🔍 ATTACHMENT SEARCH DEBUG:", {
+            frameGraphNodeId: node.id,
+            frameDataFrameId: node.data.frameId,
+            searchingFor: [node.id, node.data.frameId],
+            availableAttachments: currentGraphState.nodes
+              .filter((n: any) => n.type?.includes('-attachment'))
+              .map((n: any) => ({
+                nodeId: n.id,
+                type: n.type,
+                isAttached: n.data.isAttached,
+                attachedToFrameId: n.data.attachedToFrameId
+              }))
+          });
+          
           let connectedAttachmentNode = currentGraphState.nodes.find((n: any) => 
-            n.data.isAttached && n.data.attachedToFrameId === node.id
+            n.type?.includes('-attachment') && 
+            n.data.attachedToFrameId === node.id
           );
           
           // Strategy 2: Try matching by original frame ID if graph node has frameId
           if (!connectedAttachmentNode && node.data.frameId) {
             connectedAttachmentNode = currentGraphState.nodes.find((n: any) => 
-              n.data.isAttached && n.data.attachedToFrameId === node.data.frameId
+              n.type?.includes('-attachment') && 
+              n.data.attachedToFrameId === node.data.frameId
             );
           }
           
@@ -1049,8 +1170,31 @@ Updated: ${new Date().toISOString()}`,
             );
           }
           
-          // DEBUG: Log attachment search results (DISABLED for performance)
-          // console.log("🔍 ATTACHMENT SEARCH DEBUG:", ...);
+          // CRITICAL FIX: If no graph attachment found but existing frame has text attachment,
+          // preserve the existing attachment content
+          if (!connectedAttachmentNode && existingFrame?.attachment?.type === 'text') {
+            console.log("🔄 PRESERVING EXISTING TEXT ATTACHMENT:", {
+              frameId: node.id,
+              existingAttachmentType: existingFrame.attachment.type,
+              hasExistingText: !!existingFrame.attachment.data?.text,
+              textLength: existingFrame.attachment.data?.text?.length || 0,
+              textPreview: existingFrame.attachment.data?.text?.substring(0, 50) || 'NO TEXT'
+            });
+            
+            // Use existing frame's attachment as the source
+            attachment = existingFrame.attachment;
+          }
+          
+          // DEBUG: Check text attachment content extraction
+          console.log("📝 TEXT ATTACHMENT DEBUG:", {
+            frameId: node.id,
+            foundAttachment: !!connectedAttachmentNode,
+            attachmentType: connectedAttachmentNode?.type,
+            hasTextData: !!connectedAttachmentNode?.data?.text,
+            textLength: connectedAttachmentNode?.data?.text?.length || 0,
+            textPreview: connectedAttachmentNode?.data?.text?.substring(0, 50) || 'NO TEXT',
+            usingExistingAttachment: !connectedAttachmentNode && !!existingFrame?.attachment
+          });
           
           if (connectedAttachmentNode) {
             // SILENT: Text attachment found (no logging to prevent spam)
@@ -1077,27 +1221,81 @@ Updated: ${new Date().toISOString()}`,
               }
             };
             
-            // SILENT: Text attachment created (no logging to prevent spam)
+            // DEBUG: Check what attachment was actually created
+            console.log("🔧 ATTACHMENT CREATION DEBUG:", {
+              frameId: node.id,
+              attachmentType: attachment.type,
+              hasAttachmentData: !!attachment.data,
+              hasText: !!attachment.data?.text,
+              textContent: attachment.data?.text,
+              textLength: attachment.data?.text?.length || 0,
+              sourceNodeText: connectedAttachmentNode.data.text,
+              sourceNodeTextLength: connectedAttachmentNode.data?.text?.length || 0,
+              allSourceNodeData: Object.keys(connectedAttachmentNode.data || {})
+            });
           }
 
-          return {
+          // GOOGLE DOCS STYLE: Merge existing frame (user edits) with graph node (structure)
+          const mergedFrame = {
             id: node.data.frameId || node.id,
-            title: node.data.title || 'Untitled Frame',
-            goal: node.data.goal || node.data.learningGoal || 'No learning goal specified',
-            informationText: node.data.informationText || node.data.summary || '',
-            videoUrl: node.data.videoUrl || '',
-            startTime: node.data.startTime || 0,
-            duration: node.data.duration || 30,
-            afterVideoText: node.data.afterVideoText || '',
-            aiConcepts: node.data.aiConcepts || node.data.keyPoints || [],
-            attachment: attachment,
-            order: index + 1,
-            bubblSpaceId: "default",
-            timeCapsuleId: "default",
+            // USER EDITS WIN: Prioritize non-default content from either source
+            title: (existingFrame?.title && !defaults.title.includes(existingFrame.title as any)) 
+                   ? existingFrame.title 
+                   : (node.data.title || existingFrame?.title || 'Untitled Frame'),
+            goal: (existingFrame?.goal && !defaults.goal.includes(existingFrame.goal as any))
+                  ? existingFrame.goal
+                  : (node.data.goal || node.data.learningGoal || existingFrame?.goal || 'No learning goal specified'),
+            informationText: (existingFrame?.informationText && existingFrame.informationText.trim() && !defaults.informationText.includes(existingFrame.informationText as any))
+                            ? existingFrame.informationText
+                            : (node.data.informationText || node.data.summary || existingFrame?.informationText || ''),
+            afterVideoText: (existingFrame?.afterVideoText && existingFrame.afterVideoText.trim() && !defaults.afterVideoText.includes(existingFrame.afterVideoText as any))
+                           ? existingFrame.afterVideoText
+                           : (node.data.afterVideoText || existingFrame?.afterVideoText || ''),
+            // ATTACHMENT PRIORITY: Merge attachments to preserve text content
+            attachment: (() => {
+              // If we have both graph attachment and existing frame attachment, merge them
+              if (attachment && existingFrame?.attachment) {
+                return {
+                  ...existingFrame.attachment,
+                  ...attachment,
+                  data: {
+                    ...existingFrame.attachment.data,
+                    ...attachment.data
+                  }
+                };
+              }
+              // Otherwise use whichever exists
+              return attachment || existingFrame?.attachment;
+            })(),
+            // PRESERVE METADATA: Use existing frame's metadata when available
+            videoUrl: existingFrame?.videoUrl || node.data.videoUrl || '',
+            startTime: existingFrame?.startTime || node.data.startTime || 0,
+            duration: existingFrame?.duration || node.data.duration || 30,
+            aiConcepts: existingFrame?.aiConcepts || node.data.aiConcepts || node.data.keyPoints || [],
+            order: existingFrame?.order || index + 1,
+            bubblSpaceId: existingFrame?.bubblSpaceId || "default",
+            timeCapsuleId: existingFrame?.timeCapsuleId || "default",
             type: 'frame' as const,
-            createdAt: node.data.createdAt || new Date().toISOString(),
+            createdAt: existingFrame?.createdAt || node.data.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
+          
+          // DEBUG: Log final merged frame
+          try {
+            console.log("✅ MERGED FRAME RESULT:", {
+              id: mergedFrame.id,
+              title: mergedFrame.title,
+              goal: mergedFrame.goal?.substring(0, 50),
+              informationText: mergedFrame.informationText?.substring(0, 50),
+              hasAttachment: !!mergedFrame.attachment,
+              attachmentType: mergedFrame.attachment?.type,
+              attachmentText: mergedFrame.attachment?.data?.text?.substring(0, 50)
+            });
+          } catch (logError) {
+            console.error("❌ Error logging merged frame:", logError);
+          }
+          
+          return mergedFrame;
         });
 
       // DEBUG: Temporary logging to understand duplication (DISABLED for performance)
@@ -1113,10 +1311,62 @@ Updated: ${new Date().toISOString()}`,
 
       // SILENT: Deduplication complete (no logging to prevent spam)
 
-      // ENHANCED: Intelligent frame merging that preserves attachments  
+      // GOOGLE DOCS STYLE: Intelligent merge strategy that prioritizes user edits
       const mergedFrames = [...deduplicatedCurrentFrames];
       let addedCount = 0;
       let updatedCount = 0;
+
+      // REMOVED: Duplicate defaults declaration (moved to top of function)
+
+      // Smart merge function that prioritizes user content
+      const smartMerge = (existing: AIFrame, graph: AIFrame): AIFrame => {
+        return {
+          ...existing,
+          ...graph,
+          // USER EDITS WIN: Keep custom titles over generic ones
+          title: isUserEdit(existing.title, 'title') ? existing.title : 
+                 isUserEdit(graph.title, 'title') ? graph.title : 
+                 existing.title || graph.title,
+          
+          // USER EDITS WIN: Keep meaningful goals over defaults  
+          goal: isUserEdit(existing.goal, 'goal') ? existing.goal :
+                isUserEdit(graph.goal, 'goal') ? graph.goal :
+                existing.goal || graph.goal,
+                
+          // USER EDITS WIN: Keep user-written content
+          informationText: isUserEdit(existing.informationText, 'informationText') ? existing.informationText :
+                          isUserEdit(graph.informationText, 'informationText') ? graph.informationText :
+                          existing.informationText || graph.informationText,
+                          
+          afterVideoText: isUserEdit(existing.afterVideoText, 'afterVideoText') ? existing.afterVideoText :
+                         isUserEdit(graph.afterVideoText, 'afterVideoText') ? graph.afterVideoText :
+                         existing.afterVideoText || graph.afterVideoText,
+          
+          // ATTACHMENT PRIORITY: Graph attachment (latest) > existing attachment > none
+          attachment: (() => {
+            const result = graph.attachment || existing.attachment;
+            console.log("🔗 ATTACHMENT MERGE DEBUG:", {
+              frameId: graph.id,
+              frameTitle: graph.title,
+              graphHasAttachment: !!graph.attachment,
+              existingHasAttachment: !!existing.attachment,
+              graphAttachmentType: graph.attachment?.type,
+              existingAttachmentType: existing.attachment?.type,
+              graphHasText: !!graph.attachment?.data?.text,
+              existingHasText: !!existing.attachment?.data?.text,
+              graphTextLength: graph.attachment?.data?.text?.length || 0,
+              existingTextLength: existing.attachment?.data?.text?.length || 0,
+              resultHasText: !!result?.data?.text,
+              resultTextLength: result?.data?.text?.length || 0
+            });
+            return result;
+          })(),
+          
+          // Keep the most recent order and metadata
+          order: graph.order || existing.order,
+          updatedAt: new Date().toISOString()
+        };
+      };
 
       for (const graphFrame of graphFrames) {
         // ENHANCED: Try multiple matching strategies to find the correct existing frame
@@ -1135,47 +1385,16 @@ Updated: ${new Date().toISOString()}`,
           existingIndex = 0; // Assume it's the same frame if only one of each
         }
         
-        // DEBUG: Detailed merge debugging (DISABLED for performance)
-        // console.log("🔍 FRAME MERGE DEBUG:", ...);
-        
         if (existingIndex !== -1) {
-          // CRITICAL FIX: Merge frames instead of replacing to preserve attachments
+          // GOOGLE DOCS STYLE: Smart merge with user edit priority
           const existingFrame = mergedFrames[existingIndex];
-          
-          
-          // Create merged frame with priority: graph attachment > existing attachment (graph has latest data)
-          const mergedFrame = {
-            ...existingFrame,  // Start with existing frame data
-            ...graphFrame,     // Apply graph updates (includes latest title and data)
-            // CRITICAL FIX: Prefer graph attachment (has latest edited content) over existing attachment
-            attachment: graphFrame.attachment || existingFrame.attachment,
-            // PRESERVE LEGACY VIDEO: Keep existing video data if attachment doesn't exist
-            videoUrl: existingFrame.attachment 
-              ? (existingFrame.attachment.type === 'video' ? existingFrame.attachment.data.videoUrl || existingFrame.videoUrl : existingFrame.videoUrl)
-              : (graphFrame.attachment 
-                ? (graphFrame.attachment.type === 'video' ? graphFrame.attachment.data.videoUrl || graphFrame.videoUrl : graphFrame.videoUrl)
-                : graphFrame.videoUrl) || '',
-            startTime: existingFrame.attachment 
-              ? (existingFrame.attachment.type === 'video' ? existingFrame.attachment.data.startTime || existingFrame.startTime : existingFrame.startTime)
-              : (graphFrame.attachment 
-                ? (graphFrame.attachment.type === 'video' ? graphFrame.attachment.data.startTime || graphFrame.startTime : graphFrame.startTime)
-                : graphFrame.startTime) || 0,
-            duration: existingFrame.attachment 
-              ? (existingFrame.attachment.type === 'video' ? existingFrame.attachment.data.duration || existingFrame.duration : existingFrame.duration)
-              : (graphFrame.attachment 
-                ? (graphFrame.attachment.type === 'video' ? graphFrame.attachment.data.duration || graphFrame.duration : graphFrame.duration)
-                : graphFrame.duration) || 30,
-            // Always use updated timestamp
-            updatedAt: new Date().toISOString()
-          };
+          const mergedFrame = smartMerge(existingFrame, graphFrame);
           
           mergedFrames[existingIndex] = mergedFrame;
           updatedCount++;
-          
         } else {
           mergedFrames.push(graphFrame);
           addedCount++;
-          
         }
       }
 
@@ -1188,6 +1407,24 @@ Updated: ${new Date().toISOString()}`,
         }
         return acc;
       }, []);
+
+      // CRITICAL: GOOGLE DOCS STYLE - Make merged data the authoritative source
+      // Update application state immediately so all subsequent saves use correct data
+      console.log("🔄 GOOGLE DOCS: Broadcasting merged frame data as authoritative source", {
+        frameCount: finalFrames.length,
+        framesWithAttachments: finalFrames.filter(f => f.attachment).length,
+        textAttachments: finalFrames.filter(f => f.attachment?.type === 'text').map(f => ({
+          frameId: f.id,
+          frameTitle: f.title,
+          hasText: !!f.attachment?.data?.text,
+          textLength: f.attachment?.data?.text?.length || 0,
+          textPreview: f.attachment?.data?.text?.substring(0, 50) || 'No text'
+        }))
+      });
+      onFramesChange(finalFrames);
+      
+      // Allow state update to propagate before continuing with save operations
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // SILENT: Final deduplication complete (no logging to prevent spam)
 
@@ -1385,6 +1622,21 @@ Updated: ${new Date().toISOString()}`,
         }));
       }
 
+      // Update saved snapshot and reset change state
+      const currentSnapshot = JSON.stringify({
+        nodes: currentGraphState.nodes.map(n => ({
+          id: n.id,
+          type: n.type,
+          title: n.data?.title,
+          goal: n.data?.goal,
+          text: n.data?.text,
+          position: n.position
+        })),
+        edges: currentGraphState.edges
+      });
+      setLastSavedSnapshot(currentSnapshot);
+      setHasUnsavedChanges(false);
+      
       // console.log("✅ Save Graph completed successfully");
       
     } catch (error) {
@@ -1449,11 +1701,11 @@ Updated: ${new Date().toISOString()}`,
               variant="outline"
               size="sm"
               onClick={handleSaveGraph}
-              disabled={isAutoSaving}
-              className="text-blue-600 hover:text-blue-700"
+              disabled={!hasUnsavedChanges || isAutoSaving}
+              className={`${hasUnsavedChanges ? 'text-blue-600 hover:text-blue-700' : 'text-gray-400'} transition-colors`}
             >
               <Save className="h-4 w-4 mr-2" />
-              {isAutoSaving ? "Saving..." : "Save Graph"}
+              {isAutoSaving ? "Saving..." : hasUnsavedChanges ? "Save Graph" : "No Changes"}
             </Button>
             {/* Auto-save indicator */}
             {isAutoSaving && (
