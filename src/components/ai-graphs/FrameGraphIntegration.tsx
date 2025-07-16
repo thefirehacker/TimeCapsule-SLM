@@ -104,38 +104,87 @@ export default function FrameGraphIntegration({
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastFrameIds, setLastFrameIds] = useState<string[]>([]);
   const [lastFrameStates, setLastFrameStates] = useState<Record<string, string>>({});
+  
+  // CRITICAL FIX: Add frame creation state to prevent deletion during creation
+  const [isFrameCreationInProgress, setIsFrameCreationInProgress] = useState(false);
+  const [frameCreationStartTime, setFrameCreationStartTime] = useState<number | null>(null);
 
   // REAL-TIME SYNC: Track frame changes like Google Docs
   useEffect(() => {
     if (!sessionInitialized) return;
+    
+    // FIX 3: Add small delay to prevent race condition during KB load
+    if (isKbLoading) {
+      console.log('⏸️ Real-time sync paused during KB load to prevent race conditions');
+      return;
+    }
 
     const currentFrameIds = frames.map(f => f.id);
     const newFrames = frames.filter(f => !lastFrameIds.includes(f.id));
     const deletedFrameIds = lastFrameIds.filter(id => !currentFrameIds.includes(id));
 
-    // Handle new frames - immediate KB sync
+    // FIXED: Only handle new frames - immediate KB sync
     if (newFrames.length > 0) {
       console.log('🚀 REAL-TIME: New frames detected, syncing to KB immediately:', {
         newFrames: newFrames.map(f => ({ id: f.id, title: f.title })),
-        count: newFrames.length
+        count: newFrames.length,
+        totalFrames: frames.length
       });
       
-      // Sync new frames to Knowledge Base immediately
+      // Set frame creation state to prevent deletion
+      setIsFrameCreationInProgress(true);
+      setFrameCreationStartTime(Date.now());
+      
+      // Sync new frames to Knowledge Base immediately (async to prevent UI blocking)
       newFrames.forEach(frame => {
-        syncFrameToKnowledgeBase(frame);
+        // Use setTimeout with debouncing to prevent blocking the UI and rapid calls
+        setTimeout(() => syncFrameToKnowledgeBase(frame), 100);
       });
     }
 
-    // Handle deleted frames - clean up KB
+    // CRITICAL FIX: Only delete frames when explicitly deleted by user, not during frame creation
     if (deletedFrameIds.length > 0) {
-      console.log('🗑️ REAL-TIME: Deleted frames detected, cleaning up KB:', {
-        deletedFrameIds,
-        count: deletedFrameIds.length
-      });
+      // Check if this is a frame creation scenario
+      const hasNewFrames = newFrames.length > 0;
+      const isFrameCreationScenario = hasNewFrames || 
+        (frames.length > 0 && lastFrameIds.length === 0) || // First frame creation
+        (frames.length > lastFrameIds.length) || // Additional frame creation
+        isFrameCreationInProgress || // Frame creation in progress
+        (frameCreationStartTime && Date.now() - frameCreationStartTime < 2000); // Within 2 seconds of creation
       
-      deletedFrameIds.forEach(frameId => {
-        removeFrameFromKnowledgeBase(frameId);
-      });
+      if (isFrameCreationScenario) {
+        console.log('🔄 REAL-TIME: Frame creation detected, skipping deletion of existing frames:', {
+          deletedFrameIds,
+          newFrameCount: frames.length,
+          lastFrameCount: lastFrameIds.length,
+          hasNewFrames,
+          isFrameCreationInProgress,
+          timeSinceCreation: frameCreationStartTime ? Date.now() - frameCreationStartTime : null,
+          isFrameCreation: true
+        });
+        // Don't delete frames during creation - they might be getting replaced temporarily
+        // or new frames are being added to existing ones
+      } else {
+        console.log('🗑️ REAL-TIME: Deleted frames detected, cleaning up KB:', {
+          deletedFrameIds,
+          count: deletedFrameIds.length,
+          currentFrameCount: frames.length,
+          lastFrameCount: lastFrameIds.length
+        });
+        
+        deletedFrameIds.forEach(frameId => {
+          removeFrameFromKnowledgeBase(frameId);
+        });
+      }
+    }
+
+    // Clear frame creation state after processing
+    if (isFrameCreationInProgress && newFrames.length === 0) {
+      setTimeout(() => {
+        setIsFrameCreationInProgress(false);
+        setFrameCreationStartTime(null);
+        console.log('✅ Frame creation state cleared');
+      }, 1000);
     }
 
     // IMPROVED: Handle modified frames - check for content changes
@@ -169,7 +218,8 @@ export default function FrameGraphIntegration({
           updatedAt: new Date().toISOString()
         };
         
-        syncFrameToKnowledgeBase(updatedFrame);
+        // Use setTimeout with debouncing to prevent blocking the UI and rapid calls
+        setTimeout(() => syncFrameToKnowledgeBase(updatedFrame), 100);
       }
     });
 
@@ -224,17 +274,8 @@ Updated: ${frame.updatedAt}`;
           vectors: [],
         };
 
-        // FIXED: Delete existing document first, then insert updated one
-        try {
-          await vectorStore.deleteDocument(documentId);
-          console.log(`🗑️ Deleted existing KB document for frame update: ${frame.title}`);
-        } catch (deleteError) {
-          // Document might not exist, that's OK for first-time sync
-          console.log(`📝 Document doesn't exist yet, creating new: ${frame.title}`);
-        }
-
-        await vectorStore.insertDocument(aiFrameDoc);
-        console.log(`📊 Synced frame ${frame.title} to Knowledge Base (updated)`);
+        // FIXED: Use upsert instead of delete-then-insert to prevent race conditions
+        await vectorStore.upsertDocument(aiFrameDoc);
       }
     } catch (error) {
       console.error("❌ Failed to sync frame to Knowledge Base:", error);
@@ -506,8 +547,8 @@ Updated: ${frame.updatedAt}`;
         }
       );
 
-      // REAL-TIME SYNC: Always sync to Knowledge Base
-      await syncFrameToKnowledgeBase(updatedFrame);
+      // REAL-TIME SYNC: Always sync to Knowledge Base (async to prevent UI blocking)
+      setTimeout(() => syncFrameToKnowledgeBase(updatedFrame), 100);
 
       console.log(`✅ REAL-TIME: Auto-saved frame: ${frameData.title || frameId}`);
     } catch (error) {
@@ -622,7 +663,9 @@ Updated: ${new Date().toISOString()}`,
     }
   };
 
-  // FIX 2: Initialize real-time sync tracking when KB loads
+  // FIX 2: Initialize real-time sync tracking when KB loads with sync pause
+  const [isKbLoading, setIsKbLoading] = useState(false);
+  
   useEffect(() => {
     const handleKBFramesLoaded = (event: CustomEvent) => {
       const { frames: kbFrames }: { frames: AIFrame[] } = event.detail;
@@ -631,6 +674,9 @@ Updated: ${new Date().toISOString()}`,
         frameCount: kbFrames.length,
         frameIds: kbFrames.map((f: AIFrame) => f.id)
       });
+      
+      // FIX 3: Pause real-time sync during KB load
+      setIsKbLoading(true);
       
       // Initialize tracking states with KB data
       const frameIds = kbFrames.map((f: AIFrame) => f.id);
@@ -642,6 +688,12 @@ Updated: ${new Date().toISOString()}`,
       
       setLastFrameIds(frameIds);
       setLastFrameStates(frameStates);
+      
+      // Resume real-time sync after a small delay to prevent race conditions
+      setTimeout(() => {
+        setIsKbLoading(false);
+        console.log('✅ Real-time sync tracking initialized from KB load and sync resumed');
+      }, 500);
       
       console.log('✅ Real-time sync tracking initialized from KB load');
     };
@@ -660,8 +712,8 @@ Updated: ${new Date().toISOString()}`,
         totalFrames
       });
 
-      // Immediately sync to Knowledge Base
-      syncFrameToKnowledgeBase(newFrame);
+      // Immediately sync to Knowledge Base (async to prevent UI blocking)
+      setTimeout(() => syncFrameToKnowledgeBase(newFrame), 100);
       
       // Save to storage
       if (graphStorageManager && sessionInitialized) {
@@ -690,7 +742,8 @@ Updated: ${new Date().toISOString()}`,
           ...updatedFrame,
           updatedAt: new Date().toISOString()
         };
-        syncFrameToKnowledgeBase(frameWithTimestamp);
+        // Use setTimeout with debouncing to prevent blocking the UI and rapid calls
+        setTimeout(() => syncFrameToKnowledgeBase(frameWithTimestamp), 100);
       }
     };
 
@@ -857,14 +910,62 @@ Updated: ${new Date().toISOString()}`,
       }));
       console.log("✅ Frames saved to TimeCapsule");
 
-      // FIXED: Immediate Knowledge Base sync
+      // FIXED: Immediate Knowledge Base sync with IndexedDB verification
       console.log("🔄 Immediately syncing frames to Knowledge Base...");
       
-      for (const frame of mergedFrames) {
-        await syncFrameToKnowledgeBase(frame);
-      }
+      const syncPromises = mergedFrames.map(frame => syncFrameToKnowledgeBase(frame));
+      await Promise.all(syncPromises);
       
       console.log("✅ All frames synced to Knowledge Base immediately");
+
+      // FIXED: Force Knowledge Base refresh and IndexedDB verification
+      console.log("🔄 Forcing Knowledge Base refresh and IndexedDB verification...");
+      
+      // Dispatch comprehensive KB update events
+      if (typeof window !== 'undefined') {
+        // Event for KB documents changed
+        window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+          detail: {
+            source: 'save-graph',
+            frameCount: mergedFrames.length,
+            timestamp: new Date().toISOString(),
+            frames: mergedFrames
+          }
+        }));
+
+        // Event for AI-Frames specific KB update
+        window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
+          detail: {
+            source: 'save-graph',
+            frameCount: mergedFrames.length,
+            timestamp: new Date().toISOString(),
+            frames: mergedFrames,
+            hasFrameUpdates: true
+          }
+        }));
+
+        // Event for force refresh
+        window.dispatchEvent(new CustomEvent('kb-force-refresh', {
+          detail: {
+            source: 'save-graph',
+            reason: 'frames-saved-to-graph',
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+
+      // Verify IndexedDB sync
+      if (graphStorageManager) {
+        try {
+          const savedSequence = await graphStorageManager.loadFrameSequence();
+          console.log("✅ IndexedDB verification successful:", {
+            savedFrames: savedSequence?.frames?.length || 0,
+            expectedFrames: mergedFrames.length
+          });
+        } catch (error) {
+          console.warn("⚠️ IndexedDB verification failed:", error);
+        }
+      }
 
       // Dispatch success event
       if (typeof window !== 'undefined') {

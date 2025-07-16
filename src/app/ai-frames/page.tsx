@@ -796,7 +796,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       // Get all documents and filter for AI-Frame documents
       const allDocuments = await vectorStore.getAllDocuments();
       const aiFrameDocuments = allDocuments.filter(doc => 
-        doc.metadata?.source === 'ai-frames-auto-sync' && doc.id?.startsWith('aiframe-')
+        (doc.metadata?.source === 'ai-frames-auto-sync' || doc.metadata?.source === 'ai-frames') && doc.id?.startsWith('aiframe-')
       );
 
       console.log(`📊 Found ${aiFrameDocuments.length} AI-Frame documents in Knowledge Base`);
@@ -808,6 +808,16 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           title: doc.title,
           hasMetadata: !!doc.metadata,
           source: doc.metadata?.source
+        })));
+      } else {
+        // CRITICAL FIX: Add debugging to see what documents exist in KB
+        console.log("🔍 DEBUG: No AI-Frame documents found, checking all documents in KB:");
+        console.log("📊 All documents in KB:", allDocuments.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          hasMetadata: !!doc.metadata,
+          source: doc.metadata?.source,
+          startsWithAiframe: doc.id?.startsWith('aiframe-')
         })));
       }
 
@@ -828,9 +838,22 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       
       for (const doc of aiFrameDocuments) {
         try {
+          // Extract title properly - handle both "AI-Frame: " and "AI-Frame [X]: " patterns
+          const extractTitleFromDocTitle = (docTitle: string) => {
+            // First try to match "AI-Frame [X]: Title" pattern
+            const match = docTitle.match(/AI-Frame \[\d+\]: (.*)/);
+            if (match) return match[1];
+            
+            // Fallback to "AI-Frame: Title" pattern
+            const fallbackMatch = docTitle.match(/AI-Frame: (.*)/);
+            if (fallbackMatch) return fallbackMatch[1];
+            
+            return docTitle;
+          };
+          
           const frame: AIFrame = {
             id: doc.id?.replace('aiframe-', '') || doc.id,
-            title: extractFromContent(doc.content, 'Frame:') || doc.title?.replace('AI-Frame: ', '') || 'Untitled',
+            title: extractFromContent(doc.content, 'Frame:') || extractTitleFromDocTitle(doc.title || '') || 'Untitled',
             goal: extractFromContent(doc.content, 'Goal:') || 'No goal specified',
             informationText: extractFromContent(doc.content, 'Information:') || 'No information provided',
             videoUrl: extractFromContent(doc.content, 'Video URL:') || '',
@@ -880,44 +903,68 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       if (vectorStore && vectorStoreInitialized) {
         console.log("🔍 Priority 1: Checking Knowledge Base for latest frames...");
         
-        try {
-          const kbFrames = await loadFramesFromKnowledgeBase();
-          if (kbFrames && kbFrames.length > 0) {
-            console.log(`📊 Found ${kbFrames.length} frames in Knowledge Base, using as primary source`);
-            setFrames(kbFrames);
-            setCurrentFrameIndex(0); // Start with first frame
+        // FIXED: Add retry logic for KB loading to handle race conditions
+        let kbFrames: AIFrame[] = [];
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            kbFrames = await loadFramesFromKnowledgeBase();
+            console.log(`📊 KB load attempt ${retryCount + 1}: Found ${kbFrames.length} frames`);
             
-            // Sync IndexedDB with KB data to keep it updated
-            if (graphStorageManager) {
-              try {
-                await graphStorageManager.saveFrameSequence(kbFrames, 0, {
-                  updatedAt: new Date().toISOString(),
-                  bubblSpaceId: 'default',
-                  timeCapsuleId: 'default'
-                });
-                console.log("✅ IndexedDB synced with Knowledge Base data");
-              } catch (syncError) {
-                console.warn("⚠️ Failed to sync IndexedDB with KB data:", syncError);
+            if (kbFrames && kbFrames.length > 0) {
+              console.log(`📊 Found ${kbFrames.length} frames in Knowledge Base after ${retryCount + 1} attempts, using as primary source`);
+              setFrames(kbFrames);
+              setCurrentFrameIndex(0); // Start with first frame
+              
+              // FIXED: Load graph connections from storage
+              await loadGraphConnections();
+              
+              // Sync IndexedDB with KB data to keep it updated
+              if (graphStorageManager) {
+                try {
+                  await graphStorageManager.saveFrameSequence(kbFrames, 0, {
+                    updatedAt: new Date().toISOString(),
+                    bubblSpaceId: 'default',
+                    timeCapsuleId: 'default'
+                  });
+                  console.log("✅ IndexedDB synced with Knowledge Base data");
+                } catch (syncError) {
+                  console.warn("⚠️ Failed to sync IndexedDB with KB data:", syncError);
+                }
               }
+              
+              // FIX 1: Dispatch event to initialize real-time sync tracking
+              window.dispatchEvent(new CustomEvent('kb-frames-loaded', {
+                detail: { 
+                  frames: kbFrames,
+                  source: 'knowledge-base-load',
+                  timestamp: new Date().toISOString()
+                }
+              }));
+              console.log("📡 Dispatched kb-frames-loaded event for real-time sync initialization");
+              
+              console.log("✅ Frames loaded from Knowledge Base successfully");
+              return true;
             }
             
-            // FIX 1: Dispatch event to initialize real-time sync tracking
-            window.dispatchEvent(new CustomEvent('kb-frames-loaded', {
-              detail: { 
-                frames: kbFrames,
-                source: 'knowledge-base-load',
-                timestamp: new Date().toISOString()
-              }
-            }));
-            console.log("📡 Dispatched kb-frames-loaded event for real-time sync initialization");
-            
-            console.log("✅ Frames loaded from Knowledge Base successfully");
-            return true;
-          } else {
-            console.log("📊 Knowledge Base is available but contains no frames");
+            // If no frames found, wait and retry
+            if (retryCount < maxRetries - 1) {
+              console.log(`⏳ No frames found in KB, retrying in 500ms... (attempt ${retryCount + 1}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } else {
+              console.log("📊 Knowledge Base is available but contains no frames after all retries");
+            }
+          } catch (kbError) {
+            console.warn(`⚠️ KB load attempt ${retryCount + 1} failed:`, kbError);
+            if (retryCount < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } else {
+              console.warn("⚠️ Failed to load from Knowledge Base after all retries, falling back to IndexedDB");
+            }
           }
-        } catch (kbError) {
-          console.warn("⚠️ Failed to load from Knowledge Base, falling back to IndexedDB:", kbError);
+          retryCount++;
         }
       } else {
         console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStoreInitialized, ")");
@@ -942,6 +989,9 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             setChapters(sessionState.chapters || []);
             setGraphState(sessionState.graphState);
           }
+
+          // FIXED: Load graph connections from storage
+          await loadGraphConnections();
 
           console.log("✅ Frames loaded from IndexedDB successfully");
           
@@ -1117,7 +1167,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           timeCapsuleId: currentTimeCapsule?.id,
         });
 
-        // Save session state
+        // Save session state with graph connections
         await graphStorageManager.saveSessionState({
           isCreationMode,
           showGraphView,
@@ -1126,7 +1176,17 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           lastActiveFrame: currentFrameIndex,
         });
 
-        console.log("✅ Frames saved to IndexedDB successfully");
+        // FIXED: Save graph layout with connections
+        if (graphState && (graphState.nodes.length > 0 || graphState.edges.length > 0)) {
+          await graphStorageManager.saveGraphLayout({
+            nodes: graphState.nodes,
+            edges: graphState.edges,
+            viewport: graphState.viewport
+          });
+          console.log("🔗 Graph connections saved to IndexedDB");
+        }
+
+        console.log("✅ Frames and connections saved to IndexedDB successfully");
       }
 
       // Fallback/Compatibility: Save to localStorage
@@ -1141,6 +1201,18 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           lastSaved: new Date().toISOString(),
         },
       };
+
+      // FIXED: Also save graph connections to localStorage for backup
+      if (graphState && (graphState.nodes.length > 0 || graphState.edges.length > 0)) {
+        const graphConnectionsData = {
+          nodes: graphState.nodes,
+          edges: graphState.edges,
+          viewport: graphState.viewport,
+          lastSaved: new Date().toISOString(),
+        };
+        localStorage.setItem("ai_frames_graph_connections", JSON.stringify(graphConnectionsData));
+        console.log("🔗 Graph connections saved to localStorage backup");
+      }
 
       localStorage.setItem(
         "ai_frames_timecapsule",
@@ -1502,6 +1574,8 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
               hasParent: !!frame.parentFrameId,
               parentId: frame.parentFrameId,
             },
+            // CRITICAL: Save attachment data for persistence
+            attachment: frameWithAttachment.attachment,
           },
           chunks: [],
           vectors: [],
@@ -1532,7 +1606,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
 
   // Enhanced AI-Frames Knowledge Base sync with order preservation
-  const saveAllFramesToKB = async () => {
+  const saveAllFramesToKB = useCallback(async () => {
     if (!vectorStore || !vectorStoreInitialized || frames.length === 0) {
       return;
     }
@@ -1630,7 +1704,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
           };
 
           const currentFrame = {
-            title: frame.title || "",
+            title: extractTitleFromDocTitle(frame.title || ""),
             goal: frame.goal || "",
             informationText: frame.informationText || "",
             afterVideoText: frame.afterVideoText || "",
@@ -1652,7 +1726,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             aiConcepts: existingContent.aiConcepts
           };
 
-          // Compare current frame with what's actually in Knowledge Base
+          // FIXED: Compare current frame with what's actually in Knowledge Base
           const meaningfulChanges = {
             title: currentFrame.title !== existingFrame.title,
             goal: currentFrame.goal !== existingFrame.goal,
@@ -1675,12 +1749,17 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             willUpdate: hasChanged
           });
 
-          // Update if content has changed compared to what's in Knowledge Base
-          if (!hasChanged) {
-            console.log(`📝 Frame "${frame.title}" matches KB content, skipping update`);
+          // FIXED: Always update if frame ID is different (new frame) or content has changed
+          const isNewFrame = !(existingDoc.metadata as any).aiFrameId || (existingDoc.metadata as any).aiFrameId !== frame.id;
+          
+          if (!hasChanged && !isNewFrame) {
+            console.log(`📝 Frame "${frame.title}" matches KB content and is not new, skipping update`);
             continue;
           } else {
-            console.log(`📝 Frame "${frame.title}" differs from KB content, updating:`, meaningfulChanges);
+            console.log(`📝 Frame "${frame.title}" ${isNewFrame ? 'is new frame' : 'differs from KB content'}, updating:`, {
+              isNewFrame,
+              changes: meaningfulChanges
+            });
           }
 
           // Delete existing document first to ensure clean update
@@ -1739,6 +1818,8 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
               hasParent: !!frame.parentFrameId,
               parentId: frame.parentFrameId,
             },
+            // CRITICAL: Save attachment data for persistence
+            attachment: (frame as any).attachment,
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
@@ -1810,7 +1891,59 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     } catch (error) {
       console.error("❌ Failed to save AI-Frames to Knowledge Base:", error);
     }
-  };
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
+
+  // FIXED: Load graph connections from storage
+  const loadGraphConnections = useCallback(async () => {
+    try {
+      console.log("🔗 Loading graph connections from storage...");
+      
+      // Try to load from IndexedDB first
+      if (graphStorageManager) {
+        try {
+          const graphLayout = await graphStorageManager.loadGraphLayout();
+          if (graphLayout && (graphLayout.nodes.length > 0 || graphLayout.edges.length > 0)) {
+            console.log(`🔗 Loaded graph connections from IndexedDB: ${graphLayout.nodes.length} nodes, ${graphLayout.edges.length} edges`);
+            setGraphState((prev: any) => ({
+              ...prev,
+              nodes: graphLayout.nodes,
+              edges: graphLayout.edges,
+              viewport: graphLayout.viewport
+            }));
+            return true;
+          }
+        } catch (error) {
+          console.warn("⚠️ Failed to load graph connections from IndexedDB:", error);
+        }
+      }
+      
+      // Fallback to localStorage
+      const connectionsData = localStorage.getItem("ai_frames_graph_connections");
+      if (connectionsData) {
+        try {
+          const parsed = JSON.parse(connectionsData);
+          if (parsed.nodes && parsed.edges) {
+            console.log(`🔗 Loaded graph connections from localStorage: ${parsed.nodes.length} nodes, ${parsed.edges.length} edges`);
+            setGraphState((prev: any) => ({
+              ...prev,
+              nodes: parsed.nodes,
+              edges: parsed.edges,
+              viewport: parsed.viewport
+            }));
+            return true;
+          }
+        } catch (error) {
+          console.warn("⚠️ Failed to parse graph connections from localStorage:", error);
+        }
+      }
+      
+      console.log("ℹ️ No graph connections found in storage");
+      return false;
+    } catch (error) {
+      console.error("❌ Failed to load graph connections:", error);
+      return false;
+    }
+  }, [graphStorageManager]);
 
   // CRITICAL: Make app instance globally available for FrameGraphIntegration
   useEffect(() => {
@@ -1833,9 +1966,21 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       frames.length > 0
     ) {
       console.log("🔄 AI-Frames detected, saving to Knowledge Base...");
-      saveAllFramesToKB();
+      
+      // FIXED: Add delay to ensure KB operations are complete before next save
+      const saveWithDelay = async () => {
+        try {
+          await saveAllFramesToKB();
+          console.log("✅ KB save completed successfully");
+        } catch (error) {
+          console.error("❌ KB save failed:", error);
+        }
+      };
+      
+      // Use a longer delay to prevent race conditions
+      setTimeout(saveWithDelay, 200);
     }
-  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames.length]);
 
   // Listen for localStorage changes (cross-tab sync and graph updates) with enhanced error handling
   useEffect(() => {
@@ -1961,21 +2106,38 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       return existingFrames;
     }
     
+    // FIXED: Add frame validation and deduplication
+        const validExistingFrames = existingFrames.filter((frame): frame is AIFrame => {
+      if (!validateFrame(frame)) {
+        console.warn("⚠️ Invalid existing frame filtered out:", (frame as any).id);
+        return false;
+      }
+      return true;
+    });
+
+    const validNewFrames = newFrames.filter((frame): frame is AIFrame => {
+      if (!validateFrame(frame)) {
+        console.warn("⚠️ Invalid new frame filtered out:", (frame as any).id);
+        return false;
+      }
+      return true;
+    });
+    
     const mergedFrames: AIFrame[] = [];
     const existingById = new Map<string, AIFrame>();
     const newById = new Map<string, AIFrame>();
     
     // Index existing frames by ID
-    existingFrames.forEach(frame => {
-      if (validateFrame(frame)) {
-        existingById.set(frame.id, frame);
-      }
+    validExistingFrames.forEach(frame => {
+      existingById.set(frame.id, frame);
     });
     
-    // Index new frames by ID
-    newFrames.forEach(frame => {
-      if (validateFrame(frame)) {
+    // Index new frames by ID (skip duplicates)
+    validNewFrames.forEach(frame => {
+      if (!existingById.has(frame.id)) {
         newById.set(frame.id, frame);
+      } else {
+        console.log("ℹ️ Skipping duplicate frame ID:", frame.id);
       }
     });
     
@@ -2022,6 +2184,12 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     // Sort by order field if available
     mergedFrames.sort((a, b) => (a.order || 0) - (b.order || 0));
     
+    // CRITICAL FIX: Ensure we never return an empty array
+    if (mergedFrames.length === 0) {
+      console.warn("⚠️ Frame merge resulted in empty array, preserving existing frames");
+      return existingFrames.length > 0 ? existingFrames : newFrames;
+    }
+    
     console.log(`🔄 Frame merge completed: ${existingFrames.length} + ${newFrames.length} → ${mergedFrames.length}`);
     return mergedFrames;
   }, []);
@@ -2041,6 +2209,12 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     
     // Smart merge with existing frames
     const mergedFrames = mergeFrameUpdates(frames, validFrames);
+    
+    // CRITICAL FIX: Ensure we never set an empty frames array
+    if (mergedFrames.length === 0) {
+      console.warn("⚠️ Frame state update would result in empty array, preserving current frames");
+      return;
+    }
     
     // Update state
     setFrames(mergedFrames);
@@ -2180,53 +2354,58 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
           console.log("🔄 Applying immediate frame updates from graph save");
           updateFrameState(eventFrames, 'graph-save');
           
-                  // Also trigger KB sync immediately
-        if (vectorStore && vectorStoreInitialized && processingAvailable) {
-          console.log("🔄 Triggering immediate KB sync after graph save");
-          syncGraphChangesToKB(eventFrames).then(() => {
-            console.log("✅ Immediate KB sync completed");
-            
-            // Dispatch event to notify other components about KB update
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
-                detail: {
-                  frameCount: eventFrames.length,
-                  syncType: 'immediate',
-                  source: 'graph-save',
-                  timestamp: new Date().toISOString()
-                }
-              }));
+          // FIXED: Ensure KB sync after Save Graph operation
+          setTimeout(() => {
+            ensureKBSyncAfterSaveGraph(eventFrames);
+          }, 1000); // Small delay to ensure all operations complete
+          
+          // Also trigger KB sync immediately
+          if (vectorStore && vectorStoreInitialized && processingAvailable) {
+            console.log("🔄 Triggering immediate KB sync after graph save");
+            syncGraphChangesToKB(eventFrames).then(() => {
+              console.log("✅ Immediate KB sync completed");
               
-              // Force Knowledge Base refresh after graph save
-              window.dispatchEvent(new CustomEvent('kb-force-refresh', {
-                detail: {
-                  source: 'graph-save',
-                  action: 'sync',
-                  frameCount: eventFrames.length,
-                  timestamp: new Date().toISOString()
-                }
-              }));
-              
-              // Force Knowledge Base document list refresh
-              window.dispatchEvent(new CustomEvent('kb-documents-changed', {
-                detail: {
-                  source: 'graph-save',
-                  changeType: 'sync',
-                  documentCount: eventFrames.length,
-                  timestamp: new Date().toISOString()
-                }
-              }));
-            }
-          }).catch((error) => {
-            console.error("❌ Failed immediate KB sync:", error);
-          });
-        } else {
-          console.log("⏳ VectorStore not ready for immediate KB sync:", {
-            hasVectorStore: !!vectorStore,
-            isInitialized: vectorStoreInitialized,
-            processingAvailable
-          });
-        }
+              // Dispatch event to notify other components about KB update
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
+                  detail: {
+                    frameCount: eventFrames.length,
+                    syncType: 'immediate',
+                    source: 'graph-save',
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+                
+                // Force Knowledge Base refresh after graph save
+                window.dispatchEvent(new CustomEvent('kb-force-refresh', {
+                  detail: {
+                    source: 'graph-save',
+                    action: 'sync',
+                    frameCount: eventFrames.length,
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+                
+                // Force Knowledge Base document list refresh
+                window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+                  detail: {
+                    source: 'graph-save',
+                    changeType: 'sync',
+                    documentCount: eventFrames.length,
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+              }
+            }).catch((error) => {
+              console.error("❌ Failed immediate KB sync:", error);
+            });
+          } else {
+            console.log("⏳ VectorStore not ready for immediate KB sync:", {
+              hasVectorStore: !!vectorStore,
+              isInitialized: vectorStoreInitialized,
+              processingAvailable
+            });
+          }
         }
 
         // BACKUP SYNC: Reload frames from storage with retry logic
@@ -2314,12 +2493,67 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
           return;
         }
 
-        console.log("🔄 Graph frame added → Frame Navigation sync:", newFrame);
+        console.log("🔄 Graph frame added → Frame Navigation sync:", {
+          newFrame: newFrame,
+          currentFrameCount: frames.length,
+          newFrameId: newFrame.id
+        });
 
-        // Use smart frame merging to add new frame
+        // FIXED: Check if frame already exists to prevent replacement
+        const frameExists = frames.some(f => f.id === newFrame.id);
+        if (frameExists) {
+          console.log("ℹ️ Frame already exists, skipping duplicate:", newFrame.id);
+          return;
+        }
+
+        // FIXED: Use smart frame merging to add new frame (preserve existing frames)
         const updatedFrames = mergeFrameUpdates(frames, [newFrame]);
+        console.log("✅ Frame merge result:", {
+          beforeCount: frames.length,
+          afterCount: updatedFrames.length,
+          addedFrame: newFrame.title
+        });
+        
+        // CRITICAL FIX: Ensure frames array is never empty
+        if (updatedFrames.length === 0) {
+          console.warn("⚠️ Frame merge resulted in empty array, preserving existing frames");
+          return;
+        }
+        
         setFrames(updatedFrames);
         setCurrentFrameIndex(updatedFrames.length - 1); // Navigate to new frame
+        
+        // FIXED: Immediately sync new frame to Knowledge Base with verification
+        if (vectorStore && vectorStoreInitialized && processingAvailable) {
+          console.log("🔄 Immediately syncing new frame to Knowledge Base:", newFrame.title);
+          
+          const syncWithVerification = async () => {
+            try {
+              await saveAllFramesToKB();
+              
+              // FIXED: Verify frame was actually saved to KB
+              setTimeout(async () => {
+                try {
+                  const kbFrames = await loadFramesFromKnowledgeBase();
+                  const frameExists = kbFrames.some(f => f.id === newFrame.id);
+                  console.log(`✅ Frame persistence verification: ${frameExists ? 'SUCCESS' : 'FAILED'} - Frame "${newFrame.title}" ${frameExists ? 'found' : 'NOT found'} in KB`);
+                  
+                  if (!frameExists) {
+                    console.warn("⚠️ Frame not found in KB after save, attempting re-save...");
+                    await saveAllFramesToKB();
+                  }
+                } catch (error) {
+                  console.error("❌ Frame persistence verification failed:", error);
+                }
+              }, 300);
+              
+            } catch (error) {
+              console.error("❌ Immediate KB sync failed:", error);
+            }
+          };
+          
+          setTimeout(syncWithVerification, 100); // Small delay to ensure state is updated
+        }
 
         setChatMessages((prev) => [
           ...prev,
@@ -3168,18 +3402,19 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     try {
       // Get current frame safely
       const currentFrame = frames[currentFrameIndex];
+      const videoContent = getVideoContent(currentFrame);
 
-      if (videoRef.current && currentFrame && currentFrame.videoUrl) {
+      if (videoRef.current && videoContent?.videoUrl) {
         // Send play command to YouTube iframe
         const iframe = videoRef.current;
-        const videoId = extractVideoId(currentFrame.videoUrl);
+        const videoId = extractVideoId(videoContent.videoUrl);
 
         if (videoId) {
           // Create new iframe src with autoplay enabled
           const newEmbedUrl = `https://www.youtube.com/embed/${videoId}?start=${
-            currentFrame.startTime
+            videoContent.startTime
           }&end=${
-            currentFrame.startTime + currentFrame.duration
+            videoContent.startTime + videoContent.duration
           }&autoplay=1&controls=1&modestbranding=1&rel=0`;
           iframe.src = newEmbedUrl;
 
@@ -3419,7 +3654,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
     try {
       const newFrame = await generateFrameContent(newFrameData);
-      setFrames((prev) => [...prev, newFrame]);
+      
+      // FIXED: Properly append new frame to existing frames
+      setFrames((prev) => {
+        const updatedFrames = [...prev, newFrame];
+        console.log("✅ Frame creation result:", {
+          beforeCount: prev.length,
+          afterCount: updatedFrames.length,
+          newFrameTitle: newFrame.title,
+          newFrameId: newFrame.id
+        });
+        return updatedFrames;
+      });
+      
       setCurrentFrameIndex(frames.length); // Switch to new frame
       setShowCreationForm(false);
       setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
@@ -3653,11 +3900,73 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     input.click();
   };
 
+  // FIXED: Helper function to ensure KB sync after Save Graph operations
+  const ensureKBSyncAfterSaveGraph = async (frames: AIFrame[]) => {
+    if (!vectorStore || !vectorStoreInitialized) {
+      console.log("⏳ VectorStore not ready for KB sync");
+      return;
+    }
+
+    try {
+      console.log("🔄 Ensuring KB sync after Save Graph operation...");
+      
+      // Force refresh documents from IndexedDB
+      const stats = await vectorStore.getStats();
+      const documents = await vectorStore.getAllDocuments();
+      const totalSize = documents.reduce(
+        (sum, doc) => sum + (doc.metadata?.filesize || 0),
+        0
+      );
+
+      // Update document status
+      setDocumentStatus({
+        count: stats.documentCount,
+        totalSize: totalSize,
+        vectorCount: stats.vectorCount,
+      });
+      
+      setDocuments(documents);
+
+      // Dispatch comprehensive KB update events
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+          detail: {
+            source: 'save-graph-verification',
+            frameCount: frames.length,
+            documentCount: stats.documentCount,
+            timestamp: new Date().toISOString()
+          }
+        }));
+
+        window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
+          detail: {
+            source: 'save-graph-verification',
+            frameCount: frames.length,
+            timestamp: new Date().toISOString(),
+            frames: frames,
+            hasFrameUpdates: true
+          }
+        }));
+      }
+
+      console.log("✅ KB sync verification completed:", {
+        documentCount: stats.documentCount,
+        totalSize: totalSize,
+        vectorCount: stats.vectorCount,
+        frameCount: frames.length
+      });
+    } catch (error) {
+      console.error("❌ Failed to verify KB sync after Save Graph:", error);
+    }
+  };
+
   const handleManageKnowledge = async () => {
-    // Force refresh documents before opening dialog
+    // FIXED: Enhanced force refresh with IndexedDB verification
     if (vectorStore && vectorStoreInitialized) {
       try {
         console.log("🔄 Force refreshing Knowledge Base before opening manager...");
+        
+        // Get fresh stats and documents from IndexedDB
         const stats = await vectorStore.getStats();
         const documents = await vectorStore.getAllDocuments();
         const totalSize = documents.reduce(
@@ -3665,6 +3974,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           0
         );
 
+        // Update document status with fresh data
         setDocumentStatus({
           count: stats.documentCount,
           totalSize: totalSize,
@@ -3672,7 +3982,25 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         });
         
         setDocuments(documents);
-        console.log("✅ Knowledge Base force refreshed before opening manager");
+        
+        // FIXED: Verify IndexedDB sync status
+        console.log("✅ Knowledge Base force refreshed before opening manager:", {
+          documentCount: stats.documentCount,
+          totalSize: totalSize,
+          vectorCount: stats.vectorCount,
+          source: 'manage-knowledge'
+        });
+
+        // Dispatch event to notify other components
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kb-manager-opened', {
+            detail: {
+              source: 'manage-knowledge',
+              documentCount: stats.documentCount,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
       } catch (error) {
         console.error("Failed to force refresh documents:", error);
       }
@@ -3720,12 +4048,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     updateDocumentStatus();
   }, [vectorStore, vectorStoreInitialized]);
 
-  // FIXED: Listen for KB sync events to refresh documents list
+  // FIXED: Enhanced KB sync events listener with Save Graph support and navigation protection
+  const [isNavigating, setIsNavigating] = useState(false);
+  
   useEffect(() => {
-    const refreshDocuments = async () => {
+    const refreshDocuments = async (source?: string) => {
       if (vectorStore && vectorStoreInitialized) {
         try {
-          console.log("🔄 Refreshing Knowledge Base documents after sync event...");
+          console.log(`🔄 Refreshing Knowledge Base documents after sync event (source: ${source || 'unknown'})...`);
           const stats = await vectorStore.getStats();
           const documents = await vectorStore.getAllDocuments();
           const totalSize = documents.reduce(
@@ -3743,7 +4073,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           console.log("✅ Knowledge Base documents refreshed:", {
             documentCount: stats.documentCount,
             totalSize: totalSize,
-            vectorCount: stats.vectorCount
+            vectorCount: stats.vectorCount,
+            source: source
           });
         } catch (error) {
           console.error("Failed to refresh documents after sync:", error);
@@ -3753,30 +4084,57 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
     const handleKBRefresh = (event: CustomEvent) => {
       console.log("🔄 KB refresh event received:", event.detail);
-      refreshDocuments();
+      refreshDocuments(event.detail?.source || 'kb-refresh');
     };
 
     const handleKBDocumentsChanged = (event: CustomEvent) => {
       console.log("🔄 KB documents changed event received:", event.detail);
-      refreshDocuments();
+      refreshDocuments(event.detail?.source || 'kb-documents-changed');
     };
 
     const handleAIFramesKBUpdated = (event: CustomEvent) => {
       console.log("🔄 AI-Frames KB updated event received:", event.detail);
-      refreshDocuments();
+      refreshDocuments(event.detail?.source || 'aiframes-kb-updated');
+      
+      // FIXED: Update frames state if Save Graph was the source
+      if (event.detail?.source === 'save-graph' && event.detail?.frames) {
+        console.log("🔄 Updating frames state from Save Graph KB update");
+        setFrames(event.detail.frames);
+      }
+    };
+
+    // FIXED: Navigation protection - listen for page visibility changes
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log("🔄 Page hidden - saving current state before navigation");
+        setIsNavigating(true);
+        // Save current state to prevent loss during navigation
+        if (frames.length > 0) {
+          saveAllFramesToKB();
+        }
+      } else {
+        console.log("🔄 Page visible - restoring state after navigation");
+        setIsNavigating(false);
+        // Small delay to ensure proper state restoration
+        setTimeout(() => {
+          loadFramesFromStorage();
+        }, 100);
+      }
     };
 
     // Listen for KB sync events
     window.addEventListener('kb-force-refresh', handleKBRefresh as EventListener);
     window.addEventListener('kb-documents-changed', handleKBDocumentsChanged as EventListener);
     window.addEventListener('aiframes-kb-updated', handleAIFramesKBUpdated as EventListener);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('kb-force-refresh', handleKBRefresh as EventListener);
       window.removeEventListener('kb-documents-changed', handleKBDocumentsChanged as EventListener);
       window.removeEventListener('aiframes-kb-updated', handleAIFramesKBUpdated as EventListener);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [vectorStore, vectorStoreInitialized]);
+  }, [vectorStore, vectorStoreInitialized, frames.length]);
 
   // Document Manager handlers
   const handleKnowledgeBaseSearch = async () => {
@@ -4088,17 +4446,63 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   // Get current frame safely for video display
   const currentFrame = frames[currentFrameIndex];
-  const videoId = currentFrame?.videoUrl
-    ? extractVideoId(currentFrame.videoUrl)
-    : null;
+  
+  // Get video content from either attachment or legacy fields
+  const getVideoContent = (frame: any) => {
+    if (frame?.attachment?.type === 'video') {
+      return {
+        videoUrl: frame.attachment.data?.videoUrl,
+        startTime: frame.attachment.data?.startTime || 0,
+        duration: frame.attachment.data?.duration || 300,
+      };
+    } else if (frame?.videoUrl) {
+      return {
+        videoUrl: frame.videoUrl,
+        startTime: frame.startTime || 0,
+        duration: frame.duration || 300,
+      };
+    }
+    return null;
+  };
+  
+  const videoContent = getVideoContent(currentFrame);
+  const videoId = videoContent?.videoUrl ? extractVideoId(videoContent.videoUrl) : null;
   const embedUrl =
-    currentFrame && videoId && currentFrame.videoUrl
+    currentFrame && videoId && videoContent?.videoUrl
       ? `https://www.youtube.com/embed/${videoId}?start=${
-          currentFrame.startTime
+          videoContent.startTime
         }&end=${
-          currentFrame.startTime + currentFrame.duration
+          videoContent.startTime + videoContent.duration
         }&autoplay=0&controls=1&modestbranding=1&rel=0`
       : null;
+
+  // Get PDF content from attachment
+  const getPDFContent = (frame: any) => {
+    if (frame?.attachment?.type === 'pdf') {
+      return {
+        pdfUrl: frame.attachment.data?.pdfUrl,
+        pages: frame.attachment.data?.pages || 'All pages',
+        title: frame.attachment.data?.title || 'PDF Document',
+        notes: frame.attachment.data?.notes
+      };
+    }
+    return null;
+  };
+
+  // Get text content from attachment
+  const getTextContent = (frame: any) => {
+    if (frame?.attachment?.type === 'text') {
+      return {
+        text: frame.attachment.data?.text,
+        title: frame.attachment.data?.title || 'Text Content',
+        notes: frame.attachment.data?.notes
+      };
+    }
+    return null;
+  };
+
+  const pdfContent = getPDFContent(currentFrame);
+  const textContent = getTextContent(currentFrame);
 
   const nextFrame = () => {
     if (currentFrameIndex < frames.length - 1) {
@@ -5263,8 +5667,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           </div>
                           <div className="mt-4 flex items-center justify-between">
                             <div className="text-sm text-slate-600 dark:text-slate-400">
-                              Playing from {formatTime(currentFrame.startTime)}{" "}
-                              for {formatTime(currentFrame.duration)}
+                              {videoContent ? (
+                                <>
+                                  Playing from {formatTime(videoContent.startTime)}{" "}
+                                  for {formatTime(videoContent.duration)}
+                                </>
+                              ) : (
+                                "No video content available"
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               {!isCreationMode && isVoiceEnabled && (
@@ -5306,6 +5716,79 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           </div>
                         </CardContent>
                       </Card>
+
+                      {/* PDF Content Section */}
+                      {pdfContent && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <File className="h-5 w-5 text-blue-600" />
+                              PDF Document
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <File className="h-8 w-8 text-blue-600" />
+                                  <div>
+                                    <p className="font-medium text-blue-900 dark:text-blue-100">{pdfContent.title}</p>
+                                    <p className="text-sm text-blue-600 dark:text-blue-300">Pages: {pdfContent.pages}</p>
+                                  </div>
+                                </div>
+                                {pdfContent.pdfUrl && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(pdfContent.pdfUrl, '_blank')}
+                                  >
+                                    <LinkIcon className="h-4 w-4 mr-2" />
+                                    Open PDF
+                                  </Button>
+                                )}
+                              </div>
+                              {pdfContent.notes && (
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <strong>Notes:</strong> {pdfContent.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Text Content Section */}
+                      {textContent && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <FileText className="h-5 w-5 text-green-600" />
+                              Text Content
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">{textContent.title}</h3>
+                                <div className="prose prose-sm max-w-none text-green-800 dark:text-green-200">
+                                  {textContent.text.split('\n').map((paragraph, index) => (
+                                    <p key={index} className="mb-2">{paragraph}</p>
+                                  ))}
+                                </div>
+                              </div>
+                              {textContent.notes && (
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <strong>Notes:</strong> {textContent.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
                       {/* AI Concepts (triggered by video pause or user action) */}
                       {showAIConcepts && (

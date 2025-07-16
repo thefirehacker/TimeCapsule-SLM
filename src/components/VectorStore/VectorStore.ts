@@ -872,6 +872,71 @@ export class VectorStore {
     );
   }
 
+  async upsertDocument(documentData: DocumentData): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+
+    // Use operation queue to prevent concurrent operations on the same document
+    return this.queueOperation(
+      `upsert-${documentData.id}`,
+      () => this.performDocumentUpsert(documentData)
+    );
+  }
+
+  private async performDocumentUpsert(documentData: DocumentData): Promise<void> {
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Get the latest revision of the document
+        const latestDoc = await this.getLatestDocumentRevision(documentData.id);
+        
+        if (latestDoc) {
+          // Update existing document with latest revision
+          await latestDoc.update({
+            $set: {
+              title: documentData.title,
+              content: documentData.content,
+              metadata: documentData.metadata,
+              chunks: documentData.chunks,
+              vectors: documentData.vectors
+            }
+          });
+          console.log(`📊 Synced frame ${documentData.title} to Knowledge Base (updated)`);
+        } else {
+          // Insert new document
+          await this.documentsCollection.documents.insert(documentData);
+          console.log(`📊 Synced frame ${documentData.title} to Knowledge Base (inserted)`);
+          
+          // Ensure database flush after insertion
+          await this.flushDatabase();
+        }
+        
+        // Ensure document persistence
+        await this.ensureDocumentPersistence(documentData.id, documentData.title);
+        return; // Success, exit retry loop
+        
+      } catch (error: any) {
+        retryCount++;
+        
+        // Handle revision conflicts with retry
+        if (error.name === 'RxError' && error.code === 'CONFLICT' && retryCount < maxRetries) {
+          console.warn(`⚠️ Document upsert revision conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
+          
+          // Wait before retry with exponential backoff
+          const delay = Math.pow(2, retryCount) * 100;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        console.error(`❌ Failed to upsert document ${documentData.id}:`, error);
+        throw error;
+      }
+    }
+  }
+
   // Enhanced method to get latest document revision with retry logic
   private async getLatestDocumentRevision(documentId: string): Promise<any> {
     const maxRetries = 3;
@@ -893,8 +958,8 @@ export class VectorStore {
           throw error;
         }
         
-        // Small delay before retry
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Exponential backoff delay before retry
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 50));
       }
     }
     
@@ -1109,7 +1174,7 @@ export class VectorStore {
         }
 
         // SPECIAL CASE: Allow AI-Frames updates to bypass duplicate detection for order preservation
-        if (newMeta.source === 'ai-frames') {
+        if (newMeta.source === 'ai-frames' || newMeta.source === 'ai-frames-auto-sync') {
           console.log(`🔄 Bypassing duplicate detection for AI-Frames update: ${documentData.title}`);
           return null; // No duplicate found, allow insertion
         }
@@ -1129,8 +1194,9 @@ export class VectorStore {
           const existingMeta = existingDoc.metadata as any;
           
           // AI-Frames specific duplicate detection
-          if (newMeta.source === 'ai-frames' && existingMeta.source === 'ai-frames') {
-            if (newMeta.aiFrameId && existingMeta.aiFrameId && newMeta.aiFrameId === existingMeta.aiFrameId) {
+          if ((newMeta.source === 'ai-frames' || newMeta.source === 'ai-frames-auto-sync') && 
+              (existingMeta.source === 'ai-frames' || existingMeta.source === 'ai-frames-auto-sync')) {
+            if (newMeta.frameId && existingMeta.frameId && newMeta.frameId === existingMeta.frameId) {
               return existingDoc;
             }
           }

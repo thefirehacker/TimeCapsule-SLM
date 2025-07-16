@@ -599,16 +599,28 @@ export default function EnhancedLearningGraph({
       if (type === "aiframe" && onFramesChange) {
         console.log('🎯 Enhanced: Creating new AI Frame from enhanced graph node');
         
+        // FIXED: Generate unique frame title based on highest existing frame number
+        const existingFrameNumbers = frames
+          .map(f => f.title.match(/^Frame (\d+)$/)?.[1])
+          .filter(Boolean)
+          .map(Number);
+        
+        const nextFrameNumber = existingFrameNumbers.length > 0 
+          ? Math.max(...existingFrameNumbers) + 1 
+          : 1;
+        
+        const uniqueTitle = `Frame ${nextFrameNumber}`;
+        
         const newFrame = {
           id: newNodeData.frameId,
-          title: newNodeData.title,
-          goal: newNodeData.goal,
-          informationText: newNodeData.informationText,
-          afterVideoText: newNodeData.afterVideoText,
+          title: uniqueTitle,
+          goal: newNodeData.goal || `Learning goal for ${uniqueTitle}`,
+          informationText: newNodeData.informationText || `Context and background for ${uniqueTitle}`,
+          afterVideoText: newNodeData.afterVideoText || `Key takeaways for ${uniqueTitle}`,
           aiConcepts: newNodeData.aiConcepts || [],
           isGenerated: newNodeData.isGenerated || false,
           // Frame structure fields
-          order: frames.length + 1,
+          order: nextFrameNumber,
           bubblSpaceId: "default",
           timeCapsuleId: "default",
           type: 'frame' as const,
@@ -620,24 +632,29 @@ export default function EnhancedLearningGraph({
           duration: 300,
         };
         
-        const updatedFrames = [...frames, newFrame];
-        onFramesChange(updatedFrames);
+        // CRITICAL FIX: Ensure frames array is never empty during creation
+        const updatedFrames = frames.length > 0 ? [...frames, newFrame] : [newFrame];
         
-        // Emit event to sync with Frame Navigation
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('graph-frame-added', {
-            detail: {
-              newFrame,
-              totalFrames: updatedFrames.length
-            }
-          }));
-        }
-        
-        console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
-          frameId: newFrame.id,
-          title: newFrame.title,
-          totalFrames: updatedFrames.length
-        });
+        // FIXED: Use a small delay to ensure state is stable before triggering change
+        setTimeout(() => {
+          onFramesChange(updatedFrames);
+          
+          // Emit event to sync with Frame Navigation
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('graph-frame-added', {
+              detail: {
+                newFrame,
+                totalFrames: updatedFrames.length
+              }
+            }));
+          }
+          
+          console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
+            frameId: newFrame.id,
+            title: newFrame.title,
+            totalFrames: updatedFrames.length
+          });
+        }, 50); // Small delay to prevent race conditions
       }
     },
     [reactFlowInstance, frames, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent]
