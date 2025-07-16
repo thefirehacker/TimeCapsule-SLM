@@ -1,160 +1,126 @@
-# AI-Frames Navigation Protection & Frame State Management Fix
+# Canvas3D-LLM Development Plan
 
-## Problem Analysis
-The user is experiencing two critical issues:
-1. **Frames Lost Issue**: Changes are lost when navigating between AI Frames and Deep Research
-2. **Infinite Loop Error**: "Maximum update depth exceeded" during drag and drop operations
+## Current Status: Video Attachment Persistence After Refresh - FIXING
 
-## Root Cause Analysis
+### New Issue Identified
+Video attachments are not persisting after page refresh due to **localStorage loading priority** over Knowledge Base.
 
-### 1. **Infinite Loop Error** ✅ FIXED
-- **Cause**: `saveAllFramesToKB` function was included in useEffect dependencies
-- **Solution**: Memoized with useCallback and removed from dependencies
+### Root Cause Analysis
+1. **VectorStore Initialization Delay**: When page refreshes, VectorStore is not ready immediately
+2. **localStorage Fallback**: System falls back to localStorage (TimeCapsule/Graph state) which lacks attachment data
+3. **Missing Attachment Data**: localStorage only stores basic frame data, not attachment metadata
+4. **Priority Issue**: Frames loaded from localStorage are not being updated with KB attachment data
 
-### 2. **Frame State Management Failure** ✅ FIXED
-**Root Cause**: Frame creation and state management is fundamentally broken
+### Timeline of Issue
+```
+T+0ms:    Page refresh starts
+T+100ms:  Frame loading begins, VectorStore not ready
+T+200ms:  Falls back to localStorage (no attachment data)
+T+1000ms: VectorStore becomes ready, but frames already loaded from localStorage
+T+2000ms: User sees video attachment is missing
+```
 
-#### A. **Frame Array Replacement Instead of Append** ✅ FIXED
-- When f2 is created, it **replaces** the entire frames array instead of being appended
-- **Solution**: Fixed frame creation logic to preserve existing frames
+### Solution Implemented
 
-#### B. **Frame Creation Detection Logic Bug** ✅ FIXED
-- Real-time sync incorrectly detects frame creation as frame deletion
-- **Solution**: Enhanced frame creation detection with multiple conditions
+#### 1. VectorStore Availability Monitor
+Added a useEffect to monitor VectorStore readiness and reload frames from KB when available:
 
-#### C. **Frame Persistence Race Condition** ✅ FIXED
-- Frames are saved but immediately deleted by other processes
-- **Solution**: Added frame creation state tracking and protection
+```typescript
+useEffect(() => {
+  if (!vectorStore || !vectorStoreInitialized || !processingAvailable) {
+    return;
+  }
 
-### 3. **CRITICAL ISSUE DISCOVERED: Knowledge Base Source Mismatch** ✅ FIXED
-**Root Cause**: Frames were being saved successfully but couldn't be loaded due to source filtering mismatch
+  const reloadFromKBIfNeeded = async () => {
+    // Check if current frames have attachment data
+    const hasAttachmentData = frames.some(frame => (frame as any).attachment);
+    
+    if (!hasAttachmentData && frames.length > 0) {
+      console.log("⚠️ Current frames lack attachment data, reloading from Knowledge Base...");
+      
+      // Reload frames from Knowledge Base
+      const kbFrames = await loadFramesFromKnowledgeBase();
+      
+      if (kbFrames.length > 0) {
+        setFrames(kbFrames); // Update with KB data including attachments
+      }
+    }
+  };
 
-#### The Real Problem:
-- **FrameGraphIntegration.tsx** saves frames with `source: "ai-frames-auto-sync"`
-- **page.tsx** saves frames with `source: "ai-frames"`
-- **KB loading function** was only looking for `source: "ai-frames-auto-sync"`
+  const reloadTimer = setTimeout(reloadFromKBIfNeeded, 1000);
+  return () => clearTimeout(reloadTimer);
+}, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
+```
 
-This mismatch meant that frames saved by the main page were invisible to the KB loading function, causing them to appear as "lost" after refresh.
+#### 2. Enhanced localStorage Sync
+Updated localStorage loading to reload from KB after sync to restore attachment data:
 
-#### The Fix:
-1. **Updated KB loading filter** to look for both sources:
-   ```typescript
-   const aiFrameDocuments = allDocuments.filter(doc => 
-     (doc.metadata?.source === 'ai-frames-auto-sync' || doc.metadata?.source === 'ai-frames') && doc.id?.startsWith('aiframe-')
-   );
-   ```
+```typescript
+// After syncing localStorage frames to KB
+await syncGraphChangesToKB(localStorageFrames);
 
-2. **Added comprehensive debugging** to see what documents actually exist in the KB:
-   ```typescript
-   console.log("📊 All documents in KB:", allDocuments.map(doc => ({
-     id: doc.id,
-     title: doc.title,
-     hasMetadata: !!doc.metadata,
-     source: doc.metadata?.source,
-     startsWithAiframe: doc.id?.startsWith('aiframe-')
-   })));
-   ```
+// CRITICAL FIX: Reload frames from KB to get attachment data
+const kbFrames = await loadFramesFromKnowledgeBase();
+if (kbFrames.length > 0) {
+  setFrames(kbFrames); // Restore attachment data
+}
+```
 
-## CURRENT CRITICAL ISSUES (PRIORITY 1)
+### Expected Behavior After Fix
+1. ✅ Page refreshes, falls back to localStorage
+2. ✅ VectorStore becomes ready
+3. ✅ System detects missing attachment data
+4. ✅ Frames are reloaded from Knowledge Base
+5. ✅ Video attachment data is restored
+6. ✅ Video displays correctly after refresh
 
-### Issue 1: Frame Array State Management Failure 🔴 CRITICAL
-**Root Cause**: Frame array is being reset to empty between frame creations
-**Evidence from logs**:
-- `currentFrameCount: 0` appears repeatedly
-- Frame merge shows `0 + 1 → 1` instead of `1 + 1 → 2`
-- This causes f1 to be "lost" from UI state when f2 is created
+## TODO List
 
-**Impact**: Frames disappear from UI even though they exist in KB
+### Phase 1: Investigation ✅ COMPLETED
+- [x] **task_6_1**: Analyze current frame merge logic in handleGraphAttachmentChanged
+- [x] **task_6_2**: Check if the delayed KB sync fix is still in place and working
+- [x] **task_6_3**: Verify the mergeFrameUpdates function is preserving attachment data correctly
+- [x] **task_6_4**: Identify what changed since the last working version
 
-### Issue 2: Duplicate Detection Logic Failure 🔴 CRITICAL
-**Root Cause**: VectorStore duplicate detection incorrectly identifies f2 as duplicate of f1
-**Evidence from logs**:
-- `⚠️ Duplicate document detected: "AI-Frame: f2" (similar to "AI-Frame: f1"), skipping insertion`
-- f2 is being rejected from KB due to incorrect duplicate detection
+### Phase 2: Fix Implementation ✅ COMPLETED
+- [x] **task_6_5**: Restore proper frame state synchronization without circular updates
+- [x] **task_6_6**: Ensure attachment data is preserved during frame merging
+- [x] **task_6_7**: Implement proper error handling for document conflicts
+- [x] **task_6_8**: Add debug logging to track document revision conflicts
 
-**Impact**: f2 never gets saved to KB, only appears in UI temporarily
+### Phase 3: Testing and Validation 🔄 IN PROGRESS
+- [x] **task_6_9**: Test video attachment workflow end-to-end
+- [x] **task_6_10**: Verify no RxDB conflicts occur during attachment
+- [ ] **task_6_11**: Confirm video persists after page refresh
+- [ ] **task_6_12**: Test multiple rapid attachments to ensure stability
 
-## WORKING TODO LIST (REAL-TIME TRACKING)
+### Phase 4: New Fix Implementation 🔄 IN PROGRESS
+- [ ] **task_6_15**: Fix video attachment not persisting after page refresh due to localStorage loading
 
-### Phase 1: Fix Frame Array State Management (PRIORITY 1) 🔴
-- [ ] **Task 1.1**: Identify where frame array is being reset to empty
-  - [ ] Check `setFrames([])` calls in page.tsx
-  - [ ] Check frame state initialization logic
-  - [ ] Check useEffect dependencies that might reset frames
-  - **Status**: 🔍 INVESTIGATING
-  - **Notes**: Need to find the exact line causing `currentFrameCount: 0`
+### Phase 5: Documentation Update
+- [ ] **task_6_13**: Update aiframes.md with any new fixes implemented
+- [ ] **task_6_14**: Document the regression and resolution steps
 
-- [ ] **Task 1.2**: Fix frame array persistence between creations
-  - [ ] Ensure frames array is never set to empty during frame creation
-  - [ ] Fix frame merge logic to preserve existing frames
-  - [ ] Add protection against empty frame arrays
-  - **Status**: ⏳ PENDING
-  - **Notes**: Depends on Task 1.1 completion
+## Technical Changes Made
 
-- [ ] **Task 1.3**: Fix state synchronization between Graph and Frame components
-  - [ ] Ensure Graph component doesn't reset frame state
-  - [ ] Fix frame navigation sync logic
-  - [ ] Add proper state validation
-  - **Status**: ⏳ PENDING
-  - **Notes**: Depends on Task 1.2 completion
+### Previous Fixes (Completed)
+- **File**: `src/app/ai-frames/page.tsx` - Added sync coordination flags
+- **File**: `src/components/ai-graphs/FrameGraphIntegration.tsx` - Increased delay, added coordination check, enhanced error handling
 
-### Phase 2: Fix Duplicate Detection Logic (PRIORITY 1) 🔴
-- [ ] **Task 2.1**: Identify duplicate detection logic in VectorStore
-  - [ ] Find the function that detects "AI-Frame: f2" as duplicate of "AI-Frame: f1"
-  - [ ] Check what criteria is being used for duplicate detection
-  - [ ] Identify if it's using title similarity instead of unique IDs
-  - **Status**: 🔍 INVESTIGATING
-  - **Notes**: Need to find the exact duplicate detection function
+### New Fixes (In Progress)
+- **File**: `src/app/ai-frames/page.tsx` - Added VectorStore availability monitor
+- **File**: `src/app/ai-frames/page.tsx` - Enhanced localStorage sync to reload from KB
 
-- [ ] **Task 2.2**: Fix duplicate detection to use unique frame IDs
-  - [ ] Change duplicate detection from title-based to ID-based
-  - [ ] Ensure each frame ID is treated as unique
-  - [ ] Add proper frame metadata comparison
-  - **Status**: ⏳ PENDING
-  - **Notes**: Depends on Task 2.1 completion
+## Testing Required
+Please test the video attachment workflow to confirm:
+1. Video attaches successfully without RxDB errors ✅
+2. Video persists after page refresh ⏳ (Testing)
+3. Multiple rapid attachments work correctly ⏳ (Pending)
 
-- [ ] **Task 2.3**: Test frame persistence after duplicate detection fix
-  - [ ] Verify f1 and f2 both get saved to KB
-  - [ ] Verify both frames appear in KB Manager
-  - [ ] Test frame persistence after page refresh
-  - **Status**: ⏳ PENDING
-  - **Notes**: Depends on Task 2.2 completion
-
-### Phase 3: Integration Testing (PRIORITY 2) 🟡
-- [ ] **Task 3.1**: Test both fixes together
-  - [ ] Create f1 and verify it persists in UI and KB
-  - [ ] Create f2 and verify both f1 and f2 persist
-  - [ ] Refresh page and verify both frames load correctly
-  - **Status**: ⏳ PENDING
-  - **Notes**: Depends on Phase 1 and Phase 2 completion
-
-- [ ] **Task 3.2**: Test navigation between AI Frames and Deep Research
-  - [ ] Verify no frame loss during navigation
-  - [ ] Test frame persistence across page changes
-  - [ ] Verify KB sync works correctly
-  - **Status**: ⏳ PENDING
-  - **Notes**: Depends on Task 3.1 completion
-
-## Implementation Status
-
-### ✅ COMPLETED FIXES:
-1. **Infinite Loop Prevention** - Memoized functions and fixed dependencies
-2. **Frame Creation Detection** - Enhanced logic to prevent false deletion
-3. **Frame Array Protection** - Ensure frames array is never empty
-4. **Knowledge Base Source Mismatch** - Fixed filtering to find all saved frames
-5. **Comprehensive Debugging** - Added detailed logging to track frame persistence
-
-### 🔴 CURRENT CRITICAL ISSUES:
-1. **Frame Array State Management** - Frames array being reset to empty
-2. **Duplicate Detection Logic** - f2 being rejected as duplicate of f1
-
-### 🧪 TESTING REQUIRED:
-1. Create f1 frame and verify it appears in KB Manager
-2. Create f2 frame and verify both f1 and f2 appear in KB Manager
-3. Refresh page and verify both frames are loaded from KB
-4. Navigate between AI Frames and Deep Research to verify no frame loss
-
-## Next Steps
-1. **APPROVAL NEEDED**: Should I start with Task 1.1 (Frame Array State Management) or Task 2.1 (Duplicate Detection Logic)?
-2. **PRIORITY**: Both issues are critical, but which should be tackled first?
-3. **APPROACH**: Should I investigate both simultaneously or focus on one at a time?
+## Debug Information
+Look for these log messages to verify the fix is working:
+- `🔄 VectorStore is now ready, checking if frames need to be reloaded from KB...`
+- `⚠️ Current frames lack attachment data, reloading from Knowledge Base...`
+- `✅ Reloaded frames from KB with attachment data:`
+- `🔄 Reloading frames from KB to restore attachment data...`
+- `✅ Frames reloaded from KB with attachment data restored`

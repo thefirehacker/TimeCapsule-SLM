@@ -31,6 +31,36 @@ export default function TextAttachmentNode({ data, selected }: TextAttachmentNod
     try {
       // Update the node data
       Object.assign(data, editData);
+      
+      // If this attachment is connected to a frame, update the frame's attachment
+      if (data.isAttached && data.attachedToFrameId) {
+        const updatedAttachment = {
+          id: data.id,
+          type: 'text' as const,
+          data: {
+            title: editData.title,
+            text: editData.text,
+            notes: editData.notes
+          }
+        };
+        
+        // Emit event to update the connected frame
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('attachment-node-updated', {
+            detail: {
+              frameId: data.attachedToFrameId,
+              attachment: updatedAttachment,
+              nodeId: data.id
+            }
+          }));
+        }
+        
+        console.log('📡 Text attachment updated, notifying connected frame:', {
+          frameId: data.attachedToFrameId,
+          text: editData.text?.substring(0, 50) + '...'
+        });
+      }
+      
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to save text attachment:', error);

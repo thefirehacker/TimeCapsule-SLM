@@ -289,6 +289,16 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
                 </p>
               </div>
             )}
+            
+            {/* ENHANCED: Video attachment validation */}
+            {data.attachment?.type === 'video' && !data.attachment.data?.videoUrl && (
+              <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                <p className="text-xs text-red-600 font-medium">⚠️ Video attachment has no URL!</p>
+                <p className="text-xs text-red-500 mt-1">
+                  Edit the VideoAttachmentNode and add a YouTube URL
+                </p>
+              </div>
+            )}
           </div>
 
           {/* AI Concepts (if any) */}

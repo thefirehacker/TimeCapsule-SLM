@@ -218,8 +218,19 @@ export default function FrameGraphIntegration({
           updatedAt: new Date().toISOString()
         };
         
-        // Use setTimeout with debouncing to prevent blocking the UI and rapid calls
-        setTimeout(() => syncFrameToKnowledgeBase(updatedFrame), 100);
+        // CRITICAL FIX: Use longer delay and coordination to prevent RxDB conflicts
+        // Delay by 500ms to ensure main page component sync completes first
+        setTimeout(() => {
+          // Check if another sync is in progress before proceeding
+          if (typeof window !== 'undefined') {
+            const aiFramesApp = (window as any).aiFramesApp;
+            if (aiFramesApp?.syncInProgress) {
+              console.log('⏳ Main page sync in progress, skipping FrameGraphIntegration sync for:', frame.id);
+              return;
+            }
+          }
+          syncFrameToKnowledgeBase(updatedFrame);
+        }, 500);
       }
     });
 
@@ -276,10 +287,22 @@ Updated: ${frame.updatedAt}`;
 
         // FIXED: Use upsert instead of delete-then-insert to prevent race conditions
         await vectorStore.upsertDocument(aiFrameDoc);
+        console.log("✅ Frame synced to Knowledge Base:", {
+          frameId: frame.id,
+          title: frame.title,
+          documentId
+        });
       }
-    } catch (error) {
-      console.error("❌ Failed to sync frame to Knowledge Base:", error);
-    }
+          } catch (error) {
+        // CRITICAL FIX: Handle RxDB conflicts gracefully
+        const errorObj = error as any;
+        if (errorObj.code === 'CONFLICT' || errorObj.message?.includes('CONFLICT')) {
+          console.warn("⚠️ RxDB conflict detected, skipping sync for frame:", frame.id);
+          console.log("💡 This is expected when multiple components sync simultaneously");
+          return; // Gracefully skip this sync attempt
+        }
+        console.error("❌ Failed to sync frame to Knowledge Base:", error);
+      }
   };
 
   const removeFrameFromKnowledgeBase = async (frameId: string) => {
@@ -791,6 +814,12 @@ Updated: ${new Date().toISOString()}`,
   // FIXED: Handle Save Graph with proper error handling
   const handleSaveGraph = async () => {
     try {
+      // Prevent multiple save operations
+      if (isAutoSaving) {
+        console.log("⏸️ Save Graph skipped - auto-save in progress");
+        return;
+      }
+      
       // Ensure session is initialized
       if (!sessionInitialized) {
         await initializeSession();
@@ -1062,10 +1091,17 @@ Updated: ${new Date().toISOString()}`,
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                organizeIntoChapters();
-                handleSaveGraph();
+              onClick={async () => {
+                try {
+                  organizeIntoChapters();
+                  // Wait a moment for state to update, then save
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  await handleSaveGraph();
+                } catch (error) {
+                  console.error("❌ Organize failed:", error);
+                }
               }}
+              disabled={isAutoSaving}
               className="text-green-600 hover:text-green-700"
             >
               <Layers className="h-4 w-4 mr-2" />

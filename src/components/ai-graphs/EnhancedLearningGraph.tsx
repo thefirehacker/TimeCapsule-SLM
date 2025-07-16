@@ -91,6 +91,17 @@ export default function EnhancedLearningGraph({
   const handleAttachContent = useCallback((frameId: string, attachment: FrameAttachment) => {
     console.log('🔗 Enhanced: Attaching content to frame:', { frameId, attachment });
     
+    // CRITICAL DEBUG: Log video attachment data
+    if (attachment.type === 'video') {
+      console.log('🎥 CRITICAL DEBUG: Video attachment data:', {
+        attachmentDataVideoUrl: attachment.data.videoUrl,
+        attachmentDataStartTime: attachment.data.startTime,
+        attachmentDataDuration: attachment.data.duration,
+        videoUrlEmpty: !attachment.data.videoUrl,
+        videoUrlLength: attachment.data.videoUrl?.length || 0
+      });
+    }
+    
     // Update the frame in the frames array
     if (onFramesChange) {
       const updatedFrames = frames.map(frame => 
@@ -105,6 +116,20 @@ export default function EnhancedLearningGraph({
           })
         } : frame
       );
+      
+      // CRITICAL DEBUG: Log the frame update
+      if (attachment.type === 'video') {
+        const updatedFrame = updatedFrames.find(f => f.id === frameId);
+        console.log('🎥 CRITICAL DEBUG: Frame updated with video data:', {
+          frameId,
+          frameVideoUrl: updatedFrame?.videoUrl,
+          frameStartTime: updatedFrame?.startTime,
+          frameDuration: updatedFrame?.duration,
+          frameHasAttachment: !!updatedFrame?.attachment,
+          frameAttachmentType: updatedFrame?.attachment?.type
+        });
+      }
+      
       onFramesChange(updatedFrames);
     }
 
@@ -138,6 +163,19 @@ export default function EnhancedLearningGraph({
       attachmentType: attachment.type,
       action: 'attached'
     });
+    
+    // CRITICAL FIX: Force save to Knowledge Base when attachment is added
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'attachment-added',
+            frameId,
+            attachmentType: attachment.type
+          }
+        }));
+      }
+    }, 100);
   }, [frames, onFramesChange]);
 
   // Handle content detachment from frames
@@ -239,7 +277,8 @@ export default function EnhancedLearningGraph({
 
   // Sync frames to enhanced graph nodes on initial load
   useEffect(() => {
-    if (frames.length > 0 && nodes.length === 0) {
+    // Only sync if we have frames, no nodes, and no initial graph state was provided
+    if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
       console.log('🔄 Enhanced: Syncing frames to enhanced graph nodes');
       
       const newNodes: Node[] = [];
@@ -321,7 +360,7 @@ export default function EnhancedLearningGraph({
         edgeCount: newEdges.length
       });
     }
-  }, [frames, nodes.length, handleFrameUpdate, handleAttachContent, handleDetachContent]);
+  }, [frames, nodes.length, initialGraphState, handleFrameUpdate, handleAttachContent, handleDetachContent]);
 
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {
@@ -384,6 +423,13 @@ export default function EnhancedLearningGraph({
             return;
           }
           
+          // ENHANCED DEBUG: Check if video attachment has empty URL
+          if (sourceNode.type === 'video-attachment' && !sourceNode.data.videoUrl) {
+            console.warn('⚠️ VIDEO ATTACHMENT WARNING: VideoAttachmentNode has empty videoUrl!');
+            console.warn('📝 USER WORKFLOW: Please edit the VideoAttachmentNode first and add a YouTube URL before connecting');
+            console.warn('🎯 EXPECTED WORKFLOW: 1) Drag VideoAttachmentNode → 2) Click Edit → 3) Add YouTube URL → 4) Save → 5) Connect to frame');
+          }
+          
           // Create attachment from source node
           const attachment: FrameAttachment = {
             id: sourceNode.id,
@@ -405,6 +451,36 @@ export default function EnhancedLearningGraph({
               }),
             }
           };
+          
+          // ENHANCED DEBUG: Log attachment being created with detailed video info
+          console.log('🔗 Creating attachment connection:', {
+            sourceNode: sourceNode.type,
+            targetFrameId: targetNode.data.frameId,
+            attachmentType: attachment.type,
+            attachmentData: attachment.data,
+            sourceNodeVideoUrl: sourceNode.data.videoUrl,
+            sourceNodeStartTime: sourceNode.data.startTime,
+            sourceNodeDuration: sourceNode.data.duration,
+            // CRITICAL DEBUG: Show if video URL is empty
+            videoUrlEmpty: !sourceNode.data.videoUrl,
+            videoUrlLength: sourceNode.data.videoUrl?.length || 0,
+            // CRITICAL DEBUG: Show what's actually in attachment.data
+            attachmentDataVideoUrl: attachment.data.videoUrl,
+            attachmentDataStartTime: attachment.data.startTime,
+            attachmentDataDuration: attachment.data.duration
+          });
+          
+          // ENHANCED DEBUG: Warn if video attachment has no URL
+          if (sourceNode.type === 'video-attachment' && !sourceNode.data.videoUrl) {
+            console.error('❌ CRITICAL: Video attachment connected with empty videoUrl!');
+            console.error('💡 SOLUTION: Edit the VideoAttachmentNode and add a YouTube URL before connecting');
+            console.error('🔧 CURRENT DATA:', {
+              videoUrl: sourceNode.data.videoUrl,
+              startTime: sourceNode.data.startTime,
+              duration: sourceNode.data.duration,
+              title: sourceNode.data.title
+            });
+          }
           
           // Attach content to frame
           handleAttachContent(targetNode.data.frameId, attachment);
@@ -705,12 +781,26 @@ export default function EnhancedLearningGraph({
       console.log('✅ Enhanced Graph: All nodes and edges cleared successfully');
     };
 
+    const handleAttachmentNodeUpdated = (event: CustomEvent) => {
+      const { frameId, attachment, nodeId } = event.detail;
+      console.log('📡 Enhanced Graph: Attachment node updated event received:', {
+        frameId, 
+        nodeId, 
+        attachmentType: attachment.type
+      });
+      
+      // Update the connected frame
+      handleAttachContent(frameId, attachment);
+    };
+
     window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+    window.addEventListener('attachment-node-updated', handleAttachmentNodeUpdated as EventListener);
     
     return () => {
       window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+      window.removeEventListener('attachment-node-updated', handleAttachmentNodeUpdated as EventListener);
     };
-  }, [nodes.length, edges.length]);
+  }, [nodes.length, edges.length, handleAttachContent]);
 
   // Update graph state when nodes/edges change
   useEffect(() => {

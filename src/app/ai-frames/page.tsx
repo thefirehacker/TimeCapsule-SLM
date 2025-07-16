@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ import {
   FileText,
   Bot,
   X,
+  File,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -851,14 +852,18 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             return docTitle;
           };
           
+          // Extract video URL with validation
+          const rawVideoUrl = extractFromContent(doc.content, '- URL:') || '';
+          const cleanVideoUrl = rawVideoUrl === 'No video attachment' || rawVideoUrl === 'No video' ? '' : rawVideoUrl;
+          
           const frame: AIFrame = {
             id: doc.id?.replace('aiframe-', '') || doc.id,
             title: extractFromContent(doc.content, 'Frame:') || extractTitleFromDocTitle(doc.title || '') || 'Untitled',
             goal: extractFromContent(doc.content, 'Goal:') || 'No goal specified',
             informationText: extractFromContent(doc.content, 'Information:') || 'No information provided',
-            videoUrl: extractFromContent(doc.content, 'Video URL:') || '',
-            startTime: 0,
-            duration: 300,
+            videoUrl: cleanVideoUrl,
+            startTime: parseInt(extractFromContent(doc.content, '- Start Time:')?.replace('s', '') || '0') || 0,
+            duration: parseInt(extractFromContent(doc.content, '- Duration:')?.replace('s', '') || '300') || 300,
             afterVideoText: extractFromContent(doc.content, 'After Video:') || 'No after video text',
             aiConcepts: extractFromContent(doc.content, 'Concepts:')?.split(', ').filter((c: string) => c.trim()) || [],
             isGenerated: doc.metadata?.isGenerated || false,
@@ -870,6 +875,37 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             updatedAt: (doc.metadata as any)?.updatedAt || new Date().toISOString(),
             attachment: (doc.metadata as any)?.attachment
           };
+          
+          // ENHANCED DEBUG: Log video URL extraction process
+          console.log('🔍 Video URL extraction debug:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            rawVideoUrl,
+            cleanVideoUrl,
+            isNoVideo: rawVideoUrl === 'No video attachment',
+            finalVideoUrl: frame.videoUrl,
+            hasAttachmentInMetadata: !!(doc.metadata as any)?.attachment,
+            hasVideoUrl: !!frame.videoUrl,
+            docContent: doc.content.substring(0, 500) + '...' // Show first 500 chars of content
+          });
+          
+          // Debug: Log attachment data being restored
+          if (frame.attachment) {
+            console.log('📹 Restoring frame with attachment:', {
+              frameId: frame.id,
+              frameTitle: frame.title,
+              attachmentType: frame.attachment.type,
+              attachmentData: frame.attachment.data,
+              fullAttachment: frame.attachment
+            });
+          } else {
+            console.log('📹 Frame has no attachment:', {
+              frameId: frame.id,
+              frameTitle: frame.title,
+              metadata: (doc.metadata as any)?.attachment
+            });
+          }
+          
           validFrames.push(frame);
         } catch (docError) {
           console.warn("⚠️ Failed to parse KB document:", doc.id, docError);
@@ -1106,6 +1142,14 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           try {
             await syncGraphChangesToKB(timeCapsuleParsed.data.frames);
             console.log("✅ KB sync completed after loading frames from TimeCapsule storage");
+            
+            // CRITICAL FIX: Reload frames from KB to get attachment data
+            console.log("🔄 Reloading frames from KB to restore attachment data...");
+            const kbFrames = await loadFramesFromKnowledgeBase();
+            if (kbFrames.length > 0) {
+              console.log("✅ Frames reloaded from KB with attachment data restored");
+              setFrames(kbFrames);
+            }
           } catch (error) {
             console.error("❌ Failed to sync KB after loading frames from TimeCapsule storage:", error);
           }
@@ -1138,6 +1182,14 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           try {
             await syncGraphChangesToKB(graphParsed.frames);
             console.log("✅ KB sync completed after loading frames from Graph state storage");
+            
+            // CRITICAL FIX: Reload frames from KB to get attachment data
+            console.log("🔄 Reloading frames from KB to restore attachment data...");
+            const kbFrames = await loadFramesFromKnowledgeBase();
+            if (kbFrames.length > 0) {
+              console.log("✅ Frames reloaded from KB with attachment data restored");
+              setFrames(kbFrames);
+            }
           } catch (error) {
             console.error("❌ Failed to sync KB after loading frames from Graph state storage:", error);
           }
@@ -1489,6 +1541,16 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
         // Create enhanced document content with attachment details
         const frameWithAttachment = frame as any; // Type assertion to access attachment properties
+        
+        // Debug: Log attachment data being saved
+        if (frameWithAttachment.attachment) {
+          console.log('💾 Saving frame with attachment to KB:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            attachmentType: frameWithAttachment.attachment.type,
+            attachmentData: frameWithAttachment.attachment.data
+          });
+        }
         const content = `
 Learning Goal: ${frame.goal}
 
@@ -1508,10 +1570,10 @@ AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 
 ATTACHMENTS & MEDIA:
 Video Attachment:
-- URL: ${frame.videoUrl || "No video attachment"}
-- Start Time: ${frame.startTime || 0}s
-- Duration: ${frame.duration || 0}s
-- Type: ${frame.videoUrl ? "YouTube Video" : "No video"}
+- URL: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl || "No video attachment"}
+- Start Time: ${frame.startTime || frameWithAttachment.attachment?.data?.startTime || 0}s
+- Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
+- Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
 
 ${frameWithAttachment.attachment ? `
 Additional Attachment:
@@ -1632,6 +1694,30 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         const title = `AI-Frame [${frame.order || index + 1}]: ${frame.title}`;
 
         // Enhanced content with hierarchy and relationship information
+        const frameWithAttachment = frame as any; // Type assertion to access attachment properties
+        
+        // Debug: Log attachment data being saved
+        if (frameWithAttachment.attachment) {
+          console.log('💾 Saving frame with attachment to KB:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            attachmentType: frameWithAttachment.attachment.type,
+            attachmentData: frameWithAttachment.attachment.data
+          });
+        }
+        
+        // Debug: Log the video URL being saved to KB content
+        const videoUrlForKB = frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl || "No video attachment";
+        console.log('💾 KB Content Video URL Debug:', {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          legacyVideoUrl: frame.videoUrl,
+          attachmentVideoUrl: frameWithAttachment.attachment?.data?.videoUrl,
+          finalVideoUrlForKB: videoUrlForKB,
+          hasAttachment: !!frameWithAttachment.attachment,
+          attachmentType: frameWithAttachment.attachment?.type
+        });
+        
         const content = `
 Learning Goal: ${frame.goal}
 
@@ -1649,16 +1735,38 @@ ${frame.afterVideoText || "No additional content"}
 
 AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 
-Video Details:
-- URL: ${frame.videoUrl || "No video"}
-- Start Time: ${frame.startTime || 0}s
-- Duration: ${frame.duration || 0}s
+ATTACHMENTS & MEDIA:
+Video Attachment:
+- URL: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl || "No video attachment"}
+- Start Time: ${frame.startTime || frameWithAttachment.attachment?.data?.startTime || 0}s
+- Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
+- Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
+
+${frameWithAttachment.attachment ? `
+Additional Attachment:
+- Type: ${frameWithAttachment.attachment.type || "Unknown"}
+- Name: ${frameWithAttachment.attachment.name || "Unnamed"}
+- Size: ${frameWithAttachment.attachment.size ? `${frameWithAttachment.attachment.size} bytes` : "Unknown"}
+- Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
+- URL: ${frameWithAttachment.attachment.url || "No URL"}
+- Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
+` : "Additional Attachments: None"}
+
+Text Notes:
+${frameWithAttachment.notes || "No text notes"}
+
+Document Attachments:
+${frameWithAttachment.documents ? frameWithAttachment.documents.map((doc: any) => `- ${doc.name || "Unnamed"} (${doc.type || "Unknown type"})`).join('\n') : "No document attachments"}
 
 Metadata:
 - Generated: ${frame.isGenerated ? "Yes" : "No"}
 - Created: ${frame.createdAt || "Unknown"}
 - Updated: ${frame.updatedAt || "Unknown"}
 ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
+- Attachment Count: ${frameWithAttachment.attachment ? 1 : 0}
+- Has Video: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "Yes" : "No"}
+- Has Text Notes: ${frameWithAttachment.notes ? "Yes" : "No"}
+- Has Documents: ${frameWithAttachment.documents ? frameWithAttachment.documents.length : 0}
         `.trim();
 
         // Generate unique document ID for this frame
@@ -2101,6 +2209,25 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
 
   // Smart frame merging to preserve changes and avoid conflicts
   const mergeFrameUpdates = useCallback((existingFrames: AIFrame[], newFrames: AIFrame[]): AIFrame[] => {
+    console.log("🔄 MERGE DEBUG: Starting frame merge", {
+      existingCount: existingFrames.length,
+      newCount: newFrames.length,
+      existingFrameIds: existingFrames.map(f => f.id),
+      newFrameIds: newFrames.map(f => f.id),
+      existingFramesWithAttachment: existingFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl
+      })),
+      newFramesWithAttachment: newFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl
+      }))
+    });
+    
     if (!Array.isArray(existingFrames) || !Array.isArray(newFrames)) {
       console.warn("⚠️ Frame merge failed: invalid frame arrays");
       return existingFrames;
@@ -2132,12 +2259,29 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       existingById.set(frame.id, frame);
     });
     
-    // Index new frames by ID (skip duplicates)
+    // Index new frames by ID (handle duplicates intelligently)
     validNewFrames.forEach(frame => {
-      if (!existingById.has(frame.id)) {
-        newById.set(frame.id, frame);
+      const existing = existingById.get(frame.id);
+      if (existing) {
+        // CRITICAL: Merge attachment data instead of replacing entire frame
+        const mergedFrame = {
+          ...existing,
+          ...frame,
+          // Preserve attachment data from either frame
+          attachment: frame.attachment || existing.attachment,
+          // Preserve video URL from either frame
+          videoUrl: frame.videoUrl || existing.videoUrl,
+          // Update timestamp
+          updatedAt: new Date().toISOString()
+        };
+        newById.set(frame.id, mergedFrame);
+        console.log("🔄 Merged duplicate frame with attachment data:", {
+          frameId: frame.id,
+          hasAttachment: !!(mergedFrame as any).attachment,
+          videoUrl: mergedFrame.videoUrl
+        });
       } else {
-        console.log("ℹ️ Skipping duplicate frame ID:", frame.id);
+        newById.set(frame.id, frame);
       }
     });
     
@@ -2167,9 +2311,23 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
           afterVideoText: baseFrame.afterVideoText || otherFrame.afterVideoText,
           videoUrl: baseFrame.videoUrl || otherFrame.videoUrl,
           aiConcepts: baseFrame.aiConcepts?.length > 0 ? baseFrame.aiConcepts : otherFrame.aiConcepts,
+          // CRITICAL FIX: Preserve attachment data during merge
+          attachment: baseFrame.attachment || otherFrame.attachment,
           // Update timestamp
           updatedAt: new Date().toISOString(),
         };
+        
+        // Debug: Log attachment preservation during merge
+        console.log('🔄 Frame merge attachment debug:', {
+          frameId: mergedFrame.id,
+          frameTitle: mergedFrame.title,
+          baseFrameHasAttachment: !!baseFrame.attachment,
+          otherFrameHasAttachment: !!otherFrame.attachment,
+          mergedFrameHasAttachment: !!mergedFrame.attachment,
+          mergedAttachmentType: mergedFrame.attachment?.type,
+          mergedAttachmentVideoUrl: mergedFrame.attachment?.data?.videoUrl,
+          mergedLegacyVideoUrl: mergedFrame.videoUrl
+        });
         
         mergedFrames.push(mergedFrame);
       } else if (newFrame) {
@@ -2191,6 +2349,20 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     }
     
     console.log(`🔄 Frame merge completed: ${existingFrames.length} + ${newFrames.length} → ${mergedFrames.length}`);
+    
+    // Debug: Log final merge result
+    console.log("🔄 MERGE DEBUG: Final merge result", {
+      mergedCount: mergedFrames.length,
+      mergedFrameIds: mergedFrames.map(f => f.id),
+      mergedFramesWithAttachment: mergedFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl,
+        legacyVideoUrl: f.videoUrl
+      }))
+    });
+    
     return mergedFrames;
   }, []);
 
@@ -2201,11 +2373,36 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       return;
     }
     
+    // Debug: Log input frames before validation
+    console.log("🔄 UPDATE DEBUG: Input frames before validation", {
+      source,
+      newFramesCount: newFrames.length,
+      newFramesWithAttachment: newFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl,
+        legacyVideoUrl: f.videoUrl
+      }))
+    });
+    
     // Validate all frames
     const validFrames = newFrames.filter(validateFrame);
     if (validFrames.length !== newFrames.length) {
       console.warn(`⚠️ Frame validation: ${newFrames.length - validFrames.length} invalid frames filtered out`);
     }
+    
+    // Debug: Log frames after validation
+    console.log("🔄 UPDATE DEBUG: Frames after validation", {
+      validFramesCount: validFrames.length,
+      validFramesWithAttachment: validFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl,
+        legacyVideoUrl: f.videoUrl
+      }))
+    });
     
     // Smart merge with existing frames
     const mergedFrames = mergeFrameUpdates(frames, validFrames);
@@ -2362,8 +2559,23 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
           // Also trigger KB sync immediately
           if (vectorStore && vectorStoreInitialized && processingAvailable) {
             console.log("🔄 Triggering immediate KB sync after graph save");
+            
+            // CRITICAL FIX: Set sync flag to coordinate with FrameGraphIntegration
+            if (typeof window !== 'undefined') {
+              const aiFramesApp = (window as any).aiFramesApp || {};
+              aiFramesApp.syncInProgress = true;
+              (window as any).aiFramesApp = aiFramesApp;
+            }
+            
             syncGraphChangesToKB(eventFrames).then(() => {
               console.log("✅ Immediate KB sync completed");
+              
+              // Clear sync flag after completion
+              if (typeof window !== 'undefined') {
+                const aiFramesApp = (window as any).aiFramesApp || {};
+                aiFramesApp.syncInProgress = false;
+                (window as any).aiFramesApp = aiFramesApp;
+              }
               
               // Dispatch event to notify other components about KB update
               if (typeof window !== 'undefined') {
@@ -2634,6 +2846,15 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
           action,
         });
 
+        // Debug: Log the attachment data being received
+        if (attachment?.type === 'video') {
+          console.log("🎥 Video attachment event:", {
+            frameId,
+            action,
+            videoUrl: attachment?.data?.videoUrl
+          });
+        }
+
         // Update frame with attachment using smart merging
         const updatedFrames = frames.map((frame) =>
           frame.id === frameId
@@ -2651,7 +2872,38 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             : frame
         );
         
-        updateFrameState(updatedFrames, 'graph-attachment');
+        // Debug: Log the updated frame
+        const updatedFrame = updatedFrames.find(f => f.id === frameId);
+        if (updatedFrame?.attachment?.type === 'video') {
+          console.log("🎥 Frame updated with video attachment:", {
+            frameId,
+            videoUrl: updatedFrame.attachment.data?.videoUrl
+          });
+        }
+        
+        // CRITICAL: Update frame state directly to prevent circular updates
+        setFrames(updatedFrames);
+        
+        // Sync to KB after a short delay to prevent RxDB conflicts
+        setTimeout(() => {
+          console.log("🔄 Syncing attachment changes to KB after delay");
+          
+          // CRITICAL FIX: Set sync flag to coordinate with FrameGraphIntegration
+          if (typeof window !== 'undefined') {
+            const aiFramesApp = (window as any).aiFramesApp || {};
+            aiFramesApp.syncInProgress = true;
+            (window as any).aiFramesApp = aiFramesApp;
+          }
+          
+          syncGraphChangesToKB(updatedFrames).finally(() => {
+            // Clear sync flag after completion
+            if (typeof window !== 'undefined') {
+              const aiFramesApp = (window as any).aiFramesApp || {};
+              aiFramesApp.syncInProgress = false;
+              (window as any).aiFramesApp = aiFramesApp;
+            }
+          });
+        }, 200);
 
         setChatMessages((prev) => [
           ...prev,
@@ -2681,6 +2933,26 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     window.addEventListener(
       "graph-attachment-changed",
       handleGraphAttachmentChanged as EventListener
+    );
+    
+    // Handle force save frames event
+    const handleForceSaveFrames = (event: CustomEvent) => {
+      const { reason, frameId, attachmentType } = event.detail;
+      console.log('💾 Force save frames requested:', {
+        reason,
+        frameId,
+        attachmentType
+      });
+      
+      // Force save all frames to Knowledge Base
+      if (frames.length > 0) {
+        saveAllFramesToKB();
+      }
+    };
+    
+    window.addEventListener(
+      "force-save-frames",
+      handleForceSaveFrames as EventListener
     );
     
     // Handle frames-updated event for view synchronization
@@ -2749,6 +3021,10 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       window.removeEventListener(
         "graph-attachment-changed",
         handleGraphAttachmentChanged as EventListener
+      );
+      window.removeEventListener(
+        "force-save-frames",
+        handleForceSaveFrames as EventListener
       );
       window.removeEventListener(
         "frames-updated",
@@ -3859,7 +4135,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             detail: {
               frameCount: clearedCount,
               bubblSpaceId: currentBubblSpace?.id,
-              timeCapsuleId: currentTimeCapsule?.id,
+              timecapsule_id: currentTimeCapsule?.id,
               timestamp: new Date().toISOString(),
             },
           })
@@ -4447,8 +4723,10 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   // Get current frame safely for video display
   const currentFrame = frames[currentFrameIndex];
   
-  // Get video content from either attachment or legacy fields
-  const getVideoContent = (frame: any) => {
+  // Get video content from either attachment or legacy fields (memoized to prevent infinite loops)
+  const getVideoContent = useCallback((frame: any) => {
+    if (!frame) return null;
+    
     if (frame?.attachment?.type === 'video') {
       return {
         videoUrl: frame.attachment.data?.videoUrl,
@@ -4463,9 +4741,22 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       };
     }
     return null;
-  };
+  }, []);
   
-  const videoContent = getVideoContent(currentFrame);
+  // Memoize video content to prevent unnecessary recalculations
+  const videoContent = useMemo(() => {
+    const content = getVideoContent(currentFrame);
+    if (content) {
+      console.log('🎥 Video content resolved:', {
+        frameId: currentFrame?.id,
+        videoUrl: content.videoUrl,
+        startTime: content.startTime,
+        duration: content.duration
+      });
+    }
+    return content;
+  }, [currentFrame?.id, currentFrame?.videoUrl, currentFrame?.attachment?.data?.videoUrl, getVideoContent]);
+  
   const videoId = videoContent?.videoUrl ? extractVideoId(videoContent.videoUrl) : null;
   const embedUrl =
     currentFrame && videoId && videoContent?.videoUrl
@@ -4577,6 +4868,52 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   }, [showTimeCapsuleSelector]);
 
   // Skip early return - always show main interface
+
+  // ENHANCED: Monitor VectorStore availability and reload frames from KB when ready
+  useEffect(() => {
+    if (!vectorStore || !vectorStoreInitialized || !processingAvailable) {
+      return;
+    }
+
+    // If frames were loaded from localStorage but VectorStore is now ready, reload from KB
+    const reloadFromKBIfNeeded = async () => {
+      try {
+        console.log("🔄 VectorStore is now ready, checking if frames need to be reloaded from KB...");
+        
+        // Check if current frames have attachment data
+        const hasAttachmentData = frames.some(frame => (frame as any).attachment);
+        
+        if (!hasAttachmentData && frames.length > 0) {
+          console.log("⚠️ Current frames lack attachment data, reloading from Knowledge Base...");
+          
+          // Reload frames from Knowledge Base
+          const kbFrames = await loadFramesFromKnowledgeBase();
+          
+          if (kbFrames.length > 0) {
+            console.log("✅ Reloaded frames from KB with attachment data:", {
+              frameCount: kbFrames.length,
+              framesWithAttachments: kbFrames.filter(f => (f as any).attachment).length
+            });
+            
+            // Update frame state with KB data
+            setFrames(kbFrames);
+            
+            // Ensure current frame index is valid
+            if (currentFrameIndex >= kbFrames.length) {
+              setCurrentFrameIndex(0);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("❌ Failed to reload frames from KB:", error);
+      }
+    };
+
+    // Small delay to ensure VectorStore is fully ready
+    const reloadTimer = setTimeout(reloadFromKBIfNeeded, 1000);
+    
+    return () => clearTimeout(reloadTimer);
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentFrameIndex]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
@@ -5773,7 +6110,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                                 <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">{textContent.title}</h3>
                                 <div className="prose prose-sm max-w-none text-green-800 dark:text-green-200">
-                                  {textContent.text.split('\n').map((paragraph, index) => (
+                                  {textContent.text.split('\n').map((paragraph: string, index: number) => (
                                     <p key={index} className="mb-2">{paragraph}</p>
                                   ))}
                                 </div>
