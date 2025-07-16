@@ -28,6 +28,11 @@ frontend:
         - echo "AWS_SECRET_ACCESS_KEY is ${SECRET_ACCESS_KEY_AWS:+set}"
         - echo "📧 Email service variables check..."
         - echo "RESEND_API_KEY is ${RESEND_API_KEY:+set}"
+        - echo "💰 Payment service variables check..."
+        - echo "NEXT_PUBLIC_RAZORPAY_KEY_ID is ${NEXT_PUBLIC_RAZORPAY_KEY_ID:+set}"
+        - echo "RAZORPAY_KEY_ID is ${RAZORPAY_KEY_ID:+set}"
+        - echo "RAZORPAY_KEY_SECRET is ${RAZORPAY_KEY_SECRET:+set}"
+        - echo "RAZORPAY_WEBHOOK_SECRET is ${RAZORPAY_WEBHOOK_SECRET:+set}"
     build:
       commands:
         - echo "🔨 Building Next.js application..."
@@ -46,6 +51,10 @@ frontend:
         - echo "AWS_SECRET_ACCESS_KEY=$SECRET_ACCESS_KEY_AWS" >> .env.production
         - echo "RESEND_API_KEY=$RESEND_API_KEY" >> .env.production
         - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL" >> .env.production
+        - echo "NEXT_PUBLIC_RAZORPAY_KEY_ID=$NEXT_PUBLIC_RAZORPAY_KEY_ID" >> .env.production
+        - echo "RAZORPAY_KEY_ID=$RAZORPAY_KEY_ID" >> .env.production
+        - echo "RAZORPAY_KEY_SECRET=$RAZORPAY_KEY_SECRET" >> .env.production
+        - echo "RAZORPAY_WEBHOOK_SECRET=$RAZORPAY_WEBHOOK_SECRET" >> .env.production
         - echo "✅ Environment variables written to .env.production"
         - echo "🔍 Verifying .env.production contents:"
         - cat .env.production
