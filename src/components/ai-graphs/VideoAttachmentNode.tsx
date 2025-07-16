@@ -110,7 +110,15 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
       <Handle 
         type="source" 
         position={Position.Left} 
-        className="w-4 h-4 bg-red-500 border-2 border-white"
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#000000',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          zIndex: 5
+        }}
       />
       
       <Card className={`w-80 ${selected ? 'ring-2 ring-red-500' : ''} ${data.isAttached ? 'border-green-500' : 'border-gray-300'} transition-all duration-200`}>

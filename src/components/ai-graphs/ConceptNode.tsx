@@ -11,8 +11,15 @@ export default function ConceptNode({ data, selected }: NodeProps & { data: Conc
       <Handle 
         type="target" 
         position={Position.Left} 
-        className="w-2 h-2"
-        style={{ borderRadius: '50%' }}
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#000000',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          zIndex: 5
+        }}
       />
       
       <Card className={`w-48 ${selected ? 'ring-2 ring-yellow-500' : ''} bg-yellow-50 border-yellow-200`}>

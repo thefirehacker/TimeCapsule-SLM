@@ -31,7 +31,19 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
 
   return (
     <div className="chapter-node">
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#000000',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          zIndex: 5
+        }}
+      />
       
       <Card className={`w-64 ${selected ? 'ring-2 ring-green-500' : ''} bg-green-50 border-green-200`}>
         <CardHeader className="pb-2">
@@ -110,7 +122,19 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
         </CardContent>
       </Card>
       
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#000000',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          zIndex: 5
+        }}
+      />
     </div>
   );
 } 
