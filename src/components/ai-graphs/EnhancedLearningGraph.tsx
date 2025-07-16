@@ -74,6 +74,7 @@ export default function EnhancedLearningGraph({
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
+  const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -90,6 +91,17 @@ export default function EnhancedLearningGraph({
   const handleAttachContent = useCallback((frameId: string, attachment: FrameAttachment) => {
     console.log('🔗 Enhanced: Attaching content to frame:', { frameId, attachment });
     
+    // CRITICAL DEBUG: Log video attachment data
+    if (attachment.type === 'video') {
+      console.log('🎥 CRITICAL DEBUG: Video attachment data:', {
+        attachmentDataVideoUrl: attachment.data.videoUrl,
+        attachmentDataStartTime: attachment.data.startTime,
+        attachmentDataDuration: attachment.data.duration,
+        videoUrlEmpty: !attachment.data.videoUrl,
+        videoUrlLength: attachment.data.videoUrl?.length || 0
+      });
+    }
+    
     // Update the frame in the frames array
     if (onFramesChange) {
       const updatedFrames = frames.map(frame => 
@@ -104,6 +116,20 @@ export default function EnhancedLearningGraph({
           })
         } : frame
       );
+      
+      // CRITICAL DEBUG: Log the frame update
+      if (attachment.type === 'video') {
+        const updatedFrame = updatedFrames.find(f => f.id === frameId);
+        console.log('🎥 CRITICAL DEBUG: Frame updated with video data:', {
+          frameId,
+          frameVideoUrl: updatedFrame?.videoUrl,
+          frameStartTime: updatedFrame?.startTime,
+          frameDuration: updatedFrame?.duration,
+          frameHasAttachment: !!updatedFrame?.attachment,
+          frameAttachmentType: updatedFrame?.attachment?.type
+        });
+      }
+      
       onFramesChange(updatedFrames);
     }
 
@@ -137,6 +163,19 @@ export default function EnhancedLearningGraph({
       attachmentType: attachment.type,
       action: 'attached'
     });
+    
+    // CRITICAL FIX: Force save to Knowledge Base when attachment is added
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'attachment-added',
+            frameId,
+            attachmentType: attachment.type
+          }
+        }));
+      }
+    }, 100);
   }, [frames, onFramesChange]);
 
   // Handle content detachment from frames
@@ -189,9 +228,57 @@ export default function EnhancedLearningGraph({
     });
   }, [frames, onFramesChange]);
 
+  // REAL-TIME SYNC: Handle node deletion
+  useEffect(() => {
+    if (previousNodes.length > 0) {
+      const deletedNodes = previousNodes.filter(prevNode => 
+        !nodes.some(currentNode => currentNode.id === prevNode.id)
+      );
+
+      if (deletedNodes.length > 0) {
+        console.log('🗑️ REAL-TIME: Nodes deleted from graph:', {
+          deletedNodes: deletedNodes.map(n => ({ id: n.id, type: n.type }))
+        });
+
+        // Handle AI frame node deletions
+        const deletedAIFrameNodes = deletedNodes.filter(node => 
+          node.type === 'aiframe' && node.data?.frameId
+        );
+
+        if (deletedAIFrameNodes.length > 0 && onFramesChange) {
+          const deletedFrameIds = deletedAIFrameNodes.map(node => node.data.frameId);
+          console.log('🗑️ REAL-TIME: AI Frame nodes deleted, removing from frames array:', {
+            deletedFrameIds
+          });
+
+          // Remove frames from frames array
+          const updatedFrames = frames.filter(frame => !deletedFrameIds.includes(frame.id));
+          onFramesChange(updatedFrames);
+
+          // Emit events for each deleted frame
+          deletedFrameIds.forEach(frameId => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
+                detail: { frameId }
+              }));
+            }
+          });
+
+          console.log('✅ REAL-TIME: Deleted AI Frame nodes synced to frames array:', {
+            deletedFrameIds,
+            remainingFrames: updatedFrames.length
+          });
+        }
+      }
+    }
+
+    setPreviousNodes(nodes);
+  }, [nodes, frames, onFramesChange]);
+
   // Sync frames to enhanced graph nodes on initial load
   useEffect(() => {
-    if (frames.length > 0 && nodes.length === 0) {
+    // Only sync if we have frames, no nodes, and no initial graph state was provided
+    if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
       console.log('🔄 Enhanced: Syncing frames to enhanced graph nodes');
       
       const newNodes: Node[] = [];
@@ -273,7 +360,7 @@ export default function EnhancedLearningGraph({
         edgeCount: newEdges.length
       });
     }
-  }, [frames, nodes.length, handleFrameUpdate, handleAttachContent, handleDetachContent]);
+  }, [frames, nodes.length, initialGraphState, handleFrameUpdate, handleAttachContent, handleDetachContent]);
 
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {
@@ -336,6 +423,13 @@ export default function EnhancedLearningGraph({
             return;
           }
           
+          // ENHANCED DEBUG: Check if video attachment has empty URL
+          if (sourceNode.type === 'video-attachment' && !sourceNode.data.videoUrl) {
+            console.warn('⚠️ VIDEO ATTACHMENT WARNING: VideoAttachmentNode has empty videoUrl!');
+            console.warn('📝 USER WORKFLOW: Please edit the VideoAttachmentNode first and add a YouTube URL before connecting');
+            console.warn('🎯 EXPECTED WORKFLOW: 1) Drag VideoAttachmentNode → 2) Click Edit → 3) Add YouTube URL → 4) Save → 5) Connect to frame');
+          }
+          
           // Create attachment from source node
           const attachment: FrameAttachment = {
             id: sourceNode.id,
@@ -358,6 +452,36 @@ export default function EnhancedLearningGraph({
             }
           };
           
+          // ENHANCED DEBUG: Log attachment being created with detailed video info
+          console.log('🔗 Creating attachment connection:', {
+            sourceNode: sourceNode.type,
+            targetFrameId: targetNode.data.frameId,
+            attachmentType: attachment.type,
+            attachmentData: attachment.data,
+            sourceNodeVideoUrl: sourceNode.data.videoUrl,
+            sourceNodeStartTime: sourceNode.data.startTime,
+            sourceNodeDuration: sourceNode.data.duration,
+            // CRITICAL DEBUG: Show if video URL is empty
+            videoUrlEmpty: !sourceNode.data.videoUrl,
+            videoUrlLength: sourceNode.data.videoUrl?.length || 0,
+            // CRITICAL DEBUG: Show what's actually in attachment.data
+            attachmentDataVideoUrl: attachment.data.videoUrl,
+            attachmentDataStartTime: attachment.data.startTime,
+            attachmentDataDuration: attachment.data.duration
+          });
+          
+          // ENHANCED DEBUG: Warn if video attachment has no URL
+          if (sourceNode.type === 'video-attachment' && !sourceNode.data.videoUrl) {
+            console.error('❌ CRITICAL: Video attachment connected with empty videoUrl!');
+            console.error('💡 SOLUTION: Edit the VideoAttachmentNode and add a YouTube URL before connecting');
+            console.error('🔧 CURRENT DATA:', {
+              videoUrl: sourceNode.data.videoUrl,
+              startTime: sourceNode.data.startTime,
+              duration: sourceNode.data.duration,
+              title: sourceNode.data.title
+            });
+          }
+          
           // Attach content to frame
           handleAttachContent(targetNode.data.frameId, attachment);
           
@@ -379,8 +503,68 @@ export default function EnhancedLearningGraph({
       };
       
       setEdges((eds) => addEdge(edge, eds));
+      
+      // Emit connection event for real-time sync
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('graph-connection-added', {
+          detail: {
+            connection: edge,
+            sourceNode: nodes.find(n => n.id === params.source),
+            targetNode: nodes.find(n => n.id === params.target),
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
     },
     [nodes, edges, handleAttachContent]
+  );
+
+  // REAL-TIME SYNC: Handle edge/connection deletion
+  const onEdgesDelete = useCallback(
+    (edgesToDelete: Edge[]) => {
+      console.log('🗑️ Enhanced: Connections being deleted:', {
+        count: edgesToDelete.length,
+        edges: edgesToDelete.map(e => ({ id: e.id, source: e.source, target: e.target }))
+      });
+
+      edgesToDelete.forEach(edge => {
+        // Check if this is an attachment connection
+        if ((edge as any).targetHandle === 'attachment-slot') {
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          const targetNode = nodes.find(n => n.id === edge.target);
+          
+          if (sourceNode && targetNode && targetNode.data.frameId) {
+            console.log('🔗 Enhanced: Removing attachment connection:', {
+              sourceNodeId: sourceNode.id,
+              targetFrameId: targetNode.data.frameId
+            });
+            
+            // Detach content from frame
+            handleDetachContent(targetNode.data.frameId);
+            
+            // Update source node as detached
+            setNodes(nds => nds.map(node => 
+              node.id === sourceNode.id 
+                ? { ...node, data: { ...node.data, isAttached: false, attachedToFrameId: undefined } }
+                : node
+            ));
+          }
+        }
+        
+        // Emit connection removal event for real-time sync
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-connection-removed', {
+            detail: {
+              connection: edge,
+              sourceNode: nodes.find(n => n.id === edge.source),
+              targetNode: nodes.find(n => n.id === edge.target),
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+      });
+    },
+    [nodes, handleDetachContent]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -491,16 +675,28 @@ export default function EnhancedLearningGraph({
       if (type === "aiframe" && onFramesChange) {
         console.log('🎯 Enhanced: Creating new AI Frame from enhanced graph node');
         
+        // FIXED: Generate unique frame title based on highest existing frame number
+        const existingFrameNumbers = frames
+          .map(f => f.title.match(/^Frame (\d+)$/)?.[1])
+          .filter(Boolean)
+          .map(Number);
+        
+        const nextFrameNumber = existingFrameNumbers.length > 0 
+          ? Math.max(...existingFrameNumbers) + 1 
+          : 1;
+        
+        const uniqueTitle = `Frame ${nextFrameNumber}`;
+        
         const newFrame = {
           id: newNodeData.frameId,
-          title: newNodeData.title,
-          goal: newNodeData.goal,
-          informationText: newNodeData.informationText,
-          afterVideoText: newNodeData.afterVideoText,
+          title: uniqueTitle,
+          goal: newNodeData.goal || `Learning goal for ${uniqueTitle}`,
+          informationText: newNodeData.informationText || `Context and background for ${uniqueTitle}`,
+          afterVideoText: newNodeData.afterVideoText || `Key takeaways for ${uniqueTitle}`,
           aiConcepts: newNodeData.aiConcepts || [],
           isGenerated: newNodeData.isGenerated || false,
           // Frame structure fields
-          order: frames.length + 1,
+          order: nextFrameNumber,
           bubblSpaceId: "default",
           timeCapsuleId: "default",
           type: 'frame' as const,
@@ -512,24 +708,29 @@ export default function EnhancedLearningGraph({
           duration: 300,
         };
         
-        const updatedFrames = [...frames, newFrame];
-        onFramesChange(updatedFrames);
+        // CRITICAL FIX: Ensure frames array is never empty during creation
+        const updatedFrames = frames.length > 0 ? [...frames, newFrame] : [newFrame];
         
-        // Emit event to sync with Frame Navigation
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('graph-frame-added', {
-            detail: {
-              newFrame,
-              totalFrames: updatedFrames.length
-            }
-          }));
-        }
-        
-        console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
-          frameId: newFrame.id,
-          title: newFrame.title,
-          totalFrames: updatedFrames.length
-        });
+        // FIXED: Use a small delay to ensure state is stable before triggering change
+        setTimeout(() => {
+          onFramesChange(updatedFrames);
+          
+          // Emit event to sync with Frame Navigation
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('graph-frame-added', {
+              detail: {
+                newFrame,
+                totalFrames: updatedFrames.length
+              }
+            }));
+          }
+          
+          console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
+            frameId: newFrame.id,
+            title: newFrame.title,
+            totalFrames: updatedFrames.length
+          });
+        }, 50); // Small delay to prevent race conditions
       }
     },
     [reactFlowInstance, frames, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent]
@@ -580,12 +781,26 @@ export default function EnhancedLearningGraph({
       console.log('✅ Enhanced Graph: All nodes and edges cleared successfully');
     };
 
+    const handleAttachmentNodeUpdated = (event: CustomEvent) => {
+      const { frameId, attachment, nodeId } = event.detail;
+      console.log('📡 Enhanced Graph: Attachment node updated event received:', {
+        frameId, 
+        nodeId, 
+        attachmentType: attachment.type
+      });
+      
+      // Update the connected frame
+      handleAttachContent(frameId, attachment);
+    };
+
     window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+    window.addEventListener('attachment-node-updated', handleAttachmentNodeUpdated as EventListener);
     
     return () => {
       window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+      window.removeEventListener('attachment-node-updated', handleAttachmentNodeUpdated as EventListener);
     };
-  }, [nodes.length, edges.length]);
+  }, [nodes.length, edges.length, handleAttachContent]);
 
   // Update graph state when nodes/edges change
   useEffect(() => {
@@ -608,6 +823,7 @@ export default function EnhancedLearningGraph({
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
           onInit={setReactFlowInstance}
           onDrop={onDrop}

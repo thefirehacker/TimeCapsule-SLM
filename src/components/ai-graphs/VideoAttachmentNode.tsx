@@ -32,6 +32,38 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
     try {
       // Update the node data
       Object.assign(data, editData);
+      
+      // If this attachment is connected to a frame, update the frame's attachment
+      if (data.isAttached && data.attachedToFrameId) {
+        const updatedAttachment = {
+          id: data.id,
+          type: 'video' as const,
+          data: {
+            title: editData.title,
+            videoUrl: editData.videoUrl,
+            startTime: editData.startTime,
+            duration: editData.duration,
+            notes: editData.notes
+          }
+        };
+        
+        // Emit event to update the connected frame
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('attachment-node-updated', {
+            detail: {
+              frameId: data.attachedToFrameId,
+              attachment: updatedAttachment,
+              nodeId: data.id
+            }
+          }));
+        }
+        
+        console.log('📡 Video attachment updated, notifying connected frame:', {
+          frameId: data.attachedToFrameId,
+          videoUrl: editData.videoUrl
+        });
+      }
+      
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to save video attachment:', error);
@@ -252,6 +284,14 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
             <div className="text-xs text-green-600 flex items-center gap-1">
               <Link className="h-3 w-3" />
               Attached to frame
+            </div>
+          )}
+
+          {/* ENHANCED: Video URL Warning */}
+          {!data.videoUrl && (
+            <div className="text-xs text-orange-600 flex items-center gap-1 bg-orange-50 p-2 rounded">
+              <Video className="h-3 w-3" />
+              <span>⚠️ Add YouTube URL before connecting to frame</span>
             </div>
           )}
 

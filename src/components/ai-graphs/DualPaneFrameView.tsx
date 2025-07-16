@@ -59,6 +59,7 @@ interface DualPaneFrameViewProps {
   currentFrameIndex: number;
   onFrameIndexChange: (index: number) => void;
   onCreateFrame?: () => void;
+  defaultMaximized?: boolean; // New prop to control default maximization
 }
 
 export default function DualPaneFrameView({
@@ -68,6 +69,7 @@ export default function DualPaneFrameView({
   currentFrameIndex,
   onFrameIndexChange,
   onCreateFrame,
+  defaultMaximized = false,
 }: DualPaneFrameViewProps) {
   const [graphState, setGraphState] = useState<GraphState>({
     nodes: [],
@@ -76,8 +78,9 @@ export default function DualPaneFrameView({
   });
   const [editingFrameId, setEditingFrameId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<AIFrame>>({});
-  const [isGraphMaximized, setIsGraphMaximized] = useState(false);
+  const [isGraphMaximized, setIsGraphMaximized] = useState(defaultMaximized);
   const [selectedNodeFrameId, setSelectedNodeFrameId] = useState<string | null>(null);
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'connected' | 'disconnected'>>({});
 
   // Get current frame safely
   const currentFrame = frames[currentFrameIndex];
@@ -222,14 +225,86 @@ export default function DualPaneFrameView({
       console.log('✅ Dual-pane: Graph cleared successfully');
     };
 
+    // Listen for individual frame edits and sync to graph
+    const handleFrameEdited = (event: CustomEvent) => {
+      const { frameId, frame } = event.detail;
+      console.log('🔄 Dual-pane: Frame edited event received, syncing to graph:', {
+        frameId,
+        frameName: frame.title
+      });
+      
+      // Update the specific frame in the frames array
+      const updatedFrames = frames.map(f => 
+        f.id === frameId 
+          ? { ...frame, updatedAt: new Date().toISOString() }
+          : f
+      );
+      onFramesChange(updatedFrames);
+      
+      // Update graph nodes to reflect the changes
+      setGraphState(prev => {
+        const updatedNodes = prev.nodes.map(node => {
+          if (node.data?.frameId === frameId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                title: frame.title,
+                goal: frame.goal,
+                informationText: frame.informationText,
+                afterVideoText: frame.afterVideoText,
+                aiConcepts: frame.aiConcepts,
+                videoUrl: frame.videoUrl,
+                startTime: frame.startTime,
+                duration: frame.duration,
+              }
+            };
+          }
+          return node;
+        });
+        
+        return {
+          ...prev,
+          nodes: updatedNodes
+        };
+      });
+      
+      console.log('✅ Dual-pane: Frame edit synced to graph successfully');
+    };
+
+    // Connection status handlers
+    const handleConnectionAdded = (event: CustomEvent) => {
+      const { connection } = event.detail;
+      setConnectionStatuses(prev => ({
+        ...prev,
+        [connection.id]: 'connected'
+      }));
+      console.log('🔗 Dual-pane: Connection added status updated:', connection.id);
+    };
+
+    const handleConnectionRemoved = (event: CustomEvent) => {
+      const { connection } = event.detail;
+      setConnectionStatuses(prev => ({
+        ...prev,
+        [connection.id]: 'disconnected'
+      }));
+      console.log('🗑️ Dual-pane: Connection removed status updated:', connection.id);
+    };
+
     window.addEventListener('frames-reordered', handleFramesReordered as EventListener);
     window.addEventListener('frame-navigation-selected', handleFrameNavigationSelected as EventListener);
     window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+    window.addEventListener('frame-edited', handleFrameEdited as EventListener);
+    window.addEventListener('graph-connection-added', handleConnectionAdded as EventListener);
+    window.addEventListener('graph-connection-removed', handleConnectionRemoved as EventListener);
     
     return () => {
       window.removeEventListener('frames-reordered', handleFramesReordered as EventListener);
       window.removeEventListener('frame-navigation-selected', handleFrameNavigationSelected as EventListener);
       window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
+      window.removeEventListener('frame-edited', handleFrameEdited as EventListener);
+      window.removeEventListener('graph-connection-added', handleConnectionAdded as EventListener);
+      window.removeEventListener('graph-connection-removed', handleConnectionRemoved as EventListener);
     };
   }, [onFramesChange, graphState.nodes]);
 

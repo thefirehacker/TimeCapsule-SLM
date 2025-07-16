@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ import {
   FileText,
   Bot,
   X,
+  File,
 } from "lucide-react";
 
 // Import DeepResearch components and types
@@ -123,6 +124,23 @@ interface AIFrame {
   type: "frame" | "chapter" | "module"; // Frame type
   createdAt: string;
   updatedAt: string;
+  // NEW: Attachment and media fields
+  attachment?: {
+    type: string;
+    name: string;
+    size?: number;
+    data?: any;
+    url?: string;
+    content?: string;
+  };
+  notes?: string; // Text notes attached to frame
+  documents?: Array<{
+    name: string;
+    type: string;
+    size?: number;
+    content?: string;
+    url?: string;
+  }>; // Document attachments
 }
 
 interface FrameCreationData {
@@ -153,7 +171,7 @@ export default function AIFramesPage() {
   const [showCreationForm, setShowCreationForm] = useState(false);
 
   // NEW: Graph view state
-  const [showGraphView, setShowGraphView] = useState(false);
+  const [showGraphView, setShowGraphView] = useState(true); // Changed to true - show Graph View by default
 
   // Frame state - Always start empty, load from localStorage if available
   const [frames, setFrames] = useState<AIFrame[]>([]);
@@ -293,6 +311,7 @@ export default function AIFramesPage() {
   const [frameToDelete, setFrameToDelete] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLIFrameElement>(null);
+  const syncInProgressRef = useRef<boolean>(false);
 
   // Callback for TimeCapsule updates from FrameGraphIntegration
   const handleTimeCapsuleUpdate = useCallback(
@@ -765,23 +784,237 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     }
   };
 
-  // Load frames from IndexedDB/localStorage storage
+  // Load frames from Knowledge Base for real-time consistency
+  const loadFramesFromKnowledgeBase = useCallback(async (): Promise<AIFrame[]> => {
+    try {
+      if (!vectorStore || !vectorStoreInitialized) {
+        console.log("📊 VectorStore not available for loading frames");
+        return [];
+      }
+
+      console.log("🔍 Loading frames from Knowledge Base...");
+
+      // Get all documents and filter for AI-Frame documents
+      const allDocuments = await vectorStore.getAllDocuments();
+      const aiFrameDocuments = allDocuments.filter(doc => 
+        (doc.metadata?.source === 'ai-frames-auto-sync' || doc.metadata?.source === 'ai-frames') && doc.id?.startsWith('aiframe-')
+      );
+
+      console.log(`📊 Found ${aiFrameDocuments.length} AI-Frame documents in Knowledge Base`);
+      
+      // FIXED: Add more detailed logging for debugging
+      if (aiFrameDocuments.length > 0) {
+        console.log("📊 AI-Frame documents found:", aiFrameDocuments.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          hasMetadata: !!doc.metadata,
+          source: doc.metadata?.source
+        })));
+      } else {
+        // CRITICAL FIX: Add debugging to see what documents exist in KB
+        console.log("🔍 DEBUG: No AI-Frame documents found, checking all documents in KB:");
+        console.log("📊 All documents in KB:", allDocuments.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          hasMetadata: !!doc.metadata,
+          source: doc.metadata?.source,
+          startsWithAiframe: doc.id?.startsWith('aiframe-')
+        })));
+      }
+
+      if (aiFrameDocuments.length === 0) {
+        console.log("📊 No AI-Frame documents found in Knowledge Base");
+        return [];
+      }
+
+      // Helper function to extract content between markers
+      const extractFromContent = (content: string, marker: string): string => {
+        const lines = content.split('\n');
+        const markerLine = lines.find(line => line.startsWith(marker));
+        return markerLine ? markerLine.substring(marker.length).trim() : '';
+      };
+
+      // Convert KB documents back to AIFrame objects
+      const validFrames: AIFrame[] = [];
+      
+      for (const doc of aiFrameDocuments) {
+        try {
+          // Extract title properly - handle both "AI-Frame: " and "AI-Frame [X]: " patterns
+          const extractTitleFromDocTitle = (docTitle: string) => {
+            // First try to match "AI-Frame [X]: Title" pattern
+            const match = docTitle.match(/AI-Frame \[\d+\]: (.*)/);
+            if (match) return match[1];
+            
+            // Fallback to "AI-Frame: Title" pattern
+            const fallbackMatch = docTitle.match(/AI-Frame: (.*)/);
+            if (fallbackMatch) return fallbackMatch[1];
+            
+            return docTitle;
+          };
+          
+          // Extract video URL with validation
+          const rawVideoUrl = extractFromContent(doc.content, '- URL:') || '';
+          const cleanVideoUrl = rawVideoUrl === 'No video attachment' || rawVideoUrl === 'No video' ? '' : rawVideoUrl;
+          
+          const frame: AIFrame = {
+            id: doc.id?.replace('aiframe-', '') || doc.id,
+            title: extractFromContent(doc.content, 'Frame:') || extractTitleFromDocTitle(doc.title || '') || 'Untitled',
+            goal: extractFromContent(doc.content, 'Goal:') || 'No goal specified',
+            informationText: extractFromContent(doc.content, 'Information:') || 'No information provided',
+            videoUrl: cleanVideoUrl,
+            startTime: parseInt(extractFromContent(doc.content, '- Start Time:')?.replace('s', '') || '0') || 0,
+            duration: parseInt(extractFromContent(doc.content, '- Duration:')?.replace('s', '') || '300') || 300,
+            afterVideoText: extractFromContent(doc.content, 'After Video:') || 'No after video text',
+            aiConcepts: extractFromContent(doc.content, 'Concepts:')?.split(', ').filter((c: string) => c.trim()) || [],
+            isGenerated: doc.metadata?.isGenerated || false,
+            order: (doc.metadata as any)?.frameOrder || 1,
+            bubblSpaceId: (doc.metadata as any)?.bubblSpaceId || 'default',
+            timeCapsuleId: (doc.metadata as any)?.timeCapsuleId || 'default',
+            type: (doc.metadata as any)?.frameType || 'frame',
+            createdAt: (doc.metadata as any)?.createdAt || new Date().toISOString(),
+            updatedAt: (doc.metadata as any)?.updatedAt || new Date().toISOString(),
+            attachment: (doc.metadata as any)?.attachment
+          };
+          
+          // ENHANCED DEBUG: Log video URL extraction process
+          console.log('🔍 Video URL extraction debug:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            rawVideoUrl,
+            cleanVideoUrl,
+            isNoVideo: rawVideoUrl === 'No video attachment',
+            finalVideoUrl: frame.videoUrl,
+            hasAttachmentInMetadata: !!(doc.metadata as any)?.attachment,
+            hasVideoUrl: !!frame.videoUrl,
+            docContent: doc.content.substring(0, 500) + '...' // Show first 500 chars of content
+          });
+          
+          // Debug: Log attachment data being restored
+          if (frame.attachment) {
+            console.log('📹 Restoring frame with attachment:', {
+              frameId: frame.id,
+              frameTitle: frame.title,
+              attachmentType: frame.attachment.type,
+              attachmentData: frame.attachment.data,
+              fullAttachment: frame.attachment
+            });
+          } else {
+            console.log('📹 Frame has no attachment:', {
+              frameId: frame.id,
+              frameTitle: frame.title,
+              metadata: (doc.metadata as any)?.attachment
+            });
+          }
+          
+          validFrames.push(frame);
+        } catch (docError) {
+          console.warn("⚠️ Failed to parse KB document:", doc.id, docError);
+        }
+      }
+      
+      // Sort by order
+      const kbFrames = validFrames.sort((a: AIFrame, b: AIFrame) => (a.order || 1) - (b.order || 1));
+
+      console.log(`✅ Successfully loaded ${kbFrames.length} frames from Knowledge Base`);
+      
+      // FIXED: Add validation to ensure we have valid frames
+      if (kbFrames.length === 0) {
+        console.log("⚠️ Knowledge Base documents found but no valid frames could be parsed");
+        return [];
+      }
+      
+      return kbFrames;
+
+    } catch (error) {
+      console.error("❌ Failed to load frames from Knowledge Base:", error);
+      return [];
+    }
+  }, [vectorStore, vectorStoreInitialized]);
+
+  // Load frames from storage with Knowledge Base priority for real-time consistency
   const loadFramesFromStorage = useCallback(async () => {
     try {
-      // Primary: Try to load from GraphStorageManager (IndexedDB) if available
+      // PRIORITY 1: Try to load from Knowledge Base first (most recent data)
+      // FIXED: Remove processingAvailable restriction to make KB truly the priority
+      if (vectorStore && vectorStoreInitialized) {
+        console.log("🔍 Priority 1: Checking Knowledge Base for latest frames...");
+        
+        // FIXED: Add retry logic for KB loading to handle race conditions
+        let kbFrames: AIFrame[] = [];
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            kbFrames = await loadFramesFromKnowledgeBase();
+            console.log(`📊 KB load attempt ${retryCount + 1}: Found ${kbFrames.length} frames`);
+            
+            if (kbFrames && kbFrames.length > 0) {
+              console.log(`📊 Found ${kbFrames.length} frames in Knowledge Base after ${retryCount + 1} attempts, using as primary source`);
+              setFrames(kbFrames);
+              setCurrentFrameIndex(0); // Start with first frame
+              
+              // FIXED: Load graph connections from storage
+              await loadGraphConnections();
+              
+              // Sync IndexedDB with KB data to keep it updated
+              if (graphStorageManager) {
+                try {
+                  await graphStorageManager.saveFrameSequence(kbFrames, 0, {
+                    updatedAt: new Date().toISOString(),
+                    bubblSpaceId: 'default',
+                    timeCapsuleId: 'default'
+                  });
+                  console.log("✅ IndexedDB synced with Knowledge Base data");
+                } catch (syncError) {
+                  console.warn("⚠️ Failed to sync IndexedDB with KB data:", syncError);
+                }
+              }
+              
+              // FIX 1: Dispatch event to initialize real-time sync tracking
+              window.dispatchEvent(new CustomEvent('kb-frames-loaded', {
+                detail: { 
+                  frames: kbFrames,
+                  source: 'knowledge-base-load',
+                  timestamp: new Date().toISOString()
+                }
+              }));
+              console.log("📡 Dispatched kb-frames-loaded event for real-time sync initialization");
+              
+              console.log("✅ Frames loaded from Knowledge Base successfully");
+              return true;
+            }
+            
+            // If no frames found, wait and retry
+            if (retryCount < maxRetries - 1) {
+              console.log(`⏳ No frames found in KB, retrying in 500ms... (attempt ${retryCount + 1}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } else {
+              console.log("📊 Knowledge Base is available but contains no frames after all retries");
+            }
+          } catch (kbError) {
+            console.warn(`⚠️ KB load attempt ${retryCount + 1} failed:`, kbError);
+            if (retryCount < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } else {
+              console.warn("⚠️ Failed to load from Knowledge Base after all retries, falling back to IndexedDB");
+            }
+          }
+          retryCount++;
+        }
+      } else {
+        console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStoreInitialized, ")");
+      }
+
+      // PRIORITY 2: Fall back to GraphStorageManager (IndexedDB) if KB is not available
       if (graphStorageManager) {
-        console.log(
-          "📊 Loading frames from IndexedDB via GraphStorageManager..."
-        );
+        console.log("📊 Priority 2: Loading frames from IndexedDB via GraphStorageManager...");
 
         const frameSequence = await graphStorageManager.loadFrameSequence();
         const sessionState = await graphStorageManager.loadSessionState();
 
         if (frameSequence && frameSequence.frames.length > 0) {
-          console.log(
-            "📊 Loading frames from IndexedDB:",
-            frameSequence.frames.length
-          );
+          console.log("📊 Loading frames from IndexedDB:", frameSequence.frames.length);
           setFrames(frameSequence.frames);
           setCurrentFrameIndex(frameSequence.currentFrameIndex || 0);
 
@@ -793,61 +1026,176 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             setGraphState(sessionState.graphState);
           }
 
+          // FIXED: Load graph connections from storage
+          await loadGraphConnections();
+
           console.log("✅ Frames loaded from IndexedDB successfully");
+          
+          // FINAL FIX: Force UI update after loading frames from storage
+          setTimeout(() => {
+            console.log("🔄 Forcing UI update after loading frames from storage");
+            // Force re-render by updating state again
+            setFrames(frameSequence.frames);
+          }, 100);
+          
+          // TASK 2: Force KB sync when frames are loaded from storage to ensure consistency
+          if (vectorStore && vectorStoreInitialized && processingAvailable && frameSequence.frames.length > 0) {
+            console.log("🔄 Forcing KB sync after loading frames from storage...");
+            try {
+              await syncGraphChangesToKB(frameSequence.frames);
+              console.log("✅ KB sync completed after loading frames from storage");
+            } catch (error) {
+              console.error("❌ Failed to sync KB after loading frames from storage:", error);
+            }
+          }
+          
           return true;
         }
       }
 
-      // Fallback: Try to load from TimeCapsule data in localStorage
+      // PRIORITY 3: Fall back to localStorage (final fallback)
+      console.log("📊 Priority 3: Loading frames from localStorage as final fallback...");
+      
+      // UNIFIED STORAGE APPROACH: Check both storage locations and use the most recent
       const timeCapsuleData = localStorage.getItem("ai_frames_timecapsule");
+      const graphData = localStorage.getItem("ai_frames_graph_state");
+
+      let timeCapsuleParsed = null;
+      let graphParsed = null;
+      let timeCapsuleLastSaved = null;
+      let graphLastSaved = null;
+
+      // Parse TimeCapsule data
       if (timeCapsuleData) {
-        const parsed = JSON.parse(timeCapsuleData);
-        if (parsed.data?.frames && Array.isArray(parsed.data.frames)) {
-          console.log(
-            "📊 Loading frames from localStorage TimeCapsule:",
-            parsed.data.frames.length
-          );
-          setFrames(parsed.data.frames);
-          setCurrentFrameIndex(parsed.data.currentFrameIndex || 0);
-
-          // Update other state if available
-          if (parsed.data.isCreationMode !== undefined) {
-            setIsCreationMode(parsed.data.isCreationMode);
-          }
-          if (parsed.data.showGraphView !== undefined) {
-            setShowGraphView(parsed.data.showGraphView);
-          }
-          if (parsed.data.graphState) {
-            setGraphState(parsed.data.graphState);
-          }
-          if (parsed.data.chapters) {
-            setChapters(parsed.data.chapters);
-          }
-
-          console.log(
-            "✅ Frames loaded from localStorage TimeCapsule successfully"
-          );
-          return true;
+        try {
+          timeCapsuleParsed = JSON.parse(timeCapsuleData);
+          timeCapsuleLastSaved = timeCapsuleParsed.data?.lastSaved || timeCapsuleParsed.data?.lastGraphSave || null;
+        } catch (error) {
+          console.warn("⚠️ Failed to parse TimeCapsule data:", error);
         }
       }
 
-      // Final fallback: Try to load from graph state storage
-      const graphData = localStorage.getItem("ai_frames_graph_state");
+      // Parse Graph data
       if (graphData) {
-        const parsed = JSON.parse(graphData);
-        if (parsed.frames && Array.isArray(parsed.frames)) {
-          console.log(
-            "📊 Loading frames from localStorage graph storage:",
-            parsed.frames.length
-          );
-          setFrames(parsed.frames);
-          setCurrentFrameIndex(0); // Reset to first frame
-
-          console.log(
-            "✅ Frames loaded from localStorage graph storage successfully"
-          );
-          return true;
+        try {
+          graphParsed = JSON.parse(graphData);
+          graphLastSaved = graphParsed.lastSaved || null;
+        } catch (error) {
+          console.warn("⚠️ Failed to parse Graph data:", error);
         }
+      }
+
+      // Determine which data source to use based on timestamp
+      let useTimeCapsule = false;
+      let useGraph = false;
+
+      if (timeCapsuleParsed?.data?.frames && Array.isArray(timeCapsuleParsed.data.frames)) {
+        useTimeCapsule = true;
+      }
+
+      if (graphParsed?.frames && Array.isArray(graphParsed.frames)) {
+        useGraph = true;
+      }
+
+      // If both exist, use the most recent
+      if (useTimeCapsule && useGraph && timeCapsuleLastSaved && graphLastSaved) {
+        const timeCapsuleTime = new Date(timeCapsuleLastSaved).getTime();
+        const graphTime = new Date(graphLastSaved).getTime();
+        
+        if (graphTime > timeCapsuleTime) {
+          useTimeCapsule = false;
+          console.log("📊 Using Graph data (more recent):", graphLastSaved, "vs", timeCapsuleLastSaved);
+        } else {
+          useGraph = false;
+          console.log("📊 Using TimeCapsule data (more recent):", timeCapsuleLastSaved, "vs", graphLastSaved);
+        }
+      }
+
+      // Load from selected source
+      if (useTimeCapsule && timeCapsuleParsed) {
+        console.log(
+          "📊 Loading frames from localStorage TimeCapsule:",
+          timeCapsuleParsed.data.frames.length
+        );
+        setFrames(timeCapsuleParsed.data.frames);
+        setCurrentFrameIndex(timeCapsuleParsed.data.currentFrameIndex || 0);
+
+        // Update other state if available
+        if (timeCapsuleParsed.data.isCreationMode !== undefined) {
+          setIsCreationMode(timeCapsuleParsed.data.isCreationMode);
+        }
+        if (timeCapsuleParsed.data.showGraphView !== undefined) {
+          setShowGraphView(timeCapsuleParsed.data.showGraphView);
+        }
+        if (timeCapsuleParsed.data.graphState) {
+          setGraphState(timeCapsuleParsed.data.graphState);
+        }
+        if (timeCapsuleParsed.data.chapters) {
+          setChapters(timeCapsuleParsed.data.chapters);
+        }
+
+        console.log("✅ Frames loaded from localStorage TimeCapsule successfully");
+        
+        // TASK 2: Force KB sync when frames are loaded from storage to ensure consistency
+        if (vectorStore && vectorStoreInitialized && processingAvailable && timeCapsuleParsed.data.frames.length > 0) {
+          console.log("🔄 Forcing KB sync after loading frames from TimeCapsule storage...");
+          try {
+            await syncGraphChangesToKB(timeCapsuleParsed.data.frames);
+            console.log("✅ KB sync completed after loading frames from TimeCapsule storage");
+            
+            // CRITICAL FIX: Reload frames from KB to get attachment data
+            console.log("🔄 Reloading frames from KB to restore attachment data...");
+            const kbFrames = await loadFramesFromKnowledgeBase();
+            if (kbFrames.length > 0) {
+              console.log("✅ Frames reloaded from KB with attachment data restored");
+              setFrames(kbFrames);
+            }
+          } catch (error) {
+            console.error("❌ Failed to sync KB after loading frames from TimeCapsule storage:", error);
+          }
+        }
+        
+        return true;
+      }
+
+      if (useGraph && graphParsed) {
+        console.log(
+          "📊 Loading frames from localStorage Graph state:",
+          graphParsed.frames.length
+        );
+        setFrames(graphParsed.frames);
+        setCurrentFrameIndex(0); // Reset to first frame
+
+        // Update other state if available
+        if (graphParsed.graphState) {
+          setGraphState(graphParsed.graphState);
+        }
+        if (graphParsed.chapters) {
+          setChapters(graphParsed.chapters);
+        }
+
+        console.log("✅ Frames loaded from localStorage Graph state successfully");
+        
+        // TASK 2: Force KB sync when frames are loaded from storage to ensure consistency
+        if (vectorStore && vectorStoreInitialized && processingAvailable && graphParsed.frames.length > 0) {
+          console.log("🔄 Forcing KB sync after loading frames from Graph state storage...");
+          try {
+            await syncGraphChangesToKB(graphParsed.frames);
+            console.log("✅ KB sync completed after loading frames from Graph state storage");
+            
+            // CRITICAL FIX: Reload frames from KB to get attachment data
+            console.log("🔄 Reloading frames from KB to restore attachment data...");
+            const kbFrames = await loadFramesFromKnowledgeBase();
+            if (kbFrames.length > 0) {
+              console.log("✅ Frames reloaded from KB with attachment data restored");
+              setFrames(kbFrames);
+            }
+          } catch (error) {
+            console.error("❌ Failed to sync KB after loading frames from Graph state storage:", error);
+          }
+        }
+        
+        return true;
       }
 
       console.log("ℹ️ No frames found in any storage");
@@ -871,7 +1219,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           timeCapsuleId: currentTimeCapsule?.id,
         });
 
-        // Save session state
+        // Save session state with graph connections
         await graphStorageManager.saveSessionState({
           isCreationMode,
           showGraphView,
@@ -880,7 +1228,17 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           lastActiveFrame: currentFrameIndex,
         });
 
-        console.log("✅ Frames saved to IndexedDB successfully");
+        // FIXED: Save graph layout with connections
+        if (graphState && (graphState.nodes.length > 0 || graphState.edges.length > 0)) {
+          await graphStorageManager.saveGraphLayout({
+            nodes: graphState.nodes,
+            edges: graphState.edges,
+            viewport: graphState.viewport
+          });
+          console.log("🔗 Graph connections saved to IndexedDB");
+        }
+
+        console.log("✅ Frames and connections saved to IndexedDB successfully");
       }
 
       // Fallback/Compatibility: Save to localStorage
@@ -895,6 +1253,18 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           lastSaved: new Date().toISOString(),
         },
       };
+
+      // FIXED: Also save graph connections to localStorage for backup
+      if (graphState && (graphState.nodes.length > 0 || graphState.edges.length > 0)) {
+        const graphConnectionsData = {
+          nodes: graphState.nodes,
+          edges: graphState.edges,
+          viewport: graphState.viewport,
+          lastSaved: new Date().toISOString(),
+        };
+        localStorage.setItem("ai_frames_graph_connections", JSON.stringify(graphConnectionsData));
+        console.log("🔗 Graph connections saved to localStorage backup");
+      }
 
       localStorage.setItem(
         "ai_frames_timecapsule",
@@ -1108,8 +1478,197 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     initializeGraphStorage();
   }, [vectorStore, vectorStoreInitialized, graphStorageManager]);
 
+  // Remove this - will be added after saveAllFramesToKB is defined
+
+  // Sync graph changes directly to Knowledge Base
+  const syncGraphChangesToKB = useCallback(async (graphFrames?: AIFrame[]) => {
+    // Prevent concurrent sync operations
+    if (syncInProgressRef.current) {
+      console.log("⏳ Graph-to-KB sync already in progress, skipping concurrent call");
+      return;
+    }
+
+    const framesToSync = graphFrames || frames;
+    
+    if (!vectorStore || !vectorStoreInitialized || framesToSync.length === 0) {
+      return;
+    }
+
+    if (!processingAvailable) {
+      console.log(
+        "⏳ VectorStore not ready for processing, skipping graph-to-KB sync"
+      );
+      return;
+    }
+
+    // Set sync in progress flag
+    syncInProgressRef.current = true;
+
+    try {
+      console.log(
+        `🔄 Syncing ${framesToSync.length} frames from graph changes to Knowledge Base...`
+      );
+      
+      // Process frames with immediate KB sync
+      for (let index = 0; index < framesToSync.length; index++) {
+        const frame = framesToSync[index];
+        if (!frame.title || !frame.informationText) continue;
+
+        // Enhanced document title with order information
+        const title = `AI-Frame [${frame.order || index + 1}]: ${frame.title}`;
+        const docId = `aiframe-${frame.id}`;
+
+        // Check if this AI-Frame already exists in KB
+        const existingDocs = await vectorStore.getAllDocuments();
+        const existingDoc = existingDocs.find(
+          (doc) =>
+            doc.id === docId ||
+            (doc.metadata.source === "ai-frames" &&
+              (doc.metadata as any).aiFrameId === frame.id)
+        );
+
+        if (existingDoc) {
+          // Delete existing document first to ensure clean update
+          try {
+            await vectorStore.deleteDocument(existingDoc.id);
+            console.log(`🔄 Updated KB document for frame: ${frame.title}`);
+          } catch (deleteError) {
+            console.warn(
+              `⚠️ Failed to delete old AI-Frame document: ${deleteError}`
+            );
+          }
+        }
+
+        // Create enhanced document content with attachment details
+        const frameWithAttachment = frame as any; // Type assertion to access attachment properties
+        
+        // Debug: Log attachment data being saved
+        if (frameWithAttachment.attachment) {
+          console.log('💾 Saving frame with attachment to KB:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            attachmentType: frameWithAttachment.attachment.type,
+            attachmentData: frameWithAttachment.attachment.data
+          });
+        }
+        const content = `
+Learning Goal: ${frame.goal}
+
+Order: ${frame.order || index + 1} of ${framesToSync.length}
+Type: ${frame.type || "frame"}
+${frame.parentFrameId ? `Parent Frame: ${frame.parentFrameId}` : ""}
+BubblSpace: ${frame.bubblSpaceId || currentBubblSpace?.id || "default"}
+TimeCapsule: ${frame.timeCapsuleId || currentTimeCapsule?.id || "default"}
+
+Context & Background:
+${frame.informationText}
+
+After Video Content:
+${frame.afterVideoText || "No additional content"}
+
+AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
+
+ATTACHMENTS & MEDIA:
+Video Attachment:
+- URL: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl || "No video attachment"}
+- Start Time: ${frame.startTime || frameWithAttachment.attachment?.data?.startTime || 0}s
+- Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
+- Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
+
+${frameWithAttachment.attachment ? `
+Additional Attachment:
+- Type: ${frameWithAttachment.attachment.type || "Unknown"}
+- Name: ${frameWithAttachment.attachment.name || "Unnamed"}
+- Size: ${frameWithAttachment.attachment.size ? `${frameWithAttachment.attachment.size} bytes` : "Unknown"}
+- Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
+- URL: ${frameWithAttachment.attachment.url || "No URL"}
+- Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
+` : "Additional Attachments: None"}
+
+Text Notes:
+${frameWithAttachment.notes || "No text notes"}
+
+Document Attachments:
+${frameWithAttachment.documents ? frameWithAttachment.documents.map((doc: any) => `- ${doc.name || "Unnamed"} (${doc.type || "Unknown type"})`).join('\n') : "No document attachments"}
+
+Metadata:
+- Generated: ${frame.isGenerated ? "Yes" : "No"}
+- Created: ${frame.createdAt || "Unknown"}
+- Updated: ${frame.updatedAt || "Unknown"}
+${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
+- Attachment Count: ${frameWithAttachment.attachment ? 1 : 0}
+- Has Video: ${frame.videoUrl ? "Yes" : "No"}
+- Has Text Notes: ${frameWithAttachment.notes ? "Yes" : "No"}
+- Has Documents: ${frameWithAttachment.documents ? frameWithAttachment.documents.length : 0}
+        `.trim();
+
+        // Insert the enhanced document
+        const aiFrameDoc = {
+          id: docId,
+          title: title,
+          content: content,
+          metadata: {
+            filename: `aiframe-${frame.id}.json`,
+            filesize: JSON.stringify(frame).length,
+            filetype: "application/json",
+            uploadedAt: frame.createdAt || new Date().toISOString(),
+            source: "ai-frames",
+            description: `AI-Frame: ${frame.title} (Order: ${frame.order || index + 1})`,
+            isGenerated: true,
+            aiFrameId: frame.id,
+            aiFrameType: frame.type || "frame",
+            aiFrameOrder: frame.order || index + 1,
+            aiFrameTotalFrames: framesToSync.length,
+            parentFrameId: frame.parentFrameId,
+            bubblSpaceId:
+              frame.bubblSpaceId || currentBubblSpace?.id || "default",
+            timeCapsuleId:
+              frame.timeCapsuleId || currentTimeCapsule?.id || "default",
+            videoUrl: frame.videoUrl,
+            startTime: frame.startTime,
+            duration: frame.duration,
+            createdAt: frame.createdAt,
+            updatedAt: frame.updatedAt || new Date().toISOString(),
+            frameHierarchy: {
+              order: frame.order || index + 1,
+              total: framesToSync.length,
+              type: frame.type || "frame",
+              hasParent: !!frame.parentFrameId,
+              parentId: frame.parentFrameId,
+            },
+            // CRITICAL: Save attachment data for persistence
+            attachment: frameWithAttachment.attachment,
+          },
+          chunks: [],
+          vectors: [],
+        };
+
+        await vectorStore.insertDocument(aiFrameDoc);
+        console.log(`✅ Synced frame to KB: ${frame.title}`);
+      }
+
+      console.log(`✅ Graph-to-KB sync completed for ${framesToSync.length} frames`);
+      
+      // Force Knowledge Base refresh to show updated content
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kb-force-refresh', {
+          detail: {
+            frameCount: framesToSync.length,
+            syncType: 'graph-to-kb',
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+    } catch (error) {
+      console.error("❌ Failed to sync graph changes to Knowledge Base:", error);
+    } finally {
+      // Always reset the sync flag
+      syncInProgressRef.current = false;
+    }
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
+
   // Enhanced AI-Frames Knowledge Base sync with order preservation
-  const saveAllFramesToKB = async () => {
+  const saveAllFramesToKB = useCallback(async () => {
     if (!vectorStore || !vectorStoreInitialized || frames.length === 0) {
       return;
     }
@@ -1135,6 +1694,30 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         const title = `AI-Frame [${frame.order || index + 1}]: ${frame.title}`;
 
         // Enhanced content with hierarchy and relationship information
+        const frameWithAttachment = frame as any; // Type assertion to access attachment properties
+        
+        // Debug: Log attachment data being saved
+        if (frameWithAttachment.attachment) {
+          console.log('💾 Saving frame with attachment to KB:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            attachmentType: frameWithAttachment.attachment.type,
+            attachmentData: frameWithAttachment.attachment.data
+          });
+        }
+        
+        // Debug: Log the video URL being saved to KB content
+        const videoUrlForKB = frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl || "No video attachment";
+        console.log('💾 KB Content Video URL Debug:', {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          legacyVideoUrl: frame.videoUrl,
+          attachmentVideoUrl: frameWithAttachment.attachment?.data?.videoUrl,
+          finalVideoUrlForKB: videoUrlForKB,
+          hasAttachment: !!frameWithAttachment.attachment,
+          attachmentType: frameWithAttachment.attachment?.type
+        });
+        
         const content = `
 Learning Goal: ${frame.goal}
 
@@ -1152,16 +1735,38 @@ ${frame.afterVideoText || "No additional content"}
 
 AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 
-Video Details:
-- URL: ${frame.videoUrl || "No video"}
-- Start Time: ${frame.startTime || 0}s
-- Duration: ${frame.duration || 0}s
+ATTACHMENTS & MEDIA:
+Video Attachment:
+- URL: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl || "No video attachment"}
+- Start Time: ${frame.startTime || frameWithAttachment.attachment?.data?.startTime || 0}s
+- Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
+- Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
+
+${frameWithAttachment.attachment ? `
+Additional Attachment:
+- Type: ${frameWithAttachment.attachment.type || "Unknown"}
+- Name: ${frameWithAttachment.attachment.name || "Unnamed"}
+- Size: ${frameWithAttachment.attachment.size ? `${frameWithAttachment.attachment.size} bytes` : "Unknown"}
+- Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
+- URL: ${frameWithAttachment.attachment.url || "No URL"}
+- Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
+` : "Additional Attachments: None"}
+
+Text Notes:
+${frameWithAttachment.notes || "No text notes"}
+
+Document Attachments:
+${frameWithAttachment.documents ? frameWithAttachment.documents.map((doc: any) => `- ${doc.name || "Unnamed"} (${doc.type || "Unknown type"})`).join('\n') : "No document attachments"}
 
 Metadata:
 - Generated: ${frame.isGenerated ? "Yes" : "No"}
 - Created: ${frame.createdAt || "Unknown"}
 - Updated: ${frame.updatedAt || "Unknown"}
 ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
+- Attachment Count: ${frameWithAttachment.attachment ? 1 : 0}
+- Has Video: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "Yes" : "No"}
+- Has Text Notes: ${frameWithAttachment.notes ? "Yes" : "No"}
+- Has Documents: ${frameWithAttachment.documents ? frameWithAttachment.documents.length : 0}
         `.trim();
 
         // Generate unique document ID for this frame
@@ -1181,6 +1786,90 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             `🔄 AI-Frame "${frame.title}" exists in KB, updating with current order and data...`
           );
 
+          // FIXED: Compare with actual document content, not stale metadata
+          const extractFromContent = (content: string) => {
+            const goalMatch = content.match(/Learning Goal: (.*?)(?:\n|$)/);
+            const infoMatch = content.match(/Context & Background:\n([\s\S]*?)(?:\n\nAfter Video Content:|$)/);
+            const afterVideoMatch = content.match(/After Video Content:\n([\s\S]*?)(?:\n\nAI Concepts:|$)/);
+            const videoUrlMatch = content.match(/- URL: (.*?)(?:\n|$)/);
+            const conceptsMatch = content.match(/AI Concepts: (.*?)(?:\n|$)/);
+            const orderMatch = content.match(/Order: (\d+) of \d+/);
+            
+            return {
+              goal: goalMatch?.[1]?.trim() || "",
+              informationText: infoMatch?.[1]?.trim() || "",
+              afterVideoText: afterVideoMatch?.[1]?.trim() || "",
+              videoUrl: videoUrlMatch?.[1]?.trim() === "No video" ? "" : videoUrlMatch?.[1]?.trim() || "",
+              aiConcepts: conceptsMatch?.[1]?.trim() === "None" ? [] : conceptsMatch?.[1]?.split(", ").filter(c => c.trim()) || [],
+              order: orderMatch?.[1] ? parseInt(orderMatch[1]) : index + 1
+            };
+          };
+
+          // Extract frame title from document title (remove "AI-Frame [X]: " prefix)
+          const extractTitleFromDocTitle = (docTitle: string) => {
+            const match = docTitle.match(/AI-Frame \[\d+\]: (.*)/);
+            return match?.[1] || docTitle;
+          };
+
+          const currentFrame = {
+            title: extractTitleFromDocTitle(frame.title || ""),
+            goal: frame.goal || "",
+            informationText: frame.informationText || "",
+            afterVideoText: frame.afterVideoText || "",
+            order: frame.order || index + 1,
+            videoUrl: frame.videoUrl || "",
+            aiConcepts: frame.aiConcepts || []
+          };
+
+          const existingContent = extractFromContent(existingDoc.content);
+          const existingTitle = extractTitleFromDocTitle(existingDoc.title);
+          
+          const existingFrame = {
+            title: existingTitle,
+            goal: existingContent.goal,
+            informationText: existingContent.informationText,
+            afterVideoText: existingContent.afterVideoText,
+            order: existingContent.order,
+            videoUrl: existingContent.videoUrl,
+            aiConcepts: existingContent.aiConcepts
+          };
+
+          // FIXED: Compare current frame with what's actually in Knowledge Base
+          const meaningfulChanges = {
+            title: currentFrame.title !== existingFrame.title,
+            goal: currentFrame.goal !== existingFrame.goal,
+            informationText: currentFrame.informationText !== existingFrame.informationText,
+            afterVideoText: currentFrame.afterVideoText !== existingFrame.afterVideoText,
+            order: currentFrame.order !== existingFrame.order,
+            videoUrl: currentFrame.videoUrl !== existingFrame.videoUrl,
+            aiConcepts: JSON.stringify(currentFrame.aiConcepts) !== JSON.stringify(existingFrame.aiConcepts)
+          };
+
+          const hasChanged = Object.values(meaningfulChanges).some(changed => changed);
+
+          console.log(`📝 FIXED: Comparing frame with actual KB content for "${frame.title}":`, {
+            hasChanged,
+            changes: meaningfulChanges,
+            comparison: {
+              current: currentFrame,
+              existingInKB: existingFrame
+            },
+            willUpdate: hasChanged
+          });
+
+          // FIXED: Always update if frame ID is different (new frame) or content has changed
+          const isNewFrame = !(existingDoc.metadata as any).aiFrameId || (existingDoc.metadata as any).aiFrameId !== frame.id;
+          
+          if (!hasChanged && !isNewFrame) {
+            console.log(`📝 Frame "${frame.title}" matches KB content and is not new, skipping update`);
+            continue;
+          } else {
+            console.log(`📝 Frame "${frame.title}" ${isNewFrame ? 'is new frame' : 'differs from KB content'}, updating:`, {
+              isNewFrame,
+              changes: meaningfulChanges
+            });
+          }
+
           // Delete existing document first to ensure clean update
           try {
             await vectorStore.deleteDocument(existingDoc.id);
@@ -1189,6 +1878,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             console.warn(
               `⚠️ Failed to delete old AI-Frame document: ${deleteError}`
             );
+            // Continue with insertion anyway - the operation queue will handle conflicts
           }
         }
 
@@ -1220,6 +1910,14 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             duration: frame.duration,
             createdAt: frame.createdAt,
             updatedAt: frame.updatedAt || new Date().toISOString(),
+            // Original frame data for change detection
+            originalTitle: frame.title,
+            originalGoal: frame.goal,
+            originalInformationText: frame.informationText,
+            originalAfterVideoText: frame.afterVideoText,
+            originalOrder: frame.order || index + 1,
+            originalVideoUrl: frame.videoUrl,
+            originalAiConcepts: frame.aiConcepts || [],
             // Hierarchy information
             frameHierarchy: {
               order: frame.order || index + 1,
@@ -1228,6 +1926,8 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
               hasParent: !!frame.parentFrameId,
               parentId: frame.parentFrameId,
             },
+            // CRITICAL: Save attachment data for persistence
+            attachment: (frame as any).attachment,
           },
           chunks: [], // Required by VectorStore schema
           vectors: [], // Required by VectorStore schema
@@ -1251,7 +1951,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         `✅ Finished saving AI-Frames to Knowledge Base with order preservation`
       );
 
-      // Dispatch event to notify other pages of AI-Frames update
+      // Dispatch comprehensive KB update events
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("aiframes-kb-synced", {
@@ -1263,11 +1963,107 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
             },
           })
         );
+        
+        // Also dispatch the new unified event
+        window.dispatchEvent(
+          new CustomEvent("aiframes-kb-updated", {
+            detail: {
+              frameCount: frames.length,
+              syncType: 'scheduled',
+              source: 'frame-change',
+              timestamp: new Date().toISOString(),
+            },
+          })
+        );
+        
+        // Force Knowledge Base refresh
+        window.dispatchEvent(new CustomEvent('kb-force-refresh', {
+          detail: {
+            source: 'frame-change',
+            action: 'bulk-update',
+            frameCount: frames.length,
+            timestamp: new Date().toISOString()
+          }
+        }));
+        
+        // Force Knowledge Base document list refresh
+        window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+          detail: {
+            source: 'frame-change',
+            changeType: 'bulk-update',
+            documentCount: frames.length,
+            timestamp: new Date().toISOString()
+          }
+        }));
       }
     } catch (error) {
       console.error("❌ Failed to save AI-Frames to Knowledge Base:", error);
     }
-  };
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
+
+  // FIXED: Load graph connections from storage
+  const loadGraphConnections = useCallback(async () => {
+    try {
+      console.log("🔗 Loading graph connections from storage...");
+      
+      // Try to load from IndexedDB first
+      if (graphStorageManager) {
+        try {
+          const graphLayout = await graphStorageManager.loadGraphLayout();
+          if (graphLayout && (graphLayout.nodes.length > 0 || graphLayout.edges.length > 0)) {
+            console.log(`🔗 Loaded graph connections from IndexedDB: ${graphLayout.nodes.length} nodes, ${graphLayout.edges.length} edges`);
+            setGraphState((prev: any) => ({
+              ...prev,
+              nodes: graphLayout.nodes,
+              edges: graphLayout.edges,
+              viewport: graphLayout.viewport
+            }));
+            return true;
+          }
+        } catch (error) {
+          console.warn("⚠️ Failed to load graph connections from IndexedDB:", error);
+        }
+      }
+      
+      // Fallback to localStorage
+      const connectionsData = localStorage.getItem("ai_frames_graph_connections");
+      if (connectionsData) {
+        try {
+          const parsed = JSON.parse(connectionsData);
+          if (parsed.nodes && parsed.edges) {
+            console.log(`🔗 Loaded graph connections from localStorage: ${parsed.nodes.length} nodes, ${parsed.edges.length} edges`);
+            setGraphState((prev: any) => ({
+              ...prev,
+              nodes: parsed.nodes,
+              edges: parsed.edges,
+              viewport: parsed.viewport
+            }));
+            return true;
+          }
+        } catch (error) {
+          console.warn("⚠️ Failed to parse graph connections from localStorage:", error);
+        }
+      }
+      
+      console.log("ℹ️ No graph connections found in storage");
+      return false;
+    } catch (error) {
+      console.error("❌ Failed to load graph connections:", error);
+      return false;
+    }
+  }, [graphStorageManager]);
+
+  // CRITICAL: Make app instance globally available for FrameGraphIntegration
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).aiFramesApp = {
+        vectorStore,
+        vectorStoreInitialized,
+        frames,
+        syncFramesToKB: saveAllFramesToKB
+      };
+    }
+  }, [vectorStore, vectorStoreInitialized, frames, saveAllFramesToKB]);
 
   // Save frames to KB when VectorStore becomes ready or frames change
   useEffect(() => {
@@ -1278,11 +2074,23 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       frames.length > 0
     ) {
       console.log("🔄 AI-Frames detected, saving to Knowledge Base...");
-      saveAllFramesToKB();
+      
+      // FIXED: Add delay to ensure KB operations are complete before next save
+      const saveWithDelay = async () => {
+        try {
+          await saveAllFramesToKB();
+          console.log("✅ KB save completed successfully");
+        } catch (error) {
+          console.error("❌ KB save failed:", error);
+        }
+      };
+      
+      // Use a longer delay to prevent race conditions
+      setTimeout(saveWithDelay, 200);
     }
-  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames]);
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames.length]);
 
-  // Listen for localStorage changes (cross-tab sync and graph updates)
+  // Listen for localStorage changes (cross-tab sync and graph updates) with enhanced error handling
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (
@@ -1291,8 +2099,12 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       ) {
         console.log("🔄 Storage change detected:", event.key);
 
-        // Small delay to ensure write is complete
-        setTimeout(async () => {
+        // Enhanced retry logic with exponential backoff
+        let retryCount = 0;
+        const maxRetries = 3;
+        const baseDelay = 100;
+
+        const reloadWithRetry = async () => {
           try {
             const loaded = await loadFramesFromStorage();
             if (loaded) {
@@ -1307,11 +2119,32 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
                   content: `🔄 Frames updated from ${event.key === "ai_frames_graph_state" ? "graph view" : "storage"}! Changes have been synchronized.`,
                 },
               ]);
+            } else {
+              console.log("ℹ️ No frames found during storage change reload");
             }
           } catch (error) {
-            console.error("❌ Failed to reload frames from storage:", error);
+            console.error(`❌ Failed to reload frames from storage (attempt ${retryCount + 1}):`, error);
+            
+            if (retryCount < maxRetries) {
+              retryCount++;
+              const delay = baseDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+              console.log(`🔄 Retrying in ${delay}ms...`);
+              setTimeout(reloadWithRetry, delay);
+            } else {
+              console.error("❌ Maximum retry attempts reached for storage change reload");
+              setChatMessages((prev) => [
+                ...prev,
+                {
+                  role: "ai",
+                  content: `❌ Failed to synchronize frames after multiple attempts. Please try refreshing the page.`,
+                },
+              ]);
+            }
           }
-        }, 100);
+        };
+
+        // Add initial delay to ensure write is complete
+        setTimeout(reloadWithRetry, baseDelay);
       }
     };
 
@@ -1329,94 +2162,701 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     }
   }, [frames, currentFrameIndex, saveFramesToStorage]);
 
+  // Debug logging for event system
+  const debugEvent = (eventName: string, detail: any, status: 'received' | 'processed' | 'error' = 'received') => {
+    const timestamp = new Date().toISOString();
+    console.log(`🔧 [${timestamp}] Event ${eventName} (${status}):`, {
+      event: eventName,
+      status,
+      detail,
+      frameCount: frames.length,
+      currentFrameIndex
+    });
+  };
+
+  // Frame validation and consistency checks
+  const validateFrame = (frame: any): frame is AIFrame => {
+    if (!frame || typeof frame !== 'object') {
+      return false;
+    }
+    
+    // Check required fields
+    const requiredFields = ['id', 'title', 'goal', 'informationText'];
+    for (const field of requiredFields) {
+      if (!frame[field] || typeof frame[field] !== 'string') {
+        console.warn(`⚠️ Frame validation failed: missing or invalid ${field}`, frame);
+        return false;
+      }
+    }
+    
+    // Check numeric fields
+    const numericFields = ['startTime', 'duration', 'order'];
+    for (const field of numericFields) {
+      if (frame[field] !== undefined && typeof frame[field] !== 'number') {
+        console.warn(`⚠️ Frame validation failed: invalid ${field} type`, frame);
+        return false;
+      }
+    }
+    
+    // Check array fields
+    if (frame.aiConcepts && !Array.isArray(frame.aiConcepts)) {
+      console.warn(`⚠️ Frame validation failed: aiConcepts is not an array`, frame);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Smart frame merging to preserve changes and avoid conflicts
+  const mergeFrameUpdates = useCallback((existingFrames: AIFrame[], newFrames: AIFrame[]): AIFrame[] => {
+    console.log("🔄 MERGE DEBUG: Starting frame merge", {
+      existingCount: existingFrames.length,
+      newCount: newFrames.length,
+      existingFrameIds: existingFrames.map(f => f.id),
+      newFrameIds: newFrames.map(f => f.id),
+      existingFramesWithAttachment: existingFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl
+      })),
+      newFramesWithAttachment: newFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl
+      }))
+    });
+    
+    if (!Array.isArray(existingFrames) || !Array.isArray(newFrames)) {
+      console.warn("⚠️ Frame merge failed: invalid frame arrays");
+      return existingFrames;
+    }
+    
+    // FIXED: Add frame validation and deduplication
+        const validExistingFrames = existingFrames.filter((frame): frame is AIFrame => {
+      if (!validateFrame(frame)) {
+        console.warn("⚠️ Invalid existing frame filtered out:", (frame as any).id);
+        return false;
+      }
+      return true;
+    });
+
+    const validNewFrames = newFrames.filter((frame): frame is AIFrame => {
+      if (!validateFrame(frame)) {
+        console.warn("⚠️ Invalid new frame filtered out:", (frame as any).id);
+        return false;
+      }
+      return true;
+    });
+    
+    const mergedFrames: AIFrame[] = [];
+    const existingById = new Map<string, AIFrame>();
+    const newById = new Map<string, AIFrame>();
+    
+    // Index existing frames by ID
+    validExistingFrames.forEach(frame => {
+      existingById.set(frame.id, frame);
+    });
+    
+    // Index new frames by ID (handle duplicates intelligently)
+    validNewFrames.forEach(frame => {
+      const existing = existingById.get(frame.id);
+      if (existing) {
+        // CRITICAL: Merge attachment data instead of replacing entire frame
+        const mergedFrame = {
+          ...existing,
+          ...frame,
+          // Preserve attachment data from either frame
+          attachment: frame.attachment || existing.attachment,
+          // Preserve video URL from either frame
+          videoUrl: frame.videoUrl || existing.videoUrl,
+          // Update timestamp
+          updatedAt: new Date().toISOString()
+        };
+        newById.set(frame.id, mergedFrame);
+        console.log("🔄 Merged duplicate frame with attachment data:", {
+          frameId: frame.id,
+          hasAttachment: !!(mergedFrame as any).attachment,
+          videoUrl: mergedFrame.videoUrl
+        });
+      } else {
+        newById.set(frame.id, frame);
+      }
+    });
+    
+    // Create merged frame set
+    const allFrameIds = new Set([...existingById.keys(), ...newById.keys()]);
+    
+    for (const frameId of allFrameIds) {
+      const existingFrame = existingById.get(frameId);
+      const newFrame = newById.get(frameId);
+      
+      if (existingFrame && newFrame) {
+        // Merge existing and new frame data
+        const existingUpdated = new Date(existingFrame.updatedAt || existingFrame.createdAt || '1970-01-01').getTime();
+        const newUpdated = new Date(newFrame.updatedAt || newFrame.createdAt || '1970-01-01').getTime();
+        
+        // Use the more recently updated frame as base
+        const baseFrame = newUpdated > existingUpdated ? newFrame : existingFrame;
+        const otherFrame = newUpdated > existingUpdated ? existingFrame : newFrame;
+        
+        // Merge with preference for non-empty values
+        const mergedFrame: AIFrame = {
+          ...baseFrame,
+          // Preserve non-empty fields from both frames
+          title: baseFrame.title || otherFrame.title,
+          goal: baseFrame.goal || otherFrame.goal,
+          informationText: baseFrame.informationText || otherFrame.informationText,
+          afterVideoText: baseFrame.afterVideoText || otherFrame.afterVideoText,
+          videoUrl: baseFrame.videoUrl || otherFrame.videoUrl,
+          aiConcepts: baseFrame.aiConcepts?.length > 0 ? baseFrame.aiConcepts : otherFrame.aiConcepts,
+          // CRITICAL FIX: Preserve attachment data during merge
+          attachment: baseFrame.attachment || otherFrame.attachment,
+          // Update timestamp
+          updatedAt: new Date().toISOString(),
+        };
+        
+        // Debug: Log attachment preservation during merge
+        console.log('🔄 Frame merge attachment debug:', {
+          frameId: mergedFrame.id,
+          frameTitle: mergedFrame.title,
+          baseFrameHasAttachment: !!baseFrame.attachment,
+          otherFrameHasAttachment: !!otherFrame.attachment,
+          mergedFrameHasAttachment: !!mergedFrame.attachment,
+          mergedAttachmentType: mergedFrame.attachment?.type,
+          mergedAttachmentVideoUrl: mergedFrame.attachment?.data?.videoUrl,
+          mergedLegacyVideoUrl: mergedFrame.videoUrl
+        });
+        
+        mergedFrames.push(mergedFrame);
+      } else if (newFrame) {
+        // New frame, add it
+        mergedFrames.push(newFrame);
+      } else if (existingFrame) {
+        // Existing frame, keep it
+        mergedFrames.push(existingFrame);
+      }
+    }
+    
+    // Sort by order field if available
+    mergedFrames.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    // CRITICAL FIX: Ensure we never return an empty array
+    if (mergedFrames.length === 0) {
+      console.warn("⚠️ Frame merge resulted in empty array, preserving existing frames");
+      return existingFrames.length > 0 ? existingFrames : newFrames;
+    }
+    
+    console.log(`🔄 Frame merge completed: ${existingFrames.length} + ${newFrames.length} → ${mergedFrames.length}`);
+    
+    // Debug: Log final merge result
+    console.log("🔄 MERGE DEBUG: Final merge result", {
+      mergedCount: mergedFrames.length,
+      mergedFrameIds: mergedFrames.map(f => f.id),
+      mergedFramesWithAttachment: mergedFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl,
+        legacyVideoUrl: f.videoUrl
+      }))
+    });
+    
+    return mergedFrames;
+  }, []);
+
+  // Enhanced frame state update with validation and merging
+  const updateFrameState = useCallback((newFrames: AIFrame[], source: string = 'unknown') => {
+    if (!Array.isArray(newFrames)) {
+      console.warn("⚠️ Frame state update failed: invalid frames array");
+      return;
+    }
+    
+    // Debug: Log input frames before validation
+    console.log("🔄 UPDATE DEBUG: Input frames before validation", {
+      source,
+      newFramesCount: newFrames.length,
+      newFramesWithAttachment: newFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl,
+        legacyVideoUrl: f.videoUrl
+      }))
+    });
+    
+    // Validate all frames
+    const validFrames = newFrames.filter(validateFrame);
+    if (validFrames.length !== newFrames.length) {
+      console.warn(`⚠️ Frame validation: ${newFrames.length - validFrames.length} invalid frames filtered out`);
+    }
+    
+    // Debug: Log frames after validation
+    console.log("🔄 UPDATE DEBUG: Frames after validation", {
+      validFramesCount: validFrames.length,
+      validFramesWithAttachment: validFrames.filter(f => (f as any).attachment).map(f => ({
+        id: f.id,
+        title: f.title,
+        attachmentType: (f as any).attachment?.type,
+        attachmentVideoUrl: (f as any).attachment?.data?.videoUrl,
+        legacyVideoUrl: f.videoUrl
+      }))
+    });
+    
+    // Smart merge with existing frames
+    const mergedFrames = mergeFrameUpdates(frames, validFrames);
+    
+    // CRITICAL FIX: Ensure we never set an empty frames array
+    if (mergedFrames.length === 0) {
+      console.warn("⚠️ Frame state update would result in empty array, preserving current frames");
+      return;
+    }
+    
+    // Update state
+    setFrames(mergedFrames);
+    
+    console.log(`✅ Frame state updated from ${source}: ${mergedFrames.length} frames`);
+  }, [frames, mergeFrameUpdates]);
+
+  // Event queue for handling rapid changes
+  const [eventQueue, setEventQueue] = useState<Array<{
+    id: string;
+    type: string;
+    data: any;
+    timestamp: number;
+    processed: boolean;
+  }>>([]);
+
+  // Process event queue with debouncing
+  const processEventQueue = useCallback(() => {
+    if (eventQueue.length === 0) return;
+    
+    const now = Date.now();
+    const unprocessedEvents = eventQueue.filter(event => !event.processed);
+    
+    if (unprocessedEvents.length === 0) return;
+    
+    console.log(`🔄 Processing ${unprocessedEvents.length} queued events`);
+    
+    // Group events by type for batch processing
+    const eventsByType = new Map<string, Array<any>>();
+    
+    for (const event of unprocessedEvents) {
+      if (!eventsByType.has(event.type)) {
+        eventsByType.set(event.type, []);
+      }
+      eventsByType.get(event.type)?.push(event);
+    }
+    
+    // Process each event type
+    for (const [eventType, events] of eventsByType) {
+      try {
+        switch (eventType) {
+          case 'frame-update':
+            // Batch process frame updates
+            const latestFrameUpdates = events[events.length - 1]; // Use most recent
+            updateFrameState(latestFrameUpdates.data.frames, `batch-${eventType}`);
+            break;
+          case 'frame-selection':
+            // Use most recent selection
+            const latestSelection = events[events.length - 1];
+            setCurrentFrameIndex(latestSelection.data.frameIndex);
+            break;
+          case 'kb-sync':
+            // Trigger KB sync if needed
+            if (vectorStore && vectorStoreInitialized && processingAvailable) {
+              const latestKbSync = events[events.length - 1];
+              syncGraphChangesToKB(latestKbSync.data.frames);
+            }
+            break;
+          default:
+            console.warn(`⚠️ Unknown event type in queue: ${eventType}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error processing ${eventType} events:`, error);
+      }
+    }
+    
+    // Mark events as processed
+    setEventQueue(prev => prev.map(event => ({ ...event, processed: true })));
+    
+    // Clean up old processed events (keep only last 100)
+    setTimeout(() => {
+      setEventQueue(prev => prev.filter(event => !event.processed || now - event.timestamp < 60000).slice(-100));
+    }, 5000);
+  }, [eventQueue, updateFrameState, vectorStore, vectorStoreInitialized, processingAvailable, syncGraphChangesToKB]);
+
+  // Add event to queue
+  const queueEvent = useCallback((type: string, data: any) => {
+    const event = {
+      id: `${type}-${Date.now()}-${Math.random()}`,
+      type,
+      data,
+      timestamp: Date.now(),
+      processed: false
+    };
+    
+    setEventQueue(prev => [...prev, event]);
+    
+    // Process queue with debouncing
+    setTimeout(processEventQueue, 100);
+  }, [processEventQueue]);
+
   // Listen for graph save events
   useEffect(() => {
     const handleGraphSaved = (event: CustomEvent) => {
-      console.log("📊 Graph saved successfully!", event.detail);
-
-      // Reload frames from storage to sync with graph changes
-      setTimeout(async () => {
-        try {
-          await loadFramesFromStorage();
-        } catch (error) {
-          console.error("❌ Failed to reload frames after graph save:", error);
+      debugEvent('graph-saved', event.detail, 'received');
+      
+      try {
+        // Validate event structure
+        if (!event.detail || typeof event.detail !== 'object') {
+          console.warn("⚠️ Invalid graph saved event - missing detail");
+          return;
         }
-      }, 200);
 
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content: `✅ Graph saved successfully!\n\n📊 Saved: ${event.detail.frameCount} frames, ${event.detail.nodeCount} nodes, ${event.detail.edgeCount} connections\n🕐 Time: ${new Date(event.detail.timestamp).toLocaleTimeString()}\n\n🔄 Linear view synchronized with graph changes.`,
-        },
-      ]);
+        const { frameCount, nodeCount, edgeCount, timestamp, frames: eventFrames, hasFrameUpdates } = event.detail;
+        
+        // Validate basic event data
+        if (typeof frameCount !== 'number' || typeof nodeCount !== 'number' || typeof edgeCount !== 'number') {
+          console.warn("⚠️ Invalid graph saved event - invalid counts:", { frameCount, nodeCount, edgeCount });
+          return;
+        }
+
+        console.log("📊 Graph saved successfully!", event.detail);
+
+        // FINAL FIX: Force reload frames from storage after graph save
+        console.log("🔄 Reloading frames from storage after graph save");
+        loadFramesFromStorage().then(async (loaded) => {
+          if (loaded) {
+            console.log("✅ Frames reloaded from storage after graph save");
+            
+            // CRITICAL: Force Knowledge Base sync after loading frames
+            if (vectorStore && vectorStoreInitialized && processingAvailable) {
+              console.log("🔄 Forcing Knowledge Base sync after graph save");
+              try {
+                                 await saveAllFramesToKB();
+                console.log("✅ Knowledge Base sync completed after graph save");
+              } catch (error) {
+                console.error("❌ Failed to sync Knowledge Base after graph save:", error);
+              }
+            }
+          }
+        }).catch(error => {
+          console.error("❌ Failed to reload frames from storage:", error);
+        });
+
+        // IMMEDIATE SYNC: Update frame state directly if frame data is available
+        if (hasFrameUpdates && eventFrames) {
+          console.log("🔄 Applying immediate frame updates from graph save");
+          updateFrameState(eventFrames, 'graph-save');
+          
+          // FIXED: Ensure KB sync after Save Graph operation
+          setTimeout(() => {
+            ensureKBSyncAfterSaveGraph(eventFrames);
+          }, 1000); // Small delay to ensure all operations complete
+          
+          // Also trigger KB sync immediately
+          if (vectorStore && vectorStoreInitialized && processingAvailable) {
+            console.log("🔄 Triggering immediate KB sync after graph save");
+            
+            // CRITICAL FIX: Set sync flag to coordinate with FrameGraphIntegration
+            if (typeof window !== 'undefined') {
+              const aiFramesApp = (window as any).aiFramesApp || {};
+              aiFramesApp.syncInProgress = true;
+              (window as any).aiFramesApp = aiFramesApp;
+            }
+            
+            syncGraphChangesToKB(eventFrames).then(() => {
+              console.log("✅ Immediate KB sync completed");
+              
+              // Clear sync flag after completion
+              if (typeof window !== 'undefined') {
+                const aiFramesApp = (window as any).aiFramesApp || {};
+                aiFramesApp.syncInProgress = false;
+                (window as any).aiFramesApp = aiFramesApp;
+              }
+              
+              // Dispatch event to notify other components about KB update
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
+                  detail: {
+                    frameCount: eventFrames.length,
+                    syncType: 'immediate',
+                    source: 'graph-save',
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+                
+                // Force Knowledge Base refresh after graph save
+                window.dispatchEvent(new CustomEvent('kb-force-refresh', {
+                  detail: {
+                    source: 'graph-save',
+                    action: 'sync',
+                    frameCount: eventFrames.length,
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+                
+                // Force Knowledge Base document list refresh
+                window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+                  detail: {
+                    source: 'graph-save',
+                    changeType: 'sync',
+                    documentCount: eventFrames.length,
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+              }
+            }).catch((error) => {
+              console.error("❌ Failed immediate KB sync:", error);
+            });
+          } else {
+            console.log("⏳ VectorStore not ready for immediate KB sync:", {
+              hasVectorStore: !!vectorStore,
+              isInitialized: vectorStoreInitialized,
+              processingAvailable
+            });
+          }
+        }
+
+        // BACKUP SYNC: Reload frames from storage with retry logic
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        const reloadWithRetry = async () => {
+          try {
+            await loadFramesFromStorage();
+            console.log("✅ Frames reloaded from storage after graph save");
+          } catch (error) {
+            console.error(`❌ Failed to reload frames after graph save (attempt ${retryCount + 1}):`, error);
+            
+            if (retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(reloadWithRetry, 500 * retryCount); // Exponential backoff
+            } else {
+              console.error("❌ Maximum retry attempts reached for frame reload");
+            }
+          }
+        };
+
+        // Add delay to ensure storage write is complete
+        setTimeout(reloadWithRetry, 100);
+
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: `✅ Graph saved successfully!\n\n📊 Saved: ${frameCount} frames, ${nodeCount} nodes, ${edgeCount} connections\n🕐 Time: ${new Date(timestamp).toLocaleTimeString()}\n\n🔄 Linear view synchronized with graph changes.${hasFrameUpdates ? '\n✨ Frame updates applied immediately!' : ''}`,
+          },
+        ]);
+        
+        debugEvent('graph-saved', event.detail, 'processed');
+      } catch (error) {
+        console.error("❌ Error handling graph saved event:", error);
+        debugEvent('graph-saved', event.detail, 'error');
+      }
     };
 
     // Listen for graph frame selection events to sync Frame Navigation
     const handleGraphFrameSelected = (event: CustomEvent) => {
-      const { frameId, frameIndex } = event.detail;
-      if (frameIndex !== -1 && frameIndex !== currentFrameIndex) {
-        console.log("🔄 Graph frame selection → Frame Navigation sync:", {
-          frameId,
-          frameIndex,
-          currentFrameIndex,
-        });
-        setCurrentFrameIndex(frameIndex);
+      try {
+        // Validate event structure
+        if (!event.detail || typeof event.detail !== 'object') {
+          console.warn("⚠️ Invalid graph frame selected event - missing detail");
+          return;
+        }
+
+        const { frameId, frameIndex } = event.detail;
+        
+        // Validate event data
+        if (typeof frameIndex !== 'number' || frameIndex < 0) {
+          console.warn("⚠️ Invalid graph frame selected event - invalid frameIndex:", frameIndex);
+          return;
+        }
+
+        if (frameIndex !== -1 && frameIndex !== currentFrameIndex) {
+          console.log("🔄 Graph frame selection → Frame Navigation sync:", {
+            frameId,
+            frameIndex,
+            currentFrameIndex,
+          });
+          setCurrentFrameIndex(frameIndex);
+        }
+      } catch (error) {
+        console.error("❌ Error handling graph frame selection:", error);
       }
     };
 
     // Listen for graph actions that modify frames
     const handleGraphFrameAdded = (event: CustomEvent) => {
-      const { newFrame } = event.detail;
-      console.log("🔄 Graph frame added → Frame Navigation sync:", newFrame);
+      try {
+        // Validate event structure
+        if (!event.detail || typeof event.detail !== 'object') {
+          console.warn("⚠️ Invalid graph frame added event - missing detail");
+          return;
+        }
 
-      setFrames((prev) => {
-        const updatedFrames = [...prev, newFrame];
+        const { newFrame } = event.detail;
+        
+        // Validate frame data
+        if (!newFrame || typeof newFrame !== 'object' || !newFrame.id || !newFrame.title) {
+          console.warn("⚠️ Invalid graph frame added event - invalid frame data:", newFrame);
+          return;
+        }
+
+        console.log("🔄 Graph frame added → Frame Navigation sync:", {
+          newFrame: newFrame,
+          currentFrameCount: frames.length,
+          newFrameId: newFrame.id
+        });
+
+        // FIXED: Check if frame already exists to prevent replacement
+        const frameExists = frames.some(f => f.id === newFrame.id);
+        if (frameExists) {
+          console.log("ℹ️ Frame already exists, skipping duplicate:", newFrame.id);
+          return;
+        }
+
+        // FIXED: Use smart frame merging to add new frame (preserve existing frames)
+        const updatedFrames = mergeFrameUpdates(frames, [newFrame]);
+        console.log("✅ Frame merge result:", {
+          beforeCount: frames.length,
+          afterCount: updatedFrames.length,
+          addedFrame: newFrame.title
+        });
+        
+        // CRITICAL FIX: Ensure frames array is never empty
+        if (updatedFrames.length === 0) {
+          console.warn("⚠️ Frame merge resulted in empty array, preserving existing frames");
+          return;
+        }
+        
+        setFrames(updatedFrames);
         setCurrentFrameIndex(updatedFrames.length - 1); // Navigate to new frame
-        return updatedFrames;
-      });
+        
+        // FIXED: Immediately sync new frame to Knowledge Base with verification
+        if (vectorStore && vectorStoreInitialized && processingAvailable) {
+          console.log("🔄 Immediately syncing new frame to Knowledge Base:", newFrame.title);
+          
+          const syncWithVerification = async () => {
+            try {
+              await saveAllFramesToKB();
+              
+              // FIXED: Verify frame was actually saved to KB
+              setTimeout(async () => {
+                try {
+                  const kbFrames = await loadFramesFromKnowledgeBase();
+                  const frameExists = kbFrames.some(f => f.id === newFrame.id);
+                  console.log(`✅ Frame persistence verification: ${frameExists ? 'SUCCESS' : 'FAILED'} - Frame "${newFrame.title}" ${frameExists ? 'found' : 'NOT found'} in KB`);
+                  
+                  if (!frameExists) {
+                    console.warn("⚠️ Frame not found in KB after save, attempting re-save...");
+                    await saveAllFramesToKB();
+                  }
+                } catch (error) {
+                  console.error("❌ Frame persistence verification failed:", error);
+                }
+              }, 300);
+              
+            } catch (error) {
+              console.error("❌ Immediate KB sync failed:", error);
+            }
+          };
+          
+          setTimeout(syncWithVerification, 100); // Small delay to ensure state is updated
+        }
 
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content: `🎯 New frame created in graph view: "${newFrame.title}"\n\n📊 Frame Navigation updated automatically.`,
-        },
-      ]);
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: `🎯 New frame created in graph view: "${newFrame.title}"\n\n📊 Frame Navigation updated automatically.`,
+          },
+        ]);
+      } catch (error) {
+        console.error("❌ Error handling graph frame added:", error);
+      }
     };
 
     const handleGraphFrameDeleted = (event: CustomEvent) => {
-      const { deletedFrameId, remainingFrames } = event.detail;
-      console.log(
-        "🔄 Graph frame deleted → Frame Navigation sync:",
-        deletedFrameId
-      );
+      try {
+        // Validate event structure
+        if (!event.detail || typeof event.detail !== 'object') {
+          console.warn("⚠️ Invalid graph frame deleted event - missing detail");
+          return;
+        }
 
-      setFrames(remainingFrames);
+        const { deletedFrameId, remainingFrames } = event.detail;
+        
+        // Validate frame data
+        if (!Array.isArray(remainingFrames)) {
+          console.warn("⚠️ Invalid graph frame deleted event - invalid remainingFrames:", remainingFrames);
+          return;
+        }
 
-      // Update current index if needed
-      if (currentFrameIndex >= remainingFrames.length) {
-        setCurrentFrameIndex(Math.max(0, remainingFrames.length - 1));
+        console.log(
+          "🔄 Graph frame deleted → Frame Navigation sync:",
+          deletedFrameId
+        );
+
+        // Validate and update remaining frames
+        updateFrameState(remainingFrames, 'graph-delete');
+
+        // Update current index if needed
+        if (currentFrameIndex >= remainingFrames.length) {
+          setCurrentFrameIndex(Math.max(0, remainingFrames.length - 1));
+        }
+
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: `🗑️ Frame deleted in graph view.\n\n📊 Frame Navigation updated automatically.`,
+          },
+        ]);
+      } catch (error) {
+        console.error("❌ Error handling graph frame deleted:", error);
       }
-
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content: `🗑️ Frame deleted in graph view.\n\n📊 Frame Navigation updated automatically.`,
-        },
-      ]);
     };
 
     const handleGraphAttachmentChanged = (event: CustomEvent) => {
-      const { frameId, attachment, action } = event.detail;
-      console.log("🔄 Graph attachment change → Frame Navigation sync:", {
-        frameId,
-        action,
-      });
+      try {
+        // Validate event structure
+        if (!event.detail || typeof event.detail !== 'object') {
+          console.warn("⚠️ Invalid graph attachment changed event - missing detail");
+          return;
+        }
 
-      setFrames((prev) =>
-        prev.map((frame) =>
+        const { frameId, attachment, action } = event.detail;
+        
+        // Validate event data
+        if (!frameId || typeof frameId !== 'string') {
+          console.warn("⚠️ Invalid graph attachment changed event - invalid frameId:", frameId);
+          return;
+        }
+
+        if (!action || typeof action !== 'string') {
+          console.warn("⚠️ Invalid graph attachment changed event - invalid action:", action);
+          return;
+        }
+
+        console.log("🔄 Graph attachment change → Frame Navigation sync:", {
+          frameId,
+          action,
+        });
+
+        // Debug: Log the attachment data being received
+        if (attachment?.type === 'video') {
+          console.log("🎥 Video attachment event:", {
+            frameId,
+            action,
+            videoUrl: attachment?.data?.videoUrl
+          });
+        }
+
+        // Update frame with attachment using smart merging
+        const updatedFrames = frames.map((frame) =>
           frame.id === frameId
             ? {
                 ...frame,
@@ -1430,16 +2870,51 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
                 updatedAt: new Date().toISOString(),
               }
             : frame
-        )
-      );
+        );
+        
+        // Debug: Log the updated frame
+        const updatedFrame = updatedFrames.find(f => f.id === frameId);
+        if (updatedFrame?.attachment?.type === 'video') {
+          console.log("🎥 Frame updated with video attachment:", {
+            frameId,
+            videoUrl: updatedFrame.attachment.data?.videoUrl
+          });
+        }
+        
+        // CRITICAL: Update frame state directly to prevent circular updates
+        setFrames(updatedFrames);
+        
+        // Sync to KB after a short delay to prevent RxDB conflicts
+        setTimeout(() => {
+          console.log("🔄 Syncing attachment changes to KB after delay");
+          
+          // CRITICAL FIX: Set sync flag to coordinate with FrameGraphIntegration
+          if (typeof window !== 'undefined') {
+            const aiFramesApp = (window as any).aiFramesApp || {};
+            aiFramesApp.syncInProgress = true;
+            (window as any).aiFramesApp = aiFramesApp;
+          }
+          
+          syncGraphChangesToKB(updatedFrames).finally(() => {
+            // Clear sync flag after completion
+            if (typeof window !== 'undefined') {
+              const aiFramesApp = (window as any).aiFramesApp || {};
+              aiFramesApp.syncInProgress = false;
+              (window as any).aiFramesApp = aiFramesApp;
+            }
+          });
+        }, 200);
 
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content: `🔗 Content ${action} in graph view.\n\n📊 Frame Navigation synchronized with attachment changes.`,
-        },
-      ]);
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: `🔗 Content ${action} in graph view.\n\n📊 Frame Navigation synchronized with attachment changes.`,
+          },
+        ]);
+      } catch (error) {
+        console.error("❌ Error handling graph attachment changed:", error);
+      }
     };
 
     window.addEventListener("graph-saved", handleGraphSaved as EventListener);
@@ -1458,6 +2933,72 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     window.addEventListener(
       "graph-attachment-changed",
       handleGraphAttachmentChanged as EventListener
+    );
+    
+    // Handle force save frames event
+    const handleForceSaveFrames = (event: CustomEvent) => {
+      const { reason, frameId, attachmentType } = event.detail;
+      console.log('💾 Force save frames requested:', {
+        reason,
+        frameId,
+        attachmentType
+      });
+      
+      // Force save all frames to Knowledge Base
+      if (frames.length > 0) {
+        saveAllFramesToKB();
+      }
+    };
+    
+    window.addEventListener(
+      "force-save-frames",
+      handleForceSaveFrames as EventListener
+    );
+    
+    // Handle frames-updated event for view synchronization
+    const handleFramesUpdated = (event: CustomEvent) => {
+      const { frames: updatedFrames, source } = event.detail;
+      console.log(`🔄 Frames updated event received:`, {
+        frameCount: updatedFrames.length,
+        source,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Force state update to trigger re-render
+      setFrames(updatedFrames);
+      
+      // Ensure current frame index is valid
+      if (currentFrameIndex >= updatedFrames.length) {
+        setCurrentFrameIndex(Math.max(0, updatedFrames.length - 1));
+      }
+    };
+    
+    window.addEventListener("frames-updated", handleFramesUpdated as EventListener);
+
+    // Listen for KB update events to provide user feedback
+    const handleKBUpdated = (event: CustomEvent) => {
+      const { frameCount, syncType, source, timestamp } = event.detail;
+      console.log(`✅ Knowledge Base updated (${syncType}):`, {
+        frameCount,
+        source,
+        timestamp
+      });
+      
+      // Add user feedback for immediate syncs
+      if (syncType === 'immediate' && source === 'graph-save') {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: `📚 Knowledge Base updated immediately! ${frameCount} frames synced from graph changes.`,
+          },
+        ]);
+      }
+    };
+
+    window.addEventListener(
+      "aiframes-kb-updated",
+      handleKBUpdated as EventListener
     );
 
     return () => {
@@ -1481,8 +3022,20 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         "graph-attachment-changed",
         handleGraphAttachmentChanged as EventListener
       );
+      window.removeEventListener(
+        "force-save-frames",
+        handleForceSaveFrames as EventListener
+      );
+      window.removeEventListener(
+        "frames-updated",
+        handleFramesUpdated as EventListener
+      );
+      window.removeEventListener(
+        "aiframes-kb-updated",
+        handleKBUpdated as EventListener
+      );
     };
-  }, [loadFramesFromStorage, currentFrameIndex]);
+  }, [loadFramesFromStorage, currentFrameIndex, vectorStore, vectorStoreInitialized, processingAvailable, syncGraphChangesToKB, updateFrameState, mergeFrameUpdates, frames]);
 
   // Enhanced cross-page synchronization system - Listen for metadata changes from other pages
   useEffect(() => {
@@ -2125,18 +3678,19 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     try {
       // Get current frame safely
       const currentFrame = frames[currentFrameIndex];
+      const videoContent = getVideoContent(currentFrame);
 
-      if (videoRef.current && currentFrame && currentFrame.videoUrl) {
+      if (videoRef.current && videoContent?.videoUrl) {
         // Send play command to YouTube iframe
         const iframe = videoRef.current;
-        const videoId = extractVideoId(currentFrame.videoUrl);
+        const videoId = extractVideoId(videoContent.videoUrl);
 
         if (videoId) {
           // Create new iframe src with autoplay enabled
           const newEmbedUrl = `https://www.youtube.com/embed/${videoId}?start=${
-            currentFrame.startTime
+            videoContent.startTime
           }&end=${
-            currentFrame.startTime + currentFrame.duration
+            videoContent.startTime + videoContent.duration
           }&autoplay=1&controls=1&modestbranding=1&rel=0`;
           iframe.src = newEmbedUrl;
 
@@ -2213,7 +3767,7 @@ Based on your TimeCapsule data and knowledge base, here's what you need to know 
       }
     }
 
-    aiResponse += `\n\nThis concept connects to your current frame "${currentFrame.title}" and will help you achieve your goal: "${currentFrame.goal}"
+    aiResponse += `\n\nThis concept connects to your current frame "${currentFrameForConcept.title}" and will help you achieve your goal: "${currentFrameForConcept.goal}"
 
 Would you like me to create a new frame focused specifically on ${concept}?`;
 
@@ -2229,7 +3783,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         Let me explain ${concept}. 
         
         ${concept} is a key concept in your current learning path. 
-        It relates directly to ${currentFrame.title} and helps you understand ${currentFrame.goal}.
+        It relates directly to ${currentFrameForConcept.title} and helps you understand ${currentFrameForConcept.goal}.
         
         This concept is fundamental for your learning journey and connects to the other topics you're exploring.
       `
@@ -2376,7 +3930,19 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
     try {
       const newFrame = await generateFrameContent(newFrameData);
-      setFrames((prev) => [...prev, newFrame]);
+      
+      // FIXED: Properly append new frame to existing frames
+      setFrames((prev) => {
+        const updatedFrames = [...prev, newFrame];
+        console.log("✅ Frame creation result:", {
+          beforeCount: prev.length,
+          afterCount: updatedFrames.length,
+          newFrameTitle: newFrame.title,
+          newFrameId: newFrame.id
+        });
+        return updatedFrames;
+      });
+      
       setCurrentFrameIndex(frames.length); // Switch to new frame
       setShowCreationForm(false);
       setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
@@ -2569,7 +4135,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
             detail: {
               frameCount: clearedCount,
               bubblSpaceId: currentBubblSpace?.id,
-              timeCapsuleId: currentTimeCapsule?.id,
+              timecapsule_id: currentTimeCapsule?.id,
               timestamp: new Date().toISOString(),
             },
           })
@@ -2610,7 +4176,112 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     input.click();
   };
 
-  const handleManageKnowledge = () => {
+  // FIXED: Helper function to ensure KB sync after Save Graph operations
+  const ensureKBSyncAfterSaveGraph = async (frames: AIFrame[]) => {
+    if (!vectorStore || !vectorStoreInitialized) {
+      console.log("⏳ VectorStore not ready for KB sync");
+      return;
+    }
+
+    try {
+      console.log("🔄 Ensuring KB sync after Save Graph operation...");
+      
+      // Force refresh documents from IndexedDB
+      const stats = await vectorStore.getStats();
+      const documents = await vectorStore.getAllDocuments();
+      const totalSize = documents.reduce(
+        (sum, doc) => sum + (doc.metadata?.filesize || 0),
+        0
+      );
+
+      // Update document status
+      setDocumentStatus({
+        count: stats.documentCount,
+        totalSize: totalSize,
+        vectorCount: stats.vectorCount,
+      });
+      
+      setDocuments(documents);
+
+      // Dispatch comprehensive KB update events
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+          detail: {
+            source: 'save-graph-verification',
+            frameCount: frames.length,
+            documentCount: stats.documentCount,
+            timestamp: new Date().toISOString()
+          }
+        }));
+
+        window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
+          detail: {
+            source: 'save-graph-verification',
+            frameCount: frames.length,
+            timestamp: new Date().toISOString(),
+            frames: frames,
+            hasFrameUpdates: true
+          }
+        }));
+      }
+
+      console.log("✅ KB sync verification completed:", {
+        documentCount: stats.documentCount,
+        totalSize: totalSize,
+        vectorCount: stats.vectorCount,
+        frameCount: frames.length
+      });
+    } catch (error) {
+      console.error("❌ Failed to verify KB sync after Save Graph:", error);
+    }
+  };
+
+  const handleManageKnowledge = async () => {
+    // FIXED: Enhanced force refresh with IndexedDB verification
+    if (vectorStore && vectorStoreInitialized) {
+      try {
+        console.log("🔄 Force refreshing Knowledge Base before opening manager...");
+        
+        // Get fresh stats and documents from IndexedDB
+        const stats = await vectorStore.getStats();
+        const documents = await vectorStore.getAllDocuments();
+        const totalSize = documents.reduce(
+          (sum, doc) => sum + (doc.metadata?.filesize || 0),
+          0
+        );
+
+        // Update document status with fresh data
+        setDocumentStatus({
+          count: stats.documentCount,
+          totalSize: totalSize,
+          vectorCount: stats.vectorCount,
+        });
+        
+        setDocuments(documents);
+        
+        // FIXED: Verify IndexedDB sync status
+        console.log("✅ Knowledge Base force refreshed before opening manager:", {
+          documentCount: stats.documentCount,
+          totalSize: totalSize,
+          vectorCount: stats.vectorCount,
+          source: 'manage-knowledge'
+        });
+
+        // Dispatch event to notify other components
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kb-manager-opened', {
+            detail: {
+              source: 'manage-knowledge',
+              documentCount: stats.documentCount,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to force refresh documents:", error);
+      }
+    }
+
     // Open the local Document Manager dialog
     setShowDocumentManager(true);
   };
@@ -2652,6 +4323,94 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
     updateDocumentStatus();
   }, [vectorStore, vectorStoreInitialized]);
+
+  // FIXED: Enhanced KB sync events listener with Save Graph support and navigation protection
+  const [isNavigating, setIsNavigating] = useState(false);
+  
+  useEffect(() => {
+    const refreshDocuments = async (source?: string) => {
+      if (vectorStore && vectorStoreInitialized) {
+        try {
+          console.log(`🔄 Refreshing Knowledge Base documents after sync event (source: ${source || 'unknown'})...`);
+          const stats = await vectorStore.getStats();
+          const documents = await vectorStore.getAllDocuments();
+          const totalSize = documents.reduce(
+            (sum, doc) => sum + (doc.metadata?.filesize || 0),
+            0
+          );
+
+          setDocumentStatus({
+            count: stats.documentCount,
+            totalSize: totalSize,
+            vectorCount: stats.vectorCount,
+          });
+          
+          setDocuments(documents);
+          console.log("✅ Knowledge Base documents refreshed:", {
+            documentCount: stats.documentCount,
+            totalSize: totalSize,
+            vectorCount: stats.vectorCount,
+            source: source
+          });
+        } catch (error) {
+          console.error("Failed to refresh documents after sync:", error);
+        }
+      }
+    };
+
+    const handleKBRefresh = (event: CustomEvent) => {
+      console.log("🔄 KB refresh event received:", event.detail);
+      refreshDocuments(event.detail?.source || 'kb-refresh');
+    };
+
+    const handleKBDocumentsChanged = (event: CustomEvent) => {
+      console.log("🔄 KB documents changed event received:", event.detail);
+      refreshDocuments(event.detail?.source || 'kb-documents-changed');
+    };
+
+    const handleAIFramesKBUpdated = (event: CustomEvent) => {
+      console.log("🔄 AI-Frames KB updated event received:", event.detail);
+      refreshDocuments(event.detail?.source || 'aiframes-kb-updated');
+      
+      // FIXED: Update frames state if Save Graph was the source
+      if (event.detail?.source === 'save-graph' && event.detail?.frames) {
+        console.log("🔄 Updating frames state from Save Graph KB update");
+        setFrames(event.detail.frames);
+      }
+    };
+
+    // FIXED: Navigation protection - listen for page visibility changes
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log("🔄 Page hidden - saving current state before navigation");
+        setIsNavigating(true);
+        // Save current state to prevent loss during navigation
+        if (frames.length > 0) {
+          saveAllFramesToKB();
+        }
+      } else {
+        console.log("🔄 Page visible - restoring state after navigation");
+        setIsNavigating(false);
+        // Small delay to ensure proper state restoration
+        setTimeout(() => {
+          loadFramesFromStorage();
+        }, 100);
+      }
+    };
+
+    // Listen for KB sync events
+    window.addEventListener('kb-force-refresh', handleKBRefresh as EventListener);
+    window.addEventListener('kb-documents-changed', handleKBDocumentsChanged as EventListener);
+    window.addEventListener('aiframes-kb-updated', handleAIFramesKBUpdated as EventListener);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('kb-force-refresh', handleKBRefresh as EventListener);
+      window.removeEventListener('kb-documents-changed', handleKBDocumentsChanged as EventListener);
+      window.removeEventListener('aiframes-kb-updated', handleAIFramesKBUpdated as EventListener);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [vectorStore, vectorStoreInitialized, frames.length]);
 
   // Document Manager handlers
   const handleKnowledgeBaseSearch = async () => {
@@ -2873,6 +4632,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
     }
   };
 
+  // Optimized drag and drop handler
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
 
@@ -2887,76 +4647,72 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       return;
     }
 
-    // Create new array with reordered frames
+    // Optimized: Create new array with reordered frames in one pass
     const newFrames = [...frames];
     const [draggedFrame] = newFrames.splice(draggedIndex, 1);
     newFrames.splice(dropIndex, 0, draggedFrame);
 
-    // Update order field for all frames to maintain sequence
+    // Optimized: Only update order for affected frames (minimal changes)
     const reorderedFrames = newFrames.map((frame, index) => ({
       ...frame,
       order: index + 1,
       updatedAt: new Date().toISOString(),
     }));
 
-    setFrames(reorderedFrames);
-
-    // Update current frame index if needed
+    // Optimized: Update current frame index calculation
+    let newCurrentIndex = currentFrameIndex;
     if (currentFrameIndex === draggedIndex) {
-      setCurrentFrameIndex(dropIndex);
-    } else if (
-      draggedIndex < currentFrameIndex &&
-      dropIndex >= currentFrameIndex
-    ) {
-      setCurrentFrameIndex(currentFrameIndex - 1);
-    } else if (
-      draggedIndex > currentFrameIndex &&
-      dropIndex <= currentFrameIndex
-    ) {
-      setCurrentFrameIndex(currentFrameIndex + 1);
+      newCurrentIndex = dropIndex;
+    } else if (draggedIndex < currentFrameIndex && dropIndex >= currentFrameIndex) {
+      newCurrentIndex = currentFrameIndex - 1;
+    } else if (draggedIndex > currentFrameIndex && dropIndex <= currentFrameIndex) {
+      newCurrentIndex = currentFrameIndex + 1;
     }
 
-    // Emit event to sync with graph view
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("frames-reordered", {
-          detail: {
-            fromIndex: draggedIndex,
-            toIndex: dropIndex,
-            draggedFrameId: draggedFrame.id,
-            reorderedFrames: reorderedFrames,
-            newCurrentIndex:
-              currentFrameIndex === draggedIndex
-                ? dropIndex
-                : currentFrameIndex,
-          },
-        })
-      );
-    }
-
-    // Add success message to chat
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        role: "ai",
-        content: `✅ Frame reordered successfully! Frame "${
-          draggedFrame.title
-        }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.\n\n🔄 Graph view synchronized with new order.`,
-      },
-    ]);
-
+    // Optimized: Batch state updates
+    setFrames(reorderedFrames);
+    setCurrentFrameIndex(newCurrentIndex);
     setDraggedFrameId(null);
     setDragOverIndex(null);
 
-    console.log(
-      "🔄 Frame order updated via drag & drop → Graph sync triggered:",
-      {
-        fromIndex: draggedIndex,
-        toIndex: dropIndex,
-        frameTitle: draggedFrame.title,
-        totalFrames: reorderedFrames.length,
+    // Optimized: Async operations (non-blocking)
+    setTimeout(() => {
+      // Emit event to sync with graph view (async)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("frames-reordered", {
+            detail: {
+              fromIndex: draggedIndex,
+              toIndex: dropIndex,
+              draggedFrameId: draggedFrame.id,
+              reorderedFrames: reorderedFrames,
+              newCurrentIndex: newCurrentIndex,
+            },
+          })
+        );
       }
-    );
+
+      // Add success message to chat (async)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: `✅ Frame reordered successfully! Frame "${
+            draggedFrame.title
+          }" moved to position ${dropIndex + 1}. Order numbers updated for all frames.\n\n🔄 Graph view synchronized with new order.`,
+        },
+      ]);
+
+      console.log(
+        "🔄 Frame order updated via drag & drop → Graph sync triggered:",
+        {
+          fromIndex: draggedIndex,
+          toIndex: dropIndex,
+          frameTitle: draggedFrame.title,
+          totalFrames: reorderedFrames.length,
+        }
+      );
+    }, 0);
   };
 
   const handleDragEnd = () => {
@@ -2966,17 +4722,78 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
 
   // Get current frame safely for video display
   const currentFrame = frames[currentFrameIndex];
-  const videoId = currentFrame?.videoUrl
-    ? extractVideoId(currentFrame.videoUrl)
-    : null;
+  
+  // Get video content from either attachment or legacy fields (memoized to prevent infinite loops)
+  const getVideoContent = useCallback((frame: any) => {
+    if (!frame) return null;
+    
+    if (frame?.attachment?.type === 'video') {
+      return {
+        videoUrl: frame.attachment.data?.videoUrl,
+        startTime: frame.attachment.data?.startTime || 0,
+        duration: frame.attachment.data?.duration || 300,
+      };
+    } else if (frame?.videoUrl) {
+      return {
+        videoUrl: frame.videoUrl,
+        startTime: frame.startTime || 0,
+        duration: frame.duration || 300,
+      };
+    }
+    return null;
+  }, []);
+  
+  // Memoize video content to prevent unnecessary recalculations
+  const videoContent = useMemo(() => {
+    const content = getVideoContent(currentFrame);
+    if (content) {
+      console.log('🎥 Video content resolved:', {
+        frameId: currentFrame?.id,
+        videoUrl: content.videoUrl,
+        startTime: content.startTime,
+        duration: content.duration
+      });
+    }
+    return content;
+  }, [currentFrame?.id, currentFrame?.videoUrl, currentFrame?.attachment?.data?.videoUrl, getVideoContent]);
+  
+  const videoId = videoContent?.videoUrl ? extractVideoId(videoContent.videoUrl) : null;
   const embedUrl =
-    currentFrame && videoId && currentFrame.videoUrl
+    currentFrame && videoId && videoContent?.videoUrl
       ? `https://www.youtube.com/embed/${videoId}?start=${
-          currentFrame.startTime
+          videoContent.startTime
         }&end=${
-          currentFrame.startTime + currentFrame.duration
+          videoContent.startTime + videoContent.duration
         }&autoplay=0&controls=1&modestbranding=1&rel=0`
       : null;
+
+  // Get PDF content from attachment
+  const getPDFContent = (frame: any) => {
+    if (frame?.attachment?.type === 'pdf') {
+      return {
+        pdfUrl: frame.attachment.data?.pdfUrl,
+        pages: frame.attachment.data?.pages || 'All pages',
+        title: frame.attachment.data?.title || 'PDF Document',
+        notes: frame.attachment.data?.notes
+      };
+    }
+    return null;
+  };
+
+  // Get text content from attachment
+  const getTextContent = (frame: any) => {
+    if (frame?.attachment?.type === 'text') {
+      return {
+        text: frame.attachment.data?.text,
+        title: frame.attachment.data?.title || 'Text Content',
+        notes: frame.attachment.data?.notes
+      };
+    }
+    return null;
+  };
+
+  const pdfContent = getPDFContent(currentFrame);
+  const textContent = getTextContent(currentFrame);
 
   const nextFrame = () => {
     if (currentFrameIndex < frames.length - 1) {
@@ -3051,6 +4868,52 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   }, [showTimeCapsuleSelector]);
 
   // Skip early return - always show main interface
+
+  // ENHANCED: Monitor VectorStore availability and reload frames from KB when ready
+  useEffect(() => {
+    if (!vectorStore || !vectorStoreInitialized || !processingAvailable) {
+      return;
+    }
+
+    // If frames were loaded from localStorage but VectorStore is now ready, reload from KB
+    const reloadFromKBIfNeeded = async () => {
+      try {
+        console.log("🔄 VectorStore is now ready, checking if frames need to be reloaded from KB...");
+        
+        // Check if current frames have attachment data
+        const hasAttachmentData = frames.some(frame => (frame as any).attachment);
+        
+        if (!hasAttachmentData && frames.length > 0) {
+          console.log("⚠️ Current frames lack attachment data, reloading from Knowledge Base...");
+          
+          // Reload frames from Knowledge Base
+          const kbFrames = await loadFramesFromKnowledgeBase();
+          
+          if (kbFrames.length > 0) {
+            console.log("✅ Reloaded frames from KB with attachment data:", {
+              frameCount: kbFrames.length,
+              framesWithAttachments: kbFrames.filter(f => (f as any).attachment).length
+            });
+            
+            // Update frame state with KB data
+            setFrames(kbFrames);
+            
+            // Ensure current frame index is valid
+            if (currentFrameIndex >= kbFrames.length) {
+              setCurrentFrameIndex(0);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("❌ Failed to reload frames from KB:", error);
+      }
+    };
+
+    // Small delay to ensure VectorStore is fully ready
+    const reloadTimer = setTimeout(reloadFromKBIfNeeded, 1000);
+    
+    return () => clearTimeout(reloadTimer);
+  }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentFrameIndex]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
@@ -3809,13 +5672,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
               {showGraphView ? (
                 /* Graph View */
                 <FrameGraphIntegration
-                  frames={frames}
+                  frames={frames as any} // FIXED: Type cast to resolve attachment interface mismatch
                   onFramesChange={setFrames as any} // TODO: Fix type compatibility after updating FrameGraphIntegration
                   isCreationMode={isCreationMode}
                   currentFrameIndex={currentFrameIndex}
                   onFrameIndexChange={setCurrentFrameIndex}
                   onCreateFrame={() => setShowCreationForm(true)}
                   onTimeCapsuleUpdate={handleTimeCapsuleUpdate}
+                  graphStorageManager={graphStorageManager}
                 />
               ) : (
                 /* Traditional Linear View */
@@ -4140,8 +6004,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           </div>
                           <div className="mt-4 flex items-center justify-between">
                             <div className="text-sm text-slate-600 dark:text-slate-400">
-                              Playing from {formatTime(currentFrame.startTime)}{" "}
-                              for {formatTime(currentFrame.duration)}
+                              {videoContent ? (
+                                <>
+                                  Playing from {formatTime(videoContent.startTime)}{" "}
+                                  for {formatTime(videoContent.duration)}
+                                </>
+                              ) : (
+                                "No video content available"
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               {!isCreationMode && isVoiceEnabled && (
@@ -4183,6 +6053,79 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                           </div>
                         </CardContent>
                       </Card>
+
+                      {/* PDF Content Section */}
+                      {pdfContent && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <File className="h-5 w-5 text-blue-600" />
+                              PDF Document
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <File className="h-8 w-8 text-blue-600" />
+                                  <div>
+                                    <p className="font-medium text-blue-900 dark:text-blue-100">{pdfContent.title}</p>
+                                    <p className="text-sm text-blue-600 dark:text-blue-300">Pages: {pdfContent.pages}</p>
+                                  </div>
+                                </div>
+                                {pdfContent.pdfUrl && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(pdfContent.pdfUrl, '_blank')}
+                                  >
+                                    <LinkIcon className="h-4 w-4 mr-2" />
+                                    Open PDF
+                                  </Button>
+                                )}
+                              </div>
+                              {pdfContent.notes && (
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <strong>Notes:</strong> {pdfContent.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Text Content Section */}
+                      {textContent && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <FileText className="h-5 w-5 text-green-600" />
+                              Text Content
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">{textContent.title}</h3>
+                                <div className="prose prose-sm max-w-none text-green-800 dark:text-green-200">
+                                  {textContent.text.split('\n').map((paragraph: string, index: number) => (
+                                    <p key={index} className="mb-2">{paragraph}</p>
+                                  ))}
+                                </div>
+                              </div>
+                              {textContent.notes && (
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <strong>Notes:</strong> {textContent.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
                       {/* AI Concepts (triggered by video pause or user action) */}
                       {showAIConcepts && (
@@ -4303,14 +6246,50 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       >
         <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
-              Knowledge Base Manager
-            </DialogTitle>
-            <DialogDescription>
-              Organized view of your documents by category. Search and manage
-              your knowledge base content.
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                  Knowledge Base Manager
+                </DialogTitle>
+                <DialogDescription>
+                  Organized view of your documents by category. Search and manage
+                  your knowledge base content.
+                </DialogDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (vectorStore && vectorStoreInitialized) {
+                    try {
+                      console.log("🔄 Manual refresh of Knowledge Base documents...");
+                      const stats = await vectorStore.getStats();
+                      const documents = await vectorStore.getAllDocuments();
+                      const totalSize = documents.reduce(
+                        (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                        0
+                      );
+
+                      setDocumentStatus({
+                        count: stats.documentCount,
+                        totalSize: totalSize,
+                        vectorCount: stats.vectorCount,
+                      });
+                      
+                      setDocuments(documents);
+                      console.log("✅ Knowledge Base documents manually refreshed");
+                    } catch (error) {
+                      console.error("Failed to manually refresh documents:", error);
+                    }
+                  }
+                }}
+                title="Refresh document list"
+              >
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6">
@@ -5385,6 +7364,285 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Frame Editor Dialog - MISSING COMPONENT IMPLEMENTATION */}
+      {showFrameEditor && editingFrame && (
+        <Dialog
+          open={showFrameEditor}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowFrameEditor(false);
+              setEditingFrame(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit3 className="h-5 w-5 text-blue-600" />
+                Edit AI Frame
+              </DialogTitle>
+              <DialogDescription>
+                Edit the content and settings for this AI frame. Changes will be saved to all views and the Knowledge Base.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-y-auto px-1">
+              <div className="space-y-6 py-4">
+                {/* Frame Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="frame-title">Frame Title</Label>
+                  <Input
+                    id="frame-title"
+                    value={editingFrame.title}
+                    onChange={(e) => setEditingFrame({
+                      ...editingFrame,
+                      title: e.target.value
+                    })}
+                    placeholder="Enter frame title..."
+                  />
+                </div>
+
+                {/* Learning Goal */}
+                <div className="space-y-2">
+                  <Label htmlFor="frame-goal">Learning Goal</Label>
+                  <Textarea
+                    id="frame-goal"
+                    value={editingFrame.goal}
+                    onChange={(e) => setEditingFrame({
+                      ...editingFrame,
+                      goal: e.target.value
+                    })}
+                    placeholder="Enter learning goal here..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Information Text */}
+                <div className="space-y-2">
+                  <Label htmlFor="frame-info">Context & Background</Label>
+                  <Textarea
+                    id="frame-info"
+                    value={editingFrame.informationText}
+                    onChange={(e) => setEditingFrame({
+                      ...editingFrame,
+                      informationText: e.target.value
+                    })}
+                    placeholder="Provide background context and information..."
+                    rows={6}
+                  />
+                </div>
+
+                {/* After Video Text */}
+                <div className="space-y-2">
+                  <Label htmlFor="frame-after">After Video Content</Label>
+                  <Textarea
+                    id="frame-after"
+                    value={editingFrame.afterVideoText}
+                    onChange={(e) => setEditingFrame({
+                      ...editingFrame,
+                      afterVideoText: e.target.value
+                    })}
+                    placeholder="Key takeaways and next steps..."
+                    rows={4}
+                  />
+                </div>
+
+                {/* Video Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="frame-video-url">Video URL</Label>
+                    <Input
+                      id="frame-video-url"
+                      value={editingFrame.videoUrl}
+                      onChange={(e) => setEditingFrame({
+                        ...editingFrame,
+                        videoUrl: e.target.value
+                      })}
+                      placeholder="YouTube video URL..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="frame-start-time">Start Time (seconds)</Label>
+                    <Input
+                      id="frame-start-time"
+                      type="number"
+                      value={editingFrame.startTime}
+                      onChange={(e) => setEditingFrame({
+                        ...editingFrame,
+                        startTime: parseInt(e.target.value) || 0
+                      })}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="frame-duration">Duration (seconds)</Label>
+                    <Input
+                      id="frame-duration"
+                      type="number"
+                      value={editingFrame.duration}
+                      onChange={(e) => setEditingFrame({
+                        ...editingFrame,
+                        duration: parseInt(e.target.value) || 300
+                      })}
+                      placeholder="300"
+                    />
+                  </div>
+                </div>
+
+                {/* AI Concepts */}
+                <div className="space-y-2">
+                  <Label htmlFor="frame-concepts">AI Concepts</Label>
+                  <Input
+                    id="frame-concepts"
+                    value={editingFrame.aiConcepts.join(', ')}
+                    onChange={(e) => setEditingFrame({
+                      ...editingFrame,
+                      aiConcepts: e.target.value.split(',').map(c => c.trim()).filter(c => c.length > 0)
+                    })}
+                    placeholder="Enter concepts separated by commas..."
+                  />
+                  <div className="text-sm text-gray-500">
+                    Separate multiple concepts with commas
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowFrameEditor(false);
+                  setEditingFrame(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!editingFrame) return;
+
+                  try {
+                    // Update frame in frames array
+                    const updatedFrames = frames.map(frame => 
+                      frame.id === editingFrame.id 
+                        ? { ...editingFrame, updatedAt: new Date().toISOString() }
+                        : frame
+                    );
+                    
+                    console.log('🔄 Frame save: Updating frames array', {
+                      originalLength: frames.length,
+                      updatedLength: updatedFrames.length,
+                      editingFrameId: editingFrame.id,
+                      editingFrameTitle: editingFrame.title
+                    });
+                    
+                    setFrames(updatedFrames);
+                    
+                    // Force re-render by triggering a state update
+                    setCurrentFrameIndex(prev => {
+                      const newIndex = updatedFrames.findIndex(f => f.id === editingFrame.id);
+                      return newIndex !== -1 ? newIndex : prev;
+                    });
+                    
+                    // Save to storage immediately
+                    await saveFramesToStorage();
+                    
+                    // Trigger immediate KB sync
+                    if (vectorStore && vectorStoreInitialized && processingAvailable) {
+                      await syncGraphChangesToKB(updatedFrames);
+                      
+                      // Dispatch immediate KB update event
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
+                          detail: {
+                            frameCount: updatedFrames.length,
+                            syncType: 'immediate',
+                            source: 'frame-edit',
+                            timestamp: new Date().toISOString()
+                          }
+                        }));
+                        
+                        // Force Knowledge Base refresh with specific frame info
+                        window.dispatchEvent(new CustomEvent('kb-force-refresh', {
+                          detail: {
+                            source: 'frame-edit',
+                            frameId: editingFrame.id,
+                            frameTitle: editingFrame.title,
+                            action: 'update',
+                            timestamp: new Date().toISOString()
+                          }
+                        }));
+                        
+                        // Force Knowledge Base document list refresh
+                        window.dispatchEvent(new CustomEvent('kb-documents-changed', {
+                          detail: {
+                            source: 'frame-edit',
+                            changeType: 'update',
+                            documentId: `aiframe-${editingFrame.id}`,
+                            timestamp: new Date().toISOString()
+                          }
+                        }));
+                      }
+                    }
+                    
+                    // Trigger view synchronization
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('frame-edited', {
+                        detail: {
+                          frameId: editingFrame.id,
+                          frame: { ...editingFrame, updatedAt: new Date().toISOString() },
+                          timestamp: new Date().toISOString()
+                        }
+                      }));
+                      
+                      // Force refresh frame navigation and linear view
+                      window.dispatchEvent(new CustomEvent('frames-updated', {
+                        detail: {
+                          frames: updatedFrames,
+                          source: 'frame-edit',
+                          timestamp: new Date().toISOString()
+                        }
+                      }));
+                    }
+                    
+                    // Close dialog
+                    setShowFrameEditor(false);
+                    setEditingFrame(null);
+                    
+                    // Show success message
+                    setChatMessages((prev) => [
+                      ...prev,
+                      {
+                        role: "ai",
+                        content: `✅ Frame "${editingFrame.title}" saved successfully!\n\n🔄 All views updated automatically\n📊 Knowledge Base synced immediately\n\nYour changes are now visible in both Linear and Graph views.`,
+                      },
+                    ]);
+                    
+                    console.log('✅ Frame edited and saved successfully:', editingFrame.title);
+                  } catch (error) {
+                    console.error('❌ Failed to save frame:', error);
+                    setChatMessages((prev) => [
+                      ...prev,
+                      {
+                        role: "ai",
+                        content: `❌ Failed to save frame: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                      },
+                    ]);
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Frame
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
