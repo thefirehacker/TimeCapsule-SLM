@@ -1,135 +1,94 @@
-# UI Improvement Plan
+# Pricing Content Update Plan
 
-## Issues Identified:
+## Current Situation Analysis:
 
-1. Hero section needs better responsiveness and UI improvements
-2. Navbar hamburger menu not working on mobile
-3. Need to add sign-in call to action
-4. **NEW**: Add login tracking functionality
+1. **Two Pricing Pages Exist:**
+   - `/src/app/(payments)/pricing/page.tsx` - New payment-focused pricing
+   - `/src/app/pricing/page.tsx` - Original comprehensive pricing page
+
+2. **New Pricing Structure (from payments):**
+   - **Free Plan**: $0 - 1 podcast/month, 5 microlearning modules/month, unlimited public TimeCapsules
+   - **Pro Plan**: $29 USD / ₹2,500 INR - 3 AI Sales Demos/month, Admin Dashboard, Approval workflow, etc.
+   - **Pro Enterprise**: Coming Soon - Custom solutions
+
+3. **Current Pricing Structure (original):**
+   - **Local & BYOA**: Free - AI Frame Creation, Learning Graph, etc.
+   - **Professional**: $20/month - Unlimited AI Interactions, Analytics, etc.
+   - **Team**: $200/month - Team features, 100GB storage, etc.
+   - **Enterprise**: Custom - Enterprise features
 
 ## Todo List:
 
-### 1. Fix Navbar Hamburger Menu Issue ✅ COMPLETED
+### 1. Update Main Pricing Page Content ✅ COMPLETED
 
-- [x] Debug the hamburger menu state management
-- [x] Fix the mobile menu toggle functionality
-- [x] Ensure proper z-index and positioning
-- [x] Test mobile responsiveness
+- [x] Update pricing tiers to match new structure
+- [x] Update features for each plan
+- [x] Update pricing amounts and currencies
+- [x] Maintain the existing UI design and layout
+- [x] Update plan descriptions and CTAs
+- [x] Update grid layout from 4 columns to 3 columns
 
-**Changes Made:**
+### 2. Update Payment Pricing Page Content ✅ COMPLETED
 
-- Added missing `group` class to nav element
-- Fixed data-state attribute logic
-- Improved mobile menu structure with proper transitions
-- Added click outside to close functionality
-- Enhanced mobile menu styling and layout
+- [x] Sync features with main pricing page
+- [x] Ensure consistency between both pricing pages
+- [x] Update any outdated content
+- [x] Add missing features to all plans
 
-### 2. Improve Hero Section UI & Responsiveness ✅ COMPLETED
+### 3. Update Checkout Page Content ✅ COMPLETED
 
-- [x] Enhance mobile responsiveness for all screen sizes
-- [x] Improve text scaling and spacing on mobile
-- [x] Optimize feature grid layout for mobile
-- [x] Add better animations and transitions
-- [x] Improve button layouts for mobile
-- [x] Enhance visual hierarchy
+- [x] Update plan features in checkout sidebar
+- [x] Ensure pricing matches new structure
+- [x] Update any plan descriptions
+- [x] Update plan name from "Pro Plan" to "Pro"
+- [x] Add holiday special mention
+- [x] Add "Coming Soon" features to match pricing page
 
-**Changes Made:**
+### 4. Content Consistency Check ✅ COMPLETED
 
-- Added responsive breakpoints (sm, md, lg, xl)
-- Improved text sizing across all screen sizes
-- Enhanced button layouts with full-width on mobile
-- Optimized spacing and padding for mobile
-- Improved feature grid with better mobile layout
-- Enhanced visual elements scaling
+- [x] Verify all pricing pages show same information
+- [x] Check that features are consistent across pages
+- [x] Ensure CTAs point to correct locations
+- [x] Confirm pricing amounts are consistent ($29 USD / ₹2,500 INR)
 
-### 3. Add Sign-In Call to Action ✅ COMPLETED
+## Implementation Details:
 
-- [x] Add sign-in button to hero section
-- [x] Position it appropriately in the CTA section
-- [x] Ensure it doesn't conflict with existing buttons
-- [x] Make it visually appealing and prominent
+### New Pricing Structure:
 
-**Changes Made:**
+1. **Free Plan** ($0)
+   - Create up to 1 podcasts per month
+   - Develop up to 5 microlearning modules per month
+   - Unlimited access to view Public TimeCapsules
+   - Basic features only
 
-- Added Sign In button to hero CTA section
-- Used ghost variant with backdrop blur for clean look
-- Positioned as third button in the CTA row
-- Added LogIn icon for visual consistency
-- Made it responsive with full-width on mobile
+2. **Pro Plan** ($29 USD / ₹2,500 INR)
+   - Create up to 3 AI Sales Demos per month
+   - Admin Dashboard for Sales Team
+   - Approval workflow to screen demo requests
+   - Schedule demos with leads
+   - Admin access to AI Persona
+   - English language support
+   - Additional languages (Coming Soon)
+   - Top up option: $99 for 5 additional demos (Coming Soon)
 
-### 4. Add Login Tracking Functionality ✅ COMPLETED
+3. **Pro Enterprise** (Coming Soon)
+   - Custom solutions
+   - Priority support
+   - Advanced features
 
-- [x] Update User interface to include login tracking fields
-- [x] Add login tracking functions to auth.ts
-- [x] Update signIn callback to track login information
-- [x] Store provider, login count, and session history
-- [x] Update database schema for new fields
+### Key Changes Made:
 
-**Changes Made:**
+- Updated all pricing amounts and currencies
+- Updated feature lists for each plan
+- Maintained existing UI design and animations
+- Updated plan descriptions and CTAs
+- Ensured consistency across all pricing-related pages
+- Updated checkout page to reflect new pricing structure
 
-- Added `provider`, `loginCount`, `sessionHistory`, `lastLoginAt` fields to User interface
-- Created `updateUserLoginInfo()` function to track login events
-- Created `getUserLoginStats()` function to retrieve user login statistics
-- Created `getLoginStatsByProvider()` function for analytics
-- Updated signIn callback to track login information for all providers (Google, GitHub, email)
-- Updated createUser functions to initialize login tracking fields
-- Added error handling to prevent login tracking failures from blocking sign-in
+## Testing Checklist:
 
-**Login Tracking Features:**
-
-- **Provider Tracking**: Records whether user logged in via Google, GitHub, or email
-- **Login Count**: Increments with each successful login
-- **Session History**: Stores last 50 sessions with timestamp, provider, user agent, and IP
-- **Last Login**: Tracks the most recent login timestamp
-- **Analytics**: Provides statistics by provider and overall usage
-
-### 5. Testing
-
-- [ ] Test on various screen sizes
-- [ ] Verify hamburger menu functionality
-- [ ] Check all links and interactions
-- [ ] Ensure smooth animations
-- [ ] Test login tracking functionality
-
-## Implementation Order:
-
-1. ✅ Fix navbar hamburger menu first (critical functionality)
-2. ✅ Improve hero section responsiveness
-3. ✅ Add sign-in CTA
-4. ✅ Add login tracking functionality
-5. 🔄 Final testing and refinements
-
-## Key Improvements Made:
-
-### Navbar:
-
-- Fixed hamburger menu toggle functionality
-- Added proper mobile menu with smooth transitions
-- Improved z-index and positioning
-- Added click outside to close functionality
-- Enhanced mobile menu styling
-
-### Hero Section:
-
-- Fully responsive design across all screen sizes
-- Improved text scaling and spacing
-- Better button layouts for mobile
-- Enhanced feature grid responsiveness
-- Added sign-in call to action
-- Optimized visual hierarchy
-
-### Sign-In Integration:
-
-- Added prominent sign-in button to hero section
-- Clean, modern design that fits the overall aesthetic
-- Responsive design that works on all devices
-- Direct integration with NextAuth signIn function
-
-### Login Tracking:
-
-- ✅ Tracks login provider (Google/GitHub/email)
-- ✅ Maintains login count for each user
-- ✅ Stores session history with timestamps
-- ✅ Updates user records on each login
-- ✅ Provides analytics functions for admin use
-- ✅ Error handling to prevent tracking failures from blocking sign-in
+- [x] Verify pricing displays correctly on all pages
+- [x] Check that features are consistent
+- [x] Test CTA buttons work correctly
+- [x] Verify responsive design still works
+- [x] Check that checkout flow uses correct pricing
