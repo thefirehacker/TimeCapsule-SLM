@@ -3,10 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ChevronDown, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, ChevronDown, Sparkles, Zap, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedGroup } from "@/components/ui/animated-group";
+import { signIn } from "next-auth/react";
 
 const transitionVariants = {
   item: {
@@ -62,59 +63,65 @@ export function HeroSection() {
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-cyan-400/10 to-blue-600/10 rounded-full blur-3xl animate-pulse delay-500" />
         </div>
 
-        <section className="relative pt-32 pb-20 md:pt-40 md:pb-32">
-          <div className="container mx-auto px-6">
-            <div className="text-center max-w-5xl mx-auto">
+        <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 lg:pt-40 lg:pb-32">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-6xl mx-auto">
               {/* Announcement Badge */}
-              <AnimatedGroup variants={transitionVariants} className="mb-8">
+              <AnimatedGroup
+                variants={transitionVariants}
+                className="mb-6 md:mb-8"
+              >
                 <Link
                   href="/deep-research"
-                  className="inline-flex items-center gap-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  className="inline-flex items-center gap-2 sm:gap-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 sm:px-6 sm:py-3 shadow-lg hover:shadow-xl transition-all duration-300 group"
                 >
                   <Badge
                     variant="secondary"
-                    className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                    className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 text-xs sm:text-sm"
                   >
                     <Sparkles className="w-3 h-3 mr-1" />
                     New
                   </Badge>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     Introducing AI-Powered Research Platform
                   </span>
-                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
                 </Link>
               </AnimatedGroup>
 
               {/* Main Heading */}
-              <AnimatedGroup variants={transitionVariants} className="mb-8">
-                <h1 className="relative text-6xl md:text-7xl lg:text-8xl font-black leading-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <AnimatedGroup
+                variants={transitionVariants}
+                className="mb-6 md:mb-8"
+              >
+                <h1 className="relative text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   <span className="block sm:inline">Time</span>
                   <span className="block sm:inline">Capsule</span>
                   <span className="block sm:inline">-</span>
                   <span className="block sm:inline">SLM</span>
                 </h1>
 
-                <div className="mt-6 mb-6">
-                  <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-gray-200 leading-tight">
+                <div className="mt-4 md:mt-6 mb-4 md:mb-6">
+                  <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800 dark:text-gray-200 leading-tight">
                     <span className="relative inline-block">
                       <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent font-extrabold tracking-tight">
                         Solving Open Learning
                       </span>
-                      <div className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 opacity-30 rounded-full"></div>
-                      <div className="absolute -top-1 -left-1 w-2 h-2 bg-purple-400 rounded-full opacity-60 animate-pulse"></div>
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-400 rounded-full opacity-60 animate-pulse delay-500"></div>
+                      <div className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-0.5 sm:h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 opacity-30 rounded-full"></div>
+                      <div className="absolute -top-0.5 sm:-top-1 -left-0.5 sm:-left-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-purple-400 rounded-full opacity-60 animate-pulse"></div>
+                      <div className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-400 rounded-full opacity-60 animate-pulse delay-500"></div>
                     </span>
                   </div>
-                  <div className="text-xl md:text-2xl lg:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">
+                  <div className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">
                     with a Complete{" "}
                     <span className="relative inline-block">
                       <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent font-bold">
                         AI-Powered Platform
                       </span>
-                      <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-50"></div>
+                      <div className="absolute -bottom-0.5 sm:-bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-50"></div>
                     </span>
                   </div>
-                  <div className="text-lg md:text-xl lg:text-2xl font-medium text-gray-600 dark:text-gray-400 mt-3">
+                  <div className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-medium text-gray-600 dark:text-gray-400 mt-2 sm:mt-3">
                     for{" "}
                     <span className="text-blue-600 dark:text-blue-400 font-semibold">
                       Research
@@ -130,7 +137,7 @@ export function HeroSection() {
                   </div>
                 </div>
 
-                <p className="text-lg text-gray-500 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
+                <p className="text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed px-4">
                   Advanced research tools with DeepResearch, in-browser RAG, and
                   collaborative TimeCapsule sharing for seamless knowledge
                   discovery and creative collaboration.
@@ -152,16 +159,16 @@ export function HeroSection() {
                     },
                   },
                 }}
-                className="mb-16"
+                className="mb-12 md:mb-16"
               >
-                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-4">
                   <Button
                     asChild
                     size="lg"
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 w-full sm:w-auto"
                   >
-                    <Link href="/deep-research" className="px-8 py-3">
-                      <Zap className="w-5 h-5 mr-2" />
+                    <Link href="/deep-research" className="px-6 sm:px-8 py-3">
+                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       Start Research
                     </Link>
                   </Button>
@@ -170,12 +177,22 @@ export function HeroSection() {
                     asChild
                     size="lg"
                     variant="outline"
-                    className="border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transform hover:scale-105 transition-all duration-300"
+                    className="border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transform hover:scale-105 transition-all duration-300 w-full sm:w-auto"
                   >
-                    <Link href="/ai-frames" className="px-8 py-3">
+                    <Link href="/ai-frames" className="px-6 sm:px-8 py-3">
                       <span>Try AI-Frames</span>
-                      <ArrowRight className="w-5 h-5 ml-2" />
+                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                     </Link>
+                  </Button>
+
+                  <Button
+                    onClick={() => signIn()}
+                    size="lg"
+                    variant="ghost"
+                    className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transform hover:scale-105 transition-all duration-300 w-full sm:w-auto"
+                  >
+                    <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Sign In
                   </Button>
                 </div>
               </AnimatedGroup>
@@ -195,32 +212,32 @@ export function HeroSection() {
                     },
                   },
                 }}
-                className="mb-16"
+                className="mb-12 md:mb-16"
               >
-                <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl rounded-3xl border border-gray-200 dark:border-gray-700 p-8 shadow-2xl">
-                  <div className="text-center mb-8">
-                    <Badge variant="outline" className="mb-4">
-                      <Sparkles className="w-4 h-4 mr-1" />
+                <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 md:p-8 shadow-2xl mx-4">
+                  <div className="text-center mb-6 md:mb-8">
+                    <Badge variant="outline" className="mb-3 md:mb-4">
+                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                       Major Features
                     </Badge>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                       Everything You Need for AI Research
                     </h2>
                   </div>
 
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                     {majorFeatures.map((feature, index) => (
                       <div
                         key={index}
-                        className="group p-6 rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                        className="group p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                       >
-                        <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                        <div className="text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform duration-300">
                           {feature.icon}
                         </div>
-                        <h3 className="font-bold text-gray-900 dark:text-white mb-2">
+                        <h3 className="font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 text-sm sm:text-base">
                           {feature.title}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                           {feature.description}
                         </p>
                       </div>
@@ -229,69 +246,10 @@ export function HeroSection() {
                 </div>
               </AnimatedGroup>
 
-              {/* Hero Preview Image */}
-              <AnimatedGroup
-                variants={{
-                  ...transitionVariants,
-                  item: {
-                    ...transitionVariants.item,
-                    visible: {
-                      ...transitionVariants.item.visible,
-                      transition: {
-                        ...transitionVariants.item.visible.transition,
-                        delay: 0.6,
-                      },
-                    },
-                  },
-                }}
-              >
-                <div className="relative max-w-4xl mx-auto">
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
-
-                  <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl border border-gray-200 dark:border-gray-700 p-8 shadow-2xl overflow-hidden">
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    </div>
-
-                    <div className="relative aspect-[16/10] bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-blue-900 rounded-2xl overflow-hidden mt-6">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="relative w-32 h-32">
-                          <Image
-                            src="/Media/TimeCapsule_04.png"
-                            alt="TimeCapsule Preview"
-                            fill
-                            className="object-contain drop-shadow-2xl animate-pulse"
-                            priority
-                          />
-                        </div>
-                      </div>
-
-                      {/* Floating UI Elements */}
-                      <div className="absolute top-6 left-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span className="text-gray-700 dark:text-gray-300">
-                            DeepResearch Active
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="absolute bottom-6 right-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          🧠 Generating insights...
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </AnimatedGroup>
-
               {/* Scroll indicator */}
-              <div className="mt-20 flex justify-center">
+              <div className="mt-16 md:mt-20 flex justify-center">
                 <div className="animate-bounce">
-                  <ChevronDown className="w-6 h-6 text-gray-400" />
+                  <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
                 </div>
               </div>
             </div>

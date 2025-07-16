@@ -921,14 +921,35 @@ export class VectorStore {
       } catch (error: any) {
         retryCount++;
         
-        // Handle revision conflicts with retry
+        // ENHANCED: Handle revision conflicts with detailed logging and improved retry
         if (error.name === 'RxError' && error.code === 'CONFLICT' && retryCount < maxRetries) {
-          console.warn(`⚠️ Document upsert revision conflict for ${documentData.id}, retry ${retryCount}/${maxRetries}`);
+          console.warn(`⚠️ Document upsert revision conflict for ${documentData.id}:`, {
+            retry: `${retryCount}/${maxRetries}`,
+            errorCode: error.code,
+            errorName: error.name,
+            documentId: documentData.id,
+            documentTitle: documentData.title,
+            operationId: `upsert-${documentData.id}`
+          });
           
-          // Wait before retry with exponential backoff
+          // ENHANCED: Wait before retry with exponential backoff (100ms, 200ms, 400ms)
           const delay = Math.pow(2, retryCount) * 100;
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
+        }
+        
+        // ENHANCED: Log specific conflict details for debugging
+        if (error.name === 'RxError' && error.code === 'CONFLICT') {
+          console.error(`❌ Document upsert failed with unretryable conflict for ${documentData.id}:`, {
+            maxRetriesReached: retryCount >= maxRetries,
+            finalRetryCount: retryCount,
+            errorCode: error.code,
+            errorName: error.name,
+            errorMessage: error.message,
+            documentId: documentData.id,
+            documentTitle: documentData.title
+          });
         }
         
         console.error(`❌ Failed to upsert document ${documentData.id}:`, error);

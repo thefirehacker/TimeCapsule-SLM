@@ -191,7 +191,10 @@ export default function EnhancedSidebar() {
         
         {/* Attachment Instructions */}
         <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 rounded text-xs text-orange-700 dark:text-orange-300">
-          💡 Drag content to the <strong>orange attachment slot</strong> on the right side of AI Frame nodes
+          <div className="font-medium mb-1">📋 How to attach:</div>
+          <div>1. Drag content to graph</div>
+          <div>2. Edit content details</div>
+          <div>3. <strong>Connect to orange handle</strong></div>
         </div>
       </div>
 

@@ -31,7 +31,37 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
 
   return (
     <div className="chapter-node">
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      {/* Sequential connection handle (top) */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#9468e6',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(148, 104, 230, 0.3)',
+          zIndex: 5
+        }}
+      />
+      
+      {/* Attachment handle (right side) - Large and Orange */}
+      <Handle 
+        type="target" 
+        position={Position.Right} 
+        id="attachment-slot"
+        style={{
+          top: '50%',
+          width: '32px',
+          height: '32px',
+          backgroundColor: '#f97316',
+          border: '4px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
+          zIndex: 10
+        }}
+      />
       
       <Card className={`w-64 ${selected ? 'ring-2 ring-green-500' : ''} bg-green-50 border-green-200`}>
         <CardHeader className="pb-2">
@@ -110,7 +140,20 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
         </CardContent>
       </Card>
       
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      {/* Sequential connection handle (bottom) */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#9468e6',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(148, 104, 230, 0.3)',
+          zIndex: 5
+        }}
+      />
     </div>
   );
 } 

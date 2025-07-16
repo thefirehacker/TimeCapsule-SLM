@@ -31,6 +31,16 @@ export interface User {
   immediate_access_until: number;
   subscriptionId: string;
   createdBy?: string;
+  // Login tracking fields
+  provider?: "google" | "github" | "email";
+  loginCount?: number;
+  sessionHistory?: Array<{
+    timestamp: string;
+    provider: "google" | "github" | "email";
+    userAgent?: string;
+    ip?: string;
+  }>;
+  lastLoginAt?: string;
 }
 
 export async function createUser(user: {
@@ -64,6 +74,10 @@ export async function createUser(user: {
       updatedAt: new Date().toISOString(),
       status: user.status,
       isVerified: false,
+      // Initialize login tracking fields
+      loginCount: 0,
+      sessionHistory: [],
+      lastLoginAt: null,
       ...(user.createdBy && { createdBy: user.createdBy }),
     },
   };
@@ -434,6 +448,10 @@ export async function adminCreateUser(user: {
       immediate_access_until: 0,
       verificationTokenExpiry: 0,
       createdBy: user.createdBy,
+      // Initialize login tracking fields
+      loginCount: 0,
+      sessionHistory: [],
+      lastLoginAt: null,
       // Note: subscriptionId and verificationToken are omitted to avoid GSI issues with empty strings
     },
   };
@@ -450,6 +468,124 @@ export async function adminCreateUser(user: {
     };
   } catch (error) {
     console.error("Error creating user (admin):", error);
+    throw error;
+  }
+}
+
+// Login tracking functions
+export async function updateUserLoginInfo(
+  userId: string,
+  provider: "google" | "github" | "email",
+  userAgent?: string,
+  ip?: string
+) {
+  const now = new Date().toISOString();
+
+  // Get current user to access existing login data
+  const currentUser = await getUserById(userId);
+  if (!currentUser) {
+    throw new Error("User not found");
+  }
+
+  // Prepare session history entry
+  const sessionEntry = {
+    timestamp: now,
+    provider,
+    userAgent,
+    ip,
+  };
+
+  // Get existing session history or initialize empty array
+  const existingHistory = currentUser.sessionHistory || [];
+
+  // Add new session entry (keep last 50 sessions to avoid data bloat)
+  const updatedHistory = [...existingHistory, sessionEntry].slice(-50);
+
+  const params = {
+    TableName: TABLE_NAME,
+    Key: { userId },
+    UpdateExpression: `
+      SET 
+        loginCount = :loginCount,
+        sessionHistory = :sessionHistory,
+        lastLoginAt = :lastLoginAt,
+        provider = :provider,
+        updatedAt = :updatedAt
+    `,
+    ExpressionAttributeValues: {
+      ":loginCount": (currentUser.loginCount || 0) + 1,
+      ":sessionHistory": updatedHistory,
+      ":lastLoginAt": now,
+      ":provider": provider,
+      ":updatedAt": now,
+    },
+    ReturnValues: "ALL_NEW" as const,
+  };
+
+  try {
+    const { Attributes } = await docClient.send(new UpdateCommand(params));
+    console.log(
+      `✅ Login tracked for user ${userId}: provider=${provider}, count=${(currentUser.loginCount || 0) + 1}`
+    );
+    return Attributes as User;
+  } catch (error) {
+    console.error("Error updating user login info:", error);
+    throw error;
+  }
+}
+
+export async function getUserLoginStats(userId: string) {
+  const user = await getUserById(userId);
+  if (!user) {
+    return null;
+  }
+
+  return {
+    loginCount: user.loginCount || 0,
+    lastLoginAt: user.lastLoginAt,
+    provider: user.provider,
+    sessionHistory: user.sessionHistory || [],
+  };
+}
+
+export async function getLoginStatsByProvider() {
+  const params = {
+    TableName: TABLE_NAME,
+    ProjectionExpression: "provider, loginCount, sessionHistory",
+  };
+
+  try {
+    const { Items } = await docClient.send(new ScanCommand(params));
+
+    const stats = {
+      google: { count: 0, totalLogins: 0 },
+      github: { count: 0, totalLogins: 0 },
+      email: { count: 0, totalLogins: 0 },
+      total: { users: 0, logins: 0 },
+    };
+
+    Items?.forEach((item: any) => {
+      const provider = item.provider || "email";
+      const loginCount = item.loginCount || 0;
+
+      if (provider === "google" && stats.google) {
+        stats.google.count++;
+        stats.google.totalLogins += loginCount;
+      } else if (provider === "github" && stats.github) {
+        stats.github.count++;
+        stats.github.totalLogins += loginCount;
+      } else if (provider === "email" && stats.email) {
+        stats.email.count++;
+        stats.email.totalLogins += loginCount;
+      }
+
+      stats.total.users++;
+      stats.total.logins += loginCount;
+    });
+
+    return stats;
+  } catch (error) {
+    console.error("Error getting login stats by provider:", error);
     throw error;
   }
 }
