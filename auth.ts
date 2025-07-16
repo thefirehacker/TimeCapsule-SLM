@@ -9,6 +9,7 @@ import {
   getLatestBubblspaceIdForUser,
   createUser,
   getUserById,
+  updateUserLoginInfo,
 } from "./src/lib/auth/auth";
 
 // Extend NextAuth types for custom session properties
@@ -256,6 +257,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 newUser.userId
               );
               user.bubblspaceid = bubblspaceid;
+
+              // Track login for new OAuth user
+              try {
+                await updateUserLoginInfo(
+                  newUser.userId,
+                  account.provider as "google" | "github"
+                );
+              } catch (loginError) {
+                console.error(
+                  "Error tracking login for new OAuth user:",
+                  loginError
+                );
+                // Don't fail the sign-in if login tracking fails
+              }
             } catch (error) {
               console.error("Error creating OAuth user:", error);
               return false;
@@ -284,6 +299,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               );
               return false;
             }
+
+            // Track login for existing OAuth user
+            try {
+              await updateUserLoginInfo(
+                existingUser.userId,
+                account.provider as "google" | "github"
+              );
+            } catch (loginError) {
+              console.error(
+                "Error tracking login for existing OAuth user:",
+                loginError
+              );
+              // Don't fail the sign-in if login tracking fails
+            }
           }
 
           return true;
@@ -291,6 +320,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // For credentials, user validation is handled in the authorize callback
         if (account?.provider === "credentials") {
+          // Track login for credentials user
+          try {
+            if (user.id) {
+              await updateUserLoginInfo(user.id, "email");
+            }
+          } catch (loginError) {
+            console.error(
+              "Error tracking login for credentials user:",
+              loginError
+            );
+            // Don't fail the sign-in if login tracking fails
+          }
           return true;
         }
 
