@@ -79,7 +79,15 @@ export default function AIFrameNode({ data, selected }: AIFrameNodeProps) {
 
   return (
     <div className="ai-frame-node">
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-6 h-6 bg-black border-2 border-white rounded-full hover:bg-gray-800 transition-colors"
+        style={{ 
+          zIndex: 5,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+        }}
+      />
       
       <Card className={`w-80 ${selected ? 'ring-2 ring-blue-500' : ''} transition-all duration-200`}>
         <CardHeader className="pb-2">
@@ -261,7 +269,15 @@ export default function AIFrameNode({ data, selected }: AIFrameNodeProps) {
         </CardContent>
       </Card>
       
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-6 h-6 bg-black border-2 border-white rounded-full hover:bg-gray-800 transition-colors"
+        style={{ 
+          zIndex: 5,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+        }}
+      />
     </div>
   );
 } 

@@ -1,4 +1,4 @@
-# Canvas3D-LLM Development Plan
+# AI Frame Saving Error Fix Plan
 
 ## Current Status: Video Attachment Persistence After Refresh - FIXING
 

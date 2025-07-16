@@ -25,7 +25,15 @@ export default function YouTubeNode({ data, id }: YouTubeNodeProps) {
 
   return (
     <Card className="min-w-[300px] max-w-[400px] shadow-lg border-red-200">
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-6 h-6 bg-black border-2 border-white rounded-full hover:bg-gray-800 transition-colors"
+        style={{ 
+          zIndex: 5,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+        }}
+      />
 
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-2">

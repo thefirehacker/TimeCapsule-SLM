@@ -130,15 +130,35 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
   return (
     <div className="enhanced-ai-frame-node">
       {/* Sequential connection handle (top) */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#9468e6',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(148, 104, 230, 0.3)',
+          zIndex: 5
+        }}
+      />
       
-      {/* Attachment handle (right side) */}
+      {/* Attachment handle (right side) - Large and Orange */}
       <Handle 
         type="target" 
         position={Position.Right} 
         id="attachment-slot"
-        className="w-4 h-4 bg-orange-500 border-2 border-white"
-        style={{ top: '50%' }}
+        style={{
+          top: '50%',
+          width: '32px',
+          height: '32px',
+          backgroundColor: '#f97316',
+          border: '4px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
+          zIndex: 10
+        }}
       />
       
       <Card className={`w-96 ${selected ? 'ring-2 ring-purple-500' : ''} transition-all duration-200`}>
@@ -282,10 +302,13 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
               <div className="text-center py-2">
                 <Plus className="h-4 w-4 mx-auto mb-1 text-gray-400" />
                 <p className="text-xs text-gray-500">
-                  Drag Video, PDF, or Text node here
+                  No attachment connected
                 </p>
                 <p className="text-xs text-gray-400">
-                  (One attachment per frame)
+                  Video, PDF, or Text (one per frame)
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  💡 Connect attachment node to orange handle →
                 </p>
               </div>
             )}
@@ -334,7 +357,19 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
       </Card>
       
       {/* Sequential connection handle (bottom) */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor: '#9468e6',
+          border: '2px solid white',
+          borderRadius: '50%',
+          boxShadow: '0 2px 8px rgba(148, 104, 230, 0.3)',
+          zIndex: 5
+        }}
+      />
     </div>
   );
 } 

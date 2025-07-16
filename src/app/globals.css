@@ -121,3 +121,71 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom React Flow Handle Styles - More Specific Selectors */
+.react-flow .react-flow__handle {
+  border: 2px solid white !important;
+  border-radius: 50% !important;
+  position: absolute !important;
+}
+
+.react-flow .react-flow__handle.orange-attachment-handle {
+  width: 32px !important;
+  height: 32px !important;
+  background: #f97316 !important;
+  background-color: #f97316 !important;
+  border: 4px solid white !important;
+  border-radius: 50% !important;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3) !important;
+  z-index: 10 !important;
+}
+
+.react-flow .react-flow__handle.black-sequential-handle {
+  width: 24px !important;
+  height: 24px !important;
+  background: #000000 !important;
+  background-color: #000000 !important;
+  border: 2px solid white !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  z-index: 5 !important;
+}
+
+.react-flow .react-flow__handle.orange-attachment-handle:hover {
+  background: #ea580c !important;
+  background-color: #ea580c !important;
+}
+
+.react-flow .react-flow__handle.black-sequential-handle:hover {
+  background: #374151 !important;
+  background-color: #374151 !important;
+}
+
+/* Force override React Flow's default handle styles */
+.react-flow__handle-right.orange-attachment-handle {
+  width: 32px !important;
+  height: 32px !important;
+  background: #f97316 !important;
+  right: -16px !important;
+}
+
+.react-flow__handle-top.black-sequential-handle {
+  width: 24px !important;
+  height: 24px !important;
+  background: #000000 !important;
+  top: -12px !important;
+}
+
+.react-flow__handle-bottom.black-sequential-handle {
+  width: 24px !important;
+  height: 24px !important;
+  background: #000000 !important;
+  bottom: -12px !important;
+}
+
+.react-flow__handle-left.black-sequential-handle {
+  width: 24px !important;
+  height: 24px !important;
+  background: #000000 !important;
+  left: -12px !important;
+}
