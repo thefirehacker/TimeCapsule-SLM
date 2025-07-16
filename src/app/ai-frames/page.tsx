@@ -889,6 +889,65 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             docContent: doc.content.substring(0, 500) + '...' // Show first 500 chars of content
           });
           
+          // ENHANCED: Debug attachment restoration and try alternative methods
+          console.log('🔍 ATTACHMENT RESTORATION DEBUG:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            hasAttachmentInMetadata: !!(doc.metadata as any)?.attachment,
+            metadataAttachment: (doc.metadata as any)?.attachment,
+            docContent: doc.content.substring(0, 1000),
+            metadataKeys: Object.keys(doc.metadata || {}),
+            fullMetadata: doc.metadata
+          });
+          
+          // ENHANCED: Try to restore attachment from content if metadata is missing
+          if (!frame.attachment && doc.content) {
+            // First try to restore video attachment from the main video section
+            const videoUrlMatch = doc.content.match(/Video Attachment:\s*\n- URL: (.*?)(?:\n|$)/);
+            if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
+              const startTimeMatch = doc.content.match(/- Start Time: (\d+)s/);
+              const durationMatch = doc.content.match(/- Duration: (\d+)s/);
+              
+              frame.attachment = {
+                type: 'video',
+                name: 'Video Attachment',
+                data: {
+                  videoUrl: videoUrlMatch[1],
+                  startTime: startTimeMatch ? parseInt(startTimeMatch[1]) : 0,
+                  duration: durationMatch ? parseInt(durationMatch[1]) : 300
+                }
+              };
+              console.log('✅ RESTORED video attachment from content:', frame.attachment);
+            } else {
+              // Fallback: try to restore from additional attachment section
+              const attachmentMatch = doc.content.match(/Additional Attachment:\s*\n- Type: (.*?)\n- Name: (.*?)\n[\s\S]*?- Data: (.*?)(?:\n|$)/);
+              if (attachmentMatch) {
+                const [, type, name, hasData] = attachmentMatch;
+                if (type !== 'Unknown' && hasData === 'Available') {
+                  // Try to reconstruct attachment from content
+                  if (type === 'video') {
+                    const videoUrlMatch = doc.content.match(/- URL: (.*?)(?:\n|$)/);
+                    const startTimeMatch = doc.content.match(/- Start Time: (\d+)s/);
+                    const durationMatch = doc.content.match(/- Duration: (\d+)s/);
+                    
+                    if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
+                      frame.attachment = {
+                        type: 'video',
+                        name: name || 'Video Attachment',
+                        data: {
+                          videoUrl: videoUrlMatch[1],
+                          startTime: startTimeMatch ? parseInt(startTimeMatch[1]) : 0,
+                          duration: durationMatch ? parseInt(durationMatch[1]) : 300
+                        }
+                      };
+                      console.log('✅ RESTORED attachment from additional section:', frame.attachment);
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
           // Debug: Log attachment data being restored
           if (frame.attachment) {
             console.log('📹 Restoring frame with attachment:', {
@@ -896,13 +955,15 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
               frameTitle: frame.title,
               attachmentType: frame.attachment.type,
               attachmentData: frame.attachment.data,
-              fullAttachment: frame.attachment
+              fullAttachment: frame.attachment,
+              restoredFromContent: !!(doc.metadata as any)?.attachment ? false : true
             });
           } else {
             console.log('📹 Frame has no attachment:', {
               frameId: frame.id,
               frameTitle: frame.title,
-              metadata: (doc.metadata as any)?.attachment
+              metadata: (doc.metadata as any)?.attachment,
+              triedContentRestore: true
             });
           }
           
@@ -935,8 +996,8 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
   const loadFramesFromStorage = useCallback(async () => {
     try {
       // PRIORITY 1: Try to load from Knowledge Base first (most recent data)
-      // FIXED: Remove processingAvailable restriction to make KB truly the priority
-      if (vectorStore && vectorStoreInitialized) {
+      // ENHANCED: Check VectorStore's actual initialized state for better reliability
+      if (vectorStore && vectorStore.initialized) {
         console.log("🔍 Priority 1: Checking Knowledge Base for latest frames...");
         
         // FIXED: Add retry logic for KB loading to handle race conditions
@@ -1003,7 +1064,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           retryCount++;
         }
       } else {
-        console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStoreInitialized, ")");
+        console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStore?.initialized, ")");
       }
 
       // PRIORITY 2: Fall back to GraphStorageManager (IndexedDB) if KB is not available
@@ -1456,13 +1517,20 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       }
 
       console.log("✅ AI-Frames connected to VectorStoreProvider");
+      
+      // ENHANCED: Retry loading frames when VectorStore becomes available
+      if (providerVectorStore.initialized && frames.length === 0) {
+        console.log("🔄 VectorStore is ready and no frames loaded, retrying frame load...");
+        loadFramesFromStorage();
+      }
     }
   }, [providerVectorStore]);
 
   // Initialize GraphStorageManager when VectorStore is ready
   useEffect(() => {
     const initializeGraphStorage = async () => {
-      if (vectorStore && vectorStoreInitialized && !graphStorageManager) {
+      // ENHANCED: Check VectorStore's actual initialized state, not just provider state
+      if (vectorStore && vectorStore.initialized && !graphStorageManager) {
         try {
           console.log("🗂️ Initializing GraphStorageManager...");
           const graphManager = getGraphStorageManager(vectorStore);
@@ -1471,6 +1539,13 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           console.log("✅ GraphStorageManager initialized successfully");
         } catch (error) {
           console.error("❌ Failed to initialize GraphStorageManager:", error);
+          // ENHANCED: Retry after a delay if VectorStore becomes ready
+          setTimeout(() => {
+            if (vectorStore && vectorStore.initialized && !graphStorageManager) {
+              console.log("🔄 Retrying GraphStorageManager initialization...");
+              initializeGraphStorage();
+            }
+          }, 1000);
         }
       }
     };
@@ -2064,6 +2139,35 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       };
     }
   }, [vectorStore, vectorStoreInitialized, frames, saveAllFramesToKB]);
+
+  // ENHANCED: Watch for VectorStore initialization and retry failed components
+  useEffect(() => {
+    if (vectorStore && vectorStore.initialized) {
+      console.log("🔄 VectorStore is now initialized, checking for failed components...");
+      
+      // Retry GraphStorageManager initialization if it failed
+      if (!graphStorageManager) {
+        console.log("🔄 Retrying GraphStorageManager initialization...");
+        const initializeGraphStorage = async () => {
+          try {
+            const graphManager = getGraphStorageManager(vectorStore);
+            await graphManager.initialize();
+            setGraphStorageManager(graphManager);
+            console.log("✅ GraphStorageManager initialized successfully after retry");
+          } catch (error) {
+            console.error("❌ GraphStorageManager retry failed:", error);
+          }
+        };
+        initializeGraphStorage();
+      }
+      
+      // Retry loading frames if none are loaded
+      if (frames.length === 0) {
+        console.log("🔄 No frames loaded, retrying frame load...");
+        loadFramesFromStorage();
+      }
+    }
+  }, [vectorStore?.initialized, graphStorageManager, frames.length]);
 
   // Save frames to KB when VectorStore becomes ready or frames change
   useEffect(() => {
@@ -4331,7 +4435,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   // Update document status when vectorStore changes
   useEffect(() => {
     const updateDocumentStatus = async () => {
-      if (vectorStore && vectorStoreInitialized) {
+      // ENHANCED: Check VectorStore's actual initialized state, not just provider state
+      if (vectorStore && vectorStore.initialized) {
         try {
           const stats = await vectorStore.getStats();
           const documents = await vectorStore.getAllDocuments();
@@ -4349,6 +4454,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           setDocuments(documents);
         } catch (error) {
           console.error("Failed to update document status:", error);
+          // ENHANCED: Retry after VectorStore becomes ready
+          setTimeout(() => {
+            if (vectorStore && vectorStore.initialized) {
+              console.log("🔄 Retrying document status update...");
+              updateDocumentStatus();
+            }
+          }, 1000);
         }
       }
     };

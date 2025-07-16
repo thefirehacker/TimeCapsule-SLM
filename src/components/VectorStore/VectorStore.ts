@@ -610,9 +610,9 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Use operation queue to prevent concurrent operations on the same document
+    // ENHANCED: Use single operation ID per document to coordinate with upsert operations
     return this.queueOperation(
-      `delete-${id}`,
+      `doc-${id}`,
       () => this.performDocumentDeletion(id)
     );
   }
@@ -877,9 +877,9 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Use operation queue to prevent concurrent operations on the same document
+    // ENHANCED: Use single operation ID per document to coordinate with delete operations
     return this.queueOperation(
-      `upsert-${documentData.id}`,
+      `doc-${documentData.id}`,
       () => this.performDocumentUpsert(documentData)
     );
   }
@@ -929,7 +929,7 @@ export class VectorStore {
             errorName: error.name,
             documentId: documentData.id,
             documentTitle: documentData.title,
-            operationId: `upsert-${documentData.id}`
+            operationId: `doc-${documentData.id}`
           });
           
           // ENHANCED: Wait before retry with exponential backoff (100ms, 200ms, 400ms)

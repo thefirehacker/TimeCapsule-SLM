@@ -613,7 +613,7 @@ export default function EnhancedLearningGraph({
               type: "video-attachment",
               id: getId(),
               title: "Video Content",
-              videoUrl: "",
+              videoUrl: "https://www.youtube.com/watch?v=po7doQNkhuU",
               startTime: 0,
               duration: 300,
               notes: "",

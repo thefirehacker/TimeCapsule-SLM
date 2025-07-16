@@ -53,6 +53,17 @@ export default function TextAttachmentNode({ data, selected }: TextAttachmentNod
               nodeId: data.id
             }
           }));
+          
+          // ENHANCED: Force immediate localStorage save for text content persistence
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: {
+              reason: 'text-attachment-updated',
+              frameId: data.attachedToFrameId,
+              attachmentType: 'text',
+              textContent: editData.text,
+              timestamp: new Date().toISOString()
+            }
+          }));
         }
         
         console.log('📡 Text attachment updated, notifying connected frame:', {

@@ -54,6 +54,17 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
               nodeId: data.id
             }
           }));
+          
+          // ENHANCED: Force immediate localStorage save for PDF content persistence
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: {
+              reason: 'pdf-attachment-updated',
+              frameId: data.attachedToFrameId,
+              attachmentType: 'pdf',
+              pdfUrl: editData.pdfUrl,
+              timestamp: new Date().toISOString()
+            }
+          }));
         }
         
         console.log('📡 PDF attachment updated, notifying connected frame:', {
