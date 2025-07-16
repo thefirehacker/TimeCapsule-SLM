@@ -965,18 +965,80 @@ Updated: ${new Date().toISOString()}`,
       }));
       console.log("✅ Frames saved to TimeCapsule");
 
-      // FIXED: Immediate Knowledge Base sync with IndexedDB verification
-      console.log("🔄 Immediately syncing frames to Knowledge Base...");
+      // ENHANCED: Comprehensive sync with progress tracking
+      console.log("🔄 Starting comprehensive sync operations...");
       
-      const syncPromises = mergedFrames.map(frame => syncFrameToKnowledgeBase(frame));
-      await Promise.all(syncPromises);
+      // Step 1: Sync to Knowledge Base with progress tracking
+      console.log("🔄 Syncing frames to Knowledge Base...");
+      const syncResults = {
+        knowledgeBase: false,
+        indexedDB: false,
+        localStorage: false
+      };
       
-      console.log("✅ All frames synced to Knowledge Base immediately");
-
-      // FIXED: Force Knowledge Base refresh and IndexedDB verification
-      console.log("🔄 Forcing Knowledge Base refresh and IndexedDB verification...");
+      try {
+        const syncPromises = mergedFrames.map(frame => syncFrameToKnowledgeBase(frame));
+        await Promise.all(syncPromises);
+        syncResults.knowledgeBase = true;
+        console.log("✅ Knowledge Base sync completed");
+      } catch (kbError) {
+        console.error("❌ Knowledge Base sync failed:", kbError);
+        // Continue with other sync operations
+      }
       
-      // Dispatch comprehensive KB update events
+      // Step 2: Verify IndexedDB sync
+      if (graphStorageManager) {
+        try {
+          const savedSequence = await graphStorageManager.loadFrameSequence();
+          const indexedDBFrameCount = savedSequence?.frames?.length || 0;
+          
+          if (indexedDBFrameCount === mergedFrames.length) {
+            syncResults.indexedDB = true;
+            console.log("✅ IndexedDB verification successful:", {
+              savedFrames: indexedDBFrameCount,
+              expectedFrames: mergedFrames.length
+            });
+          } else {
+            console.warn("⚠️ IndexedDB frame count mismatch:", {
+              savedFrames: indexedDBFrameCount,
+              expectedFrames: mergedFrames.length
+            });
+          }
+        } catch (error) {
+          console.warn("⚠️ IndexedDB verification failed:", error);
+        }
+      }
+      
+      // Step 3: Verify localStorage sync
+      try {
+        const timeCapsuleData = localStorage.getItem("timecapsule_combined");
+        if (timeCapsuleData) {
+          const parsed = JSON.parse(timeCapsuleData);
+          if (parsed.data?.frames?.length === mergedFrames.length) {
+            syncResults.localStorage = true;
+            console.log("✅ localStorage verification successful");
+          }
+        }
+      } catch (error) {
+        console.warn("⚠️ localStorage verification failed:", error);
+      }
+      
+      // Step 4: Force external sync via AI-Frames app
+      const aiFramesApp = (window as any).aiFramesApp;
+      if (aiFramesApp && aiFramesApp.vectorStore && aiFramesApp.vectorStoreInitialized) {
+        console.log("🔄 Forcing external Knowledge Base sync...");
+        
+        try {
+          if (typeof aiFramesApp.syncFramesToKB === 'function') {
+            await aiFramesApp.syncFramesToKB(mergedFrames);
+            console.log("✅ External Knowledge Base sync completed");
+          }
+        } catch (externalSyncError) {
+          console.error("❌ External Knowledge Base sync failed:", externalSyncError);
+        }
+      }
+      
+      // Step 5: Dispatch comprehensive events
       if (typeof window !== 'undefined') {
         // Event for KB documents changed
         window.dispatchEvent(new CustomEvent('kb-documents-changed', {
@@ -984,7 +1046,8 @@ Updated: ${new Date().toISOString()}`,
             source: 'save-graph',
             frameCount: mergedFrames.length,
             timestamp: new Date().toISOString(),
-            frames: mergedFrames
+            frames: mergedFrames,
+            syncResults
           }
         }));
 
@@ -995,7 +1058,8 @@ Updated: ${new Date().toISOString()}`,
             frameCount: mergedFrames.length,
             timestamp: new Date().toISOString(),
             frames: mergedFrames,
-            hasFrameUpdates: true
+            hasFrameUpdates: true,
+            syncResults
           }
         }));
 
@@ -1004,25 +1068,25 @@ Updated: ${new Date().toISOString()}`,
           detail: {
             source: 'save-graph',
             reason: 'frames-saved-to-graph',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            syncResults
+          }
+        }));
+        
+        // Event for force save to ensure everything is in sync
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'save-graph-complete',
+            frameCount: mergedFrames.length,
+            timestamp: new Date().toISOString(),
+            syncResults
           }
         }));
       }
+      
+      console.log("✅ Comprehensive sync operations completed:", syncResults);
 
-      // Verify IndexedDB sync
-      if (graphStorageManager) {
-        try {
-          const savedSequence = await graphStorageManager.loadFrameSequence();
-          console.log("✅ IndexedDB verification successful:", {
-            savedFrames: savedSequence?.frames?.length || 0,
-            expectedFrames: mergedFrames.length
-          });
-        } catch (error) {
-          console.warn("⚠️ IndexedDB verification failed:", error);
-        }
-      }
-
-      // Dispatch success event
+      // Dispatch success event with sync results
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('graph-saved', {
           detail: {
@@ -1032,7 +1096,9 @@ Updated: ${new Date().toISOString()}`,
             edgeCount: graphState.edges.length,
             frames: mergedFrames,
             hasFrameUpdates: true,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            syncResults,
+            allSynced: syncResults.knowledgeBase && syncResults.indexedDB && syncResults.localStorage
           }
         }));
       }

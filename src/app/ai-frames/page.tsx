@@ -30,6 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import VectorStoreInitModal from "@/components/VectorStoreInitModal";
 import {
   Play,
   Pause,
@@ -919,28 +920,66 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
               };
               console.log('✅ RESTORED video attachment from content:', frame.attachment);
             } else {
-              // Fallback: try to restore from additional attachment section
-              const attachmentMatch = doc.content.match(/Additional Attachment:\s*\n- Type: (.*?)\n- Name: (.*?)\n[\s\S]*?- Data: (.*?)(?:\n|$)/);
-              if (attachmentMatch) {
-                const [, type, name, hasData] = attachmentMatch;
-                if (type !== 'Unknown' && hasData === 'Available') {
-                  // Try to reconstruct attachment from content
-                  if (type === 'video') {
-                    const videoUrlMatch = doc.content.match(/- URL: (.*?)(?:\n|$)/);
-                    const startTimeMatch = doc.content.match(/- Start Time: (\d+)s/);
-                    const durationMatch = doc.content.match(/- Duration: (\d+)s/);
-                    
-                    if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
-                      frame.attachment = {
-                        type: 'video',
-                        name: name || 'Video Attachment',
-                        data: {
-                          videoUrl: videoUrlMatch[1],
-                          startTime: startTimeMatch ? parseInt(startTimeMatch[1]) : 0,
-                          duration: durationMatch ? parseInt(durationMatch[1]) : 300
+              // Try to restore PDF attachment from the PDF section
+              const pdfUrlMatch = doc.content.match(/PDF Attachment:\s*\n- URL: (.*?)(?:\n|$)/);
+              if (pdfUrlMatch && pdfUrlMatch[1] !== 'No PDF URL') {
+                const pdfPagesMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Pages: (.*?)(?:\n|$)/);
+                const pdfTitleMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Title: (.*?)(?:\n|$)/);
+                const pdfNotesMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Notes: (.*?)(?:\n|$)/);
+                
+                frame.attachment = {
+                  type: 'pdf',
+                  name: 'PDF Attachment',
+                  data: {
+                    pdfUrl: pdfUrlMatch[1],
+                    pages: pdfPagesMatch ? pdfPagesMatch[1] : 'All pages',
+                    title: pdfTitleMatch ? pdfTitleMatch[1] : 'PDF Document',
+                    notes: pdfNotesMatch ? pdfNotesMatch[1] : ''
+                  }
+                };
+                console.log('✅ RESTORED PDF attachment from content:', frame.attachment);
+              } else {
+                // Try to restore text attachment from the text section
+                const textContentMatch = doc.content.match(/Text Attachment:\s*\n- Content: (.*?)(?:\n|$)/);
+                if (textContentMatch && textContentMatch[1] !== 'No text content') {
+                  const textTitleMatch = doc.content.match(/Text Attachment:[\s\S]*?- Title: (.*?)(?:\n|$)/);
+                  const textNotesMatch = doc.content.match(/Text Attachment:[\s\S]*?- Notes: (.*?)(?:\n|$)/);
+                  
+                  frame.attachment = {
+                    type: 'text',
+                    name: 'Text Attachment',
+                    data: {
+                      text: textContentMatch[1],
+                      title: textTitleMatch ? textTitleMatch[1] : 'Text Content',
+                      notes: textNotesMatch ? textNotesMatch[1] : ''
+                    }
+                  };
+                  console.log('✅ RESTORED text attachment from content:', frame.attachment);
+                } else {
+                  // Fallback: try to restore from additional attachment section
+                  const attachmentMatch = doc.content.match(/Additional Attachment:\s*\n- Type: (.*?)\n- Name: (.*?)\n[\s\S]*?- Data: (.*?)(?:\n|$)/);
+                  if (attachmentMatch) {
+                    const [, type, name, hasData] = attachmentMatch;
+                    if (type !== 'Unknown' && hasData === 'Available') {
+                      // Try to reconstruct attachment from content
+                      if (type === 'video') {
+                        const videoUrlMatch = doc.content.match(/- URL: (.*?)(?:\n|$)/);
+                        const startTimeMatch = doc.content.match(/- Start Time: (\d+)s/);
+                        const durationMatch = doc.content.match(/- Duration: (\d+)s/);
+                        
+                        if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
+                          frame.attachment = {
+                            type: 'video',
+                            name: name || 'Video Attachment',
+                            data: {
+                              videoUrl: videoUrlMatch[1],
+                              startTime: startTimeMatch ? parseInt(startTimeMatch[1]) : 0,
+                              duration: durationMatch ? parseInt(durationMatch[1]) : 300
+                            }
+                          };
+                          console.log('✅ RESTORED attachment from additional section:', frame.attachment);
                         }
-                      };
-                      console.log('✅ RESTORED attachment from additional section:', frame.attachment);
+                      }
                     }
                   }
                 }
@@ -1650,7 +1689,18 @@ Video Attachment:
 - Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
 - Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
 
-${frameWithAttachment.attachment ? `
+${frameWithAttachment.attachment?.type === 'pdf' ? `
+PDF Attachment:
+- URL: ${frameWithAttachment.attachment.data?.pdfUrl || "No PDF URL"}
+- Pages: ${frameWithAttachment.attachment.data?.pages || "All pages"}
+- Title: ${frameWithAttachment.attachment.data?.title || "PDF Document"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment?.type === 'text' ? `
+Text Attachment:
+- Content: ${frameWithAttachment.attachment.data?.text || "No text content"}
+- Title: ${frameWithAttachment.attachment.data?.title || "Text Content"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment && !['pdf', 'text', 'video'].includes(frameWithAttachment.attachment.type) ? `
 Additional Attachment:
 - Type: ${frameWithAttachment.attachment.type || "Unknown"}
 - Name: ${frameWithAttachment.attachment.name || "Unnamed"}
@@ -1658,7 +1708,7 @@ Additional Attachment:
 - Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
 - URL: ${frameWithAttachment.attachment.url || "No URL"}
 - Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
-` : "Additional Attachments: None"}
+` : frameWithAttachment.attachment ? "" : "Additional Attachments: None"}
 
 Text Notes:
 ${frameWithAttachment.notes || "No text notes"}
@@ -1817,7 +1867,18 @@ Video Attachment:
 - Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
 - Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
 
-${frameWithAttachment.attachment ? `
+${frameWithAttachment.attachment?.type === 'pdf' ? `
+PDF Attachment:
+- URL: ${frameWithAttachment.attachment.data?.pdfUrl || "No PDF URL"}
+- Pages: ${frameWithAttachment.attachment.data?.pages || "All pages"}
+- Title: ${frameWithAttachment.attachment.data?.title || "PDF Document"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment?.type === 'text' ? `
+Text Attachment:
+- Content: ${frameWithAttachment.attachment.data?.text || "No text content"}
+- Title: ${frameWithAttachment.attachment.data?.title || "Text Content"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment && !['pdf', 'text', 'video'].includes(frameWithAttachment.attachment.type) ? `
 Additional Attachment:
 - Type: ${frameWithAttachment.attachment.type || "Unknown"}
 - Name: ${frameWithAttachment.attachment.name || "Unnamed"}
@@ -1825,7 +1886,7 @@ Additional Attachment:
 - Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
 - URL: ${frameWithAttachment.attachment.url || "No URL"}
 - Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
-` : "Additional Attachments: None"}
+` : frameWithAttachment.attachment ? "" : "Additional Attachments: None"}
 
 Text Notes:
 ${frameWithAttachment.notes || "No text notes"}
@@ -5060,7 +5121,18 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentFrameIndex]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+    <>
+      {/* VectorStore Initialization Modal */}
+      <VectorStoreInitModal
+        isOpen={!vectorStoreInitialized}
+        status={vectorStoreInitialized ? 'ready' : 'initializing'}
+        message={vectorStoreInitialized 
+          ? 'Knowledge Base is ready!' 
+          : 'Preparing your secure local Knowledge Base...'
+        }
+      />
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Top Navigation Header */}
       <div className="fixed left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
         <div className="flex items-center justify-between">
@@ -7788,5 +7860,6 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         </Dialog>
       )}
     </div>
+    </>
   );
 }
