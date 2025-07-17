@@ -1012,7 +1012,7 @@ Updated: ${new Date().toISOString()}`,
       
       const isUserEdit = (value: string, field: keyof typeof defaults) => {
         return value && value.trim() && !defaults[field]?.some((d: string) => 
-          value.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(value.toLowerCase())
+          value.toLowerCase().trim() === d.toLowerCase().trim()
         );
       };
       
@@ -1320,6 +1320,29 @@ Updated: ${new Date().toISOString()}`,
 
       // Smart merge function that prioritizes user content
       const smartMerge = (existing: AIFrame, graph: AIFrame): AIFrame => {
+        // DEBUG: Check merge decisions for goal and informationText
+        const goalDecision = {
+          existingGoal: existing.goal,
+          graphGoal: graph.goal,
+          existingIsUserEdit: isUserEdit(existing.goal, 'goal'),
+          graphIsUserEdit: isUserEdit(graph.goal, 'goal'),
+          finalGoal: isUserEdit(existing.goal, 'goal') ? existing.goal :
+                     isUserEdit(graph.goal, 'goal') ? graph.goal :
+                     existing.goal || graph.goal
+        };
+        
+        const infoDecision = {
+          existingInfo: existing.informationText,
+          graphInfo: graph.informationText,
+          existingIsUserEdit: isUserEdit(existing.informationText, 'informationText'),
+          graphIsUserEdit: isUserEdit(graph.informationText, 'informationText'),
+          finalInfo: isUserEdit(existing.informationText, 'informationText') ? existing.informationText :
+                     isUserEdit(graph.informationText, 'informationText') ? graph.informationText :
+                     existing.informationText || graph.informationText
+        };
+        
+        console.log("🔍 SMART MERGE DECISIONS:", { goalDecision, infoDecision });
+        
         return {
           ...existing,
           ...graph,
@@ -1329,14 +1352,10 @@ Updated: ${new Date().toISOString()}`,
                  existing.title || graph.title,
           
           // USER EDITS WIN: Keep meaningful goals over defaults  
-          goal: isUserEdit(existing.goal, 'goal') ? existing.goal :
-                isUserEdit(graph.goal, 'goal') ? graph.goal :
-                existing.goal || graph.goal,
+          goal: goalDecision.finalGoal,
                 
           // USER EDITS WIN: Keep user-written content
-          informationText: isUserEdit(existing.informationText, 'informationText') ? existing.informationText :
-                          isUserEdit(graph.informationText, 'informationText') ? graph.informationText :
-                          existing.informationText || graph.informationText,
+          informationText: infoDecision.finalInfo,
                           
           afterVideoText: isUserEdit(existing.afterVideoText, 'afterVideoText') ? existing.afterVideoText :
                          isUserEdit(graph.afterVideoText, 'afterVideoText') ? graph.afterVideoText :
@@ -1413,6 +1432,13 @@ Updated: ${new Date().toISOString()}`,
       console.log("🔄 GOOGLE DOCS: Broadcasting merged frame data as authoritative source", {
         frameCount: finalFrames.length,
         framesWithAttachments: finalFrames.filter(f => f.attachment).length,
+        frameContentDetails: finalFrames.map(f => ({
+          frameId: f.id,
+          frameTitle: f.title,
+          goal: f.goal?.substring(0, 50) || 'No goal',
+          informationText: f.informationText?.substring(0, 50) || 'No info',
+          hasAttachment: !!f.attachment
+        })),
         textAttachments: finalFrames.filter(f => f.attachment?.type === 'text').map(f => ({
           frameId: f.id,
           frameTitle: f.title,
@@ -1421,10 +1447,15 @@ Updated: ${new Date().toISOString()}`,
           textPreview: f.attachment?.data?.text?.substring(0, 50) || 'No text'
         }))
       });
+      
+      // CRITICAL: GOOGLE DOCS APPROACH - Broadcast FIRST, then all saves use updated data
+      console.log("🚀 GOOGLE DOCS: Broadcasting merged data as single source of truth");
       onFramesChange(finalFrames);
       
-      // Allow state update to propagate before continuing with save operations
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // CRITICAL: Wait for broadcast to fully propagate to all components  
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      console.log("✅ GOOGLE DOCS: All subsequent operations will use broadcasted data");
 
       // SILENT: Final deduplication complete (no logging to prevent spam)
 

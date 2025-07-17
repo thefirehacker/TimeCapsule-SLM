@@ -831,6 +831,31 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
       // Helper function to extract content between markers
       const extractFromContent = (content: string, marker: string): string => {
+        // Enhanced extraction with support for both simple and complex patterns
+        switch(marker) {
+          case 'Goal:':
+            // Look for "Learning Goal: ..." pattern first, then fallback to simple "Goal:"
+            const goalMatch = content.match(/Learning Goal: (.*?)(?:\n|$)/);
+            if (goalMatch) return goalMatch[1].trim();
+            break;
+          case 'Information:':
+            // Look for "Context & Background:" pattern first, then fallback to simple "Information:"
+            const infoMatch = content.match(/Context & Background:\n([\s\S]*?)(?:\n\nAfter Video Content:|$)/);
+            if (infoMatch) return infoMatch[1].trim();
+            break;
+          case 'After Video:':
+            // Look for "After Video Content:" pattern
+            const afterVideoMatch = content.match(/After Video Content:\n([\s\S]*?)(?:\n\nAI Concepts:|$)/);
+            if (afterVideoMatch) return afterVideoMatch[1].trim();
+            break;
+          case 'Concepts:':
+            // Look for "AI Concepts:" pattern
+            const conceptsMatch = content.match(/AI Concepts: (.*?)(?:\n|$)/);
+            if (conceptsMatch) return conceptsMatch[1].trim();
+            break;
+        }
+        
+        // Fallback to original simple line-based extraction
         const lines = content.split('\n');
         const markerLine = lines.find(line => line.startsWith(marker));
         return markerLine ? markerLine.substring(marker.length).trim() : '';
@@ -1626,6 +1651,19 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     syncInProgressRef.current = true;
 
     try {
+      // DEBUG: Trace where KB saves are coming from
+      console.log('🔍 KB SYNC TRACE:', {
+        syncType: 'graph-to-kb',
+        frameCount: framesToSync.length,
+        caller: new Error().stack?.split('\n')[2]?.trim(),
+        firstFrame: framesToSync[0] ? {
+          id: framesToSync[0].id,
+          title: framesToSync[0].title,
+          goal: framesToSync[0].goal?.substring(0, 30),
+          hasAttachment: !!framesToSync[0].attachment
+        } : null
+      });
+      
       console.log(
         `🔄 Syncing ${framesToSync.length} frames from graph changes to Knowledge Base...`
       );
@@ -1664,6 +1702,15 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         const frameWithAttachment = frame as any; // Type assertion to access attachment properties
         
         // Debug: Log attachment data being saved
+        console.log('💾 KB SAVE FRAME CONTENT DEBUG:', {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          goal: frame.goal,
+          informationText: frame.informationText,
+          hasAttachment: !!frameWithAttachment.attachment,
+          attachmentType: frameWithAttachment.attachment?.type
+        });
+        
         if (frameWithAttachment.attachment) {
           console.log('💾 Saving frame with attachment to KB:', {
             frameId: frame.id,
@@ -1833,6 +1880,15 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         const frameWithAttachment = frame as any; // Type assertion to access attachment properties
         
         // Debug: Log attachment data being saved
+        console.log('💾 KB SAVE FRAME CONTENT DEBUG:', {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          goal: frame.goal,
+          informationText: frame.informationText,
+          hasAttachment: !!frameWithAttachment.attachment,
+          attachmentType: frameWithAttachment.attachment?.type
+        });
+        
         if (frameWithAttachment.attachment) {
           console.log('💾 Saving frame with attachment to KB:', {
             frameId: frame.id,
