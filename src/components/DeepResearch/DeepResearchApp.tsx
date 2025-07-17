@@ -40,6 +40,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import VectorStoreInitModal from "../VectorStoreInitModal";
 import {
   Wifi,
   WifiOff,
@@ -4501,7 +4502,19 @@ export function DeepResearchComponent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+    <>
+      {/* VectorStore Initialization Modal */}
+      <VectorStoreInitModal
+        isOpen={!vectorStoreInitialized}
+        status={vectorStoreInitialized ? 'ready' : 'initializing'}
+        message={vectorStoreInitialized 
+          ? 'Knowledge Base is ready!' 
+          : 'Preparing your secure local Knowledge Base...'
+        }
+        progress={downloadProgress}
+      />
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Metadata Management Header */}
       <div className="fixed left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
         <div className="px-6 py-3">
@@ -6805,5 +6818,6 @@ export function DeepResearchComponent() {
         </Dialog>
       </div>
     </div>
+    </>
   );
 }

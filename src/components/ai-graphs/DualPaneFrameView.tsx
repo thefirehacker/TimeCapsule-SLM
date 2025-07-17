@@ -60,6 +60,8 @@ interface DualPaneFrameViewProps {
   onFrameIndexChange: (index: number) => void;
   onCreateFrame?: () => void;
   defaultMaximized?: boolean; // New prop to control default maximization
+  onGetCurrentState?: () => GraphState; // SILENT: Get current graph state when needed
+  onGraphStateUpdate?: (state: GraphState) => void; // SILENT: Update parent with current graph state
 }
 
 export default function DualPaneFrameView({
@@ -70,6 +72,8 @@ export default function DualPaneFrameView({
   onFrameIndexChange,
   onCreateFrame,
   defaultMaximized = false,
+  onGetCurrentState,
+  onGraphStateUpdate,
 }: DualPaneFrameViewProps) {
   const [graphState, setGraphState] = useState<GraphState>({
     nodes: [],
@@ -85,9 +89,19 @@ export default function DualPaneFrameView({
   // Get current frame safely
   const currentFrame = frames[currentFrameIndex];
 
+  // SILENT: Setup callback to provide current graph state when requested (no logging)
+  const getCurrentGraphState = useCallback(() => {
+    return graphState;
+  }, [graphState]);
+
   // Handle graph changes and sync to linear view
   const handleGraphChange = useCallback((newGraphState: GraphState) => {
     setGraphState(newGraphState);
+    
+    // SILENT: Update parent with current graph state (no logging)
+    if (onGraphStateUpdate) {
+      onGraphStateUpdate(newGraphState);
+    }
     
     // Sync selected node to frame navigation
     if (newGraphState.selectedNodeId) {
@@ -99,17 +113,10 @@ export default function DualPaneFrameView({
         const frameIndex = frames.findIndex(f => f.id === selectedNode.data.frameId);
         if (frameIndex !== -1 && frameIndex !== currentFrameIndex) {
           onFrameIndexChange(frameIndex);
-          console.log('🔄 Graph → Frame Navigation sync:', {
-            nodeId: newGraphState.selectedNodeId,
-            frameId: selectedNode.data.frameId,
-            frameIndex
-          });
         }
       }
     }
-    
-    console.log('📊 Dual-pane: Graph state updated');
-  }, [frames, currentFrameIndex, onFrameIndexChange]);
+  }, [frames, currentFrameIndex, onFrameIndexChange, onGraphStateUpdate]);
 
   // Sync current frame selection back to graph
   useEffect(() => {
@@ -125,11 +132,11 @@ export default function DualPaneFrameView({
           selectedNodeId: frameNode.id
         }));
         setSelectedNodeFrameId(currentFrame.id);
-        console.log('🔄 Frame Navigation → Graph sync:', {
-          frameId: currentFrame.id,
-          nodeId: frameNode.id,
-          frameIndex: currentFrameIndex
-        });
+        // console.log('🔄 Frame Navigation → Graph sync:', {
+        //   frameId: currentFrame.id,
+        //   nodeId: frameNode.id,
+        //   frameIndex: currentFrameIndex
+        // });
       }
     }
   }, [currentFrame, currentFrameIndex, graphState.nodes, selectedNodeFrameId]);
@@ -138,11 +145,11 @@ export default function DualPaneFrameView({
   useEffect(() => {
     const handleFramesReordered = (event: CustomEvent) => {
       const { fromIndex, toIndex, reorderedFrames } = event.detail;
-      console.log('🔄 Dual-pane: Frames reordered, updating graph layout:', {
-        fromIndex,
-        toIndex,
-        totalFrames: reorderedFrames.length
-      });
+      // console.log('🔄 Dual-pane: Frames reordered, updating graph layout:', {
+      //   fromIndex,
+      //   toIndex,
+      //   totalFrames: reorderedFrames.length
+      // });
       
       // Update frames in dual-pane view
       onFramesChange(reorderedFrames);
@@ -180,10 +187,10 @@ export default function DualPaneFrameView({
     // Listen for Frame Navigation selection and sync to graph
     const handleFrameNavigationSelected = (event: CustomEvent) => {
       const { frameId, frameIndex } = event.detail;
-      console.log('🔄 Dual-pane: Frame Navigation selected, syncing to graph:', {
-        frameId,
-        frameIndex
-      });
+      // console.log('🔄 Dual-pane: Frame Navigation selected, syncing to graph:', {
+      //   frameId,
+      //   frameIndex
+      // });
       
       // Find and select the corresponding graph node
       const frameNode = graphState.nodes.find(node => 
@@ -196,19 +203,19 @@ export default function DualPaneFrameView({
           selectedNodeId: frameNode.id
         }));
         setSelectedNodeFrameId(frameId);
-        console.log('✅ Dual-pane: Graph node selected via Frame Navigation:', {
-          nodeId: frameNode.id,
-          frameId
-        });
+        // console.log('✅ Dual-pane: Graph node selected via Frame Navigation:', {
+        //   nodeId: frameNode.id,
+        //   frameId
+        // });
       }
     };
 
     // Listen for clear all frames event and reset graph
     const handleClearAllFrames = (event: CustomEvent) => {
       const { clearedCount } = event.detail;
-      console.log('🗑️ Dual-pane: Clear all frames event received, clearing graph:', {
-        clearedCount
-      });
+      // console.log('🗑️ Dual-pane: Clear all frames event received, clearing graph:', {
+      //   clearedCount
+      // });
       
       // Clear graph state
       setGraphState({
@@ -222,16 +229,16 @@ export default function DualPaneFrameView({
       setEditingFrameId(null);
       setEditData({});
       
-      console.log('✅ Dual-pane: Graph cleared successfully');
+      // console.log('✅ Dual-pane: Graph cleared successfully');
     };
 
     // Listen for individual frame edits and sync to graph
     const handleFrameEdited = (event: CustomEvent) => {
       const { frameId, frame } = event.detail;
-      console.log('🔄 Dual-pane: Frame edited event received, syncing to graph:', {
-        frameId,
-        frameName: frame.title
-      });
+      // console.log('🔄 Dual-pane: Frame edited event received, syncing to graph:', {
+      //   frameId,
+      //   frameName: frame.title
+      // });
       
       // Update the specific frame in the frames array
       const updatedFrames = frames.map(f => 
@@ -269,7 +276,7 @@ export default function DualPaneFrameView({
         };
       });
       
-      console.log('✅ Dual-pane: Frame edit synced to graph successfully');
+      // console.log('✅ Dual-pane: Frame edit synced to graph successfully');
     };
 
     // Connection status handlers
@@ -279,7 +286,7 @@ export default function DualPaneFrameView({
         ...prev,
         [connection.id]: 'connected'
       }));
-      console.log('🔗 Dual-pane: Connection added status updated:', connection.id);
+      // console.log('🔗 Dual-pane: Connection added status updated:', connection.id);
     };
 
     const handleConnectionRemoved = (event: CustomEvent) => {
@@ -288,7 +295,7 @@ export default function DualPaneFrameView({
         ...prev,
         [connection.id]: 'disconnected'
       }));
-      console.log('🗑️ Dual-pane: Connection removed status updated:', connection.id);
+      // console.log('🗑️ Dual-pane: Connection removed status updated:', connection.id);
     };
 
     window.addEventListener('frames-reordered', handleFramesReordered as EventListener);
@@ -316,7 +323,7 @@ export default function DualPaneFrameView({
         : frame
     );
     onFramesChange(updatedFrames);
-    console.log('🔄 Dual-pane: Frame updated', { frameId, updatedData });
+    // console.log('🔄 Dual-pane: Frame updated', { frameId, updatedData });
   }, [frames, onFramesChange]);
 
   // Convert seconds to MM:SS format

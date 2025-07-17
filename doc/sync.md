@@ -352,3 +352,71 @@ if (app.metadataManager) {
 *Updated: 2024-01-15*  
 *Latest Issues: Status bar inaccuracy and MetadataManager reference loss*  
 *Latest Solutions: Defensive programming, automatic recovery, and state accuracy fixes*
+
+---
+
+## Vector Store Initialization: AI Frames vs Deep Research
+
+*Added: 2024-01-15*  
+*Analysis: Direct comparison of vector store initialization patterns*
+
+### 🔄 Similarities - Both Use Same Core System
+
+Both systems use the SAME underlying components:
+- **VectorStoreProvider**: Singleton pattern with shared instance
+- **VectorStore.ts**: Same RxDB + IndexedDB storage
+- **Same Model**: Xenova/all-MiniLM-L6-v2 for embeddings
+- **Same Architecture**: Document processing, chunking, semantic search
+
+### 🎯 Key Differences
+
+| **Aspect** | **AI Frames** | **Deep Research** |
+|------------|---------------|-------------------|
+| **Provider Location** | `src/app/ai-frames/layout.tsx` | `src/app/deep-research/page.tsx` |
+| **Initialization** | **Lazy Loading** - VectorStore priority | **Eager Loading** - UI first |
+| **Storage Priority** | **KB-first** → IndexedDB → localStorage | **localStorage-first** → VectorStore |
+| **Sync Strategy** | **Real-time bi-directional** | **Periodic batch sync** |
+| **Data Flow** | Frames → KB → VectorStore | Research → VectorStore → Export |
+
+### 🚀 Performance Implications
+
+#### **AI Frames Approach**:
+- **Advantage**: Always has latest data from KB
+- **Trade-off**: Slower initial load if KB is large
+- **Best for**: Real-time collaboration, attachment sync
+
+#### **Deep Research Approach**:
+- **Advantage**: Instant UI, progressive loading
+- **Trade-off**: May show stale data initially
+- **Best for**: Research workflows, document management
+
+### 📊 Shared Singleton Pattern
+
+Both systems use the **same VectorStore singleton**:
+
+```typescript
+// Global singleton in VectorStoreProvider
+let singletonVectorStore: VectorStore | null = null;
+
+// AI Frames gets it via provider
+const { vectorStore } = useVectorStore();
+
+// Deep Research gets it via provider too
+const { vectorStore } = useVectorStore();
+```
+
+### 💡 Summary
+
+**Yes, the vector store initialization is fundamentally the same** between AI frames and Deep Research - they both use the VectorStoreProvider singleton pattern. The key differences are:
+
+1. **Loading Strategy**: AI frames prioritizes KB, Deep Research prioritizes UI speed
+2. **Sync Frequency**: AI frames is real-time, Deep Research is batch
+3. **Data Flow**: AI frames is bi-directional, Deep Research is primarily one-way
+
+But the **core VectorStore initialization, RxDB setup, and Xenova model loading are identical**!
+
+---
+
+*Analysis added: 2024-01-15*  
+*Context: User inquiry about vector store initialization patterns*  
+*Finding: Same core system with different optimization strategies*

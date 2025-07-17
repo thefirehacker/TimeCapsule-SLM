@@ -186,7 +186,7 @@ export class VectorStore {
   ): Promise<T> {
     // If operation is already in progress, wait for it
     if (this.operationQueue.has(operationId)) {
-      console.log(`⏳ Operation ${operationId} already in progress, waiting...`);
+      // console.log(`⏳ Operation ${operationId} already in progress, waiting...`);
       return this.operationQueue.get(operationId);
     }
 
@@ -219,7 +219,7 @@ export class VectorStore {
 
     // Lock the operation
     this.operationLocks.add(operationId);
-    console.log(`🔒 Locked operation: ${operationId}`);
+    // console.log(`🔒 Locked operation: ${operationId}`);
 
     try {
       const result = await operation();
@@ -231,7 +231,7 @@ export class VectorStore {
     } finally {
       // Always unlock
       this.operationLocks.delete(operationId);
-      console.log(`🔓 Unlocked operation: ${operationId}`);
+      // console.log(`🔓 Unlocked operation: ${operationId}`);
     }
   }
 
@@ -610,9 +610,9 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Use operation queue to prevent concurrent operations on the same document
+    // ENHANCED: Use single operation ID per document to coordinate with upsert operations
     return this.queueOperation(
-      `delete-${id}`,
+      `doc-${id}`,
       () => this.performDocumentDeletion(id)
     );
   }
@@ -877,9 +877,9 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Use operation queue to prevent concurrent operations on the same document
+    // ENHANCED: Use single operation ID per document to coordinate with delete operations
     return this.queueOperation(
-      `upsert-${documentData.id}`,
+      `doc-${documentData.id}`,
       () => this.performDocumentUpsert(documentData)
     );
   }
@@ -929,7 +929,7 @@ export class VectorStore {
             errorName: error.name,
             documentId: documentData.id,
             documentTitle: documentData.title,
-            operationId: `upsert-${documentData.id}`
+            operationId: `doc-${documentData.id}`
           });
           
           // ENHANCED: Wait before retry with exponential backoff (100ms, 200ms, 400ms)
@@ -991,7 +991,7 @@ export class VectorStore {
     // Enhanced duplicate detection before insertion
     const duplicateDoc = await this.findDuplicateDocument(documentData);
     if (duplicateDoc) {
-      console.log(`⚠️ Duplicate document detected: "${documentData.title}" (similar to "${duplicateDoc.title}"), skipping insertion`);
+      // console.log(`⚠️ Duplicate document detected: "${documentData.title}" (similar to "${duplicateDoc.title}"), skipping insertion`);
       return; // Skip insertion of duplicate
     }
 

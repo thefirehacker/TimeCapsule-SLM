@@ -30,6 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import VectorStoreInitModal from "@/components/VectorStoreInitModal";
 import {
   Play,
   Pause,
@@ -126,8 +127,9 @@ interface AIFrame {
   updatedAt: string;
   // NEW: Attachment and media fields
   attachment?: {
+    id: string;
     type: string;
-    name: string;
+    name?: string;
     size?: number;
     data?: any;
     url?: string;
@@ -829,6 +831,31 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
       // Helper function to extract content between markers
       const extractFromContent = (content: string, marker: string): string => {
+        // Enhanced extraction with support for both simple and complex patterns
+        switch(marker) {
+          case 'Goal:':
+            // Look for "Learning Goal: ..." pattern first, then fallback to simple "Goal:"
+            const goalMatch = content.match(/Learning Goal: (.*?)(?:\n|$)/);
+            if (goalMatch) return goalMatch[1].trim();
+            break;
+          case 'Information:':
+            // Look for "Context & Background:" pattern first, then fallback to simple "Information:"
+            const infoMatch = content.match(/Context & Background:\n([\s\S]*?)(?:\n\nAfter Video Content:|$)/);
+            if (infoMatch) return infoMatch[1].trim();
+            break;
+          case 'After Video:':
+            // Look for "After Video Content:" pattern
+            const afterVideoMatch = content.match(/After Video Content:\n([\s\S]*?)(?:\n\nAI Concepts:|$)/);
+            if (afterVideoMatch) return afterVideoMatch[1].trim();
+            break;
+          case 'Concepts:':
+            // Look for "AI Concepts:" pattern
+            const conceptsMatch = content.match(/AI Concepts: (.*?)(?:\n|$)/);
+            if (conceptsMatch) return conceptsMatch[1].trim();
+            break;
+        }
+        
+        // Fallback to original simple line-based extraction
         const lines = content.split('\n');
         const markerLine = lines.find(line => line.startsWith(marker));
         return markerLine ? markerLine.substring(marker.length).trim() : '';
@@ -889,6 +916,107 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             docContent: doc.content.substring(0, 500) + '...' // Show first 500 chars of content
           });
           
+          // ENHANCED: Debug attachment restoration and try alternative methods
+          console.log('🔍 ATTACHMENT RESTORATION DEBUG:', {
+            frameId: frame.id,
+            frameTitle: frame.title,
+            hasAttachmentInMetadata: !!(doc.metadata as any)?.attachment,
+            metadataAttachment: (doc.metadata as any)?.attachment,
+            docContent: doc.content.substring(0, 1000),
+            metadataKeys: Object.keys(doc.metadata || {}),
+            fullMetadata: doc.metadata
+          });
+          
+          // ENHANCED: Try to restore attachment from content if metadata is missing
+          if (!frame.attachment && doc.content) {
+            // First try to restore video attachment from the main video section
+            const videoUrlMatch = doc.content.match(/Video Attachment:\s*\n- URL: (.*?)(?:\n|$)/);
+            if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
+              const startTimeMatch = doc.content.match(/- Start Time: (\d+)s/);
+              const durationMatch = doc.content.match(/- Duration: (\d+)s/);
+              
+              frame.attachment = {
+                id: `video-${frame.id}`,
+                type: 'video',
+                name: 'Video Attachment',
+                data: {
+                  videoUrl: videoUrlMatch[1],
+                  startTime: startTimeMatch ? parseInt(startTimeMatch[1]) : 0,
+                  duration: durationMatch ? parseInt(durationMatch[1]) : 300
+                }
+              };
+              console.log('✅ RESTORED video attachment from content:', frame.attachment);
+            } else {
+              // Try to restore PDF attachment from the PDF section
+              const pdfUrlMatch = doc.content.match(/PDF Attachment:\s*\n- URL: (.*?)(?:\n|$)/);
+              if (pdfUrlMatch && pdfUrlMatch[1] !== 'No PDF URL') {
+                const pdfPagesMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Pages: (.*?)(?:\n|$)/);
+                const pdfTitleMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Title: (.*?)(?:\n|$)/);
+                const pdfNotesMatch = doc.content.match(/PDF Attachment:[\s\S]*?- Notes: (.*?)(?:\n|$)/);
+                
+                frame.attachment = {
+                  id: `pdf-${frame.id}`,
+                  type: 'pdf',
+                  name: 'PDF Attachment',
+                  data: {
+                    pdfUrl: pdfUrlMatch[1],
+                    pages: pdfPagesMatch ? pdfPagesMatch[1] : 'All pages',
+                    title: pdfTitleMatch ? pdfTitleMatch[1] : 'PDF Document',
+                    notes: pdfNotesMatch ? pdfNotesMatch[1] : ''
+                  }
+                };
+                console.log('✅ RESTORED PDF attachment from content:', frame.attachment);
+              } else {
+                // Try to restore text attachment from the text section
+                const textContentMatch = doc.content.match(/Text Attachment:\s*\n- Content: (.*?)(?:\n|$)/);
+                if (textContentMatch && textContentMatch[1] !== 'No text content') {
+                  const textTitleMatch = doc.content.match(/Text Attachment:[\s\S]*?- Title: (.*?)(?:\n|$)/);
+                  const textNotesMatch = doc.content.match(/Text Attachment:[\s\S]*?- Notes: (.*?)(?:\n|$)/);
+                  
+                  frame.attachment = {
+                    id: `text-${frame.id}`,
+                    type: 'text',
+                    name: 'Text Attachment',
+                    data: {
+                      text: textContentMatch[1],
+                      title: textTitleMatch ? textTitleMatch[1] : 'Text Content',
+                      notes: textNotesMatch ? textNotesMatch[1] : ''
+                    }
+                  };
+                  console.log('✅ RESTORED text attachment from content:', frame.attachment);
+                } else {
+                  // Fallback: try to restore from additional attachment section
+                  const attachmentMatch = doc.content.match(/Additional Attachment:\s*\n- Type: (.*?)\n- Name: (.*?)\n[\s\S]*?- Data: (.*?)(?:\n|$)/);
+                  if (attachmentMatch) {
+                    const [, type, name, hasData] = attachmentMatch;
+                    if (type !== 'Unknown' && hasData === 'Available') {
+                      // Try to reconstruct attachment from content
+                      if (type === 'video') {
+                        const videoUrlMatch = doc.content.match(/- URL: (.*?)(?:\n|$)/);
+                        const startTimeMatch = doc.content.match(/- Start Time: (\d+)s/);
+                        const durationMatch = doc.content.match(/- Duration: (\d+)s/);
+                        
+                        if (videoUrlMatch && videoUrlMatch[1] !== 'No video attachment') {
+                          frame.attachment = {
+                            id: `video-${frame.id}`,
+                            type: 'video',
+                            name: name || 'Video Attachment',
+                            data: {
+                              videoUrl: videoUrlMatch[1],
+                              startTime: startTimeMatch ? parseInt(startTimeMatch[1]) : 0,
+                              duration: durationMatch ? parseInt(durationMatch[1]) : 300
+                            }
+                          };
+                          console.log('✅ RESTORED attachment from additional section:', frame.attachment);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
           // Debug: Log attachment data being restored
           if (frame.attachment) {
             console.log('📹 Restoring frame with attachment:', {
@@ -896,13 +1024,16 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
               frameTitle: frame.title,
               attachmentType: frame.attachment.type,
               attachmentData: frame.attachment.data,
-              fullAttachment: frame.attachment
+              fullAttachment: frame.attachment,
+              restoredFromContent: !!(doc.metadata as any)?.attachment ? false : true
             });
+            
           } else {
             console.log('📹 Frame has no attachment:', {
               frameId: frame.id,
               frameTitle: frame.title,
-              metadata: (doc.metadata as any)?.attachment
+              metadata: (doc.metadata as any)?.attachment,
+              triedContentRestore: true
             });
           }
           
@@ -916,6 +1047,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       const kbFrames = validFrames.sort((a: AIFrame, b: AIFrame) => (a.order || 1) - (b.order || 1));
 
       console.log(`✅ Successfully loaded ${kbFrames.length} frames from Knowledge Base`);
+      
       
       // FIXED: Add validation to ensure we have valid frames
       if (kbFrames.length === 0) {
@@ -935,8 +1067,8 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
   const loadFramesFromStorage = useCallback(async () => {
     try {
       // PRIORITY 1: Try to load from Knowledge Base first (most recent data)
-      // FIXED: Remove processingAvailable restriction to make KB truly the priority
-      if (vectorStore && vectorStoreInitialized) {
+      // ENHANCED: Check VectorStore's actual initialized state for better reliability
+      if (vectorStore && vectorStore.initialized) {
         console.log("🔍 Priority 1: Checking Knowledge Base for latest frames...");
         
         // FIXED: Add retry logic for KB loading to handle race conditions
@@ -1003,7 +1135,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           retryCount++;
         }
       } else {
-        console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStoreInitialized, ")");
+        console.log("📊 Knowledge Base not available (vectorStore:", !!vectorStore, ", initialized:", vectorStore?.initialized, ")");
       }
 
       // PRIORITY 2: Fall back to GraphStorageManager (IndexedDB) if KB is not available
@@ -1235,10 +1367,10 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
             edges: graphState.edges,
             viewport: graphState.viewport
           });
-          console.log("🔗 Graph connections saved to IndexedDB");
+          // console.log("🔗 Graph connections saved to IndexedDB");
         }
 
-        console.log("✅ Frames and connections saved to IndexedDB successfully");
+        // console.log("✅ Frames and connections saved to IndexedDB successfully");
       }
 
       // Fallback/Compatibility: Save to localStorage
@@ -1263,7 +1395,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           lastSaved: new Date().toISOString(),
         };
         localStorage.setItem("ai_frames_graph_connections", JSON.stringify(graphConnectionsData));
-        console.log("🔗 Graph connections saved to localStorage backup");
+        // console.log("🔗 Graph connections saved to localStorage backup");
       }
 
       localStorage.setItem(
@@ -1282,7 +1414,7 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
 
       localStorage.setItem("ai_frames_graph_state", JSON.stringify(graphData));
 
-      console.log("💾 Frames saved to localStorage (compatibility)");
+      // console.log("💾 Frames saved to localStorage (compatibility)");
     } catch (error) {
       console.error("❌ Failed to save frames to storage:", error);
     }
@@ -1456,13 +1588,20 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
       }
 
       console.log("✅ AI-Frames connected to VectorStoreProvider");
+      
+      // ENHANCED: Retry loading frames when VectorStore becomes available
+      if (providerVectorStore.initialized && frames.length === 0) {
+        console.log("🔄 VectorStore is ready and no frames loaded, retrying frame load...");
+        loadFramesFromStorage();
+      }
     }
   }, [providerVectorStore]);
 
   // Initialize GraphStorageManager when VectorStore is ready
   useEffect(() => {
     const initializeGraphStorage = async () => {
-      if (vectorStore && vectorStoreInitialized && !graphStorageManager) {
+      // ENHANCED: Check VectorStore's actual initialized state, not just provider state
+      if (vectorStore && vectorStore.initialized && !graphStorageManager) {
         try {
           console.log("🗂️ Initializing GraphStorageManager...");
           const graphManager = getGraphStorageManager(vectorStore);
@@ -1471,6 +1610,13 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
           console.log("✅ GraphStorageManager initialized successfully");
         } catch (error) {
           console.error("❌ Failed to initialize GraphStorageManager:", error);
+          // ENHANCED: Retry after a delay if VectorStore becomes ready
+          setTimeout(() => {
+            if (vectorStore && vectorStore.initialized && !graphStorageManager) {
+              console.log("🔄 Retrying GraphStorageManager initialization...");
+              initializeGraphStorage();
+            }
+          }, 1000);
         }
       }
     };
@@ -1505,6 +1651,19 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
     syncInProgressRef.current = true;
 
     try {
+      // DEBUG: Trace where KB saves are coming from
+      console.log('🔍 KB SYNC TRACE:', {
+        syncType: 'graph-to-kb',
+        frameCount: framesToSync.length,
+        caller: new Error().stack?.split('\n')[2]?.trim(),
+        firstFrame: framesToSync[0] ? {
+          id: framesToSync[0].id,
+          title: framesToSync[0].title,
+          goal: framesToSync[0].goal?.substring(0, 30),
+          hasAttachment: !!framesToSync[0].attachment
+        } : null
+      });
+      
       console.log(
         `🔄 Syncing ${framesToSync.length} frames from graph changes to Knowledge Base...`
       );
@@ -1543,6 +1702,15 @@ ${result.details.backupCreated ? `• Backup created: ${result.details.backupCre
         const frameWithAttachment = frame as any; // Type assertion to access attachment properties
         
         // Debug: Log attachment data being saved
+        console.log('💾 KB SAVE FRAME CONTENT DEBUG:', {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          goal: frame.goal,
+          informationText: frame.informationText,
+          hasAttachment: !!frameWithAttachment.attachment,
+          attachmentType: frameWithAttachment.attachment?.type
+        });
+        
         if (frameWithAttachment.attachment) {
           console.log('💾 Saving frame with attachment to KB:', {
             frameId: frame.id,
@@ -1575,7 +1743,18 @@ Video Attachment:
 - Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
 - Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
 
-${frameWithAttachment.attachment ? `
+${frameWithAttachment.attachment?.type === 'pdf' ? `
+PDF Attachment:
+- URL: ${frameWithAttachment.attachment.data?.pdfUrl || "No PDF URL"}
+- Pages: ${frameWithAttachment.attachment.data?.pages || "All pages"}
+- Title: ${frameWithAttachment.attachment.data?.title || "PDF Document"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment?.type === 'text' ? `
+Text Attachment:
+- Content: ${frameWithAttachment.attachment.data?.text || "No text content"}
+- Title: ${frameWithAttachment.attachment.data?.title || "Text Content"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment && !['pdf', 'text', 'video'].includes(frameWithAttachment.attachment.type) ? `
 Additional Attachment:
 - Type: ${frameWithAttachment.attachment.type || "Unknown"}
 - Name: ${frameWithAttachment.attachment.name || "Unnamed"}
@@ -1583,7 +1762,7 @@ Additional Attachment:
 - Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
 - URL: ${frameWithAttachment.attachment.url || "No URL"}
 - Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
-` : "Additional Attachments: None"}
+` : frameWithAttachment.attachment ? "" : "Additional Attachments: None"}
 
 Text Notes:
 ${frameWithAttachment.notes || "No text notes"}
@@ -1667,8 +1846,12 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     }
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
 
-  // Enhanced AI-Frames Knowledge Base sync with order preservation
+  // TEMPORARILY DISABLED: Auto-save bypasses Save Graph fix
   const saveAllFramesToKB = useCallback(async () => {
+    console.log("⏸️ Auto-save disabled - use Save Graph button for manual save");
+    return Promise.resolve();
+    
+    /* DISABLED CODE:
     if (!vectorStore || !vectorStoreInitialized || frames.length === 0) {
       return;
     }
@@ -1697,6 +1880,15 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
         const frameWithAttachment = frame as any; // Type assertion to access attachment properties
         
         // Debug: Log attachment data being saved
+        console.log('💾 KB SAVE FRAME CONTENT DEBUG:', {
+          frameId: frame.id,
+          frameTitle: frame.title,
+          goal: frame.goal,
+          informationText: frame.informationText,
+          hasAttachment: !!frameWithAttachment.attachment,
+          attachmentType: frameWithAttachment.attachment?.type
+        });
+        
         if (frameWithAttachment.attachment) {
           console.log('💾 Saving frame with attachment to KB:', {
             frameId: frame.id,
@@ -1742,7 +1934,18 @@ Video Attachment:
 - Duration: ${frame.duration || frameWithAttachment.attachment?.data?.duration || 0}s
 - Type: ${frame.videoUrl || frameWithAttachment.attachment?.data?.videoUrl ? "YouTube Video" : "No video"}
 
-${frameWithAttachment.attachment ? `
+${frameWithAttachment.attachment?.type === 'pdf' ? `
+PDF Attachment:
+- URL: ${frameWithAttachment.attachment.data?.pdfUrl || "No PDF URL"}
+- Pages: ${frameWithAttachment.attachment.data?.pages || "All pages"}
+- Title: ${frameWithAttachment.attachment.data?.title || "PDF Document"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment?.type === 'text' ? `
+Text Attachment:
+- Content: ${frameWithAttachment.attachment.data?.text || "No text content"}
+- Title: ${frameWithAttachment.attachment.data?.title || "Text Content"}
+- Notes: ${frameWithAttachment.attachment.data?.notes || "No notes"}
+` : ""}${frameWithAttachment.attachment && !['pdf', 'text', 'video'].includes(frameWithAttachment.attachment.type) ? `
 Additional Attachment:
 - Type: ${frameWithAttachment.attachment.type || "Unknown"}
 - Name: ${frameWithAttachment.attachment.name || "Unnamed"}
@@ -1750,7 +1953,7 @@ Additional Attachment:
 - Data: ${frameWithAttachment.attachment.data ? "Available" : "No data"}
 - URL: ${frameWithAttachment.attachment.url || "No URL"}
 - Content: ${frameWithAttachment.attachment.content ? frameWithAttachment.attachment.content.substring(0, 200) + "..." : "No content"}
-` : "Additional Attachments: None"}
+` : frameWithAttachment.attachment ? "" : "Additional Attachments: None"}
 
 Text Notes:
 ${frameWithAttachment.notes || "No text notes"}
@@ -1999,6 +2202,7 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
     } catch (error) {
       console.error("❌ Failed to save AI-Frames to Knowledge Base:", error);
     }
+    */ // END DISABLED CODE
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentBubblSpace, currentTimeCapsule]);
 
   // FIXED: Load graph connections from storage
@@ -2064,6 +2268,35 @@ ${frame.sourceGoal ? `- Source Goal: ${frame.sourceGoal}` : ""}
       };
     }
   }, [vectorStore, vectorStoreInitialized, frames, saveAllFramesToKB]);
+
+  // ENHANCED: Watch for VectorStore initialization and retry failed components
+  useEffect(() => {
+    if (vectorStore && vectorStore.initialized) {
+      console.log("🔄 VectorStore is now initialized, checking for failed components...");
+      
+      // Retry GraphStorageManager initialization if it failed
+      if (!graphStorageManager) {
+        console.log("🔄 Retrying GraphStorageManager initialization...");
+        const initializeGraphStorage = async () => {
+          try {
+            const graphManager = getGraphStorageManager(vectorStore);
+            await graphManager.initialize();
+            setGraphStorageManager(graphManager);
+            console.log("✅ GraphStorageManager initialized successfully after retry");
+          } catch (error) {
+            console.error("❌ GraphStorageManager retry failed:", error);
+          }
+        };
+        initializeGraphStorage();
+      }
+      
+      // Retry loading frames if none are loaded
+      if (frames.length === 0) {
+        console.log("🔄 No frames loaded, retrying frame load...");
+        loadFramesFromStorage();
+      }
+    }
+  }, [vectorStore?.initialized, graphStorageManager, frames.length]);
 
   // Save frames to KB when VectorStore becomes ready or frames change
   useEffect(() => {
@@ -4331,7 +4564,8 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   // Update document status when vectorStore changes
   useEffect(() => {
     const updateDocumentStatus = async () => {
-      if (vectorStore && vectorStoreInitialized) {
+      // ENHANCED: Check VectorStore's actual initialized state, not just provider state
+      if (vectorStore && vectorStore.initialized) {
         try {
           const stats = await vectorStore.getStats();
           const documents = await vectorStore.getAllDocuments();
@@ -4349,6 +4583,13 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           setDocuments(documents);
         } catch (error) {
           console.error("Failed to update document status:", error);
+          // ENHANCED: Retry after VectorStore becomes ready
+          setTimeout(() => {
+            if (vectorStore && vectorStore.initialized) {
+              console.log("🔄 Retrying document status update...");
+              updateDocumentStatus();
+            }
+          }, 1000);
         }
       }
     };
@@ -4948,7 +5189,18 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   }, [vectorStore, vectorStoreInitialized, processingAvailable, frames, currentFrameIndex]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+    <>
+      {/* VectorStore Initialization Modal */}
+      <VectorStoreInitModal
+        isOpen={!vectorStoreInitialized}
+        status={vectorStoreInitialized ? 'ready' : 'initializing'}
+        message={vectorStoreInitialized 
+          ? 'Knowledge Base is ready!' 
+          : 'Preparing your secure local Knowledge Base...'
+        }
+      />
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Top Navigation Header */}
       <div className="fixed left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
         <div className="flex items-center justify-between">
@@ -7676,5 +7928,6 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         </Dialog>
       )}
     </div>
+    </>
   );
 }
