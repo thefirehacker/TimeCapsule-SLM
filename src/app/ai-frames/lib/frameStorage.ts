@@ -2,43 +2,82 @@ import { AIFrame } from "../types/frames";
 import { extractFrameFromContent, generateFrameId, sortFramesByOrder } from "./frameValidation";
 
 // PRESERVATION: Multi-strategy loading from Sage's Chronicle
+let isCurrentlyLoading = false; // Prevent concurrent calls
+
 export const loadFramesFromKnowledgeBase = async (
   vectorStore: any,
   vectorStoreInitialized: boolean,
   maxRetries: number = 3
 ): Promise<AIFrame[]> => {
   if (!vectorStore || !vectorStoreInitialized) {
-    console.warn("⚠️ VectorStore not available for loading frames");
+    // FIXED: Completely silent when VectorStore not available to prevent spam
     return [];
   }
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const documents = await vectorStore.getAllDocuments();
-      const frameDocuments = documents.filter(
-        (doc: any) => doc.metadata?.type === "ai-frame"
-      );
-
-      if (frameDocuments.length === 0) {
-        console.log("ℹ️ No AI frame documents found in Knowledge Base");
-        return [];
-      }
-
-      const frames: AIFrame[] = frameDocuments.map((doc: any) => 
-        parseFrameFromDocument(doc)
-      ).filter(Boolean);
-
-      console.log(`📊 Loaded ${frames.length} frames from Knowledge Base`);
-      return sortFramesByOrder(frames);
-    } catch (error) {
-      console.error(`❌ Attempt ${attempt + 1} failed to load frames from KB:`, error);
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
-      }
-    }
+  // FIXED: Check VectorStore's public initialization state
+  if (!vectorStore.initialized) {
+    console.warn("⚠️ VectorStore not initialized");
+    return [];
   }
 
-  return [];
+  // FIXED: Prevent concurrent calls to this function
+  if (isCurrentlyLoading) {
+    return [];
+  }
+
+  try {
+    isCurrentlyLoading = true;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // FIXED: Double-check VectorStore state before calling getAllDocuments
+        if (!vectorStore.getAllDocuments) {
+          console.warn("⚠️ VectorStore getAllDocuments method not available");
+          return [];
+        }
+        
+        // FIXED: Robust error handling for race conditions
+        let documents;
+        try {
+          documents = await vectorStore.getAllDocuments();
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('Vector Store not initialized')) {
+            console.warn("⚠️ VectorStore database not ready yet, will retry...");
+            if (attempt < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Longer delay for DB readiness
+              continue;
+            }
+            return [];
+          }
+          throw error; // Re-throw other errors
+        }
+        const frameDocuments = documents.filter(
+          (doc: any) => doc.metadata?.type === "ai-frame"
+        );
+
+        if (frameDocuments.length === 0) {
+          // FIXED: Removed logging - empty Knowledge Base is normal for new users
+          return [];
+        }
+
+        const frames: AIFrame[] = frameDocuments.map((doc: any) => 
+          parseFrameFromDocument(doc)
+        ).filter(Boolean);
+
+        console.log(`📊 Loaded ${frames.length} frames from Knowledge Base`);
+        return sortFramesByOrder(frames);
+      } catch (error) {
+        console.error(`❌ Attempt ${attempt + 1} failed to load frames from KB:`, error);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+        }
+      }
+    }
+
+    return [];
+  } finally {
+    isCurrentlyLoading = false;
+  }
 };
 
 // PRESERVATION: Frame parsing from document content (Sage's Chronicle patterns)

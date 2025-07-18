@@ -155,6 +155,9 @@ export default function AIFramesPage() {
   // PRESERVATION: Graph state management
   const [initialGraphState, setInitialGraphState] = useState<GraphState | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // FIXED: Add loading state to prevent multiple concurrent KB loading calls
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(false);
 
   // Dialog states
   const [showVectorStoreInitModal, setShowVectorStoreInitModal] = useState(false);
@@ -175,15 +178,40 @@ export default function AIFramesPage() {
     }
   }, [providerVectorStore, vectorStoreInitialized]);
 
-  // PRESERVATION: Load frames on component mount
+  // FIXED: Auto-show VectorStore modal when not initialized (prevent loops)
+  useEffect(() => {
+    // Show modal if VectorStore is not initialized and not currently initializing
+    if (!vectorStoreInitialized && !vectorStoreInitializing && !showVectorStoreInitModal) {
+      setShowVectorStoreInitModal(true);
+    }
+  }, [vectorStoreInitialized, vectorStoreInitializing]); // FIXED: Removed showVectorStoreInitModal from dependencies
+
+  // FIXED: Separate effect for closing modal to prevent loops
+  useEffect(() => {
+    if (vectorStoreInitialized && showVectorStoreInitModal) {
+      // Give a brief delay to show the "ready" state, then close
+      const timer = setTimeout(() => {
+        setShowVectorStoreInitModal(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [vectorStoreInitialized, showVectorStoreInitModal]);
+
+  // PRESERVATION: Load frames on component mount (FIXED: Removed frameStorage dependency to prevent infinite loops)
   useEffect(() => {
     const loadInitialData = async () => {
+      // FIXED: Prevent multiple concurrent loading calls
+      if (isLoadingInitialData) return;
+      
       try {
+        setIsLoadingInitialData(true);
+        
         // Multi-strategy loading preserved from Sage's Chronicle
         const loadedFrames = await frameStorage.loadFramesFromStorage();
         
-        if (loadedFrames.length === 0 && providerVectorStore && vectorStoreInitialized) {
-          // Try loading from Knowledge Base
+        // FIXED: Only try KB loading once when VectorStore is fully initialized and we have no frames
+        if (loadedFrames.length === 0 && providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing) {
+          // Try loading from Knowledge Base - only once per session
           const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
           if (kbFrames.length > 0) {
             frameStorage.broadcastFrameChanges(kbFrames);
@@ -197,11 +225,19 @@ export default function AIFramesPage() {
         }
       } catch (error) {
         console.error("❌ Failed to load initial data:", error);
+      } finally {
+        setIsLoadingInitialData(false);
       }
     };
 
-    loadInitialData();
-  }, [providerVectorStore, vectorStoreInitialized, frameStorage]);
+    // FIXED: Only run when VectorStore is fully initialized (not initializing) with a small delay
+    if (providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing && !isLoadingInitialData) {
+      // Add a small delay to ensure VectorStore database is fully ready
+      setTimeout(() => {
+        loadInitialData();
+      }, 500);
+    }
+  }, [providerVectorStore, vectorStoreInitialized, vectorStoreInitializing]); // FIXED: Removed isLoadingInitialData from dependencies to prevent loops
 
   // PRESERVATION: Frame creation functionality
   const createFrame = useCallback(async (data: FrameCreationData) => {
@@ -641,8 +677,12 @@ export default function AIFramesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowVectorStoreInitModal(true)}
+                    onClick={() => {
+                      console.log("Upload button clicked");
+                      setShowVectorStoreInitModal(true);
+                    }}
                     className="flex-1"
+                    disabled={vectorStoreInitializing}
                   >
                     <Upload className="h-4 w-4 mr-1" />
                     Upload
@@ -650,8 +690,13 @@ export default function AIFramesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowVectorStoreInitModal(true)}
+                    onClick={() => {
+                      console.log("Manage KB button clicked");
+                      // FIXED: Navigate to deep-research page for KB management
+                      window.location.href = '/deep-research';
+                    }}
                     className="flex-1"
+                    disabled={vectorStoreInitializing}
                   >
                     <Settings className="h-4 w-4 mr-1" />
                     Manage
@@ -662,15 +707,26 @@ export default function AIFramesPage() {
 
             {/* Main Content Area - Graph Integration */}
             <div className="flex-1 overflow-hidden">
-              <FrameGraphIntegration
-                frames={framesWithOrder}
-                onFramesChange={handleFramesChange}
-                isCreationMode={isCreationMode}
-                currentFrameIndex={currentFrameIndex}
-                onFrameIndexChange={setCurrentFrameIndex}
-                onCreateFrame={() => setShowCreationForm(true)}
-                initialGraphState={initialGraphState}
-              />
+              {/* FIXED: Only render when VectorStore is ready to prevent blocking */}
+              {vectorStoreInitialized && !vectorStoreInitializing ? (
+                <FrameGraphIntegration
+                  frames={framesWithOrder}
+                  onFramesChange={handleFramesChange}
+                  isCreationMode={isCreationMode}
+                  currentFrameIndex={currentFrameIndex}
+                  onFrameIndexChange={setCurrentFrameIndex}
+                  onCreateFrame={() => setShowCreationForm(true)}
+                  initialGraphState={initialGraphState}
+                  graphStorageManager={graphStorageManagerRef.current}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Initializing Knowledge Base...</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -679,6 +735,9 @@ export default function AIFramesPage() {
       {/* Modals - PRESERVATION: Keep existing dialogs */}
       <VectorStoreInitModal
         isOpen={showVectorStoreInitModal}
+        progress={vectorStoreInitializing ? 50 : 0}
+        status={vectorStoreInitializing ? 'initializing' : vectorStoreInitialized ? 'ready' : 'initializing'}
+        message={vectorStoreError || (vectorStoreInitializing ? 'Initializing VectorStore...' : 'VectorStore not initialized')}
       />
       <BubblSpaceDialog
         isOpen={showBubblSpaceDialog}

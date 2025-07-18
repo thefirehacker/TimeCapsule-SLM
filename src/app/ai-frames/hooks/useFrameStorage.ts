@@ -20,9 +20,12 @@ export const useFrameStorage = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // PRESERVATION: Keep Google Docs broadcast pattern
+  // PRESERVATION: Keep Google Docs broadcast pattern (FIXED: Reduced logging to prevent spam)
   const broadcastFrameChanges = useCallback((updatedFrames: AIFrame[]) => {
-    console.log("🚀 GOOGLE DOCS: Broadcasting merged data as single source of truth");
+    // FIXED: Only log when frames actually change to prevent spam
+    if (updatedFrames.length > 0) {
+      console.log("🚀 GOOGLE DOCS: Broadcasting merged data as single source of truth");
+    }
     setFrames(updatedFrames);
     
     // Dispatch frame updates to all components

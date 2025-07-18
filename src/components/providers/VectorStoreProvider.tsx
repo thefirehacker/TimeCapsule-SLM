@@ -53,7 +53,24 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
 
     // CRITICAL FIX: Don't re-initialize if already initialized in this context
     if (vectorStore && isInitialized) {
-      // Skip logging for already initialized contexts to reduce spam
+      return;
+    }
+
+    // FIXED: Prevent double initialization completely - check initialized getter
+    if (singletonVectorStore && singletonVectorStore.initialized) {
+      setVectorStore(singletonVectorStore);
+      setIsInitialized(true);
+      setProcessingAvailable(singletonVectorStore.processingAvailable);
+      setProcessingStatus(singletonVectorStore.processingStatus);
+      setDownloadProgress(singletonVectorStore.downloadProgress);
+      
+      try {
+        const currentStats = await singletonVectorStore.getStats();
+        setStats(currentStats);
+      } catch (err) {
+        console.warn('⚠️ Failed to get existing VectorStore stats:', err);
+      }
+      
       return;
     }
 
@@ -61,30 +78,6 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     setError(null);
 
     try {
-      // FIXED: Reuse existing singleton in new provider context
-      if (singletonVectorStore && singletonVectorStore.initialized) {
-        // Reusing existing singleton - reduce logging spam
-        
-        // Connect existing singleton to THIS provider context
-        setVectorStore(singletonVectorStore);
-        setIsInitialized(true);
-        setProcessingAvailable(singletonVectorStore.processingAvailable);
-        setProcessingStatus(singletonVectorStore.processingStatus);
-        setDownloadProgress(singletonVectorStore.downloadProgress);
-        
-        // Update stats immediately
-        try {
-          const currentStats = await singletonVectorStore.getStats();
-          setStats(currentStats);
-        } catch (err) {
-          console.warn('⚠️ Failed to get existing VectorStore stats:', err);
-        }
-        
-        // Successfully connected to existing singleton - reduce logging spam
-        setIsInitializing(false);
-        return;
-      }
-      
       // ENHANCED: Handle broken/uninitialized singleton
       if (singletonVectorStore && !singletonVectorStore.initialized) {
         console.log('🔧 VectorStoreProvider: Found broken singleton, recreating...');
