@@ -53,7 +53,7 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
 
     // CRITICAL FIX: Don't re-initialize if already initialized in this context
     if (vectorStore && isInitialized) {
-      console.log('✅ VectorStoreProvider: Already initialized in this context, skipping...');
+      // Skip logging for already initialized contexts to reduce spam
       return;
     }
 
@@ -63,7 +63,7 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     try {
       // FIXED: Reuse existing singleton in new provider context
       if (singletonVectorStore && singletonVectorStore.initialized) {
-        console.log('🔄 VectorStoreProvider: Reusing existing singleton VectorStore...');
+        // Reusing existing singleton - reduce logging spam
         
         // Connect existing singleton to THIS provider context
         setVectorStore(singletonVectorStore);
@@ -80,7 +80,7 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
           console.warn('⚠️ Failed to get existing VectorStore stats:', err);
         }
         
-        console.log('✅ VectorStoreProvider: Successfully connected to existing singleton');
+        // Successfully connected to existing singleton - reduce logging spam
         setIsInitializing(false);
         return;
       }

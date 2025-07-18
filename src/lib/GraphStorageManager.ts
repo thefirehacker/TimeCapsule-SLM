@@ -184,7 +184,7 @@ export class GraphStorageManager {
     const validFrames = Array.isArray(frames) ? frames : [];
     const safeCurrentFrameIndex = Math.max(0, Math.min(currentFrameIndex || 0, validFrames.length - 1));
 
-    console.log(`📊 Saving frame sequence with ${validFrames.length} frames (currentIndex: ${safeCurrentFrameIndex})`);
+    // 🌪️ SYNC STORM FIX: Reduce logging spam during drag & drop
 
     const frameSequence: FrameSequence = {
       id: this.generateDocumentId('frames'),

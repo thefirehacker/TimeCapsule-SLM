@@ -60,8 +60,9 @@ interface DualPaneFrameViewProps {
   onFrameIndexChange: (index: number) => void;
   onCreateFrame?: () => void;
   defaultMaximized?: boolean; // New prop to control default maximization
-  onGetCurrentState?: () => GraphState; // SILENT: Get current graph state when needed
+  onGetCurrentState?: React.MutableRefObject<(() => GraphState) | null>; // CRITICAL FIX: Get current graph state when needed
   onGraphStateUpdate?: (state: GraphState) => void; // SILENT: Update parent with current graph state
+  initialGraphState?: GraphState; // CRITICAL FIX: Re-add initialGraphState prop to restore standalone attachments
 }
 
 export default function DualPaneFrameView({
@@ -72,27 +73,53 @@ export default function DualPaneFrameView({
   onFrameIndexChange,
   onCreateFrame,
   defaultMaximized = false,
+  initialGraphState,
   onGetCurrentState,
   onGraphStateUpdate,
 }: DualPaneFrameViewProps) {
-  const [graphState, setGraphState] = useState<GraphState>({
-    nodes: [],
-    edges: [],
-    selectedNodeId: null,
-  });
+  const [graphState, setGraphState] = useState<GraphState>(
+    initialGraphState || {
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+    }
+  );
   const [editingFrameId, setEditingFrameId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<AIFrame>>({});
   const [isGraphMaximized, setIsGraphMaximized] = useState(defaultMaximized);
   const [selectedNodeFrameId, setSelectedNodeFrameId] = useState<string | null>(null);
+
+  // REMOVED: useEffect that was breaking sync system
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'connected' | 'disconnected'>>({});
 
   // Get current frame safely
   const currentFrame = frames[currentFrameIndex];
 
-  // SILENT: Setup callback to provide current graph state when requested (no logging)
+  // CRITICAL FIX: Setup callback to provide current graph state when requested
   const getCurrentGraphState = useCallback(() => {
     return graphState;
   }, [graphState]);
+
+  // CRITICAL FIX: Set the ref in parent component
+  useEffect(() => {
+    if (onGetCurrentState) {
+      onGetCurrentState.current = getCurrentGraphState;
+    }
+  }, [onGetCurrentState, getCurrentGraphState]);
+
+  // CRITICAL FIX: Update graph state when initialGraphState changes
+  useEffect(() => {
+    if (initialGraphState && initialGraphState.nodes && initialGraphState.nodes.length > 0) {
+      // DRAGON SLAYER: Silent state update
+      
+      setGraphState(initialGraphState);
+      
+      // CRITICAL: Also notify parent of the updated state
+      if (onGraphStateUpdate) {
+        onGraphStateUpdate(initialGraphState);
+      }
+    }
+  }, [initialGraphState, onGraphStateUpdate]);
 
   // Handle graph changes and sync to linear view
   const handleGraphChange = useCallback((newGraphState: GraphState) => {
@@ -229,7 +256,7 @@ export default function DualPaneFrameView({
       setEditingFrameId(null);
       setEditData({});
       
-      // console.log('✅ Dual-pane: Graph cleared successfully');
+      // 
     };
 
     // Listen for individual frame edits and sync to graph
@@ -276,7 +303,7 @@ export default function DualPaneFrameView({
         };
       });
       
-      // console.log('✅ Dual-pane: Frame edit synced to graph successfully');
+      // 
     };
 
     // Connection status handlers
@@ -286,7 +313,7 @@ export default function DualPaneFrameView({
         ...prev,
         [connection.id]: 'connected'
       }));
-      // console.log('🔗 Dual-pane: Connection added status updated:', connection.id);
+      // 
     };
 
     const handleConnectionRemoved = (event: CustomEvent) => {
@@ -295,7 +322,7 @@ export default function DualPaneFrameView({
         ...prev,
         [connection.id]: 'disconnected'
       }));
-      // console.log('🗑️ Dual-pane: Connection removed status updated:', connection.id);
+      // 
     };
 
     window.addEventListener('frames-reordered', handleFramesReordered as EventListener);
@@ -323,7 +350,7 @@ export default function DualPaneFrameView({
         : frame
     );
     onFramesChange(updatedFrames);
-    // console.log('🔄 Dual-pane: Frame updated', { frameId, updatedData });
+    // 
   }, [frames, onFramesChange]);
 
   // Convert seconds to MM:SS format

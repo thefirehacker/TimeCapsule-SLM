@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -75,6 +75,7 @@ export default function EnhancedLearningGraph({
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
   const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
+  const lastAppliedGraphState = useRef<string | null>(null);
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -84,7 +85,7 @@ export default function EnhancedLearningGraph({
         frame.id === frameId ? { ...frame, ...updatedData } : frame
       );
       onFramesChange(updatedFrames);
-      console.log('🔄 Enhanced: Frame updated via graph node:', { frameId, updatedData });
+      
     }
     
     // CRITICAL FIX: Also update the graph node data to keep it in sync
@@ -121,7 +122,7 @@ export default function EnhancedLearningGraph({
 
   // Handle content attachment to frames
   const handleAttachContent = useCallback((frameId: string, attachment: FrameAttachment) => {
-    console.log('🔗 Enhanced: Attaching content to frame:', { frameId, attachment });
+    
     
     // CRITICAL DEBUG: Log video attachment data
     if (attachment.type === 'video') {
@@ -212,7 +213,7 @@ export default function EnhancedLearningGraph({
 
   // Handle content detachment from frames
   const handleDetachContent = useCallback((frameId: string) => {
-    console.log('🔗 Enhanced: Detaching content from frame:', { frameId });
+    
     
     // Update the frame in the frames array
     if (onFramesChange) {
@@ -307,11 +308,21 @@ export default function EnhancedLearningGraph({
     setPreviousNodes(nodes);
   }, [nodes, frames, onFramesChange]);
 
-  // Sync frames to enhanced graph nodes on initial load
+  // CRITICAL FIX: Ensure initialGraphState nodes are properly displayed
   useEffect(() => {
+    // If initialGraphState was provided with nodes, ensure they are displayed
+    if (initialGraphState?.nodes?.length && nodes.length === 0) {
+      // Initializing nodes from graph state
+      
+      // Use the initialGraphState if provided and we have no nodes
+      setNodes(initialGraphState.nodes);
+      setEdges(initialGraphState.edges || []);
+      return;
+    }
+    
     // Only sync if we have frames, no nodes, and no initial graph state was provided
     if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
-      console.log('🔄 Enhanced: Syncing frames to enhanced graph nodes');
+      
       
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
@@ -370,17 +381,19 @@ export default function EnhancedLearningGraph({
           });
         }
         
-        // Connect sequential frames
-        if (index > 0) {
-          const prevNodeId = newNodes[index * (frame.attachment ? 2 : 1) - (frame.attachment ? 2 : 1)].id;
-          newEdges.push({
-            id: `${prevNodeId}-${nodeId}`,
-            source: prevNodeId,
-            target: nodeId,
-            type: "straight",
-            style: { stroke: "#3b82f6", strokeWidth: 2 }, // Blue sequential connection
-          });
-        }
+        // FIXED: Don't auto-create sequential connections between independent frames
+        // Users should manually connect frames if they want relationships
+        // This was causing unwanted connections when dragging independent frames
+        // if (index > 0) {
+        //   const prevNodeId = newNodes[index * (frame.attachment ? 2 : 1) - (frame.attachment ? 2 : 1)].id;
+        //   newEdges.push({
+        //     id: `${prevNodeId}-${nodeId}`,
+        //     source: prevNodeId,
+        //     target: nodeId,
+        //     type: "straight",
+        //     style: { stroke: "#3b82f6", strokeWidth: 2 }, // Blue sequential connection
+        //   });
+        // }
       });
       
       setNodes(newNodes);
@@ -393,6 +406,24 @@ export default function EnhancedLearningGraph({
       });
     }
   }, [frames, nodes.length, initialGraphState, handleFrameUpdate, handleAttachContent, handleDetachContent]);
+
+  // CRITICAL FIX: Update nodes when initialGraphState changes (e.g., after TimeCapsule restore)
+  useEffect(() => {
+    if (initialGraphState?.nodes?.length) {
+      // Create a signature of the initialGraphState to detect actual changes
+      const currentSignature = `${initialGraphState.nodes.length}-${initialGraphState.nodes.map(n => n.id).sort().join(',')}`;
+      
+      // Only apply if this is a new/different graph state
+      if (lastAppliedGraphState.current !== currentSignature) {
+        // Apply updated graph state
+        
+        // Apply the new graph state
+        setNodes(initialGraphState.nodes);
+        setEdges(initialGraphState.edges || []);
+        lastAppliedGraphState.current = currentSignature;
+      }
+    }
+  }, [initialGraphState]);
 
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {
@@ -437,7 +468,7 @@ export default function EnhancedLearningGraph({
   // Handle connections with attachment logic
   const onConnect = useCallback(
     (params: Connection) => {
-      console.log('🔗 Enhanced: Connection attempt:', params);
+      
       
       // Check if this is an attachment connection
       if (params.targetHandle === 'attachment-slot') {
@@ -451,7 +482,7 @@ export default function EnhancedLearningGraph({
           );
           
           if (hasAttachment) {
-            console.log('❌ Enhanced: Frame already has an attachment');
+            
             return;
           }
           
@@ -518,11 +549,13 @@ export default function EnhancedLearningGraph({
           handleAttachContent(targetNode.data.frameId, attachment);
           
           // Update source node as attached
-          setNodes(nds => nds.map(node => 
-            node.id === sourceNode.id 
-              ? { ...node, data: { ...node.data, isAttached: true, attachedToFrameId: targetNode.data.frameId } }
-              : node
-          ));
+          setNodes(nds => nds.map(node => {
+            if (node.id === sourceNode.id) {
+              // DRAGON SLAYER: Silent node attachment
+              return { ...node, data: { ...node.data, isAttached: true, attachedToFrameId: targetNode.data.frameId } };
+            }
+            return node;
+          }));
         }
       }
       
@@ -548,7 +581,7 @@ export default function EnhancedLearningGraph({
         }));
       }
     },
-    [nodes, edges, handleAttachContent]
+    [handleAttachContent] // PERFORMANCE FIX: Remove nodes/edges deps to prevent constant recreation during drag
   );
 
   // REAL-TIME SYNC: Handle edge/connection deletion
@@ -575,11 +608,13 @@ export default function EnhancedLearningGraph({
             handleDetachContent(targetNode.data.frameId);
             
             // Update source node as detached
-            setNodes(nds => nds.map(node => 
-              node.id === sourceNode.id 
-                ? { ...node, data: { ...node.data, isAttached: false, attachedToFrameId: undefined } }
-                : node
-            ));
+            setNodes(nds => nds.map(node => {
+              if (node.id === sourceNode.id) {
+                // DRAGON SLAYER: Silent node detachment
+                return { ...node, data: { ...node.data, isAttached: false, attachedToFrameId: undefined } };
+              }
+              return node;
+            }));
           }
         }
         
@@ -602,11 +637,26 @@ export default function EnhancedLearningGraph({
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
+    
+    // 🌪️ SYNC STORM FIX: Set drag flag to prevent sync operations
+    if (typeof window !== 'undefined') {
+      (window as any).isDragging = true;
+    }
   }, []);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
+      
+      // 🌪️ SYNC STORM FIX: Clear drag flag and debounce sync operations
+      if (typeof window !== 'undefined') {
+        (window as any).isDragging = false;
+        
+        // Clear drag flag after a delay to prevent immediate sync
+        setTimeout(() => {
+          (window as any).isDragging = false;
+        }, 500); // PERFORMANCE FIX: Reduce delay from 2000ms to 500ms
+      }
 
       if (!reactFlowWrapper.current || !reactFlowInstance) {
         return;
@@ -705,7 +755,7 @@ export default function EnhancedLearningGraph({
       
       // If it's an AI frame node, sync with frames array
       if (type === "aiframe" && onFramesChange) {
-        console.log('🎯 Enhanced: Creating new AI Frame from enhanced graph node');
+        
         
         // FIXED: Generate unique frame title based on highest existing frame number
         const existingFrameNumbers = frames
@@ -810,7 +860,7 @@ export default function EnhancedLearningGraph({
       setEdges([]);
       setSelectedNode(null);
       
-      console.log('✅ Enhanced Graph: All nodes and edges cleared successfully');
+      
     };
 
     const handleAttachmentNodeUpdated = (event: CustomEvent) => {
@@ -887,6 +937,17 @@ export default function EnhancedLearningGraph({
     };
   }, [nodes.length, edges.length, handleAttachContent]);
 
+  // PERFORMANCE: Debounce the graph change callback to improve drag performance
+  const debouncedGraphChange = useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return (newGraphState: GraphState) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        onGraphChange?.(newGraphState); // CRITICAL FIX: Use optional chaining to prevent undefined invocation
+      }, 100); // Debounce to 100ms
+    };
+  }, [onGraphChange]);
+
   // Update graph state when nodes/edges change
   useEffect(() => {
     if (onGraphChange) {
@@ -895,9 +956,19 @@ export default function EnhancedLearningGraph({
         edges,
         selectedNodeId: selectedNode,
       };
-      onGraphChange(newGraphState);
+      
+      // DRAGON SLAYER: Silent graph state update with debouncing
+      debouncedGraphChange(newGraphState);
     }
-  }, [nodes, edges, selectedNode, onGraphChange]);
+  }, [nodes, edges, selectedNode, debouncedGraphChange]);
+  
+  // PERFORMANCE: Add React Flow performance optimizations
+  const nodesDraggable = true;
+  const nodesConnectable = true;
+  const elementsSelectable = true;
+  
+  // PERFORMANCE: Memoize node types to prevent recreating on every render
+  const memoizedNodeTypes = useMemo(() => enhancedNodeTypes, []);
 
   return (
     <div className="flex h-screen">
@@ -914,9 +985,16 @@ export default function EnhancedLearningGraph({
           onDrop={onDrop}
           onDragOver={onDragOver}
           onNodeClick={handleNodeClick}
-          nodeTypes={enhancedNodeTypes}
+          nodeTypes={memoizedNodeTypes}
+          nodesDraggable={nodesDraggable}
+          nodesConnectable={nodesConnectable}
+          elementsSelectable={elementsSelectable}
           fitView
           attributionPosition="top-right"
+          proOptions={{ hideAttribution: true }}
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          minZoom={0.5}
+          maxZoom={2}
         >
           <MiniMap />
           <Controls />

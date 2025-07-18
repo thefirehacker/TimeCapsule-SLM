@@ -143,6 +143,11 @@ export interface GraphState {
   }>;
   selectedNodeId?: string | null;
   selectedChapter?: string;
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
 }
 
 export interface FrameGraphMapping {

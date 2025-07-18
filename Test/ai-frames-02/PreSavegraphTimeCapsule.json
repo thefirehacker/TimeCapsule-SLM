@@ -1,0 +1,231 @@
+{
+  "timeCapsuleMetadata": {
+    "id": "TC-175284545769385",
+    "name": "Untitled TimeCapsule",
+    "description": "Learning session with 2 AI frames. Progress: 0%",
+    "bubblSpaceId": "bubbl-175284545769217",
+    "createdAt": "2025-07-18T13:30:57.693Z",
+    "updatedAt": "2025-07-18T13:33:58.821Z",
+    "version": "1.0.0",
+    "category": "learning",
+    "privacy": "private",
+    "difficulty": "beginner",
+    "tags": [],
+    "estimatedDuration": 20
+  },
+  "bubblSpace": {
+    "id": "bubbl-175284545769217",
+    "name": "My BubblSpace",
+    "description": "A new workspace for my projects",
+    "createdAt": "2025-07-18T13:30:57.692Z",
+    "updatedAt": "2025-07-18T13:30:57.692Z",
+    "tags": [],
+    "color": "#6366F1",
+    "isDefault": true
+  },
+  "metadata": {
+    "version": "5.0.0",
+    "exportedAt": "2025-07-18T13:33:58.822Z",
+    "platform": "Next.js",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "exportType": "combined",
+    "fileSize": 10023
+  },
+  "aiFramesData": {
+    "frames": [
+      {
+        "id": "frame-1752845466451",
+        "title": "Frame 1",
+        "goal": "Enter learning goal here...",
+        "informationText": "Provide background context and information...",
+        "videoUrl": "",
+        "startTime": 0,
+        "duration": 300,
+        "afterVideoText": "Key takeaways and next steps...",
+        "aiConcepts": [],
+        "isGenerated": true,
+        "order": 1,
+        "bubblSpaceId": "default",
+        "timeCapsuleId": "default",
+        "type": "frame",
+        "createdAt": "2025-07-18T13:31:06.452Z",
+        "updatedAt": "2025-07-18T13:31:06.452Z"
+      },
+      {
+        "id": "frame-1752845470953",
+        "title": "Frame 2",
+        "goal": "Enter learning goal here...",
+        "informationText": "Provide background context and information...",
+        "videoUrl": "",
+        "startTime": 0,
+        "duration": 300,
+        "afterVideoText": "Key takeaways and next steps...",
+        "aiConcepts": [],
+        "isGenerated": true,
+        "order": 2,
+        "bubblSpaceId": "default",
+        "timeCapsuleId": "default",
+        "type": "frame",
+        "createdAt": "2025-07-18T13:31:10.953Z",
+        "updatedAt": "2025-07-18T13:31:10.953Z"
+      }
+    ],
+    "currentFrameIndex": 0,
+    "isCreationMode": true,
+    "showGraphView": true,
+    "graphState": null,
+    "chapters": [],
+    "lastSaved": "2025-07-18T13:33:58.312Z"
+  },
+  "vectorStore": {
+    "documents": [
+      {
+        "id": "aiframe-frame-1752845466451",
+        "title": "AI-Frame [1]: Frame 1",
+        "content": "Learning Goal: Enter learning goal here...\n\nOrder: 1\nType: frame\nBubblSpace: default\nTimeCapsule: default\n\nContext & Background:\nProvide background context and information...\n\nAfter Video Content:\nKey takeaways and next steps...\n\nAI Concepts: \n\nATTACHMENTS & MEDIA:\nVideo Attachment:\n- URL: No video attachment\n- Start Time: 0s\n- Duration: 300s\n- Type: No video\n\nAdditional Attachments: None\n\nMetadata:\n- Generated: No\n- Created: 2025-07-18T13:31:06.452Z\n- Updated: 2025-07-18T13:31:06.452Z\n- Attachment Count: 0\n- Has Video: No",
+        "metadata": {
+          "filename": "aiframe-frame-1752845466451.json",
+          "filesize": 433,
+          "filetype": "application/json",
+          "uploadedAt": "2025-07-18T13:31:06.452Z",
+          "source": "ai-frames-auto-sync",
+          "description": "AI-Frame: Frame 1 (Order: 1)",
+          "isGenerated": true,
+          "aiFrameId": "frame-1752845466451",
+          "aiFrameType": "frame",
+          "aiFrameOrder": 1,
+          "frameId": "frame-1752845466451",
+          "frameOrder": 1,
+          "frameType": "frame",
+          "createdAt": "2025-07-18T13:31:06.452Z",
+          "updatedAt": "2025-07-18T13:31:06.452Z"
+        },
+        "chunks": [],
+        "vectors": []
+      },
+      {
+        "id": "aiframe-frame-1752845470953",
+        "title": "AI-Frame [2]: Frame 2",
+        "content": "Learning Goal: Enter learning goal here...\n\nOrder: 2\nType: frame\nBubblSpace: default\nTimeCapsule: default\n\nContext & Background:\nProvide background context and information...\n\nAfter Video Content:\nKey takeaways and next steps...\n\nAI Concepts: \n\nATTACHMENTS & MEDIA:\nVideo Attachment:\n- URL: No video attachment\n- Start Time: 0s\n- Duration: 300s\n- Type: No video\n\nAdditional Attachments: None\n\nMetadata:\n- Generated: No\n- Created: 2025-07-18T13:31:10.953Z\n- Updated: 2025-07-18T13:31:10.953Z\n- Attachment Count: 0\n- Has Video: No",
+        "metadata": {
+          "filename": "aiframe-frame-1752845470953.json",
+          "filesize": 433,
+          "filetype": "application/json",
+          "uploadedAt": "2025-07-18T13:31:10.953Z",
+          "source": "ai-frames-auto-sync",
+          "description": "AI-Frame: Frame 2 (Order: 2)",
+          "isGenerated": true,
+          "aiFrameId": "frame-1752845470953",
+          "aiFrameType": "frame",
+          "aiFrameOrder": 2,
+          "frameId": "frame-1752845470953",
+          "frameOrder": 2,
+          "frameType": "frame",
+          "createdAt": "2025-07-18T13:31:10.953Z",
+          "updatedAt": "2025-07-18T13:31:10.953Z"
+        },
+        "chunks": [],
+        "vectors": []
+      },
+      {
+        "id": "bubblspace-bubbl-175284545769217",
+        "title": "BubblSpace: My BubblSpace",
+        "content": "BubblSpace: My BubblSpace\nDescription: A new workspace for my projects\nID: bubbl-175284545769217\nCreated: 18/07/2025, 19:00:57\nUpdated: 18/07/2025, 19:00:57\nColor: #6366F1\nIs Default: Yes\nCreated By: unknown\nTags: none",
+        "metadata": {
+          "filename": "My BubblSpace.md",
+          "filesize": 218,
+          "filetype": "text/markdown",
+          "uploadedAt": "2025-07-18T13:33:41.418Z",
+          "source": "metadata",
+          "description": "BubblSpace metadata for My BubblSpace",
+          "isGenerated": true,
+          "bubblSpaceId": "bubbl-175284545769217",
+          "type": "bubblspace",
+          "name": "My BubblSpace",
+          "category": "metadata",
+          "updatedAt": "2025-07-18T13:30:57.692Z"
+        },
+        "chunks": [],
+        "vectors": []
+      },
+      {
+        "id": "frames_session_1752845457946_aqll4mei7",
+        "title": "Frame Sequence - 1 frames",
+        "content": "AI-Frames Learning Sequence\n\nTotal Frames: 1\nCurrent Frame: 1 of 1\nSession ID: session_1752845457946_aqll4mei7\nLast Updated: 2025-07-18T13:31:06.683Z\n\nFRAME SEQUENCE DETAILS:\n\n=== FRAME 1 OF 1 ===\nTitle: Frame 1\nLearning Goal: Enter learning goal here...\nOrder: 1\nType: frame\nCreated: 2025-07-18T13:31:06.452Z\nUpdated: 2025-07-18T13:31:06.452Z\n\nContext & Background:\nProvide background context and information...\n\nAfter Video Content:\nKey takeaways and next steps...\n\nVideo Details:\n- URL: No video\n- Start Time: 0s\n- Duration: 300s\n\nAI Concepts: \n\nMetadata:\n- Generated: No\n- BubblSpace: default\n- TimeCapsule: default\n\n\n---\n\n\nSEQUENCE METADATA:\n- Total Learning Frames: 1\n- Current Active Frame: 1\n- Session Type: Learning Sequence\n- BubblSpace: default\n- TimeCapsule: default\n- Created: 2025-07-18T13:31:06.683Z\n- Last Updated: 2025-07-18T13:31:06.683Z\n",
+        "metadata": {
+          "filename": "frame_sequence_session_1752845457946_aqll4mei7.json",
+          "filesize": 801,
+          "filetype": "application/json",
+          "uploadedAt": "2025-07-18T13:31:06.683Z",
+          "source": "graph-storage",
+          "description": "Frame sequence for session session_1752845457946_aqll4mei7",
+          "isGenerated": true,
+          "type": "frame-sequence",
+          "name": "session_1752845457946_aqll4mei7",
+          "category": "graph-storage",
+          "fullObject": "{\"id\":\"frames_session_1752845457946_aqll4mei7\",\"sessionId\":\"session_1752845457946_aqll4mei7\",\"frames\":[{\"id\":\"frame-1752845466451\",\"title\":\"Frame 1\",\"goal\":\"Enter learning goal here...\",\"informationText\":\"Provide background context and information...\",\"afterVideoText\":\"Key takeaways and next steps...\",\"aiConcepts\":[],\"isGenerated\":false,\"order\":1,\"bubblSpaceId\":\"default\",\"timeCapsuleId\":\"default\",\"type\":\"frame\",\"createdAt\":\"2025-07-18T13:31:06.452Z\",\"updatedAt\":\"2025-07-18T13:31:06.452Z\",\"videoUrl\":\"\",\"startTime\":0,\"duration\":300}],\"currentFrameIndex\":0,\"metadata\":{\"totalFrames\":1,\"createdAt\":\"2025-07-18T13:31:06.683Z\",\"updatedAt\":\"2025-07-18T13:31:06.683Z\",\"version\":\"1.0\",\"lastUpdated\":\"2025-07-18T13:31:06.683Z\",\"source\":\"auto-initialization\",\"sessionId\":\"session_1752845466683_x6gp6sj82\"}}"
+        },
+        "chunks": [],
+        "vectors": []
+      },
+      {
+        "id": "session-1752845467074",
+        "title": "AI-Frames Session",
+        "content": "AI-Frames learning session initialized",
+        "metadata": {
+          "source": "ai-frames-session",
+          "sessionId": "session_1752845467074",
+          "createdAt": "2025-07-18T13:31:07.074Z"
+        }
+      },
+      {
+        "id": "session_session_1752845457946_aqll4mei7",
+        "title": "AI-Frames Session - Creator Mode",
+        "content": "AI-Frames Session State\n\nSession ID: session_1752845457946_aqll4mei7\nMode: Creator Mode\nView: Graph View\nLast Active Frame: 1\nSession Created: 2025-07-18T13:31:07.074Z\nLast Updated: 2025-07-18T13:31:07.074Z\n\nSESSION DETAILS:\n- Current Mode: Creator Mode - Building learning content\n- View Mode: Graph View - Visual node-based interface\n- Last Active Frame: Frame 1\n- Chapters: 0 chapters configured\n- Graph State: No graph state\n\nVOICE SETTINGS:\n- Voice Settings: Not configured\n\nCHAPTERS CONFIGURATION:\n- No chapters configured\n\nGRAPH STATE:\n- No graph state available\n\nSESSION METADATA:\n- Session Type: AI-Frames Interactive Learning\n- User Interaction: Content Creation\n- Interface Mode: Visual Graph Interface\n- Session Duration: Active since 2025-07-18T13:31:07.074Z\n- Last Activity: 2025-07-18T13:31:07.074Z\n",
+        "metadata": {
+          "filename": "session_state_session_1752845457946_aqll4mei7.json",
+          "filesize": 267,
+          "filetype": "application/json",
+          "uploadedAt": "2025-07-18T13:31:07.074Z",
+          "source": "graph-storage",
+          "description": "Session state for session_1752845457946_aqll4mei7",
+          "isGenerated": true,
+          "type": "session-state",
+          "name": "session_1752845457946_aqll4mei7",
+          "category": "graph-storage",
+          "fullObject": "{\"id\":\"session_session_1752845457946_aqll4mei7\",\"sessionId\":\"session_1752845457946_aqll4mei7\",\"createdAt\":\"2025-07-18T13:31:07.074Z\",\"updatedAt\":\"2025-07-18T13:31:07.074Z\",\"isCreationMode\":true,\"showGraphView\":true,\"chapters\":[],\"graphState\":null,\"lastActiveFrame\":0}"
+        },
+        "chunks": [],
+        "vectors": []
+      },
+      {
+        "id": "timecapsule-TC-175284545769385",
+        "title": "TimeCapsule: Untitled TimeCapsule",
+        "content": "TimeCapsule: Untitled TimeCapsule\nDescription: A new learning and research session\nID: TC-175284545769385\nBubblSpace ID: bubbl-175284545769217\nVersion: 1.0.0\nCreated: 18/07/2025, 19:00:57\nUpdated: 18/07/2025, 19:00:57\nCategory: learning\nPrivacy: private\nDifficulty: beginner\nEstimated Duration: 30 minutes\nTags: none",
+        "metadata": {
+          "filename": "Untitled TimeCapsule.md",
+          "filesize": 316,
+          "filetype": "text/markdown",
+          "uploadedAt": "2025-07-18T13:33:41.735Z",
+          "source": "metadata",
+          "description": "TimeCapsule metadata for Untitled TimeCapsule",
+          "isGenerated": true,
+          "timeCapsuleId": "TC-175284545769385",
+          "bubblSpaceId": "bubbl-175284545769217",
+          "type": "timecapsule",
+          "name": "Untitled TimeCapsule",
+          "category": "learning",
+          "updatedAt": "2025-07-18T13:30:57.693Z"
+        },
+        "chunks": [],
+        "vectors": []
+      }
+    ],
+    "stats": {
+      "documentCount": 7,
+      "chunkCount": 0,
+      "vectorCount": 0
+    },
+    "exportedAt": "2025-07-18T13:33:58.822Z"
+  }
+}
