@@ -167,6 +167,14 @@ interface FrameCreationData {
   videoUrl: string;
   startTime?: number;
   duration?: number;
+  // Enhanced content creation fields
+  contentType?: "video" | "pdf" | "text";
+  title?: string;
+  pdfUrl?: string;
+  pdfPages?: string;
+  pdfNotes?: string;
+  textContent?: string;
+  textNotes?: string;
 }
 
 // No hardcoded frames - app starts empty by default
@@ -223,6 +231,13 @@ export default function AIFramesPage() {
     videoUrl: "",
     startTime: 0,
     duration: 300,
+    contentType: undefined,
+    title: "",
+    pdfUrl: "",
+    pdfPages: "",
+    pdfNotes: "",
+    textContent: "",
+    textNotes: "",
   });
   const [isGeneratingFrame, setIsGeneratingFrame] = useState(false);
   const [showFrameEditor, setShowFrameEditor] = useState(false);
@@ -4853,7 +4868,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         }
       });
 
-      // Generate new concepts based on goal
+      // Generate new concepts based on goal and content type
       const newConcepts = [
         "Implementation Details",
         "Best Practices",
@@ -4867,19 +4882,68 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         ...new Set([...relatedConcepts, ...newConcepts]),
       ].slice(0, 6);
 
-      // Extract video info
-      const videoId = extractVideoId(frameData.videoUrl);
-      const startTime = frameData.startTime || 0;
-      const duration = frameData.duration || 300;
+      // Generate content based on content type
+      let contentInfo = "";
+      let attachment = undefined;
+
+      switch (frameData.contentType) {
+        case "video":
+          const videoId = extractVideoId(frameData.videoUrl);
+          const startTime = frameData.startTime || 0;
+          const duration = frameData.duration || 300;
+          contentInfo = `Video Content: ${frameData.videoUrl}\nStart Time: ${startTime}s\nDuration: ${duration}s`;
+          attachment = {
+            id: `video-${Date.now()}`,
+            type: "video",
+            data: {
+              videoUrl: frameData.videoUrl,
+              startTime: startTime,
+              duration: duration,
+            },
+          };
+          break;
+
+        case "pdf":
+          contentInfo = `PDF Document: ${frameData.pdfUrl || ""}\nPages: ${frameData.pdfPages || "All pages"}\nNotes: ${frameData.pdfNotes || "No additional notes"}`;
+          attachment = {
+            id: `pdf-${Date.now()}`,
+            type: "pdf",
+            data: {
+              pdfUrl: frameData.pdfUrl || "",
+              pages: frameData.pdfPages,
+              notes: frameData.pdfNotes,
+            },
+          };
+          break;
+
+        case "text":
+          contentInfo = `Text Content: ${frameData.textContent?.substring(0, 100) || ""}...\nNotes: ${frameData.textNotes || "No additional notes"}`;
+          attachment = {
+            id: `text-${Date.now()}`,
+            type: "text",
+            data: {
+              text: frameData.textContent || "",
+              notes: frameData.textNotes,
+            },
+          };
+          break;
+      }
+
+      const frameTitle =
+        frameData.title ||
+        `Learning: ${frameData.goal.substring(0, 50)}${
+          frameData.goal.length > 50 ? "..." : ""
+        }`;
 
       const newFrame: AIFrame = {
         id: `frame-${Date.now()}`,
-        title: `Learning: ${frameData.goal.substring(0, 50)}${
-          frameData.goal.length > 50 ? "..." : ""
-        }`,
+        title: frameTitle,
         goal: frameData.goal,
         informationText: `
           This frame focuses on: ${frameData.goal}
+          
+          Content Type: ${frameData.contentType}
+          ${contentInfo}
           
           Based on your TimeCapsule research and knowledge base, this topic connects to several key concepts 
           you've been exploring. The content has been curated to build upon your existing understanding 
@@ -4887,14 +4951,14 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           
           Pay attention to how this relates to the concepts you've already covered in previous frames.
         `,
-        videoUrl: frameData.videoUrl,
-        startTime: startTime,
-        duration: duration,
+        videoUrl: frameData.contentType === "video" ? frameData.videoUrl : "",
+        startTime: frameData.startTime || 0,
+        duration: frameData.duration || 300,
         afterVideoText: `
-          Key insights from this content:
+          Key insights from this ${frameData.contentType} content:
           • This topic builds upon concepts from your previous frames
           • Understanding this will help you progress toward your learning goals
-          • The implementation details shown here are practical and applicable
+          • The content shown here is practical and applicable
           • Consider how this connects to your research findings
           
           Based on your knowledge base and research, here are the next steps in your learning journey.
@@ -4902,7 +4966,12 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         aiConcepts: allConcepts,
         isGenerated: true,
         sourceGoal: frameData.goal,
-        sourceUrl: frameData.videoUrl,
+        sourceUrl:
+          frameData.contentType === "video"
+            ? frameData.videoUrl
+            : frameData.contentType === "pdf"
+              ? frameData.pdfUrl || ""
+              : "",
         order: frames.length + 1,
         bubblSpaceId: "default",
         timeCapsuleId: "default",
@@ -4910,6 +4979,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         type: "frame",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        attachment: attachment,
       };
 
       return newFrame;
@@ -4919,7 +4989,25 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
   };
 
   const handleCreateFrame = async () => {
-    if (!newFrameData.goal.trim() || !newFrameData.videoUrl.trim()) {
+    if (!newFrameData.goal.trim() || !newFrameData.contentType) {
+      alert("Please provide a learning goal and select a content type");
+      return;
+    }
+
+    // Validate content type specific requirements
+    if (newFrameData.contentType === "video" && !newFrameData.videoUrl.trim()) {
+      alert("Please provide a video URL for video content");
+      return;
+    }
+    if (newFrameData.contentType === "pdf" && !newFrameData.pdfUrl?.trim()) {
+      alert("Please provide a PDF URL for PDF content");
+      return;
+    }
+    if (
+      newFrameData.contentType === "text" &&
+      !newFrameData.textContent?.trim()
+    ) {
+      alert("Please provide text content for text content");
       return;
     }
 
@@ -4934,13 +5022,28 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
           afterCount: updatedFrames.length,
           newFrameTitle: newFrame.title,
           newFrameId: newFrame.id,
+          contentType: newFrameData.contentType,
         });
         return updatedFrames;
       });
 
       setCurrentFrameIndex(frames.length); // Switch to new frame
       setShowCreationForm(false);
-      setNewFrameData({ goal: "", videoUrl: "", startTime: 0, duration: 300 });
+
+      // Reset form with all fields
+      setNewFrameData({
+        goal: "",
+        videoUrl: "",
+        startTime: 0,
+        duration: 300,
+        contentType: undefined,
+        title: "",
+        pdfUrl: "",
+        pdfPages: "",
+        pdfNotes: "",
+        textContent: "",
+        textNotes: "",
+      });
 
       // Clear the cleared flag since we're creating new frames
       localStorage.removeItem("ai_frames_cleared");
@@ -4948,9 +5051,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
       // Track frame creation
       pageAnalytics.trackFeatureUsage("frame_creation", {
         goal_length: newFrameData.goal.length,
-        video_url: newFrameData.videoUrl,
-        start_time: newFrameData.startTime,
-        duration: newFrameData.duration,
+        content_type: newFrameData.contentType,
         concepts_generated: newFrame.aiConcepts.length,
         total_frames: frames.length + 1,
       });
@@ -4960,7 +5061,7 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
         ...prev,
         {
           role: "ai",
-          content: `✅ Successfully created new frame: "${newFrame.title}"\n\nThis frame was generated based on your goal and existing knowledge base. The AI has identified ${newFrame.aiConcepts.length} related concepts that connect to your learning journey.`,
+          content: `✅ Successfully created new ${newFrameData.contentType} frame: "${newFrame.title}"\n\nThis frame was generated based on your goal and existing knowledge base. The AI has identified ${newFrame.aiConcepts.length} related concepts that connect to your learning journey.`,
         },
       ]);
     } catch (error) {
@@ -6863,166 +6964,503 @@ Would you like me to create a new frame focused specifically on ${concept}?`;
                 ) : (
                   /* Traditional Linear View */
                   <div className="max-w-4xl mx-auto space-y-6">
-                    {/* Creation Mode Panel */}
+                    {/* Enhanced Content Creation Panel */}
                     {isCreationMode && (
                       <Card className="border-2 border-dashed border-blue-300 dark:border-blue-600">
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
                             <Wand2 className="h-5 w-5 text-blue-600" />
-                            AI Frame Creation
+                            Content Creation Hub
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
                           {showCreationForm ? (
-                            <div className="max-w-2xl mx-auto text-left">
+                            <div className="max-w-4xl mx-auto">
                               <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold">
-                                  Create New AI Frame
-                                </h2>
+                                <div>
+                                  <h2 className="text-2xl font-bold">
+                                    Create New Learning Frame
+                                  </h2>
+                                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                                    Choose your content type and build engaging
+                                    learning experiences
+                                  </p>
+                                </div>
                                 <Button
                                   variant="ghost"
                                   onClick={() => setShowCreationForm(false)}
                                   className="text-gray-500 hover:text-gray-700"
                                 >
-                                  ✕ Cancel
+                                  <X className="h-4 w-4 mr-2" />
+                                  Cancel
                                 </Button>
                               </div>
-                              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                                Generate a new learning frame with AI assistance
-                              </p>
 
-                              <div className="space-y-6">
-                                <div>
-                                  <Label
-                                    htmlFor="goal"
-                                    className="text-base font-medium"
-                                  >
-                                    Learning Goal
-                                  </Label>
-                                  <Textarea
-                                    id="goal"
-                                    placeholder="What should learners understand after this frame?"
-                                    value={newFrameData.goal}
-                                    onChange={(e) =>
-                                      setNewFrameData({
-                                        ...newFrameData,
-                                        goal: e.target.value,
-                                      })
+                              {/* Content Type Selection */}
+                              <div className="mb-8">
+                                <Label className="text-base font-medium mb-4 block">
+                                  Choose Content Type
+                                </Label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {/* Video Content */}
+                                  <div
+                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                      newFrameData.contentType === "video"
+                                        ? "border-red-400 bg-red-50 dark:bg-red-900/20"
+                                        : "border-slate-200 dark:border-slate-700 hover:border-red-300"
+                                    }`}
+                                    onClick={() =>
+                                      setNewFrameData((prev) => ({
+                                        ...prev,
+                                        contentType: "video",
+                                      }))
                                     }
-                                    rows={4}
-                                    className="mt-2"
-                                  />
-                                </div>
-
-                                <div>
-                                  <Label
-                                    htmlFor="videoUrl"
-                                    className="text-base font-medium"
                                   >
-                                    Video URL
-                                  </Label>
-                                  <Input
-                                    id="videoUrl"
-                                    placeholder="https://youtube.com/watch?v=..."
-                                    value={newFrameData.videoUrl}
-                                    onChange={(e) =>
-                                      setNewFrameData({
-                                        ...newFrameData,
-                                        videoUrl: e.target.value,
-                                      })
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <div className="p-2 rounded bg-red-500 text-white">
+                                        <Video className="h-5 w-5" />
+                                      </div>
+                                      <div>
+                                        <div className="font-medium">
+                                          Video Content
+                                        </div>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                                          YouTube video segments
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      Perfect for demonstrations, lectures, and
+                                      visual learning
+                                    </div>
+                                  </div>
+
+                                  {/* PDF Content */}
+                                  <div
+                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                      newFrameData.contentType === "pdf"
+                                        ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                                        : "border-slate-200 dark:border-slate-700 hover:border-blue-300"
+                                    }`}
+                                    onClick={() =>
+                                      setNewFrameData((prev) => ({
+                                        ...prev,
+                                        contentType: "pdf",
+                                      }))
                                     }
-                                    className="mt-2"
-                                  />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label
-                                      htmlFor="startTime"
-                                      className="text-base font-medium"
-                                    >
-                                      Start Time (seconds)
-                                    </Label>
-                                    <Input
-                                      id="startTime"
-                                      type="number"
-                                      placeholder="0"
-                                      value={newFrameData.startTime || ""}
-                                      onChange={(e) =>
-                                        setNewFrameData({
-                                          ...newFrameData,
-                                          startTime:
-                                            parseInt(e.target.value) || 0,
-                                        })
-                                      }
-                                      className="mt-2"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label
-                                      htmlFor="duration"
-                                      className="text-base font-medium"
-                                    >
-                                      Duration (seconds)
-                                    </Label>
-                                    <Input
-                                      id="duration"
-                                      type="number"
-                                      placeholder="300"
-                                      value={newFrameData.duration || ""}
-                                      onChange={(e) =>
-                                        setNewFrameData({
-                                          ...newFrameData,
-                                          duration:
-                                            parseInt(e.target.value) || 300,
-                                        })
-                                      }
-                                      className="mt-2"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="flex justify-end gap-3 pt-4">
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => setShowCreationForm(false)}
                                   >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    onClick={() => {
-                                      handleCreateFrame();
-                                      setShowCreationForm(false);
-                                    }}
-                                    disabled={isGeneratingFrame}
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <div className="p-2 rounded bg-blue-500 text-white">
+                                        <File className="h-5 w-5" />
+                                      </div>
+                                      <div>
+                                        <div className="font-medium">
+                                          PDF Document
+                                        </div>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                                          PDF pages or documents
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      Ideal for reading materials, research
+                                      papers, and documentation
+                                    </div>
+                                  </div>
+
+                                  {/* Text Content */}
+                                  <div
+                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                      newFrameData.contentType === "text"
+                                        ? "border-green-400 bg-green-50 dark:bg-green-900/20"
+                                        : "border-slate-200 dark:border-slate-700 hover:border-green-300"
+                                    }`}
+                                    onClick={() =>
+                                      setNewFrameData((prev) => ({
+                                        ...prev,
+                                        contentType: "text",
+                                      }))
+                                    }
                                   >
-                                    {isGeneratingFrame ? (
-                                      <>
-                                        <Wand2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Creating...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Create Frame
-                                      </>
-                                    )}
-                                  </Button>
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <div className="p-2 rounded bg-green-500 text-white">
+                                        <FileText className="h-5 w-5" />
+                                      </div>
+                                      <div>
+                                        <div className="font-medium">
+                                          Text Note
+                                        </div>
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                                          Text content or notes
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      Great for explanations, summaries, and
+                                      written content
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* Content Type Specific Forms */}
+                              {newFrameData.contentType && (
+                                <div className="space-y-6">
+                                  {/* Common Fields */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                      <Label
+                                        htmlFor="goal"
+                                        className="text-base font-medium"
+                                      >
+                                        Learning Goal
+                                      </Label>
+                                      <Textarea
+                                        id="goal"
+                                        placeholder="What should learners understand after this frame?"
+                                        value={newFrameData.goal}
+                                        onChange={(e) =>
+                                          setNewFrameData({
+                                            ...newFrameData,
+                                            goal: e.target.value,
+                                          })
+                                        }
+                                        rows={3}
+                                        className="mt-2"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label
+                                        htmlFor="title"
+                                        className="text-base font-medium"
+                                      >
+                                        Frame Title
+                                      </Label>
+                                      <Input
+                                        id="title"
+                                        placeholder="Enter a descriptive title..."
+                                        value={newFrameData.title || ""}
+                                        onChange={(e) =>
+                                          setNewFrameData({
+                                            ...newFrameData,
+                                            title: e.target.value,
+                                          })
+                                        }
+                                        className="mt-2"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Video Content Form */}
+                                  {newFrameData.contentType === "video" && (
+                                    <div className="space-y-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <Video className="h-5 w-5 text-red-600" />
+                                        <h3 className="font-medium">
+                                          Video Configuration
+                                        </h3>
+                                      </div>
+
+                                      <div>
+                                        <Label
+                                          htmlFor="videoUrl"
+                                          className="text-sm font-medium"
+                                        >
+                                          YouTube Video URL
+                                        </Label>
+                                        <Input
+                                          id="videoUrl"
+                                          placeholder="https://youtube.com/watch?v=..."
+                                          value={newFrameData.videoUrl}
+                                          onChange={(e) =>
+                                            setNewFrameData({
+                                              ...newFrameData,
+                                              videoUrl: e.target.value,
+                                            })
+                                          }
+                                          className="mt-2"
+                                        />
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <Label
+                                            htmlFor="startTime"
+                                            className="text-sm font-medium"
+                                          >
+                                            Start Time (seconds)
+                                          </Label>
+                                          <Input
+                                            id="startTime"
+                                            type="number"
+                                            placeholder="0"
+                                            value={newFrameData.startTime || ""}
+                                            onChange={(e) =>
+                                              setNewFrameData({
+                                                ...newFrameData,
+                                                startTime:
+                                                  parseInt(e.target.value) || 0,
+                                              })
+                                            }
+                                            className="mt-2"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label
+                                            htmlFor="duration"
+                                            className="text-sm font-medium"
+                                          >
+                                            Duration (seconds)
+                                          </Label>
+                                          <Input
+                                            id="duration"
+                                            type="number"
+                                            placeholder="300"
+                                            value={newFrameData.duration || ""}
+                                            onChange={(e) =>
+                                              setNewFrameData({
+                                                ...newFrameData,
+                                                duration:
+                                                  parseInt(e.target.value) ||
+                                                  300,
+                                              })
+                                            }
+                                            className="mt-2"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* PDF Content Form */}
+                                  {newFrameData.contentType === "pdf" && (
+                                    <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <File className="h-5 w-5 text-blue-600" />
+                                        <h3 className="font-medium">
+                                          PDF Configuration
+                                        </h3>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <Label
+                                            htmlFor="pdfUrl"
+                                            className="text-sm font-medium"
+                                          >
+                                            PDF URL or Upload
+                                          </Label>
+                                          <Input
+                                            id="pdfUrl"
+                                            placeholder="https://example.com/document.pdf"
+                                            value={newFrameData.pdfUrl || ""}
+                                            onChange={(e) =>
+                                              setNewFrameData({
+                                                ...newFrameData,
+                                                pdfUrl: e.target.value,
+                                              })
+                                            }
+                                            className="mt-2"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label
+                                            htmlFor="pdfPages"
+                                            className="text-sm font-medium"
+                                          >
+                                            Pages (optional)
+                                          </Label>
+                                          <Input
+                                            id="pdfPages"
+                                            placeholder="1-5, 10, 15-20"
+                                            value={newFrameData.pdfPages || ""}
+                                            onChange={(e) =>
+                                              setNewFrameData({
+                                                ...newFrameData,
+                                                pdfPages: e.target.value,
+                                              })
+                                            }
+                                            className="mt-2"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <Label
+                                          htmlFor="pdfNotes"
+                                          className="text-sm font-medium"
+                                        >
+                                          PDF Notes
+                                        </Label>
+                                        <Textarea
+                                          id="pdfNotes"
+                                          placeholder="Add notes about this PDF content..."
+                                          value={newFrameData.pdfNotes || ""}
+                                          onChange={(e) =>
+                                            setNewFrameData({
+                                              ...newFrameData,
+                                              pdfNotes: e.target.value,
+                                            })
+                                          }
+                                          rows={3}
+                                          className="mt-2"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Text Content Form */}
+                                  {newFrameData.contentType === "text" && (
+                                    <div className="space-y-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <FileText className="h-5 w-5 text-green-600" />
+                                        <h3 className="font-medium">
+                                          Text Content
+                                        </h3>
+                                      </div>
+
+                                      <div>
+                                        <Label
+                                          htmlFor="textContent"
+                                          className="text-sm font-medium"
+                                        >
+                                          Content Text
+                                        </Label>
+                                        <Textarea
+                                          id="textContent"
+                                          placeholder="Enter your text content here..."
+                                          value={newFrameData.textContent || ""}
+                                          onChange={(e) =>
+                                            setNewFrameData({
+                                              ...newFrameData,
+                                              textContent: e.target.value,
+                                            })
+                                          }
+                                          rows={6}
+                                          className="mt-2"
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <Label
+                                          htmlFor="textNotes"
+                                          className="text-sm font-medium"
+                                        >
+                                          Additional Notes
+                                        </Label>
+                                        <Textarea
+                                          id="textNotes"
+                                          placeholder="Add any additional notes or context..."
+                                          value={newFrameData.textNotes || ""}
+                                          onChange={(e) =>
+                                            setNewFrameData({
+                                              ...newFrameData,
+                                              textNotes: e.target.value,
+                                            })
+                                          }
+                                          rows={3}
+                                          className="mt-2"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Action Buttons */}
+                                  <div className="flex justify-end gap-3 pt-6 border-t">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => setShowCreationForm(false)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      onClick={() => {
+                                        handleCreateFrame();
+                                        setShowCreationForm(false);
+                                      }}
+                                      disabled={
+                                        isGeneratingFrame ||
+                                        !newFrameData.contentType
+                                      }
+                                      className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                                    >
+                                      {isGeneratingFrame ? (
+                                        <>
+                                          <Wand2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Creating...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Plus className="h-4 w-4 mr-2" />
+                                          Create Frame
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center py-8">
+                            <div className="text-center py-8">
+                              <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-2">
+                                  Create Your Learning Content
+                                </h3>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                  Choose from multiple content types to build
+                                  engaging learning experiences
+                                </p>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 rounded bg-red-500 text-white">
+                                      <Video className="h-4 w-4" />
+                                    </div>
+                                    <span className="font-medium">Video</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    YouTube segments for visual learning
+                                  </p>
+                                </div>
+
+                                <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 rounded bg-blue-500 text-white">
+                                      <File className="h-4 w-4" />
+                                    </div>
+                                    <span className="font-medium">PDF</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    Documents and reading materials
+                                  </p>
+                                </div>
+
+                                <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 rounded bg-green-500 text-white">
+                                      <FileText className="h-4 w-4" />
+                                    </div>
+                                    <span className="font-medium">Text</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    Written content and notes
+                                  </p>
+                                </div>
+                              </div>
+
                               <Button
                                 onClick={() => setShowCreationForm(true)}
                                 size="lg"
                                 className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
                               >
                                 <Plus className="h-5 w-5 mr-2" />
-                                Create New AI Frame
+                                Start Creating
                               </Button>
                             </div>
                           )}
+
                           {timeCapsuleData && (
                             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                               <div className="flex items-center gap-2 mb-2">
