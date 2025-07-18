@@ -94,6 +94,15 @@ export interface FrameControlsProps {
   onClear: () => void;
 }
 
+export interface FrameNavigationProps {
+  frames: AIFrame[];
+  currentFrameIndex: number;
+  onFrameIndexChange: (index: number) => void;
+  isCreationMode: boolean;
+  onCreateFrame?: () => void;
+  className?: string;
+}
+
 // Graph integration types
 export interface GraphState {
   nodes: Array<{

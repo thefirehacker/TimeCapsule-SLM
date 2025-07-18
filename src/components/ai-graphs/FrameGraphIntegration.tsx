@@ -105,6 +105,7 @@ export default function FrameGraphIntegration({
   );
   const [chapters, setChapters] = useState<any[]>([]);
   const [sessionInitialized, setSessionInitialized] = useState(false);
+  const initializingRef = useRef(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastFrameIds, setLastFrameIds] = useState<string[]>([]);
 
@@ -572,10 +573,16 @@ Metadata:
 
   // HYBRID APPROACH: Auto-initialization
   const initializeSession = useCallback(async () => {
-    if (sessionInitialized || !graphStorageManager) return;
+    if (sessionInitialized || !graphStorageManager || initializingRef.current) return;
     
     try {
-      // 
+      initializingRef.current = true;
+      
+      // FIXED: Ensure GraphStorageManager is properly initialized before use
+      if (!graphStorageManager.isInitialized) {
+        console.log("⚠️ GraphStorageManager not yet initialized, skipping session initialization");
+        return;
+      }
       
       // FIXED: Ensure frames is an array and pass correct parameters
       const validFrames = Array.isArray(frames) ? frames : [];
@@ -585,8 +592,6 @@ Metadata:
         source: "auto-initialization",
         sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       };
-
-      // 
 
       // Save to IndexedDB with correct parameters
       await graphStorageManager.saveFrameSequence(validFrames, currentFrameIndex, sessionMetadata);
@@ -608,6 +613,8 @@ Metadata:
       // 
     } catch (error) {
       console.error("❌ Failed to initialize session:", error);
+    } finally {
+      initializingRef.current = false;
     }
   }, [graphStorageManager, frames, sessionInitialized]);
 

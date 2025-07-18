@@ -47,20 +47,8 @@ export const useFrameEvents = ({
   // PRESERVATION: Multiple frame updates
   const handleFramesUpdate = useCallback((updatedFrames: AIFrame[]) => {
     setHasUnsavedChanges(true);
+    // FIXED: Only call callback, remove event dispatching to prevent circular loops
     onFramesChange(updatedFrames);
-    
-    // Dispatch frames update event
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("frames-updated", {
-          detail: {
-            frames: updatedFrames,
-            source: "bulk-update",
-            timestamp: new Date().toISOString(),
-          },
-        })
-      );
-    }
   }, [onFramesChange]);
 
   // PRESERVATION: Save functionality with change detection

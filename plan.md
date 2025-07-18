@@ -1,5 +1,17 @@
 # AI Frames Restoration Plan - Complete Functionality Recovery
 
+⚠️ **CRITICAL DEVELOPMENT RULE**: 
+**DO NOT MODIFY SHARED VECTORSTORE COMPONENTS**
+- VectorStoreProvider.tsx, VectorStore.ts, and related components are SHARED between Deep Research and AI Frames
+- Deep Research KB is working perfectly (can upload docs, manage documents) 
+- Focus ONLY on AI Frames specific integration issues, NOT the underlying VectorStore system
+- Use the same patterns as Deep Research for consistency (e.g., Document Manager dialog)
+
+✅ **VECTORSTORE INTEGRATION FIXES COMPLETED**:
+1. **Modal Flickering Fixed**: Added debounced state management to prevent VectorStore modal flickering
+2. **Manage Button Fixed**: Restored dialog modal following Deep Research pattern instead of navigation
+3. **Shared Component Pattern**: Used same Document Manager dialog structure as Deep Research
+
 ## 🚨 **CRITICAL ANALYSIS: Working vs Broken State**
 
 ### **Image 01 (Working - Target State)**

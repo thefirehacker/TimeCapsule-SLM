@@ -477,9 +477,24 @@ SESSION METADATA:
 // Singleton instance management
 let graphStorageManagerInstance: GraphStorageManager | null = null;
 
-export function getGraphStorageManager(vectorStore: VectorStore): GraphStorageManager {
+export async function getGraphStorageManager(vectorStore: VectorStore): Promise<GraphStorageManager> {
   if (!graphStorageManagerInstance) {
+    // FIXED: Wait for VectorStore to be fully initialized with retry mechanism
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!vectorStore.initialized && attempts < maxAttempts) {
+      console.log(`⏳ Waiting for VectorStore to be initialized (attempt ${attempts + 1}/${maxAttempts})`);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      attempts++;
+    }
+    
+    if (!vectorStore.initialized) {
+      throw new Error('VectorStore initialization timeout - could not initialize GraphStorageManager');
+    }
+    
     graphStorageManagerInstance = new GraphStorageManager(vectorStore);
+    await graphStorageManagerInstance.initialize();
   }
   return graphStorageManagerInstance;
 }

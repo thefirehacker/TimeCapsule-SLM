@@ -10,6 +10,7 @@ export type {
   FramesEventDetail,
   FrameManagerProps,
   FrameControlsProps,
+  FrameNavigationProps,
   GraphState,
 } from "./types/frames";
 
@@ -22,7 +23,7 @@ export type { UseFrameStorageProps } from "./hooks/useFrameStorage";
 export type { UseFrameEventsProps } from "./hooks/useFrameEvents";
 
 // Components
-export { FrameManager, FrameControls } from "./components";
+export { FrameManager, FrameControls, FrameNavigation } from "./components";
 
 // Libraries
 export {

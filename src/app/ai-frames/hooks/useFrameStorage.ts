@@ -22,24 +22,8 @@ export const useFrameStorage = ({
 
   // PRESERVATION: Keep Google Docs broadcast pattern (FIXED: Reduced logging to prevent spam)
   const broadcastFrameChanges = useCallback((updatedFrames: AIFrame[]) => {
-    // FIXED: Only log when frames actually change to prevent spam
-    if (updatedFrames.length > 0) {
-      console.log("🚀 GOOGLE DOCS: Broadcasting merged data as single source of truth");
-    }
+    // FIXED: Only update state, remove event dispatching to prevent circular loops
     setFrames(updatedFrames);
-    
-    // Dispatch frame updates to all components
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("frames-updated", {
-          detail: {
-            frames: updatedFrames,
-            source: "storage-broadcast",
-            timestamp: new Date().toISOString(),
-          },
-        })
-      );
-    }
   }, []);
 
   // PRESERVATION: Multi-strategy state resolution for saving
@@ -53,12 +37,17 @@ export const useFrameStorage = ({
       
       // Save to GraphStorageManager (if vectorStore is available)
       if (vectorStore && vectorStoreInitialized) {
-        const storageManager = getGraphStorageManager(vectorStore);
-        await storageManager.saveFrameSequence(framesToSave, 0, {
-          totalFrames: framesToSave.length,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+        try {
+          const storageManager = await getGraphStorageManager(vectorStore);
+          await storageManager.saveFrameSequence(framesToSave, 0, {
+            totalFrames: framesToSave.length,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          console.warn("⚠️ Failed to save to GraphStorageManager:", error);
+          // Continue without GraphStorageManager - frames are still saved to localStorage
+        }
       }
 
       console.log("💾 Frames saved to storage successfully", framesToSave.length);
@@ -113,11 +102,16 @@ export const useFrameStorage = ({
 
       // Strategy 3: Try GraphStorageManager
       if (loadedFrames.length === 0 && vectorStore && vectorStoreInitialized) {
-        const storageManager = getGraphStorageManager(vectorStore);
-        const frameSequence = await storageManager.loadFrameSequence();
-        if (frameSequence?.frames) {
-          loadedFrames = frameSequence.frames;
-          console.log("📂 Loaded frames from GraphStorageManager:", loadedFrames.length);
+        try {
+          const storageManager = await getGraphStorageManager(vectorStore);
+          const frameSequence = await storageManager.loadFrameSequence();
+          if (frameSequence?.frames) {
+            loadedFrames = frameSequence.frames;
+            console.log("📂 Loaded frames from GraphStorageManager:", loadedFrames.length);
+          }
+        } catch (error) {
+          console.warn("⚠️ Failed to load from GraphStorageManager:", error);
+          // Continue without GraphStorageManager - other strategies will be used
         }
       }
 
