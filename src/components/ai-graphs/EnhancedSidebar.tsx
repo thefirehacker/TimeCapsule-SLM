@@ -2,16 +2,16 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { 
+import {
   Hash,
-  Video, 
-  File, 
-  FileText, 
-  Brain, 
+  Video,
+  File,
+  FileText,
+  Brain,
   Layers,
   Link,
   ArrowDown,
-  Plus
+  Plus,
 } from "lucide-react";
 import { EnhancedDragItem } from "./types";
 
@@ -30,17 +30,17 @@ const enhancedDragItems: Array<{
     icon: <Hash className="h-4 w-4" />,
     color: "bg-purple-500",
     description: "Container for learning content",
-    category: "frames"
+    category: "frames",
   },
-  
-  // Content Attachments  
+
+  // Content Attachments
   {
     nodeType: "video-attachment",
     label: "Video Content",
     icon: <Video className="h-4 w-4" />,
-    color: "bg-red-500", 
+    color: "bg-red-500",
     description: "YouTube video segment",
-    category: "attachments"
+    category: "attachments",
   },
   {
     nodeType: "pdf-attachment",
@@ -48,17 +48,17 @@ const enhancedDragItems: Array<{
     icon: <File className="h-4 w-4" />,
     color: "bg-blue-500",
     description: "PDF document or pages",
-    category: "attachments"
+    category: "attachments",
   },
   {
-    nodeType: "text-attachment", 
+    nodeType: "text-attachment",
     label: "Text Note",
     icon: <FileText className="h-4 w-4" />,
     color: "bg-green-500",
     description: "Text content or notes",
-    category: "attachments"
+    category: "attachments",
   },
-  
+
   // Organization
   {
     nodeType: "concept",
@@ -66,7 +66,7 @@ const enhancedDragItems: Array<{
     icon: <Brain className="h-4 w-4" />,
     color: "bg-yellow-500",
     description: "AI concept visualization",
-    category: "concepts"
+    category: "concepts",
   },
   {
     nodeType: "chapter",
@@ -74,8 +74,8 @@ const enhancedDragItems: Array<{
     icon: <Layers className="h-4 w-4" />,
     color: "bg-indigo-500",
     description: "Group related frames",
-    category: "concepts"
-  }
+    category: "concepts",
+  },
 ];
 
 const onDragStart = (event: React.DragEvent, nodeType: string) => {
@@ -84,9 +84,15 @@ const onDragStart = (event: React.DragEvent, nodeType: string) => {
 };
 
 export default function EnhancedSidebar() {
-  const frameItems = enhancedDragItems.filter(item => item.category === "frames");
-  const attachmentItems = enhancedDragItems.filter(item => item.category === "attachments");
-  const conceptItems = enhancedDragItems.filter(item => item.category === "concepts");
+  const frameItems = enhancedDragItems.filter(
+    (item) => item.category === "frames"
+  );
+  const attachmentItems = enhancedDragItems.filter(
+    (item) => item.category === "attachments"
+  );
+  const conceptItems = enhancedDragItems.filter(
+    (item) => item.category === "concepts"
+  );
 
   return (
     <div className="w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-4 space-y-6 overflow-y-auto">
@@ -162,7 +168,9 @@ export default function EnhancedSidebar() {
         <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
           <Link className="h-4 w-4" />
           Content Attachments
-          <Badge variant="outline" className="text-xs">1 per frame</Badge>
+          <Badge variant="outline" className="text-xs">
+            1 per frame
+          </Badge>
         </h4>
         <div className="space-y-2">
           {attachmentItems.map((item) => (
@@ -188,13 +196,15 @@ export default function EnhancedSidebar() {
             </div>
           ))}
         </div>
-        
+
         {/* Attachment Instructions */}
         <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 rounded text-xs text-orange-700 dark:text-orange-300">
           <div className="font-medium mb-1">📋 How to attach:</div>
           <div>1. Drag content to graph</div>
           <div>2. Edit content details</div>
-          <div>3. <strong>Connect to orange handle</strong></div>
+          <div>
+            3. <strong>Connect to orange handle</strong>
+          </div>
         </div>
       </div>
 
@@ -247,4 +257,4 @@ export default function EnhancedSidebar() {
       </Card>
     </div>
   );
-} 
+}
