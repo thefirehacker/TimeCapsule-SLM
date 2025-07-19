@@ -145,9 +145,33 @@ export default function DualPaneFrameView({
     }
   }, [frames, currentFrameIndex, onFrameIndexChange, onGraphStateUpdate]);
 
-  // Sync current frame selection back to graph
+  // CRITICAL FIX: Add save operation tracking to prevent circular sync
+  const [recentSaveTimestamp, setRecentSaveTimestamp] = useState<number>(0);
+  
+  // Listen for save operations to prevent immediate sync conflicts
   useEffect(() => {
-    if (currentFrame && currentFrame.id !== selectedNodeFrameId) {
+    const handleSaveSuccess = () => {
+      setRecentSaveTimestamp(Date.now());
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('unified-save-success', handleSaveSuccess);
+      window.addEventListener('graph-saved', handleSaveSuccess);
+      
+      return () => {
+        window.removeEventListener('unified-save-success', handleSaveSuccess);
+        window.removeEventListener('graph-saved', handleSaveSuccess);
+      };
+    }
+  }, []);
+
+  // Sync current frame selection back to graph (with save conflict prevention)
+  useEffect(() => {
+    // CRITICAL FIX: Skip sync for 2 seconds after save operations to prevent corruption
+    const timeSinceLastSave = Date.now() - recentSaveTimestamp;
+    const shouldSkipSync = timeSinceLastSave < 2000; // 2 second cooldown
+    
+    if (currentFrame && currentFrame.id !== selectedNodeFrameId && !shouldSkipSync) {
       // Find the graph node that corresponds to the current frame
       const frameNode = graphState.nodes.find(node => 
         node.data?.frameId === currentFrame.id
@@ -165,8 +189,11 @@ export default function DualPaneFrameView({
         //   frameIndex: currentFrameIndex
         // });
       }
+    } else if (shouldSkipSync && currentFrame) {
+      // During cooldown, just update the selected frame ID without triggering graph changes
+      setSelectedNodeFrameId(currentFrame.id);
     }
-  }, [currentFrame, currentFrameIndex, graphState.nodes, selectedNodeFrameId]);
+  }, [currentFrame, currentFrameIndex, graphState.nodes, selectedNodeFrameId, recentSaveTimestamp]);
 
   // Listen for frame reordering from Frame Navigation and sync to graph
   useEffect(() => {

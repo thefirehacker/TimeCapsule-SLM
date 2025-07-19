@@ -31,6 +31,7 @@ import {
   Trash2,
   X,
   Loader2,
+  Zap,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -84,6 +85,10 @@ import {
   DEFAULT_FRAME
 } from "./index";
 
+// UNIFIED: Replace old fragmented storage with unified system
+import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
+import type { UnifiedAIFrame } from "./lib/unifiedStorage";
+
 // PRESERVATION: Keep the same interfaces for backward compatibility
 interface Chapter {
   id: string;
@@ -132,22 +137,13 @@ export default function AIFramesPage() {
   const [isCreationMode, setIsCreationMode] = useState(true);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
 
-  // NEW: Use modular hooks for storage and events
-  const frameStorage = useFrameStorage({
+  // UNIFIED: Replace old fragmented storage with unified system
+  const unifiedStorage = useUnifiedStorage({
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
-    processingAvailable,
-  });
-
-  const frameEvents = useFrameEvents({
-    frames: frameStorage.frames,
-    onFramesChange: frameStorage.broadcastFrameChanges,
-    onSaveFrames: frameStorage.saveFramesToStorage,
-    onSyncToKB: frameStorage.syncGraphChangesToKB,
   });
 
   // PRESERVATION: Graph state management
-  const [initialGraphState, setInitialGraphState] = useState<GraphState | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // FIXED: Add loading state to prevent multiple concurrent KB loading calls
@@ -228,35 +224,15 @@ export default function AIFramesPage() {
       try {
         setIsLoadingInitialData(true);
         
-        console.log("🔄 Loading initial data...");
+        console.log("🔄 Loading initial data with unified storage...");
         
-        // STEP 1: Always try localStorage/timecapsule_combined first (instant)
-        const loadedFrames = await frameStorage.loadFramesFromStorage();
+        // UNIFIED: Use single load method
+        const success = await unifiedStorage.loadAll();
         
-        if (loadedFrames.length > 0) {
-          console.log(`✅ Loaded ${loadedFrames.length} frames from localStorage`);
-          
-          // Also load graph state from combined storage
-          const combinedData = getTimeCapsuleCombinedData();
-          if (combinedData?.graphState) {
-            setInitialGraphState(combinedData.graphState);
-          }
-          
-          setIsLoadingInitialData(false);
-          return;
-        }
-        
-        // STEP 2: If localStorage empty, try VectorStore (if available)
-        if (providerVectorStore && vectorStoreInitialized) {
-          console.log("📚 Trying VectorStore as fallback...");
-          const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
-          
-          if (kbFrames.length > 0) {
-            console.log(`✅ Loaded ${kbFrames.length} frames from VectorStore`);
-            frameStorage.broadcastFrameChanges(kbFrames);
-          }
-        } else if (providerVectorStore && !vectorStoreInitialized) {
-          console.log("⏳ VectorStore not ready yet, will retry when available");
+        if (success) {
+          console.log("✅ Unified storage load completed successfully");
+        } else {
+          console.log("📭 No data found in unified storage");
         }
         
         console.log("✅ Initial data loading complete");
@@ -270,13 +246,13 @@ export default function AIFramesPage() {
 
     // Trigger loading on mount
     loadInitialData();
-  }, []); // Simple dependencies - no circular triggers
+  }, []); // Only run on mount
 
   // SEPARATE: VectorStore retry when it becomes ready
   useEffect(() => {
     const retryVectorStoreLoad = async () => {
       // Only retry if: no frames loaded AND VectorStore just became ready
-      if (frameStorage.frames.length === 0 && providerVectorStore && vectorStoreInitialized && !isLoadingInitialData) {
+      if (unifiedStorage.frames.length === 0 && providerVectorStore && vectorStoreInitialized && !isLoadingInitialData) {
         console.log("🔄 VectorStore ready, retrying load...");
         
         try {
@@ -284,8 +260,8 @@ export default function AIFramesPage() {
           const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
           
           if (kbFrames.length > 0) {
-            console.log(`✅ Loaded ${kbFrames.length} frames from VectorStore on retry`);
-            frameStorage.broadcastFrameChanges(kbFrames);
+                          console.log(`✅ Loaded ${kbFrames.length} frames from VectorStore on retry`);
+              unifiedStorage.updateFrames(kbFrames);
           }
         } catch (error) {
           console.error("❌ Error loading from VectorStore:", error);
@@ -304,78 +280,60 @@ export default function AIFramesPage() {
 
   // PRESERVATION: Handle frame clear
   const handleClearFrames = useCallback(() => {
-    frameStorage.broadcastFrameChanges([]);
+    unifiedStorage.clearAll();
     setCurrentFrameIndex(0);
-    setInitialGraphState(undefined);
-    setHasUnsavedChanges(false);
-    localStorage.removeItem("ai_frames_timecapsule");
-    localStorage.removeItem("timecapsule_combined");
     console.log("🗑️ All frames cleared");
-  }, [frameStorage]);
+  }, [unifiedStorage]);
 
   // PRESERVATION: Handle graph state updates
   const handleGraphStateUpdate = useCallback((graphState: GraphState) => {
-    setInitialGraphState(graphState);
-    setHasUnsavedChanges(true);
-    
-    // Save to combined storage
-    const combinedData = getTimeCapsuleCombinedData() || {};
-    setTimeCapsuleCombinedData({
-      ...combinedData,
-      graphState,
-      frames: frameStorage.frames,
-      updatedAt: new Date().toISOString(),
-    });
-  }, [frameStorage.frames]);
+    unifiedStorage.updateGraphState(graphState);
+  }, [unifiedStorage]);
 
   // PRESERVATION: Frame navigation
   const handleFrameNavigation = useCallback((direction: 'next' | 'prev') => {
     const newIndex = direction === 'next' 
-      ? Math.min(currentFrameIndex + 1, frameStorage.frames.length - 1)
+      ? Math.min(currentFrameIndex + 1, unifiedStorage.frames.length - 1)
       : Math.max(currentFrameIndex - 1, 0);
     setCurrentFrameIndex(newIndex);
-  }, [currentFrameIndex, frameStorage.frames.length]);
+  }, [currentFrameIndex, unifiedStorage.frames.length]);
 
   // Fix FrameControls props by wrapping the handlers to return boolean
   const handleSaveFrames = useCallback(async (): Promise<boolean> => {
     try {
-      await frameEvents.handleSaveFrames();
-      return true;
+      const success = await unifiedStorage.saveAll();
+      return success;
     } catch (error) {
       console.error("Save failed:", error);
       return false;
     }
-  }, [frameEvents]);
+  }, [unifiedStorage]);
 
   const handleLoadFrames = useCallback(async (): Promise<boolean> => {
     try {
-      await frameEvents.handleLoadFrames();
-      return true;
+      const success = await unifiedStorage.loadAll();
+      return success;
     } catch (error) {
       console.error("Load failed:", error);
       return false;
     }
-  }, [frameEvents]);
+  }, [unifiedStorage]);
 
   // Fix FrameGraphIntegration props by ensuring order is always a number and attachment type is correct
-  const framesWithOrder = frameStorage.frames.map(frame => ({
+  const framesWithOrder = unifiedStorage.frames.map(frame => ({
     ...frame,
     order: frame.order ?? 0,
-    attachment: frame.attachment ? {
-      id: frame.attachment.id,
-      type: frame.attachment.type as "video" | "text" | "pdf",
-      data: frame.attachment.data || {}
-    } : undefined
   }));
 
-  // Fix onFramesChange callback to handle type conversion
-  const handleFramesChange = useCallback((frames: any[]) => {
-    const convertedFrames = frames.map(frame => ({
+  const handleFramesChange = useCallback((newFrames: any[]) => {
+    // Convert the frames to ensure they have the correct type and order
+    const convertedFrames = newFrames.map(frame => ({
       ...frame,
       order: frame.order ?? 0
     }));
-    frameStorage.broadcastFrameChanges(convertedFrames);
-  }, [frameStorage]);
+    
+    unifiedStorage.updateFrames(convertedFrames);
+  }, [unifiedStorage]);
 
   // REMOVED: Unused renderModeToggle function after refactor
 
@@ -618,33 +576,43 @@ export default function AIFramesPage() {
     }
   };
 
-  // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use
+  // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use (reduced logging frequency)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const aiFramesApp = {
         vectorStore: providerVectorStore,
         vectorStoreInitialized,
-        frames: frameStorage.frames,
-        // Expose the frameStorage sync methods for FrameGraphIntegration
-        saveFramesToStorage: frameStorage.saveFramesToStorage,
-        syncFramesToVectorStore: frameStorage.syncFramesToVectorStore,
-        syncGraphChangesToKB: frameStorage.syncGraphChangesToKB,
-        loadFramesFromStorage: frameStorage.loadFramesFromStorage,
-        // Also expose frame management
-        updateFrames: frameStorage.broadcastFrameChanges
+        frames: unifiedStorage.frames,
+        // UNIFIED: Expose unified storage methods
+        saveAll: unifiedStorage.saveAll,
+        loadAll: unifiedStorage.loadAll,
+        updateFrames: unifiedStorage.updateFrames,
+        updateGraphState: unifiedStorage.updateGraphState,
+        clearAll: unifiedStorage.clearAll,
+        // Legacy compatibility for existing code
+        saveFramesToStorage: unifiedStorage.saveAll,
+        syncFramesToVectorStore: unifiedStorage.saveAll,
+        syncGraphChangesToKB: unifiedStorage.saveAll,
+        loadFramesFromStorage: unifiedStorage.loadAll,
+        broadcastFrameChanges: unifiedStorage.updateFrames
       };
       
       (window as any).aiFramesApp = aiFramesApp;
       
-      console.log("🔧 AI-Frames app interface exposed to window:", {
-        hasVectorStore: !!aiFramesApp.vectorStore,
-        vectorStoreInitialized: aiFramesApp.vectorStoreInitialized,
-        frameCount: aiFramesApp.frames.length,
-        hasSyncMethods: typeof aiFramesApp.syncFramesToVectorStore === 'function' && typeof aiFramesApp.syncGraphChangesToKB === 'function',
-        hasSaveMethod: typeof aiFramesApp.saveFramesToStorage === 'function'
-      });
+      // REDUCED SPAM: Only log when frame count changes or VectorStore state changes
+      if ((window as any).lastLoggedFrameCount !== aiFramesApp.frames.length || 
+          (window as any).lastLoggedVectorStoreState !== vectorStoreInitialized) {
+        console.log("🔧 AI-Frames unified storage interface updated:", {
+          hasVectorStore: !!aiFramesApp.vectorStore,
+          vectorStoreInitialized: aiFramesApp.vectorStoreInitialized,
+          frameCount: aiFramesApp.frames.length,
+          hasUnifiedMethods: typeof aiFramesApp.saveAll === 'function'
+        });
+        (window as any).lastLoggedFrameCount = aiFramesApp.frames.length;
+        (window as any).lastLoggedVectorStoreState = vectorStoreInitialized;
+      }
     }
-  }, [providerVectorStore, vectorStoreInitialized, frameStorage.frames, frameStorage.saveFramesToStorage, frameStorage.syncFramesToVectorStore, frameStorage.syncGraphChangesToKB, frameStorage.loadFramesFromStorage, frameStorage.broadcastFrameChanges]);
+  }, [providerVectorStore, vectorStoreInitialized, unifiedStorage.frames.length]);
 
   // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (
@@ -696,13 +664,34 @@ export default function AIFramesPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Frames:</span>
-                    <Badge variant="outline">{frameStorage.frames.length}</Badge>
+                    <Badge variant="outline">{unifiedStorage.frames.length}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Mode:</span>
                     <Badge variant={isCreationMode ? "default" : "secondary"}>
                       {isCreationMode ? "Creator" : "Learner"}
                     </Badge>
+                  </div>
+                  
+                  {/* UNIFIED: Auto-save status */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Status:</span>
+                    {unifiedStorage.isLoading ? (
+                      <Badge variant="outline" className="text-blue-600">
+                        <Zap className="h-3 w-3 mr-1 animate-pulse" />
+                        Auto-saving...
+                      </Badge>
+                    ) : unifiedStorage.hasUnsavedChanges ? (
+                      <Badge variant="outline" className="text-orange-600">
+                        <Save className="h-3 w-3 mr-1" />
+                        Unsaved
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-green-600">
+                        <Save className="h-3 w-3 mr-1" />
+                        Saved
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -719,7 +708,7 @@ export default function AIFramesPage() {
                   currentFrameIndex={currentFrameIndex}
                   onFrameIndexChange={setCurrentFrameIndex}
                   onCreateFrame={() => console.log("Frame creation handled by FrameGraphIntegration")}
-                  initialGraphState={initialGraphState}
+                  initialGraphState={undefined} // This line is removed as per new unifiedStorage
                   graphStorageManager={graphStorageManagerRef.current}
                 />
               ) : (

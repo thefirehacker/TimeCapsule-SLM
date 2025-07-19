@@ -1,0 +1,682 @@
+# Issue #003: Unified Storage Integration - Technical Specifications
+
+**Status**: 🔥 CRITICAL - Frame Content Corruption Active  
+**Priority**: URGENT  
+**Type**: Architecture & Performance  
+**Created**: 2025-01-18  
+**Spec Version**: 1.1  
+**Last Updated**: 2025-01-18  
+
+## 📋 **Executive Summary**
+
+This specification defines the complete unified storage architecture for AI-Frames that eliminates data fragmentation, ensures perfect state persistence, and provides a seamless Google Docs-style collaborative editing experience.
+
+**Current Critical Problem**: Despite successful save/load operations, frames appear with empty content after page refresh, indicating state corruption in the management chain post-storage.
+
+## 🎯 **Architecture Vision & Objectives**
+
+### **Primary Goal: Perfect State Persistence**
+```
+User Creates Frame → Edits Content → Refreshes Page → EXACT Same State Restored
+```
+
+### **Core Principles**
+1. **Single Source of Truth**: All data flows through unified storage
+2. **Zero Data Loss**: Every user action must persist perfectly
+3. **Instant Feedback**: Real-time auto-save with visual indicators
+4. **Position Preservation**: Exact visual layout restoration
+5. **Undo/Redo Support**: Full change history with Ctrl+Z functionality
+6. **Performance Optimized**: Debounced saves, instant UI updates
+7. **AI-Driven Architecture**: AI frames operate in both UI and headless modes
+8. **Dynamic Extensibility**: AI can create new frame types and properties
+9. **Seamless Import/Export**: TimeCapsule workflow preservation
+
+## 🏗️ **Unified Storage Architecture Specification**
+
+### **Storage Hierarchy**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    UNIFIED STORAGE LAYER                    │
+├─────────────────────────────────────────────────────────────┤
+│  Primary: localStorage['ai_frames_unified']                 │
+│  Legacy:  localStorage['timecapsule_combined']              │
+│  Search:  VectorStore (RxDB) - Individual frame documents  │
+│  Backup:  IndexedDB (future implementation)                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **Data Structure Specification**
+```typescript
+interface UnifiedAppState {
+  // FRAMES: Complete frame data with all properties
+  frames: UnifiedAIFrame[];
+  
+  // GRAPH: Visual layout and connections
+  graphState: {
+    nodes: ReactFlowNode[];           // Includes positions!
+    edges: ReactFlowEdge[];           // All connections
+    viewport?: {                      // Camera position
+      x: number;
+      y: number; 
+      zoom: number;
+    };
+    selectedNodeId?: string | null;
+  };
+  
+  // METADATA: App state information
+  metadata: {
+    version: string;
+    createdAt: string;
+    updatedAt: string;
+    frameCount: number;
+    totalSize: number;
+  };
+  
+  // HISTORY: Undo/Redo support
+  changeHistory: ChangeHistoryEntry[];
+  currentHistoryIndex: number;
+}
+
+interface UnifiedAIFrame {
+  id: string;
+  title: string;
+  goal: string;
+  informationText: string;
+  afterVideoText?: string;
+  aiConcepts: string[];
+  isGenerated: boolean;
+  order: number;
+  attachment?: FrameAttachment;
+  
+  // POSITIONING: Visual state preservation
+  position?: { x: number; y: number };
+  
+  // METADATA: Tracking and validation
+  createdAt: string;
+  updatedAt: string;
+  lastEditedBy?: string;
+  version: number;
+}
+
+interface ChangeHistoryEntry {
+  id: string;
+  timestamp: string;
+  action: 'create' | 'edit' | 'delete' | 'move' | 'connect';
+  beforeState: Partial<UnifiedAppState>;
+  afterState: Partial<UnifiedAppState>;
+  description: string;
+}
+
+// EXTENSIBILITY: Support for AI-generated frame types
+interface DynamicFrameType {
+  typeName: string;
+  properties: Record<string, any>;
+  schema?: {
+    required: string[];
+    validation: Record<string, any>;
+  };
+  uiComponents?: {
+    editor: string;
+    viewer: string;
+  };
+  aiGenerated: boolean;
+  createdAt: string;
+}
+
+// AI OPERATIONS: Headless mode interface
+interface HeadlessFrameOperations {
+  createFrame(type: string, properties: Record<string, any>): Promise<UnifiedAIFrame>;
+  updateFrame(id: string, updates: Partial<UnifiedAIFrame>): Promise<boolean>;
+  deleteFrame(id: string): Promise<boolean>;
+  bulkOperations(operations: Array<{action: string, data: any}>): Promise<boolean>;
+  analyzeContent(frameIds: string[]): Promise<any>;
+}
+
+// IMPORT/EXPORT: TimeCapsule fidelity
+interface TimeCapsuleExport {
+  metadata: {
+    version: string;
+    exportedAt: string;
+    originalAppState: UnifiedAppState;
+    checksum: string;
+  };
+  payload: {
+    frames: UnifiedAIFrame[];
+    graphState: GraphState;
+    dynamicTypes: DynamicFrameType[];
+    changeHistory: ChangeHistoryEntry[];
+  };
+}
+```
+
+## 🔧 **Functional Requirements**
+
+### **FR-001: Frame Content Persistence**
+- **Requirement**: All frame properties must persist exactly across page refreshes
+- **Includes**: title, goal, informationText, afterVideoText, aiConcepts, attachments
+- **Validation**: Content validation before save, corruption detection on load
+
+### **FR-002: Visual Layout Preservation** 
+- **Requirement**: Frame positions, zoom level, and viewport must be restored exactly
+- **Includes**: Node positions (x, y), camera viewport (x, y, zoom), selected states
+- **Behavior**: User sees identical visual layout after refresh
+
+### **FR-003: Connection Persistence**
+- **Requirement**: All graph connections (edges) must persist and display correctly
+- **Includes**: Frame-to-frame connections, attachment relationships
+- **Validation**: Connection integrity checks, orphaned node detection
+
+### **FR-004: Auto-Save System**
+- **Requirement**: Automatic saving every 10 seconds with visual feedback
+- **Indicators**: Auto-saving... → Saved → Unsaved states
+- **Debouncing**: Prevents excessive save operations during rapid edits
+
+### **FR-005: Undo/Redo Functionality**
+- **Requirement**: Full change history with Ctrl+Z and Ctrl+Y support
+- **Scope**: All user actions (create, edit, delete, move, connect)
+- **Limitations**: Maintain last 50 changes, auto-cleanup old history
+
+### **FR-006: Real-Time Synchronization**
+- **Requirement**: Changes appear instantly in all views (graph + linear)
+- **Mechanism**: Event-driven updates, Google Docs broadcast pattern
+- **Conflict Resolution**: Last-write-wins with timestamp validation
+
+### **FR-007: AI-Driven Frame Operations (Headless Mode)**
+- **Requirement**: AI can operate on frames without UI visualization (headless)
+- **Capability**: Background processing, automated frame generation, bulk operations
+- **Architecture**: Headless mode with same unified storage interface
+- **Use Cases**: AI curriculum generation, automated content analysis, batch processing
+- **Note**: "Headless mode" = AI operations without visual rendering or user interface
+
+### **FR-008: Dynamic Frame Type Creation**
+- **Requirement**: AI can create new frame types with custom properties dynamically
+- **Architecture**: Extensible schema system that adapts to new types
+- **Validation**: Dynamic property validation without hardcoded schemas
+- **Storage**: Unified storage must handle arbitrary frame structures seamlessly
+
+### **FR-009: Seamless TimeCapsule Import/Export**
+- **Requirement**: Complete workflow preservation across import/export cycles
+- **Includes**: Frames + attachments + connections + positions + metadata
+- **Validation**: Round-trip integrity (export → import → identical state)
+- **Formats**: Native TimeCapsule format with full fidelity preservation
+
+## 🧪 **Test Cases & Acceptance Criteria**
+
+### **Test Suite 1: Basic Frame Operations**
+
+#### **TC-001: Frame Creation and Content Persistence**
+```
+STEPS:
+1. Navigate to /ai-frames
+2. Create frame with title "Test Frame 1" 
+3. Set goal "Learn about persistence"
+4. Add content "This is test content"
+5. Wait for auto-save (10 seconds)
+6. Refresh page
+
+EXPECTED:
+✅ Frame appears immediately after refresh
+✅ Title = "Test Frame 1" (exact match)
+✅ Goal = "Learn about persistence" (exact match)  
+✅ Content = "This is test content" (exact match)
+✅ Auto-save indicator shows "Saved" before refresh
+✅ Console shows: "✅ Loaded X frames from unified storage"
+
+FAILURE CONDITIONS:
+❌ Frame has empty/default content
+❌ Frame properties are corrupted/mixed
+❌ Auto-save indicator stuck on "Auto-saving..."
+```
+
+#### **TC-002: Multiple Frame Management**
+```
+STEPS:
+1. Create 3 frames with distinct content:
+   - Frame 1: title="AI Basics", goal="Learn AI fundamentals"
+   - Frame 2: title="ML Concepts", goal="Understand machine learning" 
+   - Frame 3: title="Deep Learning", goal="Master neural networks"
+2. Wait for auto-save
+3. Refresh page
+
+EXPECTED:
+✅ All 3 frames appear with correct content
+✅ Frame order preserved (Frame 1, 2, 3)
+✅ No content mixing between frames
+✅ Each frame retains unique properties
+```
+
+### **Test Suite 2: Visual Layout Preservation**
+
+#### **TC-003: Position and Viewport Persistence**
+```
+STEPS:
+1. Create 2 frames on graph view
+2. Drag Frame 1 to position (100, 200)
+3. Drag Frame 2 to position (400, 300)
+4. Zoom to 150% and pan to center
+5. Wait for auto-save
+6. Refresh page
+
+EXPECTED:
+✅ Frame 1 appears at exact position (100, 200)
+✅ Frame 2 appears at exact position (400, 300)
+✅ Zoom level restored to 150%
+✅ Viewport pan position preserved
+✅ Visual layout identical to pre-refresh state
+```
+
+#### **TC-004: Connection Display Verification**
+```
+STEPS:
+1. Create 2 frames
+2. Add text attachment to Frame 1
+3. Connect Frame 1 to Frame 2
+4. Verify connections visible in graph
+5. Save and refresh
+
+EXPECTED:
+✅ Frame 1 → Frame 2 connection displays immediately
+✅ Text attachment → Frame 1 connection visible
+✅ No double-refresh required for connections
+✅ Connection lines render correctly
+```
+
+### **Test Suite 3: Advanced Functionality**
+
+#### **TC-005: Undo/Redo Operations**
+```
+STEPS:
+1. Create frame with title "Original"
+2. Edit title to "Modified"
+3. Press Ctrl+Z (undo)
+4. Press Ctrl+Y (redo)
+5. Create second frame
+6. Press Ctrl+Z (undo frame creation)
+
+EXPECTED:
+✅ Undo reverts title to "Original"
+✅ Redo changes title back to "Modified"
+✅ Undo removes second frame completely
+✅ Change history tracks all operations
+✅ History limit enforced (50 entries max)
+```
+
+#### **TC-006: Concurrent Save Operations**
+```
+STEPS:
+1. Create frame and start typing rapidly
+2. Trigger manual save during auto-save
+3. Make additional edits during save
+4. Refresh immediately after save
+
+EXPECTED:
+✅ No data loss during concurrent saves
+✅ Latest edits preserved
+✅ Save operations don't conflict
+✅ State remains consistent
+```
+
+### **Test Suite 4: Error Handling & Recovery**
+
+#### **TC-007: Storage Corruption Recovery**
+```
+STEPS:
+1. Create frames with valid content
+2. Manually corrupt localStorage data
+3. Refresh page
+4. Verify fallback mechanisms
+
+EXPECTED:
+✅ Graceful fallback to legacy storage
+✅ Error logged but app continues
+✅ User notified of recovery action
+✅ Data integrity checks prevent corruption
+```
+
+#### **TC-008: VectorStore Sync Reliability**
+```
+STEPS:
+1. Create frames when VectorStore offline
+2. Bring VectorStore online
+3. Verify automatic sync
+4. Test search functionality
+
+EXPECTED:
+✅ Frames saved to localStorage when VectorStore offline
+✅ Automatic sync when VectorStore available
+✅ Search finds all frame content
+✅ No duplicate entries in VectorStore
+```
+
+### **Test Suite 5: AI-Driven & Extensibility Features**
+
+#### **TC-009: AI Headless Frame Operations**
+```
+STEPS:
+1. Create frames via AI in headless mode (no UI)
+2. AI modifies frame content programmatically
+3. AI generates new frames with custom properties
+4. User opens UI to view AI-generated content
+
+EXPECTED:
+✅ AI can create frames without UI rendering
+✅ All AI modifications persist in unified storage
+✅ Custom properties handled seamlessly
+✅ UI displays AI-generated content correctly
+✅ No difference between AI-created and user-created frames
+```
+
+#### **TC-010: Dynamic Frame Type Creation**
+```
+STEPS:
+1. AI creates new frame type "ConceptMap" with custom properties
+2. AI adds frames of new type to storage
+3. User opens UI and edits new frame type
+4. Save and refresh cycle
+
+EXPECTED:
+✅ Unified storage accepts arbitrary frame structures
+✅ New frame type persists correctly
+✅ UI adapts to display custom properties
+✅ Full save/load cycle preserves custom frame types
+✅ No hardcoded validation prevents new types
+```
+
+#### **TC-011: TimeCapsule Import/Export Fidelity**
+```
+STEPS:
+1. Create complex project (frames + attachments + connections + positions)
+2. Export as TimeCapsule
+3. Clear all data
+4. Import TimeCapsule
+5. Verify identical state restoration
+
+EXPECTED:
+✅ Export captures complete state (frames + graph + metadata)
+✅ Import restores exact visual layout
+✅ All connections preserved perfectly
+✅ Frame positions match exactly
+✅ Attachments and metadata intact
+✅ Round-trip produces identical state
+```
+
+## 🔍 **Debug & Monitoring Specifications**
+
+### **Required Logging**
+```typescript
+// SAVE OPERATIONS
+console.log("💾 Starting unified save...");
+console.log("✅ Unified save completed successfully");
+
+// LOAD OPERATIONS  
+console.log("📂 Starting unified load...");
+console.log("✅ Loaded X frames from unified storage");
+
+// STATE CHANGES
+console.log("🎯 Frame edit event captured:", { frameId, changedProperties });
+console.log("🔄 Frame changes detected, auto-save will trigger in 10 seconds");
+
+// ERROR CONDITIONS
+console.error("❌ Unified storage error:", { operation, error, frameCount });
+```
+
+### **Performance Metrics**
+- Save operation time: < 100ms
+- Load operation time: < 200ms  
+- Auto-save trigger delay: 10 seconds
+- UI responsiveness: No blocking operations
+
+## 🚨 **Current Critical Issues Analysis**
+
+### **Issue: Empty Content After Refresh**
+```
+EVIDENCE:
+✅ Storage saves 2 frames successfully
+✅ Storage loads 2 frames successfully  
+❌ Frames appear with empty/default content
+
+ROOT CAUSE SUSPECTS:
+1. Frame content corruption in state management chain
+2. Property merge conflicts during load
+3. Event system interference with content
+4. Graph synchronization overwriting frame data
+```
+
+### **Debugging Protocol**
+```typescript
+// Add to load sequence for diagnosis
+const frames = await unifiedStorage.loadAll();
+console.log("🔍 LOADED FRAME CONTENT DEBUG:", {
+  frameCount: frames.length,
+  frame1Content: frames[0] ? { 
+    title: frames[0].title, 
+    goal: frames[0].goal,
+    informationText: frames[0].informationText 
+  } : null,
+  frame2Content: frames[1] ? { 
+    title: frames[1].title, 
+    goal: frames[1].goal,
+    informationText: frames[1].informationText 
+  } : null
+});
+
+// Verify content at critical points
+console.log("🔍 STATE VERIFICATION:", {
+  beforeBroadcast: frames.map(f => ({ id: f.id, title: f.title })),
+  afterBroadcast: "check window.aiFramesApp.frames",
+  graphSync: "check EnhancedLearningGraph nodes"
+});
+```
+
+## 📋 **Implementation Roadmap**
+
+### **Phase 1: Core Fixes (Immediate - 1-2 days)**
+1. **Fix content corruption**: Identify and fix empty content issue
+2. **Position preservation**: Add viewport and node position saving
+3. **Connection reliability**: Ensure first-refresh connection display
+4. **Debug enhancement**: Add comprehensive state tracking logs
+
+### **Phase 2: Advanced Features (1 week)**
+1. **Undo/Redo system**: Implement change history tracking
+2. **Enhanced validation**: Add content integrity checks
+3. **Performance optimization**: Improve save/load speed
+4. **Error recovery**: Robust fallback mechanisms
+
+### **Phase 3: Polish & Testing (1 week)**
+1. **Comprehensive testing**: All test cases passing
+2. **Performance tuning**: Sub-100ms operations
+3. **Documentation**: Updated Sage's Chronicle
+4. **User experience**: Seamless Google Docs-style editing
+
+## 🎯 **Success Criteria**
+
+### **Minimum Viable Product (MVP)**
+- ✅ All test cases TC-001 through TC-004 pass
+- ✅ No empty content after refresh
+- ✅ Perfect visual layout preservation
+- ✅ Auto-save with visual feedback
+
+### **Full Feature Complete**
+- ✅ All test cases TC-001 through TC-008 pass
+- ✅ Undo/Redo functionality (Ctrl+Z/Y)
+- ✅ Position and viewport preservation
+- ✅ Performance targets met
+- ✅ Error recovery mechanisms
+
+### **Production Ready**
+- ✅ Zero data loss in any scenario
+- ✅ Sub-second load times
+- ✅ Comprehensive error handling
+- ✅ User experience equivalent to Google Docs
+
+## 📁 **Files & Components Specification**
+
+### **Core Files**
+- `src/app/ai-frames/lib/unifiedStorage.ts` - Storage engine
+- `src/app/ai-frames/hooks/useUnifiedStorage.ts` - React integration
+- `src/app/ai-frames/page.tsx` - Main application page
+- `src/components/ai-graphs/FrameGraphIntegration.tsx` - Graph component
+
+### **Required Interfaces**
+```typescript
+// Position tracking
+interface NodePosition {
+  x: number;
+  y: number;
+}
+
+// Viewport state
+interface ViewportState {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+// Change tracking
+interface ChangeTracker {
+  trackChange(action: string, before: any, after: any): void;
+  undo(): boolean;
+  redo(): boolean;
+  canUndo(): boolean;
+  canRedo(): boolean;
+}
+```
+
+---
+
+## 🔥 **CRITICAL ANALYSIS UPDATE: Specification Violation**
+
+### **📊 Test Case TC-001 Results (Latest)**
+
+**COMPLIANCE STATUS**: ❌ **FAILED 3/6 CRITERIA**
+
+| **Requirement** | **Expected** | **Actual** | **Status** | **Evidence** |
+|----------------|--------------|------------|------------|--------------|
+| Frame persistence | ✅ Frame visible | ✅ Frame visible | **PASS** | 2 frames shown |
+| Title preservation | ✅ "f1" exact | ❌ "Frame 1" default | **FAIL** | Content corruption |
+| Goal preservation | ✅ Custom content | ❌ "Enter learning goal..." | **FAIL** | Content corruption |
+| Context preservation | ✅ Custom content | ❌ "Provide background..." | **FAIL** | Content corruption |
+| Auto-save indicator | ✅ "Saved" shown | ✅ "Saved" shown | **PASS** | Visual feedback works |
+| Load confirmation | ✅ Console message | ✅ Console message | **PASS** | Storage layer works |
+
+### **🎯 ROOT CAUSE ANALYSIS**
+
+**Critical Finding**: Storage layer works perfectly, UI synchronization corrupts content
+
+```
+✅ localStorage.setItem() → Complete frame data saved
+✅ localStorage.getItem() → Complete frame data loaded  
+❌ Graph sync chain → Overwrites loaded content with defaults
+❌ Result → User sees corrupted content despite successful save/load
+```
+
+### **📋 TODO IMPLEMENTATION ROADMAP**
+
+#### **🔥 PHASE 1: Critical Path (Immediate)**
+- [ ] **TODO-001**: Break circular `handleGraphChange` → `onFrameIndexChange` chain in `DualPaneFrameView.tsx`
+- [ ] **TODO-002**: Implement state corruption detection and logging in sync chain
+- [ ] **TODO-003**: Isolate graph synchronization from frame loading operations
+- [ ] **TODO-004**: Validate TC-001 complete compliance (6/6 pass rate)
+
+#### **🔧 PHASE 2: System Hardening**
+- [ ] **TODO-005**: Add state isolation patterns to prevent circular dependencies
+- [ ] **TODO-006**: Implement content preservation validation throughout sync chain
+- [ ] **TODO-007**: Add automatic recovery mechanisms for state corruption detection
+- [ ] **TODO-008**: Create comprehensive test suite for all TC cases
+
+#### **📊 PHASE 3: Advanced Features & Extensibility**
+- [ ] **TODO-009**: Implement AI headless frame operations (TC-009)
+- [ ] **TODO-010**: Add dynamic frame type creation system (TC-010)
+- [ ] **TODO-011**: Build seamless TimeCapsule import/export (TC-011)
+- [ ] **TODO-012**: Implement position preservation (TC-003)
+- [ ] **TODO-013**: Add undo/redo functionality (TC-005)
+
+#### **📊 PHASE 4: Full Specification Compliance**
+- [ ] **TODO-014**: Achieve 100% TC-001 through TC-011 compliance
+- [ ] **TODO-015**: Complete all success criteria for production readiness
+- [ ] **TODO-016**: Performance optimization and stress testing
+- [ ] **TODO-017**: Comprehensive documentation and API finalization
+
+### **🚨 IMPACT ASSESSMENT**
+
+**Current State**: **APPLICATION UNUSABLE FOR REAL WORK**
+- ❌ **Zero Persistence**: All user content lost on refresh
+- ❌ **Broken Workflow**: Save/load cycle corrupts data
+- ❌ **User Trust**: No confidence in data preservation
+
+**Next Milestone**: **PHASE 1 COMPLETION**
+- 🎯 Target: TC-001 compliance (6/6 criteria)
+- 🎯 Success: User content survives refresh exactly
+- 🎯 Timeline: Immediate priority (critical path)
+
+---
+
+## 📋 **TODO STATUS SUMMARY - WHERE WE ARE & WHAT'S NEXT**
+
+### **🔥 CURRENT STATUS: PHASE 1 - CRITICAL PATH**
+
+#### **✅ COMPLETED (Ready)**
+- [x] **Storage Layer**: Unified storage architecture fully implemented
+- [x] **Save Operations**: Complete frame data saved to localStorage successfully
+- [x] **Load Operations**: Complete frame data loaded from localStorage successfully
+- [x] **Auto-Save Indicator**: Visual feedback system working correctly
+- [x] **VectorStore Integration**: Frames stored in Knowledge Base with search capability
+- [x] **Event System**: Frame edit events captured and propagated
+- [x] **Dynamic Property Handling**: Extensible property merge system implemented
+
+#### **🔥 IN PROGRESS (Critical)**
+- [ ] **TODO-001**: Break circular `handleGraphChange` → `onFrameIndexChange` chain
+- [ ] **TODO-002**: Add state corruption detection logging
+- [ ] **TODO-003**: Isolate graph sync from frame loading
+- [ ] **TODO-004**: Validate TC-001 compliance (6/6 criteria)
+
+#### **📊 CURRENT COMPLIANCE STATUS**
+| **Phase** | **Test Cases** | **Status** | **Priority** |
+|-----------|----------------|------------|--------------|
+| **Phase 1** | TC-001 to TC-004 | ❌ 3/6 failing | 🔥 CRITICAL |
+| **Phase 2** | TC-005 to TC-008 | ⏸️ Blocked by Phase 1 | 🟡 HIGH |
+| **Phase 3** | TC-009 to TC-011 | 📋 Not started | 🟢 FUTURE |
+
+### **🎯 IMMEDIATE NEXT STEPS (This Session)**
+
+1. **PRIORITY 1**: Fix circular dependency causing content corruption
+2. **PRIORITY 2**: Achieve TC-001 compliance (user content persistence)
+3. **PRIORITY 3**: Validate fix with f1/f2 test case
+4. **PRIORITY 4**: Move to Phase 2 implementation
+
+### **🔮 FUTURE ROADMAP (After Phase 1)**
+
+#### **Phase 2: System Hardening**
+- Connection persistence (TC-002)
+- Position preservation (TC-003)
+- Visual layout restoration (TC-004)
+
+#### **Phase 3: Advanced Features**
+- **AI Headless Operations**: Background frame processing
+- **Dynamic Frame Types**: AI-created custom frame structures
+- **TimeCapsule Fidelity**: Perfect import/export workflows
+
+#### **Phase 4: Production Ready**
+- Undo/redo functionality
+- Performance optimization
+- Comprehensive testing
+- Full specification compliance
+
+---
+
+## 🔗 **Dependencies & References**
+
+- **Issue-003-Unified-Storage-Integration.md**: Base implementation details + TODO tracking
+- **sage-Aiframes.md**: Google Docs architecture patterns
+- **page.tsx**: Current implementation state
+- **React Flow**: Graph visualization and interaction
+- **RxDB/VectorStore**: Search and persistence backend
+- **ref_logs.md**: Critical evidence of save/load success but content corruption
+
+---
+
+**Specification Created**: 2025-01-18  
+**Critical Update**: 2025-01-18  
+**Next Review**: After TODO-001 through TODO-004 completion  
+**Approval Required**: URGENT - Complete workflow broken  
+**Priority**: CRITICAL - Blocking all user workflows 

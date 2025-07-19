@@ -79,45 +79,52 @@ export default function EnhancedLearningGraph({
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
-    // CRITICAL FIX: Update both frames array AND graph node data
-    if (onFramesChange) {
+    // DYNAMIC: Safe property merge for ANY frame type and properties (like unified storage)
+    const safeUpdatedData: any = {};
+    
+    // Dynamically merge any properties that exist in the event data
+    if (updatedData && typeof updatedData === 'object') {
+      Object.keys(updatedData).forEach(key => {
+        const value = updatedData[key];
+        
+        // For string properties, only include if non-empty to prevent content corruption
+        if (typeof value === 'string') {
+          if (value.trim() !== '' && !key.startsWith('_')) {
+            safeUpdatedData[key] = value;
+          }
+        }
+        // For non-string properties, include if not undefined/null
+        else if (value !== undefined && value !== null && !key.startsWith('_')) {
+          safeUpdatedData[key] = value;
+        }
+      });
+    }
+    
+    // CRITICAL FIX: Only update if we have safe data to prevent corruption
+    if (Object.keys(safeUpdatedData).length > 0 && onFramesChange) {
       const updatedFrames = frames.map(frame => 
-        frame.id === frameId ? { ...frame, ...updatedData } : frame
+        frame.id === frameId ? { ...frame, ...safeUpdatedData, updatedAt: new Date().toISOString() } : frame
       );
       onFramesChange(updatedFrames);
       
     }
     
-    // CRITICAL FIX: Also update the graph node data to keep it in sync
-    setNodes(nds => nds.map(node => {
-      if (node.data.frameId === frameId) {
-        console.log('🔄 Enhanced: Updating graph node data for frame:', {
-          frameId,
-          nodeId: node.id,
-          oldTitle: node.data.title,
-          newTitle: updatedData.title,
-          updatedData
-        });
-        
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            title: updatedData.title || node.data.title,
-            goal: updatedData.goal || node.data.goal,
-            informationText: updatedData.informationText || node.data.informationText,
-            afterVideoText: updatedData.afterVideoText || node.data.afterVideoText,
-            aiConcepts: updatedData.aiConcepts || node.data.aiConcepts,
-            isGenerated: updatedData.isGenerated !== undefined ? updatedData.isGenerated : node.data.isGenerated,
-            sourceGoal: updatedData.sourceGoal || node.data.sourceGoal,
-            sourceUrl: updatedData.sourceUrl || node.data.sourceUrl,
-            attachment: updatedData.attachment || node.data.attachment,
-            updatedAt: new Date().toISOString()
-          }
-        };
-      }
-      return node;
-    }));
+    // CRITICAL FIX: Also update the graph node data to keep it in sync (with safe data only)
+    if (Object.keys(safeUpdatedData).length > 0) {
+      setNodes(nds => nds.map(node => {
+        if (node.data.frameId === frameId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...safeUpdatedData,
+              updatedAt: new Date().toISOString()
+            }
+          };
+        }
+        return node;
+      }));
+    }
   }, [frames, onFramesChange]);
 
   // Handle content attachment to frames
@@ -332,7 +339,26 @@ export default function EnhancedLearningGraph({
         const x = index * 500; // More space for enhanced nodes
         const y = 100;
         
-        // Create enhanced AI frame node
+        // CRITICAL FIX: Preserve loaded frame content - only use defaults for undefined/null values
+        const safeFrameData = {
+          title: frame.title != null ? frame.title : `Frame ${index + 1}`,
+          goal: frame.goal != null ? frame.goal : 'Define your learning goal...',
+          informationText: frame.informationText != null ? frame.informationText : 'Add context and background information...',
+          afterVideoText: frame.afterVideoText != null ? frame.afterVideoText : 'Key takeaways and next steps...',
+        };
+        
+        // DEBUG: Verify content preservation
+        if (frame.title !== safeFrameData.title || frame.goal !== safeFrameData.goal) {
+          console.log('🔍 CONTENT PRESERVATION CHECK:', {
+            frameId: frame.id,
+            originalTitle: frame.title,
+            preservedTitle: safeFrameData.title,
+            originalGoal: frame.goal,
+            preservedGoal: safeFrameData.goal
+          });
+        }
+
+        // Create enhanced AI frame node with validated content
         const frameNode: Node = {
           id: nodeId,
           type: "aiframe",
@@ -340,10 +366,10 @@ export default function EnhancedLearningGraph({
           data: {
             type: "aiframe",
             frameId: frame.id,
-            title: frame.title,
-            goal: frame.goal,
-            informationText: frame.informationText,
-            afterVideoText: frame.afterVideoText,
+            title: safeFrameData.title,
+            goal: safeFrameData.goal,
+            informationText: safeFrameData.informationText,
+            afterVideoText: safeFrameData.afterVideoText,
             aiConcepts: frame.aiConcepts || [],
             isGenerated: frame.isGenerated,
             sourceGoal: frame.sourceGoal,
