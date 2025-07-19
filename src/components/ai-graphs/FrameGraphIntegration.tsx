@@ -1112,7 +1112,13 @@ Updated: ${new Date().toISOString()}`,
       
       if (aiFramesApp && aiFramesApp.vectorStore && aiFramesApp.vectorStoreInitialized) {
         try {
-          // Use the proper frameStorage sync methods
+          // CRITICAL FIX: Save to localStorage FIRST before VectorStore sync
+          if (typeof aiFramesApp.saveFramesToStorage === 'function') {
+            console.log("💾 Saving frames to localStorage...");
+            await aiFramesApp.saveFramesToStorage(finalFrames);
+          }
+          
+          // Then sync to VectorStore
           if (typeof aiFramesApp.syncFramesToVectorStore === 'function') {
             syncSuccess = await aiFramesApp.syncFramesToVectorStore(finalFrames);
           } else if (typeof aiFramesApp.syncGraphChangesToKB === 'function') {

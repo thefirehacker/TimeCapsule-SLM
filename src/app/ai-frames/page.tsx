@@ -219,69 +219,86 @@ export default function AIFramesPage() {
     };
   }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore?.initialized, showVectorStoreInitModal]);
 
-  // PRESERVATION: Load frames on component mount (FIXED: Prevent infinite loading loop)
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
-  
+  // CRITICAL FIX: Simplified, reliable loading logic
   useEffect(() => {
     const loadInitialData = async () => {
-      // FIXED: Detect actual page refresh vs component re-render
-      const isActualRefresh = !sessionStorage.getItem('ai-frames-session-active');
-      sessionStorage.setItem('ai-frames-session-active', 'true');
-      
-      // FIXED: Allow loading on actual refresh OR first component mount
-      if (isLoadingInitialData || (hasAttemptedLoad && !isActualRefresh)) return;
+      // Prevent concurrent loading calls only
+      if (isLoadingInitialData) return;
       
       try {
         setIsLoadingInitialData(true);
-        setHasAttemptedLoad(true);
         
-        // Reduced logging - only essential messages
         console.log("🔄 Loading initial data...");
         
-        // CRITICAL FIX: Always try localStorage/timecapsule_combined first - no VectorStore dependency
+        // STEP 1: Always try localStorage/timecapsule_combined first (instant)
         const loadedFrames = await frameStorage.loadFramesFromStorage();
         
-        // FIXED: Only try KB loading when VectorStore is available AND we have no frames
-        if (loadedFrames.length === 0 && providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing) {
-          // Try loading from Knowledge Base - only once per session
-          const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
-          if (kbFrames.length > 0) {
-            frameStorage.broadcastFrameChanges(kbFrames);
+        if (loadedFrames.length > 0) {
+          console.log(`✅ Loaded ${loadedFrames.length} frames from localStorage`);
+          
+          // Also load graph state from combined storage
+          const combinedData = getTimeCapsuleCombinedData();
+          if (combinedData?.graphState) {
+            setInitialGraphState(combinedData.graphState);
           }
-        }
-
-        // Load graph state from combined storage
-        const combinedData = getTimeCapsuleCombinedData();
-        if (combinedData?.graphState) {
-          setInitialGraphState(combinedData.graphState);
+          
+          setIsLoadingInitialData(false);
+          return;
         }
         
-        console.log("✅ Initial data loaded");
+        // STEP 2: If localStorage empty, try VectorStore (if available)
+        if (providerVectorStore && vectorStoreInitialized) {
+          console.log("📚 Trying VectorStore as fallback...");
+          const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
+          
+          if (kbFrames.length > 0) {
+            console.log(`✅ Loaded ${kbFrames.length} frames from VectorStore`);
+            frameStorage.broadcastFrameChanges(kbFrames);
+          }
+        } else if (providerVectorStore && !vectorStoreInitialized) {
+          console.log("⏳ VectorStore not ready yet, will retry when available");
+        }
+        
+        console.log("✅ Initial data loading complete");
+        
       } catch (error) {
-        console.error("❌ Failed to load initial data:", error);
+        console.error("❌ Error loading initial data:", error);
       } finally {
         setIsLoadingInitialData(false);
       }
     };
 
-    // CRITICAL FIX: Only run once on mount and when VectorStore becomes available
-    // Don't include isLoadingInitialData in dependencies to prevent infinite loops
-    const shouldLoad = (
-      // Always load immediately if no VectorStore dependency
-      !providerVectorStore ||
-      // Or when VectorStore is fully ready
-      (providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing)
-    );
-    
-    if (shouldLoad && !isLoadingInitialData) {
-      // Check if we should load based on session state
-      const isActualRefresh = !sessionStorage.getItem('ai-frames-session-active');
-      if (!hasAttemptedLoad || isActualRefresh) {
-        // Remove delay - load immediately
-        loadInitialData();
+    // Trigger loading on mount
+    loadInitialData();
+  }, []); // Simple dependencies - no circular triggers
+
+  // SEPARATE: VectorStore retry when it becomes ready
+  useEffect(() => {
+    const retryVectorStoreLoad = async () => {
+      // Only retry if: no frames loaded AND VectorStore just became ready
+      if (frameStorage.frames.length === 0 && providerVectorStore && vectorStoreInitialized && !isLoadingInitialData) {
+        console.log("🔄 VectorStore ready, retrying load...");
+        
+        try {
+          setIsLoadingInitialData(true);
+          const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
+          
+          if (kbFrames.length > 0) {
+            console.log(`✅ Loaded ${kbFrames.length} frames from VectorStore on retry`);
+            frameStorage.broadcastFrameChanges(kbFrames);
+          }
+        } catch (error) {
+          console.error("❌ Error loading from VectorStore:", error);
+        } finally {
+          setIsLoadingInitialData(false);
+        }
       }
+    };
+
+    if (vectorStoreInitialized) {
+      retryVectorStoreLoad();
     }
-  }, [providerVectorStore, vectorStoreInitialized, vectorStoreInitializing]); // CRITICAL FIX: Removed isLoadingInitialData to prevent infinite loops
+  }, [vectorStoreInitialized]); // Only trigger when VectorStore becomes ready
 
   // REMOVED: Frame creation functionality (handled by FrameGraphIntegration)
 
@@ -609,6 +626,7 @@ export default function AIFramesPage() {
         vectorStoreInitialized,
         frames: frameStorage.frames,
         // Expose the frameStorage sync methods for FrameGraphIntegration
+        saveFramesToStorage: frameStorage.saveFramesToStorage,
         syncFramesToVectorStore: frameStorage.syncFramesToVectorStore,
         syncGraphChangesToKB: frameStorage.syncGraphChangesToKB,
         loadFramesFromStorage: frameStorage.loadFramesFromStorage,
@@ -622,10 +640,11 @@ export default function AIFramesPage() {
         hasVectorStore: !!aiFramesApp.vectorStore,
         vectorStoreInitialized: aiFramesApp.vectorStoreInitialized,
         frameCount: aiFramesApp.frames.length,
-        hasSyncMethods: typeof aiFramesApp.syncFramesToVectorStore === 'function' && typeof aiFramesApp.syncGraphChangesToKB === 'function'
+        hasSyncMethods: typeof aiFramesApp.syncFramesToVectorStore === 'function' && typeof aiFramesApp.syncGraphChangesToKB === 'function',
+        hasSaveMethod: typeof aiFramesApp.saveFramesToStorage === 'function'
       });
     }
-  }, [providerVectorStore, vectorStoreInitialized, frameStorage.frames, frameStorage.syncFramesToVectorStore, frameStorage.syncGraphChangesToKB, frameStorage.loadFramesFromStorage, frameStorage.broadcastFrameChanges]);
+  }, [providerVectorStore, vectorStoreInitialized, frameStorage.frames, frameStorage.saveFramesToStorage, frameStorage.syncFramesToVectorStore, frameStorage.syncGraphChangesToKB, frameStorage.loadFramesFromStorage, frameStorage.broadcastFrameChanges]);
 
   // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (

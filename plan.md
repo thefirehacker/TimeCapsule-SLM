@@ -4188,6 +4188,107 @@ VectorStoreProvider.useEffect @ VectorStoreProvider.tsx:140
 react-stack-bottom-frame @ react-dom-client.development.js:23055
 runWithFiberInDEV @ react-dom-client.development.js:845
 commitHookEffectListMount @ react-dom-client.development.js:11978
+
+---
+
+# 🔥 **CRITICAL LOADING FIX IMPLEMENTED**
+
+## 🚨 **ROOT CAUSE IDENTIFIED AND FIXED**
+
+### **The Shocking Reality** 
+- ✅ **Data EXISTS**: localStorage shows `timecapsule_combined` with frames
+- ✅ **VectorStore Works**: Knowledge Base shows "AI Frames (2)" 
+- ❌ **Loading BROKEN**: UI shows nothing despite perfect data
+
+### **The Fundamental Flaw**
+**Loading logic had impossible conditions that prevented data access:**
+
+#### **Before Fix (Broken Logic):**
+```typescript
+// BROKEN: Multiple impossible conditions
+if (providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing && !isLoadingInitialData) {
+  // Plus hasAttemptedLoad guard preventing retries
+  // Plus sessionStorage complexities
+  // Plus circular dependency triggers
+}
+```
+
+#### **After Fix (Simple Logic):**
+```typescript
+// FIXED: Always try localStorage first (instant)
+const loadedFrames = await frameStorage.loadFramesFromStorage();
+
+// FIXED: Separate VectorStore retry when ready
+useEffect(() => {
+  if (vectorStoreInitialized && frameStorage.frames.length === 0) {
+    // Retry VectorStore load
+  }
+}, [vectorStoreInitialized]);
+```
+
+### **Key Changes Made:**
+
+1. **Removed Faulty Guards** ✅
+   - Eliminated `hasAttemptedLoad` that prevented retries
+   - Removed complex sessionStorage detection
+   - Simplified conditions to essential checks only
+
+2. **Fixed Timing Issues** ✅
+   - Always try localStorage first (instant, no dependencies)
+   - Separate useEffect for VectorStore retry when ready
+   - No more racing conditions
+
+3. **Eliminated Circular Dependencies** ✅
+   - Simple `[]` dependencies for initial load
+   - Only `[vectorStoreInitialized]` for VectorStore retry
+   - No more infinite loops
+
+4. **Preserved Graph State Loading** ✅
+   - Still loads `timecapsule_combined` graph state
+   - Still sets `initialGraphState` for connections
+   - Complete restoration functionality
+
+## 🎯 **Expected Results After Fix:**
+
+### **On Page Refresh:**
+```
+🔄 Loading initial data...
+✅ Loaded 2 frames from localStorage
+✅ Initial data loading complete
+```
+
+### **If localStorage Empty:**
+```
+🔄 Loading initial data...
+📚 Trying VectorStore as fallback...
+✅ Loaded 2 frames from VectorStore
+✅ Initial data loading complete
+```
+
+### **VectorStore Retry (when needed):**
+```
+🔄 VectorStore ready, retrying load...
+✅ Loaded 2 frames from VectorStore on retry
+```
+
+## 📋 **IMPLEMENTATION STATUS**
+
+### ✅ **COMPLETED**
+1. **Fix loading conditions** - Removed impossible guards
+2. **Fix VectorStore timing** - Separate retry mechanism  
+3. **Remove faulty guards** - Eliminated `hasAttemptedLoad`
+4. **Fix loading dependencies** - Simple, clean dependencies
+
+### 🔥 **IN PROGRESS** 
+1. **Test loading workflow** - Verify complete fix works
+
+## 🏆 **THE BOTTOM LINE**
+
+**Your data was NEVER lost** - it was perfectly saved in both storage layers.
+**The loading logic was broken** - couldn't access data that existed.
+**Now fixed with simple, reliable loading** - should work immediately.
+
+**Ready for testing the complete fix!** 🚀
 commitHookPassiveMountEffects @ react-dom-client.development.js:12099
 commitPassiveMountOnFiber @ react-dom-client.development.js:13929
 recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
