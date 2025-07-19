@@ -153,7 +153,7 @@ export const useFrameStorage = ({
             filesize: JSON.stringify(frame).length,
             filetype: "application/json",
             uploadedAt: frame.updatedAt,
-            source: "ai-frame-sync",
+            source: "ai-frames",
             description: `AI Frame: ${frame.title}`,
             isGenerated: true,
             type: "ai-frame",

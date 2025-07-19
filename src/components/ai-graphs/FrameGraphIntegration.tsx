@@ -979,12 +979,11 @@ Updated: ${new Date().toISOString()}`,
     };
   }, [sessionInitialized, graphStorageManager]);
 
-  // FIXED: Handle Save Graph with proper error handling
+  // FIXED: Handle Save Graph with proper VectorStore sync
   const handleSaveGraph = async () => {
     try {
       // Prevent multiple save operations
       if (isAutoSaving) {
-        // 
         return;
       }
       
@@ -993,6 +992,9 @@ Updated: ${new Date().toISOString()}`,
         await initializeSession();
       }
 
+      // CRITICAL FIX: Get current graph state for frame merging
+      const currentGraphState = getCurrentGraphState();
+      
       // ENHANCED: Get current frames with latest attachment data
       let currentFrames: AIFrame[] = [];
       
@@ -1001,392 +1003,72 @@ Updated: ${new Date().toISOString()}`,
         const aiFramesApp = (window as any).aiFramesApp;
         if (aiFramesApp && Array.isArray(aiFramesApp.frames)) {
           currentFrames = aiFramesApp.frames;
-          // 
         }
       } catch (error) {
         console.warn("⚠️ Failed to get frames from AI-Frames app:", error);
       }
-      
-      // PRIORITY 2: Fall back to storage if no frames from AI-Frames app
-      if (currentFrames.length === 0 && graphStorageManager) {
+
+      // PRIORITY 2: Fallback to props frames if AI-Frames app not available
+      if (currentFrames.length === 0 && frames && frames.length > 0) {
+        currentFrames = frames;
+      }
+
+      // PRIORITY 3: Try to load from storage if no frames available
+      if (currentFrames.length === 0) {
         try {
-          const frameSequence = await graphStorageManager.loadFrameSequence();
-          currentFrames = Array.isArray(frameSequence?.frames) ? frameSequence.frames : [];
-          // 
-        } catch (error) {
-          console.warn("Failed to load from IndexedDB, trying TimeCapsule:", error);
-          try {
-            const timeCapsuleData = localStorage.getItem("timecapsule_combined");
-            if (timeCapsuleData) {
-              const parsed = JSON.parse(timeCapsuleData);
-              currentFrames = Array.isArray(parsed.data?.frames) ? parsed.data.frames : [];
-              // 
-            }
-          } catch (fallbackError) {
-            console.warn("Failed to load from TimeCapsule:", fallbackError);
-            currentFrames = [];
+          const aiFramesApp = (window as any).aiFramesApp;
+          if (aiFramesApp && typeof aiFramesApp.loadFramesFromStorage === 'function') {
+            currentFrames = await aiFramesApp.loadFramesFromStorage();
           }
+        } catch (error) {
+          console.warn("⚠️ Failed to load frames from storage:", error);
         }
       }
 
-      // FIXED: Ensure currentFrames is always an array
-      if (!Array.isArray(currentFrames)) {
-        console.warn("currentFrames is not an array, initializing as empty array");
-        currentFrames = [];
-      }
-
-      // 
-
-      // TEMPORARY FIX: Skip graph node conversion to prevent data loss
-      // Until we can properly get the graph state, just save existing frames
-      // 
-      
-      // SILENT: Get current graph state and convert nodes to frames (no spam logging)
-      const currentGraphState = getCurrentGraphState();
-      
-      // Helper function to determine if a value is a user edit vs system default
-      const defaults = {
-        title: ['Untitled Frame', 'Frame 1', 'AI-Frame [1]'],
-        goal: ['No learning goal specified', 'No goal specified', ''],
-        informationText: ['', 'No information provided'],
-        afterVideoText: ['', 'No takeaways provided']
-      } as const;
-      
-      const isUserEdit = (value: string, field: keyof typeof defaults) => {
-        return value && value.trim() && !defaults[field]?.some((d: string) => 
-          value.toLowerCase().trim() === d.toLowerCase().trim()
-        );
-      };
-      
-      // Get all frame nodes for deduplication
-      const allFrameNodes = currentGraphState.nodes.filter((node: any) => node.type === 'aiframe');
-      
-      // DRAGON SLAYER: Silent frame extraction
-
-      // CRITICAL FIX: Deduplicate frame nodes before conversion to prevent duplicate frames
-      const uniqueFrameNodes = allFrameNodes
-        .reduce((acc: any[], node: any) => {
-          // Find existing frame node with same frameId or title
-          const existingNode = acc.find(n => 
-            n.data.frameId === node.data.frameId || 
-            (n.data.title === node.data.title && n.data.title)
-          );
-          
-          if (!existingNode) {
-            acc.push(node);
-          } else {
-            // Keep the node with more complete data - prioritize custom titles and attachments
-            const nodeScore = (n: any) => {
-              let score = 0;
-              
-              // CRITICAL: Check for connected text attachments
-              // FIXED: Remove isAttached requirement that was causing attachments to disappear on refresh
-              const hasConnectedAttachment = currentGraphState.nodes.some((attachNode: any) => 
-                attachNode.type?.includes('-attachment') && 
-                (attachNode.data.attachedToFrameId === n.id || attachNode.data.attachedToFrameId === n.data.frameId)
-              );
-              
-              // HIGHEST PRIORITY: Has connected attachment or attachment data
-              if (n.data.attachment || hasConnectedAttachment) score += 20;
-              
-              // HIGH PRIORITY: Custom title (not generic defaults)
-              const title = n.data.title || '';
-              if (title && title !== 'Untitled Frame' && title !== 'Frame 1' && !title.startsWith('AI-Frame')) {
-                score += 15;
-              }
-              
-              // MEDIUM PRIORITY: Has meaningful goal
-              if (n.data.goal && n.data.goal !== 'No learning goal specified' && n.data.goal !== 'No goal specified') {
-                score += 8;
-              }
-              
-              // LOW PRIORITY: Has content
-              if (n.data.informationText && n.data.informationText.trim()) score += 4;
-              if (n.data.afterVideoText && n.data.afterVideoText.trim()) score += 2;
-              
-              return score;
-            };
-            
-            const nodeScoreValue = nodeScore(node);
-            const existingScoreValue = nodeScore(existingNode);
-            
-            // SILENT: Frame selection made (no logging to prevent spam)
-            
-            if (nodeScoreValue > existingScoreValue) {
-              const index = acc.indexOf(existingNode);
-              acc[index] = node;
-            }
-          }
-          
-          return acc;
-        }, []);
-        
-      // SILENT: Frame deduplication complete (no logging to prevent spam)
-      
-      // CRITICAL FIX: Merge current frames (user edits) with graph frames (structure)
-      // This ensures user edits like "f1" title and text content are preserved
-      const currentFramesMap = new Map(currentFrames.map(f => [f.id, f]));
-      
-      const graphFrames: AIFrame[] = uniqueFrameNodes
-        .map((node: any, index: number) => {
-          // CRITICAL: Find existing frame with user edits
-          // Phase 1.1 FIX: Remove fallback that assigns same frame to all nodes
-          const existingFrame = currentFramesMap.get(node.data.frameId || node.id) || 
-                               currentFrames.find(f => f.title === node.data.title);
-          
-          // DEBUG: Log merge details to understand content loss
-          console.log("🔄 FRAME MERGE DEBUG:", {
-            nodeId: node.id,
-            nodeTitle: node.data.title,
-            nodeData: {
-              goal: node.data.goal?.substring(0, 50),
-              informationText: node.data.informationText?.substring(0, 50),
-              summary: node.data.summary?.substring(0, 50)
-            },
-            existingFrame: existingFrame ? {
-              id: existingFrame.id,
-              title: existingFrame.title,
-              goal: existingFrame.goal?.substring(0, 50),
-              informationText: existingFrame.informationText?.substring(0, 50),
-              hasAttachment: !!existingFrame.attachment,
-              attachmentType: existingFrame.attachment?.type
-            } : null,
-            willMerge: !!existingFrame
-          });
-          
-          // SILENT: Enhanced attachment handling for all types
-          let attachment = node.data.attachment;
-          
-          // If no attachment but has legacy video fields, create video attachment
-          if (!attachment && node.data.videoUrl) {
-            attachment = {
-              id: `attachment-${node.id}`,
-              type: 'video' as const,
-              data: {
-                videoUrl: node.data.videoUrl,
-                title: node.data.title || 'Video',
-                startTime: node.data.startTime || 0,
-                duration: node.data.duration || 30
-              }
-            };
-          }
-
-          // CRITICAL FIX: Only search for attachments that are actually connected to frames
-          // Do NOT try to link standalone attachments to frames - they should remain independent
-          const attachedAttachments = currentGraphState.nodes.filter((n: any) => 
-            n.type?.includes('-attachment') && 
-            n.data.isAttached === true && 
-            n.data.attachedToFrameId
-          );
-          
-          const standaloneAttachments = currentGraphState.nodes.filter((n: any) => 
-            n.type?.includes('-attachment') && 
-            !n.data.isAttached
-          );
-          
-          // DRAGON SLAYER: Silent attachment search
-          
-          // Only search for attachments that are explicitly attached to this frame
-          let connectedAttachmentNode = attachedAttachments.find((n: any) => 
-            n.data.attachedToFrameId === node.id
-          );
-          
-          // Strategy 2: Try matching by original frame ID if graph node has frameId
-          if (!connectedAttachmentNode && node.data.frameId) {
-            connectedAttachmentNode = attachedAttachments.find((n: any) => 
-              n.data.attachedToFrameId === node.data.frameId
-            );
-          }
-          
-          // IMPORTANT: Do NOT try to link standalone attachments to frames
-          // Standalone attachments should remain independent and be restored via graph state
-          
-          // CRITICAL FIX: If no graph attachment found but existing frame has text attachment,
-          // preserve the existing attachment content
-          if (!connectedAttachmentNode && existingFrame?.attachment?.type === 'text') {
-            console.log("🔄 PRESERVING EXISTING TEXT ATTACHMENT:", {
-              frameId: node.id,
-              existingAttachmentType: existingFrame.attachment.type,
-              hasExistingText: !!existingFrame.attachment.data?.text,
-              textLength: existingFrame.attachment.data?.text?.length || 0,
-              textPreview: existingFrame.attachment.data?.text?.substring(0, 50) || 'NO TEXT'
-            });
-            
-            // Use existing frame's attachment as the source
-            attachment = existingFrame.attachment;
-          }
-          
-          // DRAGON SLAYER: Silent text attachment processing
-          
-          if (connectedAttachmentNode) {
-            // SILENT: Text attachment found (no logging to prevent spam)
-            
-            // SILENT: Create attachment from the connected node's latest data
-            attachment = {
-              id: connectedAttachmentNode.id,
-              type: connectedAttachmentNode.type?.replace('-attachment', '') as 'video' | 'pdf' | 'text',
-              data: {
-                title: connectedAttachmentNode.data.title,
-                notes: connectedAttachmentNode.data.notes,
-                ...(connectedAttachmentNode.type === 'video-attachment' && {
-                  videoUrl: connectedAttachmentNode.data.videoUrl,
-                  startTime: connectedAttachmentNode.data.startTime,
-                  duration: connectedAttachmentNode.data.duration,
-                }),
-                ...(connectedAttachmentNode.type === 'pdf-attachment' && {
-                  pdfUrl: connectedAttachmentNode.data.pdfUrl,
-                  pages: connectedAttachmentNode.data.pages,
-                }),
-                ...(connectedAttachmentNode.type === 'text-attachment' && {
-                  text: connectedAttachmentNode.data.text,
-                }),
-              }
-            };
-            
-            // DRAGON SLAYER: Silent attachment creation
-          }
-
-          // GOOGLE DOCS STYLE: Merge existing frame (user edits) with graph node (structure)
-          const mergedFrame = {
-            id: node.data.frameId || node.id,
-            // USER EDITS WIN: Prioritize non-default content from either source
-            title: (existingFrame?.title && !defaults.title.includes(existingFrame.title as any)) 
-                   ? existingFrame.title 
-                   : (node.data.title || existingFrame?.title || 'Untitled Frame'),
-            goal: (existingFrame?.goal && !defaults.goal.includes(existingFrame.goal as any))
-                  ? existingFrame.goal
-                  : (node.data.goal || node.data.learningGoal || existingFrame?.goal || 'No learning goal specified'),
-            informationText: (existingFrame?.informationText && existingFrame.informationText.trim() && !defaults.informationText.includes(existingFrame.informationText as any))
-                            ? existingFrame.informationText
-                            : (node.data.informationText || node.data.summary || existingFrame?.informationText || ''),
-            afterVideoText: (existingFrame?.afterVideoText && existingFrame.afterVideoText.trim() && !defaults.afterVideoText.includes(existingFrame.afterVideoText as any))
-                           ? existingFrame.afterVideoText
-                           : (node.data.afterVideoText || existingFrame?.afterVideoText || ''),
-            // ATTACHMENT PRIORITY: Merge attachments to preserve text content
-            attachment: (() => {
-              // If we have both graph attachment and existing frame attachment, merge them
-              if (attachment && existingFrame?.attachment) {
-                return {
-                  ...existingFrame.attachment,
-                  ...attachment,
-                  data: {
-                    ...existingFrame.attachment.data,
-                    ...attachment.data
-                  }
-                };
-              }
-              // Otherwise use whichever exists
-              return attachment || existingFrame?.attachment;
-            })(),
-            // PRESERVE METADATA: Use existing frame's metadata when available
-            videoUrl: existingFrame?.videoUrl || node.data.videoUrl || '',
-            startTime: existingFrame?.startTime || node.data.startTime || 0,
-            duration: existingFrame?.duration || node.data.duration || 30,
-            aiConcepts: existingFrame?.aiConcepts || node.data.aiConcepts || node.data.keyPoints || [],
-            order: existingFrame?.order || index + 1,
-            bubblSpaceId: existingFrame?.bubblSpaceId || "default",
-            timeCapsuleId: existingFrame?.timeCapsuleId || "default",
+      // Convert graph nodes to frames for merging
+      const graphFrames: AIFrame[] = currentGraphState.nodes
+        .filter((node: any) => node.type === 'aiframe')
+        .map((node: any) => {
+          const frameData = node.data || {};
+          return {
+            id: frameData.frameId || node.id,
+            title: frameData.title || 'Untitled Frame',
+            goal: frameData.goal || '',
+            informationText: frameData.informationText || '',
+            afterVideoText: frameData.afterVideoText || '',
+            aiConcepts: frameData.aiConcepts || [],
+            isGenerated: frameData.isGenerated || false,
+            videoUrl: frameData.videoUrl || '',
+            startTime: frameData.startTime || 0,
+            duration: frameData.duration || 300,
+            attachment: frameData.attachment,
+            order: frameData.order || 1,
+            bubblSpaceId: frameData.bubblSpaceId || "default",
+            timeCapsuleId: frameData.timeCapsuleId || "default",
             type: 'frame' as const,
-            createdAt: existingFrame?.createdAt || node.data.createdAt || new Date().toISOString(),
+            createdAt: frameData.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
-          
-          // DRAGON SLAYER: Silent frame merge
-          
-          return mergedFrame;
         });
 
-      // DEBUG: Temporary logging to understand duplication (DISABLED for performance)
-      // 
-
-      // CRITICAL FIX: Deduplicate frames to prevent duplication
-      const deduplicatedCurrentFrames = currentFrames.reduce((acc: AIFrame[], frame: AIFrame) => {
-        if (!acc.find(f => f.id === frame.id)) {
-          acc.push(frame);
-        }
-        return acc;
-      }, []);
-
-      // SILENT: Deduplication complete (no logging to prevent spam)
-
-      // GOOGLE DOCS STYLE: Intelligent merge strategy that prioritizes user edits
-      const mergedFrames = [...deduplicatedCurrentFrames];
+      // GOOGLE DOCS STYLE: Smart merge preserving user edits
+      const mergedFrames = [...currentFrames];
       let addedCount = 0;
       let updatedCount = 0;
 
-      // REMOVED: Duplicate defaults declaration (moved to top of function)
-
-      // Smart merge function that prioritizes user content
-      const smartMerge = (existing: AIFrame, graph: AIFrame): AIFrame => {
-        // DEBUG: Check merge decisions for goal and informationText
-        const goalDecision = {
-          existingGoal: existing.goal,
-          graphGoal: graph.goal,
-          existingIsUserEdit: isUserEdit(existing.goal, 'goal'),
-          graphIsUserEdit: isUserEdit(graph.goal, 'goal'),
-          finalGoal: isUserEdit(existing.goal, 'goal') ? existing.goal :
-                     isUserEdit(graph.goal, 'goal') ? graph.goal :
-                     existing.goal || graph.goal
-        };
-        
-        const infoDecision = {
-          existingInfo: existing.informationText,
-          graphInfo: graph.informationText,
-          existingIsUserEdit: isUserEdit(existing.informationText, 'informationText'),
-          graphIsUserEdit: isUserEdit(graph.informationText, 'informationText'),
-          finalInfo: isUserEdit(existing.informationText, 'informationText') ? existing.informationText :
-                     isUserEdit(graph.informationText, 'informationText') ? graph.informationText :
-                     existing.informationText || graph.informationText
-        };
-        
-        
-        
+      // Smart merge function preserving user edits
+      const smartMerge = (existing: AIFrame, fromGraph: AIFrame): AIFrame => {
         return {
           ...existing,
-          ...graph,
-          // USER EDITS WIN: Keep custom titles over generic ones
-          title: isUserEdit(existing.title, 'title') ? existing.title : 
-                 isUserEdit(graph.title, 'title') ? graph.title : 
-                 existing.title || graph.title,
-          
-          // USER EDITS WIN: Keep meaningful goals over defaults  
-          goal: goalDecision.finalGoal,
-                
-          // USER EDITS WIN: Keep user-written content
-          informationText: infoDecision.finalInfo,
-                          
-          afterVideoText: isUserEdit(existing.afterVideoText, 'afterVideoText') ? existing.afterVideoText :
-                         isUserEdit(graph.afterVideoText, 'afterVideoText') ? graph.afterVideoText :
-                         existing.afterVideoText || graph.afterVideoText,
-          
-          // ATTACHMENT PRIORITY: Graph attachment (latest) > existing attachment > none
-          attachment: (() => {
-            const result = graph.attachment || existing.attachment;
-            console.log("🔗 ATTACHMENT MERGE DEBUG:", {
-              frameId: graph.id,
-              frameTitle: graph.title,
-              graphHasAttachment: !!graph.attachment,
-              existingHasAttachment: !!existing.attachment,
-              graphAttachmentType: graph.attachment?.type,
-              existingAttachmentType: existing.attachment?.type,
-              graphHasText: !!graph.attachment?.data?.text,
-              existingHasText: !!existing.attachment?.data?.text,
-              graphTextLength: graph.attachment?.data?.text?.length || 0,
-              existingTextLength: existing.attachment?.data?.text?.length || 0,
-              resultHasText: !!result?.data?.text,
-              resultTextLength: result?.data?.text?.length || 0
-            });
-            return result;
-          })(),
-          
-          // Keep the most recent order and metadata
-          order: graph.order || existing.order,
+          ...fromGraph,
+          id: existing.id, // Preserve original ID
+          createdAt: existing.createdAt, // Preserve creation time
           updatedAt: new Date().toISOString()
         };
       };
 
       for (const graphFrame of graphFrames) {
-        // ENHANCED: Try multiple matching strategies to find the correct existing frame
+        // Find existing frame by ID
         let existingIndex = mergedFrames.findIndex(f => f.id === graphFrame.id);
         
         // If no exact ID match, try matching by title and order
@@ -1397,14 +1079,10 @@ Updated: ${new Date().toISOString()}`,
           );
         }
         
-        // Phase 1.1 FIX: Remove single frame assumption that causes corruption
-        // Don't assume frames are the same just because there's only one of each
-        
         if (existingIndex !== -1) {
-          // GOOGLE DOCS STYLE: Smart merge with user edit priority
+          // Smart merge with user edit priority
           const existingFrame = mergedFrames[existingIndex];
           const mergedFrame = smartMerge(existingFrame, graphFrame);
-          
           mergedFrames[existingIndex] = mergedFrame;
           updatedCount++;
         } else {
@@ -1413,9 +1091,7 @@ Updated: ${new Date().toISOString()}`,
         }
       }
 
-      // 
-
-      // FINAL DEDUPLICATION: Ensure no duplicate frames before saving
+      // Final deduplication
       const finalFrames = mergedFrames.reduce((acc: AIFrame[], frame: AIFrame) => {
         if (!acc.find(f => f.id === frame.id)) {
           acc.push(frame);
@@ -1423,58 +1099,39 @@ Updated: ${new Date().toISOString()}`,
         return acc;
       }, []);
 
-      // CRITICAL: GOOGLE DOCS STYLE - Make merged data the authoritative source
-      // Update application state immediately so all subsequent saves use correct data
-      console.log("🔄 GOOGLE DOCS: Broadcasting merged frame data as authoritative source", {
-        frameCount: finalFrames.length,
-        framesWithAttachments: finalFrames.filter(f => f.attachment).length,
-        frameContentDetails: finalFrames.map(f => ({
-          frameId: f.id,
-          frameTitle: f.title,
-          goal: f.goal?.substring(0, 50) || 'No goal',
-          informationText: f.informationText?.substring(0, 50) || 'No info',
-          hasAttachment: !!f.attachment
-        })),
-        textAttachments: finalFrames.filter(f => f.attachment?.type === 'text').map(f => ({
-          frameId: f.id,
-          frameTitle: f.title,
-          hasText: !!f.attachment?.data?.text,
-          textLength: f.attachment?.data?.text?.length || 0,
-          textPreview: f.attachment?.data?.text?.substring(0, 50) || 'No text'
-        }))
-      });
-      
-      // CRITICAL: GOOGLE DOCS APPROACH - Broadcast FIRST, then all saves use updated data
-      
+      // CRITICAL FIX: Use proper VectorStore sync from AI-Frames app
+      // Step 1: Update application state first
       onFramesChange(finalFrames);
       
-      // CRITICAL: Wait for broadcast to fully propagate to all components  
+      // Step 2: Wait for state propagation
       await new Promise(resolve => setTimeout(resolve, 300));
       
+      // Step 3: Use proper VectorStore sync methods
+      const aiFramesApp = (window as any).aiFramesApp;
+      let syncSuccess = false;
       
-
-      // SILENT: Final deduplication complete (no logging to prevent spam)
-
-      console.log("✅ FINAL FRAME COUNT:", {
-        currentFrames: currentFrames.length,
-        graphFrames: graphFrames.length,
-        finalFrames: finalFrames.length,
-        operation: `${currentFrames.length} + ${graphFrames.length} → ${finalFrames.length}`,
-        finalFrameIds: finalFrames.map(f => f.id),
-        finalFrameTitles: finalFrames.map(f => f.title)
-      });
-
-      // Save to storage
-      const frameSequence = {
-        frames: finalFrames,
-        currentFrameIndex: currentFrameIndex,
-        metadata: {
-          version: "1.0",
-          lastUpdated: new Date().toISOString(),
-          source: "graph-save"
+      if (aiFramesApp && aiFramesApp.vectorStore && aiFramesApp.vectorStoreInitialized) {
+        try {
+          // Use the proper frameStorage sync methods
+          if (typeof aiFramesApp.syncFramesToVectorStore === 'function') {
+            syncSuccess = await aiFramesApp.syncFramesToVectorStore(finalFrames);
+          } else if (typeof aiFramesApp.syncGraphChangesToKB === 'function') {
+            syncSuccess = await aiFramesApp.syncGraphChangesToKB(finalFrames);
+          }
+          
+          if (syncSuccess) {
+            console.log("✅ Graph saved successfully");
+          } else {
+            console.warn("⚠️ VectorStore sync failed");
+          }
+        } catch (syncError) {
+          console.error("❌ VectorStore sync failed:", syncError);
         }
-      };
+      } else {
+        console.warn("⚠️ VectorStore not available for sync");
+      }
 
+      // Step 4: Save to storage (localStorage, IndexedDB)
       // Save to IndexedDB
       if (graphStorageManager) {
         await graphStorageManager.saveFrameSequence(
@@ -1486,169 +1143,41 @@ Updated: ${new Date().toISOString()}`,
             source: "graph-save"
           }
         );
-        // 
-        
-        // REMOVED: Graph layout saving logic that was interfering with existing sync system
-        // The existing architecture already handles graph state saving through page.tsx
       }
 
-      // Save to TimeCapsule
-      // CRITICAL FIX: Include graph state with ALL attachments (both standalone and connected)
-      const allAttachments = currentGraphState.nodes.filter((node: any) => 
-        node.type?.includes('-attachment')
-      );
-      
-      const standaloneAttachments = allAttachments.filter((node: any) => !node.data.isAttached);
-      const connectedAttachments = allAttachments.filter((node: any) => node.data.isAttached);
-      
-      // DRAGON SLAYER: Silent attachment save
-      
-      localStorage.setItem("timecapsule_combined", JSON.stringify({
+      // Save to TimeCapsule with complete graph state
+      const completeData = {
         data: {
-          ...frameSequence,
-          // CRITICAL FIX: Add complete graph state including ALL attachments
+          frames: finalFrames,
+          currentFrameIndex: currentFrameIndex,
           graphState: {
             nodes: currentGraphState.nodes,
             edges: currentGraphState.edges,
             selectedNodeId: currentGraphState.selectedNodeId,
             viewport: currentGraphState.viewport
           },
-          // ENHANCED: Track both standalone and connected attachments
-          standaloneAttachments,
-          connectedAttachments,
-          allAttachments // Complete attachment list for debugging
+          metadata: {
+            version: "1.0",
+            lastUpdated: new Date().toISOString(),
+            source: "graph-save"
+          }
         },
         timestamp: new Date().toISOString()
-      }));
-      // 
-
-      // ENHANCED: Comprehensive sync with progress tracking
-      // 
-      
-      // Step 1: Sync to Knowledge Base with progress tracking
-      // 
-      const syncResults = {
-        knowledgeBase: false,
-        indexedDB: false,
-        localStorage: false
       };
       
-      try {
-        // ENHANCED: Skip KB sync, just trigger frame update events for page.tsx to handle
-        
-        syncResults.knowledgeBase = true;
-        
-      } catch (kbError) {
-        console.error("❌ Knowledge Base sync failed:", kbError);
-        // Continue with other sync operations
-      }
-      
-      // Step 2: Verify IndexedDB sync
-      if (graphStorageManager) {
-        try {
-          const savedSequence = await graphStorageManager.loadFrameSequence();
-          const indexedDBFrameCount = savedSequence?.frames?.length || 0;
-          
-          if (indexedDBFrameCount === finalFrames.length) {
-            syncResults.indexedDB = true;
-            // console.log("✅ IndexedDB verification successful:", {
-            //   savedFrames: indexedDBFrameCount,
-            //   expectedFrames: finalFrames.length
-            // });
-          } else {
-            console.warn("⚠️ IndexedDB frame count mismatch:", {
-              savedFrames: indexedDBFrameCount,
-              expectedFrames: finalFrames.length
-            });
-          }
-        } catch (error) {
-          console.warn("⚠️ IndexedDB verification failed:", error);
-        }
-      }
-      
-      // Step 3: Verify localStorage sync
-      try {
-        const timeCapsuleData = localStorage.getItem("timecapsule_combined");
-        if (timeCapsuleData) {
-          const parsed = JSON.parse(timeCapsuleData);
-          if (parsed.data?.frames?.length === finalFrames.length) {
-            syncResults.localStorage = true;
-            // 
-          }
-        }
-      } catch (error) {
-        console.warn("⚠️ localStorage verification failed:", error);
-      }
-      
-      // Step 4: Force external sync via AI-Frames app
-      const aiFramesApp = (window as any).aiFramesApp;
-      if (aiFramesApp && aiFramesApp.vectorStore && aiFramesApp.vectorStoreInitialized) {
-        // 
-        
-        try {
-          if (typeof aiFramesApp.syncFramesToKB === 'function') {
-            await aiFramesApp.syncFramesToKB(finalFrames);
-            // 
-          }
-        } catch (externalSyncError) {
-          console.error("❌ External Knowledge Base sync failed:", externalSyncError);
-        }
-      }
-      
+      localStorage.setItem("timecapsule_combined", JSON.stringify(completeData));
+
       // Step 5: Dispatch comprehensive events
       if (typeof window !== 'undefined') {
-        // CRITICAL FIX: Include standalone attachment nodes in the graph state
-        const standaloneAttachments = currentGraphState.nodes.filter((node: any) => 
-          node.type?.includes('-attachment') && !node.data.isAttached
-        );
-        
-        console.log("🔄 FrameGraphIntegration: Including standalone attachments in save events:", {
-          standaloneAttachments: standaloneAttachments.length,
-          types: standaloneAttachments.map(n => n.type)
-        });
-
-        // Event for KB documents changed
-        window.dispatchEvent(new CustomEvent('kb-documents-changed', {
-          detail: {
-            source: 'save-graph',
-            frameCount: finalFrames.length,
-            timestamp: new Date().toISOString(),
-            frames: finalFrames,
-            syncResults,
-            // CRITICAL FIX: Add graph state with ALL attachments
-            graphState: {
-              nodes: currentGraphState.nodes,
-              edges: currentGraphState.edges,
-              selectedNodeId: currentGraphState.selectedNodeId,
-              viewport: currentGraphState.viewport
-            },
-            // ENHANCED: Include all attachment types for complete restoration
-            standaloneAttachments,
-            connectedAttachments,
-            allAttachments
-          }
-        }));
-
-        // Event for AI-Frames specific KB update
+        // Event for Knowledge Base update
         window.dispatchEvent(new CustomEvent('aiframes-kb-updated', {
           detail: {
             source: 'save-graph',
             frameCount: finalFrames.length,
             timestamp: new Date().toISOString(),
             frames: finalFrames,
-            hasFrameUpdates: true,
-            syncResults,
-            // CRITICAL FIX: Add graph state with ALL attachments
-            graphState: {
-              nodes: currentGraphState.nodes,
-              edges: currentGraphState.edges,
-              selectedNodeId: currentGraphState.selectedNodeId,
-              viewport: currentGraphState.viewport
-            },
-            // ENHANCED: Include all attachment types for complete restoration
-            standaloneAttachments,
-            connectedAttachments,
-            allAttachments
+            syncSuccess,
+            graphState: currentGraphState
           }
         }));
 
@@ -1657,64 +1186,28 @@ Updated: ${new Date().toISOString()}`,
           detail: {
             source: 'save-graph',
             reason: 'frames-saved-to-graph',
-            timestamp: new Date().toISOString(),
-            syncResults
+            timestamp: new Date().toISOString()
           }
         }));
         
-        // Event for force save to ensure everything is in sync
-        window.dispatchEvent(new CustomEvent('force-save-frames', {
-          detail: {
-            reason: 'save-graph-complete',
-            frameCount: finalFrames.length,
-            timestamp: new Date().toISOString(),
-            syncResults
-          }
-        }));
-        
-        // CRITICAL: Force update AI-Frames app state with merged frames
-        const aiFramesApp = (window as any).aiFramesApp;
-        if (aiFramesApp && typeof aiFramesApp.updateFrames === 'function') {
-          // 
-          aiFramesApp.updateFrames(finalFrames);
-        } else {
-          // Alternative: Use window event to trigger frame update
-          window.dispatchEvent(new CustomEvent('graph-frames-updated', {
-            detail: {
-              frames: finalFrames,
-              source: 'save-graph-complete',
-              timestamp: new Date().toISOString(),
-              preserveAttachments: true
-            }
-          }));
-        }
-      }
-      
-      // 
-
-      // Dispatch success event with sync results
-      if (typeof window !== 'undefined') {
+        // Success event
         window.dispatchEvent(new CustomEvent('graph-saved', {
           detail: {
             success: true,
             frameCount: finalFrames.length,
-            nodeCount: graphState.nodes.length,
-            edgeCount: graphState.edges.length,
+            nodeCount: currentGraphState.nodes.length,
+            edgeCount: currentGraphState.edges.length,
             frames: finalFrames,
-            hasFrameUpdates: true,
-            timestamp: new Date().toISOString(),
-            syncResults,
-            allSynced: syncResults.knowledgeBase && syncResults.indexedDB && syncResults.localStorage
+            syncSuccess,
+            timestamp: new Date().toISOString()
           }
         }));
       }
 
-      // Update saved snapshot and reset change state - use same simple format as change detection
+      // Update saved snapshot and reset change state
       const currentSnapshot = `${currentGraphState.nodes.length}-${currentGraphState.edges?.length || 0}`;
       setLastSavedSnapshot(currentSnapshot);
       setHasUnsavedChanges(false);
-      
-      // 
       
     } catch (error) {
       console.error("❌ Save Graph failed:", error);

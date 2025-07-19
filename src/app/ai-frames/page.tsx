@@ -75,15 +75,10 @@ import { DeepResearchApp } from "../../components/DeepResearch/DeepResearchApp";
 import { 
   useFrameStorage, 
   useFrameEvents, 
-  FrameManager, 
-  FrameControls,
-  FrameNavigation,
   AIFrame,
   GraphState,
   generateFrameId,
   loadFramesFromKnowledgeBase,
-  detectAndParseFrameData,
-  getLocalStorageFrames,
   getTimeCapsuleCombinedData,
   setTimeCapsuleCombinedData,
   DEFAULT_FRAME
@@ -133,21 +128,9 @@ export default function AIFramesPage() {
     processingStatus,
   } = useVectorStore();
 
-  // PRESERVATION: Keep original state management
+  // SIMPLIFIED: Keep only essential state for FrameGraphIntegration
   const [isCreationMode, setIsCreationMode] = useState(true);
-  const [showCreationForm, setShowCreationForm] = useState(false);
-  const [showGraphView, setShowGraphView] = useState(false);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
-  const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string }>>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [frameCreationData, setFrameCreationData] = useState<FrameCreationData>({
-    goal: "",
-    videoUrl: "",
-    startTime: 0,
-    duration: 0,
-  });
 
   // NEW: Use modular hooks for storage and events
   const frameStorage = useFrameStorage({
@@ -214,40 +197,51 @@ export default function AIFramesPage() {
     initializeManagers();
   }, [providerVectorStore, vectorStoreInitialized]);
 
-  // FIXED: VectorStore modal management - show during initialization, hide when ready
+  // FIXED: Enhanced VectorStore modal management for stability
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    // Show modal during initialization
-    if (!vectorStoreInitialized && !showVectorStoreInitModal) {
+    // Show modal only during initial loading (not during re-initialization)
+    if (!vectorStoreInitialized && vectorStoreInitializing && !showVectorStoreInitModal) {
       setShowVectorStoreInitModal(true);
     }
     
-    // Auto-hide modal when VectorStore is ready (with brief delay to show "ready" state)
-    if (vectorStoreInitialized && showVectorStoreInitModal) {
+    // Hide modal when VectorStore is fully ready AND stable
+    if (vectorStoreInitialized && !vectorStoreInitializing && providerVectorStore?.initialized !== false && showVectorStoreInitModal) {
+      // Longer delay to ensure VectorStore is stable before hiding modal
       timeoutId = setTimeout(() => {
         setShowVectorStoreInitModal(false);
-      }, 1000);
+      }, 2000);
     }
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [vectorStoreInitialized, showVectorStoreInitModal]);
+  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore?.initialized, showVectorStoreInitModal]);
 
-  // PRESERVATION: Load frames on component mount (FIXED: Removed frameStorage dependency to prevent infinite loops)
+  // PRESERVATION: Load frames on component mount (FIXED: Prevent infinite loading loop)
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  
   useEffect(() => {
     const loadInitialData = async () => {
-      // FIXED: Prevent multiple concurrent loading calls
-      if (isLoadingInitialData) return;
+      // FIXED: Detect actual page refresh vs component re-render
+      const isActualRefresh = !sessionStorage.getItem('ai-frames-session-active');
+      sessionStorage.setItem('ai-frames-session-active', 'true');
+      
+      // FIXED: Allow loading on actual refresh OR first component mount
+      if (isLoadingInitialData || (hasAttemptedLoad && !isActualRefresh)) return;
       
       try {
         setIsLoadingInitialData(true);
+        setHasAttemptedLoad(true);
         
-        // Multi-strategy loading preserved from Sage's Chronicle
+        // Reduced logging - only essential messages
+        console.log("🔄 Loading initial data...");
+        
+        // CRITICAL FIX: Always try localStorage/timecapsule_combined first - no VectorStore dependency
         const loadedFrames = await frameStorage.loadFramesFromStorage();
         
-        // FIXED: Only try KB loading once when VectorStore is fully initialized and we have no frames
+        // FIXED: Only try KB loading when VectorStore is available AND we have no frames
         if (loadedFrames.length === 0 && providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing) {
           // Try loading from Knowledge Base - only once per session
           const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
@@ -261,6 +255,8 @@ export default function AIFramesPage() {
         if (combinedData?.graphState) {
           setInitialGraphState(combinedData.graphState);
         }
+        
+        console.log("✅ Initial data loaded");
       } catch (error) {
         console.error("❌ Failed to load initial data:", error);
       } finally {
@@ -268,73 +264,26 @@ export default function AIFramesPage() {
       }
     };
 
-    // FIXED: Only run when VectorStore is fully initialized (not initializing) with a small delay
-    if (providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing && !isLoadingInitialData) {
-      // Add a small delay to ensure VectorStore database is fully ready
-      setTimeout(() => {
+    // CRITICAL FIX: Only run once on mount and when VectorStore becomes available
+    // Don't include isLoadingInitialData in dependencies to prevent infinite loops
+    const shouldLoad = (
+      // Always load immediately if no VectorStore dependency
+      !providerVectorStore ||
+      // Or when VectorStore is fully ready
+      (providerVectorStore && vectorStoreInitialized && !vectorStoreInitializing)
+    );
+    
+    if (shouldLoad && !isLoadingInitialData) {
+      // Check if we should load based on session state
+      const isActualRefresh = !sessionStorage.getItem('ai-frames-session-active');
+      if (!hasAttemptedLoad || isActualRefresh) {
+        // Remove delay - load immediately
         loadInitialData();
-      }, 500);
+      }
     }
-  }, [providerVectorStore, vectorStoreInitialized, vectorStoreInitializing]); // FIXED: Removed isLoadingInitialData from dependencies to prevent loops
+  }, [providerVectorStore, vectorStoreInitialized, vectorStoreInitializing]); // CRITICAL FIX: Removed isLoadingInitialData to prevent infinite loops
 
-  // PRESERVATION: Frame creation functionality
-  const createFrame = useCallback(async (data: FrameCreationData) => {
-    try {
-      setIsGenerating(true);
-      
-      const newFrame: AIFrame = {
-        ...DEFAULT_FRAME,
-        id: generateFrameId(),
-        title: data.title || `Frame ${frameStorage.frames.length + 1}`,
-        goal: data.goal,
-        informationText: data.textContent || "",
-        videoUrl: data.videoUrl,
-        startTime: data.startTime || 0,
-        duration: data.duration || 0,
-        afterVideoText: data.textNotes || "",
-        aiConcepts: [],
-        order: frameStorage.frames.length,
-        type: "frame",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Add frame to storage
-      const updatedFrames = [...frameStorage.frames, newFrame];
-      await frameStorage.saveFramesToStorage(updatedFrames);
-
-      // Update chat messages
-      setChatMessages(prev => [
-        ...prev,
-        {
-          role: "ai",
-          content: `✅ Frame "${newFrame.title}" created successfully!\n\n🎯 Goal: ${newFrame.goal}\n📹 Video: ${newFrame.videoUrl}\n\nFrame has been saved to storage and synced with Knowledge Base.`,
-        },
-      ]);
-
-      // Reset form
-      setFrameCreationData({
-        goal: "",
-        videoUrl: "",
-        startTime: 0,
-        duration: 0,
-      });
-      setShowCreationForm(false);
-      
-      console.log("✅ Frame created successfully:", newFrame.title);
-    } catch (error) {
-      console.error("❌ Failed to create frame:", error);
-      setChatMessages(prev => [
-        ...prev,
-        {
-          role: "ai",
-          content: `❌ Failed to create frame: ${error instanceof Error ? error.message : "Unknown error"}`,
-        },
-      ]);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [frameStorage]);
+  // REMOVED: Frame creation functionality (handled by FrameGraphIntegration)
 
   // PRESERVATION: Handle frame clear
   const handleClearFrames = useCallback(() => {
@@ -411,134 +360,37 @@ export default function AIFramesPage() {
     frameStorage.broadcastFrameChanges(convertedFrames);
   }, [frameStorage]);
 
-  // PRESERVATION: Render mode toggle
-  const renderModeToggle = () => (
-    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Mode:</span>
-        <Button
-          variant={isCreationMode ? "default" : "outline"}
-          size="sm"
-          onClick={() => setIsCreationMode(true)}
-        >
-          <Bot className="h-4 w-4 mr-1" />
-          Creator
-        </Button>
-        <Button
-          variant={!isCreationMode ? "default" : "outline"}
-          size="sm"
-          onClick={() => setIsCreationMode(false)}
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          Learner
-        </Button>
-      </div>
-      <Separator orientation="vertical" className="h-6" />
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">View:</span>
-        <Button
-          variant={!showGraphView ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowGraphView(false)}
-        >
-          <Target className="h-4 w-4 mr-1" />
-          Linear
-        </Button>
-        <Button
-          variant={showGraphView ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowGraphView(true)}
-        >
-          <Network className="h-4 w-4 mr-1" />
-          Graph
-        </Button>
-      </div>
-    </div>
-  );
+  // REMOVED: Unused renderModeToggle function after refactor
 
-  // PRESERVATION: Render creation form
-  const renderCreationForm = () => (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Create New Frame
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="goal">Learning Goal</Label>
-          <Textarea
-            id="goal"
-            value={frameCreationData.goal}
-            onChange={(e) => setFrameCreationData(prev => ({ ...prev, goal: e.target.value }))}
-            placeholder="What do you want to learn?"
-            rows={3}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="videoUrl">Video URL</Label>
-          <Input
-            id="videoUrl"
-            type="url"
-            value={frameCreationData.videoUrl}
-            onChange={(e) => setFrameCreationData(prev => ({ ...prev, videoUrl: e.target.value }))}
-            placeholder="https://youtube.com/watch?v=..."
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="title">Title (Optional)</Label>
-          <Input
-            id="title"
-            value={frameCreationData.title || ""}
-            onChange={(e) => setFrameCreationData(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="Frame title"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="textContent">Notes (Optional)</Label>
-          <Textarea
-            id="textContent"
-            value={frameCreationData.textContent || ""}
-            onChange={(e) => setFrameCreationData(prev => ({ ...prev, textContent: e.target.value }))}
-            placeholder="Additional notes or framework information"
-            rows={4}
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => createFrame(frameCreationData)}
-            disabled={!frameCreationData.goal || !frameCreationData.videoUrl || isGenerating}
-            className="flex-1"
-          >
-            {isGenerating ? "Creating..." : "Create Frame"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowCreationForm(false)}
-          >
-            Cancel
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  // REMOVED: Unused renderCreationForm function after refactor
 
   // Load documents when VectorStore is ready
   useEffect(() => {
     const loadDocuments = async () => {
-      if (vectorStoreInitialized && providerVectorStore) {
+      // FIXED: Enhanced VectorStore readiness check to prevent "Vector Store not initialized" error
+      if (vectorStoreInitialized && providerVectorStore && !vectorStoreInitializing) {
         try {
+          // Additional safety check: verify VectorStore has initialized property
+          if (providerVectorStore.initialized === false) {
+            console.log("VectorStore not fully initialized yet, skipping document load");
+            return;
+          }
+          
           const allDocuments = await providerVectorStore.getAllDocuments();
           setDocuments(allDocuments);
         } catch (error) {
-          console.error("Failed to load documents:", error);
+          // FIXED: Handle "Vector Store not initialized" gracefully
+          if (error instanceof Error && error.message.includes('Vector Store not initialized')) {
+            console.log("VectorStore still initializing, will retry when ready");
+          } else {
+            console.error("Failed to load documents:", error);
+          }
         }
       }
     };
 
     loadDocuments();
-  }, [vectorStoreInitialized, providerVectorStore]);
+  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore]);
 
   // Document management functions - copied from Deep Research
   const formatFileSize = (bytes: number) => {
@@ -749,245 +601,105 @@ export default function AIFramesPage() {
     }
   };
 
-  // Main render
+  // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const aiFramesApp = {
+        vectorStore: providerVectorStore,
+        vectorStoreInitialized,
+        frames: frameStorage.frames,
+        // Expose the frameStorage sync methods for FrameGraphIntegration
+        syncFramesToVectorStore: frameStorage.syncFramesToVectorStore,
+        syncGraphChangesToKB: frameStorage.syncGraphChangesToKB,
+        loadFramesFromStorage: frameStorage.loadFramesFromStorage,
+        // Also expose frame management
+        updateFrames: frameStorage.broadcastFrameChanges
+      };
+      
+      (window as any).aiFramesApp = aiFramesApp;
+      
+      console.log("🔧 AI-Frames app interface exposed to window:", {
+        hasVectorStore: !!aiFramesApp.vectorStore,
+        vectorStoreInitialized: aiFramesApp.vectorStoreInitialized,
+        frameCount: aiFramesApp.frames.length,
+        hasSyncMethods: typeof aiFramesApp.syncFramesToVectorStore === 'function' && typeof aiFramesApp.syncGraphChangesToKB === 'function'
+      });
+    }
+  }, [providerVectorStore, vectorStoreInitialized, frameStorage.frames, frameStorage.syncFramesToVectorStore, frameStorage.syncGraphChangesToKB, frameStorage.loadFramesFromStorage, frameStorage.broadcastFrameChanges]);
+
+  // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (
     <>
       <div className="min-h-screen flex flex-col pt-20">
-        {/* Main Content Area - Full height minus navbar */}
-        <div className="flex-1 flex flex-col">
-          {/* Sticky Header with Mode Controls - follows scroll like navbar */}
-          <div className="sticky top-20 z-40 flex-none border-b border-gray-200 bg-white/95 backdrop-blur-sm p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <Network className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold">Dual-Pane AI Frames</h2>
-                    <Badge variant="outline" className="text-green-600">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                      Real-time
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <Layers className="h-3 w-3" />
-                    {frameStorage.frames.length} frames
-                  </Badge>
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" />
-                    {chapters.length} chapters
-                  </Badge>
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <Target className="h-3 w-3" />
-                    0 concepts
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={isCreationMode ? "default" : "secondary"}>
-                  {isCreationMode ? (
-                    <Bot className="h-3 w-3 mr-1" />
-                  ) : (
-                    <Eye className="h-3 w-3 mr-1" />
-                  )}
-                  {isCreationMode ? "Creator Mode" : "Learning Mode"}
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveFrames}
-                  disabled={!frameEvents.hasUnsavedChanges || frameEvents.isSaving}
-                  className={`${frameEvents.hasUnsavedChanges ? 'text-blue-600 hover:text-blue-700' : 'text-gray-400'} transition-colors`}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {frameEvents.isSaving ? "Saving..." : frameEvents.hasUnsavedChanges ? "Save Graph" : "No Changes"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Organize logic here
-                    console.log("Organize frames");
-                  }}
-                  disabled={frameEvents.isSaving}
-                  className="text-green-600 hover:text-green-700"
-                >
-                  <Layers className="h-4 w-4 mr-2" />
-                  Organize
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Left Sidebar and Main Content */}
+        {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
+        <div className="flex-1 overflow-hidden">
+          {/* FIXED: Dual pane layout like Deep Research - sidebar + main content */}
           <div className="flex-1 flex min-h-0">
-            <div className="w-64 bg-gray-50 border-r border-gray-200 p-4 space-y-6">
+            {/* Left Sidebar - Knowledge Base Section like Deep Research */}
+            <div className="w-80 bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Frames</h3>
-                <p className="text-sm text-gray-600">Interactive AI learning</p>
+                <p className="text-sm text-gray-600">Interactive AI learning platform</p>
               </div>
 
-              {/* Mode & View Controls */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Mode & View</h4>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Mode:</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant={isCreationMode ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setIsCreationMode(true)}
-                        className="flex-1"
-                      >
-                        <Bot className="h-4 w-4 mr-1" />
-                        Creator
-                      </Button>
-                      <Button
-                        variant={!isCreationMode ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setIsCreationMode(false)}
-                        className="flex-1"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Learner
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">View:</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant={!showGraphView ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setShowGraphView(false)}
-                        className="flex-1"
-                      >
-                        <Target className="h-4 w-4 mr-1" />
-                        Linear
-                      </Button>
-                      <Button
-                        variant={showGraphView ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setShowGraphView(true)}
-                        className="flex-1"
-                      >
-                        <Network className="h-4 w-4 mr-1" />
-                        Graph
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded-lg">
-                  <p>💡 <strong>Dual-pane mode:</strong> Graph view (left) + Linear view (right) with full sync</p>
-                </div>
-              </div>
-
-              {/* Chapter Management */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-700">Chapter Management</h4>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowChapterDialog(true)}
-                    className="flex-1"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Create
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {}}
-                    className="flex-1"
-                  >
-                    <Settings className="h-4 w-4 mr-1" />
-                    Manage
-                  </Button>
-                </div>
-                <div className="text-xs text-gray-500">
-                  📚 0 chapters • 2 unassigned frames
-                </div>
-              </div>
-
-              {/* Frame Navigation */}
-              <FrameNavigation
-                frames={frameStorage.frames}
-                currentFrameIndex={currentFrameIndex}
-                onFrameIndexChange={setCurrentFrameIndex}
-                isCreationMode={isCreationMode}
-                onCreateFrame={() => setShowCreationForm(true)}
+              {/* Knowledge Base Section - EXACTLY like Deep Research */}
+              <KnowledgeBaseSection
+                documentStatus={{
+                  count: documents.length,
+                  totalSize: documents.reduce((sum, doc) => sum + (doc.metadata?.filesize || 0), 0),
+                  vectorCount: 0
+                }}
+                onUploadDocuments={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.multiple = true;
+                  input.onchange = (e) => {
+                    const files = (e.target as HTMLInputElement).files;
+                    if (files) {
+                      console.log("Upload documents:", files);
+                      // Handle file upload here
+                    }
+                  };
+                  input.click();
+                }}
+                onManageKnowledge={() => {
+                  console.log("Manage KB button clicked - opening Knowledge Base Manager");
+                  setShowDocumentManager(true);
+                }}
+                onScrapeUrl={() => {
+                  console.log("Scrape URL functionality");
+                }}
               />
 
-              {/* Knowledge Base */}
+              {/* Frame Stats */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium text-gray-700">Knowledge Base</h4>
+                <h4 className="text-sm font-medium text-gray-700">Frame Statistics</h4>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Documents:</span>
-                    <Badge variant="outline">9</Badge>
+                    <span className="text-gray-600">Frames:</span>
+                    <Badge variant="outline">{frameStorage.frames.length}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Total Size:</span>
-                    <Badge variant="outline">3.94 KB</Badge>
+                    <span className="text-gray-600">Mode:</span>
+                    <Badge variant={isCreationMode ? "default" : "secondary"}>
+                      {isCreationMode ? "Creator" : "Learner"}
+                    </Badge>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      console.log("Upload button clicked");
-                      setShowVectorStoreInitModal(true);
-                    }}
-                    className="flex-1"
-                    disabled={vectorStoreInitializing}
-                  >
-                    <Upload className="h-4 w-4 mr-1" />
-                    Upload
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      console.log("Manage KB button clicked");
-                      // FIXED: Open Knowledge Base Manager dialog instead of navigating
-                      setShowDocumentManager(true);
-                    }}
-                    className="flex-1"
-                    disabled={vectorStoreInitializing}
-                  >
-                    <Database className="h-4 w-4 mr-1" />
-                    Manage
-                  </Button>
                 </div>
               </div>
             </div>
 
             {/* Main Content Area - Graph Integration */}
             <div className="flex-1 overflow-hidden">
-              {/* FIXED: Only render when VectorStore is ready to prevent blocking */}
-              {vectorStoreInitialized && !vectorStoreInitializing ? (
+              {/* FIXED: Enhanced VectorStore readiness check for stability */}
+              {vectorStoreInitialized && !vectorStoreInitializing && providerVectorStore?.initialized !== false ? (
                 <FrameGraphIntegration
                   frames={framesWithOrder}
                   onFramesChange={handleFramesChange}
                   isCreationMode={isCreationMode}
                   currentFrameIndex={currentFrameIndex}
                   onFrameIndexChange={setCurrentFrameIndex}
-                  onCreateFrame={() => setShowCreationForm(true)}
+                  onCreateFrame={() => console.log("Frame creation handled by FrameGraphIntegration")}
                   initialGraphState={initialGraphState}
                   graphStorageManager={graphStorageManagerRef.current}
                 />
@@ -996,6 +708,10 @@ export default function AIFramesPage() {
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
                     <p className="text-gray-600">Initializing Knowledge Base...</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Status: {vectorStoreInitialized ? 'Initialized' : 'Initializing'} 
+                      {vectorStoreInitializing && ' (Loading...)'}
+                    </p>
                   </div>
                 </div>
               )}
@@ -1007,9 +723,18 @@ export default function AIFramesPage() {
       {/* Modals - PRESERVATION: Keep existing dialogs */}
       <VectorStoreInitModal
         isOpen={showVectorStoreInitModal}
-        progress={vectorStoreInitializing ? 50 : 0}
-        status={vectorStoreInitializing ? 'initializing' : vectorStoreInitialized ? 'ready' : 'initializing'}
-        message={vectorStoreError || (vectorStoreInitializing ? 'Initializing VectorStore...' : 'VectorStore not initialized')}
+        progress={vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0}
+        status={
+          vectorStoreError ? 'error' : 
+          vectorStoreInitialized && !vectorStoreInitializing && providerVectorStore?.initialized !== false ? 'ready' : 
+          'initializing'
+        }
+        message={
+          vectorStoreError || 
+          (vectorStoreInitialized && !vectorStoreInitializing ? 'Knowledge Base ready!' : 
+           vectorStoreInitializing ? 'Initializing Knowledge Base...' : 
+           'Preparing Knowledge Base...')
+        }
       />
       <BubblSpaceDialog
         isOpen={showBubblSpaceDialog}
