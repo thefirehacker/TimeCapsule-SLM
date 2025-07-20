@@ -268,9 +268,23 @@ export class UnifiedStorageManager {
           metadata: {
             ...frame.metadata,
             frameId: frame.id,
-            attachment: frame.attachment, // PRESERVE: Complete attachment data
+            // CRITICAL FIX: Store ALL frame properties in metadata for proper loading
+            title: frame.title,
             goal: frame.goal,
+            informationText: frame.informationText,
             videoUrl: frame.videoUrl,
+            startTime: frame.startTime,
+            duration: frame.duration,
+            afterVideoText: frame.afterVideoText,
+            aiConcepts: frame.aiConcepts,
+            isGenerated: frame.isGenerated,
+            order: frame.order,
+            bubblSpaceId: frame.bubblSpaceId,
+            timeCapsuleId: frame.timeCapsuleId,
+            frameType: frame.type,
+            createdAt: frame.createdAt,
+            updatedAt: frame.updatedAt,
+            attachment: frame.attachment, // PRESERVE: Complete attachment data
             type: 'ai-frame'
           },
           chunks: [],
@@ -327,15 +341,78 @@ export class UnifiedStorageManager {
     }
   }
 
-  // INDEXEDDB: Placeholder for future implementation
+  // INDEXEDDB: Simple implementation as backup storage
   private async saveToIndexedDB(appState: UnifiedAppState): Promise<void> {
-    // TODO: Implement IndexedDB save
-    console.log("📝 IndexedDB save placeholder");
+    try {
+      if (typeof window === 'undefined' || !window.indexedDB) {
+        console.log("📝 IndexedDB not available, skipping");
+        return;
+      }
+
+      // Create a simple key-value store in IndexedDB
+      const dbRequest = indexedDB.open('ai-frames-unified', 1);
+      
+      dbRequest.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains('appState')) {
+          db.createObjectStore('appState');
+        }
+      };
+
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        dbRequest.onsuccess = () => resolve(dbRequest.result);
+        dbRequest.onerror = () => reject(dbRequest.error);
+      });
+
+      const transaction = db.transaction(['appState'], 'readwrite');
+      const store = transaction.objectStore('appState');
+      
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put(appState, 'current');
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      console.log("✅ IndexedDB save completed");
+    } catch (error) {
+      console.warn("⚠️ IndexedDB save failed:", error);
+    }
   }
 
   private async loadFromIndexedDB(): Promise<{ frames: UnifiedAIFrame[]; graphState: GraphState } | null> {
-    // TODO: Implement IndexedDB load
-    return null;
+    try {
+      if (typeof window === 'undefined' || !window.indexedDB) {
+        return null;
+      }
+
+      const dbRequest = indexedDB.open('ai-frames-unified', 1);
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        dbRequest.onsuccess = () => resolve(dbRequest.result);
+        dbRequest.onerror = () => reject(dbRequest.error);
+        dbRequest.onupgradeneeded = () => reject(new Error('Database not found'));
+      });
+
+      const transaction = db.transaction(['appState'], 'readonly');
+      const store = transaction.objectStore('appState');
+      
+      const appState = await new Promise<UnifiedAppState | null>((resolve, reject) => {
+        const request = store.get('current');
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+      });
+
+      if (appState) {
+        return {
+          frames: appState.frames,
+          graphState: appState.graphState
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn("⚠️ IndexedDB load failed:", error);
+      return null;
+    }
   }
 
   // CONTENT GENERATION: Create searchable content for VectorStore
@@ -374,19 +451,19 @@ Metadata:
     
     return {
       id: metadata.frameId || document.id.replace('aiframe-', ''),
-      title: metadata.title?.replace('AI-Frame: ', '') || 'Untitled Frame',
+      title: metadata.title || 'Untitled Frame',
       goal: metadata.goal || '',
-      informationText: metadata.informationText || '',
+      informationText: metadata.informationText || 'Provide background context and information...',
       videoUrl: metadata.videoUrl || '',
       startTime: metadata.startTime || 0,
       duration: metadata.duration || 300,
-      afterVideoText: metadata.afterVideoText || '',
+      afterVideoText: metadata.afterVideoText || 'Key takeaways and next steps...',
       aiConcepts: metadata.aiConcepts || [],
       isGenerated: metadata.isGenerated || false,
       order: metadata.order || 1,
       bubblSpaceId: metadata.bubblSpaceId || 'default',
       timeCapsuleId: metadata.timeCapsuleId || 'default',
-      type: metadata.frameType || 'frame',
+      type: metadata.frameType || 'aiframe',
       createdAt: metadata.createdAt || new Date().toISOString(),
       updatedAt: metadata.updatedAt || new Date().toISOString(),
       attachment: metadata.attachment,

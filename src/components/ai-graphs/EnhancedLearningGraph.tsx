@@ -235,6 +235,14 @@ export default function EnhancedLearningGraph({
       });
     }
     
+    console.log('🔄 FRAME UPDATE DEBUG:', {
+      frameId,
+      originalData: updatedData,
+      safeUpdatedData,
+      hasOnFramesChange: !!onFramesChange,
+      safeDataKeys: Object.keys(safeUpdatedData)
+    });
+    
     // CRITICAL FIX: Only update if we have safe data to prevent corruption
     if (Object.keys(safeUpdatedData).length > 0 && onFramesChange) {
       // CRITICAL FIX: Use framesRef.current instead of stale frames prop to prevent empty array corruption
@@ -242,6 +250,12 @@ export default function EnhancedLearningGraph({
       const updatedFrames = currentFrames.map(frame => 
         frame.id === frameId ? { ...frame, ...safeUpdatedData, updatedAt: new Date().toISOString() } : frame
       );
+      
+      console.log('🔄 CALLING onFramesChange with:', {
+        frameCount: updatedFrames.length,
+        updatedFrame: updatedFrames.find(f => f.id === frameId)
+      });
+      
       onFramesChange(updatedFrames);
       
     }
@@ -262,7 +276,7 @@ export default function EnhancedLearningGraph({
         return node;
       }));
     }
-  }, [frames, onFramesChange]);
+  }, [onFramesChange]); // Remove frames dependency to prevent stale closures
 
   // Handle content attachment to frames
   const handleAttachContent = useCallback((frameId: string, attachment: FrameAttachment) => {
