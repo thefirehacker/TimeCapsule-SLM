@@ -14,6 +14,8 @@ import {
   Controls,
   MiniMap,
   Node,
+  NodeChange,
+  EdgeChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -85,6 +87,94 @@ export default function EnhancedLearningGraph({
   
   // CRITICAL FIX: Add mutex to prevent concurrent frame creation
   const isCreatingFrame = useRef(false);
+  
+  // DYNAMIC: Universal handler for ANY node changes (position, add, remove, select, etc.)
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    // Call React Flow's built-in handler first
+    onNodesChange(changes);
+    
+    // PERFORMANCE FIX: Only emit for meaningful changes, batch position changes
+    const meaningfulChanges = changes.filter(change => 
+      change.type === 'add' || change.type === 'remove'
+    );
+    
+    // Debounce position changes to avoid excessive events during drag
+    const positionChanges = changes.filter(change => change.type === 'position');
+    if (positionChanges.length > 0) {
+      clearTimeout((window as any).positionChangeTimeout);
+      (window as any).positionChangeTimeout = setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('graph-element-changed', {
+            detail: {
+              elementType: 'node',
+              changeType: 'position',
+              elementCount: positionChanges.length,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+      }, 1000); // Only emit position events every 1 second
+    }
+    
+    // Emit immediate events for add/remove
+    meaningfulChanges.forEach(change => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('graph-element-changed', {
+          detail: {
+            elementType: 'node',
+            changeType: change.type,
+            elementId: change.id,
+            elementData: change,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+    });
+  }, [onNodesChange]);
+
+  // DYNAMIC: Universal handler for ANY edge changes (position, add, remove, etc.)
+  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    // Call React Flow's built-in handler first
+    onEdgesChange(changes);
+    
+    // CRITICAL FIX: Emit graph state changed for ALL edge modifications
+    const meaningfulChanges = changes.filter(change => 
+      change.type === 'add' || 
+      change.type === 'remove' || 
+      change.type === 'select' ||
+      change.type === 'reset'
+    );
+    
+    if (meaningfulChanges.length > 0 && typeof window !== 'undefined') {
+      // Emit graph-state-changed event to trigger unified save
+      window.dispatchEvent(new CustomEvent('graph-state-changed', {
+        detail: {
+          nodes: nodes,
+          edges: edges,
+          selectedNodeId: null,
+          nodeCount: nodes.length,
+          edgeCount: edges.length,
+          changeType: 'edges-changed',
+          changes: meaningfulChanges
+        }
+      }));
+      
+      // Also emit individual element changes for compatibility
+      meaningfulChanges.forEach(change => {
+        window.dispatchEvent(new CustomEvent('graph-element-changed', {
+          detail: {
+            elementType: 'edge',
+            changeType: change.type,
+            elementId: change.id,
+            elementData: change,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      });
+      
+      console.log(`🎯 Edge changes detected (${meaningfulChanges.length}), triggering unified save`);
+    }
+  }, [onEdgesChange, nodes, edges]);
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -155,16 +245,14 @@ export default function EnhancedLearningGraph({
     
     // Update the frame in the frames array
     if (onFramesChange) {
-      const updatedFrames = frames.map(frame => 
+      // CRITICAL FIX: Use framesRef.current instead of stale frames prop for attachments
+      const currentFrames = framesRef.current;
+      const updatedFrames = currentFrames.map(frame => 
         frame.id === frameId ? { 
           ...frame, 
           attachment,
-          // Also update legacy fields for backward compatibility
-          ...(attachment.type === 'video' && {
-            videoUrl: attachment.data.videoUrl,
-            startTime: attachment.data.startTime,
-            duration: attachment.data.duration
-          })
+          // DYNAMIC: Update all attachment data properties without hardcoding
+          updatedAt: new Date().toISOString()
         } : frame
       );
       
@@ -182,6 +270,13 @@ export default function EnhancedLearningGraph({
       }
       
       onFramesChange(updatedFrames);
+      
+      console.log('📊 ATTACHMENT DEBUG: Frame updated in array:', {
+        frameId,
+        totalFrames: updatedFrames.length,
+        attachedFrame: updatedFrames.find(f => f.id === frameId),
+        attachmentPresent: !!updatedFrames.find(f => f.id === frameId)?.attachment
+      });
     }
 
     // Update the graph node
@@ -235,14 +330,14 @@ export default function EnhancedLearningGraph({
     
     // Update the frame in the frames array
     if (onFramesChange) {
-      const updatedFrames = frames.map(frame => 
+      // CRITICAL FIX: Use framesRef.current instead of stale frames prop for detachment
+      const currentFrames = framesRef.current;
+      const updatedFrames = currentFrames.map(frame => 
         frame.id === frameId ? { 
           ...frame, 
           attachment: undefined,
-          // Clear legacy fields
-          videoUrl: '',
-          startTime: 0,
-          duration: 300
+          // DYNAMIC: Update timestamp
+          updatedAt: new Date().toISOString()
         } : frame
       );
       onFramesChange(updatedFrames);
@@ -407,9 +502,9 @@ export default function EnhancedLearningGraph({
           
           newNodes.push(attachmentNode);
           
-          // Create attachment edge
+          // Create attachment edge with unique ID
           newEdges.push({
-            id: `${attachmentNodeId}-${nodeId}`,
+            id: `edge_${attachmentNodeId}_${nodeId}_attachment`,
             source: attachmentNodeId,
             target: nodeId,
             targetHandle: "attachment-slot",
@@ -533,7 +628,7 @@ export default function EnhancedLearningGraph({
           // Create attachment from source node
           const attachment: FrameAttachment = {
             id: sourceNode.id,
-            type: sourceNode.type?.replace('-attachment', '') as 'video' | 'pdf' | 'text',
+            type: sourceNode.type?.replace('-attachment', '') || 'unknown',
             data: {
               title: sourceNode.data.title,
               notes: sourceNode.data.notes,
@@ -596,15 +691,24 @@ export default function EnhancedLearningGraph({
         }
       }
       
-      // Create the edge with enhanced styling
+      // Create the edge with enhanced styling and guaranteed unique ID
       const edge = {
         ...params,
+        id: params.id || `edge_${params.source}_${params.target}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Ensure absolute unique ID
         style: params.targetHandle === 'attachment-slot' 
           ? { stroke: "#f97316", strokeWidth: 3 } // Orange for attachments
           : { stroke: "#3b82f6", strokeWidth: 2 }, // Blue for sequential
       };
       
-      setEdges((eds) => addEdge(edge, eds));
+      // CRITICAL FIX: Prevent duplicate edges by checking if edge already exists
+      setEdges((eds) => {
+        const existingEdge = eds.find(e => e.id === edge.id);
+        if (existingEdge) {
+          console.log('🔄 Edge already exists, skipping duplicate:', edge.id);
+          return eds;
+        }
+        return addEdge(edge, eds);
+      });
       
       // Emit connection event for real-time sync
       if (typeof window !== 'undefined') {
@@ -616,6 +720,36 @@ export default function EnhancedLearningGraph({
             timestamp: new Date().toISOString()
           }
         }));
+        
+        // COMPATIBILITY: Also emit legacy connection-changed event
+        window.dispatchEvent(new CustomEvent('connection-changed', {
+          detail: {
+            connectionType: 'added',
+            connectionData: edge,
+            timestamp: new Date().toISOString()
+          }
+        }));
+        
+        // CRITICAL FIX: Emit graph-state-changed to trigger unified save
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('graph-state-changed', {
+            detail: {
+              nodes: nodes,
+              edges: [...edges, edge], // Include the new edge in the state
+              selectedNodeId: null,
+              nodeCount: nodes.length,
+              edgeCount: edges.length + 1,
+              changeType: 'edge-added',
+              edgeData: edge
+            }
+          }));
+          
+          console.log('🎯 Connection created, triggering unified save:', {
+            edgeId: edge.id,
+            source: edge.source,
+            target: edge.target
+          });
+        }, 100); // Small delay to ensure state is updated
       }
     },
     [handleAttachContent] // PERFORMANCE FIX: Remove nodes/edges deps to prevent constant recreation during drag
@@ -665,6 +799,36 @@ export default function EnhancedLearningGraph({
               timestamp: new Date().toISOString()
             }
           }));
+          
+          // COMPATIBILITY: Also emit legacy connection-changed event
+          window.dispatchEvent(new CustomEvent('connection-changed', {
+            detail: {
+              connectionType: 'removed',
+              connectionData: edge,
+              timestamp: new Date().toISOString()
+            }
+          }));
+          
+          // CRITICAL FIX: Emit graph-state-changed to trigger unified save for edge deletion
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('graph-state-changed', {
+              detail: {
+                nodes: nodes,
+                edges: edges.filter(e => e.id !== edge.id), // Remove the deleted edge from state
+                selectedNodeId: null,
+                nodeCount: nodes.length,
+                edgeCount: edges.length - 1,
+                changeType: 'edge-removed',
+                edgeData: edge
+              }
+            }));
+            
+            console.log('🎯 Connection removed, triggering unified save:', {
+              edgeId: edge.id,
+              source: edge.source,
+              target: edge.target
+            });
+          }, 100); // Small delay to ensure state is updated
         }
       });
     },
@@ -715,7 +879,7 @@ export default function EnhancedLearningGraph({
           case "aiframe":
             return {
               type: "aiframe",
-              frameId: `frame-${Date.now()}`,
+              frameId: `frame-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               title: "New AI Frame",
               goal: "Enter learning goal here...",
               informationText: "Provide background context and information...",
@@ -789,6 +953,24 @@ export default function EnhancedLearningGraph({
       };
 
       setNodes((nds) => nds.concat(newNode));
+      
+      // CRITICAL FIX: Emit save events for ALL node types
+      if (typeof window !== 'undefined') {
+        // Emit graph state changed event to trigger unified save
+        window.dispatchEvent(new CustomEvent('graph-state-changed', {
+          detail: {
+            nodes: [...nodes, newNode],
+            edges: edges,
+            selectedNodeId: newNode.id,
+            nodeCount: nodes.length + 1,
+            edgeCount: edges.length,
+            changeType: 'node-added',
+            nodeType: type
+          }
+        }));
+        
+        console.log(`🎯 Node drop detected - ${type} added, triggering unified save`);
+      }
       
       // If it's an AI frame node, sync with frames array
       if (type === "aiframe" && onFramesChange) {
@@ -895,7 +1077,7 @@ export default function EnhancedLearningGraph({
   );
 
   // Handle node selection and emit events for Frame Navigation sync
-  const handleNodeClick = useCallback((event: any, node: any) => {
+  const handleNodeClick = useCallback((_event: any, node: any) => {
     setSelectedNode(node.id);
     
     // If it's an AI frame node, emit event to sync with Frame Navigation
@@ -1026,7 +1208,7 @@ export default function EnhancedLearningGraph({
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         onGraphChange?.(newGraphState); // CRITICAL FIX: Use optional chaining to prevent undefined invocation
-      }, 100); // Debounce to 100ms
+      }, 500); // Debounce to 500ms for better performance
     };
   }, [onGraphChange]);
 
@@ -1042,7 +1224,26 @@ export default function EnhancedLearningGraph({
       // DRAGON SLAYER: Silent graph state update with debouncing
       debouncedGraphChange(newGraphState);
     }
-  }, [nodes, edges, selectedNode, debouncedGraphChange]);
+    
+    // PERFORMANCE FIX: Only emit graph state change event when there are meaningful changes
+    if (typeof window !== 'undefined' && (nodes.length > 0 || edges.length > 0)) {
+      // Debounce the event emission to avoid excessive events
+      const debounceKey = `${nodes.length}-${edges.length}`;
+      if ((window as any).lastGraphStateKey !== debounceKey) {
+        (window as any).lastGraphStateKey = debounceKey;
+        window.dispatchEvent(new CustomEvent('graph-state-changed', {
+          detail: {
+            nodes,
+            edges,
+            selectedNodeId: selectedNode,
+            nodeCount: nodes.length,
+            edgeCount: edges.length,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+    }
+  }, [nodes, edges, selectedNode, debouncedGraphChange, onGraphChange]);
   
   // PERFORMANCE: Add React Flow performance optimizations
   const nodesDraggable = true;
@@ -1059,8 +1260,8 @@ export default function EnhancedLearningGraph({
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
           onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
           onInit={setReactFlowInstance}

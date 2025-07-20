@@ -281,7 +281,7 @@ Updated: ${frame.updatedAt}
 Order: ${frame.order}
 
 ${frame.notes ? `Notes: ${frame.notes}` : ""}
-${frame.attachment ? `Attachment: ${frame.attachment.type} - ${frame.attachment.name}` : ""}`;
+${frame.attachment ? `Attachment: ${frame.attachment.type} - ${frame.attachment.data?.title || frame.attachment.data?.name || 'Untitled'}` : ""}`;
 };
 
 // PRESERVATION: Cleanup utilities

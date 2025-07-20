@@ -1,22 +1,13 @@
 import { AIFrame } from "../types/frames";
 import { GraphState } from "@/components/ai-graphs/types";
 
-// UNIFIED: Single Frame Data Structure (eliminates format inconsistencies)
-export interface UnifiedAIFrame extends AIFrame {
-  // Ensure consistent attachment structure
+// DYNAMIC: Fully extensible frame data structure (future-proof for any attachment type)
+export interface UnifiedAIFrame extends Omit<AIFrame, 'attachment'> {
+  // DYNAMIC: Support ANY attachment type without hardcoding (overrides AIFrame.attachment)
   attachment?: {
     id: string;
-    type: 'video' | 'text' | 'pdf';
-    data: {
-      title?: string;
-      videoUrl?: string;
-      startTime?: number;
-      duration?: number;
-      text?: string;
-      pdfUrl?: string;
-      pages?: string;
-      notes?: string;
-    };
+    type: string; // DYNAMIC: Accept any type (video, text, pdf, audio, image, AR, VR, etc.)
+    data: Record<string, any>; // DYNAMIC: Accept any properties without schema restrictions
   };
   // Ensure consistent metadata
   metadata: {
@@ -166,19 +157,20 @@ export class UnifiedStorageManager {
   private normalizeFrames(frames: AIFrame[]): UnifiedAIFrame[] {
     return frames.map(frame => ({
       ...frame,
-      // NORMALIZE: Ensure consistent attachment format
+      // DYNAMIC: Preserve ANY attachment structure without type restrictions
       attachment: frame.attachment ? {
         id: frame.attachment.id || `attachment-${Date.now()}`,
-        type: frame.attachment.type as 'video' | 'text' | 'pdf',
+        type: frame.attachment.type, // DYNAMIC: Keep original type without casting
         data: {
-          title: frame.attachment.data?.title || frame.attachment.name || '',
-          videoUrl: frame.attachment.data?.videoUrl || frame.videoUrl || '',
-          startTime: frame.attachment.data?.startTime || frame.startTime || 0,
-          duration: frame.attachment.data?.duration || frame.duration || 300,
-          text: frame.attachment.data?.text || frame.attachment.content || '',
-          pdfUrl: frame.attachment.data?.pdfUrl || frame.attachment.url || '',
-          pages: frame.attachment.data?.pages || '',
-          notes: frame.attachment.data?.notes || ''
+          // DYNAMIC: Merge all properties from attachment data without hardcoding
+          ...(frame.attachment.data || {}),
+          // FALLBACK: Legacy support for old frame properties  
+          ...(frame.attachment.data?.name && !frame.attachment.data?.title && { title: frame.attachment.data.name }),
+          ...(frame.videoUrl && !frame.attachment.data?.videoUrl && { videoUrl: frame.videoUrl }),
+          ...(frame.startTime !== undefined && !frame.attachment.data?.startTime && { startTime: frame.startTime }),
+          ...(frame.duration !== undefined && !frame.attachment.data?.duration && { duration: frame.duration }),
+          ...(frame.attachment.data?.content && !frame.attachment.data?.text && { text: frame.attachment.data.content }),
+          ...(frame.attachment.data?.url && !frame.attachment.data?.pdfUrl && { pdfUrl: frame.attachment.data.url })
         }
       } : undefined,
       // NORMALIZE: Ensure consistent metadata
@@ -373,15 +365,9 @@ AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
 ${attachment ? `
 Attachment Details:
 - Type: ${attachment.type}
-- Title: ${attachment.data.title || 'Untitled'}
-${attachment.type === 'video' ? `- Video URL: ${attachment.data.videoUrl || ''}
-- Start Time: ${attachment.data.startTime || 0}s
-- Duration: ${attachment.data.duration || 0}s` : ''}
-${attachment.type === 'text' ? `- Text Content: ${attachment.data.text || ''}` : ''}
-${attachment.type === 'pdf' ? `- PDF URL: ${attachment.data.pdfUrl || ''}
-- Pages: ${attachment.data.pages || 'All'}` : ''}
-- Notes: ${attachment.data.notes || 'No notes'}
-` : 'Attachments: None'}
+${Object.entries(attachment.data || {}).map(([key, value]) => 
+  `- ${key.charAt(0).toUpperCase() + key.slice(1)}: ${value || 'Not specified'}`
+).join('\n')}` : 'Attachments: None'}
 
 Metadata:
 - Created: ${frame.metadata.createdAt}

@@ -21,12 +21,8 @@ export interface AIFrame {
   updatedAt: string;
   attachment?: {
     id: string;
-    type: string;
-    name?: string;
-    size?: number;
-    data?: any;
-    url?: string;
-    content?: string;
+    type: string; // DYNAMIC: Support any attachment type (video, pdf, text, audio, AR, VR, etc.)
+    data: Record<string, any>; // DYNAMIC: Support any properties without hardcoding
   };
   notes?: string;
   documents?: Array<{

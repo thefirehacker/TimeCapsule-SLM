@@ -33,6 +33,22 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
       // Update the node data
       Object.assign(data, editData);
       
+      // CRITICAL FIX: Emit update-node-data event to persist changes in graph state
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('update-node-data', {
+          detail: {
+            nodeId: data.id,
+            newData: editData
+          }
+        }));
+        
+        console.log('🎯 Video attachment data updated, triggering node data save:', {
+          nodeId: data.id,
+          title: editData.title,
+          videoUrl: editData.videoUrl
+        });
+      }
+      
       // If this attachment is connected to a frame, update the frame's attachment
       if (data.isAttached && data.attachedToFrameId) {
         const updatedAttachment = {

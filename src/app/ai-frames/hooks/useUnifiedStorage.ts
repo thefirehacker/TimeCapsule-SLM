@@ -147,7 +147,63 @@ export const useUnifiedStorage = ({
         });
         
         setFrames(data.frames);
-        setGraphState(data.graphState);
+        
+        // CRITICAL FIX: Deduplicate edges to prevent React key conflicts
+        const deduplicatedGraphState = {
+          ...data.graphState,
+          edges: data.graphState.edges ? 
+            data.graphState.edges.filter((edge, index, array) => 
+              array.findIndex(e => e.id === edge.id) === index
+            ) : []
+        };
+        
+        if (data.graphState.edges && deduplicatedGraphState.edges.length !== data.graphState.edges.length) {
+          console.log('🔧 Deduplicated edges:', {
+            original: data.graphState.edges.length,
+            deduplicated: deduplicatedGraphState.edges.length,
+            removed: data.graphState.edges.length - deduplicatedGraphState.edges.length
+          });
+        }
+        
+        // CONFLICT RESOLUTION: Sync nodes with frame data (frames are source of truth)
+        const syncedGraphState = {
+          ...deduplicatedGraphState,
+          nodes: deduplicatedGraphState.nodes.map(node => {
+            // Find matching frame for this node
+            const matchingFrame = data.frames.find(frame => frame.id === node.data?.frameId);
+            if (matchingFrame && node.data) {
+              // Frame data takes precedence over node data
+              const nodeNeedsSync = 
+                node.data.title !== matchingFrame.title ||
+                node.data.goal !== matchingFrame.goal ||
+                node.data.informationText !== matchingFrame.informationText;
+              
+              if (nodeNeedsSync) {
+                console.log(`🔄 Syncing node ${node.id} with frame data:`, {
+                  nodeTitle: node.data.title,
+                  frameTitle: matchingFrame.title,
+                  syncing: 'frame data wins'
+                });
+                
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    title: matchingFrame.title,
+                    goal: matchingFrame.goal,
+                    informationText: matchingFrame.informationText,
+                    afterVideoText: matchingFrame.afterVideoText,
+                    aiConcepts: matchingFrame.aiConcepts,
+                    isGenerated: matchingFrame.isGenerated
+                  }
+                };
+              }
+            }
+            return node;
+          })
+        };
+        
+        setGraphState(syncedGraphState);
         
         const newHash = generateStateHash(data.frames, data.graphState);
         lastSaveHash.current = newHash;
@@ -234,6 +290,10 @@ export const useUnifiedStorage = ({
     
     setFrames(unifiedFrames);
     
+    // REMOVED: Graph state sync to prevent infinite feedback loop
+    // The sync was causing: updateFrames → setGraphState → graph events → more updateFrames → loop
+    // Sync only happens during loadAll() where it's safe
+    
     // CHANGE DETECTION: Mark as unsaved if content changed
     const newHash = generateStateHash(unifiedFrames, graphState);
     if (newHash !== lastSaveHash.current) {
@@ -299,7 +359,7 @@ export const useUnifiedStorage = ({
       } finally {
         autoSaveInProgress.current = false;
       }
-    }, 5000), // CRITICAL FIX: Reduced from 10s to 5s for faster persistence
+    }, 30000), // PERFORMANCE FIX: Changed from 5s to 30s for better performance
     [frames, graphState, hasUnsavedChanges, autoSaveEnabled, generateStateHash]
   );
 
@@ -372,7 +432,8 @@ export const useUnifiedStorage = ({
       // CRITICAL FIX: Set hasUnsavedChanges flag to trigger 5-second auto-save
       setHasUnsavedChanges(true);
       
-      console.log('🔄 Frame edit processed via updateFrames - auto-save will trigger in 5 seconds');
+      // Reduced logging for performance
+      console.log('🔄 Frame edit detected, auto-save scheduled');
     };
     
     const handleFramesUpdatedEvent = (event: any) => {
@@ -410,7 +471,7 @@ export const useUnifiedStorage = ({
       
       // CRITICAL FIX: Trigger auto-save for connection changes
       setHasUnsavedChanges(true);
-      console.log('🔄 Connection changes detected, auto-save will trigger in 5 seconds');
+      console.log('🔄 Connection changes detected, auto-save will trigger in 30 seconds');
     };
     
     const handleGraphElementChangedEvent = (event: any) => {
@@ -438,8 +499,132 @@ export const useUnifiedStorage = ({
         
         // CRITICAL FIX: Trigger auto-save for graph element changes
         setHasUnsavedChanges(true);
-        console.log('🔄 Graph element changes detected, auto-save will trigger in 5 seconds');
+        console.log('🔄 Graph element changes detected, auto-save will trigger in 30 seconds');
       }
+    };
+    
+    // CRITICAL FIX: Handle attachment operations that require unified save
+    const handleAttachmentChangedEvent = (event: any) => {
+      const { frameId, attachment, action } = event.detail;
+      
+      console.log('🔗 Attachment change detected:', { frameId, attachmentType: attachment?.type, action });
+      
+      // Update frames state to reflect attachment change
+      if (action === 'attached' && attachment) {
+        const updatedFrames = frames.map(frame => 
+          frame.id === frameId ? { 
+            ...frame, 
+            attachment,
+            updatedAt: new Date().toISOString() 
+          } : frame
+        );
+        setFrames(updatedFrames);
+      } else if (action === 'detached') {
+        const updatedFrames = frames.map(frame => 
+          frame.id === frameId ? { 
+            ...frame, 
+            attachment: undefined,
+            updatedAt: new Date().toISOString() 
+          } : frame
+        );
+        setFrames(updatedFrames);
+      }
+      
+      // CRITICAL: Trigger auto-save for attachment operations
+      setHasUnsavedChanges(true);
+      console.log('🔄 Attachment changes detected, auto-save will trigger in 30 seconds');
+    };
+    
+    // CRITICAL FIX: Handle force save events from attachment operations  
+    const handleForceSaveEvent = (event: any) => {
+      const { reason, frameId, attachmentType } = event.detail;
+      
+      console.log('💾 Force save triggered:', { reason, frameId, attachmentType });
+      
+      // IMMEDIATE: Trigger save without waiting for auto-save delay
+      if (!autoSaveInProgress.current) {
+        console.log('🚀 Force save executing immediately...');
+        saveAll();
+      } else {
+        console.log('⏳ Force save deferred - auto-save already in progress');
+        setHasUnsavedChanges(true);
+      }
+    };
+    
+    // CRITICAL FIX: Handle graph connection events (added/removed)
+    const handleGraphConnectionEvent = (event: any) => {
+      const { connection, sourceNode, targetNode } = event.detail;
+      const eventType = event.type; // 'graph-connection-added' or 'graph-connection-removed'
+      
+      console.log('🔗 Graph connection event detected:', { 
+        eventType, 
+        connectionId: connection?.id,
+        source: sourceNode?.id,
+        target: targetNode?.id
+      });
+      
+      // Update graph state with new connection
+      if (eventType === 'graph-connection-added' && connection) {
+        setGraphState(prevGraphState => ({
+          ...prevGraphState,
+          edges: [...(prevGraphState.edges || []), connection]
+        }));
+      } else if (eventType === 'graph-connection-removed' && connection) {
+        setGraphState(prevGraphState => ({
+          ...prevGraphState,
+          edges: (prevGraphState.edges || []).filter(edge => edge.id !== connection.id)
+        }));
+      }
+      
+      // CRITICAL: Trigger auto-save for connection operations
+      setHasUnsavedChanges(true);
+      console.log('🔄 Connection changes detected, auto-save will trigger in 30 seconds');
+    };
+    
+    // CRITICAL FIX: Handle frame deletion events
+    const handleFrameDeletionEvent = (event: any) => {
+      const { frameId, deletedFrameIds } = event.detail;
+      
+      console.log('🗑️ Frame deletion event detected:', { frameId, deletedFrameIds });
+      
+      // Update frames state to remove deleted frames
+      if (deletedFrameIds && deletedFrameIds.length > 0) {
+        const updatedFrames = frames.filter(frame => !deletedFrameIds.includes(frame.id));
+        setFrames(updatedFrames);
+      } else if (frameId) {
+        const updatedFrames = frames.filter(frame => frame.id !== frameId);
+        setFrames(updatedFrames);
+      }
+      
+      // CRITICAL: Trigger auto-save for frame deletion
+      setHasUnsavedChanges(true);
+      console.log('🔄 Frame deletion detected, auto-save will trigger in 30 seconds');
+    };
+    
+    // CRITICAL FIX: Handle graph state changes to persist nodes/edges
+    const handleGraphStateChangedEvent = (event: any) => {
+      const { selectedNodeId, nodeCount, edgeCount } = event.detail;
+      
+      console.log('📊 Graph state change detected:', { nodeCount, edgeCount, selectedNodeId });
+      
+      // SIMPLE FIX: Only update selectedNodeId, don't overwrite nodes/edges
+      // This prevents the loss of connections and frame content
+      setGraphState(prevGraphState => {
+        console.log('🔄 Preserving existing graph state, only updating selection:', {
+          preservingNodes: prevGraphState.nodes.length,
+          preservingEdges: prevGraphState.edges?.length || 0,
+          newSelection: selectedNodeId
+        });
+        
+        return {
+          ...prevGraphState,
+          selectedNodeId // Only update selection, preserve everything else
+        };
+      });
+      
+      // CRITICAL: Trigger auto-save for graph state changes
+      setHasUnsavedChanges(true);
+      console.log('🔄 Graph state changes detected, auto-save will trigger in 30 seconds');
     };
     
     // Add event listeners for frame edits and updates from UI components
@@ -449,6 +634,12 @@ export const useUnifiedStorage = ({
       window.addEventListener("frames-updated", handleFramesUpdatedEvent);
       window.addEventListener("connection-changed", handleConnectionChangedEvent);
       window.addEventListener("graph-element-changed", handleGraphElementChangedEvent);
+      window.addEventListener("graph-attachment-changed", handleAttachmentChangedEvent);
+      window.addEventListener("force-save-frames", handleForceSaveEvent);
+      window.addEventListener("graph-connection-added", handleGraphConnectionEvent);
+      window.addEventListener("graph-connection-removed", handleGraphConnectionEvent);
+      window.addEventListener("graph-frame-deleted", handleFrameDeletionEvent);
+      window.addEventListener("graph-state-changed", handleGraphStateChangedEvent);
       
       return () => {
         window.removeEventListener("frame-edited", handleFrameEditedEvent);
@@ -456,6 +647,12 @@ export const useUnifiedStorage = ({
         window.removeEventListener("frames-updated", handleFramesUpdatedEvent);
         window.removeEventListener("connection-changed", handleConnectionChangedEvent);
         window.removeEventListener("graph-element-changed", handleGraphElementChangedEvent);
+        window.removeEventListener("graph-attachment-changed", handleAttachmentChangedEvent);
+        window.removeEventListener("force-save-frames", handleForceSaveEvent);
+        window.removeEventListener("graph-connection-added", handleGraphConnectionEvent);
+        window.removeEventListener("graph-connection-removed", handleGraphConnectionEvent);
+        window.removeEventListener("graph-frame-deleted", handleFrameDeletionEvent);
+        window.removeEventListener("graph-state-changed", handleGraphStateChangedEvent);
       };
     }
   }, [frames, graphState, generateStateHash]);
@@ -482,14 +679,14 @@ export const useUnifiedStorage = ({
       return;
     }
 
-    console.log('⏱️ Starting 5-second auto-save countdown for content changes...');
+    console.log('⏱️ Starting 30-second auto-save countdown for content changes...');
     
     const autoSaveTimeout = setTimeout(async () => {
       if (hasUnsavedChanges && !autoSaveInProgress.current) {
-        console.log('🎯 Auto-save triggered after 5 seconds - saving content edits');
+        console.log('🎯 Auto-save triggered after 30 seconds - saving content edits');
         await saveAll();
       }
-    }, 5000); // 5 second delay
+    }, 30000); // 30 second delay
 
     return () => {
       clearTimeout(autoSaveTimeout);

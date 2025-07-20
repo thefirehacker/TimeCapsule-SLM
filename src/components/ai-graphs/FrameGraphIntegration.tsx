@@ -37,20 +37,11 @@ interface AIFrame {
   type?: "frame" | "chapter" | "module"; // Frame type
   createdAt?: string;
   updatedAt?: string;
-  // CRITICAL FIX: Add attachment field for graph attachment system
+  // DYNAMIC: Add attachment field for graph attachment system (future-proof)
   attachment?: {
     id: string;
-    type: "video" | "pdf" | "text";
-    data: {
-      videoUrl?: string;
-      startTime?: number;
-      duration?: number;
-      pdfUrl?: string;
-      pages?: string;
-      text?: string;
-      title?: string;
-      notes?: string;
-    };
+    type: string; // DYNAMIC: Support any attachment type (video, pdf, text, audio, AR, VR, etc.)
+    data: Record<string, any>; // DYNAMIC: Support any properties without hardcoding
   };
 }
 
