@@ -110,19 +110,30 @@ export default function DualPaneFrameView({
   // CRITICAL FIX: Update graph state when initialGraphState changes
   useEffect(() => {
     if (initialGraphState && initialGraphState.nodes && initialGraphState.nodes.length > 0) {
-      // DRAGON SLAYER: Silent state update
+      // CRITICAL FIX: Only update if state actually changed to prevent loops
+      const stateChanged = JSON.stringify(graphState) !== JSON.stringify(initialGraphState);
       
-      setGraphState(initialGraphState);
-      
-      // CRITICAL: Also notify parent of the updated state
-      if (onGraphStateUpdate) {
-        onGraphStateUpdate(initialGraphState);
+      if (stateChanged) {
+        setGraphState(initialGraphState);
+        
+        // CRITICAL: Also notify parent of the updated state
+        if (onGraphStateUpdate) {
+          onGraphStateUpdate(initialGraphState);
+        }
       }
     }
-  }, [initialGraphState, onGraphStateUpdate]);
+  }, [initialGraphState]); // Remove onGraphStateUpdate from deps to prevent loops
 
+  // CRITICAL FIX: Track if we're in a sync operation to prevent circular updates
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   // Handle graph changes and sync to linear view
   const handleGraphChange = useCallback((newGraphState: GraphState) => {
+    // CRITICAL: Prevent circular sync during save operations
+    if (isSyncing) {
+      return;
+    }
+    
     setGraphState(newGraphState);
     
     // SILENT: Update parent with current graph state (no logging)
@@ -139,11 +150,15 @@ export default function DualPaneFrameView({
         // Find and navigate to the corresponding frame
         const frameIndex = frames.findIndex(f => f.id === selectedNode.data.frameId);
         if (frameIndex !== -1 && frameIndex !== currentFrameIndex) {
+          // CRITICAL: Set syncing flag to prevent circular updates
+          setIsSyncing(true);
           onFrameIndexChange(frameIndex);
+          // Reset sync flag after a short delay
+          setTimeout(() => setIsSyncing(false), 100);
         }
       }
     }
-  }, [frames, currentFrameIndex, onFrameIndexChange, onGraphStateUpdate]);
+  }, [frames, currentFrameIndex, onFrameIndexChange, onGraphStateUpdate, isSyncing]);
 
   // CRITICAL FIX: Add save operation tracking to prevent circular sync
   const [recentSaveTimestamp, setRecentSaveTimestamp] = useState<number>(0);
@@ -267,9 +282,9 @@ export default function DualPaneFrameView({
     // Listen for clear all frames event and reset graph
     const handleClearAllFrames = (event: CustomEvent) => {
       const { clearedCount } = event.detail;
-      // console.log('🗑️ Dual-pane: Clear all frames event received, clearing graph:', {
-      //   clearedCount
-      // });
+      console.log('🗑️ Dual-pane: Clear all frames event received, clearing graph:', {
+        clearedCount
+      });
       
       // Clear graph state
       setGraphState({
@@ -283,7 +298,14 @@ export default function DualPaneFrameView({
       setEditingFrameId(null);
       setEditData({});
       
-      // 
+      // Update parent with cleared state
+      if (onGraphStateUpdate) {
+        onGraphStateUpdate({
+          nodes: [],
+          edges: [],
+          selectedNodeId: null,
+        });
+      }
     };
 
     // Listen for individual frame edits and sync to graph

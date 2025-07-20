@@ -124,6 +124,16 @@ export class UnifiedStorageManager {
       const localData = await this.loadFromLocalStorage();
       if (localData && localData.frames.length > 0) {
         console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames`);
+        
+        // CRITICAL DEBUG: Log what graph state we're loading
+        console.log('🔍 LOAD DEBUG: Loaded app state with:', {
+          frameCount: localData.frames.length,
+          graphStateNodes: localData.graphState.nodes.length,
+          graphStateEdges: localData.graphState.edges.length,
+          graphStateViewport: localData.graphState.viewport,
+          selectedNodeId: localData.graphState.selectedNodeId
+        });
+        
         return localData;
       }
 
@@ -184,6 +194,16 @@ export class UnifiedStorageManager {
 
   // STATE CREATION: Create complete app state with checksum
   private createAppState(frames: UnifiedAIFrame[], graphState: GraphState): UnifiedAppState {
+    
+    // CRITICAL DEBUG: Log what graph state we're saving
+    console.log('🔍 SAVE DEBUG: Creating app state with:', {
+      frameCount: frames.length,
+      graphStateNodes: graphState.nodes.length,
+      graphStateEdges: graphState.edges.length,
+      graphStateViewport: graphState.viewport,
+      selectedNodeId: graphState.selectedNodeId
+    });
+    
     const appState: UnifiedAppState = {
       frames,
       graphState,

@@ -64,6 +64,7 @@ interface FrameGraphIntegrationProps {
   onTimeCapsuleUpdate?: (graphState: GraphState, chapters: any[]) => void;
   graphStorageManager?: any; // Add graphStorageManager prop
   initialGraphState?: GraphState; // CRITICAL FIX: Add initialGraphState prop to restore standalone attachments
+  onGraphChange?: (graphState: GraphState) => void; // CRITICAL FIX: Add graph state change callback
 }
 
 // Add debounce utility
@@ -85,6 +86,7 @@ export default function FrameGraphIntegration({
   onTimeCapsuleUpdate,
   graphStorageManager,
   initialGraphState,
+  onGraphChange,
 }: FrameGraphIntegrationProps) {
   
   // Debug: Track when frames prop changes (DISABLED to prevent spam)
@@ -468,6 +470,11 @@ Metadata:
   const handleGraphChange = useCallback((newGraphState: GraphState) => {
     setGraphState(newGraphState);
     
+    // CRITICAL FIX: Notify parent component of graph state changes
+    if (onGraphChange) {
+      onGraphChange(newGraphState);
+    }
+    
     // Check for new AI frame nodes and sync them immediately
     const newAIFrameNodes = newGraphState.nodes.filter(node => 
       node.type === 'aiframe' && 
@@ -524,7 +531,7 @@ Metadata:
     if (onTimeCapsuleUpdate) {
       onTimeCapsuleUpdate(newGraphState, chapters);
     }
-  }, [chapters, onTimeCapsuleUpdate, frames, handleFramesChangeWithRealTimeSync]);
+  }, [chapters, onTimeCapsuleUpdate, frames, handleFramesChangeWithRealTimeSync, onGraphChange]);
 
   const handleChapterClick = useCallback((chapter: any) => {
     onFrameIndexChange(chapter.startIndex);

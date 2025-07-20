@@ -248,33 +248,17 @@ export default function AIFramesPage() {
     loadInitialData();
   }, []); // Only run on mount
 
-  // SEPARATE: VectorStore retry when it becomes ready
-  useEffect(() => {
-    const retryVectorStoreLoad = async () => {
-      // Only retry if: no frames loaded AND VectorStore just became ready
-      if (unifiedStorage.frames.length === 0 && providerVectorStore && vectorStoreInitialized && !isLoadingInitialData) {
-        console.log("🔄 VectorStore ready, retrying load...");
-        
-        try {
-          setIsLoadingInitialData(true);
-          const kbFrames = await loadFramesFromKnowledgeBase(providerVectorStore, vectorStoreInitialized);
-          
-          if (kbFrames.length > 0) {
-                          console.log(`✅ Loaded ${kbFrames.length} frames from VectorStore on retry`);
-              unifiedStorage.updateFrames(kbFrames);
-          }
-        } catch (error) {
-          console.error("❌ Error loading from VectorStore:", error);
-        } finally {
-          setIsLoadingInitialData(false);
-        }
-      }
-    };
-
-    if (vectorStoreInitialized) {
-      retryVectorStoreLoad();
-    }
-  }, [vectorStoreInitialized]); // Only trigger when VectorStore becomes ready
+  // CRITICAL FIX: Removed retryVectorStoreLoad that was clearing frames after creation
+  // 
+  // ORIGINAL ISSUE:
+  // 1. User creates frames → frameCount: 2 ✅
+  // 2. VectorStore syncs frames → vectorStoreInitialized: true
+  // 3. retryVectorStoreLoad triggers with stale unifiedStorage.frames.length === 0
+  // 4. loadFramesFromKnowledgeBase called → finds no frames → clears frames to []
+  // 5. frameCount: 0 ❌ → frames lost!
+  //
+  // SOLUTION: Unified storage already handles VectorStore initialization properly.
+  // This retry logic was redundant and harmful.
 
   // REMOVED: Frame creation functionality (handled by FrameGraphIntegration)
 
@@ -295,6 +279,15 @@ export default function AIFramesPage() {
     const newIndex = direction === 'next' 
       ? Math.min(currentFrameIndex + 1, unifiedStorage.frames.length - 1)
       : Math.max(currentFrameIndex - 1, 0);
+    
+    // CRITICAL LOG: Debug frame index changes
+    console.log("🔍 Frame navigation debug:", {
+      direction,
+      currentIndex: currentFrameIndex,
+      newIndex,
+      frameCount: unifiedStorage.frames.length
+    });
+    
     setCurrentFrameIndex(newIndex);
   }, [currentFrameIndex, unifiedStorage.frames.length]);
 
@@ -706,9 +699,18 @@ export default function AIFramesPage() {
                   onFramesChange={handleFramesChange}
                   isCreationMode={isCreationMode}
                   currentFrameIndex={currentFrameIndex}
-                  onFrameIndexChange={setCurrentFrameIndex}
+                  onFrameIndexChange={(newIndex) => {
+                    console.log("🔍 CRITICAL: Frame index change called:", {
+                      oldIndex: currentFrameIndex,
+                      newIndex,
+                      frameCount: unifiedStorage.frames.length,
+                      stackTrace: new Error().stack?.split('\n')[1]
+                    });
+                    setCurrentFrameIndex(newIndex);
+                  }}
                   onCreateFrame={() => console.log("Frame creation handled by FrameGraphIntegration")}
-                  initialGraphState={undefined} // This line is removed as per new unifiedStorage
+                  onGraphChange={handleGraphStateUpdate}
+                  initialGraphState={unifiedStorage.graphState}
                   graphStorageManager={graphStorageManagerRef.current}
                 />
               ) : (

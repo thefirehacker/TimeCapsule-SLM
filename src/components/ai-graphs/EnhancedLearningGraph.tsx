@@ -76,6 +76,15 @@ export default function EnhancedLearningGraph({
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
   const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
   const lastAppliedGraphState = useRef<string | null>(null);
+  
+  // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
+  const framesRef = useRef(frames);
+  useEffect(() => {
+    framesRef.current = frames;
+  }, [frames]);
+  
+  // CRITICAL FIX: Add mutex to prevent concurrent frame creation
+  const isCreatingFrame = useRef(false);
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -102,7 +111,9 @@ export default function EnhancedLearningGraph({
     
     // CRITICAL FIX: Only update if we have safe data to prevent corruption
     if (Object.keys(safeUpdatedData).length > 0 && onFramesChange) {
-      const updatedFrames = frames.map(frame => 
+      // CRITICAL FIX: Use framesRef.current instead of stale frames prop to prevent empty array corruption
+      const currentFrames = framesRef.current;
+      const updatedFrames = currentFrames.map(frame => 
         frame.id === frameId ? { ...frame, ...safeUpdatedData, updatedAt: new Date().toISOString() } : frame
       );
       onFramesChange(updatedFrames);
@@ -782,66 +793,105 @@ export default function EnhancedLearningGraph({
       // If it's an AI frame node, sync with frames array
       if (type === "aiframe" && onFramesChange) {
         
+        // CRITICAL FIX: Prevent concurrent frame creation
+        if (isCreatingFrame.current) {
+          console.warn('Frame creation already in progress');
+          return;
+        }
         
-        // FIXED: Generate unique frame title based on highest existing frame number
-        const existingFrameNumbers = frames
-          .map(f => f.title.match(/^Frame (\d+)$/)?.[1])
-          .filter(Boolean)
-          .map(Number);
+        isCreatingFrame.current = true;
         
-        const nextFrameNumber = existingFrameNumbers.length > 0 
-          ? Math.max(...existingFrameNumbers) + 1 
-          : 1;
-        
-        const uniqueTitle = `Frame ${nextFrameNumber}`;
-        
-        const newFrame = {
-          id: newNodeData.frameId,
-          title: uniqueTitle,
-          goal: newNodeData.goal || `Learning goal for ${uniqueTitle}`,
-          informationText: newNodeData.informationText || `Context and background for ${uniqueTitle}`,
-          afterVideoText: newNodeData.afterVideoText || `Key takeaways for ${uniqueTitle}`,
-          aiConcepts: newNodeData.aiConcepts || [],
-          isGenerated: newNodeData.isGenerated || false,
-          // Frame structure fields
-          order: nextFrameNumber,
-          bubblSpaceId: "default",
-          timeCapsuleId: "default",
-          type: 'frame' as const,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          // Legacy compatibility
-          videoUrl: '',
-          startTime: 0,
-          duration: 300,
-        };
-        
-        // CRITICAL FIX: Ensure frames array is never empty during creation
-        const updatedFrames = frames.length > 0 ? [...frames, newFrame] : [newFrame];
-        
-        // FIXED: Use a small delay to ensure state is stable before triggering change
-        setTimeout(() => {
-          onFramesChange(updatedFrames);
+        try {
+          // CRITICAL FIX: Use ref to get current frames instead of stale closure
+          const currentFrames = framesRef.current;
           
-          // Emit event to sync with Frame Navigation
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('graph-frame-added', {
-              detail: {
-                newFrame,
-                totalFrames: updatedFrames.length
-              }
-            }));
+          // Only create new frame if this frameId doesn't already exist
+          const existingFrame = currentFrames.find(f => f.id === newNodeData.frameId);
+          
+          if (!existingFrame) {
+            // Generate unique frame title based on highest existing frame number
+            const existingFrameNumbers = currentFrames
+              .map(f => f.title.match(/^Frame (\d+)$/)?.[1])
+              .filter(Boolean)
+              .map(Number);
+            
+            const nextFrameNumber = existingFrameNumbers.length > 0 
+              ? Math.max(...existingFrameNumbers) + 1 
+              : currentFrames.length + 1; // Use current length as fallback
+            
+            const uniqueTitle = `Frame ${nextFrameNumber}`;
+            
+            const newFrame = {
+              id: newNodeData.frameId,
+              title: uniqueTitle,
+              goal: newNodeData.goal || `Learning goal for ${uniqueTitle}`,
+              informationText: newNodeData.informationText || `Context and background for ${uniqueTitle}`,
+              afterVideoText: newNodeData.afterVideoText || `Key takeaways for ${uniqueTitle}`,
+              aiConcepts: newNodeData.aiConcepts || [],
+              isGenerated: newNodeData.isGenerated || false,
+              // Frame structure fields
+              order: nextFrameNumber,
+              bubblSpaceId: "default",
+              timeCapsuleId: "default",
+              type: 'frame' as const,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              // Legacy compatibility
+              videoUrl: '',
+              startTime: 0,
+              duration: 300,
+            };
+            
+            // CRITICAL FIX: Create new frames array with current frames from ref
+            const updatedFrames = [...currentFrames, newFrame];
+            
+            console.log('🔍 FRAME CREATION DEBUG:', {
+              currentFramesLength: currentFrames.length,
+              newFrameId: newFrame.id,
+              newFrameTitle: newFrame.title,
+              updatedFramesLength: updatedFrames.length
+            });
+            
+            // CRITICAL FIX: Final validation before updating frames
+            const finalFrames = [...framesRef.current, newFrame];
+            console.log('🔍 FINAL FRAME UPDATE:', {
+              finalFrameCount: finalFrames.length,
+              frameIds: finalFrames.map(f => f.id),
+              frameTitles: finalFrames.map(f => f.title)
+            });
+            
+            onFramesChange(finalFrames);
+            
+            // Emit event to sync with Frame Navigation
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('graph-frame-added', {
+                detail: {
+                  newFrame,
+                  totalFrames: updatedFrames.length
+                }
+              }));
+            }
+            
+            console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
+              frameId: newFrame.id,
+              title: newFrame.title,
+              totalFrames: updatedFrames.length
+            });
+          } else {
+            console.log('🔍 CRITICAL FIX: Skipping frame creation - frame already exists:', {
+              frameId: newNodeData.frameId,
+              existingTitle: existingFrame.title
+            });
           }
-          
-          console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
-            frameId: newFrame.id,
-            title: newFrame.title,
-            totalFrames: updatedFrames.length
-          });
-        }, 50); // Small delay to prevent race conditions
+        } finally {
+          // Reset mutex after a short delay
+          setTimeout(() => {
+            isCreatingFrame.current = false;
+          }, 100);
+        }
       }
     },
-    [reactFlowInstance, frames, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent]
+    [reactFlowInstance, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent]
   );
 
   // Handle node selection and emit events for Frame Navigation sync
@@ -850,7 +900,9 @@ export default function EnhancedLearningGraph({
     
     // If it's an AI frame node, emit event to sync with Frame Navigation
     if (node.data?.type === 'aiframe' && node.data?.frameId) {
-      const frameIndex = frames.findIndex(frame => frame.id === node.data.frameId);
+      // CRITICAL FIX: Use ref to get current frames
+      const currentFrames = framesRef.current;
+      const frameIndex = currentFrames.findIndex(frame => frame.id === node.data.frameId);
       if (frameIndex !== -1) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('graph-frame-selected', {
@@ -862,14 +914,18 @@ export default function EnhancedLearningGraph({
           }));
         }
         
-        console.log('🔄 Enhanced: Graph node selected → Frame Navigation sync triggered:', {
-          nodeId: node.id,
-          frameId: node.data.frameId,
-          frameIndex
-        });
+        // REDUCED LOGGING: Only log significant events to reduce spam
+        if (frameIndex !== (window as any).lastFrameIndex) {
+          console.log('🔄 Enhanced: Graph node selected → Frame Navigation sync triggered:', {
+            nodeId: node.id,
+            frameId: node.data.frameId,
+            frameIndex
+          });
+          (window as any).lastFrameIndex = frameIndex;
+        }
       }
     }
-  }, [frames]);
+  }, []);
 
   // Listen for clear all frames event and reset graph nodes/edges
   useEffect(() => {
