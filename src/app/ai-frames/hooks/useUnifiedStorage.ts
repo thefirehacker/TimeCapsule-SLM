@@ -120,10 +120,38 @@ export const useUnifiedStorage = ({
   }, [graphState]);
 
   // BACKGROUND SAVE: Non-blocking queue-based save system
-  const queueBackgroundSave = useCallback(async (frames: UnifiedAIFrame[], graphState: GraphState) => {
-    // Always update pending data (latest wins)
-    backgroundSaveQueue.current.pendingFrames = frames;
-    backgroundSaveQueue.current.pendingGraphState = graphState;
+  const queueBackgroundSave = useCallback(async (frames: UnifiedAIFrame[], graphState: GraphState, priority = false) => {
+    // CRITICAL FIX: Priority saves (like node drops) lock the queue to prevent overwrites
+    if (priority && !backgroundSaveQueue.current.isProcessing) {
+      backgroundSaveQueue.current.pendingFrames = frames;
+      backgroundSaveQueue.current.pendingGraphState = graphState;
+      backgroundSaveQueue.current.isProcessing = true; // Lock immediately
+      
+      console.log("🔒 PRIORITY SAVE: Locked queue with fresh graph state");
+      
+      // Process immediately without delay for priority saves
+      try {
+        const success = await unifiedStorage.saveAll(frames, graphState);
+        console.log("🔒 PRIORITY SAVE: Completed with result:", { success });
+        
+        if (success) {
+          const newHash = generateStateHash(frames, graphState);
+          lastSaveHash.current = newHash;
+          setHasUnsavedChanges(false);
+        }
+      } catch (error) {
+        console.error("❌ Priority save failed:", error);
+      } finally {
+        backgroundSaveQueue.current.isProcessing = false;
+      }
+      return;
+    }
+    
+    // Normal save logic - can be overwritten
+    if (!backgroundSaveQueue.current.isProcessing) {
+      backgroundSaveQueue.current.pendingFrames = frames;
+      backgroundSaveQueue.current.pendingGraphState = graphState;
+    }
     
     // Don't start processing if already processing
     if (backgroundSaveQueue.current.isProcessing) {
@@ -150,7 +178,9 @@ export const useUnifiedStorage = ({
         console.log("🔄 BACKGROUND SAVE: Starting with data:", {
           frameCount: latestFrames.length,
           nodeCount: latestGraphState.nodes.length,
+          edgeCount: latestGraphState.edges?.length || 0,
           frameIds: latestFrames.map(f => f.id),
+          edges: latestGraphState.edges?.map(e => ({ id: e.id, source: e.source, target: e.target })) || [],
           timestamp: new Date().toISOString()
         });
         
@@ -632,10 +662,24 @@ export const useUnifiedStorage = ({
     
     // OPTIMISTIC: Handle force save events from attachment operations  
     const handleForceSaveEvent = (event: any) => {
+      const { graphState: eventGraphState, reason } = event.detail || {};
+      
+      // CRITICAL FIX: Use fresh graph state from event if provided, otherwise fall back to ref
+      const graphStateToUse = eventGraphState || graphStateRef.current;
+      
+      
+      // CRITICAL FIX: Skip if this is a node-drop-delayed save and we already have a pending save
+      if ((reason === 'node-drop-delayed' || reason === 'node-data-updated') && backgroundSaveQueue.current.isProcessing) {
+        console.log('⏸️ Skipping delayed save - background save already in progress');
+        return;
+      }
       
       // OPTIMISTIC: Use background save instead of blocking save
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, graphStateRef.current);
+      
+      // CRITICAL FIX: Use priority mode for critical graph state changes to prevent overwrites
+      const isPriorityMode = (reason === 'node-drop-delayed' || reason === 'node-data-updated') && eventGraphState;
+      queueBackgroundSave(framesRef.current, graphStateToUse, isPriorityMode);
     };
     
     // CRITICAL FIX: Handle graph connection events (added/removed)

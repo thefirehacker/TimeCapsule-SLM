@@ -159,10 +159,10 @@ export default function EnhancedLearningGraph({
       }, 1000); // Only emit position events every 1 second
     }
     
-    // Emit immediate events for add/remove
+    // Emit immediate events for remove only (add events have delayed save)
     meaningfulChanges.forEach(change => {
-      if (typeof window !== 'undefined') {
-        const elementId = (change.type === 'add' || change.type === 'remove') ? (change as any).id : undefined;
+      if (typeof window !== 'undefined' && change.type === 'remove') {
+        const elementId = (change as any).id;
         window.dispatchEvent(new CustomEvent('graph-element-changed', {
           detail: {
             elementType: 'node',
@@ -1076,12 +1076,26 @@ export default function EnhancedLearningGraph({
       
       // CRITICAL FIX: Emit save events for ALL node types
       if (typeof window !== 'undefined') {
-        // Emit graph state changed event to trigger unified save
-        emitGraphStateChange('node-added', {
-          nodeType: type
-        });
+        console.log(`🎯 Node drop detected - ${type} added, triggering delayed unified save`);
         
-        console.log(`🎯 Node drop detected - ${type} added, triggering unified save`);
+        // CRITICAL FIX: Only use delayed save to ensure graph state is updated before save
+        setTimeout(() => {
+          // Get fresh graph state after React Flow updates
+          const freshGraphState = {
+            nodes: nodesRef.current,
+            edges: edgesRef.current,
+            selectedNodeId: selectedNodeRef.current
+          };
+          
+          // Trigger save with fresh graph state included in event
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: { 
+              reason: 'node-drop-delayed', 
+              nodeType: type,
+              graphState: freshGraphState 
+            }
+          }));
+        }, 100); // Small delay to let React Flow update state
       }
       
       // If it's an AI frame node, sync with frames array
@@ -1278,8 +1292,8 @@ export default function EnhancedLearningGraph({
         attachedToFrameId: newData.attachedToFrameId
       });
       
-      setNodes(currentNodes => 
-        currentNodes.map(node => {
+      setNodes(currentNodes => {
+        const updatedNodes = currentNodes.map(node => {
           if (node.id === nodeId) {
             console.log('🔄 UPDATING NODE DATA:', {
               nodeId,
@@ -1291,8 +1305,27 @@ export default function EnhancedLearningGraph({
             return { ...node, data: newData };
           }
           return node;
-        })
-      );
+        });
+        
+        // CRITICAL FIX: Trigger save after node data update to persist changes
+        setTimeout(() => {
+          const freshGraphState = {
+            nodes: updatedNodes,
+            edges: edgesRef.current,
+            selectedNodeId: selectedNodeRef.current
+          };
+          
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: { 
+              reason: 'node-data-updated', 
+              nodeId: nodeId,
+              graphState: freshGraphState 
+            }
+          }));
+        }, 100);
+        
+        return updatedNodes;
+      });
     };
     
     window.addEventListener('update-node-data', handleNodeDataUpdate as EventListener);
