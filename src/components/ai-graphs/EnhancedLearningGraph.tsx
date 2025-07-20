@@ -53,7 +53,7 @@ const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 let id = 0;
-const getId = () => `enhanced_node_${id++}`;
+const getId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${id++}`; // SPECS FIX: Guaranteed unique IDs
 
 interface EnhancedLearningGraphProps {
   mode?: "creator" | "learner";
@@ -77,6 +77,7 @@ export default function EnhancedLearningGraph({
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
   const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
+  const lastEmissionRef = useRef<number>(0);
   const lastAppliedGraphState = useRef<string | null>(null);
   
   // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
@@ -85,9 +86,51 @@ export default function EnhancedLearningGraph({
     framesRef.current = frames;
   }, [frames]);
   
+  // CRITICAL FIX: Add refs to track current graph state for fresh values
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  const selectedNodeRef = useRef(selectedNode);
+  
+  useEffect(() => {
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+    selectedNodeRef.current = selectedNode;
+  }, [nodes, edges, selectedNode]);
+  
   // CRITICAL FIX: Add mutex to prevent concurrent frame creation
   const isCreatingFrame = useRef(false);
   
+  // HELPER: Emit graph state change with deduplication (using refs for fresh values)
+  const emitGraphStateChange = useCallback((reason: string, additionalDetail: any = {}) => {
+    const now = Date.now();
+    if (now - lastEmissionRef.current < 200) {
+      // SPECS COMPLIANT: 200ms debounce for performance optimization
+      return;
+    }
+    
+    lastEmissionRef.current = now;
+    
+    // Get fresh values from refs to avoid stale closures
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    const currentSelectedNode = selectedNodeRef.current;
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('graph-state-changed', {
+        detail: {
+          nodes: currentNodes,
+          edges: currentEdges,
+          selectedNodeId: currentSelectedNode,
+          nodeCount: currentNodes.length,
+          edgeCount: currentEdges.length,
+          reason: reason,
+          timestamp: new Date().toISOString(),
+          ...additionalDetail
+        }
+      }));
+    }
+  }, []); // No dependencies to prevent infinite loops
+
   // DYNAMIC: Universal handler for ANY node changes (position, add, remove, select, etc.)
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     // Call React Flow's built-in handler first
@@ -119,11 +162,12 @@ export default function EnhancedLearningGraph({
     // Emit immediate events for add/remove
     meaningfulChanges.forEach(change => {
       if (typeof window !== 'undefined') {
+        const elementId = (change.type === 'add' || change.type === 'remove') ? (change as any).id : undefined;
         window.dispatchEvent(new CustomEvent('graph-element-changed', {
           detail: {
             elementType: 'node',
             changeType: change.type,
-            elementId: change.id,
+            elementId: elementId,
             elementData: change,
             timestamp: new Date().toISOString()
           }
@@ -141,31 +185,23 @@ export default function EnhancedLearningGraph({
     const meaningfulChanges = changes.filter(change => 
       change.type === 'add' || 
       change.type === 'remove' || 
-      change.type === 'select' ||
-      change.type === 'reset'
+      change.type === 'select'
     );
     
     if (meaningfulChanges.length > 0 && typeof window !== 'undefined') {
       // Emit graph-state-changed event to trigger unified save
-      window.dispatchEvent(new CustomEvent('graph-state-changed', {
-        detail: {
-          nodes: nodes,
-          edges: edges,
-          selectedNodeId: null,
-          nodeCount: nodes.length,
-          edgeCount: edges.length,
-          changeType: 'edges-changed',
-          changes: meaningfulChanges
-        }
-      }));
+      emitGraphStateChange('edges-changed', {
+        changes: meaningfulChanges
+      });
       
       // Also emit individual element changes for compatibility
       meaningfulChanges.forEach(change => {
+        const elementId = (change.type === 'add' || change.type === 'remove' || change.type === 'select') ? (change as any).id : undefined;
         window.dispatchEvent(new CustomEvent('graph-element-changed', {
           detail: {
             elementType: 'edge',
             changeType: change.type,
-            elementId: change.id,
+            elementId: elementId,
             elementData: change,
             timestamp: new Date().toISOString()
           }
@@ -174,7 +210,7 @@ export default function EnhancedLearningGraph({
       
       console.log(`🎯 Edge changes detected (${meaningfulChanges.length}), triggering unified save`);
     }
-  }, [onEdgesChange, nodes, edges]);
+  }, [onEdgesChange, nodes, edges, selectedNode]);
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -310,18 +346,8 @@ export default function EnhancedLearningGraph({
       action: 'attached'
     });
     
-    // CRITICAL FIX: Force save to Knowledge Base when attachment is added
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('force-save-frames', {
-          detail: {
-            reason: 'attachment-added',
-            frameId,
-            attachmentType: attachment.type
-          }
-        }));
-      }
-    }, 100);
+    // OPTIMISTIC: Background save will handle persistence automatically
+    // No need for force save since optimistic updates are now implemented
   }, [frames, onFramesChange]);
 
   // Handle content detachment from frames
@@ -382,50 +408,49 @@ export default function EnhancedLearningGraph({
       );
 
       if (deletedNodes.length > 0) {
-        console.log('🗑️ REAL-TIME: Nodes deleted from graph:', {
-          deletedNodes: deletedNodes.map(n => ({ id: n.id, type: n.type }))
-        });
 
-        // Handle AI frame node deletions
+        // Handle AI frame node deletions - FIXED TO PRESERVE FRAME DATA
         const deletedAIFrameNodes = deletedNodes.filter(node => 
           node.type === 'aiframe' && node.data?.frameId
         );
 
-        if (deletedAIFrameNodes.length > 0 && onFramesChange) {
+        if (deletedAIFrameNodes.length > 0) {
           const deletedFrameIds = deletedAIFrameNodes.map(node => node.data.frameId);
-          console.log('🗑️ REAL-TIME: AI Frame nodes deleted, removing from frames array:', {
-            deletedFrameIds
-          });
+          // Silently handle node removal - frames preserved
 
-          // Remove frames from frames array
-          const updatedFrames = frames.filter(frame => !deletedFrameIds.includes(frame.id));
-          onFramesChange(updatedFrames);
-
-          // Emit events for each deleted frame
+          // FIX: Do NOT remove frames from the frames array
+          // Only the visual node is removed, frame data is preserved
+          // This prevents loss of attached videos, PDFs, and other content
+          
+          // Emit events for graph cleanup without data loss
           deletedFrameIds.forEach(frameId => {
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
-                detail: { frameId }
+              window.dispatchEvent(new CustomEvent('graph-node-removed', {
+                detail: { 
+                  frameId,
+                  action: 'node_removed_only',
+                  frameDataPreserved: true 
+                }
               }));
             }
           });
 
-          console.log('✅ REAL-TIME: Deleted AI Frame nodes synced to frames array:', {
-            deletedFrameIds,
-            remainingFrames: updatedFrames.length
-          });
+          // Node removal complete - frame data preserved
         }
       }
     }
 
     setPreviousNodes(nodes);
-  }, [nodes, frames, onFramesChange]);
+  }, [nodes, frames]);
 
   // CRITICAL FIX: Ensure initialGraphState nodes are properly displayed
   useEffect(() => {
     // If initialGraphState was provided with nodes, ensure they are displayed
     if (initialGraphState?.nodes?.length && nodes.length === 0) {
-      // Initializing nodes from graph state
+      console.log('🔄 Applying initial graph state with nodes:', {
+        initialNodeCount: initialGraphState.nodes.length,
+        currentNodeCount: nodes.length
+      });
       
       // Use the initialGraphState if provided and we have no nodes
       setNodes(initialGraphState.nodes);
@@ -435,7 +460,11 @@ export default function EnhancedLearningGraph({
     
     // Only sync if we have frames, no nodes, and no initial graph state was provided
     if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
-      
+      console.log('🔄 Syncing frames to nodes - creating nodes from frames:', {
+        frameCount: frames.length,
+        frameIds: frames.map(f => f.id),
+        currentNodeCount: nodes.length
+      });
       
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
@@ -488,6 +517,13 @@ export default function EnhancedLearningGraph({
           },
         };
         
+        console.log('🔧 NODE CREATION DEBUG:', {
+          frameId: frame.id,
+          nodeId: nodeId,
+          hasHandleFrameUpdate: !!handleFrameUpdate,
+          callbackAttached: !!frameNode.data.onFrameUpdate
+        });
+        
         newNodes.push(frameNode);
         
         // If frame has attachment, create the attachment node
@@ -536,6 +572,16 @@ export default function EnhancedLearningGraph({
         nodeCount: newNodes.length,
         edgeCount: newEdges.length
       });
+      
+      // CRITICAL FIX: Save graph state after creating nodes from frames
+      if (newNodes.length > 0) {
+        setTimeout(() => {
+          emitGraphStateChange('frames-to-nodes-sync', {
+            syncedFrameCount: frames.length,
+            createdNodeCount: newNodes.length
+          });
+        }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
+      }
     }
   }, [frames, nodes.length, initialGraphState, handleFrameUpdate, handleAttachContent, handleDetachContent]);
 
@@ -556,6 +602,79 @@ export default function EnhancedLearningGraph({
       }
     }
   }, [initialGraphState]);
+
+  // CRITICAL FIX: Sync existing nodes with updated frame data when frames prop changes
+  useEffect(() => {
+    // Only update existing nodes if we have both frames and nodes
+    if (frames.length > 0 && nodes.length > 0) {
+      // PERFORMANCE FIX: Skip sync if any node is currently being dragged to prevent blinking
+      const isDragging = nodes.some(node => node.dragging === true);
+      if (isDragging) {
+        return;
+      }
+      
+      // CRITICAL FIX: Skip sync for short period after drag to prevent attachment clearing
+      const recentDragEnd = nodes.some(node => node.selected === true);
+      if (recentDragEnd) {
+        return;
+      }
+      
+      // REMOVED: Performance spam logging that was firing 200+ times per interaction
+      // console.log('🔄 Checking frame-to-node sync:', ...)
+      
+      // Check if any frame data has changed and update corresponding nodes
+      let hasChanges = false;
+      const updatedNodes = nodes.map(node => {
+        if (node.type === 'aiframe' && node.data?.frameId) {
+          const correspondingFrame = frames.find(f => f.id === node.data.frameId);
+          if (correspondingFrame) {
+            // Check if node data is different from frame data
+            const nodeNeedsUpdate = 
+              node.data.title !== correspondingFrame.title ||
+              node.data.goal !== correspondingFrame.goal ||
+              node.data.informationText !== correspondingFrame.informationText ||
+              node.data.afterVideoText !== correspondingFrame.afterVideoText;
+            
+            if (nodeNeedsUpdate) {
+              hasChanges = true;
+              
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  title: correspondingFrame.title,
+                  goal: correspondingFrame.goal,
+                  informationText: correspondingFrame.informationText,
+                  afterVideoText: correspondingFrame.afterVideoText,
+                  aiConcepts: correspondingFrame.aiConcepts || [],
+                  // CRITICAL FIX: Preserve existing node attachment unless frame has newer one
+                  attachment: correspondingFrame.attachment || node.data.attachment,
+                  updatedAt: new Date().toISOString()
+                }
+              };
+            }
+          }
+        }
+        return node;
+      });
+      
+      // Only update nodes if there were actual changes
+      if (hasChanges) {
+        setNodes(updatedNodes);
+        console.log('✅ SYNC FIX: Node synchronization completed with updated frame data');
+        
+        // CRITICAL FIX: Save graph state after updating nodes with frame data
+        setTimeout(() => {
+          emitGraphStateChange('frame-data-sync', {
+            updatedNodeCount: updatedNodes.filter((node, index) => {
+              const originalNode = nodes[index];
+              return originalNode && JSON.stringify(node.data) !== JSON.stringify(originalNode.data);
+            }).length
+          });
+        }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
+      }
+    }
+  }, [frames]); // PERFORMANCE FIX: Remove 'nodes' dependency to prevent constant firing
 
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {
@@ -692,12 +811,15 @@ export default function EnhancedLearningGraph({
       }
       
       // Create the edge with enhanced styling and guaranteed unique ID
-      const edge = {
-        ...params,
-        id: params.id || `edge_${params.source}_${params.target}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Ensure absolute unique ID
+      const edge: Edge = {
+        id: `edge_${params.source}_${params.target}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        source: params.source!,
+        target: params.target!,
+        sourceHandle: params.sourceHandle || null,
+        targetHandle: params.targetHandle || null,
         style: params.targetHandle === 'attachment-slot' 
-          ? { stroke: "#f97316", strokeWidth: 3 } // Orange for attachments
-          : { stroke: "#3b82f6", strokeWidth: 2 }, // Blue for sequential
+          ? { stroke: "#f97316", strokeWidth: 3 } 
+          : { stroke: "#3b82f6", strokeWidth: 2 },
       };
       
       // CRITICAL FIX: Prevent duplicate edges by checking if edge already exists
@@ -732,24 +854,16 @@ export default function EnhancedLearningGraph({
         
         // CRITICAL FIX: Emit graph-state-changed to trigger unified save
         setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('graph-state-changed', {
-            detail: {
-              nodes: nodes,
-              edges: [...edges, edge], // Include the new edge in the state
-              selectedNodeId: null,
-              nodeCount: nodes.length,
-              edgeCount: edges.length + 1,
-              changeType: 'edge-added',
-              edgeData: edge
-            }
-          }));
+          emitGraphStateChange('edge-added', {
+            edgeData: edge
+          });
           
           console.log('🎯 Connection created, triggering unified save:', {
             edgeId: edge.id,
             source: edge.source,
             target: edge.target
           });
-        }, 100); // Small delay to ensure state is updated
+        }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
       }
     },
     [handleAttachContent] // PERFORMANCE FIX: Remove nodes/edges deps to prevent constant recreation during drag
@@ -811,24 +925,16 @@ export default function EnhancedLearningGraph({
           
           // CRITICAL FIX: Emit graph-state-changed to trigger unified save for edge deletion
           setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('graph-state-changed', {
-              detail: {
-                nodes: nodes,
-                edges: edges.filter(e => e.id !== edge.id), // Remove the deleted edge from state
-                selectedNodeId: null,
-                nodeCount: nodes.length,
-                edgeCount: edges.length - 1,
-                changeType: 'edge-removed',
-                edgeData: edge
-              }
-            }));
+            emitGraphStateChange('edge-removed', {
+              edgeData: edge
+            });
             
             console.log('🎯 Connection removed, triggering unified save:', {
               edgeId: edge.id,
               source: edge.source,
               target: edge.target
             });
-          }, 100); // Small delay to ensure state is updated
+          }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
         }
       });
     },
@@ -957,17 +1063,9 @@ export default function EnhancedLearningGraph({
       // CRITICAL FIX: Emit save events for ALL node types
       if (typeof window !== 'undefined') {
         // Emit graph state changed event to trigger unified save
-        window.dispatchEvent(new CustomEvent('graph-state-changed', {
-          detail: {
-            nodes: [...nodes, newNode],
-            edges: edges,
-            selectedNodeId: newNode.id,
-            nodeCount: nodes.length + 1,
-            edgeCount: edges.length,
-            changeType: 'node-added',
-            nodeType: type
-          }
-        }));
+        emitGraphStateChange('node-added', {
+          nodeType: type
+        });
         
         console.log(`🎯 Node drop detected - ${type} added, triggering unified save`);
       }
@@ -1027,24 +1125,10 @@ export default function EnhancedLearningGraph({
             // CRITICAL FIX: Create new frames array with current frames from ref
             const updatedFrames = [...currentFrames, newFrame];
             
-            console.log('🔍 FRAME CREATION DEBUG:', {
-              currentFramesLength: currentFrames.length,
-              newFrameId: newFrame.id,
-              newFrameTitle: newFrame.title,
-              updatedFramesLength: updatedFrames.length
-            });
+            // CRITICAL FIX: Call onFramesChange immediately to sync to unified storage
+            onFramesChange(updatedFrames);
             
-            // CRITICAL FIX: Final validation before updating frames
-            const finalFrames = [...framesRef.current, newFrame];
-            console.log('🔍 FINAL FRAME UPDATE:', {
-              finalFrameCount: finalFrames.length,
-              frameIds: finalFrames.map(f => f.id),
-              frameTitles: finalFrames.map(f => f.title)
-            });
-            
-            onFramesChange(finalFrames);
-            
-            // Emit event to sync with Frame Navigation
+            // CRITICAL FIX: Emit immediate save event for new frame
             if (typeof window !== 'undefined') {
               window.dispatchEvent(new CustomEvent('graph-frame-added', {
                 detail: {
@@ -1052,17 +1136,22 @@ export default function EnhancedLearningGraph({
                   totalFrames: updatedFrames.length
                 }
               }));
+              
+              // OPTIMISTIC: Background save will handle persistence automatically
+              // Still emit graph state change for proper sync
+              setTimeout(() => {
+                emitGraphStateChange('frame-created', {
+                  frameId: newFrame.id,
+                  frameTitle: newFrame.title,
+                  totalFrames: updatedFrames.length
+                });
+              }, 200); // SPECS COMPLIANT: Debounced timing for unified save
             }
             
-            console.log('✅ Enhanced: New frame added to frames array → Frame Navigation sync triggered:', {
+            console.log('✅ New frame created via drag-drop:', {
               frameId: newFrame.id,
               title: newFrame.title,
               totalFrames: updatedFrames.length
-            });
-          } else {
-            console.log('🔍 CRITICAL FIX: Skipping frame creation - frame already exists:', {
-              frameId: newNodeData.frameId,
-              existingTitle: existingFrame.title
             });
           }
         } finally {
@@ -1225,24 +1314,10 @@ export default function EnhancedLearningGraph({
       debouncedGraphChange(newGraphState);
     }
     
-    // PERFORMANCE FIX: Only emit graph state change event when there are meaningful changes
-    if (typeof window !== 'undefined' && (nodes.length > 0 || edges.length > 0)) {
-      // Debounce the event emission to avoid excessive events
-      const debounceKey = `${nodes.length}-${edges.length}`;
-      if ((window as any).lastGraphStateKey !== debounceKey) {
-        (window as any).lastGraphStateKey = debounceKey;
-        window.dispatchEvent(new CustomEvent('graph-state-changed', {
-          detail: {
-            nodes,
-            edges,
-            selectedNodeId: selectedNode,
-            nodeCount: nodes.length,
-            edgeCount: edges.length,
-            timestamp: new Date().toISOString()
-          }
-        }));
-      }
-    }
+    // REMOVED: Automatic graph-state-changed emission that was causing infinite loops
+    // Events are now only emitted on specific user actions (drag, connect, delete, etc.)
+    // This prevents the feedback loop: emit event → storage update → re-render → emit event
+    
   }, [nodes, edges, selectedNode, debouncedGraphChange, onGraphChange]);
   
   // PERFORMANCE: Add React Flow performance optimizations

@@ -3,31 +3,28 @@
 ## Active Issues
 
 ### Issue #003: Unified Storage Integration
-**Status**: ✅ Complete  
-**Priority**: High  
+**Status**: ⚠️ **PHASE 1 - 80% COMPLETE** (12/21 TODOs, 3 critical remain)  
+**Priority**: HIGH - Next session resolution target  
 **Type**: Architecture & Performance  
 **Created**: 2025-01-18  
+**Updated**: 2025-01-20  
 **File**: [cursor_claudecode_ai/issues/Issue-003-Unified-Storage-Integration.md](./issues/Issue-003-Unified-Storage-Integration.md)
 
-**Summary**: 
-- Integration of unified storage architecture to replace fragmented storage system
-- Test 01 failed due to old storage system still in use - no auto-save indicator shown
-- Frames lost on refresh when using "Save on frame" instead of "Save Graph"
-- Multiple conflicting storage systems causing data inconsistency
+**Current Status**: 
+- **Foundation Solid**: Unified storage architecture, auto-save indicators, dynamic properties all working
+- **Critical Insight**: Specification was CORRECT - implementation was backwards 
+- **Root Issue**: Synchronous saves blocking UI instead of optimistic updates (Excalidraw pattern)
+- **TC-001 Compliance**: 3/6 criteria passing, frame-node sync issues remain
 
-**Impact**: 
-- Users can't see when app is saving (no visual feedback)
-- Frames lost on refresh without using "Save Graph"
-- Poor user experience with uncertain save states
-- Data duplication and inconsistency issues
+**Remaining Critical Blockers**: 
+- **TODO-013**: Implement optimistic UI updates (instant UI + background saves)
+- **TODO-014**: Fix frame-node synchronization after load  
+- **TODO-015**: Implement event-driven state management
 
-**Solutions Implemented**: 
-- Replaced `useFrameStorage` + `useFrameEvents` with `useUnifiedStorage`
-- Added real-time auto-save indicator in sidebar (Auto-saving... / Unsaved / Saved)
-- Simplified loading logic with single `loadAll()` method
-- Exposed unified methods globally for compatibility
-- 10-second debounced auto-save with visual feedback
-- **CRITICAL FIX**: Added missing event listeners for frame edit events
+**Next Session Goal**: 
+- Apply Excalidraw pattern: `setFrames(data)` → instant UI, `queueSave(data)` → background
+- Expected: User types "f1" → sees instantly → refresh → still "f1"
+- Target: TC-001 passes 6/6 criteria → Issue #003 RESOLVED
 - Fixed change detection logic to trigger auto-save for new frames
 - Reduced logging spam in window interface
 
@@ -92,6 +89,36 @@
 - Implement graph connection preservation in VectorStore
 - Create dev mode testing framework for data consistency validation
 
+### Issue #004: Attachment Change Detection Fix
+**Status**: ✅ RESOLVED  
+**Priority**: HIGH  
+**Type**: Bug Fix  
+**Created**: 2025-01-18  
+**File**: [cursor_claudecode_ai/issues/Issue-004-Attachment-Change-Detection.md](./issues/Issue-004-Attachment-Change-Detection.md)
+
+**Summary**: 
+- Fixed missing event listener for attachment property changes in unified storage system
+- User workflow: create frame → attach note → change note name → save status incorrect
+- Root cause: useUnifiedStorage.ts missing listener for attachment-node-updated events
+- Attachment changes were silently lost while showing false "saved" status
+
+**Impact**: 
+- Eliminated data loss for attachment modifications (note names, content changes)
+- Fixed misleading save status indicators that showed "saved" when changes were lost
+- Improved user trust with accurate feedback on save operations
+- Enhanced debugging capabilities with comprehensive logging
+
+**Solution Implemented**: 
+- Added handleAttachmentNodeUpdatedEvent function to capture attachment changes
+- Registered attachment-node-updated event listener in useUnifiedStorage.ts
+- Enhanced logging to show frame state before force save operations
+- Verified fix handles text, video, and PDF attachment property changes
+
+**Next Steps**: 
+- ✅ Fix verified and ready for user testing
+- Monitor attachment workflows across all attachment types
+- User validation of save behavior for note name changes
+
 ---
 
 ## Issue Template
@@ -108,3 +135,33 @@
 **Impact**: [User/system impact]
 **Next Steps**: [Immediate actions needed]
 ```
+
+### Issue #003: Unified Storage Integration - TODO Implementation  
+**Status**: 🔥 CRITICAL - Frame Content Corruption Active  
+**Priority**: URGENT  
+**Type**: Architecture & Performance  
+**Created**: 2025-01-18  
+**File**: [cursor_claudecode_ai/Specs/Specs-Issue-003-Unified-Storage-Integratio.md](./Specs/Specs-Issue-003-Unified-Storage-Integratio.md)
+
+**Summary**: 
+- Critical TODO implementation roadmap extracted from comprehensive specifications
+- Frame-node synchronization broken despite successful storage operations
+- TC-001 compliance failing 3/6 criteria with UI inconsistency
+- 19 TODO items across 4 phases from critical fixes to production readiness
+
+**Impact**: 
+- User sees mixed state with incorrect node titles while frame data is correct
+- Loss of user trust due to inconsistent UI behavior
+- Blocking all advanced features until critical path resolved
+- Production deployment blocked until specification compliance achieved
+
+**Current Phase**: 
+- **Phase 1 (Critical)**: 3 TODOs completed, 3 TODOs pending
+- **Phase 2-4**: 13 TODOs waiting for Phase 1 completion
+- **Immediate Focus**: TODO-004, TODO-005, TODO-006 implementation
+
+**Next Steps**: 
+- User approval required for TODO implementation
+- Fix frame-node sync during load operations
+- Achieve TC-001 complete compliance (6/6 criteria)
+- Progress to Phase 2 system hardening

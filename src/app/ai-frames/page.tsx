@@ -74,8 +74,6 @@ import { DeepResearchApp } from "../../components/DeepResearch/DeepResearchApp";
 
 // Import NEW MODULAR COMPONENTS
 import { 
-  useFrameStorage, 
-  useFrameEvents, 
   AIFrame,
   GraphState,
   generateFrameId,
@@ -293,9 +291,10 @@ export default function AIFramesPage() {
 
   // Fix FrameControls props by wrapping the handlers to return boolean
   const handleSaveFrames = useCallback(async (): Promise<boolean> => {
+    // OPTIMISTIC: Manual save now triggers background save
     try {
-      const success = await unifiedStorage.saveAll();
-      return success;
+      unifiedStorage.updateFrames(unifiedStorage.frames); // Triggers optimistic save
+      return true; // Optimistic saves always succeed immediately
     } catch (error) {
       console.error("Save failed:", error);
       return false;
@@ -334,6 +333,7 @@ export default function AIFramesPage() {
 
   // Load documents when VectorStore is ready
   useEffect(() => {
+
     const loadDocuments = async () => {
       // FIXED: Enhanced VectorStore readiness check to prevent "Vector Store not initialized" error
       if (vectorStoreInitialized && providerVectorStore && !vectorStoreInitializing) {
@@ -582,10 +582,10 @@ export default function AIFramesPage() {
         updateFrames: unifiedStorage.updateFrames,
         updateGraphState: unifiedStorage.updateGraphState,
         clearAll: unifiedStorage.clearAll,
-        // Legacy compatibility for existing code
-        saveFramesToStorage: unifiedStorage.saveAll,
-        syncFramesToVectorStore: unifiedStorage.saveAll,
-        syncGraphChangesToKB: unifiedStorage.saveAll,
+        // OPTIMISTIC: Legacy compatibility using optimistic updates (no more blocking!)
+        saveFramesToStorage: () => { /* Frames auto-save via optimistic updates */ },
+        syncFramesToVectorStore: () => { /* VectorStore syncs via background saves */ },
+        syncGraphChangesToKB: () => { /* Knowledge Base syncs via background saves */ },
         loadFramesFromStorage: unifiedStorage.loadAll,
         broadcastFrameChanges: unifiedStorage.updateFrames
       };

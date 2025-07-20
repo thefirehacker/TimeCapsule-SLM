@@ -116,14 +116,7 @@ export class UnifiedStorageManager {
       if (localData && localData.frames.length > 0) {
         console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames`);
         
-        // CRITICAL DEBUG: Log what graph state we're loading
-        console.log('🔍 LOAD DEBUG: Loaded app state with:', {
-          frameCount: localData.frames.length,
-          graphStateNodes: localData.graphState.nodes.length,
-          graphStateEdges: localData.graphState.edges.length,
-          graphStateViewport: localData.graphState.viewport,
-          selectedNodeId: localData.graphState.selectedNodeId
-        });
+        // Loaded app state with graph
         
         return localData;
       }
@@ -187,14 +180,7 @@ export class UnifiedStorageManager {
   // STATE CREATION: Create complete app state with checksum
   private createAppState(frames: UnifiedAIFrame[], graphState: GraphState): UnifiedAppState {
     
-    // CRITICAL DEBUG: Log what graph state we're saving
-    console.log('🔍 SAVE DEBUG: Creating app state with:', {
-      frameCount: frames.length,
-      graphStateNodes: graphState.nodes.length,
-      graphStateEdges: graphState.edges.length,
-      graphStateViewport: graphState.viewport,
-      selectedNodeId: graphState.selectedNodeId
-    });
+    // Creating app state for save
     
     const appState: UnifiedAppState = {
       frames,
@@ -272,18 +258,8 @@ export class UnifiedStorageManager {
     if (!this.vectorStore) return;
 
     try {
-      // CLEAR: Remove old documents to prevent duplicates
-      const existingDocs = await this.vectorStore.getAllDocuments();
-      const aiFrameDocs = existingDocs.filter((doc: any) => 
-        doc.metadata?.source === 'ai-frames' || 
-        doc.metadata?.source === 'ai-frames-auto-sync'
-      );
-      
-      for (const doc of aiFrameDocs) {
-        await this.vectorStore.deleteDocument(doc.id);
-      }
-
-      // SAVE: Each frame as unified document
+      // UPSERT: Update existing documents instead of delete-then-insert
+      // This prevents video attachments from blinking/disappearing during saves
       for (const frame of appState.frames) {
         const documentData = {
           id: `aiframe-${frame.id}`,
@@ -301,11 +277,26 @@ export class UnifiedStorageManager {
           vectors: []
         };
 
-        await this.vectorStore.insertDocument(documentData);
+        await this.vectorStore.upsertDocument(documentData);
+      }
+
+      // CLEANUP: Remove orphaned documents (frames that no longer exist)
+      const existingDocs = await this.vectorStore.getAllDocuments();
+      const currentFrameIds = appState.frames.map(f => f.id);
+      const aiFrameDocs = existingDocs.filter((doc: any) => 
+        doc.metadata?.source === 'ai-frames' || 
+        doc.metadata?.source === 'ai-frames-auto-sync'
+      );
+      
+      for (const doc of aiFrameDocs) {
+        const frameId = doc.metadata?.frameId;
+        if (frameId && !currentFrameIds.includes(frameId)) {
+          await this.vectorStore.deleteDocument(doc.id);
+        }
       }
 
     } catch (error) {
-      console.error("❌ Failed to save to VectorStore:", error);
+      // Failed to save to VectorStore
       throw error;
     }
   }

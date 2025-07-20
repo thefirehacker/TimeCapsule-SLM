@@ -38,6 +38,13 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
+    console.log('🎯 SAVE ATTEMPT:', {
+      frameId: data.frameId,
+      hasOnFrameUpdate: !!data.onFrameUpdate,
+      editData: editData,
+      willEmitEvent: !!(data.onFrameUpdate && data.frameId)
+    });
+    
     setIsSaving(true);
     
     try {
