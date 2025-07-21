@@ -988,8 +988,140 @@ Node Data (Stale):
 
 ---
 
+---
+
+## 🔥 **CRITICAL DISCOVERY: Frame-to-Attachment Edge Persistence Failure (2025-07-21)**
+
+### **📊 NEW CRITICAL ISSUE - ATTACHMENT NODE RESTORATION BROKEN**
+
+**Problem Statement**: Edges between frames (f1) and attachment nodes (video content) break on refresh while frame-to-frame edges work perfectly.
+
+### **🔍 ROOT CAUSE ANALYSIS**
+
+**Core Issue**: **Attachment nodes are NOT stored in the unified frame storage system** - they only exist in graph state, creating orphaned edges on refresh.
+
+#### **Storage Architecture Mismatch**
+
+```typescript
+STORAGE PATTERNS:
+├─ Frame nodes: Stored in BOTH frames[] array AND graphState.nodes[] ✅
+├─ Attachment nodes: ONLY stored in graphState.nodes[] ❌
+└─ Edges: All stored in graphState.edges[] (references both types)
+
+RESULT ON REFRESH:
+├─ Frame nodes: Restored from frames[] data ✅
+├─ Attachment nodes: LOST - no restoration source ❌  
+└─ Edges: Restored but now point to non-existent attachment nodes ❌
+```
+
+#### **Evidence from Logs**
+
+**Edge Data Analysis**:
+- `source: 'node_1753099411388_msyd7s4t1_2'` (attachment node - **missing frameId**)
+- `target: 'node_1753099403686_6twz7jkn1_0'` (frame node - has `frameId: "frame-1753099403686-dd8bkdokq"`)
+
+**Node Sync Logic Failure** (`useUnifiedStorage.ts:327-328`):
+```typescript
+const matchingFrame = data.frames.find(frame => frame.id === node.data?.frameId);
+```
+- Frame nodes: `node.data?.frameId` exists → matched and restored ✅
+- Attachment nodes: `node.data?.frameId` is `undefined` → **no match found** ❌
+- Result: `"No matching frame found for node node_1753099411388_msyd7s4t1_2 with frameId: undefined"`
+
+### **🔧 ARCHITECTURAL PROBLEM**
+
+#### **Missing Attachment Node Lifecycle**
+
+1. **Creation**: Attachment nodes created with `attachedToFrameId` instead of `frameId`
+2. **Storage**: Not included in `frames[]` array persistence 
+3. **Restoration**: No mechanism to recreate attachment nodes from frame attachment data
+4. **Edge Validation**: No validation that both edge endpoints exist before restoration
+
+#### **IndexedDB Error Connection**
+
+The IndexedDB error `"One of the specified object stores was not found"` is likely related to this issue - attempts to save/load attachment node data may be accessing non-existent object stores designed for different node types.
+
+### **🎯 SOLUTION ARCHITECTURE**
+
+#### **Phase 1: Attachment Node Persistence (CRITICAL)**
+
+1. **Enhanced Attachment Storage**: Store attachment node metadata within frame attachment data
+   ```typescript
+   frame.attachments[].nodeData = {
+     id: 'node_1753099411388_msyd7s4t1_2',
+     position: {x: 100, y: 200},
+     data: {...attachmentNodeData}
+   }
+   ```
+
+2. **Attachment Node Recreation**: During load, recreate attachment nodes from frame attachment data
+   ```typescript
+   // In useUnifiedStorage restoration
+   frames.forEach(frame => {
+     frame.attachments?.forEach(attachment => {
+       if (attachment.nodeData) {
+         const attachmentNode = createAttachmentNode(attachment.nodeData);
+         graphState.nodes.push(attachmentNode);
+       }
+     });
+   });
+   ```
+
+3. **Edge Relationship Mapping**: Recreate attachment-to-frame edges based on frame attachment relationships
+   ```typescript
+   // Auto-create edges for frame attachments
+   const edge = createEdge(attachment.nodeData.id, frame.nodeId);
+   graphState.edges.push(edge);
+   ```
+
+#### **Phase 2: Robust Edge Validation (HIGH PRIORITY)**
+
+1. **Node Existence Validation**: Validate both source and target nodes exist before restoring edges
+2. **Orphaned Edge Cleanup**: Remove edges that reference non-existent nodes
+3. **Attachment Edge Recreation**: Rebuild attachment edges from frame relationships as fallback
+
+#### **Phase 3: Storage Architecture Improvement (MEDIUM PRIORITY)**
+
+1. **Unified Node Storage**: Create consistent storage pattern for all node types
+2. **Node Type Detection**: Add proper node type differentiation during sync
+3. **Storage Consistency**: Ensure attachment nodes persist across all storage layers
+
+### **🚨 BUSINESS IMPACT**
+
+**Current User Experience**:
+- User creates frame f1 ✅
+- User attaches video content ✅  
+- Edge created f1→video content ✅
+- **User refreshes page** 🔴
+- Frame f1 restored ✅
+- Video content node **LOST** ❌
+- Edge f1→video shows as broken/missing ❌
+- User must re-attach content ❌
+
+**Expected After Fix**:
+- All steps above work ✅
+- **User refreshes page** ✅
+- Frame f1 restored ✅
+- Video content node restored ✅
+- Edge f1→video works perfectly ✅
+- **Zero user re-work required** ✅
+
+### **📋 IMPLEMENTATION PRIORITY**
+
+**CRITICAL BLOCKER**: This issue breaks the core value proposition of content attachment persistence. Unlike frame-to-frame connections which work perfectly, attachment connections are completely broken on refresh.
+
+**Dependency**: This is a **major architectural change** requiring updates to:
+- Unified storage data schema
+- Node creation/restoration logic  
+- Edge validation system
+- Attachment management system
+
+**Estimated Impact**: Large - touches core persistence architecture
+
+---
+
 **Issue Created**: 2025-01-18  
 **Last Updated**: 2025-07-21  
-**Final Status**: ✅ **PRODUCTION READY** - Core functionality complete  
-**Phase Status**: ✅ **PHASE 1 & 2 COMPLETE** - All frame types and attachments working perfectly  
-**Next Phase**: Phase 3 Critical UX Features (Navigation, Deletion, Undo/Redo) 
+**Final Status**: ❌ **CRITICAL BLOCKER IDENTIFIED** - Frame-to-attachment edge persistence broken  
+**Phase Status**: ✅ **PHASE 1 & 2 COMPLETE** for frame-to-frame, ❌ **CRITICAL FAILURE** for frame-to-attachment  
+**Next Phase**: **URGENT** - Fix attachment node persistence before Phase 3 features 
