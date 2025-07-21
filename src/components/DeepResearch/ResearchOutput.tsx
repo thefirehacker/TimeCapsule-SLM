@@ -200,7 +200,7 @@ export function ResearchOutput({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 ">
         <Tabs
           value={currentTab}
           onValueChange={(value) => onTabChange(value as any)}

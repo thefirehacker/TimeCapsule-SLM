@@ -124,10 +124,10 @@ export function DeepResearchComponent() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 ">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Controls Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+          <ResizablePanel defaultSize={50} minSize={30} maxSize={80}>
             <div className="h-full border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">
               <div className="border-b border-slate-200 dark:border-slate-700 p-4">
                 <div className="flex items-center gap-2">
