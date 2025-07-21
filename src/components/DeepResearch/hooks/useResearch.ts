@@ -23,6 +23,8 @@ export interface UseResearchReturn {
   setResearchConfig: (config: ResearchConfig) => void;
   isGenerating: boolean;
   results: string;
+  thinkingOutput: string; // AI thinking process
+  isStreaming: boolean; // Whether content is currently streaming
 
   // AI Connection
   connectionState: any;
@@ -48,6 +50,8 @@ export function useResearch(
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState("");
+  const [thinkingOutput, setThinkingOutput] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // Use the robust Ollama connection hook
   const {
@@ -65,16 +69,27 @@ export function useResearch(
     }
 
     setIsGenerating(true);
+    setIsStreaming(true);
+    setThinkingOutput("");
+    setResults("");
+
     try {
       const researchPrompt = buildResearchPrompt(
         prompt,
         researchConfig,
         vectorStore
       );
+
+      // Simulate thinking process
+      setThinkingOutput(
+        "Analyzing your research request and preparing comprehensive analysis..."
+      );
+
       const response = await generateContent(researchPrompt);
 
       if (response && typeof response === "string") {
         setResults(response);
+        setThinkingOutput("Research completed successfully!");
       }
     } catch (error) {
       console.error("Research generation failed:", error);
@@ -83,14 +98,18 @@ export function useResearch(
       setResults(
         `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
       );
+      setThinkingOutput("Research generation failed. Please try again.");
     } finally {
       setIsGenerating(false);
+      setIsStreaming(false);
     }
   }, [prompt, researchConfig, vectorStore, isAIReady, generateContent]);
 
   const clearResults = useCallback(() => {
     setResults("");
     setPrompt("");
+    setThinkingOutput("");
+    setIsStreaming(false);
   }, []);
 
   return {
@@ -100,6 +119,8 @@ export function useResearch(
     setResearchConfig,
     isGenerating,
     results,
+    thinkingOutput,
+    isStreaming,
     connectionState,
     connectAI: connect,
     disconnectAI: disconnect,

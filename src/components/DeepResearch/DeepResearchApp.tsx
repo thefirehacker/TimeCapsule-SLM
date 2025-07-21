@@ -170,6 +170,8 @@ export function DeepResearchComponent() {
           <ResizablePanel defaultSize={75}>
             <ResearchOutput
               researchResults={research.results}
+              thinkingOutput={research.thinkingOutput}
+              isStreaming={research.isStreaming}
               currentTab={currentTab}
               onTabChange={setCurrentTab}
               onClearOutput={research.clearResults}

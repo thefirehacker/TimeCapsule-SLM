@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +11,20 @@ import {
   BookOpen,
   StickyNote,
   Download,
-  Eye,
   Copy,
   CheckCircle2,
+  Brain,
+  Loader2,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface ResearchOutputProps {
   researchResults: string;
+  thinkingOutput?: string; // AI thinking process
+  isStreaming?: boolean; // Whether content is currently streaming
   currentTab: "research" | "sources" | "notes";
   onTabChange: (tab: "research" | "sources" | "notes") => void;
   onClearOutput: () => void;
@@ -27,12 +33,22 @@ interface ResearchOutputProps {
 
 export function ResearchOutput({
   researchResults,
+  thinkingOutput,
+  isStreaming = false,
   currentTab,
   onTabChange,
   onClearOutput,
   onExportResults,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new content arrives
+  useEffect(() => {
+    if (scrollRef.current && (isStreaming || researchResults)) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [researchResults, thinkingOutput, isStreaming]);
 
   const handleCopy = async () => {
     try {
@@ -44,78 +60,24 @@ export function ResearchOutput({
     }
   };
 
-  const formatMarkdownToHTML = (markdown: string): string => {
-    if (!markdown) return "";
+  const renderThinkingOutput = () => {
+    if (!thinkingOutput) return null;
 
     return (
-      markdown
-        // Headers
-        .replace(
-          /^### (.*$)/gim,
-          '<h3 class="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-100">$1</h3>'
-        )
-        .replace(
-          /^## (.*$)/gim,
-          '<h2 class="text-xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-100">$1</h2>'
-        )
-        .replace(
-          /^# (.*$)/gim,
-          '<h1 class="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">$1</h1>'
-        )
-
-        // Bold and Italic
-        .replace(
-          /\*\*(.*?)\*\*/g,
-          '<strong class="font-semibold text-slate-900 dark:text-slate-100">$1</strong>'
-        )
-        .replace(
-          /\*(.*?)\*/g,
-          '<em class="italic text-slate-700 dark:text-slate-300">$1</em>'
-        )
-
-        // Lists
-        .replace(
-          /^\* (.*$)/gim,
-          '<li class="mb-1 text-slate-700 dark:text-slate-300">$1</li>'
-        )
-        .replace(
-          /^- (.*$)/gim,
-          '<li class="mb-1 text-slate-700 dark:text-slate-300">$1</li>'
-        )
-        .replace(
-          /^\d+\. (.*$)/gim,
-          '<li class="mb-1 text-slate-700 dark:text-slate-300">$1</li>'
-        )
-
-        // Code blocks
-        .replace(
-          /```([\s\S]*?)```/g,
-          '<pre class="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg my-4 overflow-x-auto"><code class="text-sm text-slate-800 dark:text-slate-200">$1</code></pre>'
-        )
-        .replace(
-          /`(.*?)`/g,
-          '<code class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-sm text-slate-800 dark:text-slate-200">$1</code>'
-        )
-
-        // Links
-        .replace(
-          /\[([^\]]+)\]\(([^)]+)\)/g,
-          '<a href="$2" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>'
-        )
-
-        // Line breaks
-        .replace(
-          /\n\n/g,
-          '</p><p class="mb-4 text-slate-700 dark:text-slate-300">'
-        )
-        .replace(/\n/g, "<br/>")
-
-        // Wrap in paragraphs
-        .replace(
-          /^(.+)/,
-          '<p class="mb-4 text-slate-700 dark:text-slate-300">$1'
-        )
-        .replace(/(.+)$/, "$1</p>")
+      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+            AI Thinking Process
+          </span>
+          {isStreaming && (
+            <Loader2 className="w-3 h-3 text-blue-600 dark:text-blue-400 animate-spin" />
+          )}
+        </div>
+        <div className="text-sm text-blue-700 dark:text-blue-300 whitespace-pre-wrap">
+          {thinkingOutput}
+        </div>
+      </div>
     );
   };
 
@@ -143,11 +105,86 @@ export function ResearchOutput({
 
     return (
       <div className="prose prose-slate dark:prose-invert max-w-none">
-        <div
-          dangerouslySetInnerHTML={{
-            __html: formatMarkdownToHTML(researchResults),
+        {renderThinkingOutput()}
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code({ className, children, ...props }: any) {
+              const match = /language-(\w+)/.exec(className || "");
+              return match ? (
+                <SyntaxHighlighter
+                  style={oneDark as any}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, "")}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            },
+            // Custom styling for different elements
+            h1: ({ children }) => (
+              <h1 className="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">
+                {children}
+              </h1>
+            ),
+            h2: ({ children }) => (
+              <h2 className="text-xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-100">
+                {children}
+              </h2>
+            ),
+            h3: ({ children }) => (
+              <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-100">
+                {children}
+              </h3>
+            ),
+            p: ({ children }) => (
+              <p className="mb-4 text-slate-700 dark:text-slate-300">
+                {children}
+              </p>
+            ),
+            ul: ({ children }) => (
+              <ul className="list-disc list-inside mb-4 space-y-1">
+                {children}
+              </ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="list-decimal list-inside mb-4 space-y-1">
+                {children}
+              </ol>
+            ),
+            li: ({ children }) => (
+              <li className="text-slate-700 dark:text-slate-300">{children}</li>
+            ),
+            blockquote: ({ children }) => (
+              <blockquote className="border-l-4 border-blue-500 pl-4 italic text-slate-600 dark:text-slate-400 mb-4">
+                {children}
+              </blockquote>
+            ),
+            a: ({ href, children }) => (
+              <a
+                href={href}
+                className="text-blue-600 dark:text-blue-400 hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {children}
+              </a>
+            ),
           }}
-        />
+        >
+          {researchResults}
+        </ReactMarkdown>
+        {isStreaming && (
+          <div className="flex items-center gap-2 mt-4 text-slate-500 dark:text-slate-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Generating research...</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -223,7 +260,7 @@ export function ResearchOutput({
           </div>
 
           <TabsContent value="research" className="m-0 h-full">
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-full" ref={scrollRef}>
               <div className="p-6">{renderContent()}</div>
             </ScrollArea>
           </TabsContent>
