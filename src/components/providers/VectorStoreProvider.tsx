@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { VectorStore } from '../VectorStore/VectorStore';
 
 // VectorStore context interface
@@ -36,6 +37,7 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const initializationAttempted = useRef(false);
   const [processingAvailable, setProcessingAvailable] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('Not initialized');
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -47,44 +49,27 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
 
   // Initialize VectorStore singleton
   const initializeVectorStore = useCallback(async () => {
-    if (isInitializing) {
+    // ENHANCED: Multiple guards against double initialization
+    if (isInitializing || 
+        singletonVectorStore?.initialized || 
+        initializationAttempted.current ||
+        isInitialized) {
+      console.log('⏭️ VectorStore already initialized or initializing, skipping:', {
+        isInitializing,
+        singletonInitialized: singletonVectorStore?.initialized,
+        attemptedBefore: initializationAttempted.current,
+        isInitialized
+      });
       return;
     }
-
-    // CRITICAL FIX: Don't re-initialize if already initialized in this context
-    if (vectorStore && isInitialized) {
-      console.log('✅ VectorStoreProvider: Already initialized in this context, skipping...');
-      return;
-    }
+    
+    // Mark initialization as attempted to prevent concurrent calls
+    initializationAttempted.current = true;
 
     setIsInitializing(true);
     setError(null);
 
     try {
-      // FIXED: Reuse existing singleton in new provider context
-      if (singletonVectorStore && singletonVectorStore.initialized) {
-        console.log('🔄 VectorStoreProvider: Reusing existing singleton VectorStore...');
-        
-        // Connect existing singleton to THIS provider context
-        setVectorStore(singletonVectorStore);
-        setIsInitialized(true);
-        setProcessingAvailable(singletonVectorStore.processingAvailable);
-        setProcessingStatus(singletonVectorStore.processingStatus);
-        setDownloadProgress(singletonVectorStore.downloadProgress);
-        
-        // Update stats immediately
-        try {
-          const currentStats = await singletonVectorStore.getStats();
-          setStats(currentStats);
-        } catch (err) {
-          console.warn('⚠️ Failed to get existing VectorStore stats:', err);
-        }
-        
-        console.log('✅ VectorStoreProvider: Successfully connected to existing singleton');
-        setIsInitializing(false);
-        return;
-      }
-      
       // ENHANCED: Handle broken/uninitialized singleton
       if (singletonVectorStore && !singletonVectorStore.initialized) {
         console.log('🔧 VectorStoreProvider: Found broken singleton, recreating...');
@@ -110,6 +95,8 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     } catch (err: any) {
       console.error('❌ VectorStoreProvider: Failed to initialize VectorStore:', err);
       setError(err.message || 'Failed to initialize VectorStore');
+      // Reset attempt flag on error to allow retry
+      initializationAttempted.current = false;
     } finally {
       setIsInitializing(false);
     }
@@ -142,10 +129,28 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
     return singletonVectorStore;
   }, []);
 
-  // Initialize on mount (FIXED: Remove dependency to prevent infinite loop)
+  // Route-aware initialization: only initialize on specific pages
+  const pathname = usePathname();
+  const shouldAutoInitialize = pathname === '/ai-frames' || pathname === '/deep-research';
+  
   useEffect(() => {
-    initializeVectorStore();
-  }, []); // Empty dependency array to run only once on mount
+    // ENHANCED: Multiple conditions to prevent double initialization
+    if (shouldAutoInitialize && 
+        !isInitialized && 
+        !isInitializing && 
+        !initializationAttempted.current &&
+        !singletonVectorStore?.initialized) {
+      console.log(`🚀 Auto-initializing VectorStore for route: ${pathname}`);
+      initializeVectorStore();
+    } else if (shouldAutoInitialize) {
+      console.log(`⏭️ Skipping auto-init for ${pathname}:`, {
+        isInitialized,
+        isInitializing,
+        attemptedBefore: initializationAttempted.current,
+        singletonInitialized: singletonVectorStore?.initialized
+      });
+    }
+  }, [shouldAutoInitialize, pathname, isInitialized, isInitializing, initializeVectorStore]);
 
   // Periodic status updates
   useEffect(() => {

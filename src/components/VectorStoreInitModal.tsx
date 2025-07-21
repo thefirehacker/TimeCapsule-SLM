@@ -113,8 +113,14 @@ export default function VectorStoreInitModal({
   };
 
   return (
-    <Dialog open={internalOpen} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md [&>button]:hidden">
+    <Dialog open={internalOpen} onOpenChange={(open) => {
+      // FIXED: Allow modal to be closed when VectorStore is ready
+      if (!open && (status === 'ready' || showingReady)) {
+        setInternalOpen(false);
+        setShowingReady(false);
+      }
+    }}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <Shield className="w-6 h-6 text-blue-500" />

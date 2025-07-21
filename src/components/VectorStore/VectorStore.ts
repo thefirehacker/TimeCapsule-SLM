@@ -223,7 +223,7 @@ export class VectorStore {
 
     try {
       const result = await operation();
-      console.log(`✅ Operation ${operationId} completed successfully`);
+      // 🌪️ SYNC STORM FIX: Reduce logging spam
       return result;
     } catch (error) {
       console.error(`❌ Operation ${operationId} failed:`, error);

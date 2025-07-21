@@ -38,6 +38,13 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
+    console.log('🎯 SAVE ATTEMPT:', {
+      frameId: data.frameId,
+      hasOnFrameUpdate: !!data.onFrameUpdate,
+      editData: editData,
+      willEmitEvent: !!(data.onFrameUpdate && data.frameId)
+    });
+    
     setIsSaving(true);
     
     try {
@@ -45,39 +52,40 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
       Object.assign(data, editData);
       
       // Sync changes back to parent frames array
-      if (data.onFrameUpdate && data.frameId) {
-        const updatedFrameData = {
-          id: data.frameId,
-          title: editData.title,
-          goal: editData.goal,
-          informationText: editData.informationText,
-          afterVideoText: editData.afterVideoText,
-          aiConcepts: editData.aiConcepts,
-          isGenerated: editData.isGenerated,
-          sourceGoal: editData.sourceGoal,
-          sourceUrl: editData.sourceUrl,
-          attachment: editData.attachment,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        await data.onFrameUpdate(data.frameId, updatedFrameData);
-        
-        // REAL-TIME SYNC: Emit graph frame edited event
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('graph-frame-edited', {
-            detail: {
-              frameId: data.frameId,
-              updatedFrame: updatedFrameData,
-              timestamp: new Date().toISOString()
-            }
-          }));
-        }
-        
-        console.log('✏️ Enhanced AI Frame Node: Frame edit event emitted:', {
-          frameId: data.frameId,
-          title: editData.title
-        });
+      const updatedFrameData = {
+        id: data.frameId,
+        title: editData.title,
+        goal: editData.goal,
+        informationText: editData.informationText,
+        afterVideoText: editData.afterVideoText,
+        aiConcepts: editData.aiConcepts,
+        isGenerated: editData.isGenerated,
+        sourceGoal: editData.sourceGoal,
+        sourceUrl: editData.sourceUrl,
+        attachment: editData.attachment,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // CRITICAL FIX: Always emit event first for unified storage, then call callback if available
+      if (typeof window !== 'undefined' && data.frameId) {
+        window.dispatchEvent(new CustomEvent('graph-frame-edited', {
+          detail: {
+            frameId: data.frameId,
+            updatedFrame: updatedFrameData,
+            timestamp: new Date().toISOString()
+          }
+        }));
       }
+      
+      // FALLBACK: Also call the callback if available
+      if (data.onFrameUpdate && data.frameId) {
+        await data.onFrameUpdate(data.frameId, updatedFrameData);
+      }
+        
+      console.log('✏️ Enhanced AI Frame Node: Frame edit event emitted:', {
+        frameId: data.frameId,
+        title: editData.title
+      });
       
       setIsEditing(false);
     } catch (error) {

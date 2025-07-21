@@ -21,24 +21,11 @@ export interface DragItem {
   nodeType: "youtube" | "pdf" | "text" | "aiframe" | "concept" | "chapter";
 }
 
-// NEW ARCHITECTURE: Frame-Attachment System
+// DYNAMIC ARCHITECTURE: Frame-Attachment System (Future-Proof)
 export interface FrameAttachment {
   id: string;
-  type: "video" | "pdf" | "text";
-  data: {
-    // Video attachment data
-    videoUrl?: string;
-    startTime?: number;
-    duration?: number;
-    // PDF attachment data  
-    pdfUrl?: string;
-    pages?: string;
-    // Text attachment data
-    text?: string;
-    // Common
-    title?: string;
-    notes?: string;
-  };
+  type: string; // DYNAMIC: Support any attachment type (video, pdf, text, audio, image, AR, VR, etc.)
+  data: Record<string, any>; // DYNAMIC: Support any properties without hardcoding
 }
 
 // Enhanced AI Frame with attachment support
@@ -143,6 +130,11 @@ export interface GraphState {
   }>;
   selectedNodeId?: string | null;
   selectedChapter?: string;
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
 }
 
 export interface FrameGraphMapping {
