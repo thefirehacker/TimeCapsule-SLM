@@ -238,7 +238,7 @@ export function ControlsPanel({
       <Separator />
 
       {/* Actions */}
-      <div className="space-y-2 flex flex-col gap-2">
+      <div className="space-y-2 grid grid-cols-2 gap-2">
         <Button
           variant="outline"
           size="sm"
