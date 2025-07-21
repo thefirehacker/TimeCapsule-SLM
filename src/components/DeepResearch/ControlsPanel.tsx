@@ -19,6 +19,7 @@ import {
   WifiOff,
   CheckCircle2,
   HardDrive,
+  Loader2,
 } from "lucide-react";
 
 interface ControlsPanelProps {
@@ -30,10 +31,16 @@ interface ControlsPanelProps {
   onGenerateResearch: () => void;
   isGenerating: boolean;
 
-  // AI status
-  aiConnected: boolean;
-  aiProvider: string | null;
-  aiModel: string | null;
+  // AI connection - updated structure
+  connectionState: {
+    connected: boolean;
+    connecting: boolean;
+    error: string | null;
+    baseURL: string;
+    availableModels: string[];
+    selectedModel: string;
+    lastConnected: Date | null;
+  };
   onConnectAI: () => void;
   onDisconnectAI: () => void;
 
@@ -55,9 +62,7 @@ export function ControlsPanel({
   onResearchConfigChange,
   onGenerateResearch,
   isGenerating,
-  aiConnected,
-  aiProvider,
-  aiModel,
+  connectionState,
   onConnectAI,
   onDisconnectAI,
   documentStatus,
@@ -95,7 +100,7 @@ export function ControlsPanel({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            {aiConnected ? (
+            {connectionState.connected ? (
               <CheckCircle2 className="w-4 h-4 text-green-500" />
             ) : (
               <WifiOff className="w-4 h-4 text-red-500" />
@@ -104,7 +109,7 @@ export function ControlsPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {aiConnected ? (
+          {connectionState.connected ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Status:</span>
@@ -112,23 +117,24 @@ export function ControlsPanel({
                   Connected
                 </Badge>
               </div>
-              {aiProvider && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Provider:</span>
-                  <span className="font-medium capitalize">{aiProvider}</span>
-                </div>
-              )}
-              {aiModel && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Model:</span>
-                  <span className="font-medium">{aiModel}</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Model:</span>
+                <span className="font-medium">
+                  {connectionState.selectedModel}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Server:</span>
+                <span className="font-medium text-xs">
+                  {connectionState.baseURL}
+                </span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onDisconnectAI}
                 className="w-full"
+                disabled={connectionState.connecting}
               >
                 Disconnect
               </Button>
@@ -136,11 +142,29 @@ export function ControlsPanel({
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Connect to an AI provider to start researching
+                {connectionState.connecting
+                  ? "Connecting to Ollama..."
+                  : "Connect to Ollama to start researching"}
               </p>
-              <Button onClick={onConnectAI} className="w-full">
-                <Bot className="w-4 h-4 mr-2" />
-                Connect AI
+              {connectionState.error && (
+                <p className="text-xs text-red-600">{connectionState.error}</p>
+              )}
+              <Button
+                onClick={onConnectAI}
+                className="w-full"
+                disabled={connectionState.connecting}
+              >
+                {connectionState.connecting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <Bot className="w-4 h-4 mr-2" />
+                    Connect AI
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -153,14 +177,14 @@ export function ControlsPanel({
         onPromptChange={onPromptChange}
         onGenerate={onGenerateResearch}
         isGenerating={isGenerating}
-        disabled={!aiConnected}
+        disabled={!connectionState.connected}
       />
 
       {/* Research Type Selector */}
       <ResearchTypeSelector
         selectedType={researchConfig.type}
         onTypeChange={handleResearchTypeChange}
-        disabled={!aiConnected || isGenerating}
+        disabled={!connectionState.connected || isGenerating}
       />
 
       {/* Research Depth */}
@@ -190,7 +214,7 @@ export function ControlsPanel({
                 }
                 size="sm"
                 onClick={() => handleDepthChange(depth.value)}
-                disabled={!aiConnected || isGenerating}
+                disabled={!connectionState.connected || isGenerating}
                 className="h-auto p-2 flex-col"
               >
                 <div className="font-medium text-xs">{depth.label}</div>

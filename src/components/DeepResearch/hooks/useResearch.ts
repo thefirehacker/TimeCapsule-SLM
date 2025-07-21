@@ -1,9 +1,6 @@
-import { useState, useCallback, useRef } from "react";
-import { AIAssistant, AIStatus as AIConnectionStatus } from "@/lib/AIAssistant";
-import {
-  VectorStore,
-  DocumentData,
-} from "@/components/VectorStore/VectorStore";
+import { useState, useCallback } from "react";
+import { VectorStore } from "@/components/VectorStore/VectorStore";
+import { useOllamaConnection } from "./useOllamaConnection";
 
 export type ResearchType =
   | "deep-research"
@@ -26,13 +23,19 @@ export interface UseResearchReturn {
   setResearchConfig: (config: ResearchConfig) => void;
   isGenerating: boolean;
   results: string;
-  aiStatus: AIConnectionStatus;
+
+  // AI Connection
+  connectionState: any;
+  connectAI: (baseURL: string, model?: string) => Promise<boolean>;
+  disconnectAI: () => void;
+  testConnection: (
+    baseURL: string
+  ) => Promise<{ success: boolean; models: string[] }>;
+  isAIReady: boolean;
 
   // Actions
   generateResearch: () => Promise<void>;
   clearResults: () => void;
-  connectAI: () => Promise<void>;
-  disconnectAI: () => void;
 }
 
 export function useResearch(
@@ -45,52 +48,19 @@ export function useResearch(
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState("");
-  const [aiStatus, setAIStatus] = useState<AIConnectionStatus>({
-    connected: false,
-    provider: "ollama",
-  });
 
-  const aiAssistantRef = useRef<AIAssistant | null>(null);
-
-  const connectAI = useCallback(async () => {
-    try {
-      if (!aiAssistantRef.current) {
-        aiAssistantRef.current = new AIAssistant();
-      }
-
-      const connected = await aiAssistantRef.current.connectToOllama(
-        "http://localhost:11434",
-        "qwen2.5:latest"
-      );
-      if (connected) {
-        setAIStatus({
-          connected: true,
-          provider: "ollama",
-          model: "qwen2.5:latest",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to connect to AI:", error);
-      setAIStatus({
-        connected: false,
-        provider: "ollama",
-        error: "Failed to connect",
-      });
-    }
-  }, []);
-
-  const disconnectAI = useCallback(() => {
-    if (aiAssistantRef.current) {
-      // No disconnect method found in AIAssistant, just reset status
-      setAIStatus({
-        connected: false,
-        provider: "ollama",
-      });
-    }
-  }, []);
+  // Use the robust Ollama connection hook
+  const {
+    connectionState,
+    connect,
+    disconnect,
+    testConnection,
+    generateContent,
+    isReady: isAIReady,
+  } = useOllamaConnection();
 
   const generateResearch = useCallback(async () => {
-    if (!prompt.trim() || !aiAssistantRef.current || !aiStatus.connected) {
+    if (!prompt.trim() || !isAIReady) {
       return;
     }
 
@@ -101,21 +71,22 @@ export function useResearch(
         researchConfig,
         vectorStore
       );
-      const response = await aiAssistantRef.current.generateContent(
-        researchPrompt,
-        "research"
-      );
+      const response = await generateContent(researchPrompt);
 
       if (response && typeof response === "string") {
         setResults(response);
       }
     } catch (error) {
       console.error("Research generation failed:", error);
-      setResults("Failed to generate research. Please try again.");
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setResults(
+        `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
+      );
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, researchConfig, vectorStore, aiStatus.connected]);
+  }, [prompt, researchConfig, vectorStore, isAIReady, generateContent]);
 
   const clearResults = useCallback(() => {
     setResults("");
@@ -129,11 +100,13 @@ export function useResearch(
     setResearchConfig,
     isGenerating,
     results,
-    aiStatus,
+    connectionState,
+    connectAI: connect,
+    disconnectAI: disconnect,
+    testConnection,
+    isAIReady,
     generateResearch,
     clearResults,
-    connectAI,
-    disconnectAI,
   };
 }
 
@@ -170,7 +143,7 @@ function buildResearchPrompt(
     prompt += `Please use any relevant information from the knowledge base to enhance your research.\n\n`;
   }
 
-  prompt += `Format your response with clear headings, bullet points, and structured information for easy reading.`;
+  prompt += `Format your response with clear headings, bullet points, and structured information for easy reading. Use markdown formatting for better readability.`;
 
   return prompt;
 }

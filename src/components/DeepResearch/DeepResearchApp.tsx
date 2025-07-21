@@ -11,32 +11,15 @@ import {
 import { ControlsPanel } from "./ControlsPanel";
 import { ResearchOutput } from "./ResearchOutput";
 import { StatusBar } from "./StatusBar";
+import { OllamaConnectionModal } from "./components/OllamaConnectionModal";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import VectorStoreInitModal from "../VectorStoreInitModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import {
-  Bot,
-  Settings,
-  CheckCircle2,
-  Loader2,
-  Upload,
-  FileText,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Settings, Loader2, Upload, FileText, Trash2 } from "lucide-react";
 
 export function DeepResearchComponent() {
   // Initialize page analytics for fine-grained tracking
@@ -66,8 +49,6 @@ export function DeepResearchComponent() {
     "research" | "sources" | "notes"
   >("research");
   const [showOllamaModal, setShowOllamaModal] = useState(false);
-  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
-  const [isConnecting, setIsConnecting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
   // File upload handler
@@ -86,20 +67,25 @@ export function DeepResearchComponent() {
     setShowOllamaModal(true);
   };
 
-  const handleOllamaConnect = async () => {
-    setIsConnecting(true);
+  const handleOllamaConnect = async (
+    baseURL: string,
+    model: string
+  ): Promise<boolean> => {
     setStatusMessage("Connecting to Ollama...");
 
     try {
-      await research.connectAI();
-      setShowOllamaModal(false);
-      setStatusMessage("Successfully connected to AI");
+      const success = await research.connectAI(baseURL, model);
+      if (success) {
+        setStatusMessage(`Successfully connected to ${model}`);
+        setTimeout(() => setStatusMessage(""), 3000);
+        return true;
+      } else {
+        setStatusMessage("Failed to connect to Ollama");
+        return false;
+      }
     } catch (error) {
-      setStatusMessage(
-        "Failed to connect to AI. Please check your Ollama installation."
-      );
-    } finally {
-      setIsConnecting(false);
+      setStatusMessage("Connection failed");
+      return false;
     }
   };
 
@@ -119,6 +105,7 @@ export function DeepResearchComponent() {
   const handleClearAll = () => {
     research.clearResults();
     setStatusMessage("Workspace cleared");
+    setTimeout(() => setStatusMessage(""), 2000);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -159,9 +146,7 @@ export function DeepResearchComponent() {
                   onResearchConfigChange={research.setResearchConfig}
                   onGenerateResearch={research.generateResearch}
                   isGenerating={research.isGenerating}
-                  aiConnected={research.aiStatus.connected}
-                  aiProvider={research.aiStatus.provider}
-                  aiModel={research.aiStatus.model || null}
+                  connectionState={research.connectionState}
                   onConnectAI={handleConnectAI}
                   onDisconnectAI={research.disconnectAI}
                   documentStatus={documents.documentStatus}
@@ -198,7 +183,7 @@ export function DeepResearchComponent() {
       <StatusBar
         message={statusMessage}
         isGenerating={research.isGenerating}
-        aiConnected={research.aiStatus.connected}
+        aiConnected={research.connectionState.connected}
       />
 
       {/* Hidden File Input */}
@@ -212,136 +197,107 @@ export function DeepResearchComponent() {
       />
 
       {/* Ollama Connection Modal */}
-      <Dialog open={showOllamaModal} onOpenChange={setShowOllamaModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bot className="w-5 h-5" />
-              Connect to Ollama
-            </DialogTitle>
-          </DialogHeader>
+      <OllamaConnectionModal
+        open={showOllamaModal}
+        onOpenChange={setShowOllamaModal}
+        onConnect={handleOllamaConnect}
+        onTestConnection={research.testConnection}
+        connectionState={research.connectionState}
+      />
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ollama-url">Ollama URL</Label>
-              <Input
-                id="ollama-url"
-                value={ollamaUrl}
-                onChange={(e) => setOllamaUrl(e.target.value)}
-                placeholder="http://localhost:11434"
-                disabled={isConnecting}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowOllamaModal(false)}
-                disabled={isConnecting}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleOllamaConnect} disabled={isConnecting}>
-                {isConnecting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Bot className="w-4 h-4 mr-2" />
-                    Connect
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Document Manager Modal */}
-      <Dialog
-        open={documents.showDocumentManager}
-        onOpenChange={documents.setShowDocumentManager}
-      >
-        <DialogContent className="max-w-4xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Document Manager
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Documents:</span>
-                  <span className="font-medium ml-1">
-                    {documents.documentStatus.count}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total Size:</span>
-                  <span className="font-medium ml-1">
-                    {formatFileSize(documents.documentStatus.totalSize)}
-                  </span>
-                </div>
+      {/* Document Manager Modal - existing implementation */}
+      {documents.showDocumentManager && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-4xl max-h-[80vh] m-4">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Document Manager
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => documents.setShowDocumentManager(false)}
+                >
+                  ×
+                </Button>
               </div>
 
-              <Button
-                onClick={() => document.getElementById("file-upload")?.click()}
-                disabled={documents.isUploading}
-                className="space-x-2"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload Files</span>
-              </Button>
-            </div>
-
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-2">
-                {documents.documents.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No documents uploaded yet</p>
-                    <p className="text-sm">
-                      Upload files to build your knowledge base
-                    </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Documents:</span>
+                      <span className="font-medium ml-1">
+                        {documents.documentStatus.count}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Total Size:</span>
+                      <span className="font-medium ml-1">
+                        {formatFileSize(documents.documentStatus.totalSize)}
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  documents.documents.map((doc) => (
-                    <Card key={doc.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">
-                              {doc.title}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {doc.metadata.filetype} •{" "}
-                              {formatFileSize(doc.metadata.filesize)}
-                            </div>
-                          </div>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => documents.deleteDocument(doc.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
+                  <Button
+                    onClick={() =>
+                      document.getElementById("file-upload")?.click()
+                    }
+                    disabled={documents.isUploading}
+                    className="space-x-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Files</span>
+                  </Button>
+                </div>
+
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-2">
+                    {documents.documents.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No documents uploaded yet</p>
+                        <p className="text-sm">
+                          Upload files to build your knowledge base
+                        </p>
+                      </div>
+                    ) : (
+                      documents.documents.map((doc) => (
+                        <Card key={doc.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">
+                                  {doc.title}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {doc.metadata.filetype} •{" "}
+                                  {formatFileSize(doc.metadata.filesize)}
+                                </div>
+                              </div>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => documents.deleteDocument(doc.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
               </div>
-            </ScrollArea>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Vector Store Loading */}
       {vectorStoreInitializing && (
