@@ -208,7 +208,7 @@ export function DeepResearchComponent() {
       {/* Document Manager Modal - existing implementation */}
       {documents.showDocumentManager && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-4xl max-h-[80vh] m-4">
+          <Card className="w-full max-w-4xl m-4">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">

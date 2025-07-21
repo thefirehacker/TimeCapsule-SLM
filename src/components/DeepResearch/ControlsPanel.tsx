@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
-import { ResearchPrompt } from "./components/ResearchPrompt";
-import { ResearchTypeSelector } from "./components/ResearchTypeSelector";
-import { ResearchType, ResearchConfig } from "./hooks/useResearch";
+import { PromptBox, ResearchType } from "@/components/ui/chatgpt-prompt-input";
+import { ResearchConfig } from "./hooks/useResearch";
 import { DocumentStatus } from "./hooks/useDocuments";
 import {
   Bot,
@@ -171,59 +170,24 @@ export function ControlsPanel({
         </CardContent>
       </Card>
 
-      {/* Research Prompt */}
-      <ResearchPrompt
-        prompt={prompt}
-        onPromptChange={onPromptChange}
-        onGenerate={onGenerateResearch}
+      {/* Enhanced Research Prompt with Type Selector */}
+      <PromptBox
+        value={prompt}
+        onChange={onPromptChange}
+        onSubmit={(promptText, researchType, researchDepth) => {
+          onPromptChange(promptText);
+          handleResearchTypeChange(researchType);
+          handleDepthChange(researchDepth);
+          onGenerateResearch();
+        }}
+        selectedResearchType={researchConfig.type}
+        onResearchTypeChange={handleResearchTypeChange}
+        selectedResearchDepth={researchConfig.depth}
+        onResearchDepthChange={handleDepthChange}
         isGenerating={isGenerating}
         disabled={!connectionState.connected}
+        placeholder="What would you like to research? Ask anything..."
       />
-
-      {/* Research Type Selector */}
-      <ResearchTypeSelector
-        selectedType={researchConfig.type}
-        onTypeChange={handleResearchTypeChange}
-        disabled={!connectionState.connected || isGenerating}
-      />
-
-      {/* Research Depth */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Research Depth</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { value: "quick" as const, label: "Quick", desc: "Key points" },
-              {
-                value: "detailed" as const,
-                label: "Detailed",
-                desc: "Full analysis",
-              },
-              {
-                value: "comprehensive" as const,
-                label: "Deep",
-                desc: "Exhaustive",
-              },
-            ].map((depth) => (
-              <Button
-                key={depth.value}
-                variant={
-                  researchConfig.depth === depth.value ? "default" : "outline"
-                }
-                size="sm"
-                onClick={() => handleDepthChange(depth.value)}
-                disabled={!connectionState.connected || isGenerating}
-                className="h-auto p-2 flex-col"
-              >
-                <div className="font-medium text-xs">{depth.label}</div>
-                <div className="text-xs opacity-70">{depth.desc}</div>
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Knowledge Base */}
       <Card>
@@ -274,12 +238,12 @@ export function ControlsPanel({
       <Separator />
 
       {/* Actions */}
-      <div className="space-y-2">
+      <div className="space-y-2 flex flex-col gap-2">
         <Button
           variant="outline"
           size="sm"
           onClick={onExportResults}
-          className="w-full"
+          className=""
         >
           Export Results
         </Button>
@@ -287,7 +251,7 @@ export function ControlsPanel({
           variant="outline"
           size="sm"
           onClick={onClearAll}
-          className="w-full text-destructive hover:text-destructive"
+          className=" text-destructive hover:text-destructive"
         >
           Clear All
         </Button>
