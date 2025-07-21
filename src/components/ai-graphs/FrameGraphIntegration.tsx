@@ -1386,7 +1386,8 @@ Updated: ${new Date().toISOString()}`,
               variant="outline"
               size="sm"
               onClick={handleSaveGraph}
-              disabled={!hasUnsavedChanges || isAutoSaving}
+              disabled={true}
+              hidden
               className={`${hasUnsavedChanges ? 'text-blue-600 hover:text-blue-700' : 'text-gray-400'} transition-colors`}
             >
               <Save className="h-4 w-4 mr-2" />

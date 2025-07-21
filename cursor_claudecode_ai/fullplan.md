@@ -2,6 +2,33 @@
 
 ## Active Issues
 
+### Issue #004: Knowledge Base Management - Enhanced RAG Features
+**Status**: 🚀 **READY FOR IMPLEMENTATION**  
+**Priority**: HIGH - Feature Enhancement  
+**Type**: UI/UX & Search Enhancement  
+**Created**: 2025-07-21  
+**Updated**: 2025-07-21  
+**File**: [cursor_claudecode_ai/issues/Issue-004-Build-Dependencies-Fix.md](./issues/Issue-004-Build-Dependencies-Fix.md)
+
+**Current Status**: 
+- **System Analysis**: Complete analysis of existing KB Manager UI (15 docs, 3.72 KB)
+- **Functional System**: RxDB + semantic search + model caching all working perfectly
+- **UI Documentation**: Comprehensive specs with actual component analysis from screenshots
+- **Test Coverage**: 7 test cases covering all existing functionality (6/7 passing)
+- **Enhancement Plan**: Clear priorities for User Docs upload, advanced search, bulk operations
+
+**Current System State**: 
+- **User Docs**: 0 documents (upload UI ready for enhancement)
+- **AI Frames**: 4 documents (working integration) 
+- **System**: 11 documents (generated content)
+- **Model Cache**: 23MB Xenova all-MiniLM-L6-v2 (cached and working)
+
+**Next Session Goals**: 
+- Implement drag & drop upload UI for User Docs tab
+- Add multi-file batch upload with progress tracking
+- Enhance search results with document snippets
+- Add advanced filtering (date, type, source)
+
 ### Issue #003: Unified Storage Integration
 **Status**: ⚠️ **PHASE 1 - 80% COMPLETE** (12/21 TODOs, 3 critical remain)  
 **Priority**: HIGH - Next session resolution target  
