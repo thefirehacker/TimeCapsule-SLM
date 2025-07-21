@@ -1,10 +1,10 @@
 {
     "frames": [
         {
-            "id": "frame-1753047780713-30qgyyzjz",
+            "id": "frame-1753056753017-oicvwchqk",
             "title": "f1",
-            "goal": "goal 01 ",
-            "informationText": "context 01",
+            "goal": "goal 01",
+            "informationText": "Provide background context and information...",
             "afterVideoText": "Key takeaways and next steps...",
             "aiConcepts": [],
             "isGenerated": false,
@@ -12,34 +12,23 @@
             "bubblSpaceId": "default",
             "timeCapsuleId": "default",
             "type": "frame",
-            "createdAt": "2025-07-20T21:43:00.714Z",
-            "updatedAt": "2025-07-20T21:44:18.697Z",
+            "createdAt": "2025-07-21T00:12:33.017Z",
+            "updatedAt": "2025-07-21T00:12:50.016Z",
             "videoUrl": "",
             "startTime": 0,
             "duration": 300,
             "metadata": {
                 "version": "2.0",
-                "createdAt": "2025-07-20T21:43:00.714Z",
-                "updatedAt": "2025-07-20T21:44:23.766Z",
+                "createdAt": "2025-07-21T00:12:33.017Z",
+                "updatedAt": "2025-07-21T00:19:44.605Z",
                 "source": "ai-frames",
-                "lastSaved": "2025-07-20T21:44:23.766Z"
-            },
-            "attachment": {
-                "id": "node_1753047854996_wm6qoomi6_1",
-                "type": "video",
-                "data": {
-                    "title": "Video Content",
-                    "notes": "",
-                    "videoUrl": "https://www.youtube.com/watch?v=po7doQNkhuU",
-                    "startTime": 0,
-                    "duration": 300
-                }
+                "lastSaved": "2025-07-21T00:19:44.605Z"
             }
         },
         {
-            "id": "frame-1753047783564-jm9hcg022",
+            "id": "frame-1753056756295-9gewn1s6v",
             "title": "f2",
-            "goal": "goal 02",
+            "goal": "goal02",
             "informationText": "Provide background context and information...",
             "afterVideoText": "Key takeaways and next steps...",
             "aiConcepts": [],
@@ -48,66 +37,114 @@
             "bubblSpaceId": "default",
             "timeCapsuleId": "default",
             "type": "frame",
-            "createdAt": "2025-07-20T21:43:03.564Z",
-            "updatedAt": "2025-07-20T21:43:28.115Z",
+            "createdAt": "2025-07-21T00:12:36.295Z",
+            "updatedAt": "2025-07-21T00:13:11.601Z",
             "videoUrl": "",
             "startTime": 0,
             "duration": 300,
             "metadata": {
                 "version": "2.0",
-                "createdAt": "2025-07-20T21:43:03.564Z",
-                "updatedAt": "2025-07-20T21:44:23.766Z",
+                "createdAt": "2025-07-21T00:12:36.295Z",
+                "updatedAt": "2025-07-21T00:19:44.605Z",
                 "source": "ai-frames",
-                "lastSaved": "2025-07-20T21:44:23.766Z"
+                "lastSaved": "2025-07-21T00:19:44.605Z"
+            }
+        },
+        {
+            "id": "frame-1753056810310-80c5rqsv4",
+            "title": "Frame 3",
+            "goal": "Enter learning goal here...",
+            "informationText": "Provide background context and information...",
+            "afterVideoText": "Key takeaways and next steps...",
+            "aiConcepts": [],
+            "isGenerated": false,
+            "order": 3,
+            "bubblSpaceId": "default",
+            "timeCapsuleId": "default",
+            "type": "frame",
+            "createdAt": "2025-07-21T00:13:30.310Z",
+            "updatedAt": "2025-07-21T00:13:30.310Z",
+            "videoUrl": "",
+            "startTime": 0,
+            "duration": 300,
+            "metadata": {
+                "version": "2.0",
+                "createdAt": "2025-07-21T00:13:30.310Z",
+                "updatedAt": "2025-07-21T00:19:44.605Z",
+                "source": "ai-frames",
+                "lastSaved": "2025-07-21T00:19:44.605Z"
+            }
+        },
+        {
+            "id": "frame-1753056821910-7jpviojhm",
+            "title": "f3",
+            "goal": "Enter learning goal here...",
+            "informationText": "Provide background context and information...",
+            "afterVideoText": "Key takeaways and next steps...",
+            "aiConcepts": [],
+            "isGenerated": false,
+            "order": 4,
+            "bubblSpaceId": "default",
+            "timeCapsuleId": "default",
+            "type": "frame",
+            "createdAt": "2025-07-21T00:13:41.911Z",
+            "updatedAt": "2025-07-21T00:13:47.861Z",
+            "videoUrl": "",
+            "startTime": 0,
+            "duration": 300,
+            "metadata": {
+                "version": "2.0",
+                "createdAt": "2025-07-21T00:13:41.911Z",
+                "updatedAt": "2025-07-21T00:19:44.605Z",
+                "source": "ai-frames",
+                "lastSaved": "2025-07-21T00:19:44.605Z"
+            }
+        },
+        {
+            "id": "frame-1753057011294-oc35xzmst",
+            "title": "f3",
+            "goal": "goal03",
+            "informationText": "Provide background context and information...",
+            "afterVideoText": "Key takeaways and next steps...",
+            "aiConcepts": [],
+            "isGenerated": false,
+            "order": 4,
+            "bubblSpaceId": "default",
+            "timeCapsuleId": "default",
+            "type": "frame",
+            "createdAt": "2025-07-21T00:16:51.294Z",
+            "updatedAt": "2025-07-21T00:18:00.519Z",
+            "videoUrl": "",
+            "startTime": 0,
+            "duration": 300,
+            "metadata": {
+                "version": "2.0",
+                "createdAt": "2025-07-21T00:16:51.294Z",
+                "updatedAt": "2025-07-21T00:19:44.605Z",
+                "source": "ai-frames",
+                "lastSaved": "2025-07-21T00:19:44.605Z"
             }
         }
     ],
     "graphState": {
         "nodes": [
             {
-                "id": "node_1753047780713_t0602sjkt_0",
+                "id": "node_1753056753017_47cpwkr8k_0",
                 "type": "aiframe",
                 "position": {
-                    "x": 18.76815474294409,
-                    "y": 2.9406638912375627
+                    "x": -77.60003280553866,
+                    "y": -355.47912705928536
                 },
                 "data": {
                     "type": "aiframe",
-                    "frameId": "frame-1753047780713-30qgyyzjz",
+                    "frameId": "frame-1753056753017-oicvwchqk",
                     "title": "f1",
-                    "goal": "goal 01 ",
-                    "informationText": "context 01",
-                    "afterVideoText": "Key takeaways and next steps...",
-                    "aiConcepts": [],
-                    "isGenerated": false,
-                    "updatedAt": "2025-07-20T21:44:11.676Z",
-                    "id": "frame-1753047780713-30qgyyzjz"
-                },
-                "measured": {
-                    "width": 480,
-                    "height": 460
-                },
-                "selected": true,
-                "dragging": true
-            },
-            {
-                "id": "node_1753047783564_3bo3xww80_1",
-                "type": "aiframe",
-                "position": {
-                    "x": 492.2050661485928,
-                    "y": 539.8838010517181
-                },
-                "data": {
-                    "type": "aiframe",
-                    "frameId": "frame-1753047783564-jm9hcg022",
-                    "title": "f2",
-                    "goal": "goal 02",
+                    "goal": "goal 01",
                     "informationText": "Provide background context and information...",
                     "afterVideoText": "Key takeaways and next steps...",
                     "aiConcepts": [],
                     "isGenerated": false,
-                    "updatedAt": "2025-07-20T21:43:28.003Z",
-                    "id": "frame-1753047783564-jm9hcg022"
+                    "updatedAt": "2025-07-21T00:12:33.076Z"
                 },
                 "measured": {
                     "width": 480,
@@ -115,47 +152,85 @@
                 },
                 "selected": false,
                 "dragging": false
+            },
+            {
+                "id": "node_1753056756295_qaz5fnmyj_1",
+                "type": "aiframe",
+                "position": {
+                    "x": 452.99896512891485,
+                    "y": 112.59472663620033
+                },
+                "data": {
+                    "type": "aiframe",
+                    "frameId": "frame-1753056756295-9gewn1s6v",
+                    "title": "f2",
+                    "goal": "goal02",
+                    "informationText": "Provide background context and information...",
+                    "afterVideoText": "Key takeaways and next steps...",
+                    "aiConcepts": [],
+                    "isGenerated": false,
+                    "updatedAt": "2025-07-21T00:12:36.381Z"
+                },
+                "measured": {
+                    "width": 480,
+                    "height": 460
+                },
+                "selected": true,
+                "dragging": false
+            },
+            {
+                "id": "node_1753057011294_tm25qcmnk_0",
+                "type": "aiframe",
+                "position": {
+                    "x": 743.9667088115187,
+                    "y": -120.11745811057426
+                },
+                "data": {
+                    "type": "aiframe",
+                    "frameId": "frame-1753057011294-oc35xzmst",
+                    "title": "f3",
+                    "goal": "goal03",
+                    "informationText": "Provide background context and information...",
+                    "afterVideoText": "Key takeaways and next steps...",
+                    "aiConcepts": [],
+                    "isGenerated": false
+                },
+                "measured": {
+                    "width": 480,
+                    "height": 460
+                }
             }
         ],
         "edges": [
             {
-                "id": "edge_node_1753047780713_t0602sjkt_0_node_1753047783564_3bo3xww80_1_1753047812008_rycgmhkxs",
-                "source": "node_1753047780713_t0602sjkt_0",
-                "target": "node_1753047783564_3bo3xww80_1",
+                "id": "edge_node_1753056753017_47cpwkr8k_0_node_1753056756295_qaz5fnmyj_1_1753056997712_lowignuyf",
+                "source": "node_1753056753017_47cpwkr8k_0",
+                "target": "node_1753056756295_qaz5fnmyj_1",
+                "sourceHandle": null,
+                "targetHandle": null,
                 "style": {
                     "stroke": "#3b82f6",
                     "strokeWidth": 2
                 }
             },
             {
-                "id": "edge_node_1753047854996_wm6qoomi6_1_node_1753047780713_t0602sjkt_0_1753047858697_q92p7ww6q",
-                "source": "node_1753047854996_wm6qoomi6_1",
-                "target": "node_1753047780713_t0602sjkt_0",
+                "id": "edge_node_1753056756295_qaz5fnmyj_1_node_1753057011294_tm25qcmnk_0_1753057055049_3ohaxle87",
+                "source": "node_1753056756295_qaz5fnmyj_1",
+                "target": "node_1753057011294_tm25qcmnk_0",
                 "sourceHandle": null,
-                "targetHandle": "attachment-slot",
+                "targetHandle": null,
                 "style": {
-                    "stroke": "#f97316",
-                    "strokeWidth": 3
-                }
-            },
-            {
-                "id": "edge_node_1753047854996_wm6qoomi6_1_node_1753047780713_t0602sjkt_0_1753047858697_q92p7ww6q",
-                "source": "node_1753047854996_wm6qoomi6_1",
-                "target": "node_1753047780713_t0602sjkt_0",
-                "sourceHandle": null,
-                "targetHandle": "attachment-slot",
-                "style": {
-                    "stroke": "#f97316",
-                    "strokeWidth": 3
+                    "stroke": "#3b82f6",
+                    "strokeWidth": 2
                 }
             }
         ],
-        "selectedNodeId": "node_1753047780713_t0602sjkt_0"
+        "selectedNodeId": null
     },
     "metadata": {
         "version": "2.0",
-        "lastSaved": "2025-07-20T21:44:23.766Z",
-        "frameCount": 2,
+        "lastSaved": "2025-07-21T00:19:44.605Z",
+        "frameCount": 5,
         "source": "ai-frames",
         "checksum": "eyJmcmFtZXMiOlt7"
     }

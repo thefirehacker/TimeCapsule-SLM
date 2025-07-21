@@ -101,7 +101,7 @@ export default function EnhancedLearningGraph({
   const isCreatingFrame = useRef(false);
   
   // HELPER: Emit graph state change with deduplication (using refs for fresh values)
-  const emitGraphStateChange = useCallback((reason: string, additionalDetail: any = {}) => {
+  const emitGraphStateChange = useCallback((reason: string, additionalDetail: any = {}, freshState?: { nodes?: any[], edges?: any[] }) => {
     const now = Date.now();
     if (now - lastEmissionRef.current < 200) {
       // SPECS COMPLIANT: 200ms debounce for performance optimization
@@ -110,9 +110,9 @@ export default function EnhancedLearningGraph({
     
     lastEmissionRef.current = now;
     
-    // Get fresh values from refs to avoid stale closures
-    const currentNodes = nodesRef.current;
-    const currentEdges = edgesRef.current;
+    // Use fresh state if provided, otherwise get from refs
+    const currentNodes = freshState?.nodes ?? nodesRef.current;
+    const currentEdges = freshState?.edges ?? edgesRef.current;
     const currentSelectedNode = selectedNodeRef.current;
     
     if (typeof window !== 'undefined') {
@@ -343,16 +343,7 @@ export default function EnhancedLearningGraph({
       return node;
     }));
 
-    // Emit event to sync with Frame Navigation
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('graph-attachment-changed', {
-        detail: {
-          frameId,
-          attachment,
-          action: 'attached'
-        }
-      }));
-    }
+    // NOTE: graph-attachment-changed event moved to onConnect to include fresh edge state
 
     console.log('✅ Enhanced: Content attached → Frame Navigation sync triggered:', {
       frameId,
@@ -397,13 +388,19 @@ export default function EnhancedLearningGraph({
       return node;
     }));
 
-    // Emit event to sync with Frame Navigation
+    // Emit event to sync with Frame Navigation (include fresh graph state)
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('graph-attachment-changed', {
         detail: {
           frameId,
           attachment: undefined,
-          action: 'detached'
+          action: 'detached',
+          // CRITICAL FIX: Include fresh graph state to prevent stale edge saves
+          freshGraphState: {
+            nodes: nodesRef.current,
+            edges: edgesRef.current,
+            selectedNodeId: selectedNodeRef.current
+          }
         }
       }));
     }
@@ -600,22 +597,8 @@ export default function EnhancedLearningGraph({
   }, [frames, nodes.length, initialGraphState, handleFrameUpdate, handleAttachContent, handleDetachContent]);
 
   // CRITICAL FIX: Update nodes when initialGraphState changes (e.g., after TimeCapsule restore)
-  useEffect(() => {
-    if (initialGraphState?.nodes?.length) {
-      // Create a signature of the initialGraphState to detect actual changes
-      const currentSignature = `${initialGraphState.nodes.length}-${initialGraphState.nodes.map(n => n.id).sort().join(',')}`;
-      
-      // Only apply if this is a new/different graph state
-      if (lastAppliedGraphState.current !== currentSignature) {
-        // Apply updated graph state
-        
-        // Apply the new graph state
-        setNodes(initialGraphState.nodes);
-        setEdges(initialGraphState.edges || []);
-        lastAppliedGraphState.current = currentSignature;
-      }
-    }
-  }, [initialGraphState]);
+  // REMOVED: Problematic useEffect that caused infinite re-rendering
+  // The initial state is already properly handled by useNodesState and useEdgesState
 
   // CRITICAL FIX: Sync existing nodes with updated frame data when frames prop changes
   useEffect(() => {
@@ -866,16 +849,45 @@ export default function EnhancedLearningGraph({
           }
         }));
         
-        // CRITICAL FIX: Emit graph-state-changed to trigger unified save
+        // CRITICAL FIX: Emit graph-state-changed with fresh edge state to trigger unified save
         setTimeout(() => {
+          // Get current state and add the new edge
+          const currentNodes = nodesRef.current;
+          const currentEdges = [...edgesRef.current, edge];
+          
+          // CRITICAL FIX: For attachment connections, emit graph-attachment-changed with fresh state
+          if (params.targetHandle === 'attachment-slot') {
+            const targetNode = nodes.find(n => n.id === params.target);
+            if (targetNode?.data?.frameId) {
+              window.dispatchEvent(new CustomEvent('graph-attachment-changed', {
+                detail: {
+                  frameId: targetNode.data.frameId,
+                  attachment: targetNode.data.attachment,
+                  action: 'attached',
+                  // CRITICAL FIX: Include fresh graph state with the new edge
+                  freshGraphState: {
+                    nodes: currentNodes,
+                    edges: currentEdges,
+                    selectedNodeId: selectedNodeRef.current
+                  }
+                }
+              }));
+            }
+          }
+          
           emitGraphStateChange('edge-added', {
             edgeData: edge
+          }, {
+            nodes: currentNodes,
+            edges: currentEdges
           });
           
-          console.log('🎯 Connection created, triggering unified save:', {
+          console.log('🎯 Connection created, triggering unified save with fresh state:', {
             edgeId: edge.id,
             source: edge.source,
-            target: edge.target
+            target: edge.target,
+            totalEdges: currentEdges.length,
+            isAttachment: params.targetHandle === 'attachment-slot'
           });
         }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
       }
@@ -937,16 +949,24 @@ export default function EnhancedLearningGraph({
             }
           }));
           
-          // CRITICAL FIX: Emit graph-state-changed to trigger unified save for edge deletion
+          // CRITICAL FIX: Emit graph-state-changed with fresh edge state to trigger unified save for edge deletion
           setTimeout(() => {
+            // Get current state without the deleted edge
+            const currentNodes = nodesRef.current;
+            const currentEdges = edgesRef.current.filter(e => e.id !== edge.id);
+            
             emitGraphStateChange('edge-removed', {
               edgeData: edge
+            }, {
+              nodes: currentNodes,
+              edges: currentEdges
             });
             
-            console.log('🎯 Connection removed, triggering unified save:', {
+            console.log('🎯 Connection removed, triggering unified save with fresh state:', {
               edgeId: edge.id,
               source: edge.source,
-              target: edge.target
+              target: edge.target,
+              remainingEdges: currentEdges.length
             });
           }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
         }

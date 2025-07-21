@@ -610,7 +610,7 @@ export const useUnifiedStorage = ({
     
     // CRITICAL FIX: Handle attachment operations that require unified save
     const handleAttachmentChangedEvent = (event: any) => {
-      const { frameId, attachment, action } = event.detail;
+      const { frameId, attachment, action, freshGraphState } = event.detail;
       
       // Attachment change detected
       
@@ -635,9 +635,10 @@ export const useUnifiedStorage = ({
         setFrames(updatedFrames);
       }
       
-      // OPTIMISTIC: Trigger immediate background save for attachment operations
+      // CRITICAL FIX: Use fresh graph state from event to prevent stale edge saves
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, graphStateRef.current);
+      const graphStateToSave = freshGraphState || graphStateRef.current;
+      queueBackgroundSave(framesRef.current, graphStateToSave);
     };
 
     // CRITICAL FIX: Handle attachment content updates (note name changes, etc.)
