@@ -24,10 +24,11 @@
 - **Model Cache**: 23MB Xenova all-MiniLM-L6-v2 (cached and working)
 
 **Next Session Goals**: 
-- Implement drag & drop upload UI for User Docs tab
-- Add multi-file batch upload with progress tracking
-- Enhance search results with document snippets
-- Add advanced filtering (date, type, source)
+- Configure Webpack to bundle 22MB Xenova model files at build time
+- Implement lazy loading strategy (fast page load → modal → model ready)
+- Update both AI Frames and Deep Research to use bundled models
+- Eliminate duplicate model loading (save 22MB memory)
+- Test performance improvements and bundle size impact
 
 ### Issue #003: Unified Storage Integration
 **Status**: ⚠️ **PHASE 1 - 80% COMPLETE** (12/21 TODOs, 3 critical remain)  

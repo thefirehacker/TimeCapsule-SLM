@@ -360,25 +360,45 @@ Query → Generate Embedding → Cosine Similarity → Sort → Return Results
 - [x] Data integrity maintained during export/import
 ```
 
-### **TC-007: Document Upload System**
+### **TC-007: Document Upload Performance**
 ```
-⚠️ READY - User Document Upload
+⚠️ PERFORMANCE ISSUES - Document Upload & Chunking
 - [x] Upload interface ready ("No user documents found")
 - [x] File processing pipeline implemented
 - [x] Document storage in RxDB working
-- [ ] Need: Multi-file upload UI (Enhancement)
-- [ ] Need: Drag & drop interface (Enhancement)
+- ❌ SLOW: Xenova model loading from Cache API (22MB, 100-500ms)
+- ❌ SLOW: Duplicate model loading (main thread + web worker)
+- ❌ SLOW: Sequential chunking → embeddings (main thread blocking)
+- [ ] ENHANCEMENT: Move Xenova model to IndexedDB (5-10x faster)
+- [ ] ENHANCEMENT: Unified Web Worker processing (chunking + embeddings)
+- [ ] ENHANCEMENT: Multi-file upload UI with optimized pipeline
 ```
 
-## Enhancement Priorities (Based on Current State)
+## Enhancement Priorities (Based on Performance Analysis)
 
-### **🚀 Immediate Enhancements**
+### **🚀 CRITICAL: Performance Optimization**
 ```
-Priority 1: User Document Upload Experience
-- Current: Single file upload works, but no UI in KB Manager
+Priority 1: Document Upload Performance (BLOCKING ISSUE)
+- PROBLEM: Slow document chunking and upload process
+- CAUSE: Xenova model (22MB) loaded from Cache API (slow, 100-500ms)
+- CAUSE: Duplicate model loading (main thread + web worker = 44MB total!)
+- CAUSE: Sequential processing blocks UI during embeddings generation
+
+SOLUTION: Build-Time Model Inclusion + Lazy Loading
+- Bundle 22MB Xenova model files in build (zero download time)
+- Lazy load after initial page render (fast page load preserved)
+- Use existing VectorStore init modal for progress indication
+- Eliminate duplicate loading (22MB vs 44MB savings)
+- Unified Web Worker processing (chunking + embeddings together)
+```
+
+### **⚡ UI Enhancements** (After Performance Fix)
+```
+Priority 2: User Document Upload Experience
+- Current: Single file upload works, but slow
 - Need: Drag & drop interface in "User Docs" tab
-- Need: Multi-file batch upload with progress tracking
-- Need: File type icons and metadata display
+- Need: Multi-file batch upload with optimized pipeline
+- Need: Real-time progress tracking with performance metrics
 ```
 
 ### **⚡ Search & Discovery Enhancements** 
@@ -391,14 +411,132 @@ Priority 2: Advanced Search Features
 - Need: Search history and saved queries
 ```
 
-### **🔧 UI/UX Improvements**
+### **🔧 Advanced Search Features** (After Core Performance)
 ```
-Priority 3: Interface Polish
-- Current: Functional modal interface
-- Need: Document preview within KB Manager
-- Need: Bulk document management (select, delete, export)
-- Need: Document annotation and tagging system
-- Need: Visual search result improvements
+Priority 3: Enhanced Search & Discovery
+- Current: Basic semantic search with threshold control
+- Need: BM25 keyword search + hybrid ranking
+- Need: Advanced filters (date, type, source)
+- Need: Search result snippets with highlights
+- Need: Document preview and bulk operations
+```
+
+## **Technical Implementation: Build-Time Model Inclusion**
+
+### **Current Architecture Issues** ❌
+```typescript
+// PROBLEM 1: Network dependency (2-5s initial download)
+this.model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2'); 
+// Downloads 22MB from Hugging Face CDN every first time
+
+// PROBLEM 2: Cache API slowness (100-500ms subsequent loads)
+env.useBrowserCache = true; // Browser Cache API access
+
+// PROBLEM 3: Duplicate model loading (44MB total memory!)
+// Main thread: EmbeddingService.ts loads 22MB model
+// Web Worker: embeddingWorker.ts loads same 22MB model again!
+
+// PROBLEM 4: Blocks page load while downloading/loading
+```
+
+### **Build-Time Solution Architecture** ✅
+```typescript
+// SOLUTION 1: Bundle models at build time (zero network dependency)
+// next.config.ts
+const nextConfig = {
+  webpack: (config) => {
+    // Bundle Xenova model files
+    config.module.rules.push({
+      test: /\.(onnx|json)$/,
+      type: 'asset/resource',
+      generator: {
+        filename: 'models/[name].[hash][ext]'
+      }
+    });
+    return config;
+  },
+};
+
+// SOLUTION 2: Lazy loading with existing VectorStore modal
+class OptimizedEmbeddingService {
+  private static modelPath = '/models/all-MiniLM-L6-v2/';
+  
+  async initWithModal(): Promise<void> {
+    // Show existing VectorStore init modal
+    this.showVectorStoreModal("Loading AI model...", 0);
+    
+    // Load from bundled files (instant - no network!)
+    this.model = await pipeline('feature-extraction', {
+      model: this.modelPath + 'model_quantized.onnx',
+      tokenizer: this.modelPath + 'tokenizer.json',
+      config: this.modelPath + 'tokenizer_config.json'
+    });
+    
+    this.hideVectorStoreModal();
+  }
+}
+
+// SOLUTION 3: Fast page load strategy  
+const pageLoadStrategy = {
+  initialRender: '< 100ms (no model loading)',
+  modelInitialization: '200-500ms (from bundled files)',
+  totalToReady: '< 600ms (vs 2-5s network)',
+  memoryUsage: '22MB (vs 44MB duplicate)',
+  offline: '100% (no network dependency)'
+};
+```
+
+### **Page Load Optimization Strategy**
+```typescript
+// AI Frames Page Strategy
+useEffect(() => {
+  // 1. Page renders immediately
+  setPageReady(true);
+  
+  // 2. Initialize VectorStore with modal (non-blocking)
+  setTimeout(() => {
+    initializeVectorStoreWithBundledModel();
+  }, 100);
+}, []);
+
+// Deep Research Page Strategy  
+const { vectorStore, isInitializing, isReady } = useVectorStore({
+  autoInit: false, // Don't block page load
+  showModal: true   // Use existing modal
+});
+
+// Manual init after page loads
+useEffect(() => {
+  if (pageLoaded) {
+    vectorStore.initWithBundledModel();
+  }
+}, [pageLoaded]);
+```
+
+### **Implementation Steps** 
+```
+1. Configure Webpack to bundle Xenova model files
+2. Update EmbeddingService to load from bundled paths
+3. Implement lazy loading strategy (page load → modal → model ready)
+4. Unified Web Worker processing (eliminate duplicate loading)
+5. Update both AI Frames and Deep Research init patterns
+6. Add performance metrics for bundled model loading
+7. Test offline functionality and bundle size impact
+```
+
+### **Bundle Size & Performance Analysis**
+```
+Current Bundle: ~3-5MB
+With Xenova Models: ~25-27MB (+22MB)
+First Load: 25-27MB download (one time)
+Subsequent Loads: Instant (cached by browser)
+
+Performance Gains:
+- Model availability: 0ms (vs 2-5s download)  
+- Model loading: 200-500ms (vs 100-500ms + network)
+- Page load blocking: None (lazy loading)
+- Memory efficiency: 22MB (vs 44MB duplicate)
+- Offline capability: 100% (vs network dependent)
 ```
 
 ## Risk Assessment
