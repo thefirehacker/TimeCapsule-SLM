@@ -634,7 +634,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                         {isGenerating ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            <span>Researching...</span>
+                            <span>Streaming...</span>
                           </>
                         ) : (
                           <>
@@ -647,7 +647,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                     <TooltipContent side="top" showArrow={true}>
                       <p>
                         {isGenerating
-                          ? "Research in progress..."
+                          ? "Research streaming in progress..."
                           : "Generate Research"}
                       </p>
                     </TooltipContent>

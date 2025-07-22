@@ -37,6 +37,7 @@ export interface UseResearchReturn {
 
   // Actions
   generateResearch: () => Promise<void>;
+  generateResearchStream: () => Promise<void>;
   clearResults: () => void;
 }
 
@@ -60,6 +61,7 @@ export function useResearch(
     disconnect,
     testConnection,
     generateContent,
+    generateContentStream,
     isReady: isAIReady,
   } = useOllamaConnection();
 
@@ -105,6 +107,63 @@ export function useResearch(
     }
   }, [prompt, researchConfig, vectorStore, isAIReady, generateContent]);
 
+  const generateResearchStream = useCallback(async () => {
+    if (!prompt.trim() || !isAIReady) {
+      return;
+    }
+
+    setIsGenerating(true);
+    setIsStreaming(true);
+    setThinkingOutput("");
+    setResults("");
+
+    try {
+      const researchPrompt = buildResearchPrompt(
+        prompt,
+        researchConfig,
+        vectorStore
+      );
+
+      // Set initial thinking process
+      setThinkingOutput(
+        "Analyzing your research request and preparing comprehensive analysis..."
+      );
+
+      // Start streaming
+      const stream = generateContentStream(researchPrompt);
+      let accumulatedContent = "";
+
+      for await (const chunk of stream) {
+        if (chunk) {
+          accumulatedContent += chunk;
+          setResults(accumulatedContent);
+
+          // Update thinking process as content streams
+          if (accumulatedContent.length < 100) {
+            setThinkingOutput("Starting research generation...");
+          } else if (accumulatedContent.length < 500) {
+            setThinkingOutput("Building comprehensive analysis...");
+          } else {
+            setThinkingOutput("Expanding research with detailed insights...");
+          }
+        }
+      }
+
+      setThinkingOutput("Research completed successfully!");
+    } catch (error) {
+      console.error("Streaming research generation failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setResults(
+        `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
+      );
+      setThinkingOutput("Research generation failed. Please try again.");
+    } finally {
+      setIsGenerating(false);
+      setIsStreaming(false);
+    }
+  }, [prompt, researchConfig, vectorStore, isAIReady, generateContentStream]);
+
   const clearResults = useCallback(() => {
     setResults("");
     setPrompt("");
@@ -127,6 +186,7 @@ export function useResearch(
     testConnection,
     isAIReady,
     generateResearch,
+    generateResearchStream,
     clearResults,
   };
 }

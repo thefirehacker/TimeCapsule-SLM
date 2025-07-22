@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createOllama } from "ollama-ai-provider";
 import { generateText } from "ai";
+import { streamText } from "ai";
 
 export interface OllamaConnectionState {
   connected: boolean;
@@ -22,6 +23,7 @@ export interface UseOllamaConnectionReturn {
     baseURL: string
   ) => Promise<{ success: boolean; models: string[] }>;
   generateContent: (prompt: string) => Promise<string>;
+  generateContentStream: (prompt: string) => AsyncIterable<string>;
   isReady: boolean;
 }
 
@@ -447,6 +449,93 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
     [connectionState.connected, connectionState.selectedModel]
   );
 
+  // Streaming content generation using Vercel AI SDK
+  const generateContentStream = useCallback(
+    async function* (prompt: string): AsyncIterable<string> {
+      console.log("🌊 Starting streaming content generation...", {
+        hasClient: !!ollamaClientRef.current,
+        connected: connectionState.connected,
+        model: connectionState.selectedModel,
+      });
+
+      // Validation checks
+      if (!ollamaClientRef.current) {
+        throw new Error("Ollama client not initialized. Please connect first.");
+      }
+
+      if (!connectionState.connected) {
+        throw new Error("Ollama not connected. Please connect first.");
+      }
+
+      if (!connectionState.selectedModel) {
+        throw new Error(
+          "No model selected. Please reconnect and select a model."
+        );
+      }
+
+      if (!prompt || prompt.trim().length === 0) {
+        throw new Error("Prompt cannot be empty.");
+      }
+
+      try {
+        console.log("🌊 Starting streaming with Ollama...", {
+          model: connectionState.selectedModel,
+          promptLength: prompt.length,
+        });
+
+        // Create the model instance
+        const modelInstance = ollamaClientRef.current(
+          connectionState.selectedModel
+        );
+
+        if (!modelInstance) {
+          throw new Error("Failed to create model instance");
+        }
+
+        // Use Vercel AI SDK's streamText for streaming
+        const { textStream } = await streamText({
+          model: modelInstance,
+          prompt: prompt.trim(),
+          maxTokens: 2000,
+          temperature: 0.7,
+        });
+
+        console.log("✅ Streaming started successfully");
+
+        // Yield each chunk as it arrives
+        for await (const chunk of textStream) {
+          if (chunk) {
+            yield chunk;
+          }
+        }
+
+        console.log("✅ Streaming completed");
+      } catch (error) {
+        console.error("❌ Streaming content generation failed:", error);
+
+        // Check if it's a connection-related error
+        if (
+          error instanceof Error &&
+          (error.message.includes("fetch") ||
+            error.message.includes("network") ||
+            error.message.includes("connect") ||
+            error.message.includes("timeout"))
+        ) {
+          // Mark as disconnected and clear client
+          ollamaClientRef.current = null;
+          setConnectionState((prev) => ({
+            ...prev,
+            connected: false,
+            error: "Lost connection to Ollama server",
+          }));
+        }
+
+        throw error;
+      }
+    },
+    [connectionState.connected, connectionState.selectedModel]
+  );
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -468,6 +557,7 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
     disconnect,
     testConnection,
     generateContent,
+    generateContentStream,
     isReady,
   };
 }

@@ -28,6 +28,7 @@ interface ControlsPanelProps {
   researchConfig: ResearchConfig;
   onResearchConfigChange: (config: ResearchConfig) => void;
   onGenerateResearch: () => void;
+  onGenerateResearchStream: () => void; // Add streaming function
   isGenerating: boolean;
 
   // AI connection - updated structure
@@ -60,6 +61,7 @@ export function ControlsPanel({
   researchConfig,
   onResearchConfigChange,
   onGenerateResearch,
+  onGenerateResearchStream, // Add streaming function
   isGenerating,
   connectionState,
   onConnectAI,
@@ -178,7 +180,7 @@ export function ControlsPanel({
           onPromptChange(promptText);
           handleResearchTypeChange(researchType);
           handleDepthChange(researchDepth);
-          onGenerateResearch();
+          onGenerateResearchStream(); // Use streaming function instead
         }}
         selectedResearchType={researchConfig.type}
         onResearchTypeChange={handleResearchTypeChange}

@@ -145,6 +145,7 @@ export function DeepResearchComponent() {
                   researchConfig={research.researchConfig}
                   onResearchConfigChange={research.setResearchConfig}
                   onGenerateResearch={research.generateResearch}
+                  onGenerateResearchStream={research.generateResearchStream}
                   isGenerating={research.isGenerating}
                   connectionState={research.connectionState}
                   onConnectAI={handleConnectAI}

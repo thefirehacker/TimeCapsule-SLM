@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Brain,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -42,6 +43,7 @@ export function ResearchOutput({
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [typingIndicator, setTypingIndicator] = useState("");
 
   // Auto-scroll to bottom when new content arrives
   useEffect(() => {
@@ -49,6 +51,21 @@ export function ResearchOutput({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [researchResults, thinkingOutput, isStreaming]);
+
+  // Typing indicator animation for streaming
+  useEffect(() => {
+    if (isStreaming) {
+      const dots = ["", ".", "..", "..."];
+      let index = 0;
+      const interval = setInterval(() => {
+        setTypingIndicator(dots[index]);
+        index = (index + 1) % dots.length;
+      }, 500);
+      return () => clearInterval(interval);
+    } else {
+      setTypingIndicator("");
+    }
+  }, [isStreaming]);
 
   const handleCopy = async () => {
     try {
@@ -81,6 +98,33 @@ export function ResearchOutput({
     );
   };
 
+  const renderStreamingIndicator = () => {
+    if (!isStreaming) return null;
+
+    return (
+      <div className="flex items-center gap-2 mt-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+        <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-pulse" />
+        <span className="text-sm text-purple-700 dark:text-purple-300">
+          Generating research{typingIndicator}
+        </span>
+        <div className="flex space-x-1">
+          <div
+            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+            style={{ animationDelay: "0ms" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+            style={{ animationDelay: "150ms" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+            style={{ animationDelay: "300ms" }}
+          ></div>
+        </div>
+      </div>
+    );
+  };
+
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center space-y-4">
       <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
@@ -99,92 +143,93 @@ export function ResearchOutput({
   );
 
   const renderContent = () => {
-    if (!researchResults.trim()) {
+    if (!researchResults.trim() && !isStreaming) {
       return renderEmptyState();
     }
 
     return (
       <div className="prose prose-slate dark:prose-invert max-w-none">
         {renderThinkingOutput()}
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            code({ className, children, ...props }: any) {
-              const match = /language-(\w+)/.exec(className || "");
-              return match ? (
-                <SyntaxHighlighter
-                  style={oneDark as any}
-                  language={match[1]}
-                  PreTag="div"
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, "")}
-                </SyntaxHighlighter>
-              ) : (
-                <code className={className} {...props}>
+
+        {researchResults && (
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({ className, children, ...props }: any) {
+                const match = /language-(\w+)/.exec(className || "");
+                return match ? (
+                  <SyntaxHighlighter
+                    style={oneDark as any}
+                    language={match[1]}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, "")}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+              // Custom styling for different elements
+              h1: ({ children }) => (
+                <h1 className="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">
                   {children}
-                </code>
-              );
-            },
-            // Custom styling for different elements
-            h1: ({ children }) => (
-              <h1 className="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">
-                {children}
-              </h1>
-            ),
-            h2: ({ children }) => (
-              <h2 className="text-xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-100">
-                {children}
-              </h2>
-            ),
-            h3: ({ children }) => (
-              <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-100">
-                {children}
-              </h3>
-            ),
-            p: ({ children }) => (
-              <p className="mb-4 text-slate-700 dark:text-slate-300">
-                {children}
-              </p>
-            ),
-            ul: ({ children }) => (
-              <ul className="list-disc list-inside mb-4 space-y-1">
-                {children}
-              </ul>
-            ),
-            ol: ({ children }) => (
-              <ol className="list-decimal list-inside mb-4 space-y-1">
-                {children}
-              </ol>
-            ),
-            li: ({ children }) => (
-              <li className="text-slate-700 dark:text-slate-300">{children}</li>
-            ),
-            blockquote: ({ children }) => (
-              <blockquote className="border-l-4 border-blue-500 pl-4 italic text-slate-600 dark:text-slate-400 mb-4">
-                {children}
-              </blockquote>
-            ),
-            a: ({ href, children }) => (
-              <a
-                href={href}
-                className="text-blue-600 dark:text-blue-400 hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {children}
-              </a>
-            ),
-          }}
-        >
-          {researchResults}
-        </ReactMarkdown>
-        {isStreaming && (
-          <div className="flex items-center gap-2 mt-4 text-slate-500 dark:text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Generating research...</span>
-          </div>
+                </h1>
+              ),
+              h2: ({ children }) => (
+                <h2 className="text-xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-100">
+                  {children}
+                </h2>
+              ),
+              h3: ({ children }) => (
+                <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-100">
+                  {children}
+                </h3>
+              ),
+              p: ({ children }) => (
+                <p className="mb-4 text-slate-700 dark:text-slate-300">
+                  {children}
+                </p>
+              ),
+              ul: ({ children }) => (
+                <ul className="list-disc list-inside mb-4 space-y-1">
+                  {children}
+                </ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="list-decimal list-inside mb-4 space-y-1">
+                  {children}
+                </ol>
+              ),
+              li: ({ children }) => (
+                <li className="text-slate-700 dark:text-slate-300">
+                  {children}
+                </li>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote className="border-l-4 border-blue-500 pl-4 italic text-slate-600 dark:text-slate-400 mb-4">
+                  {children}
+                </blockquote>
+              ),
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {researchResults}
+          </ReactMarkdown>
         )}
+
+        {renderStreamingIndicator()}
       </div>
     );
   };
@@ -204,6 +249,12 @@ export function ResearchOutput({
                 {Math.ceil(researchResults.length / 500)} min read
               </Badge>
             )}
+            {isStreaming && (
+              <Badge variant="default" className="ml-2 bg-purple-500">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Streaming
+              </Badge>
+            )}
           </div>
 
           {researchResults && (
@@ -213,6 +264,7 @@ export function ResearchOutput({
                 size="sm"
                 onClick={handleCopy}
                 className="space-x-2"
+                disabled={isStreaming}
               >
                 {copied ? (
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
@@ -227,6 +279,7 @@ export function ResearchOutput({
                 size="sm"
                 onClick={onExportResults}
                 className="space-x-2"
+                disabled={isStreaming}
               >
                 <Download className="w-4 h-4" />
                 <span>Export</span>
