@@ -38,6 +38,7 @@ export interface UseResearchReturn {
   // Actions
   generateResearch: () => Promise<void>;
   generateResearchStream: () => Promise<void>;
+  updateResults: (newContent: string) => void; // Add function to update results
   clearResults: () => void;
 }
 
@@ -164,6 +165,11 @@ export function useResearch(
     }
   }, [prompt, researchConfig, vectorStore, isAIReady, generateContentStream]);
 
+  const updateResults = useCallback((newContent: string) => {
+    setResults(newContent);
+    setThinkingOutput("Content updated by user");
+  }, []);
+
   const clearResults = useCallback(() => {
     setResults("");
     setPrompt("");
@@ -187,6 +193,7 @@ export function useResearch(
     isAIReady,
     generateResearch,
     generateResearchStream,
+    updateResults,
     clearResults,
   };
 }

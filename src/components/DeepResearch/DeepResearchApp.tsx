@@ -177,6 +177,7 @@ export function DeepResearchComponent() {
               onTabChange={setCurrentTab}
               onClearOutput={research.clearResults}
               onExportResults={handleExportResults}
+              onUpdateResults={research.updateResults}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

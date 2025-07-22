@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FileText,
   BookOpen,
@@ -16,6 +17,9 @@ import {
   Brain,
   Loader2,
   Sparkles,
+  Edit3,
+  Save,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -30,6 +34,7 @@ interface ResearchOutputProps {
   onTabChange: (tab: "research" | "sources" | "notes") => void;
   onClearOutput: () => void;
   onExportResults: () => void;
+  onUpdateResults?: (newContent: string) => void; // Add callback for updating results
 }
 
 export function ResearchOutput({
@@ -40,9 +45,13 @@ export function ResearchOutput({
   onTabChange,
   onClearOutput,
   onExportResults,
+  onUpdateResults,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [typingIndicator, setTypingIndicator] = useState("");
 
   // Auto-scroll to bottom when new content arrives
@@ -51,6 +60,24 @@ export function ResearchOutput({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [researchResults, thinkingOutput, isStreaming]);
+
+  // Update edited content when research results change
+  useEffect(() => {
+    if (!isEditing) {
+      setEditedContent(researchResults);
+    }
+  }, [researchResults, isEditing]);
+
+  // Focus textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(
+        textareaRef.current.value.length,
+        textareaRef.current.value.length
+      );
+    }
+  }, [isEditing]);
 
   // Typing indicator animation for streaming
   useEffect(() => {
@@ -75,6 +102,23 @@ export function ResearchOutput({
     } catch (error) {
       console.error("Failed to copy:", error);
     }
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedContent(researchResults);
+  };
+
+  const handleSave = () => {
+    if (onUpdateResults) {
+      onUpdateResults(editedContent);
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedContent(researchResults);
   };
 
   const renderThinkingOutput = () => {
@@ -151,85 +195,119 @@ export function ResearchOutput({
       <div className="prose prose-slate dark:prose-invert max-w-none">
         {renderThinkingOutput()}
 
-        {researchResults && (
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ className, children, ...props }: any) {
-                const match = /language-(\w+)/.exec(className || "");
-                return match ? (
-                  <SyntaxHighlighter
-                    style={oneDark as any}
-                    language={match[1]}
-                    PreTag="div"
-                    {...props}
-                  >
-                    {String(children).replace(/\n$/, "")}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-              // Custom styling for different elements
-              h1: ({ children }) => (
-                <h1 className="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">
-                  {children}
-                </h1>
-              ),
-              h2: ({ children }) => (
-                <h2 className="text-xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-100">
-                  {children}
-                </h2>
-              ),
-              h3: ({ children }) => (
-                <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-100">
-                  {children}
-                </h3>
-              ),
-              p: ({ children }) => (
-                <p className="mb-4 text-slate-700 dark:text-slate-300">
-                  {children}
-                </p>
-              ),
-              ul: ({ children }) => (
-                <ul className="list-disc list-inside mb-4 space-y-1">
-                  {children}
-                </ul>
-              ),
-              ol: ({ children }) => (
-                <ol className="list-decimal list-inside mb-4 space-y-1">
-                  {children}
-                </ol>
-              ),
-              li: ({ children }) => (
-                <li className="text-slate-700 dark:text-slate-300">
-                  {children}
-                </li>
-              ),
-              blockquote: ({ children }) => (
-                <blockquote className="border-l-4 border-blue-500 pl-4 italic text-slate-600 dark:text-slate-400 mb-4">
-                  {children}
-                </blockquote>
-              ),
-              a: ({ href, children }) => (
-                <a
-                  href={href}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
+        {isEditing ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Edit Research Content
+              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancel}
+                  className="space-x-2"
                 >
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {researchResults}
-          </ReactMarkdown>
-        )}
+                  <X className="w-4 h-4" />
+                  <span>Cancel</span>
+                </Button>
+                <Button size="sm" onClick={handleSave} className="space-x-2">
+                  <Save className="w-4 h-4" />
+                  <span>Save</span>
+                </Button>
+              </div>
+            </div>
+            <Textarea
+              ref={textareaRef}
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              placeholder="Edit your research content here..."
+              className="min-h-[400px] font-mono text-sm resize-none"
+            />
+          </div>
+        ) : (
+          <>
+            {researchResults && (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    return match ? (
+                      <SyntaxHighlighter
+                        style={oneDark as any}
+                        language={match[1]}
+                        PreTag="div"
+                        {...props}
+                      >
+                        {String(children).replace(/\n$/, "")}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  // Custom styling for different elements
+                  h1: ({ children }) => (
+                    <h1 className="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">
+                      {children}
+                    </h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-100">
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-100">
+                      {children}
+                    </h3>
+                  ),
+                  p: ({ children }) => (
+                    <p className="mb-4 text-slate-700 dark:text-slate-300">
+                      {children}
+                    </p>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-inside mb-4 space-y-1">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal list-inside mb-4 space-y-1">
+                      {children}
+                    </ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-slate-700 dark:text-slate-300">
+                      {children}
+                    </li>
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-blue-500 pl-4 italic text-slate-600 dark:text-slate-400 mb-4">
+                      {children}
+                    </blockquote>
+                  ),
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {children}
+                    </a>
+                  ),
+                }}
+              >
+                {researchResults}
+              </ReactMarkdown>
+            )}
 
-        {renderStreamingIndicator()}
+            {renderStreamingIndicator()}
+          </>
+        )}
       </div>
     );
   };
@@ -255,10 +333,27 @@ export function ResearchOutput({
                 Streaming
               </Badge>
             )}
+            {isEditing && (
+              <Badge variant="default" className="ml-2 bg-orange-500">
+                <Edit3 className="w-3 h-3 mr-1" />
+                Editing
+              </Badge>
+            )}
           </div>
 
-          {researchResults && (
+          {researchResults && !isEditing && (
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEdit}
+                className="space-x-2"
+                disabled={isStreaming}
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Edit</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
