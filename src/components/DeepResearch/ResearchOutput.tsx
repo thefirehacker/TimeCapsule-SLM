@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { PromptBox, ResearchType } from "@/components/ui/chatgpt-prompt-input";
+import { ResearchConfig } from "./hooks/useResearch";
 import {
   FileText,
   BookOpen,
@@ -28,24 +28,44 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface ResearchOutputProps {
   researchResults: string;
-  thinkingOutput?: string; // AI thinking process
-  isStreaming?: boolean; // Whether content is currently streaming
-  currentTab: "research" | "sources" | "notes";
-  onTabChange: (tab: "research" | "sources" | "notes") => void;
+  thinkingOutput?: string;
+  isStreaming?: boolean;
   onClearOutput: () => void;
   onExportResults: () => void;
-  onUpdateResults?: (newContent: string) => void; // Add callback for updating results
+  onUpdateResults?: (newContent: string) => void;
+
+  // Prompt input props
+  prompt: string;
+  onPromptChange: (prompt: string) => void;
+  researchConfig: ResearchConfig;
+  onResearchConfigChange: (config: ResearchConfig) => void;
+  onGenerateResearchStream: () => void;
+  isGenerating: boolean;
+  connectionState: {
+    connected: boolean;
+    connecting: boolean;
+    error: string | null;
+    baseURL: string;
+    availableModels: string[];
+    selectedModel: string;
+    lastConnected: Date | null;
+  };
 }
 
 export function ResearchOutput({
   researchResults,
   thinkingOutput,
   isStreaming = false,
-  currentTab,
-  onTabChange,
   onClearOutput,
   onExportResults,
   onUpdateResults,
+  prompt,
+  onPromptChange,
+  researchConfig,
+  onResearchConfigChange,
+  onGenerateResearchStream,
+  isGenerating,
+  connectionState,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -121,6 +141,20 @@ export function ResearchOutput({
     setEditedContent(researchResults);
   };
 
+  const handleResearchTypeChange = (type: ResearchType) => {
+    onResearchConfigChange({
+      ...researchConfig,
+      type,
+    });
+  };
+
+  const handleDepthChange = (depth: "quick" | "detailed" | "comprehensive") => {
+    onResearchConfigChange({
+      ...researchConfig,
+      depth,
+    });
+  };
+
   const renderThinkingOutput = () => {
     if (!thinkingOutput) return null;
 
@@ -170,19 +204,26 @@ export function ResearchOutput({
   };
 
   const renderEmptyState = () => (
-    <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center space-y-4">
-      <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
-        <FileText className="w-8 h-8 text-slate-400" />
+    <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center space-y-6">
+      <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center">
+        <Brain className="w-10 h-10 text-purple-600 dark:text-purple-400" />
       </div>
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-          No Research Results Yet
+      <div className="space-y-3">
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          Ready to Research
         </h3>
-        <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md">
-          Enter a research query in the controls panel and click "Generate
-          Research" to see results here.
+        <p className="text-slate-600 dark:text-slate-400 max-w-md leading-relaxed">
+          Enter your research question below to get started. I'll analyze your
+          query and provide comprehensive insights.
         </p>
       </div>
+      {!connectionState.connected && (
+        <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg max-w-md">
+          <p className="text-sm text-orange-700 dark:text-orange-300">
+            Connect to Ollama in the sidebar to start researching
+          </p>
+        </div>
+      )}
     </div>
   );
 
@@ -248,7 +289,6 @@ export function ResearchOutput({
                       </code>
                     );
                   },
-                  // Custom styling for different elements
                   h1: ({ children }) => (
                     <h1 className="text-2xl font-bold mt-8 mb-6 text-slate-900 dark:text-slate-100">
                       {children}
@@ -313,35 +353,30 @@ export function ResearchOutput({
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="border-b border-slate-200 dark:border-slate-700 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Research Output
-            </h2>
-            {researchResults && (
-              <Badge variant="secondary" className="ml-2">
-                {Math.ceil(researchResults.length / 500)} min read
+    <div className="h-full flex flex-col relative">
+      {/* Action Bar - Only show when there's content */}
+      {researchResults && !isEditing && (
+        <div className="border-b border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-950/50 backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="space-x-1">
+                <Brain className="w-3 h-3" />
+                <span>{Math.ceil(researchResults.length / 500)} min read</span>
               </Badge>
-            )}
-            {isStreaming && (
-              <Badge variant="default" className="ml-2 bg-purple-500">
-                <Sparkles className="w-3 h-3 mr-1" />
-                Streaming
-              </Badge>
-            )}
-            {isEditing && (
-              <Badge variant="default" className="ml-2 bg-orange-500">
-                <Edit3 className="w-3 h-3 mr-1" />
-                Editing
-              </Badge>
-            )}
-          </div>
+              {isStreaming && (
+                <Badge variant="default" className="bg-purple-500 space-x-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Streaming</span>
+                </Badge>
+              )}
+              {isEditing && (
+                <Badge variant="default" className="bg-orange-500 space-x-1">
+                  <Edit3 className="w-3 h-3" />
+                  <span>Editing</span>
+                </Badge>
+              )}
+            </div>
 
-          {researchResults && !isEditing && (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -380,65 +415,43 @@ export function ResearchOutput({
                 <span>Export</span>
               </Button>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 ">
-        <Tabs
-          value={currentTab}
-          onValueChange={(value) => onTabChange(value as any)}
-        >
-          <div className="border-b border-slate-200 dark:border-slate-700 px-4">
-            <TabsList className="h-10">
-              <TabsTrigger value="research" className="space-x-2">
-                <FileText className="w-4 h-4" />
-                <span>Research</span>
-              </TabsTrigger>
-              <TabsTrigger value="sources" className="space-x-2">
-                <BookOpen className="w-4 h-4" />
-                <span>Sources</span>
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="space-x-2">
-                <StickyNote className="w-4 h-4" />
-                <span>Notes</span>
-              </TabsTrigger>
-            </TabsList>
           </div>
+        </div>
+      )}
 
-          <TabsContent value="research" className="m-0 h-full">
-            <ScrollArea className="h-full" ref={scrollRef}>
-              <div className="p-6">{renderContent()}</div>
-            </ScrollArea>
-          </TabsContent>
+      {/* Content Area */}
+      <div className="flex-1 relative">
+        <ScrollArea className="h-full" ref={scrollRef}>
+          <div className="p-8 pb-32">{renderContent()}</div>
+        </ScrollArea>
 
-          <TabsContent value="sources" className="m-0 h-full">
-            <ScrollArea className="h-full">
-              <div className="p-6">
-                <div className="text-center py-12">
-                  <BookOpen className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                  <p className="text-slate-600 dark:text-slate-400">
-                    Sources and references will appear here when available
-                  </p>
-                </div>
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="notes" className="m-0 h-full">
-            <ScrollArea className="h-full">
-              <div className="p-6">
-                <div className="text-center py-12">
-                  <StickyNote className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                  <p className="text-slate-600 dark:text-slate-400">
-                    Personal notes and annotations will appear here
-                  </p>
-                </div>
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
+        {/* Floating Prompt Input */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-950 dark:via-slate-950/95 dark:to-transparent">
+          <div className="max-w-4xl mx-auto">
+            <PromptBox
+              value={prompt}
+              onChange={onPromptChange}
+              onSubmit={(promptText, researchType, researchDepth) => {
+                onPromptChange(promptText);
+                handleResearchTypeChange(researchType);
+                handleDepthChange(researchDepth);
+                onGenerateResearchStream();
+              }}
+              selectedResearchType={researchConfig.type}
+              onResearchTypeChange={handleResearchTypeChange}
+              selectedResearchDepth={researchConfig.depth}
+              onResearchDepthChange={handleDepthChange}
+              isGenerating={isGenerating}
+              disabled={!connectionState.connected}
+              placeholder={
+                connectionState.connected
+                  ? "What would you like to research? Ask anything..."
+                  : "Connect to Ollama to start researching..."
+              }
+              className="shadow-xl border-2 backdrop-blur-sm bg-white/95 dark:bg-slate-950/95"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

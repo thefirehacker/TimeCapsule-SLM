@@ -3,11 +3,6 @@
 import { useState } from "react";
 import { useVectorStore } from "../providers/VectorStoreProvider";
 import { usePageAnalytics } from "../analytics/Analytics";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
 import { ControlsPanel } from "./ControlsPanel";
 import { ResearchOutput } from "./ResearchOutput";
 import { StatusBar } from "./StatusBar";
@@ -45,9 +40,6 @@ export function DeepResearchComponent() {
   const documents = useDocuments(vectorStore);
 
   // Local state for modals and UI
-  const [currentTab, setCurrentTab] = useState<
-    "research" | "sources" | "notes"
-  >("research");
   const [showOllamaModal, setShowOllamaModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -117,78 +109,57 @@ export function DeepResearchComponent() {
   };
 
   return (
-    <div className="h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
+    <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col">
       {/* Vector Store Initialization Modal */}
       {!vectorStoreInitialized && !vectorStoreInitializing && (
         <VectorStoreInitModal isOpen={true} />
       )}
 
       {/* Main Content */}
-      <div className="flex-1 ">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Controls Panel */}
-          <ResizablePanel defaultSize={50} minSize={30} maxSize={80}>
-            <div className="h-full border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">
-              <div className="border-b border-slate-200 dark:border-slate-700 p-4">
-                <div className="flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-primary" />
-                  <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Deep Research
-                  </h1>
-                </div>
-              </div>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Controls Panel */}
+        <div className="w-80 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 flex flex-col">
+          <ControlsPanel
+            prompt={research.prompt}
+            onPromptChange={research.setPrompt}
+            researchConfig={research.researchConfig}
+            onResearchConfigChange={research.setResearchConfig}
+            onGenerateResearch={research.generateResearch}
+            onGenerateResearchStream={research.generateResearchStream}
+            isGenerating={research.isGenerating}
+            connectionState={research.connectionState}
+            onConnectAI={handleConnectAI}
+            onDisconnectAI={research.disconnectAI}
+            documentStatus={documents.documentStatus}
+            onManageDocuments={() => documents.setShowDocumentManager(true)}
+            onUploadDocuments={() =>
+              document.getElementById("file-upload")?.click()
+            }
+            isUploading={documents.isUploading}
+            onClearAll={handleClearAll}
+            onExportResults={handleExportResults}
+          />
+        </div>
 
-              <ScrollArea className="h-[calc(100%-73px)]">
-                <ControlsPanel
-                  prompt={research.prompt}
-                  onPromptChange={research.setPrompt}
-                  researchConfig={research.researchConfig}
-                  onResearchConfigChange={research.setResearchConfig}
-                  onGenerateResearch={research.generateResearch}
-                  onGenerateResearchStream={research.generateResearchStream}
-                  isGenerating={research.isGenerating}
-                  connectionState={research.connectionState}
-                  onConnectAI={handleConnectAI}
-                  onDisconnectAI={research.disconnectAI}
-                  documentStatus={documents.documentStatus}
-                  onManageDocuments={() =>
-                    documents.setShowDocumentManager(true)
-                  }
-                  onUploadDocuments={() =>
-                    document.getElementById("file-upload")?.click()
-                  }
-                  isUploading={documents.isUploading}
-                  onClearAll={handleClearAll}
-                  onExportResults={handleExportResults}
-                />
-              </ScrollArea>
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle withHandle />
-
-          {/* Research Output */}
-          <ResizablePanel defaultSize={75}>
-            <ResearchOutput
-              researchResults={research.results}
-              thinkingOutput={research.thinkingOutput}
-              isStreaming={research.isStreaming}
-              currentTab={currentTab}
-              onTabChange={setCurrentTab}
-              onClearOutput={research.clearResults}
-              onExportResults={handleExportResults}
-              onUpdateResults={research.updateResults}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        {/* Main Content Area - Research Output */}
+        <div className="flex-1 flex flex-col">
+          <ResearchOutput
+            researchResults={research.results}
+            thinkingOutput={research.thinkingOutput}
+            isStreaming={research.isStreaming}
+            onClearOutput={research.clearResults}
+            onExportResults={handleExportResults}
+            onUpdateResults={research.updateResults}
+            prompt={research.prompt}
+            onPromptChange={research.setPrompt}
+            researchConfig={research.researchConfig}
+            onResearchConfigChange={research.setResearchConfig}
+            onGenerateResearchStream={research.generateResearchStream}
+            isGenerating={research.isGenerating}
+            connectionState={research.connectionState}
+          />
+        </div>
       </div>
-
-      {/* Status Bar */}
-      <StatusBar
-        message={statusMessage}
-        isGenerating={research.isGenerating}
-        aiConnected={research.connectionState.connected}
-      />
 
       {/* Hidden File Input */}
       <input
@@ -209,7 +180,7 @@ export function DeepResearchComponent() {
         connectionState={research.connectionState}
       />
 
-      {/* Document Manager Modal - existing implementation */}
+      {/* Document Manager Modal */}
       {documents.showDocumentManager && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-4xl m-4">
@@ -336,6 +307,13 @@ export function DeepResearchComponent() {
           </Card>
         </div>
       )}
+
+      {/* Status Bar */}
+      <StatusBar
+        message={statusMessage}
+        isGenerating={research.isGenerating}
+        aiConnected={research.connectionState.connected}
+      />
     </div>
   );
 }
