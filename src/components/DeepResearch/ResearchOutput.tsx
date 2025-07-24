@@ -65,30 +65,61 @@ interface ResearchOutputProps {
 }
 
 // Separate component for collapsible thinking output
-function ThinkingOutput({ content }: { content: string }) {
+function ThinkingOutput({
+  content,
+  isStreaming = false,
+}: {
+  content: string;
+  isStreaming?: boolean;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="mb-3">
+    <div className="mb-4">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full text-left p-3 bg-secondary/50 border border-border rounded-lg hover:bg-secondary/70 transition-colors"
+        className="w-full text-left p-3 bg-gradient-to-r from-secondary/40 to-secondary/60 border border-border/60 rounded-lg hover:from-secondary/60 hover:to-secondary/80 transition-all duration-200 shadow-sm"
       >
-        <div className="flex items-center gap-2">
-          <Brain className="w-3 h-3 text-primary" />
-          <span className="text-xs font-medium text-foreground">
-            AI Thinking Process
-          </span>
-          {isExpanded ? (
-            <ChevronDown className="w-3 h-3 text-primary ml-auto" />
-          ) : (
-            <ChevronRight className="w-3 h-3 text-primary ml-auto" />
-          )}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Brain
+              className={`w-4 h-4 text-primary ${isStreaming ? "animate-pulse" : ""}`}
+            />
+            <span className="text-sm font-medium text-foreground">
+              AI Thinking Process
+            </span>
+            {isStreaming && (
+              <div className="flex space-x-1">
+                <div
+                  className="w-1 h-1 bg-primary rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                ></div>
+                <div
+                  className="w-1 h-1 bg-primary rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                ></div>
+                <div
+                  className="w-1 h-1 bg-primary rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                ></div>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-1 rounded-full">
+              {content.length.toLocaleString()} chars
+            </span>
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-primary transition-transform duration-200" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-primary transition-transform duration-200" />
+            )}
+          </div>
         </div>
       </button>
       {isExpanded && (
-        <div className="mt-2 p-3 bg-secondary/30 border border-border rounded-lg">
-          <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+        <div className="mt-2 p-4 bg-secondary/20 border border-border/40 rounded-lg backdrop-blur-sm">
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed font-mono tracking-tight">
             {content}
           </div>
         </div>
@@ -121,13 +152,34 @@ export function ResearchOutput({
   const [typingIndicator, setTypingIndicator] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
-  // Auto-scroll to bottom when new content arrives
+  // Check if user is near bottom of scroll area
+  const isNearBottom = () => {
+    if (!scrollRef.current) return false;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100;
+  };
+
+  // Handle user scroll to detect manual scrolling
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+
+    const isAtBottom = isNearBottom();
+    setAutoScroll(isAtBottom);
+
+    // Detect if user is actively scrolling
+    setIsUserScrolling(true);
+    setTimeout(() => setIsUserScrolling(false), 150);
+  };
+
+  // Auto-scroll to bottom only when user is at bottom and not manually scrolling
   useEffect(() => {
-    if (scrollRef.current) {
+    if (autoScroll && !isUserScrolling && !isStreaming && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isStreaming]);
+  }, [messages, autoScroll, isUserScrolling, isStreaming]);
 
   // Update edited content when research results change
   useEffect(() => {
@@ -363,7 +415,10 @@ export function ResearchOutput({
             ) : (
               <div className="space-y-4">
                 {message.thinkingOutput && (
-                  <ThinkingOutput content={message.thinkingOutput} />
+                  <ThinkingOutput
+                    content={message.thinkingOutput}
+                    isStreaming={isCurrentMessage && isStreaming}
+                  />
                 )}
                 {message.content && (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -608,9 +663,30 @@ export function ResearchOutput({
         <div
           className="h-full overflow-y-auto overflow-x-hidden"
           ref={scrollRef}
+          onScroll={handleScroll}
         >
           <div className="pb-32 px-6">{renderContent()}</div>
         </div>
+
+        {/* Auto-scroll indicator */}
+        {!autoScroll && messages.length > 0 && (
+          <div className="absolute bottom-4 right-4 z-10">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (scrollRef.current) {
+                  scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                  setAutoScroll(true);
+                }
+              }}
+              className="shadow-lg backdrop-blur-sm bg-background/90 border-2 hover:bg-secondary/80"
+            >
+              <ChevronDown className="w-4 h-4 mr-2" />
+              Scroll to bottom
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Fixed Prompt Input at Bottom */}
