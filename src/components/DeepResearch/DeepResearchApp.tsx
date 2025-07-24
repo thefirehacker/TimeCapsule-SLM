@@ -109,7 +109,7 @@ export function DeepResearchComponent() {
   };
 
   return (
-    <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col">
+    <div className="h-full bg-background flex flex-col">
       {/* Vector Store Initialization Modal */}
       {!vectorStoreInitialized && !vectorStoreInitializing && (
         <VectorStoreInitModal isOpen={true} />
@@ -118,7 +118,7 @@ export function DeepResearchComponent() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Controls Panel */}
-        <div className="w-80 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 flex flex-col">
+        <div className="w-96 border-r border-border bg-card flex flex-col">
           <ControlsPanel
             prompt={research.prompt}
             onPromptChange={research.setPrompt}
@@ -157,6 +157,7 @@ export function DeepResearchComponent() {
             onGenerateResearchStream={research.generateResearchStream}
             isGenerating={research.isGenerating}
             connectionState={research.connectionState}
+            onConnectAI={handleConnectAI}
           />
         </div>
       </div>

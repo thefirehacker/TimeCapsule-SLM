@@ -65,13 +65,13 @@ export function DeepResearchNavigation({
   };
 
   return (
-    <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">
+    <div className="border-b border-border bg-card">
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left side - Navigation */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg"></div>
-            <span className="font-semibold text-slate-900 dark:text-slate-100">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg"></div>
+            <span className="font-semibold text-card-foreground">
               TimeCapsule
             </span>
           </div>
@@ -112,7 +112,7 @@ export function DeepResearchNavigation({
 
           {/* User Authentication */}
           {status === "loading" ? (
-            <div className="w-8 h-8 bg-slate-200 dark:bg-slate-700 rounded-full animate-pulse" />
+            <div className="w-8 h-8 bg-secondary rounded-full animate-pulse" />
           ) : session?.user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -125,7 +125,7 @@ export function DeepResearchNavigation({
                       src={session.user.image || ""}
                       alt={session.user.name || "User"}
                     />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-secondary text-secondary-foreground">
                       {session.user.name
                         ? getUserInitials(session.user.name)
                         : "U"}
@@ -133,10 +133,14 @@ export function DeepResearchNavigation({
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent
+                className="w-56 bg-popover border-border"
+                align="end"
+                forceMount
+              >
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
+                    <p className="text-sm font-medium leading-none text-popover-foreground">
                       {session.user.name}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
@@ -144,29 +148,32 @@ export function DeepResearchNavigation({
                     </p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuItem className="text-popover-foreground hover:bg-accent hover:text-accent-foreground">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className="text-popover-foreground hover:bg-accent hover:text-accent-foreground">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className="text-popover-foreground hover:bg-accent hover:text-accent-foreground">
                   <BookOpen className="mr-2 h-4 w-4" />
                   <span>My Research</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className="text-popover-foreground hover:bg-accent hover:text-accent-foreground">
                   <FileText className="mr-2 h-4 w-4" />
                   <span>Documents</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className="text-popover-foreground hover:bg-accent hover:text-accent-foreground">
                   <Package className="mr-2 h-4 w-4" />
                   <span>TimeCapsules</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

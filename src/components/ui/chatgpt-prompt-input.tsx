@@ -228,6 +228,7 @@ interface PromptBoxProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  compact?: boolean; // Add compact mode for chat interface
 }
 
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
@@ -244,6 +245,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       isGenerating = false,
       disabled = false,
       placeholder = "What would you like to research? Ask anything...",
+      compact = false, // Add compact prop
       ...props
     },
     ref
@@ -265,10 +267,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       const textarea = internalTextareaRef.current;
       if (textarea) {
         textarea.style.height = "auto";
-        const newHeight = Math.min(textarea.scrollHeight, 300); // Increased max height
+        const maxHeight = compact ? 120 : 300; // Reduced max height for compact mode
+        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
         textarea.style.height = `${newHeight}px`;
       }
-    }, [currentValue]);
+    }, [currentValue, compact]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
@@ -276,6 +279,25 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         onChange(newValue);
       } else {
         setInternalValue(newValue);
+      }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (currentValue.trim() && !isGenerating && !disabled && onSubmit) {
+          onSubmit(
+            currentValue.trim(),
+            selectedResearchType,
+            selectedResearchDepth
+          );
+          // Clear the input after submission
+          if (onChange) {
+            onChange("");
+          } else {
+            setInternalValue("");
+          }
+        }
       }
     };
 
@@ -287,6 +309,12 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           selectedResearchType,
           selectedResearchDepth
         );
+        // Clear the input after submission
+        if (onChange) {
+          onChange("");
+        } else {
+          setInternalValue("");
+        }
       }
     };
 
@@ -350,7 +378,8 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       <form onSubmit={handleSubmit}>
         <div
           className={cn(
-            "flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-white border dark:bg-[#303030] dark:border-transparent cursor-text",
+            "flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-background border cursor-text",
+            compact && "rounded-2xl p-3", // More compact styling
             className
           )}
         >
@@ -384,7 +413,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                 </button>
                 <button
                   onClick={handleRemoveImage}
-                  className="absolute right-2 top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/50 dark:bg-[#303030] text-black dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151]"
+                  className="absolute right-2 top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-background/50 text-foreground transition-colors hover:bg-accent"
                   aria-label="Remove image"
                   disabled={disabled}
                 >
@@ -404,242 +433,260 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           {/* Main Textarea */}
           <textarea
             ref={internalTextareaRef}
-            rows={3}
+            rows={compact ? 1 : 3}
             value={currentValue}
             onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || isGenerating}
-            className="custom-scrollbar w-full resize-none border-0 bg-transparent p-4 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-gray-300 focus:ring-0 focus-visible:outline-none min-h-20"
+            className={cn(
+              "custom-scrollbar w-full resize-none border-0 bg-transparent text-foreground placeholder:text-muted-foreground focus:ring-0 focus-visible:outline-none",
+              compact ? "p-2 text-sm min-h-10" : "p-4 min-h-20"
+            )}
             {...props}
           />
 
           {/* Bottom Controls */}
-          <div className="mt-0.5 p-1 pt-0">
+          <div className={cn("mt-0.5 p-1 pt-0", compact && "mt-1 p-0")}>
             <TooltipProvider delayDuration={100}>
               <div className="flex items-center gap-2">
-                {/* Left side controls */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={handlePlusClick}
-                      disabled={disabled || isGenerating}
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Plus className="h-6 w-6" />
-                      <span className="sr-only">Attach image</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" showArrow={true}>
-                    <p>Attach image</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Research Type Selector */}
-                <Popover
-                  open={isResearchTypesOpen}
-                  onOpenChange={setIsResearchTypesOpen}
-                >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={disabled || isGenerating}
-                          className="flex h-8 items-center gap-2 rounded-full p-2 text-sm text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Settings2 className="h-4 w-4" />
-                          <span>Configure</span>
-                        </button>
-                      </PopoverTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" showArrow={true}>
-                      <p>Research Configuration</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <PopoverContent side="top" align="start" className="w-80">
-                    <div className="space-y-4">
-                      {/* Research Type */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-foreground">
-                          Research Type
-                        </h4>
-                        <div className="space-y-1">
-                          {researchTypes.map((research) => {
-                            const IconComponent = research.icon;
-                            const isSelected =
-                              selectedResearchType === research.type;
-
-                            return (
-                              <button
-                                key={research.type}
-                                onClick={() =>
-                                  handleResearchTypeSelect(research.type)
-                                }
-                                className={cn(
-                                  "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors hover:bg-accent",
-                                  isSelected
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                                )}
-                              >
-                                <IconComponent className="w-4 h-4 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-sm">
-                                    {research.label}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {research.description}
-                                  </div>
-                                </div>
-                                {isSelected && (
-                                  <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="border-t pt-3">
-                        <h4 className="font-medium text-sm text-foreground mb-2">
-                          Research Depth
-                        </h4>
-                        <div className="space-y-1">
-                          {researchDepthOptions.map((depth) => {
-                            const isSelected =
-                              selectedResearchDepth === depth.value;
-
-                            return (
-                              <button
-                                key={depth.value}
-                                onClick={() =>
-                                  handleResearchDepthSelect(depth.value)
-                                }
-                                className={cn(
-                                  "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors hover:bg-accent",
-                                  isSelected
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                                )}
-                              >
-                                <Search className="w-4 h-4 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-sm">
-                                    {depth.label}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {depth.description}
-                                  </div>
-                                </div>
-                                {isSelected && (
-                                  <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                {/* Sample Prompts */}
-                <Popover open={isSamplesOpen} onOpenChange={setIsSamplesOpen}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={disabled || isGenerating}
-                          className="flex h-8 items-center gap-2 rounded-full p-2 text-sm text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Lightbulb className="h-4 w-4" />
-                          <span>Examples</span>
-                        </button>
-                      </PopoverTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" showArrow={true}>
-                      <p>Sample Prompts</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <PopoverContent side="top" align="start">
-                    <div className="space-y-3">
-                      <h4 className="font-medium text-sm">
-                        Try these examples
-                      </h4>
-                      <div className="space-y-2">
-                        {samplePrompts.map((sample, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleSampleClick(sample)}
-                            className="w-full text-left p-2 text-xs rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-                          >
-                            "{sample}"
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                {/* Active Configuration Badges */}
-                {(activeResearchType || activeResearchDepth) && (
+                {/* Left side controls - Hide in compact mode */}
+                {!compact && (
                   <>
-                    <div className="h-4 w-px bg-border dark:bg-gray-600" />
-                    <div className="flex items-center gap-1">
-                      {activeResearchType && (
-                        <div className="flex h-7 items-center gap-2 rounded-md px-2 text-xs bg-secondary text-secondary-foreground border">
-                          {ActiveResearchIcon && (
-                            <ActiveResearchIcon className="h-3 w-3" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handlePlusClick}
+                          disabled={disabled || isGenerating}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="h-6 w-6" />
+                          <span className="sr-only">Attach image</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" showArrow={true}>
+                        <p>Attach image</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Research Type Selector */}
+                    <Popover
+                      open={isResearchTypesOpen}
+                      onOpenChange={setIsResearchTypesOpen}
+                    >
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={disabled || isGenerating}
+                              className="flex h-8 items-center gap-2 rounded-full p-2 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Settings2 className="h-4 w-4" />
+                              <span>Configure</span>
+                            </button>
+                          </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" showArrow={true}>
+                          <p>Research Configuration</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <PopoverContent side="top" align="start" className="w-80">
+                        <div className="space-y-4">
+                          {/* Research Type */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm text-foreground">
+                              Research Type
+                            </h4>
+                            <div className="space-y-1">
+                              {researchTypes.map((research) => {
+                                const IconComponent = research.icon;
+                                const isSelected =
+                                  selectedResearchType === research.type;
+
+                                return (
+                                  <button
+                                    key={research.type}
+                                    onClick={() =>
+                                      handleResearchTypeSelect(research.type)
+                                    }
+                                    className={cn(
+                                      "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors hover:bg-accent",
+                                      isSelected
+                                        ? "bg-accent text-accent-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                  >
+                                    <IconComponent className="w-4 h-4 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium text-sm">
+                                        {research.label}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {research.description}
+                                      </div>
+                                    </div>
+                                    {isSelected && (
+                                      <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="border-t pt-3">
+                            <h4 className="font-medium text-sm text-foreground mb-2">
+                              Research Depth
+                            </h4>
+                            <div className="space-y-1">
+                              {researchDepthOptions.map((depth) => {
+                                const isSelected =
+                                  selectedResearchDepth === depth.value;
+
+                                return (
+                                  <button
+                                    key={depth.value}
+                                    onClick={() =>
+                                      handleResearchDepthSelect(depth.value)
+                                    }
+                                    className={cn(
+                                      "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors hover:bg-accent",
+                                      isSelected
+                                        ? "bg-accent text-accent-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                  >
+                                    <Search className="w-4 h-4 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium text-sm">
+                                        {depth.label}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {depth.description}
+                                      </div>
+                                    </div>
+                                    {isSelected && (
+                                      <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Sample Prompts */}
+                    <Popover
+                      open={isSamplesOpen}
+                      onOpenChange={setIsSamplesOpen}
+                    >
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={disabled || isGenerating}
+                              className="flex h-8 items-center gap-2 rounded-full p-2 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Lightbulb className="h-4 w-4" />
+                              <span>Examples</span>
+                            </button>
+                          </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" showArrow={true}>
+                          <p>Sample Prompts</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <PopoverContent side="top" align="start">
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm">
+                            Try these examples
+                          </h4>
+                          <div className="space-y-2">
+                            {samplePrompts.map((sample, index) => (
+                              <button
+                                key={index}
+                                onClick={() => handleSampleClick(sample)}
+                                className="w-full text-left p-2 text-xs rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                              >
+                                "{sample}"
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Active Configuration Badges */}
+                    {(activeResearchType || activeResearchDepth) && (
+                      <>
+                        <div className="h-4 w-px bg-border" />
+                        <div className="flex items-center gap-1">
+                          {activeResearchType && (
+                            <div className="flex h-7 items-center gap-2 rounded-md px-2 text-xs bg-secondary text-secondary-foreground border">
+                              {ActiveResearchIcon && (
+                                <ActiveResearchIcon className="h-3 w-3" />
+                              )}
+                              <span>{activeResearchType.shortName}</span>
+                            </div>
                           )}
-                          <span>{activeResearchType.shortName}</span>
+                          {activeResearchDepth && (
+                            <div className="flex h-7 items-center gap-2 rounded-md px-2 text-xs bg-secondary text-secondary-foreground border">
+                              <Search className="h-3 w-3" />
+                              <span>{activeResearchDepth.shortName}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {activeResearchDepth && (
-                        <div className="flex h-7 items-center gap-2 rounded-md px-2 text-xs bg-secondary text-secondary-foreground border">
-                          <Search className="h-3 w-3" />
-                          <span>{activeResearchDepth.shortName}</span>
-                        </div>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </>
                 )}
 
                 {/* Right-aligned buttons container */}
                 <div className="ml-auto flex items-center gap-3">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        disabled={disabled || isGenerating}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Mic className="h-5 w-5" />
-                        <span className="sr-only">Record voice</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" showArrow={true}>
-                      <p>Record voice</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  {!compact && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={disabled || isGenerating}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Mic className="h-5 w-5" />
+                          <span className="sr-only">Record voice</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" showArrow={true}>
+                        <p>Record voice</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         type="submit"
                         disabled={!hasValue || isGenerating || disabled}
-                        className="flex h-9 w-auto items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        className={cn(
+                          "flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                          compact ? "h-8 w-8 p-0" : "h-9 px-4"
+                        )}
                       >
                         {isGenerating ? (
                           <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            <span>Streaming...</span>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {!compact && (
+                              <span className="ml-2">Streaming...</span>
+                            )}
                           </>
                         ) : (
                           <>
-                            <Send className="h-4 w-4 mr-2" />
-                            <span>Generate</span>
+                            <Send className="h-4 w-4" />
+                            {!compact && <span className="ml-2">Generate</span>}
                           </>
                         )}
                       </button>

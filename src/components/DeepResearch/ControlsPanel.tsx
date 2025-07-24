@@ -136,33 +136,18 @@ export function ControlsPanel({
     });
   };
 
-  const getResearchTypeColor = (type: string) => {
-    const colors = {
-      academic: "bg-indigo-100 text-indigo-700 border-indigo-200",
-      market: "bg-red-100 text-red-700 border-red-200",
-      social: "bg-blue-100 text-blue-700 border-blue-200",
-      finance: "bg-green-100 text-green-700 border-green-200",
-      technical: "bg-orange-100 text-orange-700 border-orange-200",
-      "deep-research": "bg-purple-100 text-purple-700 border-purple-200",
-    };
-    return (
-      colors[type as keyof typeof colors] ||
-      "bg-gray-100 text-gray-700 border-gray-200"
-    );
-  };
-
   return (
     <div className="h-full flex flex-col">
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
           {/* AI Connection Status */}
-          <Card>
+          <Card className="border-border bg-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
                 {connectionState.connected ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
                 ) : (
-                  <WifiOff className="w-4 h-4 text-red-500" />
+                  <WifiOff className="w-4 h-4 text-destructive" />
                 )}
                 AI Connection
               </CardTitle>
@@ -172,19 +157,22 @@ export function ControlsPanel({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Status:</span>
-                    <Badge variant="default" className="bg-green-500">
+                    <Badge
+                      variant="default"
+                      className="bg-primary text-primary-foreground"
+                    >
                       Connected
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Model:</span>
-                    <span className="font-medium text-xs">
+                    <span className="font-medium text-xs text-foreground">
                       {connectionState.selectedModel}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Server:</span>
-                    <span className="font-medium text-xs truncate max-w-24">
+                    <span className="font-medium text-xs truncate max-w-24 text-foreground">
                       {connectionState.baseURL}
                     </span>
                   </div>
@@ -206,7 +194,7 @@ export function ControlsPanel({
                       : "Connect to Ollama to start researching"}
                   </p>
                   {connectionState.error && (
-                    <p className="text-xs text-red-600">
+                    <p className="text-xs text-destructive">
                       {connectionState.error}
                     </p>
                   )}
@@ -233,9 +221,9 @@ export function ControlsPanel({
           </Card>
 
           {/* Knowledge Base */}
-          <Card>
+          <Card className="border-border bg-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
                 <Database className="w-4 h-4" />
                 Knowledge Base
               </CardTitle>
@@ -244,11 +232,13 @@ export function ControlsPanel({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-muted-foreground">Documents</div>
-                  <div className="font-medium">{documentStatus.count}</div>
+                  <div className="font-medium text-foreground">
+                    {documentStatus.count}
+                  </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Size</div>
-                  <div className="font-medium">
+                  <div className="font-medium text-foreground">
                     {formatFileSize(documentStatus.totalSize)}
                   </div>
                 </div>
@@ -279,9 +269,9 @@ export function ControlsPanel({
           </Card>
 
           {/* Deep Research History */}
-          <Card>
+          <Card className="border-border bg-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
                 <Clock className="w-4 h-4" />
                 Research History
               </CardTitle>
@@ -292,10 +282,10 @@ export function ControlsPanel({
                   {dummyResearchHistory.map((research, index) => (
                     <div
                       key={research.id}
-                      className="group p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                      className="group p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer bg-card"
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="text-sm font-medium leading-tight line-clamp-2">
+                        <h4 className="text-sm font-medium leading-tight line-clamp-2 text-foreground">
                           {research.title}
                         </h4>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -320,7 +310,7 @@ export function ControlsPanel({
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
-                            className={`text-xs ${getResearchTypeColor(research.type)}`}
+                            className="text-xs border-border bg-secondary text-secondary-foreground"
                           >
                             {research.type}
                           </Badge>
@@ -342,7 +332,7 @@ export function ControlsPanel({
       </ScrollArea>
 
       {/* Actions at bottom */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="p-4 border-t border-border bg-card">
         <div className="space-y-2">
           <Button
             variant="outline"
