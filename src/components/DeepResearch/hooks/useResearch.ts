@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { VectorStore } from "@/components/VectorStore/VectorStore";
 import { useOllamaConnection } from "./useOllamaConnection";
+import { getRAGService, RAGContext, RAGSearchOptions } from "@/lib/RAGService";
 
 export type ResearchType =
   | "deep-research"
@@ -35,9 +36,19 @@ export interface UseResearchReturn {
   ) => Promise<{ success: boolean; models: string[] }>;
   isAIReady: boolean;
 
+  // RAG Integration
+  ragContext: RAGContext | null;
+  isRAGSearching: boolean;
+  performRAGSearch: (
+    query: string,
+    options?: RAGSearchOptions
+  ) => Promise<RAGContext | null>;
+  clearRAGContext: () => void;
+
   // Actions
   generateResearch: () => Promise<void>;
   generateResearchStream: () => Promise<void>;
+  generateResearchWithRAG: (ragContext?: RAGContext) => Promise<void>;
   updateResults: (newContent: string) => void; // Add function to update results
   clearResults: () => void;
 }
@@ -55,6 +66,10 @@ export function useResearch(
   const [thinkingOutput, setThinkingOutput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
 
+  // RAG State
+  const [ragContext, setRagContext] = useState<RAGContext | null>(null);
+  const [isRAGSearching, setIsRAGSearching] = useState(false);
+
   // Use the robust Ollama connection hook
   const {
     connectionState,
@@ -65,6 +80,48 @@ export function useResearch(
     generateContentStream,
     isReady: isAIReady,
   } = useOllamaConnection();
+
+  // Initialize RAG service
+  const ragService = vectorStore ? getRAGService(vectorStore) : null;
+
+  // RAG Search functionality
+  const performRAGSearch = useCallback(
+    async (
+      query: string,
+      options: RAGSearchOptions = {}
+    ): Promise<RAGContext | null> => {
+      if (!ragService) {
+        console.warn("RAG service not available");
+        return null;
+      }
+
+      setIsRAGSearching(true);
+      try {
+        const context = await ragService.searchWithRAG(query, {
+          threshold: 0.3,
+          limit: 5,
+          maxContextLength: 2000,
+          ...options,
+        });
+
+        setRagContext(context);
+        console.log(
+          `🔍 RAG Search completed: ${context.metadata.documentCount} documents found`
+        );
+        return context;
+      } catch (error) {
+        console.error("RAG search failed:", error);
+        return null;
+      } finally {
+        setIsRAGSearching(false);
+      }
+    },
+    [ragService]
+  );
+
+  const clearRAGContext = useCallback(() => {
+    setRagContext(null);
+  }, []);
 
   const generateResearch = useCallback(async () => {
     if (!prompt.trim() || !isAIReady) {
@@ -77,22 +134,56 @@ export function useResearch(
     setResults("");
 
     try {
+      // Automatically perform RAG search if ragService is available
+      let context: RAGContext | undefined = ragContext || undefined;
+      if (!context && ragService && vectorStore) {
+        setThinkingOutput("🔍 Searching knowledge base for relevant context...");
+        try {
+          const searchResult = await performRAGSearch(prompt, {
+            threshold: 0.3,
+            limit: 8,
+            maxContextLength: 3000,
+          });
+          context = searchResult || undefined;
+          
+          if (context && context.relevantDocuments.length > 0) {
+            setThinkingOutput(
+              `📚 Found ${context.metadata.documentCount} relevant documents with ${context.metadata.chunkCount} chunks. Generating enhanced research...`
+            );
+          } else {
+            setThinkingOutput("📝 No relevant documents found in knowledge base. Generating general research...");
+          }
+        } catch (error) {
+          console.error("RAG search failed, continuing without context:", error);
+          setThinkingOutput("⚠️ Knowledge base search failed. Generating general research...");
+        }
+      } else if (!ragService) {
+        setThinkingOutput("📝 Generating research without knowledge base...");
+      }
+
       const researchPrompt = buildResearchPrompt(
         prompt,
         researchConfig,
-        vectorStore
+        vectorStore,
+        context
       );
 
       // Simulate thinking process
       setThinkingOutput(
-        "Analyzing your research request and preparing comprehensive analysis..."
+        context && context.relevantDocuments.length > 0
+          ? "🚀 Analyzing your research request with knowledge base context..."
+          : "🚀 Analyzing your research request..."
       );
 
       const response = await generateContent(researchPrompt);
 
       if (response && typeof response === "string") {
         setResults(response);
-        setThinkingOutput("Research completed successfully!");
+        setThinkingOutput(
+          context && context.relevantDocuments.length > 0
+            ? "✅ Research completed successfully with knowledge base context!"
+            : "✅ Research completed successfully!"
+        );
       }
     } catch (error) {
       console.error("Research generation failed:", error);
@@ -101,12 +192,21 @@ export function useResearch(
       setResults(
         `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
       );
-      setThinkingOutput("Research generation failed. Please try again.");
+      setThinkingOutput("❌ Research generation failed. Please try again.");
     } finally {
       setIsGenerating(false);
       setIsStreaming(false);
     }
-  }, [prompt, researchConfig, vectorStore, isAIReady, generateContent]);
+  }, [
+    prompt,
+    researchConfig,
+    vectorStore,
+    ragContext,
+    ragService,
+    performRAGSearch,
+    isAIReady,
+    generateContent,
+  ]);
 
   const generateResearchStream = useCallback(async () => {
     if (!prompt.trim() || !isAIReady) {
@@ -119,38 +219,76 @@ export function useResearch(
     setResults("");
 
     try {
+      // Automatically perform RAG search if ragService is available
+      let context: RAGContext | undefined = ragContext || undefined;
+      if (!context && ragService && vectorStore) {
+        setThinkingOutput("🔍 Searching knowledge base for relevant context...");
+        try {
+          const searchResult = await performRAGSearch(prompt, {
+            threshold: 0.3,
+            limit: 8,
+            maxContextLength: 3000,
+          });
+          context = searchResult || undefined;
+          
+          if (context && context.relevantDocuments.length > 0) {
+            setThinkingOutput(
+              `📚 Found ${context.metadata.documentCount} relevant documents with ${context.metadata.chunkCount} chunks. Generating enhanced research...`
+            );
+          } else {
+            setThinkingOutput("📝 No relevant documents found in knowledge base. Generating general research...");
+          }
+        } catch (error) {
+          console.error("RAG search failed, continuing without context:", error);
+          setThinkingOutput("⚠️ Knowledge base search failed. Generating general research...");
+        }
+      } else if (!ragService) {
+        setThinkingOutput("📝 Generating research without knowledge base...");
+      }
+
       const researchPrompt = buildResearchPrompt(
         prompt,
         researchConfig,
-        vectorStore
+        vectorStore,
+        context
       );
 
-      // Set initial thinking process
-      setThinkingOutput(
-        "Analyzing your research request and preparing comprehensive analysis..."
-      );
-
-      // Start streaming
-      const stream = generateContentStream(researchPrompt);
       let accumulatedContent = "";
 
-      for await (const chunk of stream) {
+      // Handle streaming response
+      for await (const chunk of generateContentStream(researchPrompt)) {
         if (chunk) {
           accumulatedContent += chunk;
           setResults(accumulatedContent);
 
           // Update thinking process as content streams
           if (accumulatedContent.length < 100) {
-            setThinkingOutput("Starting research generation...");
+            setThinkingOutput(
+              context && context.relevantDocuments.length > 0
+                ? "🚀 Starting research generation with knowledge base context..."
+                : "🚀 Starting research generation..."
+            );
           } else if (accumulatedContent.length < 500) {
-            setThinkingOutput("Building comprehensive analysis...");
+            setThinkingOutput(
+              context && context.relevantDocuments.length > 0
+                ? "📖 Building comprehensive analysis using knowledge base..."
+                : "📖 Building comprehensive analysis..."
+            );
           } else {
-            setThinkingOutput("Expanding research with detailed insights...");
+            setThinkingOutput(
+              context && context.relevantDocuments.length > 0
+                ? "✨ Expanding research with detailed insights from documents..."
+                : "✨ Expanding research with detailed insights..."
+            );
           }
         }
       }
 
-      setThinkingOutput("Research completed successfully!");
+      setThinkingOutput(
+        context && context.relevantDocuments.length > 0
+          ? "✅ Research completed successfully with knowledge base context!"
+          : "✅ Research completed successfully!"
+      );
     } catch (error) {
       console.error("Streaming research generation failed:", error);
       const errorMessage =
@@ -158,12 +296,103 @@ export function useResearch(
       setResults(
         `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
       );
-      setThinkingOutput("Research generation failed. Please try again.");
+      setThinkingOutput("❌ Research generation failed. Please try again.");
     } finally {
       setIsGenerating(false);
       setIsStreaming(false);
     }
-  }, [prompt, researchConfig, vectorStore, isAIReady, generateContentStream]);
+  }, [
+    prompt,
+    researchConfig,
+    vectorStore,
+    ragContext,
+    ragService,
+    performRAGSearch,
+    isAIReady,
+    generateContentStream,
+  ]);
+
+  // Enhanced research generation with explicit RAG context
+  const generateResearchWithRAG = useCallback(
+    async (explicitRAGContext?: RAGContext) => {
+      if (!prompt.trim() || !isAIReady) {
+        return;
+      }
+
+      setIsGenerating(true);
+      setIsStreaming(true);
+      setThinkingOutput("");
+      setResults("");
+
+      try {
+        // Use explicit context or perform search if not provided
+        let context: RAGContext | undefined = explicitRAGContext || undefined;
+        if (!context && ragService) {
+          setThinkingOutput("Searching knowledge base for relevant context...");
+          const searchResult = await performRAGSearch(prompt);
+          context = searchResult || undefined;
+        }
+
+        const researchPrompt = buildResearchPrompt(
+          prompt,
+          researchConfig,
+          vectorStore,
+          context || undefined
+        );
+
+        setThinkingOutput("Generating research with enhanced context...");
+
+        let accumulatedContent = "";
+
+        // Handle streaming response
+        for await (const chunk of generateContentStream(researchPrompt)) {
+          if (chunk) {
+            accumulatedContent += chunk;
+            setResults(accumulatedContent);
+
+            // Update thinking process as content streams
+            if (accumulatedContent.length < 100) {
+              setThinkingOutput(
+                "Starting research generation with RAG context..."
+              );
+            } else if (accumulatedContent.length < 500) {
+              setThinkingOutput(
+                "Building comprehensive analysis using knowledge base..."
+              );
+            } else {
+              setThinkingOutput(
+                "Expanding research with detailed insights and context..."
+              );
+            }
+          }
+        }
+
+        setThinkingOutput(
+          "Research completed successfully with enhanced context!"
+        );
+      } catch (error) {
+        console.error("RAG-enhanced research generation failed:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setResults(
+          `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
+        );
+        setThinkingOutput("Research generation failed. Please try again.");
+      } finally {
+        setIsGenerating(false);
+        setIsStreaming(false);
+      }
+    },
+    [
+      prompt,
+      researchConfig,
+      vectorStore,
+      ragService,
+      performRAGSearch,
+      isAIReady,
+      generateContentStream,
+    ]
+  );
 
   const updateResults = useCallback((newContent: string) => {
     setResults(newContent);
@@ -175,7 +404,8 @@ export function useResearch(
     setPrompt("");
     setThinkingOutput("");
     setIsStreaming(false);
-  }, []);
+    clearRAGContext();
+  }, [clearRAGContext]);
 
   return {
     prompt,
@@ -191,8 +421,15 @@ export function useResearch(
     disconnectAI: disconnect,
     testConnection,
     isAIReady,
+    // RAG Integration
+    ragContext,
+    isRAGSearching,
+    performRAGSearch,
+    clearRAGContext,
+    // Actions
     generateResearch,
     generateResearchStream,
+    generateResearchWithRAG,
     updateResults,
     clearResults,
   };
@@ -201,7 +438,8 @@ export function useResearch(
 function buildResearchPrompt(
   userPrompt: string,
   config: ResearchConfig,
-  vectorStore: VectorStore | null
+  vectorStore: VectorStore | null,
+  ragContext?: RAGContext
 ): string {
   const typePrompts = {
     "deep-research":
@@ -227,7 +465,20 @@ function buildResearchPrompt(
   let prompt = `${typePrompts[config.type]}. ${depthModifiers[config.depth]}.\n\n`;
   prompt += `Research Query: ${userPrompt}\n\n`;
 
-  if (vectorStore) {
+  // Enhanced RAG context integration
+  if (ragContext && ragContext.relevantDocuments.length > 0) {
+    prompt += `## RELEVANT CONTEXT FROM KNOWLEDGE BASE\n\n`;
+    prompt += `The following information has been retrieved from the knowledge base and is highly relevant to your research query:\n\n`;
+
+    // Add context from relevant documents
+    ragContext.relevantDocuments.forEach((doc, index) => {
+      prompt += `### Source ${index + 1}: ${doc.title} (${(doc.similarity * 100).toFixed(1)}% relevance)\n`;
+      prompt += `${doc.chunkContent}\n\n`;
+    });
+
+    prompt += `## RESEARCH INSTRUCTIONS\n\n`;
+    prompt += `Please use the above context to enhance your research. Reference specific information from the knowledge base when relevant. If the context provides valuable insights, incorporate them into your analysis. If the context is not directly relevant, focus on your own comprehensive research.\n\n`;
+  } else if (vectorStore) {
     prompt += `Please use any relevant information from the knowledge base to enhance your research.\n\n`;
   }
 

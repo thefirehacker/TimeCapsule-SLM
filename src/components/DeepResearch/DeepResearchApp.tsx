@@ -39,6 +39,11 @@ export function DeepResearchComponent() {
   const research = useResearch(vectorStore);
   const documents = useDocuments(vectorStore);
 
+  // RAG integration
+  const handleRAGSearch = async (query: string) => {
+    return await research.performRAGSearch(query);
+  };
+
   // Local state for modals and UI
   const [showOllamaModal, setShowOllamaModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -158,6 +163,10 @@ export function DeepResearchComponent() {
             isGenerating={research.isGenerating}
             connectionState={research.connectionState}
             onConnectAI={handleConnectAI}
+            // RAG Integration
+            enableRAG={true}
+            onRAGSearch={handleRAGSearch}
+            showRAGContext={true}
           />
         </div>
       </div>

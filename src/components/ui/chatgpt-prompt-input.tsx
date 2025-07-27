@@ -22,6 +22,34 @@ import {
   Loader2,
 } from "lucide-react";
 
+// RAG Types
+interface RAGContext {
+  query: string;
+  relevantDocuments: Array<{
+    id: string;
+    title: string;
+    similarity: number;
+    chunkContent: string;
+    chunkIndex: number;
+    source: string;
+    metadata?: any;
+    retrievalContext: {
+      queryId: string;
+      retrievalTime: number;
+      processingTime: number;
+    };
+  }>;
+  searchResults: any[];
+  contextText: string;
+  metadata: {
+    searchTime: number;
+    documentCount: number;
+    chunkCount: number;
+    averageSimilarity: number;
+    searchThreshold: number;
+  };
+}
+
 // --- Utility Function & Radix Primitives ---
 type ClassValue = string | number | boolean | null | undefined;
 function cn(...inputs: ClassValue[]): string {
@@ -218,7 +246,8 @@ interface PromptBoxProps {
   onSubmit?: (
     prompt: string,
     researchType: ResearchType,
-    researchDepth: ResearchDepth
+    researchDepth: ResearchDepth,
+    ragContext?: RAGContext
   ) => void;
   selectedResearchType?: ResearchType;
   onResearchTypeChange?: (type: ResearchType) => void;
@@ -229,6 +258,11 @@ interface PromptBoxProps {
   placeholder?: string;
   className?: string;
   compact?: boolean; // Add compact mode for chat interface
+  // RAG Integration
+  enableRAG?: boolean;
+  ragService?: any;
+  onRAGSearch?: (query: string) => Promise<RAGContext | null>;
+  showRAGContext?: boolean;
 }
 
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
@@ -246,6 +280,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       disabled = false,
       placeholder = "What would you like to research? Ask anything...",
       compact = false, // Add compact prop
+      // RAG Integration
+      enableRAG = false,
+      ragService,
+      onRAGSearch,
+      showRAGContext = false,
       ...props
     },
     ref
@@ -258,6 +297,10 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const [isResearchDepthOpen, setIsResearchDepthOpen] = React.useState(false);
     const [isSamplesOpen, setIsSamplesOpen] = React.useState(false);
     const [isImageDialogOpen, setIsImageDialogOpen] = React.useState(false);
+    // RAG State
+    const [ragContext, setRagContext] = React.useState<RAGContext | null>(null);
+    const [isRAGSearching, setIsRAGSearching] = React.useState(false);
+    const [ragSearchResults, setRagSearchResults] = React.useState<any[]>([]);
 
     React.useImperativeHandle(ref, () => internalTextareaRef.current!, []);
 
@@ -286,35 +329,57 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         if (currentValue.trim() && !isGenerating && !disabled && onSubmit) {
-          onSubmit(
-            currentValue.trim(),
-            selectedResearchType,
-            selectedResearchDepth
-          );
-          // Clear the input after submission
-          if (onChange) {
-            onChange("");
-          } else {
-            setInternalValue("");
-          }
+          handleSubmitWithRAG(currentValue.trim());
         }
+      }
+    };
+
+    const handleSubmitWithRAG = async (prompt: string) => {
+      let context: RAGContext | null = null;
+
+      // Perform RAG search if enabled
+      if (enableRAG && (onRAGSearch || ragService)) {
+        setIsRAGSearching(true);
+        try {
+          if (onRAGSearch) {
+            context = await onRAGSearch(prompt);
+          } else if (ragService) {
+            context = await ragService.searchWithRAG(prompt, {
+              threshold: 0.3,
+              limit: 5,
+              maxContextLength: 2000,
+            });
+          }
+          setRagContext(context);
+        } catch (error) {
+          console.error("RAG search failed:", error);
+        } finally {
+          setIsRAGSearching(false);
+        }
+      }
+
+      // Submit with RAG context
+      if (onSubmit) {
+        onSubmit(
+          prompt,
+          selectedResearchType,
+          selectedResearchDepth,
+          context || undefined
+        );
+      }
+
+      // Clear the input after submission
+      if (onChange) {
+        onChange("");
+      } else {
+        setInternalValue("");
       }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (currentValue.trim() && !isGenerating && !disabled && onSubmit) {
-        onSubmit(
-          currentValue.trim(),
-          selectedResearchType,
-          selectedResearchDepth
-        );
-        // Clear the input after submission
-        if (onChange) {
-          onChange("");
-        } else {
-          setInternalValue("");
-        }
+        handleSubmitWithRAG(currentValue.trim());
       }
     };
 
@@ -373,6 +438,10 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       (d) => d.value === selectedResearchDepth
     );
     const ActiveResearchIcon = activeResearchType?.icon;
+
+    // RAG context display
+    const showRAGResults =
+      showRAGContext && ragContext && ragContext.relevantDocuments.length > 0;
 
     return (
       <form onSubmit={handleSubmit}>
@@ -445,6 +514,35 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
             )}
             {...props}
           />
+
+          {/* RAG Context Display */}
+          {showRAGResults && (
+            <div className="mt-2 p-3 bg-muted/50 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">RAG Context Found</span>
+                <span className="text-xs text-muted-foreground">
+                  ({ragContext!.metadata.documentCount} docs,{" "}
+                  {ragContext!.metadata.chunkCount} chunks)
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground max-h-20 overflow-y-auto">
+                {ragContext!.relevantDocuments.slice(0, 3).map((doc, index) => (
+                  <div key={index} className="mb-1">
+                    <span className="font-medium">{doc.title}</span>
+                    <span className="ml-2">
+                      ({(doc.similarity * 100).toFixed(1)}% match)
+                    </span>
+                  </div>
+                ))}
+                {ragContext!.relevantDocuments.length > 3 && (
+                  <div className="text-muted-foreground">
+                    +{ragContext!.relevantDocuments.length - 3} more documents
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Bottom Controls */}
           <div className={cn("mt-0.5 p-1 pt-0", compact && "mt-1 p-0")}>
@@ -670,17 +768,26 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                     <TooltipTrigger asChild>
                       <button
                         type="submit"
-                        disabled={!hasValue || isGenerating || disabled}
+                        disabled={
+                          !hasValue ||
+                          isGenerating ||
+                          disabled ||
+                          isRAGSearching
+                        }
                         className={cn(
                           "flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
                           compact ? "h-8 w-8 p-0" : "h-9 px-4"
                         )}
                       >
-                        {isGenerating ? (
+                        {isGenerating || isRAGSearching ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             {!compact && (
-                              <span className="ml-2">Streaming...</span>
+                              <span className="ml-2">
+                                {isRAGSearching
+                                  ? "Searching..."
+                                  : "Streaming..."}
+                              </span>
                             )}
                           </>
                         ) : (
@@ -693,9 +800,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                     </TooltipTrigger>
                     <TooltipContent side="top" showArrow={true}>
                       <p>
-                        {isGenerating
-                          ? "Research streaming in progress..."
-                          : "Generate Research"}
+                        {isRAGSearching
+                          ? "Searching knowledge base..."
+                          : isGenerating
+                            ? "Research streaming in progress..."
+                            : "Generate Research"}
                       </p>
                     </TooltipContent>
                   </Tooltip>

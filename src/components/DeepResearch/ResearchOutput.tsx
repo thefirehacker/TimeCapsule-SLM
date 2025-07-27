@@ -62,6 +62,11 @@ interface ResearchOutputProps {
     lastConnected: Date | null;
   };
   onConnectAI?: () => void;
+
+  // RAG Integration
+  enableRAG?: boolean;
+  onRAGSearch?: (query: string) => Promise<any>;
+  showRAGContext?: boolean;
 }
 
 // Separate component for collapsible thinking output
@@ -143,6 +148,10 @@ export function ResearchOutput({
   isGenerating,
   connectionState,
   onConnectAI,
+  // RAG Integration
+  enableRAG = false,
+  onRAGSearch,
+  showRAGContext = false,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -278,7 +287,8 @@ export function ResearchOutput({
   const handleSubmit = (
     promptText: string,
     researchType: ResearchType,
-    researchDepth: "quick" | "detailed" | "comprehensive"
+    researchDepth: "quick" | "detailed" | "comprehensive",
+    ragContext?: any
   ) => {
     // Create messages immediately before the prompt gets cleared
     if (promptText.trim() && !currentMessageId) {
@@ -709,6 +719,10 @@ export function ResearchOutput({
             }
             compact={messages.length > 0}
             className="shadow-2xl border-2 backdrop-blur-sm bg-background/98 transition-all duration-300"
+            // RAG Integration
+            enableRAG={enableRAG}
+            onRAGSearch={onRAGSearch}
+            showRAGContext={showRAGContext}
           />
         </div>
       </div>
