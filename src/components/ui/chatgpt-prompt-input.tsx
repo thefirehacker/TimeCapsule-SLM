@@ -21,6 +21,9 @@ import {
   Lightbulb,
   Loader2,
   Link,
+  Database,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 // RAG Types
@@ -266,10 +269,11 @@ interface PromptBoxProps {
   enableRAG?: boolean;
   ragService?: any;
   onRAGSearch?: (query: string) => Promise<RAGContext | null>;
-  showRAGContext?: boolean;
+  onRAGToggle?: (enabled: boolean) => void;
   // Web Search Integration
   webSearchEnabled?: boolean;
   onWebSearch?: (query: string) => Promise<any>;
+  onWebSearchToggle?: (enabled: boolean) => void;
   webSearchStatus?: {
     configured: boolean;
     lastSearch?: Date | null;
@@ -296,10 +300,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       enableRAG = false,
       ragService,
       onRAGSearch,
-      showRAGContext = false,
+      onRAGToggle,
       // Web Search Integration
       webSearchEnabled = false,
       onWebSearch,
+      onWebSearchToggle,
       webSearchStatus,
       ...props
     },
@@ -355,50 +360,66 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     };
 
     const handleSubmitWithRAG = async (prompt: string) => {
-      let context: RAGContext | null = null;
+      let ragContextToSubmit: RAGContext | null = null;
+      let webContextToSubmit: any = null;
 
       // Perform RAG search if enabled
       if (enableRAG && (onRAGSearch || ragService)) {
         setIsRAGSearching(true);
         try {
           if (onRAGSearch) {
-            context = await onRAGSearch(prompt);
+            ragContextToSubmit = await onRAGSearch(prompt);
           } else if (ragService) {
-            context = await ragService.searchWithRAG(prompt, {
+            ragContextToSubmit = await ragService.searchWithRAG(prompt, {
               threshold: 0.3,
               limit: 5,
               maxContextLength: 2000,
             });
           }
-          setRagContext(context);
+          setRagContext(ragContextToSubmit);
         } catch (error) {
           console.error("RAG search failed:", error);
         } finally {
           setIsRAGSearching(false);
         }
+      } else if (!enableRAG) {
+        // Clear RAG context when disabled
+        setRagContext(null);
+        ragContextToSubmit = null;
       }
 
       // Perform web search if enabled
       if (webSearchEnabled && onWebSearch) {
         setIsWebSearching(true);
         try {
-          const webContext = await onWebSearch(prompt);
-          setWebSearchContext(webContext);
+          webContextToSubmit = await onWebSearch(prompt);
+          setWebSearchContext(webContextToSubmit);
         } catch (error) {
           console.error("Web search failed:", error);
         } finally {
           setIsWebSearching(false);
         }
+      } else if (!webSearchEnabled) {
+        // Clear web search context when disabled
+        setWebSearchContext(null);
+        webContextToSubmit = null;
       }
 
       // Submit with combined context
+      console.log("📦 Submitting with context:", {
+        ragContext: ragContextToSubmit,
+        webContext: webContextToSubmit,
+        enableRAG,
+        webSearchEnabled,
+      });
+
       if (onSubmit) {
         onSubmit(
           prompt,
           selectedResearchType,
           selectedResearchDepth,
-          context || undefined,
-          webSearchContext || undefined
+          ragContextToSubmit || undefined,
+          webContextToSubmit || undefined
         );
       }
 
@@ -473,10 +494,6 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     );
     const ActiveResearchIcon = activeResearchType?.icon;
 
-    // RAG context display
-    const showRAGResults =
-      showRAGContext && ragContext && ragContext.relevantDocuments.length > 0;
-
     return (
       <form onSubmit={handleSubmit}>
         <div
@@ -548,82 +565,6 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
             )}
             {...props}
           />
-
-          {/* RAG Context Display */}
-          {showRAGResults && (
-            <div className="mt-2 p-3 bg-muted/50 rounded-lg border">
-              <div className="flex items-center gap-2 mb-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">RAG Context Found</span>
-                <span className="text-xs text-muted-foreground">
-                  ({ragContext!.metadata.documentCount} docs,{" "}
-                  {ragContext!.metadata.chunkCount} chunks)
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground max-h-20 overflow-y-auto">
-                {ragContext!.relevantDocuments.slice(0, 3).map((doc, index) => (
-                  <div key={index} className="mb-1">
-                    <span className="font-medium">{doc.title}</span>
-                    <span className="ml-2">
-                      ({(doc.similarity * 100).toFixed(1)}% match)
-                    </span>
-                  </div>
-                ))}
-                {ragContext!.relevantDocuments.length > 3 && (
-                  <div className="text-muted-foreground">
-                    +{ragContext!.relevantDocuments.length - 3} more documents
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Web Search Context Display */}
-          {webSearchContext &&
-            webSearchContext.results &&
-            webSearchContext.results.length > 0 && (
-              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2 mb-2">
-                  <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                    Web Search Results
-                  </span>
-                  <span className="text-xs text-blue-600 dark:text-blue-400">
-                    ({webSearchContext.metadata.resultCount} results found)
-                  </span>
-                </div>
-                <div className="text-xs max-h-24 overflow-y-auto space-y-1">
-                  {webSearchContext.results
-                    .slice(0, 3)
-                    .map((result: any, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-start gap-2 p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                      >
-                        <Link className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-blue-900 dark:text-blue-100 truncate">
-                            {result.title}
-                          </div>
-                          <div className="text-blue-600 dark:text-blue-400 text-xs truncate">
-                            {result.url}
-                          </div>
-                          {result.description && (
-                            <div className="text-blue-700 dark:text-blue-300 text-xs line-clamp-2 mt-0.5">
-                              {result.description}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  {webSearchContext.results.length > 3 && (
-                    <div className="text-blue-600 dark:text-blue-400 text-center pt-1">
-                      +{webSearchContext.results.length - 3} more results
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
           {/* Bottom Controls */}
           <div className={cn("mt-0.5 p-1 pt-0", compact && "mt-1 p-0")}>
@@ -823,6 +764,79 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                       </>
                     )}
                   </>
+                )}
+
+                {/* Center controls - Search toggles */}
+                {!compact && (
+                  <div className="flex items-center gap-1">
+                    <div className="h-4 w-px bg-border" />
+
+                    {/* Knowledge Base Toggle */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => onRAGToggle?.(!enableRAG)}
+                          disabled={disabled || isGenerating}
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed",
+                            enableRAG
+                              ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          )}
+                        >
+                          <Database className="h-4 w-4" />
+                          <span className="sr-only">
+                            {enableRAG ? "Disable" : "Enable"} knowledge base
+                            search
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" showArrow={true}>
+                        <p>
+                          {enableRAG ? "Disable" : "Enable"} knowledge base
+                          search
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Web Search Toggle */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => onWebSearchToggle?.(!webSearchEnabled)}
+                          disabled={
+                            disabled ||
+                            isGenerating ||
+                            !webSearchStatus?.configured
+                          }
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed",
+                            webSearchEnabled
+                              ? "bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          )}
+                        >
+                          {webSearchEnabled ? (
+                            <Wifi className="h-4 w-4" />
+                          ) : (
+                            <WifiOff className="h-4 w-4" />
+                          )}
+                          <span className="sr-only">
+                            {webSearchEnabled ? "Disable" : "Enable"} web search
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" showArrow={true}>
+                        <p>
+                          {webSearchEnabled ? "Disable" : "Enable"} web search
+                          {!webSearchStatus?.configured &&
+                            " (API not configured)"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 )}
 
                 {/* Right-aligned buttons container */}

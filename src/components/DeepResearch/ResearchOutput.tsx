@@ -23,6 +23,12 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
+  Database,
+  Globe,
+  Link,
+  Folder,
+  ForkKnife,
+  TableProperties,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -35,6 +41,8 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   thinkingOutput?: string;
+  ragContext?: any;
+  webSearchContext?: any;
 }
 
 interface ResearchOutputProps {
@@ -49,6 +57,7 @@ interface ResearchOutputProps {
   researchConfig: ResearchConfig;
   onResearchConfigChange: (config: ResearchConfig) => void;
   onGenerateResearchStream: () => void;
+  onGenerateResearchWithContext?: (ragContext?: any, webContext?: any) => void;
   isGenerating: boolean;
   connectionState: {
     connected: boolean;
@@ -64,11 +73,12 @@ interface ResearchOutputProps {
   // RAG Integration
   enableRAG?: boolean;
   onRAGSearch?: (query: string) => Promise<any>;
-  showRAGContext?: boolean;
+  onRAGToggle?: (enabled: boolean) => void;
 
   // Web Search Integration
   webSearchEnabled?: boolean;
   onWebSearch?: (query: string) => Promise<any>;
+  onWebSearchToggle?: (enabled: boolean) => void;
   webSearchStatus?: {
     configured: boolean;
     lastSearch?: Date | null;
@@ -140,6 +150,326 @@ function ThinkingOutput({
   );
 }
 
+// Enhanced context display component with tabs
+function ContextSources({
+  ragContext,
+  webSearchContext,
+}: {
+  ragContext?: any;
+  webSearchContext?: any;
+}) {
+  const [activeTab, setActiveTab] = useState<"overview" | "sources" | "steps">(
+    "overview"
+  );
+
+  const hasRAG =
+    ragContext &&
+    ragContext.relevantDocuments &&
+    ragContext.relevantDocuments.length > 0;
+  const hasWeb =
+    webSearchContext &&
+    webSearchContext.results &&
+    webSearchContext.results.length > 0;
+
+  console.log("🎯 ContextSources render:", {
+    ragContext,
+    webSearchContext,
+    hasRAG,
+    hasWeb,
+    ragDocs: ragContext?.relevantDocuments?.length || 0,
+    webResults: webSearchContext?.results?.length || 0,
+  });
+
+  if (!hasRAG && !hasWeb) return null;
+
+  const tabs = [
+    { id: "overview", label: "Overview", icon: Link },
+    { id: "sources", label: "Sources", icon: Database },
+    { id: "steps", label: "Steps", icon: TableProperties },
+  ];
+
+  return (
+    <div className="mb-4 bg-card border border-border rounded-lg shadow-sm">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-border">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-3 text-xs font-medium transition-all duration-200 ${
+                activeTab === tab.id
+                  ? "text-primary border-b-2 border-primary bg-accent/50"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <div className="p-4">
+        {activeTab === "overview" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Link className="h-4 w-4 text-primary" />
+              <span>Research Summary</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {hasRAG && (
+                <div className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg border border-border/50">
+                  <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Database className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-foreground">
+                      Knowledge Base
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {ragContext?.metadata?.documentCount ||
+                        ragContext?.relevantDocuments?.length ||
+                        0}{" "}
+                      documents
+                    </div>
+                  </div>
+                </div>
+              )}
+              {hasWeb && (
+                <div className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg border border-border/50">
+                  <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Globe className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-foreground">
+                      Web Search
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {webSearchContext?.metadata?.resultCount ||
+                        webSearchContext?.results?.length ||
+                        0}{" "}
+                      results
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "sources" && (
+          <div className="space-y-4">
+            {/* RAG Documents */}
+            {hasRAG && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Database className="h-4 w-4 text-primary" />
+                  <span>Knowledge Base Documents</span>
+                </div>
+                <div className="space-y-2">
+                  {ragContext.relevantDocuments
+                    .slice(0, 4)
+                    .map((doc: any, index: number) => (
+                      <div
+                        key={index}
+                        className="p-3 bg-accent/20 rounded-lg border border-border/50 hover:bg-accent/30 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              {doc.title ||
+                                doc.source ||
+                                `Document ${index + 1}`}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              {doc.chunkContent?.substring(0, 80) ||
+                                "Content preview not available"}
+                              {doc.chunkContent &&
+                                doc.chunkContent.length > 80 &&
+                                "..."}
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                                {(doc.similarity * 100).toFixed(1)}% match
+                              </span>
+                              <span>•</span>
+                              <span>{doc.chunkContent?.length || 0} chars</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Web Search Results - Compact Cards */}
+            {hasWeb && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <span>Web Search Results</span>
+                </div>
+                <div className="space-y-2">
+                  {webSearchContext.results
+                    .slice(0, 4)
+                    .map((result: any, index: number) => (
+                      <div
+                        key={index}
+                        className="p-3 bg-accent/20 rounded-lg border border-border/50 hover:bg-accent/30 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
+                          <div className="flex-1 min-w-0">
+                            <a
+                              href={result.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-primary hover:text-primary/80 hover:underline truncate block"
+                            >
+                              {result.title || `Result ${index + 1}`}
+                            </a>
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              {result.description?.substring(0, 80) ||
+                                result.content?.substring(0, 80) ||
+                                "Description not available"}
+                              {(result.description &&
+                                result.description.length > 80) ||
+                              (result.content && result.content.length > 80)
+                                ? "..."
+                                : ""}
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span className="truncate font-medium">
+                                {new URL(result.url).hostname}
+                              </span>
+                              {result.relevanceScore && (
+                                <>
+                                  <span>•</span>
+                                  <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                                    {(result.relevanceScore * 100).toFixed(1)}%
+                                    relevant
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "steps" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Brain className="h-4 w-4 text-primary" />
+              <span>Research Process</span>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                  1
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground">
+                    Query Analysis
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Analyzing user query and determining research approach
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                  2
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground">
+                    Knowledge Base Search
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {hasRAG
+                      ? `Found ${ragContext?.metadata?.documentCount || ragContext?.relevantDocuments?.length || 0} relevant documents`
+                      : "No relevant documents found"}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                  3
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground">
+                    Web Search
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {hasWeb
+                      ? `Found ${webSearchContext?.metadata?.resultCount || webSearchContext?.results?.length || 0} web results`
+                      : "No web search performed"}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                  4
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground">
+                    Context Integration
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Combining knowledge base and web search results
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                  5
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground">
+                    AI Generation
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Generating comprehensive response using integrated context
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ResearchOutput({
   researchResults,
   thinkingOutput,
@@ -152,16 +482,18 @@ export function ResearchOutput({
   researchConfig,
   onResearchConfigChange,
   onGenerateResearchStream,
+  onGenerateResearchWithContext,
   isGenerating,
   connectionState,
   onConnectAI,
   // RAG Integration
   enableRAG = false,
   onRAGSearch,
-  showRAGContext = false,
+  onRAGToggle,
   // Web Search Integration
   webSearchEnabled = false,
   onWebSearch,
+  onWebSearchToggle,
   webSearchStatus,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
@@ -299,8 +631,16 @@ export function ResearchOutput({
     promptText: string,
     researchType: ResearchType,
     researchDepth: "quick" | "detailed" | "comprehensive",
-    ragContext?: any
+    ragContext?: any,
+    webSearchContext?: any
   ) => {
+    console.log("📨 ResearchOutput received context:", {
+      ragContext,
+      webSearchContext,
+      hasRAGDocs: ragContext?.relevantDocuments?.length || 0,
+      hasWebResults: webSearchContext?.results?.length || 0,
+    });
+
     // Create messages immediately before the prompt gets cleared
     if (promptText.trim() && !currentMessageId) {
       // Add user message
@@ -318,44 +658,31 @@ export function ResearchOutput({
         type: "ai",
         content: "",
         timestamp: new Date(),
+        ragContext,
+        webSearchContext,
       };
 
       setMessages((prev) => [...prev, userMessage, aiMessage]);
       setCurrentMessageId(aiMessageId);
     }
 
-    // Update prompt and trigger research
+    // Update prompt and trigger research with context
     onPromptChange(promptText);
     handleResearchTypeChange(researchType);
     handleDepthChange(researchDepth);
-    onGenerateResearchStream();
+
+    // Use the context-aware function if available, otherwise fallback
+    if (onGenerateResearchWithContext) {
+      onGenerateResearchWithContext(ragContext, webSearchContext);
+    } else {
+      onGenerateResearchStream();
+    }
   };
 
   const renderStreamingIndicator = () => {
     if (!isStreaming) return null;
 
-    return (
-      <div className="flex items-center gap-2 mt-3 p-3 bg-secondary/30 border border-border rounded-lg">
-        <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-        <span className="text-sm text-muted-foreground">
-          Generating research{typingIndicator}
-        </span>
-        <div className="flex space-x-1">
-          <div
-            className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"
-            style={{ animationDelay: "0ms" }}
-          ></div>
-          <div
-            className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"
-            style={{ animationDelay: "150ms" }}
-          ></div>
-          <div
-            className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"
-            style={{ animationDelay: "300ms" }}
-          ></div>
-        </div>
-      </div>
-    );
+    return <></>;
   };
 
   const renderEmptyState = () => (
@@ -435,12 +762,11 @@ export function ResearchOutput({
               </div>
             ) : (
               <div className="space-y-4">
-                {message.thinkingOutput && (
-                  <ThinkingOutput
-                    content={message.thinkingOutput}
-                    isStreaming={isCurrentMessage && isStreaming}
-                  />
-                )}
+                {/* Display context sources at the start */}
+                <ContextSources
+                  ragContext={message.ragContext}
+                  webSearchContext={message.webSearchContext}
+                />
                 {message.content && (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <ReactMarkdown
@@ -733,10 +1059,11 @@ export function ResearchOutput({
             // RAG Integration
             enableRAG={enableRAG}
             onRAGSearch={onRAGSearch}
-            showRAGContext={showRAGContext}
+            onRAGToggle={onRAGToggle}
             // Web Search Integration
             webSearchEnabled={webSearchEnabled}
             onWebSearch={onWebSearch}
+            onWebSearchToggle={onWebSearchToggle}
             webSearchStatus={webSearchStatus}
           />
         </div>

@@ -19,6 +19,7 @@ export type ResearchType =
 export interface ResearchConfig {
   type: ResearchType;
   depth: "quick" | "detailed" | "comprehensive";
+  includeRAG?: boolean;
   includeWebSearch?: boolean;
   webSearchOptions?: WebSearchOptions;
 }
@@ -62,6 +63,10 @@ export interface UseResearchReturn {
   generateResearch: () => Promise<void>;
   generateResearchStream: () => Promise<void>;
   generateResearchWithRAG: (ragContext?: RAGContext) => Promise<void>;
+  generateResearchWithContext: (
+    ragContext?: RAGContext,
+    webContext?: WebSearchContext
+  ) => Promise<void>;
   updateResults: (newContent: string) => void; // Add function to update results
   clearResults: () => void;
 }
@@ -73,6 +78,7 @@ export function useResearch(
   const [researchConfig, setResearchConfig] = useState<ResearchConfig>({
     type: "deep-research",
     depth: "detailed",
+    includeRAG: true,
     includeWebSearch: true,
   });
   const [isGenerating, setIsGenerating] = useState(false);
@@ -191,9 +197,9 @@ export function useResearch(
     setResults("");
 
     try {
-      // Automatically perform RAG search if ragService is available
+      // Automatically perform RAG search if enabled and ragService is available
       let context: RAGContext | undefined = ragContext || undefined;
-      if (!context && ragService && vectorStore) {
+      if (!context && researchConfig.includeRAG && ragService && vectorStore) {
         setThinkingOutput(
           "🔍 Searching knowledge base for relevant context..."
         );
@@ -223,6 +229,10 @@ export function useResearch(
             "⚠️ Knowledge base search failed. Generating general research..."
           );
         }
+      } else if (!researchConfig.includeRAG) {
+        setThinkingOutput(
+          "📝 Generating research without knowledge base (disabled)..."
+        );
       } else if (!ragService) {
         setThinkingOutput("📝 Generating research without knowledge base...");
       }
@@ -314,9 +324,9 @@ export function useResearch(
     setResults("");
 
     try {
-      // Automatically perform RAG search if ragService is available
+      // Automatically perform RAG search if enabled and ragService is available
       let context: RAGContext | undefined = ragContext || undefined;
-      if (!context && ragService && vectorStore) {
+      if (!context && researchConfig.includeRAG && ragService && vectorStore) {
         setThinkingOutput(
           "🔍 Searching knowledge base for relevant context..."
         );
@@ -346,6 +356,10 @@ export function useResearch(
             "⚠️ Knowledge base search failed. Generating general research..."
           );
         }
+      } else if (!researchConfig.includeRAG) {
+        setThinkingOutput(
+          "📝 Generating research without knowledge base (disabled)..."
+        );
       } else if (!ragService) {
         setThinkingOutput("📝 Generating research without knowledge base...");
       }
@@ -460,9 +474,9 @@ export function useResearch(
       setResults("");
 
       try {
-        // Use explicit context or perform search if not provided
+        // Use explicit context or perform search if enabled and not provided
         let context: RAGContext | undefined = explicitRAGContext || undefined;
-        if (!context && ragService) {
+        if (!context && researchConfig.includeRAG && ragService) {
           setThinkingOutput("Searching knowledge base for relevant context...");
           const searchResult = await performRAGSearch(prompt);
           context = searchResult || undefined;
@@ -546,6 +560,106 @@ export function useResearch(
     ]
   );
 
+  // Enhanced research generation with explicit RAG and web search context
+  const generateResearchWithContext = useCallback(
+    async (
+      explicitRAGContext?: RAGContext,
+      explicitWebContext?: WebSearchContext
+    ) => {
+      if (!prompt.trim() || !isAIReady) {
+        return;
+      }
+
+      setIsGenerating(true);
+      setIsStreaming(true);
+      setThinkingOutput("");
+      setResults("");
+
+      try {
+        // Use explicit contexts or perform search if enabled and not provided
+        let context: RAGContext | undefined = explicitRAGContext || undefined;
+        if (!context && researchConfig.includeRAG && ragService) {
+          setThinkingOutput("Searching knowledge base for relevant context...");
+          const searchResult = await performRAGSearch(prompt);
+          context = searchResult || undefined;
+        }
+
+        let webContext: WebSearchContext | undefined =
+          explicitWebContext || undefined;
+        if (
+          !webContext &&
+          researchConfig.includeWebSearch &&
+          webSearchService
+        ) {
+          setThinkingOutput("Searching the web for additional context...");
+          const webSearchResult = await performWebSearch(prompt);
+          webContext = webSearchResult || undefined;
+        }
+
+        const researchPrompt = buildResearchPrompt(
+          prompt,
+          researchConfig,
+          vectorStore,
+          context || undefined,
+          webContext || undefined
+        );
+
+        setThinkingOutput("Generating research with enhanced context...");
+
+        let accumulatedContent = "";
+
+        // Handle streaming response
+        for await (const chunk of generateContentStream(researchPrompt)) {
+          if (chunk) {
+            accumulatedContent += chunk;
+            setResults(accumulatedContent);
+
+            // Update thinking process as content streams
+            if (accumulatedContent.length < 100) {
+              setThinkingOutput(
+                "Starting research generation with enhanced context..."
+              );
+            } else if (accumulatedContent.length < 500) {
+              setThinkingOutput(
+                "Building comprehensive analysis using available context..."
+              );
+            } else {
+              setThinkingOutput(
+                "Expanding research with detailed insights and context..."
+              );
+            }
+          }
+        }
+
+        setThinkingOutput(
+          "Research completed successfully with enhanced context!"
+        );
+      } catch (error) {
+        console.error("Context-enhanced research generation failed:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setResults(
+          `Failed to generate research: ${errorMessage}\n\nPlease check your Ollama connection and try again.`
+        );
+        setThinkingOutput("Research generation failed. Please try again.");
+      } finally {
+        setIsGenerating(false);
+        setIsStreaming(false);
+      }
+    },
+    [
+      prompt,
+      researchConfig,
+      vectorStore,
+      ragService,
+      performRAGSearch,
+      webSearchService,
+      performWebSearch,
+      isAIReady,
+      generateContentStream,
+    ]
+  );
+
   const updateResults = useCallback((newContent: string) => {
     setResults(newContent);
     setThinkingOutput("Content updated by user");
@@ -588,6 +702,7 @@ export function useResearch(
     generateResearch,
     generateResearchStream,
     generateResearchWithRAG,
+    generateResearchWithContext,
     updateResults,
     clearResults,
   };

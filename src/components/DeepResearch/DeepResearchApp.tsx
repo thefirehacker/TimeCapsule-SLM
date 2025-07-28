@@ -177,6 +177,14 @@ export function DeepResearchComponent() {
     setWebSearchEnabled(enabled);
   };
 
+  // RAG handlers
+  const handleRAGToggle = (enabled: boolean) => {
+    research.setResearchConfig({
+      ...research.researchConfig,
+      includeRAG: enabled,
+    });
+  };
+
   const handleFirecrawlApiKeyChange = (apiKey: string) => {
     setFirecrawlApiKey(apiKey);
     if (apiKey) {
@@ -265,16 +273,18 @@ export function DeepResearchComponent() {
             researchConfig={research.researchConfig}
             onResearchConfigChange={research.setResearchConfig}
             onGenerateResearchStream={research.generateResearchStream}
+            onGenerateResearchWithContext={research.generateResearchWithContext}
             isGenerating={research.isGenerating}
             connectionState={research.connectionState}
             onConnectAI={handleConnectAI}
             // RAG Integration
-            enableRAG={true}
+            enableRAG={research.researchConfig.includeRAG}
             onRAGSearch={handleRAGSearch}
-            showRAGContext={true}
+            onRAGToggle={handleRAGToggle}
             // Web Search Integration
             webSearchEnabled={webSearchEnabled}
             onWebSearch={handleWebSearch}
+            onWebSearchToggle={handleWebSearchToggle}
             webSearchStatus={webSearchStatus}
           />
         </div>
