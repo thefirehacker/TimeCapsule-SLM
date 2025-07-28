@@ -686,31 +686,33 @@ export function ResearchOutput({
   };
 
   const renderEmptyState = () => (
-    <div className="flex flex-col items-center justify-center h-full text-center space-y-6 p-8">
-      <div className="w-24 h-24 bg-secondary/30 rounded-full flex items-center justify-center">
-        <Brain className="w-12 h-12 text-primary" />
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-8 p-12">
+      <div className="w-32 h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl flex items-center justify-center border border-border/50">
+        <Brain className="w-16 h-16 text-primary" />
       </div>
-      <div className="space-y-3 max-w-md">
-        <h3 className="text-2xl font-semibold text-foreground">
+      <div className="space-y-4 max-w-lg">
+        <h3 className="text-3xl font-bold text-foreground">
           Ready to Research
         </h3>
-        <p className="text-muted-foreground leading-relaxed">
+        <p className="text-lg text-muted-foreground leading-relaxed">
           Enter your research question below to get started. I'll analyze your
-          query and provide comprehensive insights.
+          query and provide comprehensive insights with AI-powered analysis.
         </p>
       </div>
       {!connectionState.connected && (
-        <div className="p-6 bg-card border border-border rounded-lg max-w-md space-y-4">
-          <div className="flex items-center justify-center gap-2 text-destructive mb-3">
-            <Bot className="w-5 h-5" />
-            <span className="font-medium">AI Not Connected</span>
+        <div className="p-8 bg-card border border-border rounded-xl max-w-md space-y-6 shadow-sm">
+          <div className="flex items-center justify-center gap-3 text-destructive">
+            <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5" />
+            </div>
+            <span className="text-lg font-semibold">AI Not Connected</span>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-muted-foreground leading-relaxed">
             Connect to Ollama to start researching and unlock the full potential
             of AI-powered analysis.
           </p>
-          <Button onClick={onConnectAI} className="w-full">
-            <Bot className="w-4 h-4 mr-2" />
+          <Button onClick={onConnectAI} className="w-full h-12 text-base">
+            <Bot className="w-5 h-5 mr-2" />
             Connect AI
           </Button>
         </div>
@@ -725,27 +727,27 @@ export function ResearchOutput({
     return (
       <div
         key={message.id}
-        className={`flex gap-4 p-6 border-b border-border last:border-b-0 ${
-          isUser ? "bg-background" : "bg-secondary/20"
+        className={`flex gap-6 p-8 border-b border-border/50 last:border-b-0 ${
+          isUser ? "bg-background" : "bg-accent/5"
         }`}
       >
-        <Avatar className="w-10 h-10 flex-shrink-0 border border-border">
+        <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-border/50 shadow-sm">
           <AvatarImage src={isUser ? undefined : undefined} />
-          <AvatarFallback className="text-sm bg-secondary text-secondary-foreground">
+          <AvatarFallback className="text-sm font-semibold bg-primary text-primary-foreground">
             {isUser ? (
-              <User className="w-5 h-5" />
+              <User className="w-6 h-6" />
             ) : (
-              <Bot className="w-5 h-5" />
+              <Bot className="w-6 h-6" />
             )}
           </AvatarFallback>
         </Avatar>
 
-        <div className="flex-1 min-w-0 space-y-3">
+        <div className="flex-1 min-w-0 space-y-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-base font-semibold text-foreground">
               {isUser ? "You" : "AI Assistant"}
             </span>
-            <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full">
+            <span className="text-xs text-muted-foreground bg-accent/50 px-3 py-1 rounded-full font-medium">
               {message.timestamp.toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -753,22 +755,24 @@ export function ResearchOutput({
             </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {isUser ? (
               <div className="prose prose-sm max-w-none">
-                <p className="text-foreground text-base leading-relaxed m-0 p-4 bg-secondary/30 border border-border rounded-lg">
-                  {message.content}
-                </p>
+                <div className="bg-accent/20 border border-border/50 rounded-xl p-6">
+                  <p className="text-foreground text-base leading-relaxed m-0">
+                    {message.content}
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Display context sources at the start */}
                 <ContextSources
                   ragContext={message.ragContext}
                   webSearchContext={message.webSearchContext}
                 />
                 {message.content && (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div className="prose prose-lg dark:prose-invert max-w-none bg-card border border-border rounded-xl p-6 shadow-sm">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -785,7 +789,7 @@ export function ResearchOutput({
                             </SyntaxHighlighter>
                           ) : (
                             <code
-                              className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono"
+                              className="bg-muted px-2 py-1 rounded-md text-sm font-mono border border-border/50"
                               {...props}
                             >
                               {children}
@@ -793,42 +797,42 @@ export function ResearchOutput({
                           );
                         },
                         h1: ({ children }) => (
-                          <h1 className="text-xl font-bold mt-6 mb-4 text-foreground border-b border-border pb-2">
+                          <h1 className="text-2xl font-bold mt-8 mb-6 text-foreground border-b border-border pb-3">
                             {children}
                           </h1>
                         ),
                         h2: ({ children }) => (
-                          <h2 className="text-lg font-semibold mt-6 mb-3 text-foreground">
+                          <h2 className="text-xl font-semibold mt-8 mb-4 text-foreground">
                             {children}
                           </h2>
                         ),
                         h3: ({ children }) => (
-                          <h3 className="text-base font-semibold mt-4 mb-2 text-foreground">
+                          <h3 className="text-lg font-semibold mt-6 mb-3 text-foreground">
                             {children}
                           </h3>
                         ),
                         p: ({ children }) => (
-                          <p className="mb-4 text-foreground leading-relaxed">
+                          <p className="mb-6 text-foreground leading-relaxed text-base">
                             {children}
                           </p>
                         ),
                         ul: ({ children }) => (
-                          <ul className="list-disc list-inside mb-4 space-y-2 ml-4">
+                          <ul className="list-disc list-inside mb-6 space-y-2 ml-6">
                             {children}
                           </ul>
                         ),
                         ol: ({ children }) => (
-                          <ol className="list-decimal list-inside mb-4 space-y-2 ml-4">
+                          <ol className="list-decimal list-inside mb-6 space-y-2 ml-6">
                             {children}
                           </ol>
                         ),
                         li: ({ children }) => (
-                          <li className="text-foreground leading-relaxed">
+                          <li className="text-foreground leading-relaxed text-base">
                             {children}
                           </li>
                         ),
                         blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground mb-4 bg-muted/30 py-2 rounded-r-lg">
+                          <blockquote className="border-l-4 border-primary pl-6 italic text-muted-foreground mb-6 bg-accent/20 py-4 rounded-r-lg">
                             {children}
                           </blockquote>
                         ),
@@ -843,19 +847,19 @@ export function ResearchOutput({
                           </a>
                         ),
                         table: ({ children }) => (
-                          <div className="overflow-x-auto mb-4">
-                            <table className="min-w-full border border-border rounded-lg">
+                          <div className="overflow-x-auto mb-6">
+                            <table className="min-w-full border border-border rounded-lg shadow-sm">
                               {children}
                             </table>
                           </div>
                         ),
                         th: ({ children }) => (
-                          <th className="border border-border bg-muted px-4 py-2 text-left font-semibold text-foreground">
+                          <th className="border border-border bg-accent/30 px-6 py-3 text-left font-semibold text-foreground">
                             {children}
                           </th>
                         ),
                         td: ({ children }) => (
-                          <td className="border border-border px-4 py-2 text-foreground">
+                          <td className="border border-border px-6 py-3 text-foreground">
                             {children}
                           </td>
                         ),
@@ -869,27 +873,29 @@ export function ResearchOutput({
 
                 {/* Action buttons for AI messages */}
                 {message.content && !isCurrentMessage && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-3 pt-4 border-t border-border/50">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleCopy(message.content)}
-                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                      className="h-10 px-4 opacity-70 hover:opacity-100 transition-opacity"
                     >
                       {copied ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        <CheckCircle2 className="w-4 h-4 text-green-600 mr-2" />
                       ) : (
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-4 h-4 mr-2" />
                       )}
+                      {copied ? "Copied!" : "Copy"}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleEdit}
-                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                      className="h-10 px-4 opacity-70 hover:opacity-100 transition-opacity"
                       disabled={isStreaming}
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Edit
                     </Button>
                     <Button
                       variant="ghost"
@@ -905,10 +911,11 @@ export function ResearchOutput({
                         a.click();
                         URL.revokeObjectURL(url);
                       }}
-                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                      className="h-10 px-4 opacity-70 hover:opacity-100 transition-opacity"
                       disabled={isStreaming}
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
                     </Button>
                   </div>
                 )}
@@ -925,53 +932,52 @@ export function ResearchOutput({
       return renderEmptyState();
     }
 
-    return (
-      <div className="divide-y divide-border">
-        {messages.map(renderMessage)}
-      </div>
-    );
+    return <div className="space-y-2">{messages.map(renderMessage)}</div>;
   };
 
   return (
     <div className="h-full flex flex-col relative">
       {/* Action Bar - Only show when there's content */}
       {messages.length > 0 && !isEditing && (
-        <div className="border-b border-border p-4 bg-background/95 backdrop-blur-sm z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="space-x-1">
-                <Brain className="w-3 h-3" />
+        <div className="border-b border-border bg-card/50 backdrop-blur-sm z-10">
+          <div className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <Badge
+                variant="secondary"
+                className="h-8 px-3 text-sm font-medium"
+              >
+                <Brain className="w-4 h-4 mr-2" />
                 <span>{messages.length} messages</span>
               </Badge>
               {isStreaming && (
                 <Badge
                   variant="default"
-                  className="bg-purple-600 hover:bg-purple-700 space-x-1"
+                  className="h-8 px-3 text-sm font-medium bg-primary hover:bg-primary/90"
                 >
-                  <Sparkles className="w-3 h-3" />
+                  <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
                   <span>Streaming</span>
                 </Badge>
               )}
               {isEditing && (
                 <Badge
                   variant="default"
-                  className="bg-orange-600 hover:bg-orange-700 space-x-1"
+                  className="h-8 px-3 text-sm font-medium bg-orange-500 hover:bg-orange-600"
                 >
-                  <Edit3 className="w-3 h-3" />
+                  <Edit3 className="w-4 h-4 mr-2" />
                   <span>Editing</span>
                 </Badge>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleEdit}
-                className="space-x-2"
+                className="h-9 px-4"
                 disabled={isStreaming}
               >
-                <Edit3 className="w-4 h-4" />
+                <Edit3 className="w-4 h-4 mr-2" />
                 <span>Edit</span>
               </Button>
 
@@ -979,13 +985,13 @@ export function ResearchOutput({
                 variant="outline"
                 size="sm"
                 onClick={() => handleCopy(researchResults)}
-                className="space-x-2"
+                className="h-9 px-4"
                 disabled={isStreaming}
               >
                 {copied ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  <CheckCircle2 className="w-4 h-4 text-green-600 mr-2" />
                 ) : (
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-4 h-4 mr-2" />
                 )}
                 <span>{copied ? "Copied!" : "Copy"}</span>
               </Button>
@@ -994,10 +1000,10 @@ export function ResearchOutput({
                 variant="outline"
                 size="sm"
                 onClick={onExportResults}
-                className="space-x-2"
+                className="h-9 px-4"
                 disabled={isStreaming}
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 mr-2" />
                 <span>Export</span>
               </Button>
             </div>
@@ -1012,12 +1018,12 @@ export function ResearchOutput({
           ref={scrollRef}
           onScroll={handleScroll}
         >
-          <div className="pb-32 px-6">{renderContent()}</div>
+          <div className="pb-40 px-8">{renderContent()}</div>
         </div>
 
         {/* Auto-scroll indicator */}
         {!autoScroll && messages.length > 0 && (
-          <div className="absolute bottom-4 right-4 z-10">
+          <div className="absolute bottom-6 right-6 z-10">
             <Button
               variant="secondary"
               size="sm"
@@ -1027,7 +1033,7 @@ export function ResearchOutput({
                   setAutoScroll(true);
                 }
               }}
-              className="shadow-lg backdrop-blur-sm bg-background/90 border-2 hover:bg-secondary/80"
+              className="shadow-lg backdrop-blur-sm bg-card/90 border border-border hover:bg-accent/80 h-10 px-4"
             >
               <ChevronDown className="w-4 h-4 mr-2" />
               Scroll to bottom
@@ -1037,8 +1043,8 @@ export function ResearchOutput({
       </div>
 
       {/* Fixed Prompt Input at Bottom */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-background via-background/98 to-transparent pt-8 pb-4 px-6">
-        <div className="max-w-4xl mx-auto">
+      <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-background via-background/98 to-transparent pt-12 pb-6 px-8">
+        <div className="max-w-5xl mx-auto">
           <PromptBox
             value={prompt}
             onChange={onPromptChange}
@@ -1055,7 +1061,7 @@ export function ResearchOutput({
                 : "Connect to Ollama to start researching..."
             }
             compact={messages.length > 0}
-            className="shadow-2xl border-2 backdrop-blur-sm bg-background/98 transition-all duration-300"
+            className="shadow-2xl border-2 border-border/50 backdrop-blur-sm bg-card/98 transition-all duration-300 rounded-2xl"
             // RAG Integration
             enableRAG={enableRAG}
             onRAGSearch={onRAGSearch}
