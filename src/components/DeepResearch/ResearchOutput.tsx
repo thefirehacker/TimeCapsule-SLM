@@ -7,13 +7,19 @@ import { PromptBox, ResearchType } from "@/components/ui/chatgpt-prompt-input";
 import { ResearchConfig } from "./hooks/useResearch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   FileText,
   BookOpen,
   StickyNote,
   Download,
   Copy,
   CheckCircle2,
-  Brain,
+  Sparkle,
   Loader2,
   Sparkles,
   Edit3,
@@ -41,6 +47,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   thinkingOutput?: string;
+  thinkTokens?: string;
   ragContext?: any;
   webSearchContext?: any;
 }
@@ -104,7 +111,7 @@ function ThinkingOutput({
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Brain
+            <Sparkle
               className={`w-4 h-4 text-primary ${isStreaming ? "animate-pulse" : ""}`}
             />
             <span className="text-sm font-medium text-foreground">
@@ -146,6 +153,79 @@ function ThinkingOutput({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Component for displaying think tokens in a professional accordion
+function ThinkTokensDisplay({
+  thinkTokens,
+  isStreaming = false,
+}: {
+  thinkTokens: string;
+  isStreaming?: boolean;
+}) {
+  // Parse and clean the think tokens
+  const cleanThinkTokens = thinkTokens
+    .replace(/<think>/gi, "")
+    .replace(/<\/think>/gi, "")
+    .trim();
+
+  if (!cleanThinkTokens) return null;
+
+  return (
+    <div className="mb-6">
+      <Accordion
+        type="single"
+        collapsible
+        defaultValue={isStreaming ? "think-tokens" : undefined}
+        className="w-full"
+      >
+        <AccordionItem value="think-tokens" className="border-none">
+          <AccordionTrigger className="w-full p-4 bg-accent/30 border border-border rounded-xl hover:bg-accent/50 transition-all duration-200 shadow-sm hover:no-underline group">
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Sparkle className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground">
+                    AI Reasoning Process
+                  </span>
+                  {isStreaming && (
+                    <div className="flex space-x-1">
+                      <div
+                        className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-primary/70 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full font-medium">
+                  {cleanThinkTokens.length.toLocaleString()} chars
+                </span>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-3">
+            <div className="p-6 bg-card border border-border rounded-xl shadow-sm">
+              <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-mono tracking-tight">
+                {cleanThinkTokens}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
@@ -370,7 +450,7 @@ function ContextSources({
         {activeTab === "steps" && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Brain className="h-4 w-4 text-primary" />
+              <Sparkle className="h-4 w-4 text-primary" />
               <span>Research Process</span>
             </div>
             <div className="space-y-3">
@@ -566,13 +646,29 @@ export function ResearchOutput({
     }
   }, [isStreaming]);
 
-  // Update AI message content
+  // Parse think tokens from streaming content
+  const parseThinkTokens = (content: string): string => {
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/i);
+    return thinkMatch ? thinkMatch[1] : "";
+  };
+
+  // Update AI message content and think tokens
   useEffect(() => {
     if (currentMessageId && researchResults) {
+      const thinkTokens = parseThinkTokens(researchResults);
+      const cleanContent = researchResults
+        .replace(/<think>[\s\S]*?<\/think>/gi, "")
+        .trim();
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === currentMessageId
-            ? { ...msg, content: researchResults, thinkingOutput }
+            ? {
+                ...msg,
+                content: cleanContent,
+                thinkingOutput,
+                thinkTokens: thinkTokens || undefined,
+              }
             : msg
         )
       );
@@ -688,7 +784,7 @@ export function ResearchOutput({
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center h-full text-center space-y-8 p-12">
       <div className="w-32 h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl flex items-center justify-center border border-border/50">
-        <Brain className="w-16 h-16 text-primary" />
+        <Sparkle className="w-16 h-16 text-primary" />
       </div>
       <div className="space-y-4 max-w-lg">
         <h3 className="text-3xl font-bold text-foreground">
@@ -771,6 +867,15 @@ export function ResearchOutput({
                   ragContext={message.ragContext}
                   webSearchContext={message.webSearchContext}
                 />
+
+                {/* Display think tokens if available */}
+                {message.thinkTokens && (
+                  <ThinkTokensDisplay
+                    thinkTokens={message.thinkTokens}
+                    isStreaming={isCurrentMessage && isStreaming}
+                  />
+                )}
+
                 {message.content && (
                   <div className="prose prose-lg dark:prose-invert max-w-none bg-card border border-border rounded-xl p-6 shadow-sm">
                     <ReactMarkdown
@@ -946,7 +1051,7 @@ export function ResearchOutput({
                 variant="secondary"
                 className="h-8 px-3 text-sm font-medium"
               >
-                <Brain className="w-4 h-4 mr-2" />
+                <Sparkle className="w-4 h-4 mr-2" />
                 <span>{messages.length} messages</span>
               </Badge>
               {isStreaming && (
