@@ -15,7 +15,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Settings, Loader2, Upload, FileText, Trash2 } from "lucide-react";
+import {
+  Settings,
+  Loader2,
+  Upload,
+  FileText,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  Hash,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export function DeepResearchComponent() {
   // Initialize page analytics for fine-grained tracking
@@ -92,6 +102,37 @@ export function DeepResearchComponent() {
   // Local state for modals and UI
   const [showOllamaModal, setShowOllamaModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+
+  // Document Manager State - Enhanced for chunk display
+  const [expandedChunks, setExpandedChunks] = useState<Set<string>>(new Set());
+  const [expandedDocuments, setExpandedDocuments] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Document Manager handlers - Enhanced for chunk display
+  const toggleDocumentExpansion = (docId: string) => {
+    setExpandedDocuments((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(docId)) {
+        newSet.delete(docId);
+      } else {
+        newSet.add(docId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleChunkExpansion = (chunkId: string) => {
+    setExpandedChunks((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(chunkId)) {
+        newSet.delete(chunkId);
+      } else {
+        newSet.add(chunkId);
+      }
+      return newSet;
+    });
+  };
 
   // File upload handler
   const handleFileUpload = async (
@@ -258,10 +299,10 @@ export function DeepResearchComponent() {
         connectionState={research.connectionState}
       />
 
-      {/* Document Manager Modal */}
+      {/* Document Manager Modal - Enhanced with Chunk Display */}
       {documents.showDocumentManager && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-4xl m-4">
+          <Card className="w-full max-w-6xl m-4 max-h-[90vh]">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -292,6 +333,22 @@ export function DeepResearchComponent() {
                         {formatFileSize(documents.documentStatus.totalSize)}
                       </span>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground">
+                        Total Chunks:
+                      </span>
+                      <span className="font-medium ml-1">
+                        {documents.documentStatus.totalChunks}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">
+                        Total Vectors:
+                      </span>
+                      <span className="font-medium ml-1">
+                        {documents.documentStatus.totalVectors}
+                      </span>
+                    </div>
                   </div>
 
                   <Button
@@ -306,8 +363,8 @@ export function DeepResearchComponent() {
                   </Button>
                 </div>
 
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-2">
+                <ScrollArea className="h-[60vh]">
+                  <div className="space-y-3">
                     {documents.documents.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground">
                         <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -318,27 +375,180 @@ export function DeepResearchComponent() {
                       </div>
                     ) : (
                       documents.documents.map((doc) => (
-                        <Card key={doc.id}>
+                        <Card key={doc.id} className="border-border">
                           <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">
-                                  {doc.title}
+                            <div className="space-y-3">
+                              {/* Document Header with toggle */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate text-foreground">
+                                    {doc.title}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground flex items-center gap-4">
+                                    <span>{doc.metadata.filetype}</span>
+                                    <span>•</span>
+                                    <span>
+                                      {formatFileSize(doc.metadata.filesize)}
+                                    </span>
+                                    <span>•</span>
+                                    <span>
+                                      {doc.chunks?.length || 0} chunks
+                                    </span>
+                                    <span>•</span>
+                                    <span>
+                                      {doc.vectors?.length || 0} vectors
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {doc.metadata.filetype} •{" "}
-                                  {formatFileSize(doc.metadata.filesize)}
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      toggleDocumentExpansion(doc.id)
+                                    }
+                                    className="text-muted-foreground hover:text-foreground"
+                                  >
+                                    {expandedDocuments.has(doc.id) ? (
+                                      <ChevronDown className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      documents.deleteDocument(doc.id)
+                                    }
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </div>
 
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => documents.deleteDocument(doc.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              {/* Document Metadata */}
+                              <div className="text-xs text-muted-foreground">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <span className="font-medium">
+                                      Uploaded:
+                                    </span>{" "}
+                                    {new Date(
+                                      doc.metadata.uploadedAt
+                                    ).toLocaleDateString()}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Source:</span>{" "}
+                                    {doc.metadata.source || "unknown"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Chunks Section - Expandable */}
+                              {expandedDocuments.has(doc.id) && doc.chunks && (
+                                <div className="border-t pt-3 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-medium flex items-center gap-2">
+                                      <Hash className="w-3 h-3" />
+                                      Document Chunks ({doc.chunks.length})
+                                    </h4>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {doc.vectors?.length || 0} embeddings
+                                    </Badge>
+                                  </div>
+                                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {doc.chunks.map((chunk, index) => {
+                                      const vector = doc.vectors?.find(
+                                        (v) => v.chunkId === chunk.id
+                                      );
+                                      const isChunkExpanded =
+                                        expandedChunks.has(chunk.id);
+                                      return (
+                                        <div
+                                          key={chunk.id}
+                                          className="border border-border rounded-lg p-3 bg-muted/30"
+                                        >
+                                          <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                              <Badge
+                                                variant="secondary"
+                                                className="text-xs"
+                                              >
+                                                Chunk {index + 1}
+                                              </Badge>
+                                              <span className="text-xs text-muted-foreground">
+                                                {chunk.content.length} chars
+                                              </span>
+                                              {vector && (
+                                                <span className="text-xs text-muted-foreground">
+                                                  • {vector.embedding.length}{" "}
+                                                  dims
+                                                </span>
+                                              )}
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() =>
+                                                toggleChunkExpansion(chunk.id)
+                                              }
+                                              className="h-6 w-6 p-0"
+                                            >
+                                              {isChunkExpanded ? (
+                                                <ChevronDown className="w-3 h-3" />
+                                              ) : (
+                                                <ChevronRight className="w-3 h-3" />
+                                              )}
+                                            </Button>
+                                          </div>
+                                          {isChunkExpanded && (
+                                            <div className="space-y-2">
+                                              <div className="text-xs text-muted-foreground">
+                                                <span className="font-medium">
+                                                  Position:
+                                                </span>{" "}
+                                                {chunk.startIndex} -{" "}
+                                                {chunk.endIndex}
+                                              </div>
+                                              <div className="bg-background border rounded p-2 text-sm max-h-32 overflow-y-auto">
+                                                <div className="text-xs leading-relaxed whitespace-pre-wrap">
+                                                  {chunk.content.length > 500
+                                                    ? `${chunk.content.substring(0, 500).replace(/\s+/g, " ").trim()}...`
+                                                    : chunk.content
+                                                        .replace(/\s+/g, " ")
+                                                        .trim()}
+                                                </div>
+                                              </div>
+                                              {vector && (
+                                                <div className="text-xs text-muted-foreground">
+                                                  <span className="font-medium">
+                                                    Vector Preview:
+                                                  </span>{" "}
+                                                  [
+                                                  {vector.embedding
+                                                    .slice(0, 5)
+                                                    .map(
+                                                      (v, i) =>
+                                                        `${v.toFixed(3)}${i < 4 ? ", " : ""}`
+                                                    )}
+                                                  ...] (
+                                                  {vector.embedding.length}{" "}
+                                                  dimensions)
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

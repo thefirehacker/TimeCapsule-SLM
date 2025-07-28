@@ -6,6 +6,9 @@ export interface DocumentStatus {
   count: number;
   totalSize: number;
   vectorCount: number;
+  chunkCount: number;
+  totalChunks: number;
+  totalVectors: number;
 }
 
 export interface UseDocumentsReturn {
@@ -28,6 +31,9 @@ export interface UseDocumentsReturn {
   ) => Promise<{ documentIds: string[]; stats: any }>;
   getRAGStats: () => Promise<any>;
   clearRAGData: () => Promise<void>;
+  // Enhanced chunk management
+  getDocumentChunks: (docId: string) => Promise<any[]>;
+  getChunkDetails: (docId: string, chunkId: string) => Promise<any>;
 }
 
 export function useDocuments(vectorStore: any): UseDocumentsReturn {
@@ -36,6 +42,9 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     count: 0,
     totalSize: 0,
     vectorCount: 0,
+    chunkCount: 0,
+    totalChunks: 0,
+    totalVectors: 0,
   });
   const [isUploading, setIsUploading] = useState(false);
   const [showDocumentManager, setShowDocumentManager] = useState(false);
@@ -52,13 +61,37 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
         (sum: number, doc: DocumentData) => sum + (doc.metadata?.filesize || 0),
         0
       );
-      const vectorCount = docs.length; // Each document contributes to the vector count
+
+      // Enhanced statistics calculation
+      const totalChunks = docs.reduce(
+        (sum: number, doc: DocumentData) => sum + (doc.chunks?.length || 0),
+        0
+      );
+
+      const totalVectors = docs.reduce(
+        (sum: number, doc: DocumentData) => sum + (doc.vectors?.length || 0),
+        0
+      );
 
       setDocuments(docs);
       setDocumentStatus({
         count: docs.length,
         totalSize,
-        vectorCount,
+        vectorCount: docs.length, // Each document contributes to the vector count
+        chunkCount: docs.length, // Each document contributes to the chunk count
+        totalChunks,
+        totalVectors,
+      });
+
+      console.log(`📊 Document status updated:`, {
+        documents: docs.length,
+        totalSize: formatFileSize(totalSize),
+        totalChunks,
+        totalVectors,
+        avgChunksPerDoc:
+          docs.length > 0 ? (totalChunks / docs.length).toFixed(1) : 0,
+        avgVectorsPerDoc:
+          docs.length > 0 ? (totalVectors / docs.length).toFixed(1) : 0,
       });
     } catch (error) {
       console.error("Failed to update document status:", error);
@@ -120,7 +153,7 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
       }
 
       try {
-        const { documentId } = await ragService.uploadDocument(file, options);
+        const documentId = await ragService.processDocument(file, options);
         await updateDocumentStatus();
         return documentId;
       } catch (error) {
@@ -176,11 +209,76 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     }
   }, [ragService, updateDocumentStatus]);
 
+  // Enhanced chunk management methods
+  const getDocumentChunks = useCallback(
+    async (docId: string) => {
+      if (!vectorStore) return [];
+
+      try {
+        const doc = await vectorStore.getDocument(docId);
+        if (!doc) return [];
+
+        return doc.chunks.map((chunk: any, index: number) => {
+          const vector = doc.vectors.find((v: any) => v.chunkId === chunk.id);
+          return {
+            ...chunk,
+            index,
+            vector: vector || null,
+            hasVector: !!vector,
+          };
+        });
+      } catch (error) {
+        console.error("Failed to get document chunks:", error);
+        return [];
+      }
+    },
+    [vectorStore]
+  );
+
+  const getChunkDetails = useCallback(
+    async (docId: string, chunkId: string) => {
+      if (!vectorStore) return null;
+
+      try {
+        const doc = await vectorStore.getDocument(docId);
+        if (!doc) return null;
+
+        const chunk = doc.chunks.find((c: any) => c.id === chunkId);
+        const vector = doc.vectors.find((v: any) => v.chunkId === chunkId);
+
+        if (!chunk) return null;
+
+        return {
+          chunk,
+          vector,
+          document: {
+            id: doc.id,
+            title: doc.title,
+            metadata: doc.metadata,
+          },
+        };
+      } catch (error) {
+        console.error("Failed to get chunk details:", error);
+        return null;
+      }
+    },
+    [vectorStore]
+  );
+
   useEffect(() => {
     if (vectorStore) {
       updateDocumentStatus();
     }
   }, [vectorStore, updateDocumentStatus]);
+
+  // Helper function for formatting file sizes
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
 
   return {
     documents,
@@ -196,5 +294,8 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     processBatchWithRAG,
     getRAGStats,
     clearRAGData,
+    // Enhanced chunk management
+    getDocumentChunks,
+    getChunkDetails,
   };
 }

@@ -250,88 +250,6 @@ export function ControlsPanel({
             </CardContent>
           </Card>
 
-          {/* Web Search Configuration */}
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
-                <Globe className="w-4 h-4" />
-                Web Search
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm font-medium">
-                    Enable Web Search
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Include real-time web results in research
-                  </p>
-                </div>
-                <Switch
-                  checked={webSearchEnabled}
-                  onCheckedChange={handleWebSearchToggle}
-                />
-              </div>
-
-              {webSearchEnabled && (
-                <div className="space-y-3 pt-2 border-t">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      <Key className="w-3 h-3" />
-                      Firecrawl API Key
-                    </Label>
-                    <Input
-                      type="password"
-                      placeholder="Enter your Firecrawl API key"
-                      value={firecrawlApiKey}
-                      onChange={(e) =>
-                        onFirecrawlApiKeyChange?.(e.target.value)
-                      }
-                      className="text-xs"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Get your API key from{" "}
-                      <a
-                        href="https://firecrawl.dev/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        firecrawl.dev
-                      </a>
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground">Status</div>
-                      <div className="font-medium text-foreground">
-                        {webSearchStatus.configured ? (
-                          <Badge variant="default" className="text-xs">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Ready
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            <WifiOff className="w-3 h-3 mr-1" />
-                            Setup Required
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Searches</div>
-                      <div className="font-medium text-foreground">
-                        {webSearchStatus.searchCount || 0}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Knowledge Base */}
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
@@ -352,6 +270,18 @@ export function ControlsPanel({
                   <div className="text-muted-foreground">Size</div>
                   <div className="font-medium text-foreground">
                     {formatFileSize(documentStatus.totalSize)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Chunks</div>
+                  <div className="font-medium text-foreground">
+                    {documentStatus.totalChunks}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Vectors</div>
+                  <div className="font-medium text-foreground">
+                    {documentStatus.totalVectors}
                   </div>
                 </div>
               </div>
