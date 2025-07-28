@@ -39,13 +39,11 @@ interface ChatMessage {
 
 interface ResearchOutputProps {
   researchResults: string;
-  thinkingOutput?: string;
+  thinkingOutput: string;
   isStreaming?: boolean;
   onClearOutput: () => void;
   onExportResults: () => void;
-  onUpdateResults?: (newContent: string) => void;
-
-  // Prompt input props
+  onUpdateResults: (newContent: string) => void;
   prompt: string;
   onPromptChange: (prompt: string) => void;
   researchConfig: ResearchConfig;
@@ -67,6 +65,15 @@ interface ResearchOutputProps {
   enableRAG?: boolean;
   onRAGSearch?: (query: string) => Promise<any>;
   showRAGContext?: boolean;
+
+  // Web Search Integration
+  webSearchEnabled?: boolean;
+  onWebSearch?: (query: string) => Promise<any>;
+  webSearchStatus?: {
+    configured: boolean;
+    lastSearch?: Date | null;
+    searchCount?: number;
+  };
 }
 
 // Separate component for collapsible thinking output
@@ -152,6 +159,10 @@ export function ResearchOutput({
   enableRAG = false,
   onRAGSearch,
   showRAGContext = false,
+  // Web Search Integration
+  webSearchEnabled = false,
+  onWebSearch,
+  webSearchStatus,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -723,6 +734,10 @@ export function ResearchOutput({
             enableRAG={enableRAG}
             onRAGSearch={onRAGSearch}
             showRAGContext={showRAGContext}
+            // Web Search Integration
+            webSearchEnabled={webSearchEnabled}
+            onWebSearch={onWebSearch}
+            webSearchStatus={webSearchStatus}
           />
         </div>
       </div>

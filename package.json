@@ -12,6 +12,7 @@
     "@aws-sdk/client-dynamodb": "^3.844.0",
     "@aws-sdk/lib-dynamodb": "^3.844.0",
     "@hookform/resolvers": "^5.1.1",
+    "@mendable/firecrawl-js": "^1.29.2",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",

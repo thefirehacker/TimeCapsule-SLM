@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useVectorStore } from "../providers/VectorStoreProvider";
 import { usePageAnalytics } from "../analytics/Analytics";
 import { ControlsPanel } from "./ControlsPanel";
@@ -9,6 +9,7 @@ import { StatusBar } from "./StatusBar";
 import { OllamaConnectionModal } from "./components/OllamaConnectionModal";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
+import { getFirecrawlService } from "@/lib/FirecrawlService";
 import VectorStoreInitModal from "../VectorStoreInitModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,9 +40,53 @@ export function DeepResearchComponent() {
   const research = useResearch(vectorStore);
   const documents = useDocuments(vectorStore);
 
+  // Web Search State
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [firecrawlApiKey, setFirecrawlApiKey] = useState("");
+  const [webSearchStatus, setWebSearchStatus] = useState({
+    configured: false,
+    lastSearch: null as Date | null,
+    searchCount: 0,
+  });
+
+  // Initialize Firecrawl service and load saved API key
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("firecrawl_api_key");
+    if (savedApiKey) {
+      setFirecrawlApiKey(savedApiKey);
+      setWebSearchStatus((prev) => ({ ...prev, configured: true }));
+    }
+  }, []);
+
+  // Update Firecrawl service when API key changes
+  useEffect(() => {
+    if (firecrawlApiKey) {
+      const firecrawlService = getFirecrawlService();
+      firecrawlService.setApiKey(firecrawlApiKey);
+      setWebSearchStatus((prev) => ({ ...prev, configured: true }));
+    } else {
+      setWebSearchStatus((prev) => ({ ...prev, configured: false }));
+    }
+  }, [firecrawlApiKey]);
+
   // RAG integration
   const handleRAGSearch = async (query: string) => {
     return await research.performRAGSearch(query);
+  };
+
+  // Web Search integration
+  const handleWebSearch = async (query: string) => {
+    if (!webSearchEnabled || !webSearchStatus.configured) return null;
+
+    const result = await research.performWebSearch(query);
+    if (result) {
+      setWebSearchStatus((prev) => ({
+        ...prev,
+        lastSearch: new Date(),
+        searchCount: prev.searchCount + 1,
+      }));
+    }
+    return result;
   };
 
   // Local state for modals and UI
@@ -83,6 +128,20 @@ export function DeepResearchComponent() {
     } catch (error) {
       setStatusMessage("Connection failed");
       return false;
+    }
+  };
+
+  // Web Search handlers
+  const handleWebSearchToggle = (enabled: boolean) => {
+    setWebSearchEnabled(enabled);
+  };
+
+  const handleFirecrawlApiKeyChange = (apiKey: string) => {
+    setFirecrawlApiKey(apiKey);
+    if (apiKey) {
+      localStorage.setItem("firecrawl_api_key", apiKey);
+    } else {
+      localStorage.removeItem("firecrawl_api_key");
     }
   };
 
@@ -143,6 +202,11 @@ export function DeepResearchComponent() {
             isUploading={documents.isUploading}
             onClearAll={handleClearAll}
             onExportResults={handleExportResults}
+            webSearchEnabled={webSearchEnabled}
+            onWebSearchToggle={handleWebSearchToggle}
+            firecrawlApiKey={firecrawlApiKey}
+            onFirecrawlApiKeyChange={handleFirecrawlApiKeyChange}
+            webSearchStatus={webSearchStatus}
           />
         </div>
 
@@ -167,6 +231,10 @@ export function DeepResearchComponent() {
             enableRAG={true}
             onRAGSearch={handleRAGSearch}
             showRAGContext={true}
+            // Web Search Integration
+            webSearchEnabled={webSearchEnabled}
+            onWebSearch={handleWebSearch}
+            webSearchStatus={webSearchStatus}
           />
         </div>
       </div>

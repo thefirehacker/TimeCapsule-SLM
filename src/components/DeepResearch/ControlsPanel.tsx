@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ResearchConfig } from "./hooks/useResearch";
 import { DocumentStatus } from "./hooks/useDocuments";
 import {
@@ -22,6 +25,9 @@ import {
   Search,
   Trash2,
   Eye,
+  Globe,
+  Link,
+  Key,
 } from "lucide-react";
 
 interface ControlsPanelProps {
@@ -52,6 +58,17 @@ interface ControlsPanelProps {
   onManageDocuments: () => void;
   onUploadDocuments: () => void;
   isUploading: boolean;
+
+  // Web Search
+  webSearchEnabled?: boolean;
+  onWebSearchToggle?: (enabled: boolean) => void;
+  firecrawlApiKey?: string;
+  onFirecrawlApiKeyChange?: (apiKey: string) => void;
+  webSearchStatus?: {
+    configured: boolean;
+    lastSearch?: Date | null;
+    searchCount?: number;
+  };
 
   // Actions
   onClearAll: () => void;
@@ -117,6 +134,11 @@ export function ControlsPanel({
   onManageDocuments,
   onUploadDocuments,
   isUploading,
+  webSearchEnabled = false,
+  onWebSearchToggle,
+  firecrawlApiKey = "",
+  onFirecrawlApiKeyChange,
+  webSearchStatus = { configured: false },
   onClearAll,
   onExportResults,
 }: ControlsPanelProps) {
@@ -133,6 +155,14 @@ export function ControlsPanel({
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
+    });
+  };
+
+  const handleWebSearchToggle = (enabled: boolean) => {
+    onWebSearchToggle?.(enabled);
+    onResearchConfigChange({
+      ...researchConfig,
+      includeWebSearch: enabled,
     });
   };
 
@@ -215,6 +245,88 @@ export function ControlsPanel({
                       </>
                     )}
                   </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Web Search Configuration */}
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
+                <Globe className="w-4 h-4" />
+                Web Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">
+                    Enable Web Search
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Include real-time web results in research
+                  </p>
+                </div>
+                <Switch
+                  checked={webSearchEnabled}
+                  onCheckedChange={handleWebSearchToggle}
+                />
+              </div>
+
+              {webSearchEnabled && (
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Key className="w-3 h-3" />
+                      Firecrawl API Key
+                    </Label>
+                    <Input
+                      type="password"
+                      placeholder="Enter your Firecrawl API key"
+                      value={firecrawlApiKey}
+                      onChange={(e) =>
+                        onFirecrawlApiKeyChange?.(e.target.value)
+                      }
+                      className="text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Get your API key from{" "}
+                      <a
+                        href="https://firecrawl.dev/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        firecrawl.dev
+                      </a>
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-muted-foreground">Status</div>
+                      <div className="font-medium text-foreground">
+                        {webSearchStatus.configured ? (
+                          <Badge variant="default" className="text-xs">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Ready
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            <WifiOff className="w-3 h-3 mr-1" />
+                            Setup Required
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Searches</div>
+                      <div className="font-medium text-foreground">
+                        {webSearchStatus.searchCount || 0}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>

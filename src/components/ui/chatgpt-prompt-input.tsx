@@ -20,6 +20,7 @@ import {
   Mic,
   Lightbulb,
   Loader2,
+  Link,
 } from "lucide-react";
 
 // RAG Types
@@ -245,14 +246,17 @@ interface PromptBoxProps {
   onChange?: (value: string) => void;
   onSubmit?: (
     prompt: string,
-    researchType: ResearchType,
-    researchDepth: ResearchDepth,
-    ragContext?: RAGContext
+    type: ResearchType,
+    depth: "quick" | "detailed" | "comprehensive",
+    ragContext?: any,
+    webSearchContext?: any
   ) => void;
   selectedResearchType?: ResearchType;
   onResearchTypeChange?: (type: ResearchType) => void;
-  selectedResearchDepth?: ResearchDepth;
-  onResearchDepthChange?: (depth: ResearchDepth) => void;
+  selectedResearchDepth?: "quick" | "detailed" | "comprehensive";
+  onResearchDepthChange?: (
+    depth: "quick" | "detailed" | "comprehensive"
+  ) => void;
   isGenerating?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -263,6 +267,14 @@ interface PromptBoxProps {
   ragService?: any;
   onRAGSearch?: (query: string) => Promise<RAGContext | null>;
   showRAGContext?: boolean;
+  // Web Search Integration
+  webSearchEnabled?: boolean;
+  onWebSearch?: (query: string) => Promise<any>;
+  webSearchStatus?: {
+    configured: boolean;
+    lastSearch?: Date | null;
+    searchCount?: number;
+  };
 }
 
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
@@ -285,6 +297,10 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       ragService,
       onRAGSearch,
       showRAGContext = false,
+      // Web Search Integration
+      webSearchEnabled = false,
+      onWebSearch,
+      webSearchStatus,
       ...props
     },
     ref
@@ -302,9 +318,13 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const [isRAGSearching, setIsRAGSearching] = React.useState(false);
     const [ragSearchResults, setRagSearchResults] = React.useState<any[]>([]);
 
+    // Web Search State
+    const [webSearchContext, setWebSearchContext] = React.useState<any>(null);
+    const [isWebSearching, setIsWebSearching] = React.useState(false);
+
     React.useImperativeHandle(ref, () => internalTextareaRef.current!, []);
 
-    const currentValue = onChange ? value : internalValue;
+    const currentValue = onChange ? value || "" : internalValue;
 
     React.useLayoutEffect(() => {
       const textarea = internalTextareaRef.current;
@@ -358,13 +378,27 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         }
       }
 
-      // Submit with RAG context
+      // Perform web search if enabled
+      if (webSearchEnabled && onWebSearch) {
+        setIsWebSearching(true);
+        try {
+          const webContext = await onWebSearch(prompt);
+          setWebSearchContext(webContext);
+        } catch (error) {
+          console.error("Web search failed:", error);
+        } finally {
+          setIsWebSearching(false);
+        }
+      }
+
+      // Submit with combined context
       if (onSubmit) {
         onSubmit(
           prompt,
           selectedResearchType,
           selectedResearchDepth,
-          context || undefined
+          context || undefined,
+          webSearchContext || undefined
         );
       }
 
@@ -543,6 +577,53 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
               </div>
             </div>
           )}
+
+          {/* Web Search Context Display */}
+          {webSearchContext &&
+            webSearchContext.results &&
+            webSearchContext.results.length > 0 && (
+              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Web Search Results
+                  </span>
+                  <span className="text-xs text-blue-600 dark:text-blue-400">
+                    ({webSearchContext.metadata.resultCount} results found)
+                  </span>
+                </div>
+                <div className="text-xs max-h-24 overflow-y-auto space-y-1">
+                  {webSearchContext.results
+                    .slice(0, 3)
+                    .map((result: any, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-start gap-2 p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                      >
+                        <Link className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-blue-900 dark:text-blue-100 truncate">
+                            {result.title}
+                          </div>
+                          <div className="text-blue-600 dark:text-blue-400 text-xs truncate">
+                            {result.url}
+                          </div>
+                          {result.description && (
+                            <div className="text-blue-700 dark:text-blue-300 text-xs line-clamp-2 mt-0.5">
+                              {result.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  {webSearchContext.results.length > 3 && (
+                    <div className="text-blue-600 dark:text-blue-400 text-center pt-1">
+                      +{webSearchContext.results.length - 3} more results
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
           {/* Bottom Controls */}
           <div className={cn("mt-0.5 p-1 pt-0", compact && "mt-1 p-0")}>
@@ -772,21 +853,24 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                           !hasValue ||
                           isGenerating ||
                           disabled ||
-                          isRAGSearching
+                          isRAGSearching ||
+                          isWebSearching
                         }
                         className={cn(
                           "flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
                           compact ? "h-8 w-8 p-0" : "h-9 px-4"
                         )}
                       >
-                        {isGenerating || isRAGSearching ? (
+                        {isGenerating || isRAGSearching || isWebSearching ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             {!compact && (
                               <span className="ml-2">
                                 {isRAGSearching
                                   ? "Searching..."
-                                  : "Streaming..."}
+                                  : isWebSearching
+                                    ? "Web searching..."
+                                    : "Streaming..."}
                               </span>
                             )}
                           </>
@@ -802,9 +886,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                       <p>
                         {isRAGSearching
                           ? "Searching knowledge base..."
-                          : isGenerating
-                            ? "Research streaming in progress..."
-                            : "Generate Research"}
+                          : isWebSearching
+                            ? "Searching web for context..."
+                            : isGenerating
+                              ? "Research streaming in progress..."
+                              : "Generate Research"}
                       </p>
                     </TooltipContent>
                   </Tooltip>
