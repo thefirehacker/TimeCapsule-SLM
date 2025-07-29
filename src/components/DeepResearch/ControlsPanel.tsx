@@ -3,11 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ResearchConfig } from "./hooks/useResearch";
 import { DocumentStatus } from "./hooks/useDocuments";
 import {
@@ -15,19 +11,11 @@ import {
   Database,
   FileText,
   Upload,
-  Settings,
-  Wifi,
-  WifiOff,
   CheckCircle2,
-  HardDrive,
   Loader2,
   Clock,
-  Search,
   Trash2,
   Eye,
-  Globe,
-  Link,
-  Key,
 } from "lucide-react";
 
 interface ControlsPanelProps {
@@ -40,7 +28,7 @@ interface ControlsPanelProps {
   onGenerateResearchStream: () => void;
   isGenerating: boolean;
 
-  // AI connection - updated structure
+  // AI connection
   connectionState: {
     connected: boolean;
     connecting: boolean;
@@ -59,24 +47,13 @@ interface ControlsPanelProps {
   onUploadDocuments: () => void;
   isUploading: boolean;
 
-  // Web Search
-  webSearchEnabled?: boolean;
-  onWebSearchToggle?: (enabled: boolean) => void;
-  firecrawlApiKey?: string;
-  onFirecrawlApiKeyChange?: (apiKey: string) => void;
-  webSearchStatus?: {
-    configured: boolean;
-    lastSearch?: Date | null;
-    searchCount?: number;
-  };
-
   // Actions
   onClearAll: () => void;
   onExportResults: () => void;
 }
 
-// Dummy data for research history
-const dummyResearchHistory = [
+// Mock research history data
+const researchHistory = [
   {
     id: "1",
     title: "AI Impact on Education Systems",
@@ -134,11 +111,6 @@ export function ControlsPanel({
   onManageDocuments,
   onUploadDocuments,
   isUploading,
-  webSearchEnabled = false,
-  onWebSearchToggle,
-  firecrawlApiKey = "",
-  onFirecrawlApiKeyChange,
-  webSearchStatus = { configured: false },
   onClearAll,
   onExportResults,
 }: ControlsPanelProps) {
@@ -158,14 +130,6 @@ export function ControlsPanel({
     });
   };
 
-  const handleWebSearchToggle = (enabled: boolean) => {
-    onWebSearchToggle?.(enabled);
-    onResearchConfigChange({
-      ...researchConfig,
-      includeWebSearch: enabled,
-    });
-  };
-
   return (
     <div className="h-full flex flex-col">
       <ScrollArea className="flex-1 h-full">
@@ -177,7 +141,7 @@ export function ControlsPanel({
                 {connectionState.connected ? (
                   <CheckCircle2 className="w-4 h-4 text-primary" />
                 ) : (
-                  <WifiOff className="w-4 h-4 text-destructive" />
+                  <Bot className="w-4 h-4 text-destructive" />
                 )}
                 AI Connection
               </CardTitle>
@@ -310,7 +274,7 @@ export function ControlsPanel({
             </CardContent>
           </Card>
 
-          {/* Deep Research History */}
+          {/* Research History */}
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
@@ -320,7 +284,7 @@ export function ControlsPanel({
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {dummyResearchHistory.map((research, index) => (
+                {researchHistory.map((research) => (
                   <div
                     key={research.id}
                     className="group p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer bg-card"
@@ -371,7 +335,7 @@ export function ControlsPanel({
         </div>
       </ScrollArea>
 
-      {/* Actions at bottom */}
+      {/* Actions */}
       <div className="p-4 border-t border-border bg-card">
         <div className="space-y-2">
           <Button

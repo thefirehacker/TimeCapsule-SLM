@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PromptBox, ResearchType } from "@/components/ui/chatgpt-prompt-input";
+import { PromptBox, ResearchType } from "@/components/ui/prompt-input";
 import { ResearchConfig } from "./hooks/useResearch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -14,14 +14,11 @@ import {
 } from "@/components/ui/accordion";
 import {
   FileText,
-  BookOpen,
-  StickyNote,
   Download,
   Copy,
   CheckCircle2,
   Sparkle,
   Loader2,
-  Sparkles,
   Edit3,
   Save,
   X,
@@ -32,8 +29,6 @@ import {
   Database,
   Globe,
   Link,
-  Folder,
-  ForkKnife,
   TableProperties,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -93,7 +88,7 @@ interface ResearchOutputProps {
   };
 }
 
-// Separate component for collapsible thinking output
+// Thinking output component
 function ThinkingOutput({
   content,
   isStreaming = false,
@@ -157,7 +152,7 @@ function ThinkingOutput({
   );
 }
 
-// Component for displaying think tokens in a professional accordion
+// Think tokens display component
 function ThinkTokensDisplay({
   thinkTokens,
   isStreaming = false,
@@ -165,7 +160,6 @@ function ThinkTokensDisplay({
   thinkTokens: string;
   isStreaming?: boolean;
 }) {
-  // Parse and clean the think tokens
   const cleanThinkTokens = thinkTokens
     .replace(/<think>/gi, "")
     .replace(/<\/think>/gi, "")
@@ -230,7 +224,7 @@ function ThinkTokensDisplay({
   );
 }
 
-// Enhanced context display component with tabs
+// Context sources component
 function ContextSources({
   ragContext,
   webSearchContext,
@@ -250,15 +244,6 @@ function ContextSources({
     webSearchContext &&
     webSearchContext.results &&
     webSearchContext.results.length > 0;
-
-  console.log("🎯 ContextSources render:", {
-    ragContext,
-    webSearchContext,
-    hasRAG,
-    hasWeb,
-    ragDocs: ragContext?.relevantDocuments?.length || 0,
-    webResults: webSearchContext?.results?.length || 0,
-  });
 
   if (!hasRAG && !hasWeb) return null;
 
@@ -387,7 +372,7 @@ function ContextSources({
               </div>
             )}
 
-            {/* Web Search Results - Compact Cards */}
+            {/* Web Search Results */}
             {hasWeb && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -566,11 +551,9 @@ export function ResearchOutput({
   isGenerating,
   connectionState,
   onConnectAI,
-  // RAG Integration
   enableRAG = false,
   onRAGSearch,
   onRAGToggle,
-  // Web Search Integration
   webSearchEnabled = false,
   onWebSearch,
   onWebSearchToggle,
@@ -581,7 +564,6 @@ export function ResearchOutput({
   const [editedContent, setEditedContent] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [typingIndicator, setTypingIndicator] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -599,11 +581,8 @@ export function ResearchOutput({
   // Handle user scroll to detect manual scrolling
   const handleScroll = () => {
     if (!scrollRef.current) return;
-
     const isAtBottom = isNearBottom();
     setAutoScroll(isAtBottom);
-
-    // Detect if user is actively scrolling
     setIsUserScrolling(true);
     setTimeout(() => setIsUserScrolling(false), 150);
   };
@@ -632,21 +611,6 @@ export function ResearchOutput({
       );
     }
   }, [isEditing]);
-
-  // Typing indicator animation for streaming
-  useEffect(() => {
-    if (isStreaming) {
-      const dots = ["", ".", "..", "..."];
-      let index = 0;
-      const interval = setInterval(() => {
-        setTypingIndicator(dots[index]);
-        index = (index + 1) % dots.length;
-      }, 500);
-      return () => clearInterval(interval);
-    } else {
-      setTypingIndicator("");
-    }
-  }, [isStreaming]);
 
   // Parse think tokens from streaming content
   const parseThinkTokens = (content: string): string => {
@@ -752,13 +716,6 @@ export function ResearchOutput({
     ragContext?: any,
     webSearchContext?: any
   ) => {
-    console.log("📨 ResearchOutput received context:", {
-      ragContext,
-      webSearchContext,
-      hasRAGDocs: ragContext?.relevantDocuments?.length || 0,
-      hasWebResults: webSearchContext?.results?.length || 0,
-    });
-
     // Create messages immediately before the prompt gets cleared
     if (promptText.trim() && !currentMessageId) {
       // Add user message
@@ -795,12 +752,6 @@ export function ResearchOutput({
     } else {
       onGenerateResearchStream();
     }
-  };
-
-  const renderStreamingIndicator = () => {
-    if (!isStreaming) return null;
-
-    return <></>;
   };
 
   const renderEmptyState = () => (
@@ -1027,7 +978,6 @@ export function ResearchOutput({
                     )}
                   </div>
                 )}
-                {isCurrentMessage && isStreaming && renderStreamingIndicator()}
 
                 {/* Action buttons for AI messages */}
                 {message.content && !isCurrentMessage && (

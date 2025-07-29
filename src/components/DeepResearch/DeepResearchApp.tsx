@@ -251,11 +251,6 @@ export function DeepResearchComponent() {
             isUploading={documents.isUploading}
             onClearAll={handleClearAll}
             onExportResults={handleExportResults}
-            webSearchEnabled={webSearchEnabled}
-            onWebSearchToggle={handleWebSearchToggle}
-            firecrawlApiKey={firecrawlApiKey}
-            onFirecrawlApiKeyChange={handleFirecrawlApiKeyChange}
-            webSearchStatus={webSearchStatus}
           />
         </div>
 
