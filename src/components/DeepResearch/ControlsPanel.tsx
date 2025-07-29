@@ -16,6 +16,7 @@ import {
   Clock,
   Trash2,
   Eye,
+  MessageSquare,
 } from "lucide-react";
 
 interface ControlsPanelProps {
@@ -50,6 +51,7 @@ interface ControlsPanelProps {
   // Actions
   onClearAll: () => void;
   onExportResults: () => void;
+  onStartNewChat: () => void;
 }
 
 // Mock research history data
@@ -113,6 +115,7 @@ export function ControlsPanel({
   isUploading,
   onClearAll,
   onExportResults,
+  onStartNewChat,
 }: ControlsPanelProps) {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -134,6 +137,15 @@ export function ControlsPanel({
     <div className="h-full flex flex-col">
       <ScrollArea className="flex-1 h-full">
         <div className="p-4 space-y-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onStartNewChat}
+            className="w-full"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Start New Chat
+          </Button>
           {/* AI Connection Status */}
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">

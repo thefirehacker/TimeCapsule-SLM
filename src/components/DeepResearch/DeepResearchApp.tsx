@@ -218,6 +218,13 @@ export function DeepResearchComponent() {
     setTimeout(() => setStatusMessage(""), 2000);
   };
 
+  const handleStartNewChat = () => {
+    research.clearResults();
+    research.setPrompt("");
+    setStatusMessage("New chat started");
+    setTimeout(() => setStatusMessage(""), 2000);
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -256,6 +263,7 @@ export function DeepResearchComponent() {
             isUploading={documents.isUploading}
             onClearAll={handleClearAll}
             onExportResults={handleExportResults}
+            onStartNewChat={handleStartNewChat}
           />
         </div>
 

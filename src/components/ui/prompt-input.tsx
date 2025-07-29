@@ -24,6 +24,64 @@ import {
   WifiOff,
 } from "lucide-react";
 
+// Web Speech API type declarations
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onresult:
+    | ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any)
+    | null;
+  onerror:
+    | ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any)
+    | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+}
+
+declare var SpeechRecognition: {
+  prototype: SpeechRecognition;
+  new (): SpeechRecognition;
+};
+
 // Types
 interface RAGContext {
   query: string;
@@ -314,9 +372,97 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const [isRAGSearching, setIsRAGSearching] = React.useState(false);
     const [isWebSearching, setIsWebSearching] = React.useState(false);
 
+    // Voice recording state
+    const [isVoiceRecording, setIsVoiceRecording] = React.useState(false);
+    const [voiceError, setVoiceError] = React.useState<string | null>(null);
+    const recognitionRef = React.useRef<SpeechRecognition | null>(null);
+
     React.useImperativeHandle(ref, () => internalTextareaRef.current!, []);
 
     const currentValue = onChange ? value || "" : internalValue;
+
+    // Initialize speech recognition
+    React.useEffect(() => {
+      if (
+        typeof window !== "undefined" &&
+        "webkitSpeechRecognition" in window
+      ) {
+        const SpeechRecognition =
+          window.webkitSpeechRecognition || window.SpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+
+        const recognition = recognitionRef.current;
+        if (recognition) {
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = "en-US";
+
+          recognition.onstart = () => {
+            setIsVoiceRecording(true);
+            setVoiceError(null);
+          };
+
+          recognition.onresult = (event: SpeechRecognitionEvent) => {
+            let finalTranscript = "";
+            let interimTranscript = "";
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+              } else {
+                interimTranscript += transcript;
+              }
+            }
+
+            // Update the input with the transcribed text
+            const newValue = currentValue + finalTranscript;
+            if (onChange) {
+              onChange(newValue);
+            } else {
+              setInternalValue(newValue);
+            }
+          };
+
+          recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+            console.error("Speech recognition error:", event.error);
+            setVoiceError(`Voice recognition error: ${event.error}`);
+            setIsVoiceRecording(false);
+          };
+
+          recognition.onend = () => {
+            setIsVoiceRecording(false);
+          };
+        }
+
+        return () => {
+          if (recognitionRef.current) {
+            recognitionRef.current.stop();
+          }
+        };
+      } else {
+        setVoiceError("Speech recognition not supported in this browser");
+      }
+    }, [currentValue, onChange]);
+
+    // Handle voice recording toggle
+    const handleVoiceRecord = () => {
+      if (!recognitionRef.current) {
+        setVoiceError("Speech recognition not available");
+        return;
+      }
+
+      if (isVoiceRecording) {
+        recognitionRef.current.stop();
+      } else {
+        try {
+          recognitionRef.current.start();
+        } catch (error) {
+          console.error("Failed to start speech recognition:", error);
+          setVoiceError("Failed to start voice recording");
+        }
+      }
+    };
 
     React.useLayoutEffect(() => {
       const textarea = internalTextareaRef.current;
@@ -537,6 +683,19 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
 
           <div className={cn("mt-0.5 p-1 pt-0", compact && "mt-1 p-0")}>
             <TooltipProvider delayDuration={100}>
+              {/* Voice Error Display */}
+              {voiceError && (
+                <div className="mb-2 p-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-md">
+                  {voiceError}
+                  <button
+                    onClick={() => setVoiceError(null)}
+                    className="ml-2 text-red-800 hover:text-red-900"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 {/* Essential buttons - always visible */}
                 <div className="flex items-center gap-1">
@@ -557,27 +716,31 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                     </TooltipContent>
                   </Tooltip>
 
+                  {/* Voice Record Button - Always visible */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        onClick={onVoiceRecord}
+                        onClick={handleVoiceRecord}
                         disabled={disabled || isGenerating}
                         className={cn(
                           "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed",
-                          isRecording
-                            ? "bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                          isVoiceRecording
+                            ? "bg-red-500/10 text-red-600 hover:bg-red-500/20 animate-pulse"
                             : "text-foreground hover:bg-accent"
                         )}
                       >
                         <Mic className="h-4 w-4" />
                         <span className="sr-only">
-                          {isRecording ? "Stop recording" : "Record voice"}
+                          {isVoiceRecording ? "Stop recording" : "Record voice"}
                         </span>
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="top" showArrow={true}>
-                      <p>{isRecording ? "Stop recording" : "Record voice"}</p>
+                      <p>
+                        {isVoiceRecording ? "Stop recording" : "Record voice"}
+                        {isVoiceRecording && " (Listening...)"}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
