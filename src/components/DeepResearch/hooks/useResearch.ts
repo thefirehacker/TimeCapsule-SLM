@@ -241,6 +241,14 @@ export function useResearch(
       let webContext: WebSearchContext | undefined =
         webSearchContext || undefined;
       if (!webContext && webSearchService && researchConfig.includeWebSearch) {
+        console.log(
+          "🔍 useResearch: Performing web search (generateResearch)",
+          {
+            hasWebContext: !!webContext,
+            hasWebSearchService: !!webSearchService,
+            includeWebSearch: researchConfig.includeWebSearch,
+          }
+        );
         setThinkingOutput("🌐 Searching the web for additional context...");
         try {
           const webSearchResult = await performWebSearch(prompt, {
@@ -256,8 +264,15 @@ export function useResearch(
             "⚠️ Web search failed. Generating general research..."
           );
         }
-      } else if (!webSearchService) {
-        setThinkingOutput("📝 Generating research without web search...");
+      } else {
+        console.log("🔍 useResearch: Web search skipped (generateResearch)", {
+          hasWebContext: !!webContext,
+          hasWebSearchService: !!webSearchService,
+          includeWebSearch: researchConfig.includeWebSearch,
+        });
+        if (!webSearchService) {
+          setThinkingOutput("📝 Generating research without web search...");
+        }
       }
 
       const researchPrompt = buildResearchPrompt(
@@ -368,6 +383,14 @@ export function useResearch(
       let webContext: WebSearchContext | undefined =
         webSearchContext || undefined;
       if (!webContext && webSearchService && researchConfig.includeWebSearch) {
+        console.log(
+          "🔍 useResearch: Performing web search (generateResearchStream)",
+          {
+            hasWebContext: !!webContext,
+            hasWebSearchService: !!webSearchService,
+            includeWebSearch: researchConfig.includeWebSearch,
+          }
+        );
         setThinkingOutput("🌐 Searching the web for additional context...");
         try {
           const webSearchResult = await performWebSearch(prompt, {
@@ -383,8 +406,18 @@ export function useResearch(
             "⚠️ Web search failed. Generating general research..."
           );
         }
-      } else if (!webSearchService) {
-        setThinkingOutput("📝 Generating research without web search...");
+      } else {
+        console.log(
+          "🔍 useResearch: Web search skipped (generateResearchStream)",
+          {
+            hasWebContext: !!webContext,
+            hasWebSearchService: !!webSearchService,
+            includeWebSearch: researchConfig.includeWebSearch,
+          }
+        );
+        if (!webSearchService) {
+          setThinkingOutput("📝 Generating research without web search...");
+        }
       }
 
       const researchPrompt = buildResearchPrompt(

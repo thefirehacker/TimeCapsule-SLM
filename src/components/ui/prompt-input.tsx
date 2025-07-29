@@ -350,7 +350,18 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       let ragContextToSubmit: RAGContext | null = null;
       let webContextToSubmit: any = null;
 
+      // Debug logging
+      console.log("🔍 Submit context check:", {
+        enableRAG,
+        webSearchEnabled,
+        webSearchConfigured: webSearchStatus?.configured,
+        hasRAGSearch: !!onRAGSearch,
+        hasWebSearch: !!onWebSearch,
+      });
+
+      // Only perform RAG search if explicitly enabled
       if (enableRAG && onRAGSearch) {
+        console.log("🔍 Performing RAG search...");
         setIsRAGSearching(true);
         try {
           ragContextToSubmit = await onRAGSearch(prompt);
@@ -361,7 +372,9 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         }
       }
 
-      if (webSearchEnabled && onWebSearch) {
+      // Only perform web search if explicitly enabled AND configured
+      if (webSearchEnabled && onWebSearch && webSearchStatus?.configured) {
+        console.log("🔍 Performing web search...");
         setIsWebSearching(true);
         try {
           webContextToSubmit = await onWebSearch(prompt);
@@ -370,6 +383,12 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         } finally {
           setIsWebSearching(false);
         }
+      } else {
+        console.log("🔍 Web search skipped:", {
+          webSearchEnabled,
+          hasWebSearch: !!onWebSearch,
+          configured: webSearchStatus?.configured,
+        });
       }
 
       if (onSubmit) {

@@ -175,6 +175,11 @@ export function DeepResearchComponent() {
   // Web Search handlers
   const handleWebSearchToggle = (enabled: boolean) => {
     setWebSearchEnabled(enabled);
+    // Also update the research config to ensure the hook respects the toggle
+    research.setResearchConfig({
+      ...research.researchConfig,
+      includeWebSearch: enabled,
+    });
   };
 
   // RAG handlers
