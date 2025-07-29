@@ -168,7 +168,7 @@ export function ControlsPanel({
 
   return (
     <div className="h-full flex flex-col">
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 h-full">
         <div className="p-4 space-y-4">
           {/* AI Connection Status */}
           <Card className="border-border bg-card">
@@ -319,55 +319,53 @@ export function ControlsPanel({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-64">
-                <div className="space-y-2">
-                  {dummyResearchHistory.map((research, index) => (
-                    <div
-                      key={research.id}
-                      className="group p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer bg-card"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="text-sm font-medium leading-tight line-clamp-2 text-foreground">
-                          {research.title}
-                        </h4>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="text-xs border-border bg-secondary text-secondary-foreground"
-                          >
-                            {research.type}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {research.wordCount} words
-                          </span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(research.timestamp)}
-                        </span>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {dummyResearchHistory.map((research, index) => (
+                  <div
+                    key={research.id}
+                    className="group p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer bg-card"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h4 className="text-sm font-medium leading-tight line-clamp-2 text-foreground">
+                        {research.title}
+                      </h4>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-border bg-secondary text-secondary-foreground"
+                        >
+                          {research.type}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {research.wordCount} words
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(research.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>

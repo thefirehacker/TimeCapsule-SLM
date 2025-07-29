@@ -586,6 +586,8 @@ export function ResearchOutput({
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
 
   // Check if user is near bottom of scroll area
   const isNearBottom = () => {
@@ -707,6 +709,26 @@ export function ResearchOutput({
   const handleCancel = () => {
     setIsEditing(false);
     setEditedContent(researchResults);
+  };
+
+  const handleEditMessage = (messageId: string, content: string) => {
+    setEditingMessageId(messageId);
+    setEditingContent(content);
+  };
+
+  const handleSaveMessage = (messageId: string) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, content: editingContent } : msg
+      )
+    );
+    setEditingMessageId(null);
+    setEditingContent("");
+  };
+
+  const handleCancelMessage = () => {
+    setEditingMessageId(null);
+    setEditingContent("");
   };
 
   const handleResearchTypeChange = (type: ResearchType) => {
@@ -878,100 +900,131 @@ export function ResearchOutput({
 
                 {message.content && (
                   <div className="prose prose-lg dark:prose-invert max-w-none bg-card border border-border rounded-xl p-6 shadow-sm">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code({ className, children, ...props }: any) {
-                          const match = /language-(\w+)/.exec(className || "");
-                          return match ? (
-                            <SyntaxHighlighter
-                              style={oneDark as any}
-                              language={match[1]}
-                              PreTag="div"
-                              {...props}
-                            >
-                              {String(children).replace(/\n$/, "")}
-                            </SyntaxHighlighter>
-                          ) : (
-                            <code
-                              className="bg-muted px-2 py-1 rounded-md text-sm font-mono border border-border/50"
-                              {...props}
-                            >
-                              {children}
-                            </code>
-                          );
-                        },
-                        h1: ({ children }) => (
-                          <h1 className="text-2xl font-bold mt-8 mb-6 text-foreground border-b border-border pb-3">
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-xl font-semibold mt-8 mb-4 text-foreground">
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-lg font-semibold mt-6 mb-3 text-foreground">
-                            {children}
-                          </h3>
-                        ),
-                        p: ({ children }) => (
-                          <p className="mb-6 text-foreground leading-relaxed text-base">
-                            {children}
-                          </p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="list-disc list-inside mb-6 space-y-2 ml-6">
-                            {children}
-                          </ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="list-decimal list-inside mb-6 space-y-2 ml-6">
-                            {children}
-                          </ol>
-                        ),
-                        li: ({ children }) => (
-                          <li className="text-foreground leading-relaxed text-base">
-                            {children}
-                          </li>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-primary pl-6 italic text-muted-foreground mb-6 bg-accent/20 py-4 rounded-r-lg">
-                            {children}
-                          </blockquote>
-                        ),
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            className="text-primary hover:underline font-medium"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                    {editingMessageId === message.id ? (
+                      <div className="space-y-4">
+                        <textarea
+                          value={editingContent}
+                          onChange={(e) => setEditingContent(e.target.value)}
+                          className="w-full min-h-[200px] p-4 bg-background border border-border rounded-lg text-foreground font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          placeholder="Edit the research content..."
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveMessage(message.id)}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
-                            {children}
-                          </a>
-                        ),
-                        table: ({ children }) => (
-                          <div className="overflow-x-auto mb-6">
-                            <table className="min-w-full border border-border rounded-lg shadow-sm">
+                            <Save className="w-4 h-4 mr-2" />
+                            Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCancelMessage}
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code({ className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(
+                              className || ""
+                            );
+                            return match ? (
+                              <SyntaxHighlighter
+                                style={oneDark as any}
+                                language={match[1]}
+                                PreTag="div"
+                                {...props}
+                              >
+                                {String(children).replace(/\n$/, "")}
+                              </SyntaxHighlighter>
+                            ) : (
+                              <code
+                                className="bg-muted px-2 py-1 rounded-md text-sm font-mono border border-border/50"
+                                {...props}
+                              >
+                                {children}
+                              </code>
+                            );
+                          },
+                          h1: ({ children }) => (
+                            <h1 className="text-2xl font-bold mt-8 mb-6 text-foreground border-b border-border pb-3">
                               {children}
-                            </table>
-                          </div>
-                        ),
-                        th: ({ children }) => (
-                          <th className="border border-border bg-accent/30 px-6 py-3 text-left font-semibold text-foreground">
-                            {children}
-                          </th>
-                        ),
-                        td: ({ children }) => (
-                          <td className="border border-border px-6 py-3 text-foreground">
-                            {children}
-                          </td>
-                        ),
-                      }}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-xl font-semibold mt-8 mb-4 text-foreground">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-lg font-semibold mt-6 mb-3 text-foreground">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="mb-6 text-foreground leading-relaxed text-base">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-inside mb-6 space-y-2 ml-6">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-inside mb-6 space-y-2 ml-6">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-foreground leading-relaxed text-base">
+                              {children}
+                            </li>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-primary pl-6 italic text-muted-foreground mb-6 bg-accent/20 py-4 rounded-r-lg">
+                              {children}
+                            </blockquote>
+                          ),
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              className="text-primary hover:underline font-medium"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto mb-6">
+                              <table className="min-w-full border border-border rounded-lg shadow-sm">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="border border-border bg-accent/30 px-6 py-3 text-left font-semibold text-foreground">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border border-border px-6 py-3 text-foreground">
+                              {children}
+                            </td>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 )}
                 {isCurrentMessage && isStreaming && renderStreamingIndicator()}
@@ -995,7 +1048,9 @@ export function ResearchOutput({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleEdit}
+                      onClick={() =>
+                        handleEditMessage(message.id, message.content)
+                      }
                       className="h-10 px-4 opacity-70 hover:opacity-100 transition-opacity"
                       disabled={isStreaming}
                     >
@@ -1042,80 +1097,6 @@ export function ResearchOutput({
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* Action Bar - Only show when there's content */}
-      {messages.length > 0 && !isEditing && (
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm z-10">
-          <div className="flex items-center justify-between p-6">
-            <div className="flex items-center gap-4">
-              <Badge
-                variant="secondary"
-                className="h-8 px-3 text-sm font-medium"
-              >
-                <Sparkle className="w-4 h-4 mr-2" />
-                <span>{messages.length} messages</span>
-              </Badge>
-              {isStreaming && (
-                <Badge
-                  variant="default"
-                  className="h-8 px-3 text-sm font-medium bg-primary hover:bg-primary/90"
-                >
-                  <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
-                  <span>Streaming</span>
-                </Badge>
-              )}
-              {isEditing && (
-                <Badge
-                  variant="default"
-                  className="h-8 px-3 text-sm font-medium bg-orange-500 hover:bg-orange-600"
-                >
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  <span>Editing</span>
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEdit}
-                className="h-9 px-4"
-                disabled={isStreaming}
-              >
-                <Edit3 className="w-4 h-4 mr-2" />
-                <span>Edit</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCopy(researchResults)}
-                className="h-9 px-4"
-                disabled={isStreaming}
-              >
-                {copied ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-600 mr-2" />
-                ) : (
-                  <Copy className="w-4 h-4 mr-2" />
-                )}
-                <span>{copied ? "Copied!" : "Copy"}</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onExportResults}
-                className="h-9 px-4"
-                disabled={isStreaming}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                <span>Export</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Chat Messages Area */}
       <div className="flex-1 relative overflow-hidden">
         <div
