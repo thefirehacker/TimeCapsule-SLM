@@ -78,6 +78,7 @@ Please use the above context to enhance your research...
 - Detailed logging and progress tracking
 - Memory-efficient document processing
 - Type-safe interfaces and proper metadata handling
+- **Robust PDF Support**: Full text extraction using pdf-parse library
 
 ## Usage
 
@@ -85,9 +86,17 @@ Please use the above context to enhance your research...
 
 ```typescript
 // Documents are automatically processed and made searchable
+// PDFs are parsed using robust pdf-parse library
 await vectorStore.addDocument(file, content, (progress) => {
   console.log(progress.message);
 });
+
+// PDF parsing includes:
+// - Text extraction from all pages
+// - Metadata extraction (title, author, etc.)
+// - Text cleaning and normalization
+// - Progress tracking
+// - Error handling with fallbacks
 ```
 
 ### Automatic Search (No User Action Required)
@@ -132,6 +141,14 @@ console.log("VectorStore System:", {
   chunkSize: 500,        // 500 words per chunk
   overlap: 50,           // 50 words overlap
   maxChunks: 50          // 50 chunks maximum per document
+}
+
+// PDF parsing configuration:
+{
+  maxPages: 100,         // Maximum pages to parse
+  maxTextLength: 1000000, // 1MB text limit
+  includeMetadata: true,  // Extract PDF metadata
+  onProgress: (progress) => console.log(progress.message)
 }
 ```
 

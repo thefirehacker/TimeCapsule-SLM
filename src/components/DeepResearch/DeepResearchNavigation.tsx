@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 
 interface DeepResearchNavigationProps {
   isDarkMode?: boolean;
@@ -77,10 +78,10 @@ export function DeepResearchNavigation({
           </div>
 
           <nav className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="space-x-2">
+            <Link href="/time-frames" className="space-x-2 flex items-center">
               <Clock className="w-4 h-4" />
               <span>Time-frames</span>
-            </Button>
+            </Link>
           </nav>
         </div>
 

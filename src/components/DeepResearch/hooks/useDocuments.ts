@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { DocumentData } from "@/components/VectorStore/VectorStore";
+import { pdfParser, PDFParser } from "@/lib/PDFParser";
 
 export interface DocumentStatus {
   count: number;
@@ -86,52 +87,78 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
   // Helper function to extract text content from different file types
   const extractFileContent = useCallback(
     async (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
+      try {
+        // Check if it's a PDF file
+        if (PDFParser.isPDF(file)) {
+          console.log(`📄 Processing PDF file: ${file.name}`);
 
-        reader.onload = (event) => {
-          try {
-            const content = event.target?.result as string;
+          // Use PDF parser for PDF files
+          const pdfResult = await pdfParser.parsePDF(file, {
+            maxPages: 100,
+            maxTextLength: 1000000, // 1MB text limit
+            includeMetadata: true,
+            onProgress: (progress) => {
+              console.log(`📊 PDF parsing: ${progress.message}`);
+            },
+          });
 
-            // Handle different file types
-            if (file.type === "application/pdf") {
-              // For PDFs, we need to extract text content
-              // This is a simplified approach - in production you'd use a PDF parser
-              console.warn(
-                "⚠️ PDF text extraction is limited. Consider using a PDF parser library."
-              );
-              resolve(content || "PDF content extraction not implemented");
-            } else if (
-              file.type.startsWith("text/") ||
-              file.name.endsWith(".txt") ||
-              file.name.endsWith(".md") ||
-              file.name.endsWith(".json")
-            ) {
-              // Text files - read as text
-              resolve(content);
-            } else {
-              // Binary files or unknown types
-              console.warn(
-                `⚠️ Unsupported file type: ${file.type}. Attempting to read as text.`
-              );
-              resolve(content || "Unable to extract text content");
-            }
-          } catch (error) {
-            reject(
-              new Error(
-                `Failed to process file content: ${error instanceof Error ? error.message : "Unknown error"}`
-              )
+          if (pdfResult.metadata.hasText) {
+            console.log(
+              `✅ PDF parsed successfully: ${pdfResult.metadata.pageCount} pages, ${pdfResult.metadata.textLength} characters`
             );
+            return pdfResult.text;
+          } else {
+            console.warn(`⚠️ No text extracted from PDF: ${file.name}`);
+            return `[No text content could be extracted from ${file.name}]`;
           }
-        };
+        } else if (
+          file.type.startsWith("text/") ||
+          file.name.endsWith(".txt") ||
+          file.name.endsWith(".md") ||
+          file.name.endsWith(".json")
+        ) {
+          // Text files - read as text
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
 
-        reader.onerror = () => {
-          reject(new Error(`Failed to read file: ${file.name}`));
-        };
+            reader.onload = (event) => {
+              const content = event.target?.result as string;
+              resolve(content);
+            };
 
-        // Read as text for now (will be improved for PDFs)
-        reader.readAsText(file);
-      });
+            reader.onerror = () => {
+              reject(new Error(`Failed to read file: ${file.name}`));
+            };
+
+            reader.readAsText(file);
+          });
+        } else {
+          // Binary files or unknown types
+          console.warn(
+            `⚠️ Unsupported file type: ${file.type}. Attempting to read as text.`
+          );
+
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+              const content = event.target?.result as string;
+              resolve(content || "Unable to extract text content");
+            };
+
+            reader.onerror = () => {
+              reject(new Error(`Failed to read file: ${file.name}`));
+            };
+
+            reader.readAsText(file);
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Failed to extract content from ${file.name}:`, error);
+        throw new Error(
+          `Failed to process file content: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
     },
     []
   );
@@ -151,6 +178,13 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
           );
 
           try {
+            // Check file type and show appropriate message
+            if (PDFParser.isPDF(file)) {
+              console.log(
+                `📄 PDF detected: ${file.name} - will extract text content`
+              );
+            }
+
             // Extract file content
             const content = await extractFileContent(file);
 
