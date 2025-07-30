@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
-import { VectorStore } from "@/components/VectorStore/VectorStore";
+import {
+  VectorStore,
+  SearchResult,
+} from "@/components/VectorStore/VectorStore";
 import { useOllamaConnection } from "./useOllamaConnection";
-import { getRAGService, RAGContext, RAGSearchOptions } from "@/lib/RAGService";
 import {
   getFirecrawlService,
   WebSearchContext,
@@ -22,6 +24,51 @@ export interface ResearchConfig {
   includeRAG?: boolean;
   includeWebSearch?: boolean;
   webSearchOptions?: WebSearchOptions;
+}
+
+// Simplified RAG types (no longer dependent on RAGService)
+export interface RAGDocument {
+  id: string;
+  title: string;
+  similarity: number;
+  chunkContent: string;
+  chunkIndex: number;
+  source: string;
+  metadata: {
+    filename: string;
+    filetype: string;
+    uploadedAt: string;
+    description: string;
+  };
+  retrievalContext: {
+    queryId: string;
+    retrievalTime: number;
+    processingTime: number;
+  };
+}
+
+export interface RAGContext {
+  query: string;
+  relevantDocuments: RAGDocument[];
+  searchResults: SearchResult[];
+  contextText: string;
+  metadata: {
+    searchTime: number;
+    documentCount: number;
+    chunkCount: number;
+    averageSimilarity: number;
+    searchThreshold: number;
+  };
+}
+
+export interface RAGSearchOptions {
+  threshold?: number;
+  limit?: number;
+  includeMetadata?: boolean;
+  maxContextLength?: number;
+  searchType?: "semantic" | "hybrid" | "keyword";
+  agentId?: string;
+  sessionId?: string;
 }
 
 export interface UseResearchReturn {
@@ -67,7 +114,7 @@ export interface UseResearchReturn {
     ragContext?: RAGContext,
     webContext?: WebSearchContext
   ) => Promise<void>;
-  updateResults: (newContent: string) => void; // Add function to update results
+  updateResults: (newContent: string) => void;
   clearResults: () => void;
 }
 
@@ -106,29 +153,128 @@ export function useResearch(
     isReady: isAIReady,
   } = useOllamaConnection();
 
-  // Initialize RAG service
-  const ragService = vectorStore ? getRAGService(vectorStore) : null;
+  // Web Search Service
   const webSearchService = getFirecrawlService();
 
-  // RAG Search functionality
+  // Helper function to convert SearchResult to RAGDocument
+  const convertToRAGDocument = (
+    result: SearchResult,
+    queryId: string,
+    searchTime: number
+  ): RAGDocument => ({
+    id: result.document.id,
+    title: result.document.title,
+    similarity: result.similarity,
+    chunkContent: result.chunk.content,
+    chunkIndex: parseInt(result.chunk.id.split("_").pop() || "0"),
+    source: result.document.metadata?.source || "unknown",
+    metadata: {
+      filename: result.document.metadata?.filename || "unknown",
+      filetype: result.document.metadata?.filetype || "unknown",
+      uploadedAt:
+        result.document.metadata?.uploadedAt || new Date().toISOString(),
+      description:
+        result.document.metadata?.description || "Document from knowledge base",
+    },
+    retrievalContext: {
+      queryId,
+      retrievalTime: searchTime,
+      processingTime: searchTime,
+    },
+  });
+
+  // Helper function to generate context text
+  const generateContextText = (
+    documents: RAGDocument[],
+    maxLength: number
+  ): string => {
+    const chunks = documents
+      .sort((a, b) => b.similarity - a.similarity)
+      .map((doc) => doc.chunkContent);
+
+    let contextText = "";
+    let currentLength = 0;
+
+    for (const chunk of chunks) {
+      if (currentLength + chunk.length > maxLength) {
+        break;
+      }
+      contextText += chunk + "\n\n";
+      currentLength += chunk.length + 2;
+    }
+
+    return contextText.trim();
+  };
+
+  // RAG Search functionality using VectorStore directly
   const performRAGSearch = useCallback(
     async (
       query: string,
       options: RAGSearchOptions = {}
     ): Promise<RAGContext | null> => {
-      if (!ragService) {
-        console.warn("RAG service not available");
+      if (!vectorStore) {
+        console.warn("VectorStore not available");
         return null;
       }
 
       setIsRAGSearching(true);
+      const startTime = Date.now();
+      const queryId = `rag_${Date.now()}`;
+
       try {
-        const context = await ragService.searchWithRAG(query, {
-          threshold: 0.3,
-          limit: 5,
-          maxContextLength: 2000,
-          ...options,
-        });
+        const {
+          threshold = 0.3,
+          limit = 10,
+          maxContextLength = 4000,
+          agentId,
+          sessionId,
+        } = options;
+
+        // Perform semantic search using VectorStore directly
+        const searchResults = await vectorStore.searchSimilar(
+          query,
+          threshold,
+          limit,
+          {
+            agentId,
+            sessionId,
+            queryType: "agent_rag",
+          }
+        );
+
+        const searchTime = Date.now() - startTime;
+
+        // Convert to RAG documents
+        const relevantDocuments: RAGDocument[] = searchResults.map((result) =>
+          convertToRAGDocument(result, queryId, searchTime)
+        );
+
+        // Generate context text
+        const contextText = generateContextText(
+          relevantDocuments,
+          maxContextLength
+        );
+
+        // Calculate metadata
+        const averageSimilarity =
+          relevantDocuments.length > 0
+            ? relevantDocuments.reduce((sum, doc) => sum + doc.similarity, 0) /
+              relevantDocuments.length
+            : 0;
+
+        const context: RAGContext = {
+          query,
+          relevantDocuments,
+          searchResults,
+          contextText,
+          metadata: {
+            searchTime,
+            documentCount: new Set(relevantDocuments.map((d) => d.id)).size,
+            chunkCount: relevantDocuments.length,
+            averageSimilarity,
+            searchThreshold: threshold,
+          },
+        };
 
         setRagContext(context);
         console.log(
@@ -142,7 +288,7 @@ export function useResearch(
         setIsRAGSearching(false);
       }
     },
-    [ragService]
+    [vectorStore]
   );
 
   const clearRAGContext = useCallback(() => {
@@ -199,7 +345,7 @@ export function useResearch(
     try {
       // Automatically perform RAG search if enabled and ragService is available
       let context: RAGContext | undefined = ragContext || undefined;
-      if (!context && researchConfig.includeRAG && ragService && vectorStore) {
+      if (!context && researchConfig.includeRAG && vectorStore) {
         setThinkingOutput(
           "🔍 Searching knowledge base for relevant context..."
         );
@@ -233,7 +379,7 @@ export function useResearch(
         setThinkingOutput(
           "📝 Generating research without knowledge base (disabled)..."
         );
-      } else if (!ragService) {
+      } else if (!vectorStore) {
         setThinkingOutput("📝 Generating research without knowledge base...");
       }
 
@@ -319,7 +465,6 @@ export function useResearch(
     researchConfig,
     vectorStore,
     ragContext,
-    ragService,
     performRAGSearch,
     webSearchContext,
     webSearchService,
@@ -341,7 +486,7 @@ export function useResearch(
     try {
       // Automatically perform RAG search if enabled and ragService is available
       let context: RAGContext | undefined = ragContext || undefined;
-      if (!context && researchConfig.includeRAG && ragService && vectorStore) {
+      if (!context && researchConfig.includeRAG && vectorStore) {
         setThinkingOutput(
           "🔍 Searching knowledge base for relevant context..."
         );
@@ -375,7 +520,7 @@ export function useResearch(
         setThinkingOutput(
           "📝 Generating research without knowledge base (disabled)..."
         );
-      } else if (!ragService) {
+      } else if (!vectorStore) {
         setThinkingOutput("📝 Generating research without knowledge base...");
       }
 
@@ -485,7 +630,6 @@ export function useResearch(
     researchConfig,
     vectorStore,
     ragContext,
-    ragService,
     performRAGSearch,
     webSearchContext,
     webSearchService,
@@ -509,7 +653,7 @@ export function useResearch(
       try {
         // Use explicit context or perform search if enabled and not provided
         let context: RAGContext | undefined = explicitRAGContext || undefined;
-        if (!context && researchConfig.includeRAG && ragService) {
+        if (!context && researchConfig.includeRAG && vectorStore) {
           setThinkingOutput("Searching knowledge base for relevant context...");
           const searchResult = await performRAGSearch(prompt);
           context = searchResult || undefined;
@@ -583,7 +727,6 @@ export function useResearch(
       prompt,
       researchConfig,
       vectorStore,
-      ragService,
       performRAGSearch,
       webSearchContext,
       webSearchService,
@@ -611,7 +754,7 @@ export function useResearch(
       try {
         // Use explicit contexts or perform search if enabled and not provided
         let context: RAGContext | undefined = explicitRAGContext || undefined;
-        if (!context && researchConfig.includeRAG && ragService) {
+        if (!context && researchConfig.includeRAG && vectorStore) {
           setThinkingOutput("Searching knowledge base for relevant context...");
           const searchResult = await performRAGSearch(prompt);
           context = searchResult || undefined;
@@ -684,7 +827,6 @@ export function useResearch(
       prompt,
       researchConfig,
       vectorStore,
-      ragService,
       performRAGSearch,
       webSearchService,
       performWebSearch,

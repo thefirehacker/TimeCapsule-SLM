@@ -23,6 +23,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
+import { RAGContext } from "@/components/DeepResearch/hooks/useResearch";
 
 // Web Speech API type declarations
 declare global {
@@ -83,32 +84,7 @@ declare var SpeechRecognition: {
 };
 
 // Types
-interface RAGContext {
-  query: string;
-  relevantDocuments: Array<{
-    id: string;
-    title: string;
-    similarity: number;
-    chunkContent: string;
-    chunkIndex: number;
-    source: string;
-    metadata?: any;
-    retrievalContext: {
-      queryId: string;
-      retrievalTime: number;
-      processingTime: number;
-    };
-  }>;
-  searchResults: any[];
-  contextText: string;
-  metadata: {
-    searchTime: number;
-    documentCount: number;
-    chunkCount: number;
-    averageSimilarity: number;
-    searchThreshold: number;
-  };
-}
+// RAGContext is now imported from useResearch hook
 
 export type ResearchType =
   | "deep-research"

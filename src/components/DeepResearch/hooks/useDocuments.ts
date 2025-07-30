@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
 import { DocumentData } from "@/components/VectorStore/VectorStore";
-import { getRAGService, RAGProcessingOptions } from "@/lib/RAGService";
 
 export interface DocumentStatus {
   count: number;
@@ -20,17 +19,6 @@ export interface UseDocumentsReturn {
   handleFileUpload: (files: FileList) => Promise<void>;
   deleteDocument: (docId: string) => Promise<void>;
   updateDocumentStatus: () => Promise<void>;
-  // Enhanced RAG features
-  processDocumentWithRAG: (
-    file: File,
-    options?: RAGProcessingOptions
-  ) => Promise<string>;
-  processBatchWithRAG: (
-    files: FileList,
-    options?: RAGProcessingOptions
-  ) => Promise<{ documentIds: string[]; stats: any }>;
-  getRAGStats: () => Promise<any>;
-  clearRAGData: () => Promise<void>;
   // Enhanced chunk management
   getDocumentChunks: (docId: string) => Promise<any[]>;
   getChunkDetails: (docId: string, chunkId: string) => Promise<any>;
@@ -48,9 +36,6 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
   });
   const [isUploading, setIsUploading] = useState(false);
   const [showDocumentManager, setShowDocumentManager] = useState(false);
-
-  // Initialize RAG service
-  const ragService = vectorStore ? getRAGService(vectorStore) : null;
 
   const updateDocumentStatus = useCallback(async () => {
     if (!vectorStore) return;
@@ -98,37 +83,100 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     }
   }, [vectorStore]);
 
+  // Helper function to extract text content from different file types
+  const extractFileContent = useCallback(
+    async (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+          try {
+            const content = event.target?.result as string;
+
+            // Handle different file types
+            if (file.type === "application/pdf") {
+              // For PDFs, we need to extract text content
+              // This is a simplified approach - in production you'd use a PDF parser
+              console.warn(
+                "⚠️ PDF text extraction is limited. Consider using a PDF parser library."
+              );
+              resolve(content || "PDF content extraction not implemented");
+            } else if (
+              file.type.startsWith("text/") ||
+              file.name.endsWith(".txt") ||
+              file.name.endsWith(".md") ||
+              file.name.endsWith(".json")
+            ) {
+              // Text files - read as text
+              resolve(content);
+            } else {
+              // Binary files or unknown types
+              console.warn(
+                `⚠️ Unsupported file type: ${file.type}. Attempting to read as text.`
+              );
+              resolve(content || "Unable to extract text content");
+            }
+          } catch (error) {
+            reject(
+              new Error(
+                `Failed to process file content: ${error instanceof Error ? error.message : "Unknown error"}`
+              )
+            );
+          }
+        };
+
+        reader.onerror = () => {
+          reject(new Error(`Failed to read file: ${file.name}`));
+        };
+
+        // Read as text for now (will be improved for PDFs)
+        reader.readAsText(file);
+      });
+    },
+    []
+  );
+
   const handleFileUpload = useCallback(
     async (files: FileList) => {
       if (!vectorStore || !files.length) return;
 
       setIsUploading(true);
       try {
-        // Use RAG service if available, otherwise fallback to direct VectorStore
-        if (ragService) {
-          const { documentIds, stats } = await ragService.processBatch(files, {
-            onProgress: (progress) => {
+        console.log(`📚 Processing ${files.length} files...`);
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          console.log(
+            `📄 Processing file ${i + 1}/${files.length}: ${file.name}`
+          );
+
+          try {
+            // Extract file content
+            const content = await extractFileContent(file);
+
+            // Process with VectorStore
+            await vectorStore.addDocument(file, content, (progress: any) => {
               console.log(
-                `📊 RAG Processing: ${progress.stage} - ${progress.message} (${progress.progress}%)`
+                `📊 Processing ${file.name}: ${progress.message} (${progress.progress}%)`
               );
-            },
-          });
-          console.log(`✅ RAG processed ${documentIds.length} documents`);
-        } else {
-          // Fallback to original method
-          for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            await vectorStore.addDocument(file);
+            });
+
+            console.log(`✅ Successfully processed: ${file.name}`);
+          } catch (error) {
+            console.error(`❌ Failed to process ${file.name}:`, error);
+            // Continue with other files instead of failing the entire batch
           }
         }
+
         await updateDocumentStatus();
+        console.log(`✅ File upload complete`);
       } catch (error) {
         console.error("File upload failed:", error);
       } finally {
         setIsUploading(false);
       }
     },
-    [vectorStore, ragService, updateDocumentStatus]
+    [vectorStore, extractFileContent, updateDocumentStatus]
   );
 
   const deleteDocument = useCallback(
@@ -144,70 +192,6 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     },
     [vectorStore, updateDocumentStatus]
   );
-
-  // Enhanced RAG methods
-  const processDocumentWithRAG = useCallback(
-    async (file: File, options?: RAGProcessingOptions) => {
-      if (!ragService) {
-        throw new Error("RAG service not available");
-      }
-
-      try {
-        const documentId = await ragService.processDocument(file, options);
-        await updateDocumentStatus();
-        return documentId;
-      } catch (error) {
-        console.error("RAG document processing failed:", error);
-        throw error;
-      }
-    },
-    [ragService, updateDocumentStatus]
-  );
-
-  const processBatchWithRAG = useCallback(
-    async (files: FileList, options?: RAGProcessingOptions) => {
-      if (!ragService) {
-        throw new Error("RAG service not available");
-      }
-
-      try {
-        const result = await ragService.processBatch(files, options);
-        await updateDocumentStatus();
-        return result;
-      } catch (error) {
-        console.error("RAG batch processing failed:", error);
-        throw error;
-      }
-    },
-    [ragService, updateDocumentStatus]
-  );
-
-  const getRAGStats = useCallback(async () => {
-    if (!ragService) {
-      throw new Error("RAG service not available");
-    }
-
-    try {
-      return await ragService.getRAGStats();
-    } catch (error) {
-      console.error("Failed to get RAG stats:", error);
-      throw error;
-    }
-  }, [ragService]);
-
-  const clearRAGData = useCallback(async () => {
-    if (!ragService) {
-      throw new Error("RAG service not available");
-    }
-
-    try {
-      await ragService.clearRAGData();
-      await updateDocumentStatus();
-    } catch (error) {
-      console.error("Failed to clear RAG data:", error);
-      throw error;
-    }
-  }, [ragService, updateDocumentStatus]);
 
   // Enhanced chunk management methods
   const getDocumentChunks = useCallback(
@@ -289,11 +273,6 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     handleFileUpload,
     deleteDocument,
     updateDocumentStatus,
-    // Enhanced RAG features
-    processDocumentWithRAG,
-    processBatchWithRAG,
-    getRAGStats,
-    clearRAGData,
     // Enhanced chunk management
     getDocumentChunks,
     getChunkDetails,

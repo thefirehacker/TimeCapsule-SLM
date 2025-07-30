@@ -79,7 +79,7 @@ export function DeepResearchComponent() {
     }
   }, [firecrawlApiKey]);
 
-  // RAG integration
+  // RAG search integration
   const handleRAGSearch = async (query: string) => {
     return await research.performRAGSearch(query);
   };
