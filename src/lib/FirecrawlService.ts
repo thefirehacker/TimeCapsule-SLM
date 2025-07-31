@@ -278,18 +278,34 @@ export class FirecrawlService {
   }
 
   /**
+   * Check if API key is configured (either from env or localStorage)
+   */
+  get isConfigured(): boolean {
+    return this.apiKey !== null;
+  }
+
+  /**
    * Get current status
    */
   getStatus(): {
     initialized: boolean;
     hasApiKey: boolean;
     ready: boolean;
+    configured: boolean;
   } {
     return {
       initialized: this.isInitialized,
       hasApiKey: this.apiKey !== null,
       ready: this.isReady,
+      configured: this.isConfigured,
     };
+  }
+
+  /**
+   * Get the current API key (for display purposes)
+   */
+  getCurrentApiKey(): string | null {
+    return this.apiKey;
   }
 }
 

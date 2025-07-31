@@ -294,6 +294,7 @@ export function DeepResearchComponent() {
             onWebSearch={handleWebSearch}
             onWebSearchToggle={handleWebSearchToggle}
             webSearchStatus={webSearchStatus}
+            onWebSearchConfigure={handleFirecrawlApiKeyChange}
           />
         </div>
       </div>

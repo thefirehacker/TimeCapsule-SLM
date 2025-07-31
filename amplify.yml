@@ -33,6 +33,7 @@ frontend:
         - echo "RAZORPAY_KEY_ID is ${RAZORPAY_KEY_ID:+set}"
         - echo "RAZORPAY_KEY_SECRET is ${RAZORPAY_KEY_SECRET:+set}"
         - echo "RAZORPAY_WEBHOOK_SECRET is ${RAZORPAY_WEBHOOK_SECRET:+set}"
+        - echo "NEXT_PUBLIC_FIRECRAWL_API_KEY is ${NEXT_PUBLIC_FIRECRAWL_API_KEY:+set}"
     build:
       commands:
         - echo "🔨 Building Next.js application..."
@@ -55,6 +56,7 @@ frontend:
         - echo "RAZORPAY_KEY_ID=$RAZORPAY_KEY_ID" >> .env.production
         - echo "RAZORPAY_KEY_SECRET=$RAZORPAY_KEY_SECRET" >> .env.production
         - echo "RAZORPAY_WEBHOOK_SECRET=$RAZORPAY_WEBHOOK_SECRET" >> .env.production
+        - echo "NEXT_PUBLIC_FIRECRAWL_API_KEY=%NEXT_PUBLIC_FIRECRAWL_API_KEY" >> .env.production
         - echo "✅ Environment variables written to .env.production"
         - echo "🔍 Verifying .env.production contents:"
         - cat .env.production

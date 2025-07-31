@@ -86,6 +86,7 @@ interface ResearchOutputProps {
     lastSearch?: Date | null;
     searchCount?: number;
   };
+  onWebSearchConfigure?: (apiKey: string) => void;
 }
 
 // Thinking output component
@@ -558,6 +559,7 @@ export function ResearchOutput({
   onWebSearch,
   onWebSearchToggle,
   webSearchStatus,
+  onWebSearchConfigure,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -1107,6 +1109,7 @@ export function ResearchOutput({
             onWebSearch={onWebSearch}
             onWebSearchToggle={onWebSearchToggle}
             webSearchStatus={webSearchStatus}
+            onWebSearchConfigure={onWebSearchConfigure}
           />
         </div>
       </div>

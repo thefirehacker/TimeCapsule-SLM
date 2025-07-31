@@ -123,7 +123,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Multiple favicon formats for better browser compatibility */}
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
