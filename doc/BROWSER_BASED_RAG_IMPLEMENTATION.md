@@ -78,7 +78,7 @@ Please use the above context to enhance your research...
 - Detailed logging and progress tracking
 - Memory-efficient document processing
 - Type-safe interfaces and proper metadata handling
-- **Robust PDF Support**: Full text extraction using pdf-parse library
+- **Robust PDF Support**: Full text extraction using pdf2json library via server-side API
 
 ## Usage
 
@@ -86,7 +86,7 @@ Please use the above context to enhance your research...
 
 ```typescript
 // Documents are automatically processed and made searchable
-// PDFs are parsed using robust pdf-parse library
+// PDFs are parsed using robust pdf2json library via server-side API
 await vectorStore.addDocument(file, content, (progress) => {
   console.log(progress.message);
 });

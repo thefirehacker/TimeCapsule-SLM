@@ -343,7 +343,7 @@ export function useResearch(
     setResults("");
 
     try {
-      // Automatically perform RAG search if enabled and ragService is available
+      // Automatically perform RAG search if enabled and vectorStore is available
       let context: RAGContext | undefined = ragContext || undefined;
       if (!context && researchConfig.includeRAG && vectorStore) {
         setThinkingOutput(
@@ -484,7 +484,7 @@ export function useResearch(
     setResults("");
 
     try {
-      // Automatically perform RAG search if enabled and ragService is available
+      // Automatically perform RAG search if enabled and vectorStore is available
       let context: RAGContext | undefined = ragContext || undefined;
       if (!context && researchConfig.includeRAG && vectorStore) {
         setThinkingOutput(

@@ -30,6 +30,7 @@ import {
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import Image from "next/image";
 
 interface DeepResearchNavigationProps {
   isDarkMode?: boolean;
@@ -70,17 +71,22 @@ export function DeepResearchNavigation({
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left side - Navigation */}
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg"></div>
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/Media/TimeCapsule_04.png"
+              alt="Deep Research Logo"
+              width={32}
+              height={32}
+            />
             <span className="font-semibold text-card-foreground">
               TimeCapsule
             </span>
-          </div>
+          </Link>
 
           <nav className="flex items-center gap-4">
-            <Link href="/time-frames" className="space-x-2 flex items-center">
+            <Link href="/ai-frames" className="space-x-2 flex items-center">
               <Clock className="w-4 h-4" />
-              <span>Time-frames</span>
+              <span>AI Frames</span>
             </Link>
           </nav>
         </div>
