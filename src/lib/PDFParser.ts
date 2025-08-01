@@ -86,14 +86,23 @@ export class PDFParser {
       });
 
       // Call the API route
+      console.log(`📤 Making API request to /api/pdf-parser for file: ${file.name}`);
+      
       const response = await fetch("/api/pdf-parser", {
         method: "POST",
         body: formData,
+        headers: {
+          // Don't set Content-Type - let browser handle it for FormData
+        }
       });
 
+      console.log(`📥 API response status: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error(`❌ API request failed: ${response.status} ${response.statusText} - ${errorText}`);
         throw new Error(
-          `API request failed: ${response.status} ${response.statusText}`
+          `PDF parsing API failed: ${response.status} ${response.statusText}. ${errorText}`
         );
       }
 

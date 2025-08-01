@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   VectorStore,
   SearchResult,
@@ -9,6 +9,9 @@ import {
   UnifiedWebSearchContext as WebSearchContext,
   UnifiedWebSearchOptions as WebSearchOptions,
 } from "@/lib/UnifiedWebSearchService";
+import { ResearchOrchestrator, ResearchResult, ResearchUtils } from "@/lib/ResearchOrchestrator";
+import { queryIntelligenceService } from "@/lib/QueryIntelligenceService";
+import { ResearchStep, useResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 
 export type ResearchType =
   | "deep-research"
@@ -116,6 +119,15 @@ export interface UseResearchReturn {
   ) => Promise<void>;
   updateResults: (newContent: string) => void;
   clearResults: () => void;
+
+  // Intelligent Research Integration
+  researchSteps: ResearchStep[];
+  isIntelligentResearching: boolean;
+  researchResult: ResearchResult | null;
+  expandedSteps: Set<string>;
+  performIntelligentResearch: (query: string) => Promise<void>;
+  handleStepClick: (step: ResearchStep) => void;
+  clearResearchSteps: () => void;
 }
 
 export function useResearch(
@@ -126,7 +138,7 @@ export function useResearch(
     type: "deep-research",
     depth: "detailed",
     includeRAG: true,
-    includeWebSearch: true,
+    includeWebSearch: false,
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState("");
@@ -142,6 +154,11 @@ export function useResearch(
     useState<WebSearchContext | null>(null);
   const [isWebSearching, setIsWebSearching] = useState(false);
 
+  // Intelligent Research State
+  const [isIntelligentResearching, setIsIntelligentResearching] = useState(false);
+  const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
+  const researchStepsState = useResearchSteps();
+
   // Use the robust Ollama connection hook
   const {
     connectionState,
@@ -155,6 +172,34 @@ export function useResearch(
 
   // Web Search Service
   const webSearchService = getUnifiedWebSearchService();
+
+  // Research Orchestrator - React to configuration changes
+  const researchOrchestrator = React.useMemo(() => {
+    const orchestrator = ResearchUtils.createOrchestrator(
+      vectorStore,
+      webSearchService,
+      {
+        enableRAGSearch: researchConfig.includeRAG,
+        enableWebSearch: researchConfig.includeWebSearch,
+        maxSteps: 6,
+        adaptiveStrategy: true
+      }
+    );
+    
+    // Configure orchestrator with LLM
+    if (generateContent) {
+      orchestrator.setContentGenerator(generateContent);
+    }
+    
+    return orchestrator;
+  }, [vectorStore, webSearchService, researchConfig.includeRAG, researchConfig.includeWebSearch, generateContent]);
+
+  // Configure query intelligence service with LLM
+  React.useEffect(() => {
+    if (generateContent) {
+      queryIntelligenceService.configureLLM(generateContent);
+    }
+  }, [generateContent]);
 
   // Helper function to convert SearchResult to RAGDocument
   const convertToRAGDocument = (
@@ -223,9 +268,9 @@ export function useResearch(
 
       try {
         const {
-          threshold = 0.3,
-          limit = 10,
-          maxContextLength = 4000,
+          threshold = 0.1,
+          limit = 15,
+          maxContextLength = 5000,
           agentId,
           sessionId,
         } = options;
@@ -351,9 +396,9 @@ export function useResearch(
         );
         try {
           const searchResult = await performRAGSearch(prompt, {
-            threshold: 0.3,
-            limit: 8,
-            maxContextLength: 3000,
+            threshold: 0.1,
+            limit: 15,
+            maxContextLength: 5000,
           });
           context = searchResult || undefined;
 
@@ -512,9 +557,9 @@ export function useResearch(
         );
         try {
           const searchResult = await performRAGSearch(prompt, {
-            threshold: 0.3,
-            limit: 8,
-            maxContextLength: 3000,
+            threshold: 0.1,
+            limit: 15,
+            maxContextLength: 5000,
           });
           context = searchResult || undefined;
 
@@ -867,7 +912,113 @@ export function useResearch(
     setIsStreaming(false);
     clearRAGContext();
     clearWebSearchContext();
-  }, [clearRAGContext, clearWebSearchContext]);
+    researchStepsState.clearSteps();
+    setResearchResult(null);
+    processedStepIds.current.clear();
+  }, [clearRAGContext, clearWebSearchContext, researchStepsState]);
+
+  // Step processing deduplication tracker  
+  const processedStepIds = React.useRef(new Set<string>());
+
+  // Intelligent Research Functions
+  const performIntelligentResearch = useCallback(async (query: string) => {
+    if (!query.trim() || !isAIReady) {
+      console.warn('⚠️ Cannot perform intelligent research: query empty or AI not ready');
+      return;
+    }
+
+    setIsIntelligentResearching(true);
+    setIsGenerating(true);
+    setIsStreaming(true);
+    setThinkingOutput("🧠 Initializing intelligent research system...");
+    researchStepsState.clearSteps();
+    processedStepIds.current.clear();
+
+    try {
+      console.log(`🔬 Starting intelligent research for: "${query}"`);
+
+      // Set up step tracking callback with race condition protection
+      researchOrchestrator.onStepUpdate = (step: ResearchStep) => {
+        console.log(`📋 Step update: ${step.type} - ${step.status} - ID: ${step.id}`);
+        
+        // Create unique key for step+status combination to prevent duplicate processing
+        const stepKey = `${step.id}_${step.status}`;
+        
+        // Skip if we've already processed this step+status combination
+        if (processedStepIds.current.has(stepKey)) {
+          console.log(`📋 Skipping duplicate step processing: ${stepKey}`);
+          return;
+        }
+        
+        // Mark this step+status as processed
+        processedStepIds.current.add(stepKey);
+        
+        // Safe step management with current state check
+        const existingSteps = researchStepsState.steps;
+        const existingStepIndex = existingSteps.findIndex(s => s.id === step.id);
+        
+        if (existingStepIndex >= 0) {
+          console.log(`📋 Updating existing step: ${step.id}`);
+          researchStepsState.updateStep(step.id, step);
+        } else {
+          console.log(`📋 Adding new step: ${step.id}`);
+          researchStepsState.addStep(step);
+        }
+        
+        // Update thinking output based on current step
+        if (step.status === 'in_progress') {
+          switch (step.type) {
+            case 'analysis':
+              setThinkingOutput(`🧠 Analyzing query: "${step.query}"`);
+              break;
+            case 'rag_search':
+              setThinkingOutput(`📚 Searching knowledge base (${step.queries?.length || 1} queries)...`);
+              break;
+            case 'web_search':
+              setThinkingOutput(`🌐 Searching web for additional information...`);
+              break;
+            case 'synthesis':
+              setThinkingOutput(`⚗️ Synthesizing information from ${step.sources?.length || 0} sources...`);
+              break;
+          }
+        }
+      };
+
+      // Execute intelligent research
+      const result = await researchOrchestrator.executeResearch(query);
+      
+      setResearchResult(result);
+      setResults(result.finalAnswer);
+      setThinkingOutput(`✅ Research completed: ${result.steps.length} steps, ${result.sources.length} sources, ${Math.round(result.confidence * 100)}% confidence`);
+
+      console.log(`✅ Intelligent research completed:`, {
+        steps: result.steps.length,
+        sources: result.sources.length,
+        confidence: result.confidence,
+        processingTime: result.processingTime
+      });
+
+    } catch (error) {
+      console.error('❌ Intelligent research failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setResults(`Intelligent research failed: ${errorMessage}\n\nPlease check your AI connection and try again.`);
+      setThinkingOutput("❌ Research failed. Please try again.");
+    } finally {
+      setIsIntelligentResearching(false);
+      setIsGenerating(false);
+      setIsStreaming(false);
+    }
+  }, [
+    isAIReady,
+    researchOrchestrator,
+    researchStepsState
+  ]);
+
+  const clearResearchSteps = useCallback(() => {
+    researchStepsState.clearSteps();
+    setResearchResult(null);
+    processedStepIds.current.clear();
+  }, [researchStepsState]);
 
   return {
     prompt,
@@ -900,6 +1051,15 @@ export function useResearch(
     generateResearchWithContext,
     updateResults,
     clearResults,
+
+    // Intelligent Research Integration
+    researchSteps: researchStepsState.steps,
+    isIntelligentResearching,
+    researchResult,
+    expandedSteps: researchStepsState.expandedSteps,
+    performIntelligentResearch,
+    handleStepClick: researchStepsState.handleStepClick,
+    clearResearchSteps,
   };
 }
 

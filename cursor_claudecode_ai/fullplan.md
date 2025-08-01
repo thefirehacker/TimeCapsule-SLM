@@ -193,3 +193,53 @@
 - Fix frame-node sync during load operations
 - Achieve TC-001 complete compliance (6/6 criteria)
 - Progress to Phase 2 system hardening
+
+### Issue #006: Deep Research Component Layout & Key Duplication Fix
+**Status**: 🔧 **READY FOR IMPLEMENTATION**  
+**Priority**: HIGH - UI/UX Critical Issues  
+**Type**: Bug Fix & Layout Enhancement  
+**Created**: 2025-07-21  
+**File**: [cursor_claudecode_ai/issues/Issue-006-Deep-Research-Component-Fix.md](./issues/Issue-006-Deep-Research-Component-Fix.md)
+
+**Summary**: 
+- Duplicate research output display: shows in both ResearchSteps and ResearchOutput components
+- Content overflow in ResearchSteps component breaking layout on dynamic content
+- React key duplication errors causing console warnings (synthesis_*_* keys)
+- Poor responsive design for research step details
+
+**Impact**: 
+- Confusing user experience with duplicate content
+- Broken UI layout when research results are long
+- React performance warnings and potential rendering issues
+- Poor mobile/responsive experience
+
+**Next Steps**: 
+- Fix layout to show research output ONLY in steps panel
+- Implement proper CSS containment for dynamic content
+- Fix ResearchStepUtils.generateUniqueId() for truly unique keys
+- Test responsive design and scrolling behavior
+
+### Issue #007: Deep Research Critical Fixes - Race Condition & Quality
+**Status**: 🚨 **CRITICAL - URGENT FIX REQUIRED**  
+**Priority**: URGENT - User Experience Breaking  
+**Type**: Bug Fix & Quality Enhancement  
+**Created**: 2025-07-21  
+**File**: [cursor_claudecode_ai/issues/Issue-007-Deep-Research-Critical-Fixes.md](./issues/Issue-007-Deep-Research-Critical-Fixes.md)
+
+**Summary**: 
+- React key duplication persists: same step IDs causing warnings (`analysis_1754064717413_1_0f8c9e4c`)
+- Poor research output quality: malformed text, incorrect synthesis, corrupted results
+- Race condition in useResearch hook: `onStepUpdate` fires multiple times for same step
+- RAG retrieval and synthesis producing irrelevant/corrupted content
+
+**Impact**: 
+- User experience severely degraded with React warnings and UI glitches
+- Research functionality unreliable with poor quality outputs
+- Core product value compromised by inaccurate information delivery
+- Trust issues due to malformed and incorrect research results
+
+**Next Steps**: 
+- URGENT: Implement step deduplication mechanism in useResearch hook
+- Fix race condition with Set-based step tracking and functional state updates
+- Improve RAG retrieval quality and synthesis output validation
+- Add post-processing cleanup for malformed text and artifacts

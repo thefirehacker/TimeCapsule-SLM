@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PromptBox, ResearchType } from "@/components/ui/prompt-input";
 import { ResearchConfig } from "./hooks/useResearch";
+import { ResearchResult } from "@/lib/ResearchOrchestrator";
+import { ResearchSteps, ResearchStep } from "./components/ResearchSteps";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Accordion,
@@ -87,6 +89,16 @@ interface ResearchOutputProps {
     searchCount?: number;
   };
   onWebSearchConfigure?: (apiKey: string) => void;
+
+  // Intelligent Research Integration
+  onPerformIntelligentResearch?: (query: string) => Promise<void>;
+  isIntelligentResearching?: boolean;
+  researchResult?: ResearchResult | null;
+  
+  // Research Steps Integration
+  researchSteps?: ResearchStep[];
+  expandedSteps?: Set<string>;
+  onStepClick?: (step: ResearchStep) => void;
 }
 
 // Thinking output component
@@ -229,13 +241,29 @@ function ThinkTokensDisplay({
 function ContextSources({
   ragContext,
   webSearchContext,
+  researchSteps = [],
+  expandedSteps = new Set(),
+  onStepClick,
 }: {
   ragContext?: any;
   webSearchContext?: any;
+  researchSteps?: ResearchStep[];
+  expandedSteps?: Set<string>;
+  onStepClick?: (step: ResearchStep) => void;
 }) {
+  // Don't show steps tab when research steps are already displayed in left panel
+  const showStepsTab = researchSteps.length === 0;
+  
   const [activeTab, setActiveTab] = useState<"overview" | "sources" | "steps">(
     "overview"
   );
+  
+  // Reset activeTab if it's "steps" but steps tab is not available
+  React.useEffect(() => {
+    if (activeTab === "steps" && !showStepsTab) {
+      setActiveTab("overview");
+    }
+  }, [activeTab, showStepsTab]);
 
   const hasRAG =
     ragContext &&
@@ -251,7 +279,8 @@ function ContextSources({
   const tabs = [
     { id: "overview", label: "Overview", icon: Link },
     { id: "sources", label: "Sources", icon: Database },
-    { id: "steps", label: "Steps", icon: TableProperties },
+    // Only show steps tab when research steps panel is NOT active
+    ...(showStepsTab ? [{ id: "steps", label: "Steps", icon: TableProperties }] : []),
   ];
 
   return (
@@ -433,102 +462,113 @@ function ContextSources({
           </div>
         )}
 
-        {activeTab === "steps" && (
+        {activeTab === "steps" && showStepsTab && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Sparkle className="h-4 w-4 text-primary" />
-              <span>Research Process</span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
-                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
-                  1
+            {researchSteps && researchSteps.length > 0 ? (
+              <ResearchSteps
+                steps={researchSteps}
+                onStepClick={onStepClick || (() => {})}
+                expandedSteps={expandedSteps}
+                className="border-0 shadow-none"
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Sparkle className="h-4 w-4 text-primary" />
+                  <span>Research Process</span>
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground">
-                    Query Analysis
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                      1
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        Query Analysis
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Analyzing user query and determining research approach
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Analyzing user query and determining research approach
-                  </div>
-                </div>
-                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
-                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
-                  2
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground">
-                    Knowledge Base Search
+                  <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                      2
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        Knowledge Base Search
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {hasRAG
+                          ? `Found ${ragContext?.metadata?.documentCount || ragContext?.relevantDocuments?.length || 0} relevant documents`
+                          : "No relevant documents found"}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {hasRAG
-                      ? `Found ${ragContext?.metadata?.documentCount || ragContext?.relevantDocuments?.length || 0} relevant documents`
-                      : "No relevant documents found"}
-                  </div>
-                </div>
-                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
-                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
-                  3
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground">
-                    Web Search
+                  <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                      3
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        Web Search
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {hasWeb
+                          ? `Found ${webSearchContext?.metadata?.resultCount || webSearchContext?.results?.length || 0} web results`
+                          : "No web search performed"}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {hasWeb
-                      ? `Found ${webSearchContext?.metadata?.resultCount || webSearchContext?.results?.length || 0} web results`
-                      : "No web search performed"}
-                  </div>
-                </div>
-                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
-                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
-                  4
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground">
-                    Context Integration
+                  <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                      4
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        Context Integration
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Combining knowledge base and web search results
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Combining knowledge base and web search results
-                  </div>
-                </div>
-                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
-                <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
-                  5
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground">
-                    AI Generation
+                  <div className="flex items-center gap-4 p-4 bg-accent/20 rounded-lg border border-border/50">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
+                      5
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        AI Generation
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Generating comprehensive response using integrated context
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Generating comprehensive response using integrated context
-                  </div>
-                </div>
-                <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -560,6 +600,15 @@ export function ResearchOutput({
   onWebSearchToggle,
   webSearchStatus,
   onWebSearchConfigure,
+  // Intelligent Research Integration
+  onPerformIntelligentResearch,
+  isIntelligentResearching = false,
+  researchResult,
+  
+  // Research Steps Integration
+  researchSteps = [],
+  expandedSteps = new Set(),
+  onStepClick,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -748,8 +797,10 @@ export function ResearchOutput({
     handleResearchTypeChange(researchType);
     handleDepthChange(researchDepth);
 
-    // Use the context-aware function if available, otherwise fallback
-    if (onGenerateResearchWithContext) {
+    // Use intelligent research if available, otherwise fallback to legacy methods
+    if (onPerformIntelligentResearch) {
+      onPerformIntelligentResearch(promptText);
+    } else if (onGenerateResearchWithContext) {
       onGenerateResearchWithContext(ragContext, webSearchContext);
     } else {
       onGenerateResearchStream();
@@ -841,6 +892,9 @@ export function ResearchOutput({
                 <ContextSources
                   ragContext={message.ragContext}
                   webSearchContext={message.webSearchContext}
+                  researchSteps={researchSteps}
+                  expandedSteps={expandedSteps}
+                  onStepClick={onStepClick}
                 />
 
                 {/* Display think tokens if available */}

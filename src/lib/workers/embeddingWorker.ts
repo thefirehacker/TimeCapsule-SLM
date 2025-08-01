@@ -77,13 +77,13 @@ class EmbeddingWorker {
         }
       } as WorkerResponse);
 
-      const chunks = this.createWordBasedChunks(documentData.content, 500);
-      const maxChunks = Math.min(chunks.length, 50); // Limit to 50 chunks
+      const chunks = this.createWordBasedChunks(documentData.content, 250, 50);
+      const maxChunks = Math.min(chunks.length, 200); // Limit to 200 chunks
       
       console.log(`📊 Web Worker: Created ${chunks.length} chunks, processing first ${maxChunks}`);
 
-      if (chunks.length > 50) {
-        console.warn(`⚠️ Web Worker: Large document with ${chunks.length} chunks, limiting to first 50 chunks`);
+      if (chunks.length > 200) {
+        console.warn(`⚠️ Web Worker: Large document with ${chunks.length} chunks, limiting to first 200 chunks`);
       }
 
       // Step 2: Process chunks in batches for better performance
@@ -176,19 +176,37 @@ class EmbeddingWorker {
     }
   }
 
-  private createWordBasedChunks(text: string, wordsPerChunk: number): Array<{content: string, wordCount: number}> {
-    const words = text.trim().split(/\s+/);
-    const chunks: Array<{content: string, wordCount: number}> = [];
+  private createWordBasedChunks(text: string, wordsPerChunk: number, overlapWords: number = 0): Array<{content: string, wordCount: number, hasOverlap: boolean}> {
+    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    const chunks: Array<{content: string, wordCount: number, hasOverlap: boolean}> = [];
     
-    for (let i = 0; i < words.length; i += wordsPerChunk) {
-      const chunkWords = words.slice(i, i + wordsPerChunk);
+    let currentPosition = 0;
+    let chunkIndex = 0;
+    const stepSize = Math.max(wordsPerChunk - overlapWords, wordsPerChunk / 2);
+    
+    console.log(`📊 TS Worker: Chunking ${words.length} words into ${wordsPerChunk}-word chunks with ${overlapWords} word overlap`);
+    
+    while (currentPosition < words.length) {
+      const endPosition = Math.min(currentPosition + wordsPerChunk, words.length);
+      const chunkWords = words.slice(currentPosition, endPosition);
       const content = chunkWords.join(' ');
+      
       chunks.push({
         content: content,
-        wordCount: chunkWords.length
+        wordCount: chunkWords.length,
+        hasOverlap: chunkIndex > 0 && overlapWords > 0
       });
+      
+      chunkIndex++;
+      currentPosition += stepSize;
+      
+      // Break if we've processed all text
+      if (endPosition >= words.length) {
+        break;
+      }
     }
     
+    console.log(`✅ TS Worker: Created ${chunks.length} chunks with overlap`);
     return chunks;
   }
 

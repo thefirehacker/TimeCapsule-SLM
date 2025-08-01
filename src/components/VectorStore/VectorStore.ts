@@ -441,13 +441,18 @@ export class VectorStore {
                  // Success callback
          async (processedDoc: ProcessedDocument) => {
            try {
-             // Convert chunks from Web Worker format to VectorStore format
-             const chunks = processedDoc.chunks.map((chunk, index) => ({
-               id: `chunk_${processedDoc.id}_${index}`,
-               content: chunk.content,
-               startIndex: index * 500, // Approximate start based on chunk index
-               endIndex: (index * 500) + chunk.content.length
-             }));
+                         // Convert chunks from Web Worker format to VectorStore format with unique IDs
+            const chunkTimestamp = Date.now();
+            const chunks = processedDoc.chunks.map((chunk, index) => {
+              const chunkRandom = Math.random().toString(36).substring(2, 8);
+              const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              return {
+                id: uniqueId,
+                content: chunk.content,
+                startIndex: index * 500, // Approximate start based on chunk index
+                endIndex: (index * 500) + chunk.content.length
+              };
+            });
 
              // Convert to our DocumentData format
              const documentData: DocumentData = {
@@ -536,13 +541,18 @@ export class VectorStore {
         // Success callback
         async (processedDoc: ProcessedDocument) => {
           try {
-            // Convert chunks from Web Worker format to VectorStore format
-            const chunks = processedDoc.chunks.map((chunk, index) => ({
-              id: `chunk_${processedDoc.id}_${index}`,
-              content: chunk.content,
-              startIndex: index * 500, // Approximate start based on chunk index
-              endIndex: (index * 500) + chunk.content.length
-            }));
+            // Convert chunks from Web Worker format to VectorStore format with unique IDs
+            const chunkTimestamp = Date.now();
+            const chunks = processedDoc.chunks.map((chunk, index) => {
+              const chunkRandom = Math.random().toString(36).substring(2, 8);
+              const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              return {
+                id: uniqueId,
+                content: chunk.content,
+                startIndex: index * 500, // Approximate start based on chunk index
+                endIndex: (index * 500) + chunk.content.length
+              };
+            });
 
             // Convert to our DocumentData format
             const documentData: DocumentData = {

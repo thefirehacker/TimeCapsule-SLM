@@ -7,6 +7,7 @@ import { ControlsPanel } from "./ControlsPanel";
 import { ResearchOutput } from "./ResearchOutput";
 import { StatusBar } from "./StatusBar";
 import { OllamaConnectionModal } from "./components/OllamaConnectionModal";
+import { ResearchSteps } from "./components/ResearchSteps";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
 import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
@@ -51,7 +52,7 @@ export function DeepResearchComponent() {
   const documents = useDocuments(vectorStore);
 
   // Web Search State
-  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [firecrawlApiKey, setFirecrawlApiKey] = useState("");
   const [webSearchStatus, setWebSearchStatus] = useState({
     configured: false,
@@ -194,6 +195,16 @@ export function DeepResearchComponent() {
     }
   };
 
+  // Ensure web search states stay synchronized
+  useEffect(() => {
+    if (webSearchEnabled !== research.researchConfig.includeWebSearch) {
+      research.setResearchConfig({
+        ...research.researchConfig,
+        includeWebSearch: webSearchEnabled,
+      });
+    }
+  }, [webSearchEnabled, research.researchConfig.includeWebSearch, research]);
+
   // Web Search handlers
   const handleWebSearchToggle = (enabled: boolean) => {
     setWebSearchEnabled(enabled);
@@ -289,35 +300,58 @@ export function DeepResearchComponent() {
           />
         </div>
 
-        {/* Main Content Area - Research Output */}
-        <div className="flex-1 flex flex-col">
-          <ResearchOutput
-            researchResults={research.results}
-            thinkingOutput={research.thinkingOutput}
-            isStreaming={research.isStreaming}
-            onClearOutput={research.clearResults}
-            onExportResults={handleExportResults}
-            onUpdateResults={research.updateResults}
-            prompt={research.prompt}
-            onPromptChange={research.setPrompt}
-            researchConfig={research.researchConfig}
-            onResearchConfigChange={research.setResearchConfig}
-            onGenerateResearchStream={research.generateResearchStream}
-            onGenerateResearchWithContext={research.generateResearchWithContext}
-            isGenerating={research.isGenerating}
-            connectionState={research.connectionState}
-            onConnectAI={handleConnectAI}
-            // RAG Integration
-            enableRAG={research.researchConfig.includeRAG}
-            onRAGSearch={handleRAGSearch}
-            onRAGToggle={handleRAGToggle}
-            // Web Search Integration
-            webSearchEnabled={webSearchEnabled}
-            onWebSearch={handleWebSearch}
-            onWebSearchToggle={handleWebSearchToggle}
-            webSearchStatus={webSearchStatus}
-            onWebSearchConfigure={handleFirecrawlApiKeyChange}
-          />
+        {/* Main Content Area - Research Steps and Chat Interface */}
+        <div className="flex-1 flex">
+          {/* Research Steps Panel - Only show when steps exist */}
+          {research.researchSteps.length > 0 && (
+            <div className="w-80 border-r border-border bg-card/50 p-4 h-full flex flex-col">
+              <ResearchSteps
+                steps={research.researchSteps}
+                onStepClick={research.handleStepClick}
+                expandedSteps={research.expandedSteps}
+                className="flex-1"
+              />
+            </div>
+          )}
+          
+          {/* Main Chat Interface - Always show */}
+          <div className="flex-1 flex flex-col">
+            <ResearchOutput
+              researchResults={research.results}
+              thinkingOutput={research.thinkingOutput}
+              isStreaming={research.isStreaming}
+              onClearOutput={research.clearResults}
+              onExportResults={handleExportResults}
+              onUpdateResults={research.updateResults}
+              prompt={research.prompt}
+              onPromptChange={research.setPrompt}
+              researchConfig={research.researchConfig}
+              onResearchConfigChange={research.setResearchConfig}
+              onGenerateResearchStream={research.generateResearchStream}
+              onGenerateResearchWithContext={research.generateResearchWithContext}
+              isGenerating={research.isGenerating}
+              connectionState={research.connectionState}
+              onConnectAI={handleConnectAI}
+              // RAG Integration
+              enableRAG={research.researchConfig.includeRAG}
+              onRAGSearch={handleRAGSearch}
+              onRAGToggle={handleRAGToggle}
+              // Web Search Integration
+              webSearchEnabled={webSearchEnabled}
+              onWebSearch={handleWebSearch}
+              onWebSearchToggle={handleWebSearchToggle}
+              webSearchStatus={webSearchStatus}
+              onWebSearchConfigure={handleFirecrawlApiKeyChange}
+              // Intelligent Research Integration
+              onPerformIntelligentResearch={research.performIntelligentResearch}
+              isIntelligentResearching={research.isIntelligentResearching}
+              researchResult={research.researchResult}
+              // Research Steps Integration - indicate if steps are active
+              researchSteps={research.researchSteps}
+              expandedSteps={research.expandedSteps}
+              onStepClick={research.handleStepClick}
+            />
+          </div>
         </div>
       </div>
 
