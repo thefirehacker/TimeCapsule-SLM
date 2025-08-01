@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext, ExtractedItem } from '../interfaces/Context';
+import { ResearchContext, ExtractedItem, ChunkData } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class ExtractionAgent extends BaseAgent {
@@ -53,7 +53,7 @@ export class ExtractionAgent extends BaseAgent {
   }
   
   private async extractFromBatch(
-    chunks: typeof ResearchContext.prototype.ragResults.chunks,
+    chunks: ChunkData[],
     context: ResearchContext
   ): Promise<ExtractedItem[]> {
     // Use LLM to understand and extract, like Claude would
@@ -67,12 +67,18 @@ ${chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n')}
 Instructions:
 ${this.getExtractionInstructions(context)}
 
-Return a simple list of what you found. For each item include:
-- What you found
-- The number/value if there is one
-- Why it matches what the user wants
+If you see a table with columns, extract each row as a separate item.
+For tables like "# Description Record time Training Tokens...", extract:
+- Row number/ID
+- Description 
+- Time value (like "8.13 hours", "2.55 hours")
 
-Be specific. If user wants "speed runs", find run times, not performance metrics.`;
+Return a simple list. For each item include:
+- What you found (description or name)
+- The time value if there is one
+- Skip performance metrics like tokens/sec
+
+Be specific. If user wants "speed runs", find run times (hours/minutes), not performance metrics (tokens/sec).`;
 
     try {
       const response = await this.llm(prompt);
@@ -109,19 +115,61 @@ DO NOT include performance metrics like tokens/sec or throughput`;
   private parseNaturalResponse(response: string, chunkId: string): ExtractedItem[] {
     const items: ExtractedItem[] = [];
     
+    // Clean up LLM thinking process
+    let cleanResponse = response;
+    
+    // Remove common LLM preambles
+    cleanResponse = cleanResponse.replace(/^(Okay,? let'?s see\.?|Let me think|First,? I need to|Looking at the text)[^\n]*\n/gim, '');
+    cleanResponse = cleanResponse.replace(/^(The user wants?|The text mentions?|I need to find)[^\n]*\n/gim, '');
+    
+    // Extract content after thinking tags if present
+    if (cleanResponse.includes('</think>')) {
+      const parts = cleanResponse.split('</think>');
+      cleanResponse = parts[parts.length - 1].trim();
+    }
+    
     // Split response into lines or sections
-    const lines = response.split('\n').filter(line => line.trim());
+    const lines = cleanResponse.split('\n').filter(line => line.trim());
     
     lines.forEach(line => {
-      // Look for patterns in natural language response
-      // Like "Found: Run 1 took 3.5 hours"
-      const valueMatch = line.match(/(\d+\.?\d*)\s*(hours?|minutes?|seconds?)/i);
+      // Skip meta-commentary lines
+      if (line.match(/^(I found|Here's what|Based on|Looking for)/i)) {
+        return;
+      }
       
-      if (line.length > 10) { // Meaningful content
+      // Look for structured findings
+      // Pattern 1: "Run X: Y hours" or "X. Something - Y hours"
+      const runMatch = line.match(/(?:Run\s*(\d+)|(\d+)\.|#(\d+))[:\s-]+(.+?)[\s-]+(\d+\.?\d*)\s*(hours?|minutes?|seconds?)/i);
+      if (runMatch) {
+        const runNumber = runMatch[1] || runMatch[2] || runMatch[3];
+        const description = runMatch[4].trim();
+        const value = runMatch[5];
+        const unit = runMatch[6];
+        
         items.push({
-          content: line.trim(),
-          value: valueMatch ? valueMatch[1] : undefined,
-          unit: valueMatch ? valueMatch[2] : undefined,
+          content: `Run ${runNumber}: ${description}`,
+          value: value,
+          unit: unit,
+          context: line.trim(),
+          confidence: 0.9,
+          sourceChunkId: chunkId,
+          metadata: { method: 'llm', runNumber }
+        });
+        return;
+      }
+      
+      // Pattern 2: Simple time mentions
+      const timeMatch = line.match(/(\d+\.?\d*)\s*(hours?|minutes?|seconds?)/i);
+      
+      // Pattern 3: List items with dashes or bullets
+      const listMatch = line.match(/^[\s-•*]+(.+)$/);
+      const content = listMatch ? listMatch[1].trim() : line.trim();
+      
+      if (content.length > 10 && !content.match(/^(why|because|since|this)/i)) {
+        items.push({
+          content: content,
+          value: timeMatch ? timeMatch[1] : undefined,
+          unit: timeMatch ? timeMatch[2] : undefined,
           context: line.trim(),
           confidence: 0.8,
           sourceChunkId: chunkId,
@@ -134,11 +182,45 @@ DO NOT include performance metrics like tokens/sec or throughput`;
   }
   
   private fallbackTextExtraction(
-    chunks: typeof ResearchContext.prototype.ragResults.chunks,
+    chunks: ChunkData[],
     context: ResearchContext
   ): ExtractedItem[] {
     console.log('🔄 Using pattern-based extraction optimized for small models');
     const items: ExtractedItem[] = [];
+    
+    // First, try to detect table format
+    chunks.forEach(chunk => {
+      const text = chunk.text;
+      
+      // Check for table-like structure
+      const tableMatch = text.match(/^(\d+)\s+(.+?)\s+(\d+\.?\d*)\s*(hours?|hrs?)\s+/gm);
+      if (tableMatch) {
+        console.log('📊 Detected table format, parsing rows...');
+        const lines = text.split('\n');
+        
+        lines.forEach(line => {
+          // Match table rows: "1 Initial baseline 8.13 hours 6.44B 221k..."
+          const rowMatch = line.match(/^(\d+)\s+(.+?)\s+(\d+\.?\d*)\s*(hours?|hrs?)\s+/);
+          if (rowMatch) {
+            items.push({
+              content: `Run ${rowMatch[1]}: ${rowMatch[2].trim()}`,
+              value: rowMatch[3],
+              unit: rowMatch[4],
+              context: line.trim(),
+              confidence: 0.95,
+              sourceChunkId: chunk.id,
+              metadata: { method: 'table', runNumber: rowMatch[1] }
+            });
+          }
+        });
+      }
+    });
+    
+    // If table parsing found items, return them
+    if (items.length > 0) {
+      console.log(`✅ Extracted ${items.length} items from table format`);
+      return items;
+    }
     
     // Comprehensive patterns for various formats
     const patterns = [

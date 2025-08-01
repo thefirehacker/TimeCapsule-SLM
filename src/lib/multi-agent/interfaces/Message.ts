@@ -54,5 +54,4 @@ export function createMessage(
   };
 }
 
-// Export all types needed by other modules
-export type { Message };
+// All interfaces and enums are already exported above

@@ -34,7 +34,7 @@ export class DataInspectorAgent extends BaseAgent {
     return context;
   }
   
-  private async inspectWithLLM(context: ResearchContext) {
+  private async inspectWithLLM(context: ResearchContext): Promise<void> {
     const samples = context.ragResults.chunks.slice(0, 3); // First 3 chunks
     
     const prompt = `Look at this data and tell me what kind of information it contains.
@@ -166,8 +166,6 @@ Return JSON with structure:
       console.error('❌ Failed to inspect data:', error);
       this.setReasoning('Failed to analyze data structure');
     }
-    
-    return context;
   }
   
   private parseJSON(text: string): any {

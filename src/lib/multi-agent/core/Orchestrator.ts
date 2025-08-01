@@ -101,14 +101,24 @@ Keep your response short and direct.`;
   
   private parseUnderstanding(response: string, query: string): any {
     const lines = response.toLowerCase();
+    const originalQuery = query.toLowerCase();
     
-    // Detect query type from response
+    // Detect query type from response AND original query (more reliable)
     let queryType = 'information';
-    if (lines.includes('rank') || lines.includes('top') || lines.includes('list')) {
+    
+    // Check both LLM response and original query for ranking indicators
+    const rankingKeywords = ['rank', 'top', 'list', 'best', 'fastest', 'slowest', 'first', 'second', 'third'];
+    const hasRankingInResponse = rankingKeywords.some(keyword => lines.includes(keyword));
+    const hasRankingInQuery = rankingKeywords.some(keyword => originalQuery.includes(keyword));
+    
+    if (hasRankingInResponse || hasRankingInQuery) {
       queryType = 'ranking';
+      console.log(`🎯 Detected ranking query: "${query}" (keywords found in ${hasRankingInResponse ? 'response' : 'query'})`);
     } else if (lines.includes('compar')) {
       queryType = 'comparison';
     }
+    
+    console.log(`📊 Query type determined: ${queryType} for "${query}"`);
     
     // Detect domain
     let domain = 'general';

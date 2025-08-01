@@ -38,7 +38,7 @@ export class SynthesisAgent extends BaseAgent {
     // Store the results
     context.synthesis.answer = answer;
     context.synthesis.reasoning = this.explainReasoning();
-    context.extractedData.processed = groupedItems;
+    context.extractedData.structured = groupedItems;
     
     console.log(`✅ Synthesis complete: ${answer.length} characters`);
     
@@ -52,8 +52,15 @@ export class SynthesisAgent extends BaseAgent {
     const filteredItems = this.filterByIntent(context, groupedItems);
     
     if (queryType === 'ranking' && context.query.toLowerCase().includes('top 3')) {
+      // Sort by time value (smallest first for speed runs)
+      const sorted = filteredItems.sort((a, b) => {
+        const aVal = this.parseTimeToHours(a.bestItem);
+        const bVal = this.parseTimeToHours(b.bestItem);
+        return aVal - bVal;
+      });
+      
       // Format top 3 results
-      const top3 = filteredItems.slice(0, 3);
+      const top3 = sorted.slice(0, 3);
       
       if (top3.length === 0) {
         return 'No speed run times found in the available data. The data contained performance metrics (tokens/sec) but not completion times.';
@@ -65,21 +72,20 @@ export class SynthesisAgent extends BaseAgent {
         const item = group.bestItem;
         const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
         
-        // Clean up the content
-        let content = item.content;
-        if (content.includes(':')) {
-          // Extract the run description
-          content = content.split(':')[0].trim();
-        }
+        // Clean up the content - remove LLM thinking
+        let content = this.cleanContent(item.content);
         
-        lines.push(`${index + 1}. ${content} - ${value || 'time not specified'}`);
-        if (item.context && item.context !== item.content) {
-          // Extract relevant context
-          const contextMatch = item.context.match(/run \d+.*?(\d+\.?\d*\s*(?:hours?|minutes?))/i);
-          if (contextMatch) {
-            lines.push(`   Details: ${contextMatch[0]}`);
+        // Extract run description if present
+        if (content.includes('Run')) {
+          const runMatch = content.match(/Run\s*\d+[:\s-]+(.+?)(?:\s*-\s*\d+\.?\d*\s*hours?)?$/i);
+          if (runMatch) {
+            content = runMatch[1].trim();
           }
         }
+        
+        // Smart time formatting - avoid duplicates
+        const formattedLine = this.formatWithTime(content, value);
+        lines.push(`${index + 1}. ${formattedLine}`);
       });
       
       return lines.join('\n');
@@ -91,24 +97,132 @@ export class SynthesisAgent extends BaseAgent {
     filteredItems.forEach((group, index) => {
       const item = group.bestItem;
       const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
-      lines.push(`• ${item.content} ${value ? `- ${value}` : ''}`);
+      const content = this.cleanContent(item.content);
+      const formattedLine = this.formatWithTime(content, value);
+      lines.push(`• ${formattedLine}`);
     });
     
     return lines.join('\n');
   }
   
+  private cleanContent(content: string): string {
+    // Remove LLM thinking patterns - expanded list
+    let clean = content;
+    
+    // Remove common LLM preambles
+    const thinkingPatterns = [
+      /^(Okay,? let'?s see\.?|Let me think|Let me see|First,? I need to|Looking at|The user wants?)[^.]*\.\s*/i,
+      /^(Based on|According to|From what I can see|It appears that|It seems)[^.]*,\s*/i,
+      /^(The text mentions?|The content shows?|I can see that|Looking through)[^.]*,\s*/i
+    ];
+    
+    thinkingPatterns.forEach(pattern => {
+      clean = clean.replace(pattern, '');
+    });
+    
+    // Remove trailing explanations and meta-commentary
+    clean = clean.replace(/\s*-\s*(time not specified|why it matches|note:|however,).*$/i, '');
+    clean = clean.replace(/\s*\(.*?\)\s*$/g, ''); // Remove trailing parenthetical comments
+    
+    // Clean up run descriptions
+    if (clean.match(/^\d+\.\d+\.\d+\.\d+/)) {
+      // Handle malformed numbering like "2..1.1.1.1.1"
+      clean = clean.replace(/^\d+(\.\d+)+\s*/, '');
+    }
+    
+    // Remove duplicate whitespace
+    clean = clean.replace(/\s+/g, ' ');
+    
+    return clean.trim();
+  }
+  
+  private formatWithTime(content: string, timeValue: string): string {
+    if (!timeValue) {
+      return content || 'time not specified';
+    }
+    
+    // Check if content already contains the time value
+    const timeRegex = new RegExp(`\\b${timeValue.replace(/\./g, '\\.')}`);
+    if (timeRegex.test(content)) {
+      // Content already contains the time - return as is
+      return content;
+    }
+    
+    // Check if content already contains time information in general
+    const hasTimePattern = /\b\d+\.?\d*\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)\b/i;
+    if (hasTimePattern.test(content)) {
+      // Content has some time info, but not our specific value
+      // Replace existing time with our value or append if unclear
+      const existingTimeMatch = content.match(/(.+?)\s*-?\s*\d+\.?\d*\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)\b/i);
+      if (existingTimeMatch) {
+        const baseContent = existingTimeMatch[1].trim();
+        return `${baseContent} - ${timeValue}`;
+      }
+      // If we can't cleanly extract, return content as is
+      return content;
+    }
+    
+    // Content has no time info - append our time value
+    return `${content} - ${timeValue}`;
+  }
+  
+  private parseTimeToHours(item: any): number {
+    if (!item.value || !item.unit) return Infinity;
+    
+    const value = parseFloat(item.value);
+    const unit = item.unit.toLowerCase();
+    
+    if (unit.includes('hour')) return value;
+    if (unit.includes('minute')) return value / 60;
+    if (unit.includes('second')) return value / 3600;
+    
+    return value;
+  }
+  
   private filterByIntent(context: ResearchContext, groupedItems: any[]): any[] {
     const query = context.query.toLowerCase();
     
+    // First, filter out irrelevant/empty responses
+    let filtered = groupedItems.filter(group => {
+      const item = group.bestItem;
+      const content = item.content.toLowerCase();
+      
+      // Filter out "no information found" type responses
+      const irrelevantPatterns = [
+        'no relevant information found',
+        'no information about',
+        'does not mention',
+        'there is no mention',
+        'no content related to',
+        'no tyler',
+        'not mentioned',
+        'the text provided does not',
+        'the provided text discusses',
+        'if.*refers to.*they are excluded'
+      ];
+      
+      const isIrrelevant = irrelevantPatterns.some(pattern => {
+        return content.includes(pattern) || new RegExp(pattern).test(content);
+      });
+      
+      if (isIrrelevant) {
+        console.log(`🗑️ Filtering out irrelevant response: "${item.content.substring(0, 100)}..."`);
+        return false;
+      }
+      
+      return true;
+    });
+    
     // For speed runs, filter out performance metrics
     if (query.includes('speed run') || query.includes('runs')) {
-      return groupedItems.filter(group => {
+      filtered = filtered.filter(group => {
         const item = group.bestItem;
         const content = item.content.toLowerCase();
         const unit = (item.unit || '').toLowerCase();
         
         // Exclude performance metrics
         if (unit.includes('tokens') || unit.includes('tok/s') || unit.includes('/s')) {
+          console.log(`🗑️ Filtering out performance metric: "${item.content.substring(0, 50)}..." (${unit})`);
           return false;
         }
         
@@ -126,8 +240,8 @@ export class SynthesisAgent extends BaseAgent {
       });
     }
     
-    // Default: return all items
-    return groupedItems;
+    console.log(`📊 Filtered items: ${groupedItems.length} → ${filtered.length} (removed ${groupedItems.length - filtered.length} irrelevant)`);
+    return filtered;
   }
   
   private async groupAndRankItems(context: ResearchContext): Promise<any[]> {
@@ -216,13 +330,17 @@ Write as if you have direct knowledge of the facts.`;
     if (context.understanding.queryType === 'ranking') {
       return groupedItems.slice(0, 10).map((group, i) => {
         const item = group.bestItem;
-        return `${i + 1}. ${item.content}${item.value ? ` - ${item.value}${item.unit ? ' ' + item.unit : ''}` : ''}`;
+        const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
+        const formattedLine = this.formatWithTime(item.content, value);
+        return `${i + 1}. ${formattedLine}`;
       }).join('\n');
     }
     
     return groupedItems.slice(0, 5).map(group => {
       const item = group.bestItem;
-      return `• ${item.content}${item.value ? ` (${item.value}${item.unit ? ' ' + item.unit : ''})` : ''}`;
+      const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
+      const formattedLine = this.formatWithTime(item.content, value);
+      return `• ${formattedLine}`;
     }).join('\n\n');
   }
 }

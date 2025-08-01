@@ -310,7 +310,7 @@ Example for "top 3 runs":
 }`;
 
       const response = await this.llmGenerateContent(prompt);
-      const parsed = JSON.parse(response);
+      const parsed = this.parseJSON(response);
       
       // Determine search parameters based on intent
       const searchParams = this.getSearchParametersForIntent(parsed.intent.type);
@@ -487,5 +487,45 @@ export class QueryUtils {
     }
     
     return suggestions;
+  }
+
+  /**
+   * Parse JSON response from LLM, handling thinking tags and other artifacts
+   * Similar to the multi-agent system's parseJSON method
+   */
+  private parseJSON(text: string): any {
+    try {
+      // First try direct parsing
+      return JSON.parse(text);
+    } catch {
+      console.log('🔍 Direct JSON parse failed, cleaning response...');
+      
+      // Clean up response
+      let cleanText = text.trim();
+      
+      // Remove <think> tags if present
+      if (cleanText.includes('<think>') && cleanText.includes('</think>')) {
+        const thinkEnd = cleanText.lastIndexOf('</think>');
+        if (thinkEnd !== -1) {
+          cleanText = cleanText.substring(thinkEnd + 8).trim();
+        }
+      }
+      
+      // Remove common LLM preambles
+      cleanText = cleanText.replace(/^(Okay,? let'?s see\.?|Let me think|First,? I need to)[^\n]*\n/gim, '');
+      
+      // Try to find JSON in the text
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.error('🔍 JSON extraction failed:', e);
+        }
+      }
+      
+      console.error('Failed to parse JSON from:', text.substring(0, 200));
+      throw new Error('Invalid JSON response from LLM');
+    }
   }
 }

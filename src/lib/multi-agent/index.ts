@@ -22,9 +22,21 @@ export { AgentRegistry } from './core/AgentRegistry';
 export { MessageBus } from './core/MessageBus';
 
 // Interface exports
-export { Agent, BaseAgent } from './interfaces/Agent';
-export { ResearchContext, createInitialContext } from './interfaces/Context';
-export { Message, MessageType } from './interfaces/Message';
+export type { Agent } from './interfaces/Agent';
+export { BaseAgent } from './interfaces/Agent';
+export type { 
+  ResearchContext, 
+  ChunkData, 
+  Understanding, 
+  Pattern, 
+  ExtractedItem, 
+  Synthesis,
+  AgentMessage 
+} from './interfaces/Context';
+export { createInitialContext } from './interfaces/Context';
+export { MessageType } from './interfaces/Message';
+export type { Message, Priority, MessageContent } from './interfaces/Message';
+export { createMessage } from './interfaces/Message';
 
 // Agent exports
 export { QueryPlannerAgent } from './agents/QueryPlannerAgent';
