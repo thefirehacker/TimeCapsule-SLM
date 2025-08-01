@@ -1,43 +1,49 @@
 # Issue #007: Deep Research Critical Fixes - Race Condition & Quality
 
-**Status**: 🚨 **CRITICAL - SYNTHESIS STAGE FAILURE**  
-**Priority**: URGENT - Research Output Completely Broken  
+**Status**: 🔧 **IN PROGRESS - Multi-Agent JSON Parsing Issues**  
+**Priority**: HIGH - Multi-Agent System Integration  
 **Type**: Bug Fix & LLM Model Limitations  
 **Created**: 2025-07-21  
 **Updated**: 2025-08-01  
 
 ## Problem Statement
 
-**CURRENT CRITICAL ISSUE**: Synthesis stage producing repetitive garbage output instead of extracting Tyler's speed run data.
+**NEW ISSUE**: Multi-agent system failing with JSON parsing errors in ExtractionAgent.
 
-**Evidence**: Despite RAG finding 15 relevant sources (0.364 avg similarity), synthesis output is:
-- "Run 1. Keller Jordan maintains a leaderboard here Keller Jordan maintains a leaderboard here..."
-- Zero actual speed run data extraction
-- Repetitive loops instead of structured information
+**Evidence**: 
+- ExtractionAgent.parseJSON throws "Invalid JSON" error
+- Small LLM (qwen3:0.6b) generating non-JSON responses despite explicit prompts
+- System returns "Unable to generate an answer from the available information"
+
+**Root Cause**: Multi-agent system designed for larger LLMs, overwhelming small model with:
+- Complex JSON structure requirements
+- Multiple agent coordination
+- Large prompt sizes (4835 chars for extraction)
 
 **Previous Issues RESOLVED**:
 1. ✅ **React Key Duplication**: Fixed with Set-based deduplication
-2. ✅ **JSON Parsing**: Now handles `<think>` tags properly
+2. ✅ **JSON Parsing in ResearchOrchestrator**: Now handles `<think>` tags properly
 3. ✅ **RAG Search**: Successfully finds 15 sources with good similarity scores
+4. ✅ **Old Agent System**: Replaced with generic multi-agent architecture
 
 ## Technical Analysis
 
-### CURRENT CRITICAL ISSUE: Synthesis Stage Failure
-**Location**: `src/lib/ResearchOrchestrator.ts` synthesis method  
-**Problem**: Small LLM model (qwen3:0.6b) overwhelmed by complex synthesis task
+### CURRENT ISSUE: Multi-Agent JSON Parsing Failure
+**Location**: `src/lib/multi-agent/agents/ExtractionAgent.ts`  
+**Problem**: Small LLM model (qwen3:0.6b) cannot generate valid JSON for agent system
 
 **Evidence from Logs**:
 ```
-Line 1181: Generating content with Ollama... {model: 'qwen3:0.6b', promptLength: 3957}
-Line 1174: RAG search found 15 results  
-OUTPUT: "Run 1. Keller Jordan maintains a leaderboard here Keller Jordan maintains a leaderboard here Keller Jordan maintains a leaderboard..."
+ExtractionAgent.ts:110 ❌ Extraction failed for batch: Error: Invalid JSON
+useOllamaConnection.ts:421 ✅ Content generated successfully {responseLength: 3744}
+Orchestrator.ts:168 📋 Agent pipeline planned: ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor']
 ```
 
 **Root Cause Analysis**:
-1. **LLM Model Too Small**: qwen3:0.6b (600M parameters) insufficient for complex synthesis
-2. **Synthesis Prompt Too Complex**: 3957 characters overwhelming small model
-3. **Information Overload**: 15 RAG sources causing context confusion
-4. **Pattern Repetition**: LLM stuck in loop repeating meta-information instead of extracting data
+1. **Multi-Agent Complexity**: 4-agent pipeline too complex for 600M parameter model
+2. **JSON Requirements**: Each agent requires structured JSON output
+3. **Prompt Overload**: Extraction prompt is 4835 characters
+4. **No Graceful Degradation**: System fails completely instead of falling back
 
 ### RESOLVED ISSUES ✅
 1. **Race Condition**: Fixed with Set-based step deduplication
@@ -61,37 +67,55 @@ OUTPUT: "Run 1. Keller Jordan maintains a leaderboard here Keller Jordan maintai
 
 ## Solution Architecture
 
-### URGENT FIX: Synthesis Stage Overhaul
-**Target**: Make synthesis work with small LLM (qwen3:0.6b) limitations
+### IMPLEMENTED FIXES ✅
 
-**Current TODO List**:
-1. **URGENT: Replace broken synthesis prompt** - Simple direct extraction for Tyler's speed run data
-2. **Limit RAG to top 3 sources** - Stop overwhelming small LLM with 15 sources  
-3. **Add anti-repetition rules** - Stop "Keller Jordan" garbage loops
+**1. Simplified Extraction Prompts**
+- Reduced prompt complexity with "RESPOND WITH ONLY JSON" instructions
+- Shortened chunk previews (200 chars instead of full text)
+- Smaller batch sizes (2 chunks instead of 5)
+
+**2. Robust JSON Parsing**
+- Multi-strategy parsing: direct → extract object → extract array
+- Handles `<think>` tags in responses
+- Better error logging to debug issues
+
+**3. Fallback Mechanisms**
+- Pattern-based extraction when JSON parsing fails
+- Direct LLM synthesis when multi-agent fails
+- Always returns some answer instead of failing completely
+
+**4. Improved Error Visibility**
+- Logs actual LLM responses for debugging
+- Shows parsing attempts and failures
+- Better error messages throughout pipeline
+
+### Code Changes Implemented:
 
 ```typescript
-// Strategy: Simplify synthesis for small model
-// OLD: 3957 char complex prompt + 15 sources
-// NEW: Simple extraction prompt + 3 top sources
+// ExtractionAgent.ts - Simplified prompt
+const prompt = `RESPOND WITH ONLY JSON - NO OTHER TEXT!
+Extract data about: "${context.query}"
+JSON format: {"items": [{"content": "what you found", "value": "number"}]}
+ONLY JSON!`;
 
-// 1. Reduce sources in RAG search
-const topSources = results.slice(0, 3); // Limit to 3 best matches
+// ExtractionAgent.ts - Fallback extraction
+private fallbackTextExtraction(): ExtractedItem[] {
+  // Pattern matching for times, metrics, performance data
+  const patterns = [
+    /(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/gi,
+    /(\d+\.?\d*[kmKM]?)\s*(tokens?\/s(?:ec)?|tok\/s)/gi
+  ];
+  // Extract using regex when JSON fails
+}
 
-// 2. Simple extraction prompt
-const synthesisPrompt = `Extract Tyler's speed run data:
-Query: "${query}"
-Sources: ${contextText}
-
-Find: timing data, performance metrics, speed records
-Format: 1. Run name: X hours, Y tokens/sec, Date
-NO repetition. Direct extraction only.`;
+// ResearchOrchestrator.ts - Multi-agent fallback
+try {
+  const answer = await multiAgent.research(query, sources);
+} catch (multiAgentError) {
+  console.log('🔄 Falling back to direct LLM synthesis');
+  // Use old synthesis method
+}
 ```
-
-### COMPLETED FIXES ✅
-1. **Race Condition**: Set-based step deduplication implemented
-2. **JSON Parsing**: Multi-strategy parsing with `<think>` tag support
-3. **RAG Search**: Reverted broken query expansion, now finds 15 sources
-4. **Research Flow**: All orchestration steps working properly
 
 ## Implementation Plan
 
@@ -158,19 +182,27 @@ NO repetition. Direct extraction only.`;
 
 ## Acceptance Criteria
 
-**CURRENT FOCUS**:
-- [ ] **Synthesis outputs Tyler's actual speed run data** (times, performance metrics)
-- [ ] **No repetitive garbage text** ("Keller Jordan" loops eliminated)
-- [ ] **Structured extraction** from Tyler's blog content
-- [ ] **Simple, readable format** for qwen3:0.6b model capabilities
+**NEW IMPLEMENTATION ✅**:
+- [x] **Simplified prompts** for small LLM model compatibility
+- [x] **Robust JSON parsing** with multiple extraction strategies
+- [x] **Fallback mechanisms** when JSON parsing fails
+- [x] **Better error logging** for debugging LLM responses
+- [x] **Graceful degradation** to direct synthesis when multi-agent fails
+
+**REMAINING TASKS**:
+- [ ] **Test with Tyler's blog query** to verify extraction works
+- [ ] **Validate fallback extraction** produces meaningful results
+- [ ] **Consider simpler agent pipeline** for small models
+- [ ] **Test with larger models** to ensure compatibility
 
 **COMPLETED ✅**:
 - [x] Zero React key duplication console errors during research
 - [x] RAG search finding relevant sources (15 with 0.364 avg similarity)
 - [x] JSON parsing handling LLM `<think>` tags properly
-- [x] Research orchestration completing all 6 steps
+- [x] Research orchestration completing all steps
 - [x] UI remains stable throughout research process
+- [x] Multi-agent system integrated with fallbacks
 
 ---
 
-**Priority**: URGENT - This issue significantly impacts user experience and core functionality. Immediate implementation required.
+**Priority**: HIGH - Multi-agent system needs to work reliably with small models. The implemented fixes should help, but may need further simplification for qwen3:0.6b.

@@ -12,6 +12,7 @@ import { QueryIntelligenceService, QueryAnalysis } from './QueryIntelligenceServ
 import { ResearchStep, SourceReference, ResearchStepUtils } from '@/components/DeepResearch/components/ResearchSteps';
 import { VectorStore, SearchResult } from '@/components/VectorStore/VectorStore';
 import { UnifiedWebSearchService, UnifiedWebSearchContext } from './UnifiedWebSearchService';
+import { createMultiAgentSystem } from './multi-agent';
 
 export interface ResearchConfig {
   maxSteps: number;
@@ -147,7 +148,7 @@ export class ResearchOrchestrator {
       steps.push(synthesisStep);
       this.updateStep(synthesisStep, { status: 'in_progress' });
       
-      const finalAnswer = await this.synthesizeAnswer(query, steps, sources);
+      const finalAnswer = await this.synthesizeAnswer(query, steps, sources, queryAnalysis);
       
       this.updateStep(synthesisStep, {
         status: 'completed',
@@ -261,7 +262,7 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
       
     } catch (error) {
       console.error('❌ LLM planning failed, using basic strategy:', error);
-      console.error('LLM response that failed to parse:', response?.substring(0, 500));
+      console.error('LLM response that failed to parse:', response?.slice(0, 500));
       return this.getBasicResearchStrategy(analysis);
     }
   }
@@ -390,23 +391,43 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
       throw new Error('Vector store not available');
     }
     
-    // Use the original query - don't over-complicate it
-    const originalQuery = queryAnalysis.originalQuery;
+    // Use expanded queries for better coverage
+    const queriesToSearch = queryAnalysis.expandedQueries.length > 0 
+      ? queryAnalysis.expandedQueries 
+      : [queryAnalysis.originalQuery];
     
-    console.log(`📚 Executing RAG search with original query: "${originalQuery}"`);
+    console.log(`📚 Executing RAG search with ${queriesToSearch.length} queries:`, queriesToSearch);
     
-    const allResults = await this.vectorStore.searchSimilar(
-      originalQuery,
-      0.1, // Lower threshold to get more results
-      15   // Get up to 15 results
-    );
+    // Search with each expanded query and combine results
+    const allResultsMap = new Map<string, any>();
     
-    console.log(`📚 RAG search found ${allResults.length} results`);
+    for (const query of queriesToSearch) {
+      const results = await this.vectorStore.searchSimilar(
+        query,
+        0.1, // Lower threshold to get more results
+        10   // Limit per query to avoid too many results
+      );
+      
+      // Deduplicate by chunk ID
+      results.forEach(result => {
+        const chunkId = result.chunk.id;
+        if (!allResultsMap.has(chunkId) || result.similarity > allResultsMap.get(chunkId).similarity) {
+          allResultsMap.set(chunkId, result);
+        }
+      });
+    }
+    
+    // Convert map back to array and sort by similarity
+    const allResults = Array.from(allResultsMap.values())
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 15); // Final limit
+    
+    console.log(`📚 RAG search found ${allResults.length} unique results from ${queriesToSearch.length} queries`);
 
     // Tag results with search context
     allResults.forEach((result, index) => {
       (result as any).__searchContext = {
-        searchQuery: originalQuery,
+        searchQuery: queriesToSearch.join(', '),
         rank: index + 1,
         totalResults: allResults.length
       };
@@ -424,10 +445,10 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
       let excerpt = content;
       if (content.length > 800) {
         // Find last complete word within 800 chars to avoid mid-word cuts
-        const truncated = content.substring(0, 800);
+        const truncated = content.slice(0, 800);
         const lastSpaceIndex = truncated.lastIndexOf(' ');
         excerpt = lastSpaceIndex > 750 
-          ? truncated.substring(0, lastSpaceIndex) + '...'
+          ? truncated.slice(0, lastSpaceIndex) + '...'
           : truncated + '...';
       }
       
@@ -461,31 +482,42 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
       throw new Error('Web search service not available');
     }
     
-    console.log(`🌐 Executing web search for: "${step.query}"`);
+    // Use original query for web search
+    const queriesToSearch = [step.query || queryAnalysis.originalQuery];
     
-    const searchQuery = step.query || queryAnalysis.originalQuery;
-    const webContext = await this.webSearchService.searchWeb(searchQuery, {
-      limit: 5
-    });
+    console.log(`🌐 Executing web search with ${queriesToSearch.length} queries`);
     
-    if (!webContext) {
-      throw new Error('Web search returned no results');
+    const allSources: SourceReference[] = [];
+    const seenUrls = new Set<string>();
+    
+    // Search with each query
+    for (const searchQuery of queriesToSearch.slice(0, 3)) { // Limit to 3 queries
+      const webContext = await this.webSearchService.searchWeb(searchQuery, {
+        limit: 3 // Smaller limit per query
+      });
+      
+      if (webContext) {
+        // Convert web results to source references, avoiding duplicates
+        webContext.results.forEach((result, index) => {
+          if (!seenUrls.has(result.url)) {
+            seenUrls.add(result.url);
+            allSources.push({
+              id: `web_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 8)}`,
+              type: 'web',
+              title: result.title,
+              source: result.url,
+              excerpt: result.description,
+              url: result.url
+            });
+          }
+        });
+      }
     }
     
-    // Convert web results to source references  
-    const sources: SourceReference[] = webContext.results.map((result, index) => ({
-      id: `web_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 8)}`,
-      type: 'web',
-      title: result.title,
-      source: result.url,
-      excerpt: result.description,
-      url: result.url
-    }));
+    step.sources = allSources;
+    step.results = allSources;
     
-    step.sources = sources;
-    step.results = webContext.results;
-    
-    console.log(`✅ Web search found ${sources.length} sources`);
+    console.log(`✅ Web search found ${allSources.length} unique sources`);
   }
   
   /**
@@ -548,25 +580,34 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
   private async synthesizeAnswer(
     query: string,
     steps: ResearchStep[],
-    sources: SourceReference[]
+    sources: SourceReference[],
+    queryAnalysis: QueryAnalysis
   ): Promise<string> {
     if (!this.generateContent) {
       return this.generateBasicSummary(query, sources);
     }
     
-    // Check if query is asking for specific structured data
-    const isStructuredDataQuery = /\b(top \d+|list|logs|speed run|performance|metrics|table|data)\b/i.test(query);
-    
     try {
-      // For structured data queries, try direct extraction first
-      if (isStructuredDataQuery && sources.length > 0) {
-        console.log('📊 Attempting direct structured data extraction for query:', query);
+      // Try multi-agent system first
+      if (sources.length > 0) {
+        console.log(`🤖 Using multi-agent system for intelligent extraction`);
         
-        // Look for patterns in the excerpts that indicate structured data
-        const structuredContent = this.extractStructuredData(sources);
-        if (structuredContent) {
-          console.log('✅ Found structured data, returning direct extraction');
-          return structuredContent;
+        try {
+          // Create multi-agent system with our LLM function
+          const multiAgent = createMultiAgentSystem(this.generateContent);
+          
+          // Execute multi-agent research process
+          const answer = await multiAgent.research(query, sources);
+          
+          if (answer && answer.trim().length > 10) {
+            console.log(`✅ Multi-agent system generated answer`);
+            return answer;
+          } else {
+            console.log('⚠️ Multi-agent system found no relevant information, falling back to LLM synthesis');
+          }
+        } catch (multiAgentError) {
+          console.error('❌ Multi-agent system failed:', multiAgentError);
+          console.log('🔄 Falling back to direct LLM synthesis');
         }
       }
       
@@ -575,8 +616,8 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
         .filter(source => source.excerpt && source.excerpt.length > 10) // Remove empty/short excerpts
         .slice(0, 3) // Back to 3 sources to keep prompt small
         .map(source => {
-          // For structured queries, keep excerpts shorter
-          const maxLength = isStructuredDataQuery ? 400 : 600;
+          // Keep excerpts at reasonable length
+          const maxLength = 500;
           let cleanExcerpt = source.excerpt
             .replace(/\s+/g, ' ')  // Normalize whitespace only
             .replace(/\b[a-f0-9]{40,}\b/g, '[hash]')  // Replace long hashes
@@ -584,7 +625,7 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
           
           // Truncate if too long
           if (cleanExcerpt.length > maxLength) {
-            cleanExcerpt = cleanExcerpt.substring(0, maxLength) + '...';
+            cleanExcerpt = cleanExcerpt.slice(0, maxLength) + '...';
           }
           
           return {
@@ -624,6 +665,7 @@ Answer:`;
   
   /**
    * Extract structured data directly from sources without LLM
+   * @deprecated Use agent-based extraction instead
    */
   private extractStructuredData(sources: SourceReference[]): string | null {
     console.log('🔍 Attempting structured data extraction from', sources.length, 'sources');
