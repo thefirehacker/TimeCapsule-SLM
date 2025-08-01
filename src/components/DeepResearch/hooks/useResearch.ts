@@ -5,10 +5,10 @@ import {
 } from "@/components/VectorStore/VectorStore";
 import { useOllamaConnection } from "./useOllamaConnection";
 import {
-  getFirecrawlService,
-  WebSearchContext,
-  WebSearchOptions,
-} from "@/lib/FirecrawlService";
+  getUnifiedWebSearchService,
+  UnifiedWebSearchContext as WebSearchContext,
+  UnifiedWebSearchOptions as WebSearchOptions,
+} from "@/lib/UnifiedWebSearchService";
 
 export type ResearchType =
   | "deep-research"
@@ -154,7 +154,7 @@ export function useResearch(
   } = useOllamaConnection();
 
   // Web Search Service
-  const webSearchService = getFirecrawlService();
+  const webSearchService = getUnifiedWebSearchService();
 
   // Helper function to convert SearchResult to RAGDocument
   const convertToRAGDocument = (
@@ -387,27 +387,47 @@ export function useResearch(
       let webContext: WebSearchContext | undefined =
         webSearchContext || undefined;
       if (!webContext && webSearchService && researchConfig.includeWebSearch) {
+        const availableProviders = webSearchService.getAvailableProviders();
+
         console.log(
           "🔍 useResearch: Performing web search (generateResearch)",
           {
             hasWebContext: !!webContext,
             hasWebSearchService: !!webSearchService,
             includeWebSearch: researchConfig.includeWebSearch,
+            availableProviders,
           }
         );
-        setThinkingOutput("🌐 Searching the web for additional context...");
-        try {
-          const webSearchResult = await performWebSearch(prompt, {
-            limit: 5,
-          });
-          webContext = webSearchResult || undefined;
-        } catch (error) {
-          console.error(
-            "Web search failed, continuing without context:",
-            error
-          );
+
+        if (availableProviders.duckduckgo || availableProviders.firecrawl) {
+          setThinkingOutput("🌐 Searching the web for additional context...");
+          try {
+            const webSearchResult = await performWebSearch(prompt, {
+              limit: 5,
+            });
+            webContext = webSearchResult || undefined;
+
+            if (webContext && webContext.results.length > 0) {
+              const providerText =
+                webContext.metadata.providers.length > 1
+                  ? `${webContext.metadata.providers.join(" + ")}`
+                  : webContext.metadata.providers[0];
+              setThinkingOutput(
+                `🌐 Found ${webContext.metadata.resultCount} web results from ${webContext.metadata.domains.length} domains (via ${providerText}). Generating enhanced research...`
+              );
+            }
+          } catch (error) {
+            console.error(
+              "Web search failed, continuing without context:",
+              error
+            );
+            setThinkingOutput(
+              "⚠️ Web search failed. Generating general research..."
+            );
+          }
+        } else {
           setThinkingOutput(
-            "⚠️ Web search failed. Generating general research..."
+            "📝 No web search providers available. Generating research without web context..."
           );
         }
       } else {

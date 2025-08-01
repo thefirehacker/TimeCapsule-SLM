@@ -817,7 +817,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                               : "Configure"}{" "}
                           web search
                           {!webSearchStatus?.configured &&
-                            " (Click to configure API)"}
+                            " (DuckDuckGo available, click to configure Firecrawl)"}
                         </p>
                       </TooltipContent>
                     </Tooltip>

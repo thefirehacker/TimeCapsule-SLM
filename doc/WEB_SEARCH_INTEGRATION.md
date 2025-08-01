@@ -1,14 +1,16 @@
-# Firecrawl Web Search Integration
+# Unified Web Search Integration
 
-This document describes the implementation of the Firecrawl web search integration feature that allows users to configure their API key and enable web search functionality.
+This document describes the implementation of the unified web search integration feature that combines Firecrawl and DuckDuckGo search capabilities.
 
 ## Overview
 
-The Firecrawl web search integration provides users with the ability to:
+The unified web search integration provides users with the ability to:
 
-- Configure their Firecrawl API key through a user-friendly modal
+- Use DuckDuckGo search immediately (no API key required)
+- Configure their Firecrawl API key through a user-friendly modal for enhanced search
 - Store the API key securely in localStorage
 - Enable/disable web search functionality
+- Combine results from multiple search providers
 - Validate API keys before saving
 - Integrate web search results with the research system
 
@@ -52,7 +54,39 @@ A server-side endpoint that:
 - Tests the API with a simple search query
 - Returns validation results to the client
 
-### 4. Enhanced FirecrawlService (`src/lib/FirecrawlService.ts`)
+### 4. DuckDuckGoService (`src/lib/DuckDuckGoService.ts`)
+
+A new service that:
+
+- Provides web search using DuckDuckGo's Instant Answer API
+- No API key required - always available
+- Handles search result processing and formatting
+- Provides relevance scoring and metadata
+
+**Features:**
+
+- Instant Answer API integration
+- Related topics and abstract handling
+- Automatic result deduplication
+- Relevance scoring
+
+### 5. UnifiedWebSearchService (`src/lib/UnifiedWebSearchService.ts`)
+
+A unified service that:
+
+- Combines Firecrawl and DuckDuckGo search capabilities
+- Manages multiple search providers
+- Handles result deduplication and ranking
+- Provides unified interface for web search
+
+**Features:**
+
+- Multi-provider search support
+- Automatic provider selection
+- Result deduplication and ranking
+- Provider status management
+
+### 6. Enhanced FirecrawlService (`src/lib/FirecrawlService.ts`)
 
 Updated the service to:
 
@@ -72,7 +106,7 @@ Updated the service to:
 
 ```tsx
 import { PromptBox } from "@/components/ui/prompt-input";
-import { getFirecrawlService } from "@/lib/FirecrawlService";
+import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
 
 function MyComponent() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -86,17 +120,20 @@ function MyComponent() {
     // Store API key in localStorage
     localStorage.setItem("firecrawl_api_key", apiKey);
 
-    // Update service
-    const firecrawlService = getFirecrawlService();
-    firecrawlService.setApiKey(apiKey);
+    // Update unified service
+    const unifiedService = getUnifiedWebSearchService();
+    unifiedService.configureFirecrawl(apiKey);
 
     // Update status
     setWebSearchStatus((prev) => ({ ...prev, configured: true }));
   };
 
   const handleWebSearch = async (query: string) => {
-    const firecrawlService = getFirecrawlService();
-    return await firecrawlService.searchWeb(query);
+    const unifiedService = getUnifiedWebSearchService();
+    return await unifiedService.searchWeb(query, {
+      provider: "both", // Use both Firecrawl and DuckDuckGo
+      limit: 5,
+    });
   };
 
   return (
@@ -113,22 +150,23 @@ function MyComponent() {
 
 ### User Flow
 
-1. **Initial State**: Web search button shows as disabled (orange color) with "Configure" tooltip
-2. **Configuration**: User clicks the web search button → Modal opens
-3. **API Key Entry**: User enters their Firecrawl API key
-4. **Validation**: User can test the API key before saving
-5. **Save**: Valid API key is stored in localStorage and web search is enabled
-6. **Usage**: Web search button now shows as enabled (green) and can be toggled
+1. **Initial State**: Web search button shows as available (orange color) with "DuckDuckGo available, click to configure Firecrawl" tooltip
+2. **Immediate Usage**: Users can enable web search immediately using DuckDuckGo (no configuration needed)
+3. **Enhanced Configuration**: User clicks the web search button → Modal opens showing DuckDuckGo availability and Firecrawl configuration
+4. **API Key Entry**: User can optionally enter their Firecrawl API key for enhanced search capabilities
+5. **Validation**: User can test the Firecrawl API key before saving
+6. **Save**: Valid API key is stored in localStorage and both providers are available
+7. **Usage**: Web search combines results from both providers for better coverage
 
 ## Visual States
 
 ### Web Search Button States
 
-1. **Not Configured** (Orange):
+1. **Available but Not Configured** (Orange):
    - Icon: `WifiOff`
    - Color: `text-orange-600`
-   - Tooltip: "Configure web search (Click to configure API)"
-   - Action: Opens configuration modal
+   - Tooltip: "Configure web search (DuckDuckGo available, click to configure Firecrawl)"
+   - Action: Opens configuration modal (DuckDuckGo ready, Firecrawl optional)
 
 2. **Configured but Disabled** (Gray):
    - Icon: `WifiOff`
@@ -173,12 +211,20 @@ function MyComponent() {
 
 ## Configuration
 
-To use this feature, users need to:
+To use this feature, users have two options:
+
+### Option 1: Immediate Use (DuckDuckGo Only)
+
+1. Click the web search button in the PromptBox
+2. Enable web search immediately - DuckDuckGo is ready to use
+3. Start using web search functionality
+
+### Option 2: Enhanced Search (DuckDuckGo + Firecrawl)
 
 1. Sign up for a Firecrawl account at [firecrawl.dev](https://firecrawl.dev)
 2. Get their API key from the dashboard
 3. Click the web search button in the PromptBox
-4. Enter and validate their API key
-5. Start using web search functionality
+4. Enter and validate their Firecrawl API key
+5. Start using enhanced web search functionality with both providers
 
-The system will automatically remember the API key for future sessions.
+The system will automatically remember the API key for future sessions and combine results from both providers for better coverage.

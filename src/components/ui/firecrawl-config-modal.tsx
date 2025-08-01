@@ -21,6 +21,8 @@ import {
   EyeOff,
   CheckCircle,
   AlertCircle,
+  Search,
+  Globe,
 } from "lucide-react";
 
 interface FirecrawlConfigModalProps {
@@ -116,12 +118,13 @@ export function FirecrawlConfigModal({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wifi className="h-5 w-5" />
-            Configure Firecrawl Web Search
+            <Globe className="h-5 w-5" />
+            Configure Web Search Providers
           </DialogTitle>
           <DialogDescription>
-            Enter your Firecrawl API key to enable web search functionality.
-            Your API key will be stored locally in your browser.
+            Configure your web search providers. DuckDuckGo is available
+            immediately, while Firecrawl requires an API key for enhanced search
+            capabilities.
           </DialogDescription>
         </DialogHeader>
 
@@ -171,8 +174,19 @@ export function FirecrawlConfigModal({
           )}
 
           <div className="text-xs text-muted-foreground space-y-1">
+            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-md">
+              <Search className="h-4 w-4 text-green-600" />
+              <div>
+                <p className="font-medium text-green-800">
+                  DuckDuckGo Available
+                </p>
+                <p className="text-green-700">
+                  No API key required - ready to use immediately
+                </p>
+              </div>
+            </div>
             <p>
-              • Get your API key from{" "}
+              • Get your Firecrawl API key from{" "}
               <a
                 href="https://firecrawl.dev"
                 target="_blank"
@@ -180,13 +194,15 @@ export function FirecrawlConfigModal({
                 className="text-primary hover:underline"
               >
                 firecrawl.dev
-              </a>
+              </a>{" "}
+              for enhanced search capabilities
             </p>
             <p>
               • Your API key is stored locally and never sent to our servers
             </p>
             <p>
-              • Web search will be enabled once a valid API key is configured
+              • Web search combines results from both providers for better
+              coverage
             </p>
           </div>
         </div>

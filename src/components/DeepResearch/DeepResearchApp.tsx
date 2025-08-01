@@ -9,7 +9,7 @@ import { StatusBar } from "./StatusBar";
 import { OllamaConnectionModal } from "./components/OllamaConnectionModal";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
-import { getFirecrawlService } from "@/lib/FirecrawlService";
+import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
 import VectorStoreInitModal from "../VectorStoreInitModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -59,7 +59,18 @@ export function DeepResearchComponent() {
     searchCount: 0,
   });
 
-  // Initialize Firecrawl service and load saved API key
+  // Initialize web search status based on available providers
+  useEffect(() => {
+    const unifiedService = getUnifiedWebSearchService();
+    const availableProviders = unifiedService.getAvailableProviders();
+
+    // Configure web search if at least one provider is available
+    if (availableProviders.duckduckgo || availableProviders.firecrawl) {
+      setWebSearchStatus((prev) => ({ ...prev, configured: true }));
+    }
+  }, []);
+
+  // Initialize unified web search service and load saved API key
   useEffect(() => {
     const savedApiKey = localStorage.getItem("firecrawl_api_key");
     if (savedApiKey) {
@@ -68,11 +79,11 @@ export function DeepResearchComponent() {
     }
   }, []);
 
-  // Update Firecrawl service when API key changes
+  // Update unified web search service when API key changes
   useEffect(() => {
     if (firecrawlApiKey) {
-      const firecrawlService = getFirecrawlService();
-      firecrawlService.setApiKey(firecrawlApiKey);
+      const unifiedService = getUnifiedWebSearchService();
+      unifiedService.configureFirecrawl(firecrawlApiKey);
       setWebSearchStatus((prev) => ({ ...prev, configured: true }));
     } else {
       setWebSearchStatus((prev) => ({ ...prev, configured: false }));
@@ -86,7 +97,18 @@ export function DeepResearchComponent() {
 
   // Web Search integration
   const handleWebSearch = async (query: string) => {
-    if (!webSearchEnabled || !webSearchStatus.configured) return null;
+    if (!webSearchEnabled) return null;
+
+    const unifiedService = getUnifiedWebSearchService();
+    const availableProviders = unifiedService.getAvailableProviders();
+
+    // Enable web search if at least one provider is available
+    if (
+      !webSearchStatus.configured &&
+      (availableProviders.duckduckgo || availableProviders.firecrawl)
+    ) {
+      setWebSearchStatus((prev) => ({ ...prev, configured: true }));
+    }
 
     const result = await research.performWebSearch(query);
     if (result) {
