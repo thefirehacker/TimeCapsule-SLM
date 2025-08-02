@@ -8,8 +8,10 @@ import { ResearchOutput } from "./ResearchOutput";
 import { StatusBar } from "./StatusBar";
 import { OllamaConnectionModal } from "./components/OllamaConnectionModal";
 import { ResearchSteps } from "./components/ResearchSteps";
+import { FullScreenResearchModal } from "./components/FullScreenResearchModal";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
+import { useResearchHistory } from "./hooks/useResearchHistory";
 import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
 import VectorStoreInitModal from "../VectorStoreInitModal";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +27,7 @@ import {
   ChevronDown,
   ChevronRight,
   Hash,
+  Maximize2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -50,6 +53,20 @@ export function DeepResearchComponent() {
   // Custom hooks for state management
   const research = useResearch(vectorStore);
   const documents = useDocuments(vectorStore);
+  const researchHistory = useResearchHistory();
+
+  // Full-screen modal state
+  const [isFullScreenModalOpen, setIsFullScreenModalOpen] = useState(false);
+
+  // Create current research session for the modal
+  const currentResearchSession = research.researchSteps.length > 0 ? {
+    id: `current_${Date.now()}`,
+    query: research.prompt || "Current Research",
+    timestamp: Date.now(),
+    steps: research.researchSteps,
+    status: research.isGenerating ? 'active' as const : 'completed' as const,
+    resultCount: research.researchSteps.length,
+  } : null;
 
   // Web Search State
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -300,21 +317,8 @@ export function DeepResearchComponent() {
           />
         </div>
 
-        {/* Main Content Area - Research Steps and Chat Interface */}
+        {/* Main Chat Interface - Full Width */}
         <div className="flex-1 flex">
-          {/* Research Steps Panel - Only show when steps exist */}
-          {research.researchSteps.length > 0 && (
-            <div className="w-80 border-r border-border bg-card/50 p-4 h-full flex flex-col">
-              <ResearchSteps
-                steps={research.researchSteps}
-                onStepClick={research.handleStepClick}
-                expandedSteps={research.expandedSteps}
-                className="flex-1"
-              />
-            </div>
-          )}
-          
-          {/* Main Chat Interface - Always show */}
           <div className="flex-1 flex flex-col">
             <ResearchOutput
               researchResults={research.results}
@@ -670,6 +674,20 @@ export function DeepResearchComponent() {
           </Card>
         </div>
       )}
+
+      {/* Full-Screen Research Modal */}
+      <FullScreenResearchModal
+        isOpen={isFullScreenModalOpen}
+        onClose={() => setIsFullScreenModalOpen(false)}
+        currentSession={currentResearchSession}
+        sessions={researchHistory.sessions}
+        expandedSteps={research.expandedSteps}
+        onStepClick={research.handleStepClick}
+        onSessionSwitch={(sessionId) => {
+          researchHistory.switchToSession(sessionId);
+          // TODO: Load session steps into current research view
+        }}
+      />
 
       {/* Status Bar */}
       <StatusBar

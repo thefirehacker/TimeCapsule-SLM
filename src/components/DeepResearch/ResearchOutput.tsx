@@ -7,6 +7,7 @@ import { PromptBox, ResearchType } from "@/components/ui/prompt-input";
 import { ResearchConfig } from "./hooks/useResearch";
 import { ResearchResult } from "@/lib/ResearchOrchestrator";
 import { ResearchSteps, ResearchStep } from "./components/ResearchSteps";
+import { PerplexityStyleResearch } from "./components/PerplexityStyleResearch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Accordion,
@@ -888,14 +889,14 @@ export function ResearchOutput({
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Display context sources at the start */}
-                <ContextSources
-                  ragContext={message.ragContext}
-                  webSearchContext={message.webSearchContext}
-                  researchSteps={researchSteps}
-                  expandedSteps={expandedSteps}
-                  onStepClick={onStepClick}
-                />
+                {/* Perplexity-style research process display */}
+                {researchSteps && researchSteps.length > 0 && (
+                  <PerplexityStyleResearch
+                    steps={researchSteps}
+                    isActive={isCurrentMessage && isStreaming}
+                    className="mb-6"
+                  />
+                )}
 
                 {/* Display think tokens if available */}
                 {message.thinkTokens && (

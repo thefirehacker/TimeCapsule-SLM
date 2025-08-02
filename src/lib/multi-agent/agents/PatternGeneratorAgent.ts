@@ -89,7 +89,7 @@ Be very specific.`;
   
   private extractExamples(response: string): string[] {
     // Extract examples mentioned in the response
-    const examples = [];
+    const examples: string[] = [];
     const lines = response.split('\n');
     
     lines.forEach(line => {

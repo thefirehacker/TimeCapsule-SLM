@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AgentSubSteps } from "./AgentSubSteps";
 import { 
   Search, 
   Brain, 
@@ -27,6 +28,47 @@ import {
 } from "lucide-react";
 
 // Types for research step tracking
+export interface AgentThinking {
+  hasThinking: boolean;
+  thinkingContent: string;
+  finalOutput: string;
+  summary: string;
+  insights: string[];
+}
+
+export interface AgentSubStep {
+  id: string;
+  agentName: string;
+  agentType: 'query_planner' | 'data_inspector' | 'pattern_generator' | 'extraction' | 'synthesis';
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  
+  // Agent-specific data
+  input: any;
+  output: any;
+  thinking?: AgentThinking;
+  
+  // Progress tracking
+  progress?: number; // 0-100
+  stage?: string;
+  itemsProcessed?: number;
+  totalItems?: number;
+  
+  // Error handling
+  error?: string;
+  retryCount?: number;
+  
+  // Performance metrics
+  metrics?: {
+    llmCalls: number;
+    tokensUsed: number;
+    responseTime: number;
+    confidence: number;
+  };
+}
+
 export interface ResearchStep {
   id: string;
   type: 'analysis' | 'rag_search' | 'web_search' | 'synthesis' | 'verification';
@@ -50,6 +92,15 @@ export interface ResearchStep {
     expansionReason?: string;
     threshold?: number;
     limit?: number;
+  };
+
+  // Multi-agent sub-steps (NEW)
+  subSteps?: AgentSubStep[];
+  agentDetails?: {
+    orchestratorPlan: string;
+    agentPipeline: string[];
+    totalAgents: number;
+    completedAgents: number;
   };
 }
 
@@ -75,6 +126,7 @@ interface ResearchStepsProps {
   onStepClick: (step: ResearchStep) => void;
   expandedSteps: Set<string>;
   className?: string;
+  fullScreenMode?: boolean;
 }
 
 /**
@@ -84,7 +136,8 @@ export function ResearchSteps({
   steps, 
   onStepClick, 
   expandedSteps, 
-  className = "" 
+  className = "",
+  fullScreenMode = false
 }: ResearchStepsProps) {
   const completedSteps = steps.filter(step => step.status === 'completed').length;
   const totalSteps = steps.length;
@@ -94,8 +147,8 @@ export function ResearchSteps({
   }
   
   return (
-    <Card className={`research-steps h-full flex flex-col ${className}`}>
-      <CardHeader className="pb-3 flex-shrink-0">
+    <Card className={`research-steps h-full flex flex-col ${className} ${fullScreenMode ? 'border-0 shadow-none bg-transparent' : ''}`}>
+      <CardHeader className={`${fullScreenMode ? 'pb-6 pt-2' : 'pb-3'} flex-shrink-0`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-blue-500" />
@@ -341,6 +394,31 @@ function ResearchStepDetails({ step }: StepDetailsProps) {
           )}
         </div>
       )}
+
+      {/* Multi-Agent Sub-Steps */}
+      {step.subSteps && step.subSteps.length > 0 && (
+        <div className="border-t border-border/50 pt-3 mt-3">
+          <AgentSubSteps 
+            subSteps={step.subSteps}
+            isExpanded={false}
+            className="bg-background/50 rounded-lg p-3"
+          />
+        </div>
+      )}
+
+      {/* Agent Pipeline Details */}
+      {step.agentDetails && (
+        <div className="bg-muted/50 rounded-lg p-3">
+          <div className="font-medium text-foreground mb-2">
+            Multi-Agent Pipeline
+          </div>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <div>Plan: {step.agentDetails.orchestratorPlan}</div>
+            <div>Pipeline: {step.agentDetails.agentPipeline.join(' → ')}</div>
+            <div>Progress: {step.agentDetails.completedAgents}/{step.agentDetails.totalAgents} agents</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -420,7 +498,15 @@ export function useResearchSteps() {
   const [expandedSteps, setExpandedSteps] = React.useState<Set<string>>(new Set());
   
   const addStep = React.useCallback((step: ResearchStep) => {
-    setSteps(prev => [...prev, step]);
+    setSteps(prev => {
+      // Check if step already exists to prevent duplicates
+      const existingIndex = prev.findIndex(s => s.id === step.id);
+      if (existingIndex >= 0) {
+        console.log(`🚫 Preventing duplicate step addition: ${step.id}`);
+        return prev; // Return unchanged if step already exists
+      }
+      return [...prev, step];
+    });
   }, []);
   
   const updateStep = React.useCallback((stepId: string, updates: Partial<ResearchStep>) => {

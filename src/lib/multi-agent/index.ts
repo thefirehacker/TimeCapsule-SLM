@@ -46,7 +46,10 @@ export { ExtractionAgent } from './agents/ExtractionAgent';
 export { SynthesisAgent } from './agents/SynthesisAgent';
 
 // Factory function
-export function createMultiAgentSystem(llm: (prompt: string) => Promise<string>) {
+export function createMultiAgentSystem(
+  llm: (prompt: string) => Promise<string>, 
+  progressCallback?: import('./interfaces/AgentProgress').AgentProgressCallback
+) {
   // Create core components
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
@@ -58,6 +61,6 @@ export function createMultiAgentSystem(llm: (prompt: string) => Promise<string>)
   registry.register(new ExtractionAgent(llm));
   registry.register(new SynthesisAgent(llm));
   
-  // Create and return orchestrator
-  return new Orchestrator(registry, messageBus, llm);
+  // Create and return orchestrator with progress callback
+  return new Orchestrator(registry, messageBus, llm, progressCallback);
 }

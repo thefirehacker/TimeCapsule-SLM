@@ -1,31 +1,50 @@
 # Canvas3D-LLM Project Plan
 
-## ✅ CRITICAL ISSUES RESOLVED + 🚧 OUTPUT REFINEMENT (2025-08-01) 
+## ✅ RESOLVED + 🚧 IN PROGRESS + 🆕 NEW REQUIREMENTS (2025-08-01) 
 
-### Issue-008: Multi-Agent System - Duplicate Fix + Output Format Fix
-**Status**: ✅ **DUPLICATE FIXED** + 🚧 **OUTPUT FORMAT IN PROGRESS**  
-**Priority**: P0 - Multi-agent research functionality operational  
+### Issue-008: Universal Multi-Agent Research System (EXPANDED SCOPE)
+**Status**: ✅ **DUPLICATE FIXED** + ✅ **OUTPUT FORMAT** + ✅ **UI ENHANCEMENTS** + 🔗 **INTEGRATED** + 🎨 **PERPLEXITY-STYLE UI**  
+**Priority**: P0 - COMPLETE: Perplexity-style inline research with multi-agent visibility!  
 **File**: `cursor_claudecode_ai/issues/Issue-008-Universal-Multi-Agent-Research.md`
 
-**✅ COMPLETED - Duplicate Time Fix**: 
+**✅ COMPLETED - Core Fixes**: 
 ```
 ❌ Before: completed in 45 minutes - 45 minutes
 ✅ After:  completed in 45 minutes
 ```
 
-**🚧 LATEST FIX - Output Format Issue**:
+**🚧 IN PROGRESS - Output Format**:
 ```
 ❌ Current: Found 16 relevant results: • Run 2: completed in - 45 minutes • No relevant information found...
 ✅ Target:  Based on the search results, here are the top 3 speed runs: 1. Run 3: Speed optimizations - 45 minutes
 ```
 
-**Solutions Implemented**:
-- ✅ Smart `formatWithTime()` method prevents duplicates
-- ✅ Enhanced query type detection for "ranking" queries  
-- ✅ Content filtering removes "no information found" responses
-- ✅ LLM artifact cleaning removes "Okay, let me see" patterns
-- ✅ Performance metric filtering excludes tokens/sec data
-- 🔄 Testing clean "top 3 speed runs" output format
+**🆕 NEW - Research Process Visibility** ✅ **COMPLETED**:
+```
+❌ Before: Research steps sidebar too small (320px), no history, Stage 3 shows as one step
+✅ After:  Perplexity-style inline research with detailed 5-agent breakdown, thinking sections, and dynamic scrolling
+
+📋 INLINE REQUIREMENTS (User-Specified):
+1. UI in non-expanded mode is clunky (Image 01) → SOLVED: Removed sidebar entirely
+2. Expanded mode has still 3 steps, detailed log has excellent verbose steps not shown (Image 02) → SOLVED: All 5 agent sub-steps now visible inline
+3. Better UI like Perplexity (Image 03/04) → SOLVED: Perplexity-style inline display
+4. Show steps for each turn next to source → SOLVED: Integrated steps with sources in cards
+5. Dynamic scrolling interface (user can scroll) → SOLVED: No expand/collapse needed
+6. No longer need expand/non-expand mode → SOLVED: Single flowing interface
+```
+
+**Technical Scope Completed**:
+- ✅ Smart time formatting and LLM artifact cleaning
+- ✅ Enhanced query detection and content filtering  
+- ✅ Clean ranked output testing
+- ✅ Perplexity-style inline research display
+- ✅ Chat-wise research step persistence via localStorage
+- ✅ Multi-agent sub-step breakdown (5 detailed stages with thinking)
+- ✅ Agent reasoning visibility with collapsible sections
+- ✅ Source integration and expandable excerpts
+- ✅ Progress tracking and real-time updates
+- ✅ Color-coded agent types with icons
+- ✅ Full-width chat interface (no sidebar needed)
 
 ### ✅ COMPLETED P0 TODO List for Issue-008:
 
@@ -39,8 +58,16 @@
 8. **✅ P0: Filter irrelevant responses** - Remove "no information found" entries  
 9. **✅ P0: Clean LLM artifacts** - Remove "Okay, let me see" type responses
 10. **🚧 P0: Test output format** - Verify clean "top 3 speed runs" format
-11. **P1: Verify all formats** - Test fix works for minutes, hours, seconds, etc.
-12. **P2: Resume testing** - Continue multi-agent testing with other domains
+11. **🆕 P0: Full-screen research viewer** - Create modal/drawer expansion from sidebar
+12. **🆕 P0: Chat history persistence** - Maintain separate research steps per chat session
+13. **🆕 P0: Multi-agent sub-steps** - Break Stage 3 into 5 detailed agent processes
+14. **🆕 P1: Research navigation** - Add controls to scroll through previous sessions
+15. **🆕 P1: Progress indicators** - Show timing and progress for each step/sub-step
+16. **🆕 P1: Agent reasoning display** - Show decision-making process in each sub-step
+17. **🆕 P1: Step-source mapping** - Connect each step to its sources for traceability
+18. **🆕 P1: Timeline view** - Chronological research process with duration insights
+19. **P2: Verify all formats** - Test fix works for minutes, hours, seconds, etc.
+20. **P2: Resume testing** - Continue multi-agent testing with other domains
 
 ---
 

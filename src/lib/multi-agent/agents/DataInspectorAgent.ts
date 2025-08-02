@@ -142,7 +142,7 @@ Return JSON with structure:
       
       // Update context with patterns
       if (analysis.patterns && Array.isArray(analysis.patterns)) {
-        context.patterns = analysis.patterns.map(p => ({
+        context.patterns = analysis.patterns.map((p: any) => ({
           description: p.description || '',
           examples: p.examples || [],
           extractionStrategy: p.extractionStrategy || '',

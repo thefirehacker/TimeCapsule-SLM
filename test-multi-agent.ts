@@ -3,7 +3,7 @@
  */
 
 import { createMultiAgentSystem } from './src/lib/multi-agent';
-import { createInitialContext } from './src/lib/multi-agent/interfaces/Context';
+import { SourceReference } from './src/components/DeepResearch/components/ResearchSteps';
 
 // Mock LLM function for testing
 const mockLLM = async (prompt: string): Promise<string> => {
@@ -54,11 +54,14 @@ The data appears to be in a table format where each row has:
   return 'No specific information found.';
 };
 
-// Test data simulating Tyler's blog
-const testRAGChunks = [
+// Test data simulating Tyler's blog - matching SourceReference interface
+const testRAGChunks: SourceReference[] = [
   {
     id: 'chunk1',
-    text: `# pdf part 
+    type: 'chunk' as const,
+    title: 'Tyler\'s Speed Run Progress Table',
+    source: 'tyler-blog.pdf',
+    excerpt: `# pdf part 
 Progress so far
 # Description Record time Training Tokens Tokens/Second Date Commit Log
 1 Initial baseline 8.13 hours 6.44B 221k 2025/01/16 b3cc32ff88 heerree
@@ -67,7 +70,6 @@ Progress so far
 2..3.3.3.3.3 Dataloading tweaks 4.26 hours 3.31B 216k 2025/02/18 d59944d heerree
 2..4.4.4.4.4 Logit Soft-capping at 30 4.01 hours 3.15B 218k 2025/02/23 12eeaab44 heerree
 3 Longer Sequence Length 2.55 hours 1.88B 205k 2025/03/03 d9882eed5 heerree`,
-    source: 'tyler-blog.pdf',
     similarity: 0.95
   }
 ];
@@ -78,24 +80,16 @@ async function runTest() {
   // Create the multi-agent system
   const orchestrator = createMultiAgentSystem(mockLLM);
   
-  // Create initial context
-  const context = createInitialContext(
-    'Give me the top 3 speed runs from Tyler\'s blog',
-    { chunks: testRAGChunks, totalChunks: 1 }
-  );
-  
   // Run the multi-agent pipeline
   console.log('🚀 Running multi-agent pipeline...\n');
-  const result = await orchestrator.process(context);
+  const result = await orchestrator.research(
+    'Give me the top 3 speed runs from Tyler\'s blog',
+    testRAGChunks
+  );
   
   // Display results
   console.log('\n📊 Final Results:\n');
-  console.log('Answer:', result.synthesis.answer);
-  console.log('\nExtracted Items:', result.extractedData.raw.length);
-  console.log('\nAgent Reasoning:');
-  result.agentReasonings.forEach(r => {
-    console.log(`  ${r.agent}: ${r.reasoning}`);
-  });
+  console.log('Answer:', result);
 }
 
 // Run the test

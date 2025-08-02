@@ -13,6 +13,8 @@ import { ResearchStep, SourceReference, ResearchStepUtils } from '@/components/D
 import { VectorStore, SearchResult } from '@/components/VectorStore/VectorStore';
 import { UnifiedWebSearchService, UnifiedWebSearchContext } from './UnifiedWebSearchService';
 import { createMultiAgentSystem } from './multi-agent';
+import { AgentProgressCallback, AgentProgressTracker } from './multi-agent/interfaces/AgentProgress';
+import { AgentSubStep } from '@/components/DeepResearch/components/ResearchSteps';
 
 export interface ResearchConfig {
   maxSteps: number;
@@ -62,6 +64,10 @@ export class ResearchOrchestrator {
   };
   
   public onStepUpdate?: StepUpdateCallback;
+  
+  // Multi-agent progress tracking
+  private currentAgentSubSteps: AgentSubStep[] = [];
+  private currentSynthesisStep: ResearchStep | null = null;
   
   constructor(
     vectorStore: VectorStore | null,
@@ -148,13 +154,27 @@ export class ResearchOrchestrator {
       steps.push(synthesisStep);
       this.updateStep(synthesisStep, { status: 'in_progress' });
       
+      // Store reference for real-time agent updates
+      this.currentSynthesisStep = synthesisStep;
+      
       const finalAnswer = await this.synthesizeAnswer(query, steps, sources, queryAnalysis);
       
       this.updateStep(synthesisStep, {
         status: 'completed',
         duration: Date.now() - synthesisStep.timestamp,
-        reasoning: `Generated comprehensive answer from ${sources.length} sources`
+        reasoning: `Generated comprehensive answer from ${sources.length} sources`,
+        // Keep existing subSteps from real-time updates, don't override
+        subSteps: this.currentAgentSubSteps || [],
+        agentDetails: this.currentAgentSubSteps && this.currentAgentSubSteps.length > 0 ? {
+          orchestratorPlan: `Multi-agent synthesis with ${this.currentAgentSubSteps.length} agents`,
+          agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+          totalAgents: this.currentAgentSubSteps.length,
+          completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
+        } : undefined
       });
+      
+      // Clear reference after completion
+      this.currentSynthesisStep = null;
       
       // Calculate metadata
       const processingTime = Date.now() - startTime;
@@ -593,14 +613,166 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
         console.log(`🤖 Using multi-agent system for intelligent extraction`);
         
         try {
-          // Create multi-agent system with our LLM function
-          const multiAgent = createMultiAgentSystem(this.generateContent);
+          // Clear previous sub-steps
+          this.currentAgentSubSteps = [];
+          
+          // Create progress callback to capture agent sub-steps AND update UI in real-time
+          const progressCallback: AgentProgressCallback = {
+            onAgentStart: (agentName: string, agentType: string, input: any) => {
+              console.log(`🚀 Agent started: ${agentName} (${agentType})`);
+              
+              // Create and add agent sub-step in real-time
+              if (this.currentSynthesisStep) {
+                const agentSubStep = {
+                  id: `${agentName.toLowerCase()}_${Date.now()}`,
+                  agentName,
+                  agentType: agentType as 'query_planner' | 'data_inspector' | 'pattern_generator' | 'extraction' | 'synthesis',
+                  status: 'in_progress' as const,
+                  startTime: Date.now(),
+                  input: input,
+                  output: null,
+                  progress: 10,
+                  stage: 'Initializing',
+                  thinking: undefined,
+                  error: undefined,
+                  duration: undefined,
+                  itemsProcessed: 0,
+                  totalItems: undefined
+                };
+                
+                // Add to current agent sub-steps
+                if (!this.currentAgentSubSteps) this.currentAgentSubSteps = [];
+                const existingIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+                if (existingIndex >= 0) {
+                  this.currentAgentSubSteps[existingIndex] = agentSubStep;
+                } else {
+                  this.currentAgentSubSteps.push(agentSubStep);
+                }
+                
+                // Update synthesis step with current sub-steps
+                this.updateStep(this.currentSynthesisStep, {
+                  subSteps: [...this.currentAgentSubSteps],
+                  agentDetails: {
+                    orchestratorPlan: `Multi-agent synthesis with ${this.currentAgentSubSteps.length} agents`,
+                    agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+                    totalAgents: this.currentAgentSubSteps.length,
+                    completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
+                  }
+                });
+              }
+            },
+            onAgentProgress: (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number) => {
+              console.log(`📊 Agent progress: ${agentName} - ${progress}% ${stage ? `(${stage})` : ''}`);
+              
+              // Update agent sub-step progress in real-time
+              if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+                const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+                if (agentIndex >= 0) {
+                  this.currentAgentSubSteps[agentIndex] = {
+                    ...this.currentAgentSubSteps[agentIndex],
+                    progress,
+                    stage,
+                    itemsProcessed,
+                    totalItems
+                  };
+                  
+                  // Update synthesis step with updated progress
+                  this.updateStep(this.currentSynthesisStep, {
+                    subSteps: [...this.currentAgentSubSteps],
+                    agentDetails: {
+                      orchestratorPlan: `Multi-agent synthesis with ${this.currentAgentSubSteps.length} agents`,
+                      agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+                      totalAgents: this.currentAgentSubSteps.length,
+                      completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
+                    }
+                  });
+                }
+              }
+            },
+            onAgentThinking: (agentName: string, thinking: any) => {
+              console.log(`🧠 Agent thinking: ${agentName}`);
+              
+              // Update agent thinking in real-time
+              if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+                const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+                if (agentIndex >= 0) {
+                  this.currentAgentSubSteps[agentIndex] = {
+                    ...this.currentAgentSubSteps[agentIndex],
+                    thinking
+                  };
+                  
+                  // Update synthesis step with thinking
+                  this.updateStep(this.currentSynthesisStep, {
+                    subSteps: [...this.currentAgentSubSteps]
+                  });
+                }
+              }
+            },
+            onAgentComplete: (agentName: string, output: any, metrics?: any) => {
+              console.log(`✅ Agent completed: ${agentName}`);
+              
+              // Mark agent as completed in real-time
+              if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+                const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+                if (agentIndex >= 0) {
+                  this.currentAgentSubSteps[agentIndex] = {
+                    ...this.currentAgentSubSteps[agentIndex],
+                    status: 'completed',
+                    progress: 100,
+                    endTime: Date.now(),
+                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
+                    stage: 'Completed',
+                    output: output
+                  };
+                  
+                  // Update synthesis step with completion
+                  this.updateStep(this.currentSynthesisStep, {
+                    subSteps: [...this.currentAgentSubSteps],
+                    agentDetails: {
+                      orchestratorPlan: `Multi-agent synthesis with ${this.currentAgentSubSteps.length} agents`,
+                      agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+                      totalAgents: this.currentAgentSubSteps.length,
+                      completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
+                    }
+                  });
+                }
+              }
+            },
+            onAgentError: (agentName: string, error: string, retryCount?: number) => {
+              console.error(`❌ Agent error: ${agentName} - ${error}`);
+              
+              // Mark agent as failed in real-time
+              if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+                const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+                if (agentIndex >= 0) {
+                  this.currentAgentSubSteps[agentIndex] = {
+                    ...this.currentAgentSubSteps[agentIndex],
+                    status: 'failed',
+                    error,
+                    endTime: Date.now(),
+                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime
+                  };
+                  
+                  // Update synthesis step with error
+                  this.updateStep(this.currentSynthesisStep, {
+                    subSteps: [...this.currentAgentSubSteps]
+                  });
+                }
+              }
+            }
+          };
+          
+          // Create multi-agent system with progress tracking
+          const multiAgent = createMultiAgentSystem(this.generateContent, progressCallback);
           
           // Execute multi-agent research process
           const answer = await multiAgent.research(query, sources);
           
+          // Capture the detailed agent sub-steps
+          this.currentAgentSubSteps = multiAgent.getAgentSubSteps();
+          
           if (answer && answer.trim().length > 10) {
-            console.log(`✅ Multi-agent system generated answer`);
+            console.log(`✅ Multi-agent system generated answer with ${this.currentAgentSubSteps.length} agent sub-steps`);
             return answer;
           } else {
             console.log('⚠️ Multi-agent system found no relevant information, falling back to LLM synthesis');

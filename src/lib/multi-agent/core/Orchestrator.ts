@@ -9,7 +9,9 @@ import { ResearchContext, createInitialContext } from '../interfaces/Context';
 import { AgentRegistry } from './AgentRegistry';
 import { MessageBus } from './MessageBus';
 import { MessageType } from '../interfaces/Message';
-import { SourceReference } from '@/components/DeepResearch/components/ResearchSteps';
+import { SourceReference, AgentSubStep } from '@/components/DeepResearch/components/ResearchSteps';
+import { AgentProgressTracker, AgentProgressCallback } from '../interfaces/AgentProgress';
+import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtractor';
 
 export type LLMFunction = (prompt: string) => Promise<string>;
 
@@ -17,15 +19,28 @@ export class Orchestrator {
   private registry: AgentRegistry;
   private messageBus: MessageBus;
   private llm: LLMFunction;
+  private progressTracker: AgentProgressTracker;
+  private progressCallback?: AgentProgressCallback;
   
   constructor(
     registry: AgentRegistry,
     messageBus: MessageBus,
-    llm: LLMFunction
+    llm: LLMFunction,
+    progressCallback?: AgentProgressCallback
   ) {
     this.registry = registry;
     this.messageBus = messageBus;
     this.llm = llm;
+    this.progressCallback = progressCallback;
+    this.progressTracker = new AgentProgressTracker(progressCallback);
+  }
+  
+  /**
+   * Set or update progress callback for UI updates
+   */
+  setProgressCallback(callback: AgentProgressCallback) {
+    this.progressCallback = callback;
+    this.progressTracker.setCallback(callback);
   }
   
   /**
@@ -208,35 +223,91 @@ Provide a brief summary of:
   }
   
   /**
-   * Execute agents in the planned pipeline
+   * Execute agents in the planned pipeline with detailed progress tracking
    */
   private async executeAgentPipeline(pipeline: string[], context: ResearchContext): Promise<void> {
-    for (const agentName of pipeline) {
+    // Clear previous tracking
+    this.progressTracker.clear();
+    
+    for (let i = 0; i < pipeline.length; i++) {
+      const agentName = pipeline[i];
       const agent = this.registry.get(agentName);
+      
       if (!agent) {
         console.warn(`⚠️ Agent ${agentName} not found, skipping`);
         continue;
       }
       
-      console.log(`🤖 Executing agent: ${agentName}`);
+      // Determine agent type from name
+      const agentType = this.getAgentType(agentName);
+      
+      console.log(`🤖 Executing agent: ${agentName} (${i + 1}/${pipeline.length})`);
       context.metadata.agentsInvolved.push(agentName);
       
+      // Start tracking this agent
+      this.progressTracker.startAgent(agentName, agentType, {
+        contextKeys: Object.keys(context),
+        pipelinePosition: i + 1,
+        totalAgents: pipeline.length
+      });
+      
       try {
+        // Track initial progress
+        this.progressTracker.updateProgress(agentName, 10, 'Initializing');
+        
+        // Intercept agent processing to extract thinking
+        const startTime = Date.now();
+        
         // Let agent process the context
         await agent.process(context);
+        
+        const endTime = Date.now();
+        const processingTime = endTime - startTime;
+        
+        // Extract thinking from agent's reasoning if available
+        const reasoning = agent.explainReasoning();
+        if (reasoning) {
+          const thinkingProcess = extractThinkingProcess(reasoning);
+          if (thinkingProcess.hasThinking) {
+            this.progressTracker.setThinking(agentName, {
+              hasThinking: true,
+              thinkingContent: thinkingProcess.thinkingContent,
+              finalOutput: thinkingProcess.finalOutput,
+              summary: thinkingProcess.thinkingContent.substring(0, 100) + '...',
+              insights: this.extractInsights(thinkingProcess.thinkingContent)
+            });
+          }
+        }
+        
+        // Complete agent tracking
+        this.progressTracker.completeAgent(agentName, {
+          reasoning: reasoning,
+          contextUpdated: Object.keys(context)
+        }, {
+          llmCalls: 1, // Assuming 1 LLM call per agent for now
+          tokensUsed: reasoning?.length || 0,
+          responseTime: processingTime,
+          confidence: 0.8 // Default confidence
+        });
         
         // Broadcast completion
         await this.messageBus.broadcast(
           agentName,
           MessageType.COMPLETE,
           `${agentName} completed processing`,
-          agent.explainReasoning(),
+          reasoning,
           { agentName },
           context
         );
         
       } catch (error) {
         console.error(`❌ Agent ${agentName} failed:`, error);
+        
+        // Track error
+        this.progressTracker.errorAgent(
+          agentName, 
+          error instanceof Error ? error.message : String(error)
+        );
         
         // Broadcast error
         await this.messageBus.broadcast(
@@ -249,6 +320,50 @@ Provide a brief summary of:
         );
       }
     }
+  }
+  
+  /**
+   * Get sub-steps created during agent pipeline execution
+   */
+  getAgentSubSteps(): AgentSubStep[] {
+    return this.progressTracker.getAllTrackers()
+      .map(tracker => this.progressTracker.createSubStep(tracker.agentName))
+      .filter(subStep => subStep !== null) as AgentSubStep[];
+  }
+  
+  /**
+   * Map agent names to types for UI display
+   */
+  private getAgentType(agentName: string): string {
+    const typeMap: { [key: string]: string } = {
+      'QueryPlanner': 'query_planner',
+      'DataInspector': 'data_inspector', 
+      'PatternGenerator': 'pattern_generator',
+      'Extractor': 'extraction',
+      'Synthesizer': 'synthesis'
+    };
+    
+    return typeMap[agentName] || 'extraction';
+  }
+  
+  /**
+   * Extract key insights from thinking content
+   */
+  private extractInsights(thinking: string): string[] {
+    if (!thinking) return [];
+    
+    const insights: string[] = [];
+    const sentences = thinking.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    
+    // Look for reasoning patterns
+    for (const sentence of sentences.slice(0, 5)) {
+      const trimmed = sentence.trim();
+      if (trimmed.match(/^(First|Second|Third|Then|So|Therefore|I need|Let me)/i)) {
+        insights.push(trimmed);
+      }
+    }
+    
+    return insights.slice(0, 3); // Limit to 3 key insights
   }
   
   /**
