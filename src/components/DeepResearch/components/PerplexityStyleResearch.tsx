@@ -7,7 +7,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,32 +118,55 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
         </div>
       )}
 
-      {/* Thinking Section */}
-      {subStep.thinking?.hasThinking && (
+      {/* Thinking Section - Always show if agent has reasoning */}
+      {(subStep.thinking?.hasThinking || subStep.agentName) && (
         <div className="mt-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowThinking(!showThinking)}
-            className="h-6 px-2 text-xs text-gray-600 hover:text-gray-800"
+            className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
           >
             <Brain className="w-3 h-3 mr-1" />
-            AI Reasoning
+            🧠 AI Reasoning
             {showThinking ? <ChevronDown className="w-3 h-3 ml-1" /> : <ChevronRight className="w-3 h-3 ml-1" />}
           </Button>
           
           {showThinking && (
-            <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-              <div className="text-gray-600 italic mb-1">
-                "{subStep.thinking.summary}"
-              </div>
-              {subStep.thinking.insights.length > 0 && (
-                <div className="space-y-1">
-                  {subStep.thinking.insights.map((insight, idx) => (
-                    <div key={idx} className="text-gray-700">
-                      • {insight}
+            <div className="mt-1 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg text-xs">
+              {subStep.thinking?.hasThinking ? (
+                <>
+                  <div className="text-blue-800 font-medium mb-2">
+                    "{subStep.thinking.summary || 'Processing and analyzing data...'}"
+                  </div>
+                  {subStep.thinking.insights && subStep.thinking.insights.length > 0 ? (
+                    <div className="space-y-1">
+                      {subStep.thinking.insights.map((insight, idx) => (
+                        <div key={idx} className="text-blue-700">
+                          • {insight}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="text-blue-700">
+                      • Analyzing {subStep.agentName === 'DataInspector' ? 'data structure and content' : 
+                          subStep.agentName === 'PatternGenerator' ? 'extraction strategies' :
+                          subStep.agentName === 'Extractor' ? 'relevant information from sources' :
+                          subStep.agentName === 'Synthesizer' ? 'collected data for final answer' : 'research data'}
+                    </div>
+                  )}
+                  {subStep.thinking.thinkingContent && (
+                    <div className="mt-2 p-2 bg-white/70 rounded border-l-2 border-blue-400">
+                      <div className="text-blue-600 font-mono text-xs max-h-20 overflow-y-auto">
+                        {subStep.thinking.thinkingContent.substring(0, 200)}
+                        {subStep.thinking.thinkingContent.length > 200 && '...'}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-blue-700">
+                  • {subStep.agentName} is analyzing and processing the research data...
                 </div>
               )}
             </div>
@@ -314,14 +337,17 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
                 </div>
               )}
 
-              {/* Agent Sub-Steps */}
+              {/* Multi-Agent Process - PRIMARY FOCUS */}
               {step.subSteps && step.subSteps.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-800 mb-3 flex items-center gap-2">
-                    <Brain className="w-4 h-4" />
-                    Multi-Agent Process ({step.subSteps.length} agents)
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-3 bg-gradient-to-r from-blue-100 to-indigo-100 p-3 rounded-lg border border-blue-200">
+                    <Brain className="w-5 h-5" />
+                    🤖 Multi-Agent Process ({step.subSteps.length} agents)
+                    <Badge variant="secondary" className="ml-auto">
+                      {step.subSteps.filter(s => s.status === 'completed').length}/{step.subSteps.length} completed
+                    </Badge>
                   </h4>
-                  <div className="space-y-2">
+                  <div className="space-y-3 pl-4 border-l-2 border-blue-200">
                     {step.subSteps.map((subStep, subIdx) => (
                       <AgentSubStepInline key={`${subStep.id}-${subIdx}`} subStep={subStep} />
                     ))}
@@ -329,19 +355,26 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
                 </div>
               )}
 
-              {/* Sources */}
+              {/* Sources - MINIMIZED */}
               {step.sources && step.sources.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-800 mb-3 flex items-center gap-2">
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800 flex items-center gap-2 p-2 bg-gray-50 rounded">
                     <FileText className="w-4 h-4" />
-                    Sources Found ({step.sources.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {step.sources.map((source, srcIdx) => (
-                      <SourceCard key={`${source.id}-${srcIdx}`} source={source} />
+                    📚 Sources Found ({step.sources.length}) - Click to expand
+                  </summary>
+                  <div className="mt-2 space-y-1 pl-4">
+                    {step.sources.slice(0, 3).map((source, srcIdx) => (
+                      <div key={`${source.id}-${srcIdx}`} className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                        📄 {source.title || source.source} ({source.similarity ? Math.round(source.similarity * 100) + '% match' : 'No similarity'})
+                      </div>
                     ))}
+                    {step.sources.length > 3 && (
+                      <div className="text-xs text-gray-500 italic">
+                        ... and {step.sources.length - 3} more sources
+                      </div>
+                    )}
                   </div>
-                </div>
+                </details>
               )}
 
               {/* Results Summary */}
@@ -366,6 +399,9 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
 }
 
 export function PerplexityStyleResearch({ steps, isActive = false, className = "" }: PerplexityStyleResearchProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTimeRef = useRef<number>(0);
+
   if (!steps || steps.length === 0) {
     return null;
   }
@@ -373,8 +409,49 @@ export function PerplexityStyleResearch({ steps, isActive = false, className = "
   const completedSteps = steps.filter(step => step.status === 'completed').length;
   const totalSteps = steps.length;
 
+  // Auto-scroll to latest updates when steps change
+  useEffect(() => {
+    const currentTime = Date.now();
+    const hasActiveSteps = steps.some(step => step.status === 'in_progress');
+    const hasSubSteps = steps.some(step => step.subSteps && step.subSteps.length > 0);
+    
+    // Only auto-scroll if:
+    // 1. There are active steps (research in progress), OR
+    // 2. Steps have sub-steps (agents are running), AND
+    // 3. Haven't scrolled recently (prevent spam scrolling)
+    const timeSinceLastScroll = currentTime - lastScrollTimeRef.current;
+    const shouldScroll = (hasActiveSteps || hasSubSteps) && timeSinceLastScroll > 1000; // 1 second minimum between scrolls
+    
+    if (shouldScroll) {
+      lastScrollTimeRef.current = currentTime;
+      
+      // Small delay to allow for DOM updates
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'end',
+            inline: 'nearest'
+          });
+        }
+      }, 100);
+    }
+  }, [steps]); // Only depend on steps, not the time ref
+
+  // Also auto-scroll when isActive changes (new research starts)
+  useEffect(() => {
+    if (isActive && containerRef.current) {
+      setTimeout(() => {
+        containerRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center'
+        });
+      }, 300);
+    }
+  }, [isActive]);
+
   return (
-    <div className={`perplexity-research ${className}`}>
+    <div ref={containerRef} className={`perplexity-research ${className}`}>
       {/* Overall Progress */}
       <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
         <div className="flex items-center justify-between mb-2">

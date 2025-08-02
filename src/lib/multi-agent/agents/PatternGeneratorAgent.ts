@@ -48,6 +48,9 @@ Be very specific.`;
       const response = await this.llm(prompt);
       console.log(`🤖 Strategy generation:`, response.substring(0, 300));
       
+      // Store full response for thinking extraction
+      this.setReasoning(response);
+      
       // Convert LLM response to patterns
       this.updatePatternsFromStrategies(context, response);
       

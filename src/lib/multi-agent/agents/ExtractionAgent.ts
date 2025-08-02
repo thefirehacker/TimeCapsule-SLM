@@ -84,6 +84,9 @@ Be specific. If user wants "speed runs", find run times (hours/minutes), not per
       const response = await this.llm(prompt);
       console.log(`🤖 LLM extraction response:`, response.substring(0, 300));
       
+      // Store full response for thinking extraction (will be overridden by final reasoning)
+      this.setReasoning(response);
+      
       // Parse the LLM's natural response into items
       return this.parseNaturalResponse(response, chunks[0]?.id || '');
       

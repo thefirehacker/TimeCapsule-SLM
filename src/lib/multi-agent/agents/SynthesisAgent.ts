@@ -72,19 +72,33 @@ export class SynthesisAgent extends BaseAgent {
         const item = group.bestItem;
         const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
         
+        console.log(`🔍 Synthesis debug item ${index + 1}:`, { 
+          originalContent: item.content, 
+          value, 
+          unit: item.unit 
+        });
+        
         // Clean up the content - remove LLM thinking
         let content = this.cleanContent(item.content);
         
-        // Extract run description if present
+        // Extract run description if present - improved extraction
         if (content.includes('Run')) {
-          const runMatch = content.match(/Run\s*\d+[:\s-]+(.+?)(?:\s*-\s*\d+\.?\d*\s*hours?)?$/i);
-          if (runMatch) {
+          // Try to extract meaningful run description
+          const runMatch = content.match(/Run\s*\d+[:\s-]*([^-\n]+?)(?:\s*-\s*\d+\.?\d*\s*(?:hours?|minutes?))?$/i);
+          if (runMatch && runMatch[1].trim().length > 3) {
             content = runMatch[1].trim();
+          } else {
+            // Try alternative patterns
+            const altMatch = content.match(/Run\s*(\d+)[:\s-]*(.+)/i);
+            if (altMatch && altMatch[2].trim().length > 3) {
+              content = `Run ${altMatch[1]}: ${altMatch[2].trim()}`;
+            }
           }
         }
         
         // Smart time formatting - avoid duplicates
         const formattedLine = this.formatWithTime(content, value);
+        console.log(`✅ Synthesis formatted item ${index + 1}:`, formattedLine);
         lines.push(`${index + 1}. ${formattedLine}`);
       });
       
@@ -141,29 +155,45 @@ export class SynthesisAgent extends BaseAgent {
       return content || 'time not specified';
     }
     
-    // Check if content already contains the time value
-    const timeRegex = new RegExp(`\\b${timeValue.replace(/\./g, '\\.')}`);
-    if (timeRegex.test(content)) {
+    // Clean the content first
+    const cleanContent = content.trim();
+    
+    // Check if content already contains the exact time value
+    const normalizedTimeValue = timeValue.replace(/\s+/g, ' ').trim();
+    const normalizedContent = cleanContent.replace(/\s+/g, ' ');
+    
+    if (normalizedContent.includes(normalizedTimeValue)) {
       // Content already contains the time - return as is
-      return content;
+      return cleanContent;
     }
     
-    // Check if content already contains time information in general
+    // Check if content already has time format like "completed in X minutes"
+    const completeTimePattern = /completed\s+in\s+\d+\.?\d*\s*(hours?|hrs?|minutes?|mins?)/i;
+    if (completeTimePattern.test(cleanContent)) {
+      // Content already has complete time format, don't modify
+      return cleanContent;
+    }
+    
+    // Check if content has partial time like "45 minutes" or "3.5 hours"
     const hasTimePattern = /\b\d+\.?\d*\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)\b/i;
-    if (hasTimePattern.test(content)) {
-      // Content has some time info, but not our specific value
-      // Replace existing time with our value or append if unclear
-      const existingTimeMatch = content.match(/(.+?)\s*-?\s*\d+\.?\d*\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)\b/i);
-      if (existingTimeMatch) {
-        const baseContent = existingTimeMatch[1].trim();
-        return `${baseContent} - ${timeValue}`;
+    if (hasTimePattern.test(cleanContent)) {
+      // Content has standalone time - convert to proper format
+      const timeMatch = cleanContent.match(/(\d+\.?\d*\s*(?:hours?|hrs?|minutes?|mins?))/i);
+      if (timeMatch) {
+        const extractedTime = timeMatch[1];
+        const description = cleanContent.replace(timeMatch[0], '').trim().replace(/^[:\-\s]+|[:\-\s]+$/g, '');
+        return description ? `${description} - ${extractedTime}` : extractedTime;
       }
       // If we can't cleanly extract, return content as is
-      return content;
+      return cleanContent;
     }
     
-    // Content has no time info - append our time value
-    return `${content} - ${timeValue}`;
+    // Content has no time info - append our time value if content is meaningful
+    if (cleanContent && cleanContent.length > 2) {
+      return `${cleanContent} - ${timeValue}`;
+    } else {
+      return timeValue;
+    }
   }
   
   private parseTimeToHours(item: any): number {
@@ -311,9 +341,8 @@ Write as if you have direct knowledge of the facts.`;
     try {
       const answer = await this.llm(prompt);
       
-      this.setReasoning(
-        `Synthesized ${groupedItems.length} groups of information into a ${context.understanding.queryType} response`
-      );
+      // Store full LLM response for thinking extraction
+      this.setReasoning(answer);
       
       return answer;
       

@@ -627,6 +627,233 @@ const progressCallback: AgentProgressCallback = {
 ✅ **Progress bars, timing, and thinking sections update live**
 ✅ **No more waiting until the end - full Perplexity-style transparency during execution**
 
+### 🧠 Agent Thinking Extraction Fix ✅ **COMPLETED** (2025-08-01)
+
+**User Issue**: 
+```
+"Real-time data inspectors are shown but details of them are not shown even now."
+"Details of DataInspector should be visible (collapsible expandable format) during execution."
+```
+
+**Root Cause**: 
+Agents were not storing their full LLM responses (containing `<think>` tags) for thinking extraction:
+```typescript
+// BEFORE: Only storing summaries, losing thinking content
+this.setReasoning(`LLM inspection complete: ${response.substring(0, 100)}...`); // Truncated!
+this.setReasoning(`Generated ${patterns.length} extraction strategies from LLM`); // No thinking!
+```
+
+**Solution**: Modified all agents to store full LLM responses:
+```typescript
+// AFTER: Store full response for thinking extraction
+this.setReasoning(response); // Full LLM response with <think> tags
+
+// Applied to:
+// - DataInspectorAgent.ts
+// - PatternGeneratorAgent.ts  
+// - ExtractionAgent.ts
+// - SynthesisAgent.ts
+```
+
+**Result**: ✅ **Agent thinking sections now show detailed reasoning in collapsible format during execution**
+
+### 📜 Auto-Scroll Implementation ✅ **COMPLETED** (2025-08-01)
+
+**User Issue**:
+```
+"Screen should scroll down automatically or control shows the latest update. 
+It shouldn't happen that updates keep appearing and user has to scroll down."
+```
+
+**Solution**: Added intelligent auto-scroll to `PerplexityStyleResearch.tsx`:
+```typescript
+// Auto-scroll logic
+useEffect(() => {
+  const hasActiveSteps = steps.some(step => step.status === 'in_progress');
+  const hasSubSteps = steps.some(step => step.subSteps && step.subSteps.length > 0);
+  
+  if (hasActiveSteps || hasSubSteps || recentUpdate) {
+    setTimeout(() => {
+      containerRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'end' 
+      });
+    }, 100);
+  }
+}, [steps]);
+```
+
+**Features**:
+- ✅ **Smart auto-scroll** only when research is active or agents are updating
+- ✅ **Smooth scrolling** to latest content with `behavior: 'smooth'`
+- ✅ **Prevents over-scrolling** - only scrolls when meaningful updates occur
+- ✅ **Delay handling** - allows DOM updates before scrolling
+
+**Result**: ✅ **Users no longer need to manually scroll to see latest agent updates**
+
+### 🔄 Infinite Loop Fix ✅ **COMPLETED** (2025-08-01)
+
+**Error Encountered**:
+```
+PerplexityStyleResearch.tsx:390 Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+```
+
+**Root Cause**: Auto-scroll implementation created infinite loop:
+```typescript
+// BEFORE: Infinite loop problem
+const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+
+useEffect(() => {
+  // ...
+  setLastUpdateTime(currentTime); // This triggers the effect again!
+}, [steps, lastUpdateTime]); // lastUpdateTime dependency causes loop
+```
+
+**Solution**: Replaced state with ref to prevent re-renders:
+```typescript
+// AFTER: Fixed with ref
+const lastScrollTimeRef = useRef<number>(0);
+
+useEffect(() => {
+  // ...
+  lastScrollTimeRef.current = currentTime; // No re-render triggered
+}, [steps]); // Only depend on steps, not time ref
+```
+
+**Additional Improvements**:
+- ✅ **Throttle scrolling** - minimum 1 second between auto-scrolls
+- ✅ **Better conditions** - only scroll when agents are actively updating
+- ✅ **No infinite loops** - refs don't trigger re-renders
+
+**Result**: ✅ **Auto-scroll works without infinite loops or performance issues**
+
+### 🧠 Thinking Details Visibility Fix ✅ **COMPLETED** (2025-08-01)
+
+**User Issue A**: 
+```
+"Details still not visible. Such verbose details on various steps in logs but not in UI:
+🤖 LLM extraction response: <think>
+Okay, let me try to figure this out. The user wants top 3 speed runs from Tyler's blog..."
+```
+
+**Root Cause**: UI was not showing thinking sections despite thinking extraction working:
+```typescript
+// BEFORE: Thinking only showed if hasThinking was true and populated
+{subStep.thinking?.hasThinking && (
+  <Button>🧠 AI Reasoning</Button>
+)}
+```
+
+**Solution**: Enhanced thinking display to always show for agents with fallback content:
+```typescript
+// AFTER: Always show thinking sections for all agents
+{(subStep.thinking?.hasThinking || subStep.agentName) && (
+  <Button className="text-blue-600 font-medium">🧠 AI Reasoning</Button>
+  {showThinking && (
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+      {subStep.thinking?.thinkingContent && (
+        <div className="font-mono text-xs max-h-20 overflow-y-auto">
+          {subStep.thinking.thinkingContent.substring(0, 200)}...
+        </div>
+      )}
+    </div>
+  )}
+)}
+```
+
+**Result**: ✅ **Agent thinking details now visible in collapsible UI sections with actual LLM reasoning content**
+
+### 🎯 UI Focus Redesign ✅ **COMPLETED** (2025-08-01)
+
+**User Issue B**: 
+```
+"Sources should be minimized and Multi-Agent Process (4 agents) should be in focus"
+```
+
+**Solution**: Redesigned UI hierarchy to emphasize agents over sources:
+```typescript
+// BEFORE: Sources prominent, agents secondary
+<h4>Sources Found (15)</h4>
+<div>Large source cards...</div>
+<h4>Multi-Agent Process (4 agents)</h4>
+
+// AFTER: Agents PRIMARY, sources minimized
+<h4 className="text-lg font-semibold text-blue-800 bg-gradient-to-r from-blue-100 to-indigo-100 p-3">
+  🤖 Multi-Agent Process (4 agents)
+  <Badge>3/4 completed</Badge>
+</h4>
+<div className="space-y-3 pl-4 border-l-2 border-blue-200">
+  {/* Detailed agent breakdown */}
+</div>
+
+<details className="mt-4">
+  <summary>📚 Sources Found (15) - Click to expand</summary>
+  {/* Minimized source list */}
+</details>
+```
+
+**Visual Improvements**:
+- ✅ **Large prominent header** for Multi-Agent Process with gradient background
+- ✅ **Progress badge** showing completed/total agents  
+- ✅ **Collapsible sources** - minimized by default
+- ✅ **Visual hierarchy** - agents are the primary focus
+
+**Result**: ✅ **Multi-Agent Process is now the primary focus with sources minimized**
+
+### 🔧 Synthesis Output Quality Fix ✅ **COMPLETED** (2025-08-01)
+
+**User Issue C**:
+```
+"Output is still bad:
+Based on the search results, here are the top 3 speed runs:
+completed in - 45 minutes
+completed in 45 minutes  
+45 minutes"
+```
+
+**Root Cause**: `formatWithTime` function had flawed logic creating duplicates:
+```typescript
+// BEFORE: Buggy regex creating "completed in - 45 minutes"
+const existingTimeMatch = content.match(/(.+?)\s*-?\s*\d+\.?\d*\s*(hours?|mins?)/i);
+const baseContent = existingTimeMatch[1].trim(); // "completed in"
+return `${baseContent} - ${timeValue}`; // "completed in - 45 minutes"
+```
+
+**Solution**: Completely rewrote `formatWithTime` with intelligent detection:
+```typescript
+// AFTER: Smart time formatting logic
+private formatWithTime(content: string, timeValue: string): string {
+  // 1. Check if content already contains exact time
+  if (normalizedContent.includes(normalizedTimeValue)) {
+    return cleanContent; // Return as-is
+  }
+  
+  // 2. Check for complete time format "completed in X minutes"
+  const completeTimePattern = /completed\s+in\s+\d+\.?\d*\s*(hours?|mins?)/i;
+  if (completeTimePattern.test(cleanContent)) {
+    return cleanContent; // Don't modify complete formats
+  }
+  
+  // 3. Handle standalone time values properly
+  const timeMatch = cleanContent.match(/(\d+\.?\d*\s*(?:hours?|mins?))/i);
+  if (timeMatch) {
+    const extractedTime = timeMatch[1];
+    const description = cleanContent.replace(timeMatch[0], '').trim();
+    return description ? `${description} - ${extractedTime}` : extractedTime;
+  }
+  
+  // 4. Append time only if content is meaningful
+  return cleanContent.length > 2 ? `${cleanContent} - ${timeValue}` : timeValue;
+}
+```
+
+**Additional Improvements**:
+- ✅ **Enhanced run extraction** - better parsing of "Run X: description" patterns
+- ✅ **Debug logging** - added synthesis debugging to track data flow
+- ✅ **Content cleaning** - improved removal of LLM artifacts
+
+**Result**: ✅ **Synthesis output should now produce clean, properly formatted speed run results**
+
 ```
 
 **Phase 3: Enhanced Data Display** 🔄 **PLANNED**

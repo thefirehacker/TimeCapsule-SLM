@@ -63,7 +63,8 @@ Be specific about what you find.`;
       // Update context with insights
       this.updateContextFromInspection(context, response);
       
-      this.setReasoning(`LLM inspection complete: ${response.substring(0, 100)}...`);
+      // Store full response for thinking extraction
+      this.setReasoning(response);
       
     } catch (error) {
       console.error('❌ LLM inspection failed:', error);
