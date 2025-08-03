@@ -86,7 +86,7 @@ Be very specific.`;
     }
     
     context.patterns = patterns;
-    this.setReasoning(`Generated ${patterns.length} extraction strategies from LLM`);
+    // Don't overwrite the full LLM response stored at line 51
     console.log(`✅ Generated ${patterns.length} extraction strategies`);
   }
   
@@ -155,7 +155,7 @@ ONLY JSON!`;
           confidence: s.confidence || 0.5
         }));
         
-        this.setReasoning(`Generated ${strategies.length} extraction strategies from scratch`);
+        // Don't overwrite the full LLM response reasoning
         console.log(`✅ Generated ${strategies.length} extraction strategies`);
       }
       
@@ -191,7 +191,7 @@ Return refined JSON array with same structure.`;
           confidence: s.confidence || 0.5
         }));
         
-        this.setReasoning(`Refined ${refined.length} extraction strategies for better accuracy`);
+        // Don't overwrite the full LLM response reasoning
         console.log(`✅ Refined ${refined.length} extraction strategies`);
       }
       

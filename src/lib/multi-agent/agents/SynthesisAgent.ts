@@ -29,6 +29,10 @@ export class SynthesisAgent extends BaseAgent {
       return context;
     }
     
+    // Clean and deduplicate extracted data before processing
+    context.extractedData.raw = this.cleanAndDeduplicateItems(context.extractedData.raw);
+    console.log(`🧹 After cleaning: ${context.extractedData.raw.length} items remain`);
+    
     // Group and rank extracted items
     const groupedItems = await this.groupAndRankItems(context);
     
@@ -148,6 +152,135 @@ export class SynthesisAgent extends BaseAgent {
     clean = clean.replace(/\s+/g, ' ');
     
     return clean.trim();
+  }
+  
+  /**
+   * Clean and deduplicate extracted items
+   * Removes malformed content and duplicates
+   */
+  private cleanAndDeduplicateItems(items: any[]): any[] {
+    console.log(`🧹 Starting content cleaning and deduplication for ${items.length} items`);
+    
+    // Step 1: Clean malformed content
+    const cleanedItems = items.map(item => {
+      let cleanContent = item.content || '';
+      
+      // Remove malformed markdown/formatting artifacts
+      cleanContent = cleanContent
+        .replace(/\*\*+/g, '') // Remove extra asterisks
+        .replace(/^\[|\]$/g, '') // Remove brackets at start/end
+        .replace(/^\s*[-•*]\s*/, '') // Remove leading bullet points
+        .replace(/\s*:\s*$/, '') // Remove trailing colons
+        .trim();
+      
+      // Clean up spacing
+      cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
+      
+      return {
+        ...item,
+        content: cleanContent,
+        originalContent: item.content // Keep original for debugging
+      };
+    }).filter(item => item.content.length > 3); // Remove very short items
+    
+    console.log(`🧹 After content cleaning: ${cleanedItems.length} items (removed ${items.length - cleanedItems.length} malformed)`);
+    
+    // Step 2: Deduplicate by content similarity
+    const deduplicatedItems: any[] = [];
+    const seenContent = new Set();
+    
+    for (const item of cleanedItems) {
+      // FIXED: Less aggressive normalization - preserve run numbers and timing differences
+      const normalizedContent = item.content.toLowerCase()
+        .replace(/[^\w\s:\-\.]/g, ' ') // Remove punctuation but keep : - .
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // Only remove if content is nearly identical (edit distance approach)
+      const isDuplicate = deduplicatedItems.some(existing => {
+        const existingNormalized = existing.content.toLowerCase()
+          .replace(/[^\w\s:\-\.]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Consider duplicate only if:
+        // 1. Exact match after basic cleaning, OR
+        // 2. Very high similarity (90%+) AND same timing values
+        if (existingNormalized === normalizedContent) {
+          return true;
+        }
+        
+        // Check if they have the same timing but are otherwise very similar
+        const currentTime = item.value + ' ' + (item.unit || '');
+        const existingTime = existing.value + ' ' + (existing.unit || '');
+        
+        if (currentTime === existingTime) {
+          const similarity = this.calculateStringSimilarity(normalizedContent, existingNormalized);
+          return similarity > 0.9; // Only remove if 90%+ similar with same timing
+        }
+        
+        return false;
+      });
+      
+      if (!isDuplicate) {
+        deduplicatedItems.push(item);
+      } else {
+        console.log(`🗑️ Removing duplicate: "${item.content.substring(0, 50)}..." (similar to existing)`);
+      }
+    }
+    
+    console.log(`🧹 After deduplication: ${deduplicatedItems.length} items (removed ${cleanedItems.length - deduplicatedItems.length} duplicates)`);
+    
+    // Step 3: Sort by content quality (prefer complete descriptions)
+    const sortedItems = deduplicatedItems.sort((a, b) => {
+      const aQuality = this.calculateContentQuality(a.content);
+      const bQuality = this.calculateContentQuality(b.content);
+      return bQuality - aQuality; // Higher quality first
+    });
+    
+    return sortedItems;
+  }
+  
+  /**
+   * Calculate content quality score
+   * Higher scores for more complete, descriptive content
+   */
+  private calculateContentQuality(content: string): number {
+    let score = 0;
+    
+    // Prefer longer descriptions
+    score += Math.min(content.length / 10, 20);
+    
+    // Bonus for complete run descriptions
+    if (/run\s*\d+/i.test(content)) score += 10;
+    if (/optimization|speed|batch|training/i.test(content)) score += 5;
+    if (/completed?\s*in/i.test(content)) score += 5;
+    
+    // Penalty for fragments
+    if (content.length < 20) score -= 10;
+    if (/^(run|completed|speed)$/i.test(content.trim())) score -= 15; // Single words
+    
+    return score;
+  }
+  
+  /**
+   * Calculate string similarity using a simple approach
+   * Returns value between 0 and 1 (1 = identical)
+   */
+  private calculateStringSimilarity(str1: string, str2: string): number {
+    if (str1 === str2) return 1;
+    if (str1.length === 0 || str2.length === 0) return 0;
+    
+    const words1 = str1.split(' ').filter(w => w.length > 2);
+    const words2 = str2.split(' ').filter(w => w.length > 2);
+    
+    if (words1.length === 0 && words2.length === 0) return 1;
+    if (words1.length === 0 || words2.length === 0) return 0;
+    
+    const commonWords = words1.filter(word => words2.includes(word));
+    const similarity = commonWords.length / Math.max(words1.length, words2.length);
+    
+    return similarity;
   }
   
   private formatWithTime(content: string, timeValue: string): string {

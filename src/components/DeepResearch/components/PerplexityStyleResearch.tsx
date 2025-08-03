@@ -29,7 +29,63 @@ import {
   Zap,
   Sparkles,
   Eye,
+  Copy,
 } from "lucide-react";
+
+// Copy Multi-Agent Process details to clipboard
+const copyMultiAgentProcess = async (subSteps: any[]) => {
+  try {
+    let copyText = "🤖 Multi-Agent Process Details\n";
+    copyText += "═".repeat(40) + "\n\n";
+    
+    subSteps.forEach((subStep, index) => {
+      const agentNumber = index + 1;
+      const statusIcon = subStep.status === 'completed' ? '✅' : 
+                        subStep.status === 'in_progress' ? '🔄' : 
+                        subStep.status === 'failed' ? '❌' : '⏳';
+      
+      copyText += `${agentNumber}. ${subStep.agentName} ${statusIcon}\n`;
+      copyText += `   Type: ${subStep.agentType}\n`;
+      copyText += `   Status: ${subStep.status}\n`;
+      
+      if (subStep.progress !== undefined) {
+        copyText += `   Progress: ${subStep.progress}%\n`;
+      }
+      
+      if (subStep.stage) {
+        copyText += `   Stage: ${subStep.stage}\n`;
+      }
+      
+      if (subStep.duration) {
+        copyText += `   Duration: ${subStep.duration}ms\n`;
+      }
+      
+      // Add thinking content if available
+      if (subStep.thinking?.hasThinking && subStep.thinking.thinkingContent) {
+        copyText += `   \n   💭 AI Reasoning:\n`;
+        copyText += `   ${subStep.thinking.thinkingContent.replace(/\n/g, '\n   ')}\n`;
+      }
+      
+      // Add summary if available
+      if (subStep.thinking?.summary) {
+        copyText += `   📝 Summary: ${subStep.thinking.summary}\n`;
+      }
+      
+      copyText += "\n" + "─".repeat(35) + "\n\n";
+    });
+    
+    copyText += `Total Agents: ${subSteps.length}\n`;
+    copyText += `Completed: ${subSteps.filter(s => s.status === 'completed').length}\n`;
+    copyText += `Generated: ${new Date().toLocaleString()}\n`;
+    
+    await navigator.clipboard.writeText(copyText);
+    
+    // Show success feedback (you could add a toast here)
+    console.log("✅ Multi-Agent Process details copied to clipboard");
+  } catch (error) {
+    console.error("❌ Failed to copy to clipboard:", error);
+  }
+};
 
 interface PerplexityStyleResearchProps {
   steps: ResearchStep[];
@@ -59,9 +115,94 @@ const AgentIcons = {
   synthesis: Sparkles,
 } as const;
 
+// Sources Section Component - Expandable
+// Individual Source Card with expandable content
+function SourceCard({ source }: { source: SourceReference }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+      <div className="p-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="text-sm font-medium text-gray-800 mb-1">
+              📄 {source.title || source.source}
+            </div>
+            {source.excerpt && (
+              <div className="text-xs text-gray-600">
+                <div className="whitespace-pre-wrap">
+                  {isExpanded ? source.excerpt : `${source.excerpt.substring(0, 150)}${source.excerpt.length > 150 ? '...' : ''}`}
+                </div>
+                {source.excerpt.length > 150 && (
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="mt-1 text-blue-600 hover:text-blue-800 text-xs underline"
+                  >
+                    {isExpanded ? 'Show less' : 'Show more'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {source.similarity && (
+            <div className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full shrink-0">
+              {Math.round(source.similarity * 100)}% match
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SourcesSection({ sources }: { sources: SourceReference[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left flex items-center justify-between"
+      >
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <FileText className="w-4 h-4" />
+          📚 Sources Found ({sources.length}) - Full Chunk Content
+        </div>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-gray-500" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-gray-500" />
+        )}
+      </button>
+      
+      {isExpanded && (
+        <div className="p-3 bg-white border-t border-gray-200">
+          <div className="space-y-3">
+            {sources.map((source, srcIdx) => (
+              <SourceCard key={`${source.id}-${srcIdx}`} source={source} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
   const [showThinking, setShowThinking] = useState(false);
   const IconComponent = AgentIcons[subStep.agentType] || Brain;
+  
+  // Debug thinking data
+  React.useEffect(() => {
+    if (subStep.thinking) {
+      console.log(`🎭 UI - Agent ${subStep.agentName} thinking data:`, {
+        hasThinking: subStep.thinking.hasThinking,
+        thinkingContentLength: subStep.thinking.thinkingContent?.length || 0,
+        summaryLength: subStep.thinking.summary?.length || 0,
+        thinkingPreview: subStep.thinking.thinkingContent?.substring(0, 100)
+      });
+    }
+  }, [subStep.thinking, subStep.agentName]);
 
   const getStatusColor = () => {
     switch (subStep.status) {
@@ -157,9 +298,8 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
                   )}
                   {subStep.thinking.thinkingContent && (
                     <div className="mt-2 p-2 bg-white/70 rounded border-l-2 border-blue-400">
-                      <div className="text-blue-600 font-mono text-xs max-h-20 overflow-y-auto">
-                        {subStep.thinking.thinkingContent.substring(0, 200)}
-                        {subStep.thinking.thinkingContent.length > 200 && '...'}
+                      <div className="text-blue-600 font-mono text-xs max-h-60 overflow-y-auto whitespace-pre-wrap">
+                        {subStep.thinking.thinkingContent}
                       </div>
                     </div>
                   )}
@@ -181,68 +321,6 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
           <div className="text-red-600">{subStep.error}</div>
         </div>
       )}
-    </div>
-  );
-}
-
-function SourceCard({ source }: { source: SourceReference }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  return (
-    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50 hover:bg-gray-50">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 mt-1">
-          {source.type === 'document' ? (
-            <FileText className="w-4 h-4 text-blue-500" />
-          ) : source.type === 'web' ? (
-            <Globe className="w-4 h-4 text-green-500" />
-          ) : (
-            <FileText className="w-4 h-4 text-gray-500" />
-          )}
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-sm font-medium text-gray-900 truncate">
-              {source.title}
-            </h4>
-            {source.similarity && (
-              <Badge variant="outline" className="text-xs">
-                {Math.round(source.similarity * 100)}% match
-              </Badge>
-            )}
-          </div>
-          
-          <div className="text-xs text-gray-600 mb-2">
-            {source.source}
-          </div>
-          
-          <div className="text-sm text-gray-700">
-            {isExpanded ? source.excerpt : source.excerpt.substring(0, 150)}
-            {source.excerpt.length > 150 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="h-auto p-0 ml-1 text-xs text-blue-600 hover:text-blue-800"
-              >
-                {isExpanded ? 'Show less' : '...Show more'}
-              </Button>
-            )}
-          </div>
-        </div>
-        
-        {source.url && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.open(source.url, '_blank')}
-            className="flex-shrink-0 h-8 w-8 p-0"
-          >
-            <ExternalLink className="w-3 h-3" />
-          </Button>
-        )}
-      </div>
     </div>
   );
 }
@@ -346,6 +424,15 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
                     <Badge variant="secondary" className="ml-auto">
                       {step.subSteps.filter(s => s.status === 'completed').length}/{step.subSteps.length} completed
                     </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyMultiAgentProcess(step.subSteps || [])}
+                      className="ml-2 h-8 w-8 p-0 hover:bg-blue-200"
+                      title="Copy Multi-Agent Process Details"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
                   </h4>
                   <div className="space-y-3 pl-4 border-l-2 border-blue-200">
                     {step.subSteps.map((subStep, subIdx) => (
@@ -355,26 +442,9 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
                 </div>
               )}
 
-              {/* Sources - MINIMIZED */}
+              {/* Sources - MINIMIZED & EXPANDABLE */}
               {step.sources && step.sources.length > 0 && (
-                <details className="mt-4">
-                  <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800 flex items-center gap-2 p-2 bg-gray-50 rounded">
-                    <FileText className="w-4 h-4" />
-                    📚 Sources Found ({step.sources.length}) - Click to expand
-                  </summary>
-                  <div className="mt-2 space-y-1 pl-4">
-                    {step.sources.slice(0, 3).map((source, srcIdx) => (
-                      <div key={`${source.id}-${srcIdx}`} className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                        📄 {source.title || source.source} ({source.similarity ? Math.round(source.similarity * 100) + '% match' : 'No similarity'})
-                      </div>
-                    ))}
-                    {step.sources.length > 3 && (
-                      <div className="text-xs text-gray-500 italic">
-                        ... and {step.sources.length - 3} more sources
-                      </div>
-                    )}
-                  </div>
-                </details>
+                <SourcesSection sources={step.sources} />
               )}
 
               {/* Results Summary */}

@@ -266,17 +266,38 @@ Provide a brief summary of:
         
         // Extract thinking from agent's reasoning if available
         const reasoning = agent.explainReasoning();
+        console.log(`🔍 Agent ${agentName} reasoning length:`, reasoning?.length || 0);
+        
         if (reasoning) {
           const thinkingProcess = extractThinkingProcess(reasoning);
+          console.log(`🧠 Thinking extraction for ${agentName}:`, {
+            hasThinking: thinkingProcess.hasThinking,
+            thinkingLength: thinkingProcess.thinkingContent.length,
+            reasoningSnippet: reasoning.substring(0, 200)
+          });
+          
           if (thinkingProcess.hasThinking) {
-            this.progressTracker.setThinking(agentName, {
+            const thinkingData = {
               hasThinking: true,
               thinkingContent: thinkingProcess.thinkingContent,
               finalOutput: thinkingProcess.finalOutput,
-              summary: thinkingProcess.thinkingContent.substring(0, 100) + '...',
+              summary: thinkingProcess.thinkingContent.length > 100 
+                ? thinkingProcess.thinkingContent.substring(0, 100) + '...'
+                : thinkingProcess.thinkingContent,
               insights: this.extractInsights(thinkingProcess.thinkingContent)
+            };
+            
+            console.log(`✅ Setting thinking for ${agentName}:`, {
+              thinkingContentLength: thinkingData.thinkingContent.length,
+              summaryLength: thinkingData.summary.length
             });
+            
+            this.progressTracker.setThinking(agentName, thinkingData);
+          } else {
+            console.log(`❌ No thinking found for ${agentName}, reasoning starts with:`, reasoning.substring(0, 100));
           }
+        } else {
+          console.log(`❌ No reasoning available for ${agentName}`);
         }
         
         // Complete agent tracking

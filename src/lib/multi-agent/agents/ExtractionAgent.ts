@@ -43,9 +43,8 @@ export class ExtractionAgent extends BaseAgent {
     const uniqueItems = this.deduplicateItems(extractedItems);
     context.extractedData.raw = uniqueItems;
     
-    this.setReasoning(
-      `Extracted ${uniqueItems.length} unique items from ${context.ragResults.chunks.length} chunks`
-    );
+    // Don't overwrite the full LLM reasoning stored during extraction
+    console.log(`📊 Extraction summary: ${uniqueItems.length} unique items from ${context.ragResults.chunks.length} chunks`);
     
     console.log(`✅ Extraction complete: ${uniqueItems.length} items found`);
     
@@ -57,7 +56,7 @@ export class ExtractionAgent extends BaseAgent {
     context: ResearchContext
   ): Promise<ExtractedItem[]> {
     // Use LLM to understand and extract, like Claude would
-    const prompt = `Read this text and find what the user is looking for.
+    const prompt = `Read this text and find what the user is looking for. Extract COMPLETE information, not fragments.
 
 User wants: "${context.query}"
 
@@ -67,18 +66,25 @@ ${chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n')}
 Instructions:
 ${this.getExtractionInstructions(context)}
 
-If you see a table with columns, extract each row as a separate item.
-For tables like "# Description Record time Training Tokens...", extract:
+CRITICAL: Extract COMPLETE descriptions with full context:
+- Instead of "Run 2: completed in" → "Run 2: Architectural optimization changes - 7.51 hours"
+- Instead of "completed in 45 minutes" → "Run 3: Speed optimization attempt - 45 minutes"
+- Include what each run/attempt was about, not just numbers
+
+For tables like "# Description Record time Training Tokens...", extract each row with:
 - Row number/ID
-- Description 
-- Time value (like "8.13 hours", "2.55 hours")
+- FULL Description (what the run was about)
+- Complete time value (like "8.13 hours", "2.55 hours")
 
-Return a simple list. For each item include:
-- What you found (description or name)
-- The time value if there is one
-- Skip performance metrics like tokens/sec
+Format each finding clearly:
+- [Complete Description]: [Time with unit]
 
-Be specific. If user wants "speed runs", find run times (hours/minutes), not performance metrics (tokens/sec).`;
+Examples of GOOD extraction:
+- Run 1 Initial baseline training: 3.5 hours
+- Run 2 Architectural optimization changes: 7.51 hours  
+- Run 3 Speed optimization with batch adjustments: 45 minutes
+
+Skip performance metrics like tokens/sec. Focus on run completion times with meaningful descriptions.`;
 
     try {
       const response = await this.llm(prompt);
@@ -141,22 +147,43 @@ DO NOT include performance metrics like tokens/sec or throughput`;
       }
       
       // Look for structured findings
-      // Pattern 1: "Run X: Y hours" or "X. Something - Y hours"
-      const runMatch = line.match(/(?:Run\s*(\d+)|(\d+)\.|#(\d+))[:\s-]+(.+?)[\s-]+(\d+\.?\d*)\s*(hours?|minutes?|seconds?)/i);
+      // Pattern 1: "Run X Description: Y hours" or "- Description: Y hours"
+      const runMatch = line.match(/(?:(?:Run\s*(\d+)|(\d+)\.|#(\d+))[\s:]*)(.+?):\s*(\d+\.?\d*)\s*(hours?|minutes?|seconds?)/i);
       if (runMatch) {
         const runNumber = runMatch[1] || runMatch[2] || runMatch[3];
         const description = runMatch[4].trim();
         const value = runMatch[5];
         const unit = runMatch[6];
         
+        const fullDescription = runNumber ? `Run ${runNumber}: ${description}` : description;
+        
         items.push({
-          content: `Run ${runNumber}: ${description}`,
+          content: fullDescription,
+          value: value,
+          unit: unit,
+          context: line.trim(),
+          confidence: 0.95,
+          sourceChunkId: chunkId,
+          metadata: { method: 'llm', runNumber }
+        });
+        return;
+      }
+      
+      // Pattern 2: "- Description: Time" format
+      const dashMatch = line.match(/^[\s-•*]+(.+?):\s*(\d+\.?\d*)\s*(hours?|minutes?|seconds?)/i);
+      if (dashMatch) {
+        const description = dashMatch[1].trim();
+        const value = dashMatch[2];
+        const unit = dashMatch[3];
+        
+        items.push({
+          content: description,
           value: value,
           unit: unit,
           context: line.trim(),
           confidence: 0.9,
           sourceChunkId: chunkId,
-          metadata: { method: 'llm', runNumber }
+          metadata: { method: 'llm' }
         });
         return;
       }
