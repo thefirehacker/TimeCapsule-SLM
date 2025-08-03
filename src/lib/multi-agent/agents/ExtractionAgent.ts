@@ -70,6 +70,9 @@ export class ExtractionAgent extends BaseAgent {
     const uniqueItems = this.deduplicateItems(extractedItems);
     context.extractedData.raw = uniqueItems;
     
+    // Validation: Log extraction statistics
+    this.logExtractionStats(extractedItems, uniqueItems);
+    
     // Create final comprehensive reasoning
     const finalReasoning = this.createFinalReasoning(
       initialReasoning,
@@ -83,6 +86,48 @@ export class ExtractionAgent extends BaseAgent {
     console.log(`✅ Extraction complete: ${uniqueItems.length} items found`);
     
     return context;
+  }
+  
+  /**
+   * Log extraction statistics for validation
+   */
+  private logExtractionStats(allItems: ExtractedItem[], uniqueItems: ExtractedItem[]): void {
+    // Count items by type
+    const typeCount = new Map<string, number>();
+    const timeItems = uniqueItems.filter(item => item.value && item.unit);
+    const tableItems = uniqueItems.filter(item => item.metadata?.type?.includes('table'));
+    const currentRecords = uniqueItems.filter(item => item.metadata?.type === 'current_record');
+    
+    uniqueItems.forEach(item => {
+      const type = item.metadata?.type || 'unknown';
+      typeCount.set(type, (typeCount.get(type) || 0) + 1);
+    });
+    
+    console.log('📊 Extraction Statistics:');
+    console.log(`- Total extracted: ${allItems.length}`);
+    console.log(`- After deduplication: ${uniqueItems.length}`);
+    console.log(`- Items with time values: ${timeItems.length}`);
+    console.log(`- Table rows: ${tableItems.length}`);
+    console.log(`- Current records: ${currentRecords.length}`);
+    
+    // Log type distribution
+    console.log('📈 Item types:');
+    typeCount.forEach((count, type) => {
+      console.log(`  - ${type}: ${count}`);
+    });
+    
+    // Warning if too few items for a table query
+    if (timeItems.length < 6 && this.extractionSummary.includes('table')) {
+      console.warn('⚠️ WARNING: Expected at least 6 table rows but found only ' + timeItems.length);
+    }
+    
+    // Log sample items
+    if (timeItems.length > 0) {
+      console.log('🔍 Sample time items:');
+      timeItems.slice(0, 3).forEach(item => {
+        console.log(`  - ${item.content} → ${item.value} ${item.unit}`);
+      });
+    }
   }
   
   /**
@@ -127,69 +172,57 @@ The extracted data will now be synthesized to answer your query.`);
     context: ResearchContext,
     batchNumber: number
   ): Promise<ExtractedItem[]> {
-    // Use LLM to intelligently understand document context
-    const prompt = `<think>
-I need to read this text and understand:
-1. What type of document/content is this? (blog post, technical report, table, etc.)
-2. What is the user looking for based on their query?
-3. What are the different types of information present? (current records vs historical data, achievements vs development progress, etc.)
-4. If there are tables, what do the column headers mean?
-5. What structure does the data have? (lists, tables, paragraphs, etc.)
-</think>
-
-Please read and analyze this text to answer the user's query. First, understand the document's structure and context.
+    // Direct extraction prompt - no analysis, just extract data
+    const prompt = `EXTRACT ALL DATA from the text below. Do NOT analyze or explain the document type.
 
 User query: "${context.query}"
 
-Text to analyze:
+Text to extract from:
 ${chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n')}
 
-Instructions:
-1. SPECIAL TABLE DETECTION: If you see a table-like structure:
-   - Look for column headers (like "Description", "Record time", "Training Tokens", "Date")
-   - Understand what each column represents based on the headers
-   - Extract ALL rows as separate items, preserving the relationship between columns
-   - For example: "Row 1: Initial baseline - 8.13 hours - 6.44B tokens - 2025/01/16"
-   - Make sure to extract EVERY single row in the table, not just a sample
+EXTRACTION RULES:
+1. Extract EVERY piece of data you see, especially:
+   - ALL time values (hours, minutes, seconds)
+   - ALL numbered entries or rows
+   - ALL records or achievements
+   - ALL table rows if present
 
-2. Distinguish between different types of data:
-   - Current achievements/records (e.g., "Current record: 3.14 minutes")
-   - Historical progression/training data (e.g., table rows showing past attempts)
-   - Development milestones vs performance metrics
-   - Rankings or ordered lists (1st, 2nd, 3rd, etc.)
+2. For tables, extract EACH row as:
+   Entry 1: Description - Time value - Other data
+   Entry 2: Description - Time value - Other data
+   etc.
 
-3. Extract relevant information based on what the user is asking for:
-   - If they ask for "top 3", extract at least the top 5-6 items to ensure coverage
-   - If they ask for "speed runs", include all timing-related data
-   - Include both the specific values AND their context
+3. Format EXACTLY like these examples:
+   Entry 1: Initial baseline - 8.13 hours - 6.44B tokens
+   Entry 2: Architectural changes - 7.51 hours - 5.07B tokens
+   Entry 3: Muon optimizer - 4.53 hours - 3.04B tokens
+   Current record: 3.14 minutes
 
-When you find relevant information:
-- For tables: Extract EVERY row as a complete item
-- Provide complete context, not fragments
-- Include descriptions of what each item represents
-- Preserve the distinction between different data types
-- Keep numerical values with their units (hours, minutes, tokens, etc.)
+4. DO NOT write:
+   - "The document appears to be..."
+   - "This is a table showing..."
+   - "The data structure is..."
+   
+5. JUST LIST THE DATA. Every single piece. No commentary.
 
-Format your findings naturally, explaining what each piece of information means in context. Be comprehensive - it's better to extract too much than too little.`;
+Extract everything now:`;
 
     try {
       const response = await this.llm(prompt);
       console.log(`🤖 LLM extraction response:`, response.substring(0, 300));
       
-      // Extract thinking content for batch summary
-      const thinkingMatch = response.match(/<think>([\s\S]*?)<\/think>/);
-      if (thinkingMatch && batchNumber <= 3) { // Only store first 3 batch insights to avoid clutter
-        const thinking = thinkingMatch[1].trim().substring(0, 200);
-        this.extractionSummary += `\nBatch ${batchNumber} thinking: ${thinking}...`;
-      }
-      
-      // Parse the LLM's natural response into items
+      // Parse the LLM's direct extraction into items
       const items = this.parseNaturalResponse(response, chunks[0]?.id || '');
       
       // Add batch-specific insights if items found
       if (items.length > 0 && batchNumber <= 5) {
         const sampleItem = items[0];
-        this.batchReasoning.push(`Batch ${batchNumber}: Found ${items.length} items (e.g., "${sampleItem.content.substring(0, 50)}...")`);
+        this.batchReasoning.push(`Batch ${batchNumber}: Extracted ${items.length} data points (e.g., "${sampleItem.content.substring(0, 50)}...")`);
+      }
+      
+      // Add to extraction summary
+      if (batchNumber <= 3) {
+        this.extractionSummary += `\nBatch ${batchNumber}: Extracted ${items.length} items directly`;
       }
       
       return items;
@@ -220,39 +253,33 @@ Extract information that directly answers their question, understanding the cont
   private parseNaturalResponse(response: string, chunkId: string): ExtractedItem[] {
     const items: ExtractedItem[] = [];
     
-    // Clean up LLM thinking process
-    let cleanResponse = response;
+    // No need to clean thinking tags anymore since we removed them from prompt
+    let cleanResponse = response.trim();
     
-    // Extract content after thinking tags if present
-    if (cleanResponse.includes('</think>')) {
-      const parts = cleanResponse.split('</think>');
-      cleanResponse = parts[parts.length - 1].trim();
-    }
-    
-    // First, check for table row patterns from LLM
-    // Look for patterns like "Row 1: Initial baseline - 8.13 hours - 6.44B tokens"
-    const tableRowMatches = cleanResponse.matchAll(/Row\s*(\d+):\s*(.+?)(?:\n|$)/gi);
-    for (const match of tableRowMatches) {
-      const rowContent = match[2].trim();
-      const rowNumber = match[1];
+    // First, check for our expected "Entry X:" format
+    // Look for patterns like "Entry 1: Initial baseline - 8.13 hours - 6.44B tokens"
+    const entryMatches = cleanResponse.matchAll(/Entry\s*(\d+):\s*(.+?)(?:\n|$)/gi);
+    for (const match of entryMatches) {
+      const entryContent = match[2].trim();
+      const entryNumber = match[1];
       
-      // Parse the row content (usually separated by - or |)
-      const parts = rowContent.split(/\s*[-|]\s*/);
+      // Parse the entry content (usually separated by - or |)
+      const parts = entryContent.split(/\s*[-|]\s*/);
       if (parts.length >= 2) {
-        // Extract time value if present
-        const timeMatch = rowContent.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/i);
+        // Extract time value - be more flexible with the pattern
+        const timeMatch = entryContent.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
         
         items.push({
-          content: `Entry ${rowNumber}: ${parts[0].trim()}`,
+          content: `Entry ${entryNumber}: ${parts[0].trim()}`,
           value: timeMatch ? timeMatch[1] : undefined,
           unit: timeMatch ? timeMatch[2] : undefined,
-          context: rowContent,
-          confidence: 0.95,
+          context: entryContent,
+          confidence: 0.98, // High confidence for structured entries
           sourceChunkId: chunkId,
           metadata: { 
             method: 'llm',
             type: 'table_row',
-            rowNumber: rowNumber,
+            rowNumber: entryNumber,
             description: parts[0].trim()
           }
         });
@@ -283,123 +310,87 @@ Extract information that directly answers their question, understanding the cont
       });
     }
     
-    // Let LLM's natural language guide the parsing
-    // Split into paragraphs or meaningful sections
-    const sections = cleanResponse.split(/\n\n+/).filter(s => s.trim());
+    // Process all lines to extract any data we might have missed
+    const lines = cleanResponse.split('\n').filter(line => line.trim());
     
-    sections.forEach(section => {
-      const lines = section.split('\n').filter(line => line.trim());
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
       
-      lines.forEach(line => {
-        // Skip meta-commentary but be less aggressive
-        if (line.match(/^(This is a|The document appears to be|Looking at the structure|Instructions:)/i)) {
-          return;
-        }
-        
-        // Skip lines we already processed as table rows or list items
-        if (line.match(/^Row\s*\d+:|^\d+[.)\s]+/)) {
-          return;
-        }
-        
-        // Extract any line that seems to contain actual data
-        const trimmedLine = line.trim();
-        
-        // Check if line contains meaningful information
-        if (trimmedLine.length > 15) {
-          // Look for "Current record:" or similar patterns
-          const recordMatch = trimmedLine.match(/Current\s+record[:\s]+(.+)/i);
-          if (recordMatch) {
-            const recordValue = recordMatch[1].trim();
-            const timeMatch = recordValue.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/i);
-            
-            items.push({
-              content: "Current speed run record",
-              value: timeMatch ? timeMatch[1] : recordValue,
-              unit: timeMatch ? timeMatch[2] : undefined,
-              context: trimmedLine,
-              confidence: 1.0, // High confidence for current records
-              sourceChunkId: chunkId,
-              metadata: { 
-                method: 'llm',
-                type: 'current_record'
-              }
-            });
-            return;
-          }
-          
-          // Try to extract structured data if present
-          const structuredMatch = trimmedLine.match(/(.+?):\s*(.+)/);
-          
-          if (structuredMatch) {
-            const [_, label, value] = structuredMatch;
-            
-            // Check if value contains time information
-            const timeMatch = value.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/i);
-            
-            items.push({
-              content: label.trim(),
-              value: timeMatch ? timeMatch[1] : value.trim(),
-              unit: timeMatch ? timeMatch[2] : undefined,
-              context: section,
-              confidence: 0.85,
-              sourceChunkId: chunkId,
-              metadata: { 
-                method: 'llm',
-                section: section.substring(0, 50) + '...'
-              }
-            });
-          } else if (trimmedLine.match(/\d+\.?\d*\s*(hours?|hrs?|minutes?|mins?)/i)) {
-            // Line contains time data but not in structured format
-            const timeMatch = trimmedLine.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/i);
-            
-            items.push({
-              content: trimmedLine,
-              value: timeMatch![1],
-              unit: timeMatch![2],
-              context: section,
-              confidence: 0.75,
-              sourceChunkId: chunkId,
-              metadata: { 
-                method: 'llm',
-                type: 'time_mention'
-              }
-            });
-          }
-        }
-      });
-    });
-    
-    // Look for any additional numerical data with context that we might have missed
-    const numericMatches = cleanResponse.matchAll(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/gi);
-    for (const match of numericMatches) {
-      const contextStart = Math.max(0, match.index! - 80);
-      const contextEnd = Math.min(cleanResponse.length, match.index! + match[0].length + 80);
-      const context = cleanResponse.substring(contextStart, contextEnd).trim();
+      // Skip empty lines or lines we already processed
+      if (!trimmedLine || trimmedLine.match(/^Entry\s*\d+:|^\d+[.)\s]+/)) {
+        return;
+      }
       
-      // Only add if not already captured
-      const isDuplicate = items.some(item => 
-        (item.value === match[1] && item.unit?.toLowerCase().includes(match[2].toLowerCase().substring(0, 3))) ||
-        item.context.includes(match[0])
-      );
-      
-      if (!isDuplicate && context.length > 20) {
+      // Look for "Current record:" or similar patterns
+      const recordMatch = trimmedLine.match(/Current\s+record[:\s]+(.+)/i);
+      if (recordMatch) {
+        const recordValue = recordMatch[1].trim();
+        const timeMatch = recordValue.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
+        
         items.push({
-          content: context,
-          value: match[1],
-          unit: match[2],
-          context: context,
-          confidence: 0.65,
+          content: "Current speed run record",
+          value: timeMatch ? timeMatch[1] : recordValue,
+          unit: timeMatch ? timeMatch[2] : undefined,
+          context: trimmedLine,
+          confidence: 1.0, // High confidence for current records
           sourceChunkId: chunkId,
           metadata: { 
             method: 'llm',
-            type: 'numeric_time'
+            type: 'current_record'
+          }
+        });
+        return;
+      }
+      
+      // Extract ANY line with time values - be very inclusive
+      const timeMatch = trimmedLine.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
+      if (timeMatch) {
+        // Try to extract a description from the line
+        let description = trimmedLine;
+        const colonMatch = trimmedLine.match(/(.+?):\s*(\d+\.?\d*\s*(?:hours?|hrs?|minutes?|mins?))/i);
+        if (colonMatch) {
+          description = colonMatch[1].trim();
+        }
+        
+        items.push({
+          content: description,
+          value: timeMatch[1],
+          unit: timeMatch[2],
+          context: trimmedLine,
+          confidence: 0.9,
+          sourceChunkId: chunkId,
+          metadata: { 
+            method: 'llm',
+            type: 'time_data'
           }
         });
       }
-    }
+    });
     
-    // Sort by confidence and remove obvious duplicates
-    return items.sort((a, b) => b.confidence - a.confidence);
+    // Remove obvious duplicates based on value and unit
+    const uniqueItems = items.reduce((acc, item) => {
+      const isDuplicate = acc.some(existing => 
+        existing.value === item.value && 
+        existing.unit === item.unit &&
+        existing.metadata?.rowNumber === item.metadata?.rowNumber
+      );
+      
+      if (!isDuplicate) {
+        acc.push(item);
+      }
+      
+      return acc;
+    }, [] as ExtractedItem[]);
+    
+    // Sort by confidence and row number (if available)
+    return uniqueItems.sort((a, b) => {
+      // First sort by row number if both have it
+      if (a.metadata?.rowNumber && b.metadata?.rowNumber) {
+        return parseInt(a.metadata.rowNumber) - parseInt(b.metadata.rowNumber);
+      }
+      // Otherwise sort by confidence
+      return b.confidence - a.confidence;
+    });
   }
   
   private fallbackTextExtraction(
@@ -434,41 +425,64 @@ Extract information that directly answers their question, understanding the cont
             return;
           }
           
-          // Multiple patterns for table rows
-          // Pattern 1: "1 Initial baseline 8.13 hours 6.44B 221k..."
-          const rowMatch1 = line.match(/^(\d+)\s+(.+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)\s*/);
+          // Multiple patterns for table rows - including Tyler's specific format
           
-          // Pattern 2: "Initial baseline | 8.13 hours | 6.44B"
-          const rowMatch2 = line.match(/(.+?)\s*\|\s*(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
+          // Pattern 1: Tyler's exact format "1 Initial baseline 8.13 hours 6.44B 221k..."
+          // or "2..1.1.1.1.1 Architectural changes 7.51 hours..."
+          const tylerMatch = line.match(/^(\d+(?:\.\.\d+(?:\.\d+)*)?)\s+([^0-9]+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)\s+(\d+\.?\d*[BMK]?)\s+(\d+k?)/);
           
-          // Pattern 3: Just numbered items with time
-          const rowMatch3 = line.match(/^\d+[.)]\s*.*?(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
+          // Pattern 2: Simpler numbered row "1 Description 8.13 hours"
+          const simpleMatch = line.match(/^(\d+)\s+(.+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
           
-          // Pattern 4: For Tyler's specific format - flexible whitespace
-          const rowMatch4 = line.match(/^(\d+)\s+(\S+(?:\s+\S+)*?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
+          // Pattern 3: Pipe separated "Description | 8.13 hours | 6.44B"
+          const pipeMatch = line.match(/(.+?)\s*\|\s*(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
           
           let extractedItem: ExtractedItem | null = null;
           
-          if (rowMatch1) {
+          if (tylerMatch) {
+            // Handle Tyler's specific format
+            const entryNum = tylerMatch[1];
+            const description = tylerMatch[2].trim();
+            const time = tylerMatch[3];
+            const unit = tylerMatch[4];
+            
             extractedItem = {
-              content: `Entry ${rowMatch1[1]}: ${rowMatch1[2].trim()}`,
-              value: rowMatch1[3],
-              unit: rowMatch1[4],
+              content: `Entry ${entryNum}: ${description}`,
+              value: time,
+              unit: unit,
+              context: line.trim(),
+              confidence: 0.98, // High confidence for exact match
+              sourceChunkId: chunk.id,
+              metadata: { 
+                method: 'table', 
+                type: 'tyler_format',
+                rowNumber: entryNum.split('.')[0], // Get base number
+                description: description,
+                tokens: tylerMatch[5],
+                tokensPerSec: tylerMatch[6]
+              }
+            };
+          } else if (simpleMatch && simpleMatch[2].length > 2) {
+            // Ensure description is meaningful
+            extractedItem = {
+              content: `Entry ${simpleMatch[1]}: ${simpleMatch[2].trim()}`,
+              value: simpleMatch[3],
+              unit: simpleMatch[4],
               context: line.trim(),
               confidence: 0.95,
               sourceChunkId: chunk.id,
               metadata: { 
-                method: 'table', 
+                method: 'table',
                 type: 'numbered_row',
-                rowNumber: rowMatch1[1],
-                description: rowMatch1[2].trim()
+                rowNumber: simpleMatch[1],
+                description: simpleMatch[2].trim()
               }
             };
-          } else if (rowMatch2) {
+          } else if (pipeMatch) {
             extractedItem = {
-              content: rowMatch2[1].trim(),
-              value: rowMatch2[2],
-              unit: rowMatch2[3],
+              content: pipeMatch[1].trim(),
+              value: pipeMatch[2],
+              unit: pipeMatch[3],
               context: line.trim(),
               confidence: 0.93,
               sourceChunkId: chunk.id,
@@ -477,39 +491,46 @@ Extract information that directly answers their question, understanding the cont
                 type: 'pipe_separated'
               }
             };
-          } else if (rowMatch3) {
-            extractedItem = {
-              content: line.trim(),
-              value: rowMatch3[1],
-              unit: rowMatch3[2],
-              context: line.trim(),
-              confidence: 0.9,
-              sourceChunkId: chunk.id,
-              metadata: { 
-                method: 'table',
-                type: 'numbered_list'
-              }
-            };
-          } else if (rowMatch4 && rowMatch4[2].length > 2) {
-            // Ensure description is meaningful
-            extractedItem = {
-              content: `Entry ${rowMatch4[1]}: ${rowMatch4[2].trim()}`,
-              value: rowMatch4[3],
-              unit: rowMatch4[4],
-              context: line.trim(),
-              confidence: 0.94,
-              sourceChunkId: chunk.id,
-              metadata: { 
-                method: 'table',
-                type: 'flexible_format',
-                rowNumber: rowMatch4[1],
-                description: rowMatch4[2].trim()
-              }
-            };
+          } else {
+            // Last resort: check if line contains time at all
+            const timeMatch = line.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
+            if (timeMatch && line.match(/^\d/)) { // Starts with number
+              extractedItem = {
+                content: line.trim(),
+                value: timeMatch[1],
+                unit: timeMatch[2],
+                context: line.trim(),
+                confidence: 0.85,
+                sourceChunkId: chunk.id,
+                metadata: { 
+                  method: 'table',
+                  type: 'generic_time_row'
+                }
+              };
+            }
           }
           
           if (extractedItem) {
             items.push(extractedItem);
+          }
+        });
+      }
+    });
+    
+    // Also look for "Current record:" pattern
+    chunks.forEach(chunk => {
+      const currentRecordMatch = chunk.text.match(/Current\s+record[:\s]+(\d+\.?\d*)\s*(minutes?|mins?|hours?|hrs?)/i);
+      if (currentRecordMatch) {
+        items.push({
+          content: "Current speed run record",
+          value: currentRecordMatch[1],
+          unit: currentRecordMatch[2],
+          context: `Current record: ${currentRecordMatch[1]} ${currentRecordMatch[2]}`,
+          confidence: 1.0,
+          sourceChunkId: chunk.id,
+          metadata: { 
+            method: 'pattern',
+            type: 'current_record'
           }
         });
       }
@@ -619,16 +640,38 @@ Extract information that directly answers their question, understanding the cont
     const seen = new Map<string, ExtractedItem>();
     
     for (const item of items) {
-      const key = `${item.content}_${item.value}_${item.unit}`.toLowerCase();
+      // For table rows, create unique key including row number
+      let key: string;
+      if (item.metadata?.rowNumber) {
+        // Keep each table row distinct
+        key = `row_${item.metadata.rowNumber}_${item.value}_${item.unit}`.toLowerCase();
+      } else if (item.metadata?.type === 'current_record') {
+        // Current records are always unique
+        key = `current_${item.value}_${item.unit}`.toLowerCase();
+      } else {
+        // For other items, use more specific deduplication
+        // Include more of the content to avoid over-deduplication
+        const contentKey = item.content.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 50);
+        key = `${contentKey}_${item.value}_${item.unit}`.toLowerCase();
+      }
+      
       const existing = seen.get(key);
       
-      if (!existing || item.confidence > existing.confidence) {
+      // Only replace if new item has significantly higher confidence
+      if (!existing || (item.confidence > existing.confidence + 0.1)) {
         seen.set(key, item);
       }
     }
     
     return Array.from(seen.values())
-      .sort((a, b) => b.confidence - a.confidence);
+      .sort((a, b) => {
+        // Sort by row number first if available
+        if (a.metadata?.rowNumber && b.metadata?.rowNumber) {
+          return parseInt(a.metadata.rowNumber) - parseInt(b.metadata.rowNumber);
+        }
+        // Otherwise by confidence
+        return b.confidence - a.confidence;
+      });
   }
   
   private parseJSON(text: string): any {

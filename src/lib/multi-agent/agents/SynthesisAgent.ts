@@ -880,65 +880,62 @@ No relevant information was found in the available documents that matches your q
   private filterByIntent(context: ResearchContext, groupedItems: any[]): any[] {
     const query = context.query.toLowerCase();
     
-    // First, filter out irrelevant/empty responses
+    // Minimal filtering - only remove clearly irrelevant items
     let filtered = groupedItems.filter(group => {
       const item = group.bestItem;
       const content = item.content.toLowerCase();
       
-      // Filter out "no information found" type responses
+      // Only filter out explicit "no information found" responses
       const irrelevantPatterns = [
         'no relevant information found',
         'no information about',
-        'does not mention',
-        'there is no mention',
-        'no content related to',
-        'no tyler',
-        'not mentioned',
-        'the text provided does not',
-        'the provided text discusses',
-        'if.*refers to.*they are excluded'
+        'there is no mention'
       ];
       
-      const isIrrelevant = irrelevantPatterns.some(pattern => {
-        return content.includes(pattern) || new RegExp(pattern).test(content);
-      });
+      const isIrrelevant = irrelevantPatterns.some(pattern => content.includes(pattern));
       
       if (isIrrelevant) {
-        console.log(`🗑️ Filtering out irrelevant response: "${item.content.substring(0, 100)}..."`);
+        console.log(`🗑️ Filtering out no-info response: "${item.content.substring(0, 50)}..."`);
         return false;
       }
       
       return true;
     });
     
-    // For speed runs, filter out performance metrics
-    if (query.includes('speed run') || query.includes('runs')) {
+    // For speed runs, be very inclusive - keep ALL time-based data
+    if (query.includes('speed run') || query.includes('runs') || query.includes('top')) {
+      // Don't filter out anything with time values
       filtered = filtered.filter(group => {
         const item = group.bestItem;
-        const content = item.content.toLowerCase();
         const unit = (item.unit || '').toLowerCase();
         
-        // Exclude performance metrics
-        if (unit.includes('tokens') || unit.includes('tok/s') || unit.includes('/s')) {
-          console.log(`🗑️ Filtering out performance metric: "${item.content.substring(0, 50)}..." (${unit})`);
-          return false;
-        }
-        
-        // Include time-based metrics
+        // Keep ALL time-based metrics
         if (unit.includes('hour') || unit.includes('minute') || unit.includes('second')) {
           return true;
         }
         
-        // Include if content suggests a run
-        if (content.includes('run') || content.includes('attempt') || content.includes('complet')) {
+        // Keep table data
+        if (item.metadata?.type === 'table_row' || item.metadata?.method === 'table') {
           return true;
         }
         
-        return false;
+        // Keep entries
+        if (item.content.toLowerCase().includes('entry')) {
+          return true;
+        }
+        
+        // Only exclude pure performance metrics
+        if (unit.includes('tokens/s') || unit.includes('tok/s')) {
+          console.log(`🗑️ Filtering out tokens/s metric: "${item.content.substring(0, 50)}..."`);
+          return false;
+        }
+        
+        // Keep everything else for ranking queries
+        return true;
       });
     }
     
-    console.log(`📊 Filtered items: ${groupedItems.length} → ${filtered.length} (removed ${groupedItems.length - filtered.length} irrelevant)`);
+    console.log(`📊 Minimal filtering: ${groupedItems.length} → ${filtered.length} (kept ${Math.round(filtered.length / groupedItems.length * 100)}%)`);
     return filtered;
   }
   
