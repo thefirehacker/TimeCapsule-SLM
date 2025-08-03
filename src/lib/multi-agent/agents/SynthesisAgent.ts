@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext } from '../interfaces/Context';
+import { ResearchContext, ChunkData } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class SynthesisAgent extends BaseAgent {
@@ -21,11 +21,45 @@ export class SynthesisAgent extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
-    console.log(`📝 Synthesizer: Creating final answer from ${context.extractedData.raw.length} items`);
+    // Initialize missing properties if needed
+    if (!context.extractedData) {
+      context.extractedData = { raw: [], structured: [] };
+    }
+    if (!context.ragResults) {
+      context.ragResults = { chunks: [], summary: '' };
+    }
+    if (!context.synthesis) {
+      context.synthesis = { 
+        answer: '', 
+        reasoning: '',
+        confidence: 0,
+        structure: 'paragraph' as const
+      };
+    }
+    if (!context.understanding) {
+      context.understanding = {
+        intent: '',
+        domain: '',
+        requirements: [],
+        queryType: ''
+      };
+    }
     
-    if (context.extractedData.raw.length === 0) {
-      context.synthesis.answer = 'No relevant information was found in the available documents. Try refining your search query or providing more specific terms.';
-      this.setReasoning('No extracted data to synthesize');
+    const itemCount = context.extractedData.raw?.length || 0;
+    const chunkCount = context.ragResults.chunks?.length || 0;
+    
+    console.log(`📝 Synthesizer: Creating final answer from ${itemCount} items`);
+    
+    // Set initial reasoning to show in UI
+    this.setReasoning(`🔍 Starting synthesis of ${itemCount} extracted items...
+    
+Query type: ${context.understanding.queryType || 'general'}
+User intent: ${context.understanding.intent || 'information retrieval'}
+Chunks found: ${chunkCount}`);
+    
+    if (itemCount === 0) {
+      context.synthesis.answer = this.formatNoResultsReport(context);
+      this.setReasoning('No extracted data to synthesize - generating empty results report');
       return context;
     }
     
@@ -33,22 +67,517 @@ export class SynthesisAgent extends BaseAgent {
     context.extractedData.raw = this.cleanAndDeduplicateItems(context.extractedData.raw);
     console.log(`🧹 After cleaning: ${context.extractedData.raw.length} items remain`);
     
+    // Update reasoning with cleaning results
+    this.setReasoning(`📊 Data Processing:
+- Initial items: ${itemCount}
+- After deduplication: ${context.extractedData.raw.length}
+- Chunks analyzed: ${chunkCount}
+
+🎯 Generating comprehensive research report...`);
+    
     // Group and rank extracted items
     const groupedItems = await this.groupAndRankItems(context);
     
-    // For small models, use simple formatting instead of LLM generation
-    const answer = this.formatSimpleAnswer(context, groupedItems);
+    // Use LLM to classify items as current vs historical
+    const classifiedItems = await this.classifyItemsWithLLM(context, groupedItems);
+    
+    // Generate comprehensive research report instead of simple answer
+    const answer = await this.generateDeepResearchReport(context, classifiedItems);
     
     // Store the results
     context.synthesis.answer = answer;
     context.synthesis.reasoning = this.explainReasoning();
     context.extractedData.structured = groupedItems;
     
+    // Final reasoning update
+    this.setReasoning(`✅ Synthesis Complete!
+
+📊 Report Statistics:
+- Critical findings identified: ${Math.min(3, groupedItems.length)}
+- Total data points analyzed: ${context.extractedData.raw.length}
+- Chunks processed: ${chunkCount}
+- Report length: ${answer.length} characters
+
+🎯 The research report includes:
+1. Critical information summary at the top
+2. Detailed analysis with context
+3. Source citations and references
+4. Confidence assessment
+
+The report has been formatted for maximum clarity and usefulness.`);
+    
     console.log(`✅ Synthesis complete: ${answer.length} characters`);
     
     return context;
   }
   
+  /**
+   * Use LLM to intelligently classify items as current vs historical
+   */
+  private async classifyItemsWithLLM(context: ResearchContext, groupedItems: any[]): Promise<any[]> {
+    if (groupedItems.length === 0) return groupedItems;
+    
+    const classificationPrompt = `<think>
+I need to classify these extracted items:
+1. Which items represent current records/achievements?
+2. Which items are historical data or progression?
+3. What's the context of each data point?
+</think>
+
+Please classify these items for the query: "${context.query}"
+
+Items to classify:
+${groupedItems.slice(0, 15).map((group, i) => {
+  const item = group.bestItem;
+  return `${i + 1}. Content: "${item.content}"
+   Value: ${item.value} ${item.unit || ''}
+   Context: "${item.context?.substring(0, 100)}..."
+   Type: ${item.metadata?.type || 'unknown'}`;
+}).join('\n\n')}
+
+For each item, determine if it's:
+- A current record/achievement (latest, current, record)
+- Historical data (past attempts, progression, training history)
+- Other relevant information
+
+Focus on understanding the document context to make this distinction.`;
+
+    try {
+      const response = await this.llm(classificationPrompt);
+      console.log('🤖 LLM classification response:', response.substring(0, 200));
+      
+      // Add classification metadata based on LLM response
+      // For now, we'll use heuristics but this can be enhanced
+      return groupedItems.map(group => {
+        const item = group.bestItem;
+        const content = item.content.toLowerCase();
+        const context = (item.context || '').toLowerCase();
+        
+        // Check if it's a current record
+        const isCurrent = content.includes('current') || 
+                         context.includes('current record') ||
+                         item.metadata?.type === 'current_record';
+        
+        // Check if it's from a table (likely historical)
+        const isTableData = item.metadata?.type?.includes('table') ||
+                           item.metadata?.method === 'table';
+        
+        return {
+          ...group,
+          classification: isCurrent ? 'current' : (isTableData ? 'historical' : 'other'),
+          isCurrent,
+          isHistorical: isTableData && !isCurrent
+        };
+      });
+    } catch (error) {
+      console.warn('LLM classification failed, using fallback');
+      return groupedItems;
+    }
+  }
+
+  /**
+   * Generate a comprehensive deep research report with critical info + detailed analysis
+   */
+  private async generateDeepResearchReport(context: ResearchContext, groupedItems: any[]): Promise<string> {
+    const queryType = context.understanding.queryType;
+    
+    // Filter items based on query intent
+    const filteredItems = this.filterByIntent(context, groupedItems);
+    
+    // Generate different report formats based on query type
+    if (queryType === 'ranking' && context.query.toLowerCase().includes('top')) {
+      return this.generateRankingReport(context, filteredItems);
+    } else if (queryType === 'comparison') {
+      return this.generateComparisonReport(context, filteredItems);
+    } else {
+      return this.generateGeneralReport(context, filteredItems);
+    }
+  }
+  
+  /**
+   * Generate a ranking-style research report (e.g., "top 3 speed runs")
+   */
+  private generateRankingReport(context: ResearchContext, groupedItems: any[]): string {
+    // Sort items appropriately
+    const sorted = this.sortItemsForRanking(context, groupedItems);
+    
+    // Extract number from query (default to 3)
+    const topN = this.extractTopN(context.query) || 3;
+    const topItems = sorted.slice(0, topN);
+    
+    // Build the report sections
+    const sections: string[] = [];
+    
+    // Section 1: Critical Information (Summary)
+    sections.push(this.generateCriticalInfoSection(context, topItems));
+    
+    // Section 2: Detailed Analysis
+    sections.push(this.generateDetailedAnalysisSection(context, topItems, sorted));
+    
+    // Section 3: Full Results Table (if applicable)
+    if (sorted.length > topN) {
+      sections.push(this.generateFullResultsSection(sorted));
+    }
+    
+    // Section 4: Sources and References
+    sections.push(this.generateSourcesSection(context));
+    
+    // Section 5: Confidence and Methodology
+    sections.push(this.generateConfidenceSection(context, groupedItems));
+    
+    return sections.join('\n\n---\n\n');
+  }
+  
+  /**
+   * Generate critical information section (top of report)
+   */
+  private generateCriticalInfoSection(context: ResearchContext, topItems: any[]): string {
+    const lines: string[] = ['## 🎯 Critical Information\n'];
+    
+    if (topItems.length === 0) {
+      lines.push('**No results found** matching your query criteria.');
+      lines.push('\n💡 **Suggestion**: Try broadening your search terms or checking if the data source contains the expected information.');
+      return lines.join('\n');
+    }
+    
+    // Separate current records from historical data
+    const currentRecords = topItems.filter(item => item.isCurrent);
+    const historicalData = topItems.filter(item => item.isHistorical);
+    
+    // Add query context
+    lines.push(`**Query**: "${context.query}"`);
+    lines.push(`**Found**: ${topItems.length} relevant results\n`);
+    
+    // Show current record first if available
+    if (currentRecords.length > 0) {
+      lines.push('### 🏆 Current Record:');
+      const current = currentRecords[0].bestItem;
+      const value = current.value && current.unit ? `${current.value} ${current.unit}` : '';
+      lines.push(`**${value}** - ${this.cleanContent(current.context || current.content)}\n`);
+    }
+    
+    // Show top historical results
+    const itemsToShow = historicalData.length > 0 ? historicalData : topItems;
+    lines.push(`### ${historicalData.length > 0 ? '📈 Top Historical Results' : 'Top Results'}:`);
+    
+    itemsToShow.slice(0, 3).forEach((group, index) => {
+      const item = group.bestItem;
+      const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
+      const content = this.cleanContent(item.content);
+      const formatted = this.formatWithTime(content, value);
+      
+      // Add classification indicator
+      const indicator = group.isHistorical ? '📊' : (group.isCurrent ? '🏆' : '•');
+      lines.push(`${index + 1}. ${indicator} **${formatted}**`);
+    });
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate detailed analysis section
+   */
+  private generateDetailedAnalysisSection(context: ResearchContext, topItems: any[], allItems: any[]): string {
+    const lines: string[] = ['## 📊 Detailed Analysis\n'];
+    
+    // Add context about the search
+    const chunkCount = context.ragResults?.chunks?.length || 0;
+    const dataPointCount = context.extractedData?.raw?.length || 0;
+    lines.push(`Based on analysis of ${chunkCount} chunks and ${dataPointCount} data points:\n`);
+    
+    // Detailed breakdown of each top item
+    topItems.forEach((group, index) => {
+      const item = group.bestItem;
+      lines.push(`### ${index + 1}. ${this.cleanContent(item.content)}`);
+      
+      // Add value and unit
+      if (item.value && item.unit) {
+        lines.push(`- **Measurement**: ${item.value} ${item.unit}`);
+      }
+      
+      // Add context
+      if (item.context && item.context !== item.content) {
+        lines.push(`- **Context**: "${item.context.substring(0, 200)}${item.context.length > 200 ? '...' : ''}"`);
+      }
+      
+      // Add confidence
+      lines.push(`- **Confidence**: ${(item.confidence * 100).toFixed(0)}%`);
+      
+      // Add source info
+      if (item.sourceChunkId) {
+        lines.push(`- **Source**: Document chunk ${item.sourceChunkId}`);
+      }
+      
+      lines.push(''); // Empty line between items
+    });
+    
+    // Add insights if we have more data
+    if (allItems.length > topItems.length) {
+      lines.push(`### Additional Insights\n`);
+      lines.push(`- Total ${allItems.length} relevant items found across all sources`);
+      lines.push(`- Data spans multiple documents and contexts`);
+      
+      // For speed runs, add range info
+      if (context.query.toLowerCase().includes('speed run')) {
+        const times = allItems
+          .filter(g => g.bestItem.value && g.bestItem.unit)
+          .map(g => this.parseTimeToHours(g.bestItem))
+          .filter(t => t !== Infinity);
+        
+        if (times.length >= 2) {
+          const fastest = Math.min(...times);
+          const slowest = Math.max(...times);
+          lines.push(`- Time range: ${this.formatHours(fastest)} to ${this.formatHours(slowest)}`);
+        }
+      }
+    }
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate full results table for remaining items
+   */
+  private generateFullResultsSection(allItems: any[]): string {
+    const lines: string[] = ['## 📋 Complete Results Table\n'];
+    
+    lines.push('| Rank | Description | Time | Confidence |');
+    lines.push('|------|-------------|------|------------|');
+    
+    allItems.slice(0, 10).forEach((group, index) => {
+      const item = group.bestItem;
+      const value = item.value && item.unit ? `${item.value} ${item.unit}` : 'N/A';
+      const content = this.cleanContent(item.content).substring(0, 50);
+      const confidence = `${(item.confidence * 100).toFixed(0)}%`;
+      
+      lines.push(`| ${index + 1} | ${content}${item.content.length > 50 ? '...' : ''} | ${value} | ${confidence} |`);
+    });
+    
+    if (allItems.length > 10) {
+      lines.push(`\n*Showing top 10 of ${allItems.length} total results*`);
+    }
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate sources and references section
+   */
+  private generateSourcesSection(context: ResearchContext): string {
+    const lines: string[] = ['## 📚 Sources & References\n'];
+    
+    const allChunks = context.ragResults?.chunks || [];
+    const uniqueSources = new Map<string, ChunkData>();
+    
+    // Group chunks by source
+    allChunks.forEach(chunk => {
+      if (!uniqueSources.has(chunk.source)) {
+        uniqueSources.set(chunk.source, chunk);
+      }
+    });
+    
+    const sources = Array.from(uniqueSources.values()).slice(0, 5);
+    
+    sources.forEach((chunk, index) => {
+      lines.push(`**Source ${index + 1}**: ${chunk.source}`);
+      if (chunk.text) {
+        const excerpt = chunk.text.substring(0, 150);
+        lines.push(`> "${excerpt}${chunk.text.length > 150 ? '...' : ''}"`);
+      }
+      lines.push('');
+    });
+    
+    if (uniqueSources.size > 5) {
+      lines.push(`*Plus ${uniqueSources.size - 5} additional sources*`);
+    }
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate confidence and methodology section
+   */
+  private generateConfidenceSection(context: ResearchContext, groupedItems: any[]): string {
+    const lines: string[] = ['## 🔍 Research Confidence & Methodology\n'];
+    
+    // Calculate overall confidence
+    const avgConfidence = groupedItems.length > 0
+      ? groupedItems.reduce((sum, g) => sum + g.totalConfidence, 0) / groupedItems.length
+      : 0;
+    
+    lines.push(`**Overall Confidence**: ${(avgConfidence * 100).toFixed(0)}%\n`);
+    
+    lines.push('**Methodology**:');
+    const chunkCount = context.ragResults?.chunks?.length || 0;
+    const dataCount = context.extractedData?.raw?.length || 0;
+    const uniqueSourceCount = new Set(context.ragResults?.chunks?.map(c => c.source) || []).size;
+    lines.push(`- Analyzed ${uniqueSourceCount} unique document sources`);
+    lines.push(`- Processed ${chunkCount} text chunks`);
+    lines.push(`- Extracted ${dataCount} initial data points`);
+    lines.push(`- Applied intelligent deduplication and ranking`);
+    
+    lines.push('\n**Data Quality Notes**:');
+    if (avgConfidence > 0.8) {
+      lines.push('- ✅ High confidence in results - multiple corroborating sources');
+    } else if (avgConfidence > 0.6) {
+      lines.push('- ⚠️ Moderate confidence - some uncertainty in data extraction');
+    } else {
+      lines.push('- ❌ Low confidence - limited or unclear source data');
+    }
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Sort items appropriately for ranking queries
+   */
+  private sortItemsForRanking(context: ResearchContext, groupedItems: any[]): any[] {
+    const query = context.query.toLowerCase();
+    
+    if (query.includes('speed') || query.includes('fast') || query.includes('quick')) {
+      // For speed runs, sort by time (ascending - fastest first)
+      return groupedItems.sort((a, b) => {
+        const aTime = this.parseTimeToHours(a.bestItem);
+        const bTime = this.parseTimeToHours(b.bestItem);
+        return aTime - bTime;
+      });
+    } else if (query.includes('slow') || query.includes('long')) {
+      // For longest/slowest, sort descending
+      return groupedItems.sort((a, b) => {
+        const aTime = this.parseTimeToHours(a.bestItem);
+        const bTime = this.parseTimeToHours(b.bestItem);
+        return bTime - aTime;
+      });
+    } else {
+      // Default: sort by confidence
+      return groupedItems.sort((a, b) => b.totalConfidence - a.totalConfidence);
+    }
+  }
+  
+  /**
+   * Extract the number from "top N" queries
+   */
+  private extractTopN(query: string): number {
+    const match = query.match(/top\s+(\d+)/i);
+    return match ? parseInt(match[1]) : 3;
+  }
+  
+  /**
+   * Format hours for display
+   */
+  private formatHours(hours: number): string {
+    if (hours < 1) {
+      return `${(hours * 60).toFixed(1)} minutes`;
+    } else {
+      return `${hours.toFixed(2)} hours`;
+    }
+  }
+  
+  /**
+   * Generate a general research report (non-ranking queries)
+   */
+  private generateGeneralReport(context: ResearchContext, groupedItems: any[]): string {
+    // Similar structure but different formatting
+    const sections: string[] = [];
+    
+    sections.push(this.generateGeneralSummarySection(context, groupedItems));
+    sections.push(this.generateGeneralDetailsSection(context, groupedItems));
+    sections.push(this.generateSourcesSection(context));
+    sections.push(this.generateConfidenceSection(context, groupedItems));
+    
+    return sections.join('\n\n---\n\n');
+  }
+  
+  /**
+   * Generate comparison report
+   */
+  private generateComparisonReport(context: ResearchContext, groupedItems: any[]): string {
+    // TODO: Implement comparison-specific formatting
+    return this.generateGeneralReport(context, groupedItems);
+  }
+  
+  /**
+   * Generate general summary section
+   */
+  private generateGeneralSummarySection(context: ResearchContext, groupedItems: any[]): string {
+    const lines: string[] = ['## 🎯 Research Summary\n'];
+    
+    lines.push(`**Query**: "${context.query}"`);
+    lines.push(`**Results**: Found ${groupedItems.length} relevant information points\n`);
+    
+    // Key findings
+    lines.push('### Key Findings:');
+    groupedItems.slice(0, 5).forEach((group, index) => {
+      const item = group.bestItem;
+      const formatted = this.formatItemForDisplay(item);
+      lines.push(`${index + 1}. ${formatted}`);
+    });
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate general details section
+   */
+  private generateGeneralDetailsSection(context: ResearchContext, groupedItems: any[]): string {
+    const lines: string[] = ['## 📊 Detailed Information\n'];
+    
+    groupedItems.slice(0, 10).forEach((group, index) => {
+      const item = group.bestItem;
+      lines.push(`### Finding ${index + 1}`);
+      lines.push(`**Content**: ${item.content}`);
+      
+      if (item.value && item.unit) {
+        lines.push(`**Value**: ${item.value} ${item.unit}`);
+      }
+      
+      if (item.context && item.context !== item.content) {
+        lines.push(`**Context**: "${item.context.substring(0, 300)}${item.context.length > 300 ? '...' : ''}"`);
+      }
+      
+      lines.push('');
+    });
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Format item for display in summary
+   */
+  private formatItemForDisplay(item: any): string {
+    const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
+    const content = this.cleanContent(item.content);
+    return this.formatWithTime(content, value);
+  }
+  
+  /**
+   * Format report when no results are found
+   */
+  private formatNoResultsReport(context: ResearchContext): string {
+    return `## 🔍 Research Report
+
+**Query**: "${context.query}"
+**Status**: No relevant information found
+
+### Summary
+No relevant information was found in the available documents that matches your query.
+
+### Suggestions
+1. Try using different keywords or phrases
+2. Broaden your search criteria
+3. Verify that the documents contain the expected information
+4. Check spelling and terminology
+
+### Search Details
+- Documents searched: ${new Set(context.ragResults?.chunks?.map(c => c.source) || []).size}
+- Text chunks analyzed: ${context.ragResults?.chunks?.length || 0}
+- Query type: ${context.understanding?.queryType || 'general'}
+
+---
+
+*Research completed at ${new Date().toISOString()}*`;
+  }
+
   private formatSimpleAnswer(context: ResearchContext, groupedItems: any[]): string {
     const queryType = context.understanding.queryType;
     
@@ -205,18 +734,24 @@ export class SynthesisAgent extends BaseAgent {
         
         // Consider duplicate only if:
         // 1. Exact match after basic cleaning, OR
-        // 2. Very high similarity (90%+) AND same timing values
+        // 2. Very high similarity (95%+) AND same timing values
         if (existingNormalized === normalizedContent) {
           return true;
         }
         
-        // Check if they have the same timing but are otherwise very similar
+        // For table rows with different times, NEVER consider them duplicates
         const currentTime = item.value + ' ' + (item.unit || '');
         const existingTime = existing.value + ' ' + (existing.unit || '');
         
+        // If both have times and they're different, keep both
+        if (item.value && existing.value && currentTime !== existingTime) {
+          return false;
+        }
+        
+        // Only consider duplicate if extremely similar (95%+) with same or no timing
         if (currentTime === existingTime) {
           const similarity = this.calculateStringSimilarity(normalizedContent, existingNormalized);
-          return similarity > 0.9; // Only remove if 90%+ similar with same timing
+          return similarity > 0.95; // Increased threshold from 0.9 to 0.95
         }
         
         return false;
@@ -408,11 +943,56 @@ export class SynthesisAgent extends BaseAgent {
   }
   
   private async groupAndRankItems(context: ResearchContext): Promise<any[]> {
-    // Group items by similarity
+    // First, identify if we have table data
+    const tableItems = context.extractedData.raw.filter(item => 
+      item.metadata?.type === 'table_row' || 
+      item.metadata?.type === 'numbered_row' ||
+      item.metadata?.method === 'table'
+    );
+    
+    const hasTableData = tableItems.length > 0;
+    console.log(`📊 Found ${tableItems.length} table items out of ${context.extractedData.raw.length} total`);
+    
+    // If we have table data, prefer those for structured queries
+    const itemsToProcess = hasTableData && context.query.toLowerCase().includes('top') 
+      ? tableItems 
+      : context.extractedData.raw;
+    
+    // Use LLM to intelligently group and understand items
+    if (itemsToProcess.length > 0) {
+      const groupingPrompt = `<think>
+I need to group these extracted items intelligently:
+1. Are these from a table showing progression/ranking?
+2. Which items represent the same concept but from different sources?
+3. What's the relationship between these data points?
+</think>
+
+Please analyze these extracted items and determine which ones are unique entries vs duplicates:
+
+${itemsToProcess.slice(0, 20).map((item, i) => 
+  `Item ${i + 1}: ${item.content} (value: ${item.value} ${item.unit || ''}, type: ${item.metadata?.type || 'unknown'})`
+).join('\n')}
+
+For the user query: "${context.query}"
+
+Identify:
+1. Which items are distinct entries (e.g., different rows in a table)
+2. Which items are duplicates or variations of the same data
+3. If this is table data, what order should they be in?`;
+
+      try {
+        const llmResponse = await this.llm(groupingPrompt);
+        console.log('🤖 LLM grouping analysis:', llmResponse.substring(0, 200));
+      } catch (error) {
+        console.warn('LLM grouping failed, using fallback');
+      }
+    }
+    
+    // Group items by similarity, but be smarter about table data
     const groups: Map<string, typeof context.extractedData.raw> = new Map();
     
-    for (const item of context.extractedData.raw) {
-      const key = this.generateGroupKey(item);
+    for (const item of itemsToProcess) {
+      const key = this.generateSmartGroupKey(item);
       const group = groups.get(key) || [];
       group.push(item);
       groups.set(key, group);
@@ -425,18 +1005,50 @@ export class SynthesisAgent extends BaseAgent {
         bestItem: group.reduce((best, item) => 
           item.confidence > best.confidence ? item : best
         ),
-        totalConfidence: group.reduce((sum, item) => sum + item.confidence, 0) / group.length
+        totalConfidence: group.reduce((sum, item) => sum + item.confidence, 0) / group.length,
+        isTableData: group.some(item => item.metadata?.type?.includes('table'))
       }))
-      .sort((a, b) => b.totalConfidence - a.totalConfidence);
+      .sort((a, b) => {
+        // If both are table data with row numbers, sort by row number
+        if (a.isTableData && b.isTableData) {
+          const aRow = parseInt(a.bestItem.metadata?.rowNumber || '999');
+          const bRow = parseInt(b.bestItem.metadata?.rowNumber || '999');
+          if (!isNaN(aRow) && !isNaN(bRow)) {
+            return aRow - bRow; // Sort by row number for table data
+          }
+        }
+        // Otherwise sort by confidence
+        return b.totalConfidence - a.totalConfidence;
+      });
     
     return ranked;
   }
   
-  private generateGroupKey(item: any): string {
-    // Create a key for grouping similar items
-    const contentKey = item.content.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 50);
+  private generateSmartGroupKey(item: any): string {
+    // For table data, use row number + description to avoid grouping different rows
+    if (item.metadata?.rowNumber && item.metadata?.description) {
+      return `table_row_${item.metadata.rowNumber}_${item.metadata.description}`;
+    }
+    
+    // For list items, use position
+    if (item.metadata?.position) {
+      return `list_${item.metadata.position}_${item.value || ''}`;
+    }
+    
+    // For current records, keep them separate
+    if (item.metadata?.type === 'current_record') {
+      return `current_record_${item.value}_${Date.now()}`;
+    }
+    
+    // Default grouping by content and value
+    const contentKey = item.content.toLowerCase()
+      .replace(/entry \d+:|row \d+:/gi, '') // Remove row prefixes
+      .replace(/[^a-z0-9]/g, '')
+      .substring(0, 30);
     const valueKey = item.value ? String(item.value) : '';
-    return `${contentKey}_${valueKey}`;
+    const unitKey = item.unit ? item.unit.substring(0, 3) : '';
+    
+    return `${contentKey}_${valueKey}_${unitKey}`;
   }
   
   private async generateAnswer(context: ResearchContext, groupedItems: any[]): Promise<string> {

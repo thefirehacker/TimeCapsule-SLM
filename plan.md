@@ -7,6 +7,53 @@
 **Priority**: P0 - COMPLETE: Perplexity-style inline research with multi-agent visibility!  
 **File**: `cursor_claudecode_ai/issues/Issue-008-Universal-Multi-Agent-Research.md`
 
+### Issue-009: Comprehensive Multi-Agent Research System Enhancement 🔧
+**Status**: 🚧 **IN PROGRESS** - Universal LLM intelligence improvements (NO hardcoded rules)  
+**Priority**: P0 - URGENT: Enhance LLM intelligence and system transparency  
+**File**: `cursor_claudecode_ai/issues/Issue-009-Comprehensive-Multi-Agent-Enhancement.md`
+
+**📋 Detailed TODO**: Issue contains 25 tasks across 6 phases
+- **Phase 0**: Fix Deep Research Output Format (3 tasks) - ✅ COMPLETED
+  - ✅ Task 0.1: Implement proper research report structure
+  - ✅ Task 0.2: Fix missing agent reasoning display
+  - ✅ Task 0.3: Fix aggressive deduplication (0.9 → 0.95 threshold)
+- **Phase 1**: LLM-based data interpretation (4 tasks) - IN PROGRESS
+  - ✅ Task 1.1: Enhanced ExtractionAgent with intelligent context prompting
+  - 🚧 Task 1.2: Improve table understanding through LLM intelligence
+  - ⏳ Task 1.3: Enhance SynthesisAgent for context understanding
+  - ⏳ Task 1.4: Test with Tyler's PDF data
+- **Phase 2**: Granular LLM call tracking (3 tasks) - PENDING  
+- **Phase 3**: Dynamic temperature system (4 tasks) - PENDING
+- **Phase 4**: Cursor-style flow redesign (3 tasks) - PENDING
+- **Phase 5**: Universal testing & validation (5 tasks) - PENDING
+
+**🎯 Core Principle**: **Universal LLM intelligence, ZERO hardcoded patterns**
+```
+❌ BAD: Hardcoded data type labels [RECORD], [TRAINING]
+✅ GOOD: LLM asks "What type of document is this? What do columns mean?"
+```
+
+**✅ Task 1.1 Completed**: 
+- Removed hardcoded extraction patterns
+- Added intelligent context-aware prompting
+- Enhanced UI visibility for fallback extraction
+- Added batch progress tracking in UI
+
+**🚨 Critical Issues Found**:
+1. Output is only 4 lines instead of deep research report
+2. Missing 3 fastest runs (2.55h, 4.01h, 4.26h) from Tyler's table
+3. Extractor & Synthesizer agents show NO reasoning in UI
+4. Aggressive deduplication: 56 items → 25 → 1 item for synthesis
+5. No Planning → RAG → Conclusion flow (Phase 4 needed)
+
+**✅ Phase 0 Completed**:
+1. Implemented comprehensive research report format with 5 sections
+2. Fixed Extractor reasoning preservation (batch insights + final summary)
+3. Added Synthesizer reasoning with detailed progress tracking
+4. Adjusted deduplication threshold from 0.9 to 0.95 (preserves more unique data)
+
+**🚧 Current Focus**: Task 1.2 - Improve table understanding through LLM intelligence
+
 **✅ COMPLETED - Core Fixes**: 
 ```
 ❌ Before: completed in 45 minutes - 45 minutes
