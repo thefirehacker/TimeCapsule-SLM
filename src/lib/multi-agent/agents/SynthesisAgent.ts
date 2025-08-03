@@ -50,6 +50,13 @@ export class SynthesisAgent extends BaseAgent {
     
     console.log(`📝 Synthesizer: Creating final answer from ${itemCount} items`);
     
+    // Debug log time-based items
+    const timeItems = context.extractedData.raw.filter(item => item.value && item.unit);
+    console.log(`⏱️ Time-based items received: ${timeItems.length}`);
+    timeItems.slice(0, 6).forEach((item, i) => {
+      console.log(`  ${i + 1}. ${item.content} → ${item.value} ${item.unit}`);
+    });
+    
     // Set initial reasoning to show in UI
     this.setReasoning(`🔍 Starting synthesis of ${itemCount} extracted items...
     
@@ -436,11 +443,20 @@ Focus on understanding the document context to make this distinction.`;
     
     if (query.includes('speed') || query.includes('fast') || query.includes('quick')) {
       // For speed runs, sort by time (ascending - fastest first)
-      return groupedItems.sort((a, b) => {
+      const sorted = groupedItems.sort((a, b) => {
         const aTime = this.parseTimeToHours(a.bestItem);
         const bTime = this.parseTimeToHours(b.bestItem);
         return aTime - bTime;
       });
+      
+      // Debug logging
+      console.log('🏁 Speed run sorting:');
+      sorted.slice(0, 6).forEach((item, i) => {
+        const time = this.parseTimeToHours(item.bestItem);
+        console.log(`  ${i + 1}. ${item.bestItem.content} → ${item.bestItem.value} ${item.bestItem.unit} (${time.toFixed(2)} hours)`);
+      });
+      
+      return sorted;
     } else if (query.includes('slow') || query.includes('long')) {
       // For longest/slowest, sort descending
       return groupedItems.sort((a, b) => {

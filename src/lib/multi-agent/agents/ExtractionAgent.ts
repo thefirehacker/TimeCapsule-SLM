@@ -173,39 +173,30 @@ The extracted data will now be synthesized to answer your query.`);
     batchNumber: number
   ): Promise<ExtractedItem[]> {
     // Direct extraction prompt - no analysis, just extract data
-    const prompt = `EXTRACT ALL DATA from the text below. Do NOT analyze or explain the document type.
+    const prompt = `Extract ALL data from the text below. Start your response IMMEDIATELY with "Entry 1:" or "Current record:" - no other text before that.
 
 User query: "${context.query}"
 
 Text to extract from:
 ${chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n')}
 
-EXTRACTION RULES:
-1. Extract EVERY piece of data you see, especially:
-   - ALL time values (hours, minutes, seconds)
-   - ALL numbered entries or rows
-   - ALL records or achievements
-   - ALL table rows if present
+EXAMPLE of correct extraction from a table:
+Entry 1: Initial baseline - 8.13 hours - 6.44B tokens
+Entry 2: Architectural changes - 7.51 hours - 5.07B tokens
+Entry 3: Muon optimizer - 4.53 hours - 3.04B tokens
+Entry 4: Dataloading tweaks - 4.26 hours - 3.31B tokens
+Entry 5: Logit Soft-capping - 4.01 hours - 3.15B tokens
+Entry 6: Longer Sequence Length - 2.55 hours - 1.88B tokens
+Current record: 3.14 minutes
 
-2. For tables, extract EACH row as:
-   Entry 1: Description - Time value - Other data
-   Entry 2: Description - Time value - Other data
-   etc.
+RULES:
+- Extract EVERY row from tables (all 6+ entries if present)
+- Include ALL time values you find
+- Handle any numbering format (1, 2.1, 2..4.4.4.4.4, etc.)
+- Start immediately with the first entry - no preamble
+- Continue until you've extracted everything
 
-3. Format EXACTLY like these examples:
-   Entry 1: Initial baseline - 8.13 hours - 6.44B tokens
-   Entry 2: Architectural changes - 7.51 hours - 5.07B tokens
-   Entry 3: Muon optimizer - 4.53 hours - 3.04B tokens
-   Current record: 3.14 minutes
-
-4. DO NOT write:
-   - "The document appears to be..."
-   - "This is a table showing..."
-   - "The data structure is..."
-   
-5. JUST LIST THE DATA. Every single piece. No commentary.
-
-Extract everything now:`;
+Start extracting NOW:`;
 
     try {
       const response = await this.llm(prompt);
@@ -257,8 +248,8 @@ Extract information that directly answers their question, understanding the cont
     let cleanResponse = response.trim();
     
     // First, check for our expected "Entry X:" format
-    // Look for patterns like "Entry 1: Initial baseline - 8.13 hours - 6.44B tokens"
-    const entryMatches = cleanResponse.matchAll(/Entry\s*(\d+):\s*(.+?)(?:\n|$)/gi);
+    // Look for patterns like "Entry 1:", "Entry 2..4.4.4.4.4:", etc.
+    const entryMatches = cleanResponse.matchAll(/Entry\s*(\d+(?:\.\.\d+(?:\.\d+)*)?|\d+):\s*(.+?)(?:\n|$)/gi);
     for (const match of entryMatches) {
       const entryContent = match[2].trim();
       const entryNumber = match[1];
@@ -268,6 +259,11 @@ Extract information that directly answers their question, understanding the cont
       if (parts.length >= 2) {
         // Extract time value - be more flexible with the pattern
         const timeMatch = entryContent.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
+        
+        // Extract base entry number for sorting
+        const baseNumber = entryNumber.includes('..') ? 
+          parseInt(entryNumber.split('..')[0]) : 
+          parseInt(entryNumber);
         
         items.push({
           content: `Entry ${entryNumber}: ${parts[0].trim()}`,
@@ -279,7 +275,8 @@ Extract information that directly answers their question, understanding the cont
           metadata: { 
             method: 'llm',
             type: 'table_row',
-            rowNumber: entryNumber,
+            rowNumber: baseNumber.toString(),
+            fullNumber: entryNumber,
             description: parts[0].trim()
           }
         });
@@ -446,6 +443,11 @@ Extract information that directly answers their question, understanding the cont
             const time = tylerMatch[3];
             const unit = tylerMatch[4];
             
+            // Extract base number for sorting
+            const baseNumber = entryNum.includes('..') ? 
+              parseInt(entryNum.split('..')[0]) : 
+              parseInt(entryNum.split('.')[0]);
+            
             extractedItem = {
               content: `Entry ${entryNum}: ${description}`,
               value: time,
@@ -456,7 +458,8 @@ Extract information that directly answers their question, understanding the cont
               metadata: { 
                 method: 'table', 
                 type: 'tyler_format',
-                rowNumber: entryNum.split('.')[0], // Get base number
+                rowNumber: baseNumber.toString(),
+                fullNumber: entryNum,
                 description: description,
                 tokens: tylerMatch[5],
                 tokensPerSec: tylerMatch[6]
