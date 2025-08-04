@@ -21,7 +21,13 @@ export class DataInspectorAgent extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
-    console.log(`🔎 DataInspector: Analyzing ${context.ragResults.chunks.length} chunks`);
+    // Count web sources vs RAG chunks
+    const webSources = context.ragResults.chunks.filter(chunk => 
+      chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
+    ).length;
+    const ragChunks = context.ragResults.chunks.length - webSources;
+    
+    console.log(`🔎 DataInspector: Analyzing ${context.ragResults.chunks.length} sources (${ragChunks} RAG, ${webSources} Web)`);
     
     if (context.ragResults.chunks.length === 0) {
       this.setReasoning('No chunks to analyze');
@@ -37,24 +43,25 @@ export class DataInspectorAgent extends BaseAgent {
   private async inspectWithLLM(context: ResearchContext): Promise<void> {
     const samples = context.ragResults.chunks.slice(0, 3); // First 3 chunks
     
-    const prompt = `Look at this data and tell me what kind of information it contains.
+    // Include source type information
+    const samplesWithType = samples.map((chunk, i) => {
+      const isWeb = chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_');
+      return {
+        chunk,
+        sourceType: isWeb ? 'Web' : 'RAG',
+        sourceName: isWeb ? chunk.metadata?.source : chunk.source
+      };
+    });
+    
+    const prompt = `User wants: "${context.query}"
 
-User is looking for: "${context.query}"
-
-Data samples:
-${samples.map((chunk, i) => `
-Sample ${i + 1}:
-${chunk.text}
+I found this data:
+${samplesWithType.map((item, i) => `
+Source ${i + 1} (${item.sourceType}):
+${item.chunk.text}
 `).join('\n---\n')}
 
-Questions to answer:
-1. What type of data is this? (blog post, documentation, report, etc)
-2. What information relevant to the user's query do you see?
-3. Are there speed run times? (like "Run 1: 3.5 hours")
-4. Are there performance metrics? (like "221k tokens/sec")
-5. How should we extract the relevant information?
-
-Be specific about what you find.`;
+What type of information is this and what's relevant to the user's query?`;
 
     try {
       const response = await this.llm(prompt);
@@ -73,27 +80,27 @@ Be specific about what you find.`;
   }
   
   private updateContextFromInspection(context: ResearchContext, response: string) {
-    const lower = response.toLowerCase();
-    
-    // Update patterns based on what LLM found
+    // Let the LLM determine patterns based on the actual content
     context.patterns = [];
     
-    if (lower.includes('speed run') && lower.includes('time')) {
-      context.patterns.push({
-        description: 'Speed run completion times',
-        examples: ['Run 1: 3.5 hours', 'completed in 45 minutes'],
-        extractionStrategy: 'Look for run numbers followed by time durations',
-        confidence: 0.9
-      });
-    }
-    
-    if (lower.includes('performance') && lower.includes('tokens')) {
-      context.patterns.push({
-        description: 'Performance metrics (to be filtered out)',
-        examples: ['221k tokens/sec'],
-        extractionStrategy: 'Identify but exclude throughput metrics',
-        confidence: 0.8
-      });
+    // Extract patterns from LLM response
+    try {
+      // Try to find pattern descriptions in the response
+      const patternMatches = response.match(/pattern[s]?[:]*([^.\n]+)/gi);
+      const dataTypeMatches = response.match(/data type[s]?[:]*([^.\n]+)/gi);
+      const formatMatches = response.match(/format[s]?[:]*([^.\n]+)/gi);
+      
+      if (patternMatches || dataTypeMatches || formatMatches) {
+        // Create generic patterns based on what LLM found
+        context.patterns.push({
+          description: 'Data patterns identified by analysis',
+          examples: [],
+          extractionStrategy: 'Extract based on identified format and structure',
+          confidence: 0.8
+        });
+      }
+    } catch (e) {
+      console.log('Could not extract specific patterns from LLM response');
     }
     
     console.log(`✅ Generated ${context.patterns.length} patterns from inspection`);

@@ -24,8 +24,10 @@ export interface UnifiedWebSearchResult {
   metadata: {
     searchQuery: string;
     searchTime: number;
+    crawlTime?: number;
     contentLength: number;
     domain: string;
+    scrapingFailed?: boolean;
   };
 }
 

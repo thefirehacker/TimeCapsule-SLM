@@ -149,6 +149,14 @@ export class ResearchOrchestrator {
         }
       }
       
+      // Log collected sources before synthesis
+      console.log(`📚 Total sources collected: ${sources.length}`);
+      console.log(`📊 Source breakdown:`, {
+        rag: sources.filter(s => s.type === 'chunk').length,
+        web: sources.filter(s => s.type === 'web').length,
+        totalContentLength: sources.reduce((sum, s) => sum + (s.excerpt?.length || 0), 0)
+      });
+      
       // Step 4: Synthesize Final Answer
       const synthesisStep = ResearchStepUtils.createSynthesisStep(sources);
       steps.push(synthesisStep);
@@ -239,21 +247,18 @@ export class ResearchOrchestrator {
     
     let response = '';
     try {
-      const planningPrompt = `RESPOND WITH ONLY JSON ARRAY - NOTHING ELSE!
+      const keywords = analysis?.intent?.keywords || [];
+      const keywordContext = keywords.length > 0 ? keywords.join(', ') : query;
+      
+      const planningPrompt = `I need to research: "${query}"
 
-Query: "${query}"
-Available: ${this.config.enableRAGSearch ? 'rag_search' : 'web_search'}
+What steps should I take to find comprehensive information?
 
-EXAMPLE RESPONSE:
-[{"type": "rag_search", "reasoning": "Search knowledge base for query data"}]
+Available options:
+${this.config.enableRAGSearch ? '- Search local knowledge base (rag_search)' : ''}
+${this.config.enableWebSearch ? '- Search the web (web_search)' : ''}
 
-FORBIDDEN:
-- <think> tags
-- explanations 
-- code blocks
-- ANY text except JSON
-
-START YOUR RESPONSE WITH [ and END WITH ]`;
+Suggest research steps with reasoning for each.`;
       
       response = await this.generateContent(planningPrompt);
       const plannedSteps = this.parseJSONResponse(response);
@@ -521,13 +526,29 @@ START YOUR RESPONSE WITH [ and END WITH ]`;
         webContext.results.forEach((result, index) => {
           if (!seenUrls.has(result.url)) {
             seenUrls.add(result.url);
+            
+            // Use scraped content if available, otherwise fall back to description
+            const excerpt = result.content && result.content.length > 50 
+              ? result.content 
+              : result.description || "";
+              
+            const hasFullContent = result.content !== undefined && result.content.length > 50 && !result.metadata?.scrapingFailed;
+            console.log(`🌐 Web source ${index + 1}: ${result.title} - ${hasFullContent ? 'scraped' : 'description only'} (${excerpt.length} chars)`);
+            
             allSources.push({
               id: `web_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 8)}`,
               type: 'web',
               title: result.title,
               source: result.url,
-              excerpt: result.description,
-              url: result.url
+              excerpt: excerpt,
+              url: result.url,
+              metadata: {
+                domain: result.metadata?.domain,
+                hasScrapedContent: hasFullContent,
+                contentLength: result.metadata?.contentLength || excerpt.length,
+                crawlTime: result.metadata?.crawlTime || 0,
+                scrapingFailed: result.metadata?.scrapingFailed
+              }
             });
           }
         });
@@ -1024,85 +1045,86 @@ Answer:`;
   }
   
   /**
-   * Parse JSON response from LLM, handling non-JSON text and malformed step types
+   * Parse response from LLM, handling natural language or JSON
    */
   private parseJSONResponse(response: string): Partial<ResearchStep>[] {
     console.log('🔍 Parsing LLM response:', response.substring(0, 300) + (response.length > 300 ? '...' : ''));
     
-    // Handle <think> tags by extracting JSON after them
-    let cleanResponse = response.trim();
-    
-    if (cleanResponse.includes('<think>') && cleanResponse.includes('</think>')) {
-      console.log('🧠 Found <think> tags, extracting JSON after </think>');
-      const thinkEndIndex = cleanResponse.lastIndexOf('</think>');
-      if (thinkEndIndex !== -1) {
-        cleanResponse = cleanResponse.substring(thinkEndIndex + 8).trim();
-        console.log('✅ Extracted JSON after </think> tags');
+    // First try JSON parsing
+    const jsonMatch = response.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const validSteps = Array.isArray(parsed) ? parsed : [parsed];
+        const processedSteps = validSteps
+          .map(step => this.validateStepType(step))
+          .filter(step => this.isStepAllowed(step));
+        
+        if (processedSteps.length > 0) {
+          console.log(`✅ Successfully parsed ${processedSteps.length} valid steps from JSON`);
+          return processedSteps;
+        }
+      } catch (e) {
+        // Continue to natural language parsing
       }
     }
     
-    try {
-      let parsed: any;
+    // Parse natural language response
+    return this.parseNaturalLanguageSteps(response);
+  }
+  
+  /**
+   * Parse research steps from natural language
+   */
+  private parseNaturalLanguageSteps(response: string): Partial<ResearchStep>[] {
+    const steps: Partial<ResearchStep>[] = [];
+    const lines = response.split('\n').filter(line => line.trim());
+    
+    // Look for numbered steps or bullet points
+    for (const line of lines) {
+      const lowerLine = line.toLowerCase();
       
-      // Strategy 1: Try direct JSON parsing first
-      try {
-        parsed = JSON.parse(cleanResponse);
-      } catch (firstError) {
-        console.log('Direct JSON parsing failed, trying extraction strategies...');
+      // Check if this line describes a research step
+      if (lowerLine.includes('search') || lowerLine.includes('look for') || lowerLine.includes('find')) {
+        let type: 'rag_search' | 'web_search' = 'rag_search';
+        let reasoning = line;
         
-        // Strategy 2: Extract JSON array with proper bracket matching
-        const jsonArray = this.extractJSONArray(cleanResponse);
-        if (jsonArray) {
-          try {
-            parsed = JSON.parse(jsonArray);
-          } catch (arrayError) {
-            console.log('Array extraction failed, trying object extraction...');
-            
-            // Strategy 3: Extract JSON object and wrap in array
-            const jsonObject = this.extractJSONObject(cleanResponse);
-            if (jsonObject) {
-              parsed = JSON.parse(jsonObject);
-              parsed = Array.isArray(parsed) ? parsed : [parsed];
-            } else {
-              throw new Error('No valid JSON found in response after all strategies');
-            }
-          }
-        } else {
-          throw new Error('No JSON array or object found in response');
+        // Determine type
+        if (lowerLine.includes('web') || lowerLine.includes('online') || lowerLine.includes('internet')) {
+          type = 'web_search';
+        } else if (lowerLine.includes('knowledge base') || lowerLine.includes('local') || lowerLine.includes('rag')) {
+          type = 'rag_search';
+        }
+        
+        // Clean up reasoning
+        reasoning = reasoning.replace(/^[\d\-•*\.]\s*/, '').trim();
+        
+        // Only add if allowed
+        if ((type === 'rag_search' && this.config.enableRAGSearch) ||
+            (type === 'web_search' && this.config.enableWebSearch)) {
+          steps.push({ type, reasoning });
         }
       }
-      
-      // Validate and fix step types
-      const validSteps = Array.isArray(parsed) ? parsed : [parsed];
-      const processedSteps = validSteps
-        .map(step => this.validateStepType(step))
-        .filter(step => this.isStepAllowed(step));
-      
-      console.log(`✅ Successfully parsed ${processedSteps.length} valid steps`);
-      return processedSteps;
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('❌ All JSON parsing strategies failed:', errorMessage);
-      console.error('Raw response:', response);
-      
-      // Fallback: Return basic strategy instead of throwing
-      console.log('🔄 Falling back to basic research strategy');
-      const fallbackAnalysis: QueryAnalysis = {
-        intent: { 
-          type: 'summary', 
-          confidence: 0.5,
-          keywords: ['research'],
-          expansionStrategy: 'general'
-        },
-        originalQuery: 'research query',
-        expandedQueries: ['research query'],
-        searchParameters: { threshold: 0.7, limit: 10, strategy: 'broad' },
-        processingTime: 0,
-        method: 'rule-based'
-      };
-      return this.getBasicResearchStrategy(fallbackAnalysis);
     }
+    
+    // If no steps found, create a basic one
+    if (steps.length === 0) {
+      console.log('🔄 No clear steps found, using basic strategy');
+      if (this.config.enableRAGSearch) {
+        steps.push({
+          type: 'rag_search',
+          reasoning: 'Search knowledge base for relevant information'
+        });
+      } else if (this.config.enableWebSearch) {
+        steps.push({
+          type: 'web_search',
+          reasoning: 'Search the web for relevant information'
+        });
+      }
+    }
+    
+    console.log(`✅ Parsed ${steps.length} steps from natural language`);
+    return steps;
   }
 
   /**

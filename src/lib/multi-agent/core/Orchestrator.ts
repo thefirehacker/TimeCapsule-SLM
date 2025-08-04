@@ -121,37 +121,45 @@ Keep your response short and direct.`;
     // Detect query type from response AND original query (more reliable)
     let queryType = 'information';
     
-    // Check both LLM response and original query for ranking indicators
-    const rankingKeywords = ['rank', 'top', 'list', 'best', 'fastest', 'slowest', 'first', 'second', 'third'];
-    const hasRankingInResponse = rankingKeywords.some(keyword => lines.includes(keyword));
-    const hasRankingInQuery = rankingKeywords.some(keyword => originalQuery.includes(keyword));
-    
-    if (hasRankingInResponse || hasRankingInQuery) {
+    // Let LLM response determine query type
+    if (lines.includes('ranking') || lines.includes('ordered') || lines.includes('list')) {
       queryType = 'ranking';
-      console.log(`🎯 Detected ranking query: "${query}" (keywords found in ${hasRankingInResponse ? 'response' : 'query'})`);
+      console.log(`🎯 Detected ranking query based on LLM analysis`);
     } else if (lines.includes('compar')) {
       queryType = 'comparison';
+      console.log(`🔀 Detected comparison query based on LLM analysis`);
+    } else if (lines.includes('explain') || lines.includes('how') || lines.includes('why')) {
+      queryType = 'explanation';
+      console.log(`📖 Detected explanation query based on LLM analysis`);
     }
     
     console.log(`📊 Query type determined: ${queryType} for "${query}"`);
     
-    // Detect domain
+    // Let LLM determine domain from context
     let domain = 'general';
-    if (lines.includes('speed run') || lines.includes('gaming')) {
-      domain = 'speed_runs';
+    if (lines.includes('gaming') || lines.includes('game')) {
+      domain = 'gaming';
     } else if (lines.includes('technology') || lines.includes('programming')) {
       domain = 'technology';
+    } else if (lines.includes('academic') || lines.includes('research')) {
+      domain = 'academic';
+    } else if (lines.includes('business') || lines.includes('professional')) {
+      domain = 'business';
     }
     
-    // Build requirements from understanding
+    // Build requirements from LLM understanding
     const requirements = [];
-    if (lines.includes('speed run')) {
-      requirements.push('Find speed run completion times');
-      requirements.push('Ignore performance metrics like tokens/sec');
+    
+    // Extract number if mentioned (e.g., "top 3", "5 best")
+    const numberMatch = originalQuery.match(/\b(\d+)\s*(top|best|worst|first|last)/i) || 
+                       originalQuery.match(/\b(top|best|worst|first|last)\s*(\d+)/i);
+    if (numberMatch) {
+      const num = numberMatch[1] || numberMatch[2];
+      requirements.push(`Return exactly ${num} results`);
     }
-    if (lines.includes('top 3')) {
-      requirements.push('Return exactly 3 results');
-      requirements.push('Rank by relevance');
+    
+    if (queryType === 'ranking') {
+      requirements.push('Rank results by relevance and value');
     }
     
     return {

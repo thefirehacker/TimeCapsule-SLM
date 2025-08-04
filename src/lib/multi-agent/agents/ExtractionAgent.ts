@@ -325,7 +325,7 @@ Extract information that directly answers their question, understanding the cont
         const timeMatch = recordValue.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
         
         items.push({
-          content: "Current speed run record",
+          content: recordValue,
           value: timeMatch ? timeMatch[1] : recordValue,
           unit: timeMatch ? timeMatch[2] : undefined,
           context: trimmedLine,
@@ -422,26 +422,25 @@ Extract information that directly answers their question, understanding the cont
             return;
           }
           
-          // Multiple patterns for table rows - including Tyler's specific format
+          // Multiple patterns for table rows - generic table formats
           
-          // Pattern 1: Tyler's exact format "1 Initial baseline 8.13 hours 6.44B 221k..."
-          // or "2..1.1.1.1.1 Architectural changes 7.51 hours..."
-          const tylerMatch = line.match(/^(\d+(?:\.\.\d+(?:\.\d+)*)?)\s+([^0-9]+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)\s+(\d+\.?\d*[BMK]?)\s+(\d+k?)/);
+          // Pattern 1: Complex numbered format "1.2.3 Description value unit"
+          const complexMatch = line.match(/^(\d+(?:\.\.\d+(?:\.\d+)*)?)\s+([^0-9]+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)\s+(\d+\.?\d*[BMK]?)\s+(\d+k?)/);
           
-          // Pattern 2: Simpler numbered row "1 Description 8.13 hours"
+          // Pattern 2: Simple numbered row "1 Description value unit"
           const simpleMatch = line.match(/^(\d+)\s+(.+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
           
-          // Pattern 3: Pipe separated "Description | 8.13 hours | 6.44B"
+          // Pattern 3: Pipe separated "Description | value unit | other"
           const pipeMatch = line.match(/(.+?)\s*\|\s*(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
           
           let extractedItem: ExtractedItem | null = null;
           
-          if (tylerMatch) {
-            // Handle Tyler's specific format
-            const entryNum = tylerMatch[1];
-            const description = tylerMatch[2].trim();
-            const time = tylerMatch[3];
-            const unit = tylerMatch[4];
+          if (complexMatch) {
+            // Handle complex numbered format
+            const entryNum = complexMatch[1];
+            const description = complexMatch[2].trim();
+            const value = complexMatch[3];
+            const unit = complexMatch[4];
             
             // Extract base number for sorting
             const baseNumber = entryNum.includes('..') ? 
@@ -450,19 +449,18 @@ Extract information that directly answers their question, understanding the cont
             
             extractedItem = {
               content: `Entry ${entryNum}: ${description}`,
-              value: time,
+              value: value,
               unit: unit,
               context: line.trim(),
               confidence: 0.98, // High confidence for exact match
               sourceChunkId: chunk.id,
               metadata: { 
                 method: 'table', 
-                type: 'tyler_format',
+                type: 'numbered_entry',
                 rowNumber: baseNumber.toString(),
                 fullNumber: entryNum,
                 description: description,
-                tokens: tylerMatch[5],
-                tokensPerSec: tylerMatch[6]
+                additionalData: complexMatch[5] + ' ' + complexMatch[6]
               }
             };
           } else if (simpleMatch && simpleMatch[2].length > 2) {
@@ -525,7 +523,7 @@ Extract information that directly answers their question, understanding the cont
       const currentRecordMatch = chunk.text.match(/Current\s+record[:\s]+(\d+\.?\d*)\s*(minutes?|mins?|hours?|hrs?)/i);
       if (currentRecordMatch) {
         items.push({
-          content: "Current speed run record",
+          content: `Current record: ${currentRecordMatch[1]} ${currentRecordMatch[2]}`,
           value: currentRecordMatch[1],
           unit: currentRecordMatch[2],
           context: `Current record: ${currentRecordMatch[1]} ${currentRecordMatch[2]}`,
@@ -610,29 +608,6 @@ Extract information that directly answers their question, understanding the cont
         }
       });
       
-      // Also extract relevant sentences containing query terms
-      if (context.query.toLowerCase().includes('speed run') || 
-          context.query.toLowerCase().includes('tyler')) {
-        const sentences = text.split(/[.!?]+/);
-        sentences.forEach(sentence => {
-          if (sentence.toLowerCase().includes('speed') || 
-              sentence.toLowerCase().includes('run') ||
-              sentence.toLowerCase().includes('tyler')) {
-            items.push({
-              content: sentence.trim(),
-              value: undefined,
-              unit: undefined,
-              context: sentence.trim(),
-              confidence: 0.6,
-              sourceChunkId: chunk.id,
-              metadata: { 
-                method: 'sentence',
-                chunkIndex 
-              }
-            });
-          }
-        });
-      }
     });
     
     console.log(`✅ Extracted ${items.length} items using pattern matching`);

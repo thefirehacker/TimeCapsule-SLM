@@ -1,80 +1,20 @@
-# Deep Research 
-## 🎯 Critical Information
+# output 
+Here is a comprehensive list of projects from Rutwik's CV, converted to numbers for clarity:
 
-**Query**: "give me top 3 speed runs from Tyler's blog"
-**Found**: 3 relevant results
+1. **Initial baseline** - **8.13 hours**  
+2. **Architectural changes** - **7.51 hours**  
+3. **Muon optimizer** - **4.53 hours**  
+4. **Dataloading tweaks** - **4.26 hours**  
+5. **Longer Sequence Length** - **2.55 hours**  
+6. **Logit Soft** - **4.01 hours**  
+7. **Real** - (Not provided in the list)  
+8. **Personalized Course Generator** - (Not provided in the list)  
 
-### 📈 Top Historical Results:
-1. 📊 **Entry 3: Muon optimizer - 4.53 hours**
-2. 📊 **Entry 2: Architectural changes - 7.51 hours**
-3. 📊 **Entry 1: Initial baseline - 8.13 hours**
+Each project entry includes its respective time in hours or minutes, depending on the provided value. Let me know if you need further clarification!
 
----
+# agents 
 
-## 📊 Detailed Analysis
-
-Based on analysis of 15 chunks and 25 data points:
-
-### 1. Entry 3: Muon optimizer
-- **Measurement**: 4.53 hours
-- **Context**: "Muon optimizer - 4.53 hours - 3.04B tokens"
-- **Confidence**: 98%
-- **Source**: Document chunk chunk_doc_1754060319847_554tu5f2d_6
-
-### 2. Entry 2: Architectural changes
-- **Measurement**: 7.51 hours
-- **Context**: "Architectural changes - 7.51 hours - 5.07B tokens"
-- **Confidence**: 98%
-- **Source**: Document chunk chunk_doc_1754060319847_554tu5f2d_6
-
-### 3. Entry 1: Initial baseline
-- **Measurement**: 8.13 hours
-- **Context**: "Initial baseline - 8.13 hours - 6.44B tokens. But looking at the text, there's no actual table. Instead, there are multiple blog posts and some technical details. The user's example uses a table forma..."
-- **Confidence**: 98%
-- **Source**: Document chunk chunk_doc_1754060319847_554tu5f2d_7
-
-### Additional Insights
-
-- Total 4 relevant items found across all sources
-- Data spans multiple documents and contexts
-- Time range: 4.53 hours to 8.13 hours
-
----
-
-## 📋 Complete Results Table
-
-| Rank | Description | Time | Confidence |
-|------|-------------|------|------------|
-| 1 | Entry 3: Muon optimizer | 4.53 hours | 98% |
-| 2 | Entry 2: Architectural changes | 7.51 hours | 98% |
-| 3 | Entry 1: Initial baseline | 8.13 hours | 98% |
-| 4 | Entry 1: Description | N/A | 98% |
-
----
-
-## 📚 Sources & References
-
-**Source 1**: www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf
-> "been shown to be effective in decreasing training time required to reach a certain validation loss. 3. No gradient clipping. Gradient clipping can hel..."
-
-
----
-
-## 🔍 Research Confidence & Methodology
-
-**Overall Confidence**: 98%
-
-**Methodology**:
-- Analyzed 1 unique document sources
-- Processed 15 text chunks
-- Extracted 25 initial data points
-- Applied intelligent deduplication and ranking
-
-**Data Quality Notes**:
-- ✅ High confidence in results - multiple corroborating sources
-
-# multi agent 
-🤖 Multi-Agent Process Details
+ 🤖 Multi-Agent Process Details
 ════════════════════════════════════════
 
 1. DataInspector ✅
@@ -82,25 +22,23 @@ Based on analysis of 15 chunks and 25 data points:
    Status: completed
    Progress: 100%
    Stage: Initializing
-   Duration: 11703ms
+   Duration: 14073ms
    
    💭 AI Reasoning:
-   Okay, let me break down the user's query and the data samples provided.
+   Okay, let's see. The user wants to know about the best project from Rutwik's CV. They provided three different sources. 
    
-   First, the user's question is asking for the top 3 speed runs from Tyler's blog. The data samples are all blog posts. Sample 1 is a detailed blog post about training effectiveness and hyperparameters. Sample 2 mentions speedrun results from people like Keller, Jordan, and others. Sample 3 talks about training with GPUs and performance metrics like token rate and speedups. 
+   First, Source 1 and 3 mention Rutwik as a Full Stack AI Developer, with projects like building frontend architecture, integrating APIs, and designing a serverless backend. They also talk about using Next.js, Sanity CMS, and Mongo DB. There's a mention of AI-powered tools like a Course Generator, but that's part of the Personalized Course Generator section.
    
-   So, the data seems to be a blog post, as all the samples are about training processes and speed runs. 
+   Source 2 adds more projects: 10+ shops using their platform, dynamic product listings, end-to-end order flow, Stripe and Razorpay integration, user account management, and admin dashboard. Also, real-time order notifications and email confirmations. 
    
-   For the information relevant to the user's query, Tyler's blog post includes details about training effectiveness, hyperparameters, and speedrun results. The user wants speed runs, so the top 3 would be the top results mentioned in the blog. 
+   So the user is asking for the best project. The best project could be something that's mentioned as the main focus or leading to the most recognition. From the sources, the main projects are building a front-end system, integrating APIs, and designing a backend with AWS Lambda. The AI-driven Course Generator is another point, but maybe that's part of the intern's experience. 
    
-   There's mention of speedrun times and metrics, but the user is asking specifically for the top 3 runs. In the data, they list some results, so the relevant information would be those speeds. 
+   Wait, but the user is looking for the best project. Since multiple sources mention similar projects, perhaps the most relevant is the Full Stack AI Developer project in Ai Edx, which is currently as an intern. But the user might be interested in the intern's experience. Alternatively, the best project could be the serverless backend as an intern's experience, as it's a significant part of their CV. 
    
-   Regarding performance metrics, sample 2 has "221k tokens/sec" and a speedrun result from multiple people. So, the user can extract those numbers as part of the top 3 speed runs.
+   Also, considering the user's query, they might be looking for a project that showcases Rutwik's expertise in AI and web development. So the best projects are those that highlight both technical skills and project impact, like using Next.js, Sanity, and Mongo for scalability, or the AI Course Generator. 
    
-   Finally, to extract the relevant information, I need to identify the specific numbers and the top 3 results mentioned. The answer should be specific, mentioning those points and the type of data.
-   📝 Summary: Okay, let me break down the user's query and the data samples provided.
-
-First, the user's question ...
+   So the answer should list the most relevant projects from the sources, emphasizing the key skills and projects that align with the user's request. Make sure to mention the specific technologies and projects mentioned in each source to back up the answer.
+   📝 Summary: Okay, let's see. The user wants to know about the best project from Rutwik's CV. They provided three...
 
 ───────────────────────────────────
 
@@ -109,15 +47,27 @@ First, the user's question ...
    Status: completed
    Progress: 100%
    Stage: Initializing
-   Duration: 7107ms
+   Duration: 12154ms
    
    💭 AI Reasoning:
-   Okay, let's tackle this. The user wants to find the top 3 speed runs from Tyler's blog, but the data includes completion times and performance metrics. The task is to create specific extraction strategies with clear questions.
+   Okay, the user is looking for information about the best project from Rutwik's CV and wants to know how to find relevant information. They mentioned that the data type is technology, so I need to focus on technology-related patterns or indicators.
    
-   First, for what to look for, I need to focus on completion times. So, the main elements are the top 3 speed run completion times. Avoiding performance metrics because those are the ones that need to be filtered out. 
+   First, I should think about the structure of a CV. Typically, projects are listed in order of importance. Rutwik might have a project list that ranks them. So, the user needs to look for the highest-priority projects. Maybe the first or second project in the list is the best.
    
-   Then, how to identify right information. The user wants the top 3, so the extraction strategies should prioritize that. Maybe use a filter that extracts only the speed run completion times. Also, structure the answer to present the top 3 without any performance details. Need to make sure that the strategies are specific and direct, not too vague.
-   📝 Summary: Okay, let's tackle this. The user wants to find the top 3 speed runs from Tyler's blog, but the data...
+   Next, the user wants to find patterns or indicators. Could there be a specific keyword or term in the project description that indicates the best project? Like "most successful" or "best in the field"? Also, the user might want to see metrics like completion time or impact. These indicators would help rank the projects.
+   
+   Another angle is the time frame. If Rutwik is focusing on a specific industry, like tech, then mentioning the time frame in the project description could be useful. For example, "last 12 months" or "in recent years" would be indicators.
+   
+   Additionally, the user might want to see the outcome or outcome of the project. Metrics like "increased sales by X%" or "reached 100 customers" would indicate the success of the project.
+   
+   I should also consider the project's impact. If the project had a significant positive outcome, that would be a key indicator. Including those metrics in the CV would help the user rank them.
+   
+   Wait, but how do I know Rutwik's projects are in the tech field? Maybe the user is assuming that. But the user is asking based on the given data type, so I need to frame it in terms of technology. So, the answer should guide the user to look for the highest-priority projects, check for success metrics, and consider time frames.
+   
+   Also, think about industry-specific terminology. For example, in tech, terms like "software development" or "data analytics" would be relevant. Mentioning those could help the user identify the best projects.
+   
+   Putting it all together, the key patterns are looking for the highest-priority projects, success metrics, time frames, and industry-specific terms. That should help the user find relevant information.
+   📝 Summary: Okay, the user is looking for information about the best project from Rutwik's CV and wants to know ...
 
 ───────────────────────────────────
 
@@ -126,7 +76,7 @@ First, the user's question ...
    Status: completed
    Progress: 100%
    Stage: Initializing
-   Duration: 134147ms
+   Duration: 70947ms
 
 ───────────────────────────────────
 
@@ -135,10 +85,10 @@ First, the user's question ...
    Status: completed
    Progress: 100%
    Stage: Initializing
-   Duration: 29346ms
+   Duration: 61986ms
 
 ───────────────────────────────────
 
 Total Agents: 4
 Completed: 4
-Generated: 03/08/2025, 18:17:19
+Generated: 04/08/2025, 17:26:45

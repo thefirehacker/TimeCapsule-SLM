@@ -30,19 +30,11 @@ export class PatternGeneratorAgent extends BaseAgent {
   }
   
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {
-    const prompt = `Create extraction strategies for finding what the user wants.
+    const prompt = `User is looking for: "${context.query}"
 
-User query: "${context.query}"
-User wants: ${context.understanding.intent}
-Data contains: ${context.patterns.map(p => p.description).join(', ')}
+Based on the data type: ${context.understanding.intent || 'general information'}
 
-Create specific strategies for extraction:
-1. What exactly should we look for?
-2. What should we AVOID extracting?
-3. How can we identify the right information?
-
-For "speed runs", we want completion times, NOT performance metrics.
-Be very specific.`;
+What patterns or indicators would help find relevant information?`;
 
     try {
       const response = await this.llm(prompt);
@@ -104,7 +96,7 @@ Be very specific.`;
       }
     });
     
-    return examples.length > 0 ? examples : ['Run times', 'Speed run completions'];
+    return examples.length > 0 ? examples : ['Data values', 'Relevant information'];
   }
   
   private extractStrategy(response: string): string {
@@ -136,7 +128,7 @@ What to find? Create simple extraction rules.
 
 JSON format:
 [{
-  "description": "speed run times",
+  "description": "relevant data points",
   "extractionStrategy": "Find hours, minutes, performance metrics",
   "confidence": 0.8
 }]
