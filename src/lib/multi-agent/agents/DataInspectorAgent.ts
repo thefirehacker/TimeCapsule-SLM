@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext } from '../interfaces/Context';
+import { ResearchContext, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class DataInspectorAgent extends BaseAgent {
@@ -53,15 +53,31 @@ export class DataInspectorAgent extends BaseAgent {
       };
     });
     
-    const prompt = `User wants: "${context.query}"
+    const prompt = `I need to intelligently analyze this document and understand how to help the user.
 
-I found this data:
+USER QUERY: "${context.query}"
+
+DOCUMENT CONTENT SAMPLES:
 ${samplesWithType.map((item, i) => `
-Source ${i + 1} (${item.sourceType}):
+--- Source ${i + 1} (${item.sourceType}) ---
 ${item.chunk.text}
-`).join('\n---\n')}
+`).join('\n')}
 
-What type of information is this and what's relevant to the user's query?`;
+Please analyze this intelligently and provide:
+
+1. **DOCUMENT TYPE**: What type of document is this? (CV/Resume, Research Paper, Manual, Blog, etc.)
+
+2. **DOCUMENT STRUCTURE**: What are the main sections/components in this document?
+
+3. **KEY CONTENT AREAS**: What specific information does this document contain?
+
+4. **QUERY-DOCUMENT INTENT**: Based on the user's query and document type, what should we focus on extracting?
+
+5. **EXTRACTION STRATEGY**: How should we approach extracting information to answer the user's query?
+
+6. **EXPECTED OUTPUT FORMAT**: What format should the final answer take? (List, comparison, explanation, etc.)
+
+Provide specific, actionable insights that will guide intelligent extraction and synthesis.`;
 
     try {
       const response = await this.llm(prompt);
@@ -80,30 +96,80 @@ What type of information is this and what's relevant to the user's query?`;
   }
   
   private updateContextFromInspection(context: ResearchContext, response: string) {
-    // Let the LLM determine patterns based on the actual content
-    context.patterns = [];
-    
-    // Extract patterns from LLM response
     try {
-      // Try to find pattern descriptions in the response
-      const patternMatches = response.match(/pattern[s]?[:]*([^.\n]+)/gi);
-      const dataTypeMatches = response.match(/data type[s]?[:]*([^.\n]+)/gi);
-      const formatMatches = response.match(/format[s]?[:]*([^.\n]+)/gi);
+      // Parse the structured analysis from LLM response
+      const documentAnalysis = this.parseDocumentAnalysis(response);
+      context.documentAnalysis = documentAnalysis;
       
-      if (patternMatches || dataTypeMatches || formatMatches) {
-        // Create generic patterns based on what LLM found
+      // Create adaptive patterns based on document analysis
+      context.patterns = [];
+      if (documentAnalysis) {
         context.patterns.push({
-          description: 'Data patterns identified by analysis',
-          examples: [],
-          extractionStrategy: 'Extract based on identified format and structure',
-          confidence: 0.8
+          description: `${documentAnalysis.documentType} extraction pattern`,
+          examples: documentAnalysis.contentAreas,
+          extractionStrategy: documentAnalysis.extractionStrategy,
+          confidence: 0.9
         });
       }
-    } catch (e) {
-      console.log('Could not extract specific patterns from LLM response');
+      
+      console.log(`📋 Document Analysis: ${documentAnalysis?.documentType} with ${documentAnalysis?.structure.length || 0} sections`);
+      
+    } catch (error) {
+      console.error('❌ Error parsing document analysis:', error);
+      // Fallback to basic analysis
+      context.documentAnalysis = {
+        documentType: 'Unknown',
+        structure: ['content'],
+        contentAreas: ['general information'],
+        queryIntent: 'Extract relevant information',
+        extractionStrategy: 'Extract based on query keywords',
+        expectedOutputFormat: 'summary'
+      };
+      context.patterns = [];
     }
+  }
+  
+  private parseDocumentAnalysis(response: string): DocumentAnalysis {
+    // Parse the structured response sections
+    const sections = {
+      documentType: this.extractSection(response, 'DOCUMENT TYPE'),
+      structure: this.extractListSection(response, 'DOCUMENT STRUCTURE'),
+      contentAreas: this.extractListSection(response, 'KEY CONTENT AREAS'),
+      queryIntent: this.extractSection(response, 'QUERY-DOCUMENT INTENT'),
+      extractionStrategy: this.extractSection(response, 'EXTRACTION STRATEGY'),
+      expectedOutputFormat: this.extractSection(response, 'EXPECTED OUTPUT FORMAT')
+    };
     
-    console.log(`✅ Generated ${context.patterns.length} patterns from inspection`);
+    return {
+      documentType: sections.documentType || 'Unknown Document',
+      structure: sections.structure.length > 0 ? sections.structure : ['content'],
+      contentAreas: sections.contentAreas.length > 0 ? sections.contentAreas : ['general information'],
+      queryIntent: sections.queryIntent || 'Extract relevant information',
+      extractionStrategy: sections.extractionStrategy || 'Extract based on query keywords',
+      expectedOutputFormat: sections.expectedOutputFormat || 'summary'
+    };
+  }
+  
+  private extractSection(text: string, sectionName: string): string {
+    const regex = new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\n\\*]+)`, 'i');
+    const match = text.match(regex);
+    return match ? match[1].trim() : '';
+  }
+  
+  private extractListSection(text: string, sectionName: string): string[] {
+    const regex = new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\*]+)`, 'i');
+    const match = text.match(regex);
+    if (!match) return [];
+    
+    // Extract list items (lines starting with - or numbers)
+    const content = match[1];
+    const items = content.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.match(/^[-•\d]/))
+      .map(line => line.replace(/^[-•\d.\s]+/, '').trim())
+      .filter(line => line.length > 0);
+    
+    return items.length > 0 ? items : [content.trim()];
   }
   
   private async processWithLLM(context: ResearchContext): Promise<void> {

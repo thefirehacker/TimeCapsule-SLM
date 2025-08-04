@@ -87,8 +87,7 @@ Answer these questions:
 2. What type of answer do they want? (list, comparison, information, etc)
 3. What domain is this? (sports, technology, cooking, etc)
 
-For "speed runs", understand they want timed completions, not performance metrics.
-For "top 3", they want a ranked list.
+For "top 3" or "best X", they want a ranked list.
 
 Keep your response short and direct.`;
 

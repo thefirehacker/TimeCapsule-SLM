@@ -22,6 +22,15 @@ export interface Understanding {
   queryType: string; // 'ranking', 'comparison', 'information', etc.
 }
 
+export interface DocumentAnalysis {
+  documentType: string; // 'CV', 'Research Paper', 'Manual', 'Blog', etc.
+  structure: string[]; // Key sections/components
+  contentAreas: string[]; // Specific information types
+  queryIntent: string; // What user wants from this document type
+  extractionStrategy: string; // How to approach extraction
+  expectedOutputFormat: string; // Format for final answer
+}
+
 export interface Pattern {
   description: string;
   examples: string[];
@@ -52,6 +61,9 @@ export interface ResearchContext {
   
   // Current understanding of the query
   understanding: Understanding;
+  
+  // Intelligent document analysis
+  documentAnalysis?: DocumentAnalysis;
   
   // RAG search results
   ragResults: {

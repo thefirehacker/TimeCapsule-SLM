@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext, ExtractedItem, ChunkData } from '../interfaces/Context';
+import { ResearchContext, ExtractedItem, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class ExtractionAgent extends BaseAgent {
@@ -172,31 +172,9 @@ The extracted data will now be synthesized to answer your query.`);
     context: ResearchContext,
     batchNumber: number
   ): Promise<ExtractedItem[]> {
-    // Direct extraction prompt - no analysis, just extract data
-    const prompt = `Extract ALL data from the text below. Start your response IMMEDIATELY with "Entry 1:" or "Current record:" - no other text before that.
-
-User query: "${context.query}"
-
-Text to extract from:
-${chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n')}
-
-EXAMPLE of correct extraction from a table:
-Entry 1: Initial baseline - 8.13 hours - 6.44B tokens
-Entry 2: Architectural changes - 7.51 hours - 5.07B tokens
-Entry 3: Muon optimizer - 4.53 hours - 3.04B tokens
-Entry 4: Dataloading tweaks - 4.26 hours - 3.31B tokens
-Entry 5: Logit Soft-capping - 4.01 hours - 3.15B tokens
-Entry 6: Longer Sequence Length - 2.55 hours - 1.88B tokens
-Current record: 3.14 minutes
-
-RULES:
-- Extract EVERY row from tables (all 6+ entries if present)
-- Include ALL time values you find
-- Handle any numbering format (1, 2.1, 2..4.4.4.4.4, etc.)
-- Start immediately with the first entry - no preamble
-- Continue until you've extracted everything
-
-Start extracting NOW:`;
+    // Adaptive extraction prompt based on document analysis
+    const documentAnalysis = context.documentAnalysis;
+    const prompt = this.createAdaptiveExtractionPrompt(context.query, chunks, documentAnalysis);
 
     try {
       const response = await this.llm(prompt);
@@ -208,7 +186,8 @@ Start extracting NOW:`;
       // Add batch-specific insights if items found
       if (items.length > 0 && batchNumber <= 5) {
         const sampleItem = items[0];
-        this.batchReasoning.push(`Batch ${batchNumber}: Extracted ${items.length} data points (e.g., "${sampleItem.content.substring(0, 50)}...")`);
+        const sampleContent = (sampleItem.content || 'unknown').toString().substring(0, 50);
+        this.batchReasoning.push(`Batch ${batchNumber}: Extracted ${items.length} data points (e.g., "${sampleContent}...")`);
       }
       
       // Add to extraction summary
@@ -239,6 +218,79 @@ Consider:
 - Are they interested in records, achievements, or development history?
 
 Extract information that directly answers their question, understanding the context of the document.`;
+  }
+  
+  private createAdaptiveExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis?: DocumentAnalysis): string {
+    const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
+    
+    if (!documentAnalysis) {
+      // Fallback to generic extraction
+      return `Extract relevant information from the text below to answer: "${query}"
+
+Text:
+${content}
+
+Extract any relevant data points, facts, or information that helps answer the query.`;
+    }
+
+    // Create intelligent extraction prompt based on document analysis
+    const basePrompt = `INTELLIGENT EXTRACTION TASK
+
+Query: "${query}"
+Document Type: ${documentAnalysis.documentType}
+Focus Areas: ${documentAnalysis.contentAreas.join(', ')}
+Strategy: ${documentAnalysis.extractionStrategy}
+
+Text to extract from:
+${content}
+
+EXTRACTION APPROACH:
+${this.getExtractionApproach(documentAnalysis, query)}
+
+Start extracting relevant information now:`;
+
+    return basePrompt;
+  }
+  
+  private getExtractionApproach(documentAnalysis: DocumentAnalysis, query: string): string {
+    const queryLower = query.toLowerCase();
+    const docType = documentAnalysis.documentType.toLowerCase();
+    
+    // Generate adaptive extraction instructions
+    let approach = '';
+    
+    if (queryLower.includes('best') || queryLower.includes('top')) {
+      approach += `- Look for items that can be compared and ranked\n`;
+      approach += `- Extract specific names, titles, or identifiers\n`;
+      approach += `- Include metrics, achievements, or distinguishing features\n`;
+    }
+    
+    if (queryLower.includes('list') || queryLower.includes('all')) {
+      approach += `- Extract comprehensive list of items\n`;
+      approach += `- Include all instances found, not just highlights\n`;
+      approach += `- Maintain consistent format for similar items\n`;
+    }
+    
+    if (docType.includes('cv') || docType.includes('resume')) {
+      approach += `- Focus on ${documentAnalysis.contentAreas.join(', ')}\n`;
+      approach += `- Extract specific project names, technologies, and achievements\n`;
+      approach += `- Include concrete details, not just job descriptions\n`;
+    }
+    
+    if (docType.includes('research') || docType.includes('paper')) {
+      approach += `- Focus on ${documentAnalysis.contentAreas.join(', ')}\n`;
+      approach += `- Extract methodology, results, and key findings\n`;
+      approach += `- Include specific data, metrics, and conclusions\n`;
+    }
+    
+    // Add generic intelligent approach if no specific rules apply
+    if (!approach) {
+      approach = `- Extract information relevant to the query context\n`;
+      approach += `- Focus on concrete facts and specific details\n`;
+      approach += `- Include any supporting evidence or context\n`;
+    }
+    
+    return approach;
   }
   
   private parseNaturalResponse(response: string, chunkId: string): ExtractedItem[] {

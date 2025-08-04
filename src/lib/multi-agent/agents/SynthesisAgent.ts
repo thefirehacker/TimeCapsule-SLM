@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext, ChunkData } from '../interfaces/Context';
+import { ResearchContext, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class SynthesisAgent extends BaseAgent {
@@ -186,16 +186,8 @@ Focus on understanding the document context to make this distinction.`;
    * Generate a comprehensive deep research report with critical info + detailed analysis
    */
   private async generateDeepResearchReport(context: ResearchContext, groupedItems: any[]): Promise<string> {
-    // Use LLM to generate natural, contextual response
-    const prompt = `User asked: "${context.query}"
-
-Here's what I found:
-${groupedItems.slice(0, 10).map((group, i) => {
-  const item = group.bestItem;
-  return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
-}).join('\n')}
-
-Provide a comprehensive answer that directly addresses what the user asked for.`;
+    // Create adaptive synthesis prompt based on document analysis
+    const prompt = this.createAdaptiveSynthesisPrompt(context, groupedItems);
 
     try {
       const response = await this.llm(prompt);
@@ -205,6 +197,114 @@ Provide a comprehensive answer that directly addresses what the user asked for.`
       // Fallback to basic formatting
       return this.formatBasicReport(context, groupedItems);
     }
+  }
+  
+  private createAdaptiveSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
+    const documentAnalysis = context.documentAnalysis;
+    const query = context.query;
+    const queryLower = query.toLowerCase();
+    
+    // Prepare extracted data
+    const extractedData = groupedItems.slice(0, 10).map((group, i) => {
+      const item = group.bestItem;
+      return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
+    }).join('\n');
+    
+    if (!documentAnalysis) {
+      // Fallback to generic synthesis
+      return `User asked: "${query}"
+
+Extracted information:
+${extractedData}
+
+Provide a comprehensive answer that directly addresses what the user asked for.`;
+    }
+    
+    // Create intelligent synthesis prompt
+    let basePrompt = `INTELLIGENT SYNTHESIS TASK
+
+User Query: "${query}"
+Document Type: ${documentAnalysis.documentType}
+Expected Output Format: ${documentAnalysis.expectedOutputFormat}
+Query Intent: ${documentAnalysis.queryIntent}
+
+Extracted Information:
+${extractedData}
+
+SYNTHESIS INSTRUCTIONS:
+${this.getSynthesisInstructions(query, documentAnalysis)}
+
+Generate your response now:`;
+
+    return basePrompt;
+  }
+  
+  private getSynthesisInstructions(query: string, documentAnalysis: DocumentAnalysis): string {
+    const queryLower = query.toLowerCase();
+    const expectedFormat = documentAnalysis.expectedOutputFormat.toLowerCase();
+    const docType = documentAnalysis.documentType.toLowerCase();
+    
+    let instructions = '';
+    
+    // Query-specific instructions
+    if (queryLower.includes('best') || queryLower.includes('top')) {
+      instructions += `- Provide a clear ranking or comparison of the items\n`;
+      instructions += `- Explain WHY each item is ranked as it is\n`;
+      instructions += `- Highlight the "best" item and provide reasoning\n`;
+      instructions += `- Include specific details that support the ranking\n`;
+    }
+    
+    if (queryLower.includes('list') || queryLower.includes('all')) {
+      instructions += `- Present a comprehensive list of all relevant items\n`;
+      instructions += `- Use consistent formatting for each item\n`;
+      instructions += `- Include key details for each item\n`;
+      instructions += `- Organize logically (chronologically, by importance, etc.)\n`;
+    }
+    
+    if (queryLower.includes('explain') || queryLower.includes('how')) {
+      instructions += `- Provide detailed explanations with context\n`;
+      instructions += `- Break down complex information into understandable parts\n`;
+      instructions += `- Include supporting evidence and examples\n`;
+      instructions += `- Structure as a clear, logical explanation\n`;
+    }
+    
+    // Document-specific instructions  
+    if (docType.includes('cv') || docType.includes('resume')) {
+      instructions += `- Focus on specific projects, achievements, and technical details\n`;
+      instructions += `- Include concrete technologies, results, and impact\n`;
+      instructions += `- Avoid generic job description language\n`;
+      instructions += `- Highlight measurable outcomes and specific contributions\n`;
+    }
+    
+    if (docType.includes('research') || docType.includes('paper')) {
+      instructions += `- Focus on methodology, findings, and conclusions\n`;
+      instructions += `- Include specific data, metrics, and results\n`;
+      instructions += `- Maintain scientific accuracy and context\n`;
+      instructions += `- Reference key findings and their implications\n`;
+    }
+    
+    // Format-specific instructions
+    if (expectedFormat.includes('comparison')) {
+      instructions += `- Structure as a clear comparison between options\n`;
+      instructions += `- Use parallel structure for comparing items\n`;
+      instructions += `- Highlight key differences and similarities\n`;
+    }
+    
+    if (expectedFormat.includes('list')) {
+      instructions += `- Use numbered or bulleted list format\n`;
+      instructions += `- Keep items concise but informative\n`;
+      instructions += `- Maintain consistent structure across items\n`;
+    }
+    
+    // Generic fallback
+    if (!instructions) {
+      instructions = `- Provide a comprehensive, well-structured response\n`;
+      instructions += `- Include specific details and concrete information\n`;
+      instructions += `- Structure logically to address the user's query\n`;
+      instructions += `- Focus on being helpful and informative\n`;
+    }
+    
+    return instructions;
   }
   
   /**

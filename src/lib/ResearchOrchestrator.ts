@@ -933,7 +933,7 @@ Answer:`;
         })
         .join('\n');
       
-      return `Based on the sources, here are the relevant findings:\n\n${formatted}\n\nNote: These are direct extractions from Tyler's blog content.`;
+      return `Based on the sources, here are the relevant findings:\n\n${formatted}`;
     }
     
     // If no structured data found, log what we searched
@@ -1208,11 +1208,10 @@ Answer:`;
         `${baseTerms} speed comparison`,
         `${baseTerms} benchmark results`,
         
-        // Tyler-specific with different approaches
-        'Tyler nanogpt speed',
-        'Tyler performance results',
-        'Tyler timing experiments',
-        'Tyler GPU performance'
+        // Generic alternative approaches
+        `${baseTerms} implementation details`,
+        `${baseTerms} optimization results`,
+        `${baseTerms} technical analysis`
       );
     }
     
