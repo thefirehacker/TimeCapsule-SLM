@@ -13,6 +13,7 @@ export interface OllamaConnectionState {
   availableModels: string[];
   selectedModel: string;
   lastConnected: Date | null;
+  isAutoReconnecting: boolean;
 }
 
 export interface UseOllamaConnectionReturn {
@@ -24,6 +25,7 @@ export interface UseOllamaConnectionReturn {
   ) => Promise<{ success: boolean; models: string[] }>;
   generateContent: (prompt: string) => Promise<string>;
   generateContentStream: (prompt: string) => AsyncIterable<string>;
+  clearSavedConnection: () => void;
   isReady: boolean;
 }
 
@@ -31,6 +33,7 @@ const DEFAULT_BASE_URL = "http://localhost:11434";
 const STORAGE_KEY = "ollama-connection-config";
 const CONNECTION_TIMEOUT = 15000; // 15 seconds
 const MAX_RETRIES = 3;
+const MAX_CONNECTION_AGE_HOURS = 24; // Don't auto-reconnect if connection is older than 24 hours
 
 // Type the Ollama client properly
 type OllamaClient = ReturnType<typeof createOllama>;
@@ -45,12 +48,14 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
       availableModels: [],
       selectedModel: "",
       lastConnected: null,
+      isAutoReconnecting: false,
     }
   );
 
   // Use ref to store the client to avoid stale closures
   const ollamaClientRef = useRef<OllamaClient | null>(null);
   const connectionAbortControllerRef = useRef<AbortController | null>(null);
+  const hasAttemptedAutoReconnectRef = useRef(false);
 
   // Load saved connection config on mount
   useEffect(() => {
@@ -60,6 +65,26 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
         const config = JSON.parse(savedConfig);
         if (config.baseURL && config.selectedModel) {
           console.log("📝 Loading saved Ollama config:", config);
+
+          // Check if the saved connection is not too old
+          const isConnectionValid =
+            !config.lastConnected ||
+            (() => {
+              const lastConnected = new Date(config.lastConnected);
+              const now = new Date();
+              const hoursDiff =
+                (now.getTime() - lastConnected.getTime()) / (1000 * 60 * 60);
+              return hoursDiff < MAX_CONNECTION_AGE_HOURS;
+            })();
+
+          if (!isConnectionValid) {
+            console.log(
+              "⏰ Saved connection is too old, skipping auto-reconnect"
+            );
+            localStorage.removeItem(STORAGE_KEY);
+            return;
+          }
+
           setConnectionState((prev) => ({
             ...prev,
             baseURL: config.baseURL,
@@ -76,8 +101,14 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
   // Save connection config when connected
   const saveConnectionConfig = useCallback((baseURL: string, model: string) => {
     try {
-      const config = { baseURL, selectedModel: model };
+      const config = {
+        baseURL,
+        selectedModel: model,
+        lastConnected: new Date().toISOString(),
+        version: "1.0", // For future compatibility
+      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      console.log("💾 Saved connection config:", config);
     } catch (error) {
       console.warn("Failed to save connection config:", error);
     }
@@ -334,6 +365,7 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
       connected: false,
       connecting: false,
       error: null,
+      isAutoReconnecting: false,
       lastConnected: prev.connected ? new Date() : prev.lastConnected,
     }));
 
@@ -536,6 +568,63 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
     [connectionState.connected, connectionState.selectedModel]
   );
 
+  // Auto-reconnect effect that runs after connect function is defined
+  useEffect(() => {
+    // Only attempt auto-reconnect if we have saved config and haven't tried yet
+    if (hasAttemptedAutoReconnectRef.current) {
+      return;
+    }
+
+    const savedConfig = localStorage.getItem(STORAGE_KEY);
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        if (
+          config.baseURL &&
+          config.selectedModel &&
+          !connectionState.connected
+        ) {
+          hasAttemptedAutoReconnectRef.current = true;
+
+          // Auto-reconnect with a small delay
+          const autoReconnect = async () => {
+            console.log("🔄 Attempting auto-reconnection...");
+            setConnectionState((prev) => ({
+              ...prev,
+              isAutoReconnecting: true,
+            }));
+
+            try {
+              const success = await connect(
+                config.baseURL,
+                config.selectedModel
+              );
+              if (success) {
+                console.log("✅ Auto-reconnection successful");
+              } else {
+                console.log("❌ Auto-reconnection failed");
+              }
+            } catch (error) {
+              console.error("❌ Auto-reconnection error:", error);
+            } finally {
+              setConnectionState((prev) => ({
+                ...prev,
+                isAutoReconnecting: false,
+              }));
+            }
+          };
+
+          // Small delay to ensure component is fully mounted
+          setTimeout(autoReconnect, 500);
+        }
+      } catch (error) {
+        console.warn("Failed to parse saved config for auto-reconnect:", error);
+      }
+    } else {
+      hasAttemptedAutoReconnectRef.current = true;
+    }
+  }, [connect, connectionState.connected]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -551,6 +640,16 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
     !!ollamaClientRef.current &&
     typeof ollamaClientRef.current === "function";
 
+  // Function to clear saved connection without disconnecting
+  const clearSavedConnection = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      console.log("🗑️ Cleared saved connection config");
+    } catch (error) {
+      console.warn("Failed to clear saved connection config:", error);
+    }
+  }, []);
+
   return {
     connectionState,
     connect,
@@ -558,6 +657,7 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
     testConnection,
     generateContent,
     generateContentStream,
+    clearSavedConnection,
     isReady,
   };
 }

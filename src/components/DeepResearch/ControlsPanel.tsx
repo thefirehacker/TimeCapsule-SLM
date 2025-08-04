@@ -38,6 +38,7 @@ interface ControlsPanelProps {
     availableModels: string[];
     selectedModel: string;
     lastConnected: Date | null;
+    isAutoReconnecting?: boolean;
   };
   onConnectAI: () => void;
   onDisconnectAI: () => void;
@@ -182,6 +183,16 @@ export function ControlsPanel({
                       {connectionState.baseURL}
                     </span>
                   </div>
+                  {connectionState.lastConnected && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Connected:</span>
+                      <span className="font-medium text-xs text-foreground">
+                        {new Date(
+                          connectionState.lastConnected
+                        ).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -195,9 +206,11 @@ export function ControlsPanel({
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    {connectionState.connecting
-                      ? "Connecting to Ollama..."
-                      : "Connect to Ollama to start researching"}
+                    {connectionState.isAutoReconnecting
+                      ? "Auto-reconnecting to Ollama..."
+                      : connectionState.connecting
+                        ? "Connecting to Ollama..."
+                        : "Connect to Ollama to start researching"}
                   </p>
                   {connectionState.error && (
                     <p className="text-xs text-destructive">
@@ -207,9 +220,17 @@ export function ControlsPanel({
                   <Button
                     onClick={onConnectAI}
                     className="w-full"
-                    disabled={connectionState.connecting}
+                    disabled={
+                      connectionState.connecting ||
+                      connectionState.isAutoReconnecting
+                    }
                   >
-                    {connectionState.connecting ? (
+                    {connectionState.isAutoReconnecting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Auto-reconnecting...
+                      </>
+                    ) : connectionState.connecting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Connecting...

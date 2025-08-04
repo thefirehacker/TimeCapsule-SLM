@@ -47,6 +47,7 @@ interface OllamaConnectionModalProps {
     baseURL: string;
     availableModels: string[];
     selectedModel: string;
+    isAutoReconnecting?: boolean;
   };
 }
 
@@ -170,6 +171,12 @@ export function OllamaConnectionModal({
               <Badge variant="secondary" className="ml-2">
                 <Wifi className="w-3 h-3 mr-1" />
                 Connected
+              </Badge>
+            )}
+            {connectionState.isAutoReconnecting && (
+              <Badge variant="outline" className="ml-2">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Auto-reconnecting
               </Badge>
             )}
           </DialogTitle>
@@ -363,9 +370,18 @@ export function OllamaConnectionModal({
               )}
               <Button
                 onClick={handleConnect}
-                disabled={!isConnectionValid || connectionState.connecting}
+                disabled={
+                  !isConnectionValid ||
+                  connectionState.connecting ||
+                  connectionState.isAutoReconnecting
+                }
               >
-                {connectionState.connecting ? (
+                {connectionState.isAutoReconnecting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Auto-reconnecting...
+                  </>
+                ) : connectionState.connecting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Connecting...

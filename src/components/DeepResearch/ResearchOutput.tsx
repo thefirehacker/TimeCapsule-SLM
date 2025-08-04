@@ -72,6 +72,7 @@ interface ResearchOutputProps {
     availableModels: string[];
     selectedModel: string;
     lastConnected: Date | null;
+    isAutoReconnecting?: boolean;
   };
   onConnectAI?: () => void;
 
@@ -95,7 +96,7 @@ interface ResearchOutputProps {
   onPerformIntelligentResearch?: (query: string) => Promise<void>;
   isIntelligentResearching?: boolean;
   researchResult?: ResearchResult | null;
-  
+
   // Research Steps Integration
   researchSteps?: ResearchStep[];
   expandedSteps?: Set<string>;
@@ -254,11 +255,11 @@ function ContextSources({
 }) {
   // Don't show steps tab when research steps are already displayed in left panel
   const showStepsTab = researchSteps.length === 0;
-  
+
   const [activeTab, setActiveTab] = useState<"overview" | "sources" | "steps">(
     "overview"
   );
-  
+
   // Reset activeTab if it's "steps" but steps tab is not available
   React.useEffect(() => {
     if (activeTab === "steps" && !showStepsTab) {
@@ -281,7 +282,9 @@ function ContextSources({
     { id: "overview", label: "Overview", icon: Link },
     { id: "sources", label: "Sources", icon: Database },
     // Only show steps tab when research steps panel is NOT active
-    ...(showStepsTab ? [{ id: "steps", label: "Steps", icon: TableProperties }] : []),
+    ...(showStepsTab
+      ? [{ id: "steps", label: "Steps", icon: TableProperties }]
+      : []),
   ];
 
   return (
@@ -560,7 +563,8 @@ function ContextSources({
                         AI Generation
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Generating comprehensive response using integrated context
+                        Generating comprehensive response using integrated
+                        context
                       </div>
                     </div>
                     <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
@@ -605,7 +609,7 @@ export function ResearchOutput({
   onPerformIntelligentResearch,
   isIntelligentResearching = false,
   researchResult,
-  
+
   // Research Steps Integration
   researchSteps = [],
   expandedSteps = new Set(),
@@ -834,10 +838,59 @@ export function ResearchOutput({
             Connect to Ollama to start researching and unlock the full potential
             of AI-powered analysis.
           </p>
-          <Button onClick={onConnectAI} className="w-full h-12 text-base">
-            <Bot className="w-5 h-5 mr-2" />
-            Connect AI
+          <Button
+            onClick={onConnectAI}
+            className="w-full h-12 text-base"
+            disabled={
+              connectionState.connecting || connectionState.isAutoReconnecting
+            }
+          >
+            {connectionState.isAutoReconnecting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Auto-reconnecting...
+              </>
+            ) : connectionState.connecting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              <>
+                <Bot className="w-5 h-5 mr-2" />
+                Connect AI
+              </>
+            )}
           </Button>
+          {connectionState.error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive font-medium">
+                Connection Error
+              </p>
+              <p className="text-xs text-destructive/80 mt-1">
+                {connectionState.error}
+              </p>
+            </div>
+          )}
+          {connectionState.selectedModel && !connectionState.connected && (
+            <div className="p-3 bg-accent/20 border border-border/50 rounded-lg">
+              <p className="text-sm text-muted-foreground font-medium">
+                Saved Configuration
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Model:{" "}
+                <span className="font-mono text-foreground">
+                  {connectionState.selectedModel}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Server:{" "}
+                <span className="font-mono text-foreground">
+                  {connectionState.baseURL}
+                </span>
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1138,6 +1191,21 @@ export function ResearchOutput({
       {/* Fixed Prompt Input at Bottom */}
       <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-background via-background/98 to-transparent pt-12 pb-6 px-8">
         <div className="max-w-5xl mx-auto">
+          {/* Connection Status Indicator */}
+          {connectionState.isAutoReconnecting && (
+            <div className="mb-4 p-3 bg-accent/30 border border-border/50 rounded-lg flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  Auto-reconnecting to Ollama
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Attempting to reconnect to {connectionState.selectedModel} at{" "}
+                  {connectionState.baseURL}
+                </p>
+              </div>
+            </div>
+          )}
           <PromptBox
             value={prompt}
             onChange={onPromptChange}
@@ -1151,7 +1219,11 @@ export function ResearchOutput({
             placeholder={
               connectionState.connected
                 ? "What would you like to research? Ask anything..."
-                : "Connect to Ollama to start researching..."
+                : connectionState.isAutoReconnecting
+                  ? "Auto-reconnecting to Ollama..."
+                  : connectionState.connecting
+                    ? "Connecting to Ollama..."
+                    : "Connect to Ollama to start researching..."
             }
             compact={messages.length > 0}
             className="shadow-2xl border-2 border-border/50 backdrop-blur-sm bg-card/98 transition-all duration-300 rounded-2xl"
