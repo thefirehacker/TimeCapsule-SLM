@@ -416,49 +416,40 @@ Suggest research steps with reasoning for each.`;
       throw new Error('Vector store not available');
     }
     
-    // Use expanded queries for better coverage
-    const queriesToSearch = queryAnalysis.expandedQueries.length > 0 
-      ? queryAnalysis.expandedQueries 
-      : [queryAnalysis.originalQuery];
+    // CLAUDE CODE STYLE: Use single intelligent query instead of multiple blind searches
+    // Let the multi-agent system handle intelligent query expansion after seeing document content
+    const primaryQuery = queryAnalysis.originalQuery;
     
-    console.log(`📚 Executing RAG search with ${queriesToSearch.length} queries:`, queriesToSearch);
+    console.log(`📚 Executing intelligent RAG search with primary query: "${primaryQuery}"`);
+    console.log(`🔍 Claude Code style: Single semantic search → Document analysis → Intelligent expansion`);
     
-    // Search with each expanded query and combine results
-    const allResultsMap = new Map<string, any>();
+    // Single semantic search with stored RxDB embeddings (like Claude Code/Cursor)
+    const results = await this.vectorStore.searchSimilar(
+      primaryQuery,
+      0.1, // Lower threshold for broader initial coverage
+      20   // Get more initial results for multi-agent analysis
+    );
     
-    for (const query of queriesToSearch) {
-      const results = await this.vectorStore.searchSimilar(
-        query,
-        0.1, // Lower threshold to get more results
-        10   // Limit per query to avoid too many results
-      );
-      
-      // Deduplicate by chunk ID
-      results.forEach(result => {
-        const chunkId = result.chunk.id;
-        if (!allResultsMap.has(chunkId) || result.similarity > allResultsMap.get(chunkId).similarity) {
-          allResultsMap.set(chunkId, result);
-        }
-      });
-    }
-    
-    // Convert map back to array and sort by similarity
-    const allResults = Array.from(allResultsMap.values())
+    // Use stored chunk data directly (avoid redundant chunking)
+    const allResults = results
       .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 15); // Final limit
+      .slice(0, 20); // Use stored chunk limit, not arbitrary expansion
     
-    console.log(`📚 RAG search found ${allResults.length} unique results from ${queriesToSearch.length} queries`);
+    console.log(`📚 Intelligent RAG found ${allResults.length} stored chunks (using RxDB embeddings)`);
+    console.log(`🚀 Multi-agent system will analyze documents → create intelligent queries → extract targeted data`);
 
-    // Tag results with search context
+    // Tag results with intelligent search context
     allResults.forEach((result, index) => {
       (result as any).__searchContext = {
-        searchQuery: queriesToSearch.join(', '),
+        searchQuery: primaryQuery,
+        searchType: 'intelligent_semantic',
         rank: index + 1,
-        totalResults: allResults.length
+        totalResults: allResults.length,
+        approach: 'claude_code_style'
       };
     });
     
-    // Convert to source references with improved excerpt generation
+    // Convert to source references with FULL chunk content for multi-agent system
     const sources: SourceReference[] = allResults.map((result: any) => {
       // Clean and validate chunk content
       let content = result.chunk.content || '';
@@ -466,7 +457,7 @@ Suggest research steps with reasoning for each.`;
       // Remove excessive whitespace and normalize
       content = content.replace(/\s+/g, ' ').trim();
       
-      // Generate clean excerpt - INCREASED to capture full context
+      // Generate clean excerpt for display (keep original truncation logic)
       let excerpt = content;
       if (content.length > 800) {
         // Find last complete word within 800 chars to avoid mid-word cuts
@@ -483,7 +474,8 @@ Suggest research steps with reasoning for each.`;
         title: result.document.title || 'Untitled Document',
         source: result.document.metadata?.filename || 'Unknown document',
         similarity: result.similarity,
-        excerpt: excerpt,
+        excerpt: excerpt, // Short excerpt for display
+        fullContent: content, // FULL content for multi-agent processing
         chunkId: result.chunk.id,
         metadata: {
           filename: result.document.metadata?.filename,
@@ -631,11 +623,15 @@ Suggest research steps with reasoning for each.`;
     try {
       // Try multi-agent system first
       if (sources.length > 0) {
-        console.log(`🤖 Using multi-agent system for intelligent extraction`);
+        console.log(`🤖 Using multi-agent system for intelligent extraction with RxDB integration`);
         
         try {
           // Clear previous sub-steps
           this.currentAgentSubSteps = [];
+          
+          // Log full content availability
+          const sourcesWithFullContent = sources.filter(s => s.fullContent);
+          console.log(`📚 Sources with full content: ${sourcesWithFullContent.length}/${sources.length} (avg ${Math.round(sourcesWithFullContent.reduce((sum, s) => sum + (s.fullContent?.length || 0), 0) / sourcesWithFullContent.length)} chars each)`);
           
           // Create progress callback to capture agent sub-steps AND update UI in real-time
           const progressCallback: AgentProgressCallback = {
@@ -786,7 +782,7 @@ Suggest research steps with reasoning for each.`;
           // Create multi-agent system with progress tracking
           const multiAgent = createMultiAgentSystem(this.generateContent, progressCallback);
           
-          // Execute multi-agent research process
+          // Execute multi-agent research process with full content sources
           const answer = await multiAgent.research(query, sources);
           
           // Capture the detailed agent sub-steps
@@ -1029,6 +1025,7 @@ Answer:`;
     
     return this.cleanupGeneratedText(summary + sourceList);
   }
+  
   
   /**
    * Calculate overall confidence based on steps and sources

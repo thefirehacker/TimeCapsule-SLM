@@ -206,11 +206,12 @@ Provide a brief summary of:
    * Plan which agents to use and in what order
    */
   private async planAgentPipeline(context: ResearchContext): Promise<string[]> {
-    // For small models, use fixed pipeline optimized for reliability
-    // This avoids JSON parsing issues with pipeline planning
-    const defaultPipeline = ['DataInspector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
+    // CLAUDE CODE STYLE: Intelligent pipeline with chunk filtering
+    // DataInspector → ChunkSelector → PatternGenerator → Extractor → Synthesizer
+    const defaultPipeline = ['DataInspector', 'ChunkSelector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
     
-    console.log(`📋 Using optimized pipeline for small models:`, defaultPipeline);
+    console.log(`📋 Using Claude Code style intelligent pipeline:`, defaultPipeline);
+    console.log(`🧠 Pipeline flow: Document Analysis → Chunk Filtering → Pattern Generation → Targeted Extraction → Synthesis`);
     
     // Verify all agents are registered
     const validPipeline = defaultPipeline.filter(name => {
@@ -365,7 +366,8 @@ Provide a brief summary of:
   private getAgentType(agentName: string): string {
     const typeMap: { [key: string]: string } = {
       'QueryPlanner': 'query_planner',
-      'DataInspector': 'data_inspector', 
+      'DataInspector': 'data_inspector',
+      'ChunkSelector': 'chunk_selector', // NEW: Intelligent chunk filtering
       'PatternGenerator': 'pattern_generator',
       'Extractor': 'extraction',
       'Synthesizer': 'synthesis'

@@ -114,6 +114,8 @@ export interface SourceReference {
   excerpt: string;
   chunkId?: string;
   url?: string;
+  // Enhanced for multi-agent system: full chunk content from RxDB
+  fullContent?: string; // Complete chunk content for multi-agent processing
   metadata?: {
     filename?: string;
     uploadedAt?: string;

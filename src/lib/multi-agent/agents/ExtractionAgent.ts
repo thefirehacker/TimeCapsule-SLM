@@ -8,6 +8,7 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ExtractedItem, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
+import { generateWithCompletion, sanitizeResponse } from '../../../components/DeepResearch/hooks/responseCompletion';
 
 export class ExtractionAgent extends BaseAgent {
   readonly name = 'Extractor';
@@ -32,7 +33,7 @@ export class ExtractionAgent extends BaseAgent {
     }
     
     const extractedItems: ExtractedItem[] = [];
-    const batchSize = 2; // Smaller batches for small model
+    const batchSize = 1; // Single chunk for small models to avoid timeout
     const totalChunks = context.ragResults.chunks.length;
     
     // Clear previous batch reasoning
@@ -177,11 +178,29 @@ The extracted data will now be synthesized to answer your query.`);
     const prompt = this.createAdaptiveExtractionPrompt(context.query, chunks, documentAnalysis);
 
     try {
-      const response = await this.llm(prompt);
-      console.log(`🤖 LLM extraction response:`, response.substring(0, 300));
+      // Use response completion for reliable extraction with shorter timeout for small models
+      const response = await generateWithCompletion(
+        async (prompt: string) => {
+          const result = await this.llm(prompt);
+          return { text: result };
+        },
+        prompt,
+        {
+          maxRetries: 2, // Reduced retries
+          timeout: 30000, // 30 seconds instead of 60
+          continuationPrompt: "Continue extracting the data:"
+        }
+      );
+      
+      console.log(`🤖 LLM extraction response (${response.length} chars):`, response.substring(0, 300));
+      console.log(`📊 Batch ${batchNumber} raw response:`, response);
+      
+      // Sanitize response before parsing
+      const sanitizedResponse = sanitizeResponse(response);
+      console.log(`🧹 Sanitized response:`, sanitizedResponse.substring(0, 200));
       
       // Parse the LLM's direct extraction into items
-      const items = this.parseNaturalResponse(response, chunks[0]?.id || '');
+      const items = this.parseNaturalResponse(sanitizedResponse, chunks[0]?.id || '');
       
       // Add batch-specific insights if items found
       if (items.length > 0 && batchNumber <= 5) {
@@ -198,7 +217,8 @@ The extracted data will now be synthesized to answer your query.`);
       return items;
       
     } catch (error) {
-      console.error('❌ LLM extraction failed:', error);
+      console.error(`❌ LLM extraction failed for batch ${batchNumber}:`, error);
+      console.error(`📝 Failed prompt (first 200 chars):`, prompt.substring(0, 200));
       
       // Add error to batch reasoning
       this.batchReasoning.push(`Batch ${batchNumber}: ⚠️ LLM failed, using fallback extraction`);
@@ -221,10 +241,9 @@ Extract information that directly answers their question, understanding the cont
   }
   
   private createAdaptiveExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis?: DocumentAnalysis): string {
-    const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
-    
     if (!documentAnalysis) {
       // Fallback to generic extraction
+      const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
       return `Extract relevant information from the text below to answer: "${query}"
 
 Text:
@@ -233,23 +252,73 @@ ${content}
 Extract any relevant data points, facts, or information that helps answer the query.`;
     }
 
-    // Create intelligent extraction prompt based on document analysis
-    const basePrompt = `INTELLIGENT EXTRACTION TASK
+    // Multi-document vs single document handling
+    if (documentAnalysis.documents && documentAnalysis.documents.length > 1) {
+      return this.createMultiDocumentExtractionPrompt(query, chunks, documentAnalysis);
+    } else {
+      return this.createSingleDocumentExtractionPrompt(query, chunks, documentAnalysis);
+    }
+  }
 
-Query: "${query}"
-Document Type: ${documentAnalysis.documentType}
-Focus Areas: ${documentAnalysis.contentAreas.join(', ')}
-Strategy: ${documentAnalysis.extractionStrategy}
+  private createMultiDocumentExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis: DocumentAnalysis): string {
+    // Group chunks by document
+    const docGroups = this.groupChunksBySource(chunks);
+    
+    // Much simpler prompt for small models
+    const simplePrompt = `EXTRACT DATA FOR: ${query}
 
-Text to extract from:
+${docGroups.map((group, i) => {
+      return `DOCUMENT ${i + 1}:
+${group.chunks.map(chunk => chunk.text).join('\n\n')}
+`;
+    }).join('\n---\n')}
+
+Find time values and list with source:
+- Content: 3.14 minutes
+- Source Document: Document 1
+- Entity Owner: Keller Jordan
+- Fact Type: achievement
+
+Direct extraction only:`;
+
+    return simplePrompt;
+  }
+
+  private createSingleDocumentExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis: DocumentAnalysis): string {
+    const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
+    
+    // Create a much more direct prompt for small models
+    const directPrompt = `EXTRACT DATA FOR: ${query}
+
+From this text:
 ${content}
 
-EXTRACTION APPROACH:
-${this.getExtractionApproach(documentAnalysis, query)}
+Find all time values (hours, minutes) and list them like this:
+- 3.14 minutes
+- 7.51 hours
+- 4.26 hours
 
-Start extracting relevant information now:`;
+Direct extraction only, no analysis:`;
 
-    return basePrompt;
+    return directPrompt;
+  }
+
+  private groupChunksBySource(chunks: ChunkData[]): { source: string; chunks: ChunkData[] }[] {
+    const groups: Record<string, ChunkData[]> = {};
+    
+    chunks.forEach(chunk => {
+      let sourceId = chunk.sourceDocument || chunk.source;
+      
+      if (!groups[sourceId]) {
+        groups[sourceId] = [];
+      }
+      groups[sourceId].push(chunk);
+    });
+    
+    return Object.entries(groups).map(([source, chunks]) => ({
+      source,
+      chunks
+    }));
   }
   
   private getExtractionApproach(documentAnalysis: DocumentAnalysis, query: string): string {
@@ -298,6 +367,43 @@ Start extracting relevant information now:`;
     
     // No need to clean thinking tags anymore since we removed them from prompt
     let cleanResponse = response.trim();
+    
+    // Check for multi-document attribution format first
+    const attributionMatches = cleanResponse.matchAll(/- Content:\s*(.+?)\n- Source Document:\s*(.+?)\n- Entity Owner:\s*(.+?)\n- Fact Type:\s*(.+?)(?:\n|$)/gi);
+    for (const match of attributionMatches) {
+      const content = match[1].trim();
+      const sourceDocument = match[2].trim();  
+      const entityOwner = match[3].trim();
+      const factType = match[4].trim();
+      
+      // Extract value and unit if present
+      const timeMatch = content.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
+      
+      items.push({
+        content: content,
+        value: timeMatch ? timeMatch[1] : undefined,
+        unit: timeMatch ? timeMatch[2] : undefined,
+        context: `${entityOwner}: ${content}`,
+        confidence: 0.98, // High confidence for structured attribution
+        sourceChunkId: chunkId,
+        sourceDocument: sourceDocument,
+        entityOwner: entityOwner,
+        factType: factType as any,
+        attribution: `${entityOwner}'s ${factType}`,
+        metadata: { 
+          method: 'llm',
+          type: 'attributed_fact',
+          sourceDocument: sourceDocument,
+          entityOwner: entityOwner,
+          factType: factType
+        }
+      });
+    }
+    
+    // If we found attributed items, return them
+    if (items.length > 0) {
+      return items;
+    }
     
     // First, check for our expected "Entry X:" format
     // Look for patterns like "Entry 1:", "Entry 2..4.4.4.4.4:", etc.

@@ -439,12 +439,37 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
           throw new Error("Failed to create model instance");
         }
 
-        const { text } = await generateText({
-          model: modelInstance,
-          prompt: prompt.trim(),
-          maxTokens: 2000,
-          temperature: 0.7,
-        });
+        // Wrap in try-catch to handle Ollama API errors
+        let text: string;
+        try {
+          const result = await generateText({
+            model: modelInstance,
+            prompt: prompt.trim(),
+            maxTokens: 2000,
+            temperature: 0.7,
+          });
+          text = result.text;
+        } catch (apiError) {
+          console.error("🚨 Ollama API error:", apiError);
+          
+          // Check if it's an Invalid JSON response error
+          if (apiError instanceof Error && apiError.message.includes('Invalid JSON response')) {
+            console.log("🔧 Attempting to extract content from malformed response...");
+            
+            // Try to extract any usable content from the error
+            const errorStr = apiError.toString();
+            const contentMatch = errorStr.match(/content["']?:\s*["']([^"']+)["']/i);
+            if (contentMatch) {
+              text = contentMatch[1];
+              console.log("✅ Extracted partial content:", text.substring(0, 100));
+            } else {
+              // Re-throw with more context
+              throw new Error(`Ollama API rejected response: ${apiError.message}`);
+            }
+          } else {
+            throw apiError;
+          }
+        }
 
         if (!text || text.trim().length === 0) {
           throw new Error("Model returned empty response");
@@ -525,7 +550,7 @@ export function useOllamaConnection(): UseOllamaConnectionReturn {
         }
 
         // Use Vercel AI SDK's streamText for streaming
-        const { textStream } = await streamText({
+        const { textStream } = streamText({
           model: modelInstance,
           prompt: prompt.trim(),
           maxTokens: 2000,
