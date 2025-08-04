@@ -145,7 +145,7 @@ export function ControlsPanel({
             className="w-full"
           >
             <MessageSquare className="w-4 h-4 mr-2" />
-            Start New Chat
+            Start New Research
           </Button>
           {/* AI Connection Status */}
           <Card className="border-border bg-card">
