@@ -13,6 +13,7 @@ import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
 import { useResearchHistory } from "./hooks/useResearchHistory";
 import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
+import { getEmbeddingService } from "@/lib/EmbeddingService";
 import VectorStoreInitModal from "../VectorStoreInitModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -58,15 +59,26 @@ export function DeepResearchComponent() {
   // Full-screen modal state
   const [isFullScreenModalOpen, setIsFullScreenModalOpen] = useState(false);
 
+  // Xenova loading state
+  const [xenovaStatus, setXenovaStatus] = useState<
+    "uninitialized" | "initializing" | "ready" | "error"
+  >("uninitialized");
+  const [showModal, setShowModal] = useState(false);
+
   // Create current research session for the modal
-  const currentResearchSession = research.researchSteps.length > 0 ? {
-    id: `current_${Date.now()}`,
-    query: research.prompt || "Current Research",
-    timestamp: Date.now(),
-    steps: research.researchSteps,
-    status: research.isGenerating ? 'active' as const : 'completed' as const,
-    resultCount: research.researchSteps.length,
-  } : null;
+  const currentResearchSession =
+    research.researchSteps.length > 0
+      ? {
+          id: `current_${Date.now()}`,
+          query: research.prompt || "Current Research",
+          timestamp: Date.now(),
+          steps: research.researchSteps,
+          status: research.isGenerating
+            ? ("active" as const)
+            : ("completed" as const),
+          resultCount: research.researchSteps.length,
+        }
+      : null;
 
   // Web Search State
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -107,6 +119,65 @@ export function DeepResearchComponent() {
       setWebSearchStatus((prev) => ({ ...prev, configured: false }));
     }
   }, [firecrawlApiKey]);
+
+  // Monitor Xenova status and show modal accordingly
+  useEffect(() => {
+    const embeddingService = getEmbeddingService();
+    const currentStatus = embeddingService.status;
+
+    // Update local state
+    setXenovaStatus(currentStatus);
+
+    // Show modal only if Xenova is actively initializing or if VectorStore is initializing
+    if (currentStatus === "initializing" || vectorStoreInitializing) {
+      setShowModal(true);
+    } else if (currentStatus === "ready" && showModal) {
+      // Auto-close modal after 2 seconds when Xenova becomes ready
+      setTimeout(() => {
+        setShowModal(false);
+      }, 2000);
+    } else if (currentStatus === "error") {
+      // Keep modal open for errors
+      setShowModal(true);
+    } else if (currentStatus === "ready" && !vectorStoreInitializing) {
+      // If Xenova is ready and VectorStore is not initializing, ensure modal is closed
+      setShowModal(false);
+    }
+  }, [vectorStoreInitializing, vectorStoreInitialized, showModal]);
+
+  // Check Xenova status periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const embeddingService = getEmbeddingService();
+      const currentStatus = embeddingService.status;
+      setXenovaStatus(currentStatus);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-close modal when Xenova becomes ready
+  useEffect(() => {
+    if (xenovaStatus === "ready" && showModal) {
+      const timer = setTimeout(() => {
+        setShowModal(false);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [xenovaStatus, showModal]);
+
+  // Initial check - show modal only if Xenova is initializing (not ready and not from cache)
+  useEffect(() => {
+    const embeddingService = getEmbeddingService();
+    const currentStatus = embeddingService.status;
+    setXenovaStatus(currentStatus);
+
+    // Only show modal if Xenova is actively initializing (not ready from cache)
+    if (currentStatus === "initializing") {
+      setShowModal(true);
+    }
+  }, []); // Only run on mount
 
   // RAG search integration
   const handleRAGSearch = async (query: string) => {
@@ -286,8 +357,31 @@ export function DeepResearchComponent() {
   return (
     <div className="h-full bg-background flex flex-col">
       {/* Vector Store Initialization Modal */}
-      {!vectorStoreInitialized && !vectorStoreInitializing && (
-        <VectorStoreInitModal isOpen={true} />
+      {showModal && (
+        <VectorStoreInitModal
+          isOpen={true}
+          status={
+            vectorStoreError
+              ? "error"
+              : xenovaStatus === "ready"
+                ? "ready"
+                : xenovaStatus === "initializing"
+                  ? "initializing"
+                  : "loading"
+          }
+          progress={downloadProgress}
+          message={
+            vectorStoreError ||
+            (xenovaStatus === "ready"
+              ? "Knowledge Base is ready!"
+              : xenovaStatus === "initializing"
+                ? "Loading Xenova AI models..."
+                : "Initializing secure Knowledge Base...")
+          }
+          onClose={() => {
+            setShowModal(false);
+          }}
+        />
       )}
 
       {/* Main Content */}
@@ -332,7 +426,9 @@ export function DeepResearchComponent() {
               researchConfig={research.researchConfig}
               onResearchConfigChange={research.setResearchConfig}
               onGenerateResearchStream={research.generateResearchStream}
-              onGenerateResearchWithContext={research.generateResearchWithContext}
+              onGenerateResearchWithContext={
+                research.generateResearchWithContext
+              }
               isGenerating={research.isGenerating}
               connectionState={research.connectionState}
               onConnectAI={handleConnectAI}
