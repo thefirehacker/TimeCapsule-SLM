@@ -21,6 +21,7 @@ export interface WebSearchResult {
     crawlTime: number;
     contentLength: number;
     domain: string;
+    scrapingFailed?: boolean;
   };
 }
 
@@ -50,6 +51,26 @@ export class FirecrawlService {
   private firecrawl: FirecrawlApp | null = null;
   private isInitialized = false;
   private apiKey: string | null = null;
+  
+  // Known unsupported domains that Firecrawl cannot scrape
+  private static readonly UNSUPPORTED_DOMAINS = [
+    'x.com',
+    'twitter.com',
+    'instagram.com',
+    'facebook.com',
+    'linkedin.com'
+  ];
+  
+  // Domains that may have rate limiting issues
+  private static readonly RATE_LIMITED_DOMAINS = [
+    'github.com',
+    'gitlab.com',
+    'bitbucket.org'
+  ];
+  
+  // Track temporarily failed domains (will retry after cooldown)
+  private temporarilyFailedDomains = new Map<string, number>();
+  private readonly FAILURE_COOLDOWN_MS = 300000; // 5 minutes
 
   constructor() {
     this.apiKey = process.env.NEXT_PUBLIC_FIRECRAWL_API_KEY || null;
@@ -131,7 +152,7 @@ export class FirecrawlService {
         "results found"
       );
 
-      // Process search results - use search data directly for now
+      // Process search results - scrape top results for content
       const results: WebSearchResult[] = [];
       const domains = new Set<string>();
 
@@ -146,25 +167,53 @@ export class FirecrawlService {
           const domain = new URL(result.url).hostname;
           domains.add(domain);
 
-          // Use search result data directly (no scraping for now)
-          const content = result.description || result.title || "";
-
-          results.push({
-            url: result.url,
-            title: result.title || "Untitled",
-            description: result.description || "",
-            content: content,
-            relevanceScore: this.calculateRelevanceScore(query, content),
-            metadata: {
-              searchQuery: query,
-              searchTime: searchTime,
-              crawlTime: 0, // No scraping
-              contentLength: content.length,
-              domain: domain,
-            },
-          });
-
-          console.log(`✅ Processed result: ${result.title} (${result.url})`);
+          // Check if domain is supported before attempting to scrape
+          let scrapedResult: WebSearchResult | null = null;
+          
+          if (!this.isDomainSupported(result.url)) {
+            console.log(`⚠️ Skipping scrape for unsupported domain: ${domain}`);
+          } else if (this.isDomainRateLimited(result.url)) {
+            console.log(`⚠️ Rate-limited domain ${domain}, attempting with caution`);
+            // Still try but with awareness of potential rate limiting
+            scrapedResult = await this.scrapeUrl(result.url);
+          } else {
+            // Try to scrape the URL for full content
+            scrapedResult = await this.scrapeUrl(result.url);
+          }
+          
+          if (scrapedResult) {
+            // Use scraped content with original search metadata
+            results.push({
+              ...scrapedResult,
+              title: result.title || scrapedResult.title,
+              description: result.description || scrapedResult.description,
+              metadata: {
+                ...scrapedResult.metadata,
+                searchQuery: query,
+                searchTime: searchTime,
+              },
+            });
+            console.log(`✅ Scraped and processed: ${result.title} (${result.url})`);
+          } else {
+            // Fallback to search result data if scraping fails
+            const content = result.description || result.title || "";
+            results.push({
+              url: result.url,
+              title: result.title || "Untitled",
+              description: result.description || "",
+              content: content,
+              relevanceScore: this.calculateRelevanceScore(query, content),
+              metadata: {
+                searchQuery: query,
+                searchTime: searchTime,
+                crawlTime: 0, // No scraping
+                contentLength: content.length,
+                domain: domain,
+                scrapingFailed: true, // Mark that scraping was attempted but failed
+              },
+            });
+            console.log(`⚠️ Using search data only for: ${result.title} (${result.url})`);
+          }
         } catch (error) {
           console.error(
             `❌ Failed to process ${result.url}:`,
@@ -236,6 +285,65 @@ export class FirecrawlService {
 
     return Math.min(score / totalTerms, 1); // Normalize to 0-1
   }
+  
+  /**
+   * Check if a domain is supported for scraping
+   */
+  private isDomainSupported(url: string): boolean {
+    try {
+      const domain = new URL(url).hostname.toLowerCase();
+      
+      // Check if domain is in unsupported list
+      for (const unsupported of FirecrawlService.UNSUPPORTED_DOMAINS) {
+        if (domain.includes(unsupported)) {
+          return false;
+        }
+      }
+      
+      // Check if domain is temporarily failed (with cooldown)
+      const failedTime = this.temporarilyFailedDomains.get(domain);
+      if (failedTime && Date.now() - failedTime < this.FAILURE_COOLDOWN_MS) {
+        return false;
+      }
+      
+      return true;
+    } catch {
+      return true; // If URL parsing fails, let scraping attempt handle it
+    }
+  }
+  
+  /**
+   * Check if a domain might be rate limited
+   */
+  private isDomainRateLimited(url: string): boolean {
+    try {
+      const domain = new URL(url).hostname.toLowerCase();
+      return FirecrawlService.RATE_LIMITED_DOMAINS.some(limited => 
+        domain.includes(limited)
+      );
+    } catch {
+      return false;
+    }
+  }
+  
+  /**
+   * Add domain to temporarily failed list
+   */
+  private addToTemporarilyFailed(url: string): void {
+    try {
+      const domain = new URL(url).hostname.toLowerCase();
+      this.temporarilyFailedDomains.set(domain, Date.now());
+      
+      // Clean up old entries
+      for (const [failedDomain, failedTime] of this.temporarilyFailedDomains.entries()) {
+        if (Date.now() - failedTime > this.FAILURE_COOLDOWN_MS) {
+          this.temporarilyFailedDomains.delete(failedDomain);
+        }
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }
 
   private generateContextText(results: WebSearchResult[]): string {
     let contextText = "";
@@ -248,11 +356,112 @@ export class FirecrawlService {
     return contextText.trim();
   }
 
-  async scrapeUrl(url: string): Promise<WebSearchResult | null> {
-    // For now, return null to avoid API issues
-    // TODO: Implement proper scraping once API structure is clarified
-    console.warn("🚧 Scraping functionality temporarily disabled");
-    return null;
+  async scrapeUrl(url: string, retryCount = 0): Promise<WebSearchResult | null> {
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 1000;
+    
+    if (!this.isInitialized || !this.firecrawl) {
+      await this.initialize();
+    }
+
+    if (!this.firecrawl) {
+      throw new Error("Firecrawl service not available");
+    }
+
+    const startTime = Date.now();
+
+    try {
+      console.log(`🌐 Scraping content from: ${url}${retryCount > 0 ? ` (retry ${retryCount}/${MAX_RETRIES})` : ''}`);
+
+      // Use Firecrawl to scrape the URL
+      const scrapeResult = await this.firecrawl.scrapeUrl(url, {
+        formats: ["markdown"],
+        waitFor: 1000, // Wait for page to load
+        timeout: 10000 // 10 second timeout
+      });
+
+      if (!scrapeResult.success || !scrapeResult.data) {
+        console.error(`❌ Failed to scrape ${url}`);
+        return null;
+      }
+
+      const crawlTime = Date.now() - startTime;
+      const domain = new URL(url).hostname;
+      const content = scrapeResult.data.markdown || scrapeResult.data.content || "";
+
+      // Limit content length
+      const maxContentLength = 5000;
+      const truncatedContent = content.length > maxContentLength
+        ? content.substring(0, maxContentLength) + "..."
+        : content;
+
+      const result: WebSearchResult = {
+        url: url,
+        title: scrapeResult.data.title || "Untitled",
+        description: scrapeResult.data.description || "",
+        content: truncatedContent,
+        markdown: scrapeResult.data.markdown,
+        relevanceScore: 0.8, // Default high relevance for scraped content
+        metadata: {
+          searchQuery: "", // Will be filled by caller
+          searchTime: 0, // Will be filled by caller
+          crawlTime: crawlTime,
+          contentLength: content.length,
+          domain: domain,
+        },
+      };
+
+      console.log(
+        `✅ Scraped ${url}: ${content.length} chars in ${crawlTime}ms`
+      );
+      return result;
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = error.response?.status;
+      
+      // Handle different error scenarios
+      if (statusCode === 403) {
+        // Check if it's a "website not supported" error
+        if (errorMessage.includes("no longer supported") || errorMessage.includes("not supported")) {
+          console.error(`🚫 ${url} is not supported by Firecrawl API`);
+          this.addToTemporarilyFailed(url);
+          return null;
+        }
+        
+        // Other 403 errors might be temporary
+        console.error(`⛔ Access forbidden for ${url}: ${errorMessage}`);
+        
+        // Retry for rate-limited domains
+        if (this.isDomainRateLimited(url) && retryCount < MAX_RETRIES) {
+          console.log(`⏳ Waiting ${RETRY_DELAY_MS * (retryCount + 1)}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1)));
+          return this.scrapeUrl(url, retryCount + 1);
+        }
+        
+        this.addToTemporarilyFailed(url);
+        return null;
+      }
+      
+      // Handle timeout errors with retry
+      if ((errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) && retryCount < MAX_RETRIES) {
+        console.log(`⏱️ Timeout for ${url}, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        return this.scrapeUrl(url, retryCount + 1);
+      }
+      
+      // Log other errors
+      console.error(
+        `❌ Scraping failed for ${url}:`,
+        errorMessage
+      );
+      
+      // For persistent failures, add to temporary failed list
+      if (retryCount >= MAX_RETRIES) {
+        this.addToTemporarilyFailed(url);
+      }
+      
+      return null;
+    }
   }
 
   /**
@@ -306,6 +515,30 @@ export class FirecrawlService {
    */
   getCurrentApiKey(): string | null {
     return this.apiKey;
+  }
+  
+  /**
+   * Get scraping statistics and status
+   */
+  getScrapingStatus(): {
+    unsupportedDomains: string[];
+    temporarilyFailedDomains: string[];
+    rateLimitedDomains: string[];
+  } {
+    const temporarilyFailed: string[] = [];
+    const now = Date.now();
+    
+    for (const [domain, failedTime] of this.temporarilyFailedDomains.entries()) {
+      if (now - failedTime < this.FAILURE_COOLDOWN_MS) {
+        temporarilyFailed.push(domain);
+      }
+    }
+    
+    return {
+      unsupportedDomains: [...FirecrawlService.UNSUPPORTED_DOMAINS],
+      temporarilyFailedDomains: temporarilyFailed,
+      rateLimitedDomains: [...FirecrawlService.RATE_LIMITED_DOMAINS]
+    };
   }
 }
 

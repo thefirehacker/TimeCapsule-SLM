@@ -118,6 +118,12 @@ export interface SourceReference {
     filename?: string;
     uploadedAt?: string;
     description?: string;
+    // Web-specific metadata
+    domain?: string;
+    hasScrapedContent?: boolean;
+    contentLength?: number;
+    crawlTime?: number;
+    scrapingFailed?: boolean;
   };
 }
 

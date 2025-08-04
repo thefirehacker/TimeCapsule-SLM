@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext, ExtractedItem, ChunkData } from '../interfaces/Context';
+import { ResearchContext, ExtractedItem, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class ExtractionAgent extends BaseAgent {
@@ -172,31 +172,9 @@ The extracted data will now be synthesized to answer your query.`);
     context: ResearchContext,
     batchNumber: number
   ): Promise<ExtractedItem[]> {
-    // Direct extraction prompt - no analysis, just extract data
-    const prompt = `Extract ALL data from the text below. Start your response IMMEDIATELY with "Entry 1:" or "Current record:" - no other text before that.
-
-User query: "${context.query}"
-
-Text to extract from:
-${chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n')}
-
-EXAMPLE of correct extraction from a table:
-Entry 1: Initial baseline - 8.13 hours - 6.44B tokens
-Entry 2: Architectural changes - 7.51 hours - 5.07B tokens
-Entry 3: Muon optimizer - 4.53 hours - 3.04B tokens
-Entry 4: Dataloading tweaks - 4.26 hours - 3.31B tokens
-Entry 5: Logit Soft-capping - 4.01 hours - 3.15B tokens
-Entry 6: Longer Sequence Length - 2.55 hours - 1.88B tokens
-Current record: 3.14 minutes
-
-RULES:
-- Extract EVERY row from tables (all 6+ entries if present)
-- Include ALL time values you find
-- Handle any numbering format (1, 2.1, 2..4.4.4.4.4, etc.)
-- Start immediately with the first entry - no preamble
-- Continue until you've extracted everything
-
-Start extracting NOW:`;
+    // Adaptive extraction prompt based on document analysis
+    const documentAnalysis = context.documentAnalysis;
+    const prompt = this.createAdaptiveExtractionPrompt(context.query, chunks, documentAnalysis);
 
     try {
       const response = await this.llm(prompt);
@@ -208,7 +186,8 @@ Start extracting NOW:`;
       // Add batch-specific insights if items found
       if (items.length > 0 && batchNumber <= 5) {
         const sampleItem = items[0];
-        this.batchReasoning.push(`Batch ${batchNumber}: Extracted ${items.length} data points (e.g., "${sampleItem.content.substring(0, 50)}...")`);
+        const sampleContent = (sampleItem.content || 'unknown').toString().substring(0, 50);
+        this.batchReasoning.push(`Batch ${batchNumber}: Extracted ${items.length} data points (e.g., "${sampleContent}...")`);
       }
       
       // Add to extraction summary
@@ -239,6 +218,79 @@ Consider:
 - Are they interested in records, achievements, or development history?
 
 Extract information that directly answers their question, understanding the context of the document.`;
+  }
+  
+  private createAdaptiveExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis?: DocumentAnalysis): string {
+    const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
+    
+    if (!documentAnalysis) {
+      // Fallback to generic extraction
+      return `Extract relevant information from the text below to answer: "${query}"
+
+Text:
+${content}
+
+Extract any relevant data points, facts, or information that helps answer the query.`;
+    }
+
+    // Create intelligent extraction prompt based on document analysis
+    const basePrompt = `INTELLIGENT EXTRACTION TASK
+
+Query: "${query}"
+Document Type: ${documentAnalysis.documentType}
+Focus Areas: ${documentAnalysis.contentAreas.join(', ')}
+Strategy: ${documentAnalysis.extractionStrategy}
+
+Text to extract from:
+${content}
+
+EXTRACTION APPROACH:
+${this.getExtractionApproach(documentAnalysis, query)}
+
+Start extracting relevant information now:`;
+
+    return basePrompt;
+  }
+  
+  private getExtractionApproach(documentAnalysis: DocumentAnalysis, query: string): string {
+    const queryLower = query.toLowerCase();
+    const docType = documentAnalysis.documentType.toLowerCase();
+    
+    // Generate adaptive extraction instructions
+    let approach = '';
+    
+    if (queryLower.includes('best') || queryLower.includes('top')) {
+      approach += `- Look for items that can be compared and ranked\n`;
+      approach += `- Extract specific names, titles, or identifiers\n`;
+      approach += `- Include metrics, achievements, or distinguishing features\n`;
+    }
+    
+    if (queryLower.includes('list') || queryLower.includes('all')) {
+      approach += `- Extract comprehensive list of items\n`;
+      approach += `- Include all instances found, not just highlights\n`;
+      approach += `- Maintain consistent format for similar items\n`;
+    }
+    
+    if (docType.includes('cv') || docType.includes('resume')) {
+      approach += `- Focus on ${documentAnalysis.contentAreas.join(', ')}\n`;
+      approach += `- Extract specific project names, technologies, and achievements\n`;
+      approach += `- Include concrete details, not just job descriptions\n`;
+    }
+    
+    if (docType.includes('research') || docType.includes('paper')) {
+      approach += `- Focus on ${documentAnalysis.contentAreas.join(', ')}\n`;
+      approach += `- Extract methodology, results, and key findings\n`;
+      approach += `- Include specific data, metrics, and conclusions\n`;
+    }
+    
+    // Add generic intelligent approach if no specific rules apply
+    if (!approach) {
+      approach = `- Extract information relevant to the query context\n`;
+      approach += `- Focus on concrete facts and specific details\n`;
+      approach += `- Include any supporting evidence or context\n`;
+    }
+    
+    return approach;
   }
   
   private parseNaturalResponse(response: string, chunkId: string): ExtractedItem[] {
@@ -325,7 +377,7 @@ Extract information that directly answers their question, understanding the cont
         const timeMatch = recordValue.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
         
         items.push({
-          content: "Current speed run record",
+          content: recordValue,
           value: timeMatch ? timeMatch[1] : recordValue,
           unit: timeMatch ? timeMatch[2] : undefined,
           context: trimmedLine,
@@ -422,26 +474,25 @@ Extract information that directly answers their question, understanding the cont
             return;
           }
           
-          // Multiple patterns for table rows - including Tyler's specific format
+          // Multiple patterns for table rows - generic table formats
           
-          // Pattern 1: Tyler's exact format "1 Initial baseline 8.13 hours 6.44B 221k..."
-          // or "2..1.1.1.1.1 Architectural changes 7.51 hours..."
-          const tylerMatch = line.match(/^(\d+(?:\.\.\d+(?:\.\d+)*)?)\s+([^0-9]+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)\s+(\d+\.?\d*[BMK]?)\s+(\d+k?)/);
+          // Pattern 1: Complex numbered format "1.2.3 Description value unit"
+          const complexMatch = line.match(/^(\d+(?:\.\.\d+(?:\.\d+)*)?)\s+([^0-9]+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)\s+(\d+\.?\d*[BMK]?)\s+(\d+k?)/);
           
-          // Pattern 2: Simpler numbered row "1 Description 8.13 hours"
+          // Pattern 2: Simple numbered row "1 Description value unit"
           const simpleMatch = line.match(/^(\d+)\s+(.+?)\s+(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
           
-          // Pattern 3: Pipe separated "Description | 8.13 hours | 6.44B"
+          // Pattern 3: Pipe separated "Description | value unit | other"
           const pipeMatch = line.match(/(.+?)\s*\|\s*(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/);
           
           let extractedItem: ExtractedItem | null = null;
           
-          if (tylerMatch) {
-            // Handle Tyler's specific format
-            const entryNum = tylerMatch[1];
-            const description = tylerMatch[2].trim();
-            const time = tylerMatch[3];
-            const unit = tylerMatch[4];
+          if (complexMatch) {
+            // Handle complex numbered format
+            const entryNum = complexMatch[1];
+            const description = complexMatch[2].trim();
+            const value = complexMatch[3];
+            const unit = complexMatch[4];
             
             // Extract base number for sorting
             const baseNumber = entryNum.includes('..') ? 
@@ -450,19 +501,18 @@ Extract information that directly answers their question, understanding the cont
             
             extractedItem = {
               content: `Entry ${entryNum}: ${description}`,
-              value: time,
+              value: value,
               unit: unit,
               context: line.trim(),
               confidence: 0.98, // High confidence for exact match
               sourceChunkId: chunk.id,
               metadata: { 
                 method: 'table', 
-                type: 'tyler_format',
+                type: 'numbered_entry',
                 rowNumber: baseNumber.toString(),
                 fullNumber: entryNum,
                 description: description,
-                tokens: tylerMatch[5],
-                tokensPerSec: tylerMatch[6]
+                additionalData: complexMatch[5] + ' ' + complexMatch[6]
               }
             };
           } else if (simpleMatch && simpleMatch[2].length > 2) {
@@ -525,7 +575,7 @@ Extract information that directly answers their question, understanding the cont
       const currentRecordMatch = chunk.text.match(/Current\s+record[:\s]+(\d+\.?\d*)\s*(minutes?|mins?|hours?|hrs?)/i);
       if (currentRecordMatch) {
         items.push({
-          content: "Current speed run record",
+          content: `Current record: ${currentRecordMatch[1]} ${currentRecordMatch[2]}`,
           value: currentRecordMatch[1],
           unit: currentRecordMatch[2],
           context: `Current record: ${currentRecordMatch[1]} ${currentRecordMatch[2]}`,
@@ -610,29 +660,6 @@ Extract information that directly answers their question, understanding the cont
         }
       });
       
-      // Also extract relevant sentences containing query terms
-      if (context.query.toLowerCase().includes('speed run') || 
-          context.query.toLowerCase().includes('tyler')) {
-        const sentences = text.split(/[.!?]+/);
-        sentences.forEach(sentence => {
-          if (sentence.toLowerCase().includes('speed') || 
-              sentence.toLowerCase().includes('run') ||
-              sentence.toLowerCase().includes('tyler')) {
-            items.push({
-              content: sentence.trim(),
-              value: undefined,
-              unit: undefined,
-              context: sentence.trim(),
-              confidence: 0.6,
-              sourceChunkId: chunk.id,
-              metadata: { 
-                method: 'sentence',
-                chunkIndex 
-              }
-            });
-          }
-        });
-      }
     });
     
     console.log(`✅ Extracted ${items.length} items using pattern matching`);

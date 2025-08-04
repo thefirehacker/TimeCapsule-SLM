@@ -27,98 +27,14 @@ export interface QueryAnalysis {
   method: 'rule-based' | 'llm-assisted' | 'hybrid';
 }
 
-interface QueryPattern {
-  patterns: RegExp[];
-  expansions: string[];
-  threshold: number;
-  limit: number;
-  strategy: 'broad' | 'focused';
-}
 
 /**
- * Rule-based query expansion patterns
- * Each pattern includes regex matchers, expansion terms, and search parameters
+ * Default search parameters when LLM-based analysis is used
  */
-const QUERY_PATTERNS: Record<string, QueryPattern> = {
-  performance: {
-    patterns: [
-      /top|best|fastest|speed|benchmark|run|result|score/i,
-      /performance|optimization|timing|throughput/i,
-      /ranking|leaderboard|comparison|versus/i
-    ],
-    expansions: [
-      "benchmark results",
-      "performance metrics", 
-      "training speed",
-      "optimization results",
-      "execution time",
-      "throughput data",
-      "speed comparison",
-      "performance analysis"
-    ],
-    threshold: 0.15, // Lower threshold for broader matching
-    limit: 15,
-    strategy: 'broad'
-  },
-  
-  comparison: {
-    patterns: [
-      /vs|versus|compare|better|worse|difference/i,
-      /advantage|disadvantage|pros|cons/i,
-      /superior|inferior|outperform/i
-    ],
-    expansions: [
-      "comparison analysis",
-      "versus results", 
-      "performance difference",
-      "benchmark comparison",
-      "evaluation criteria",
-      "comparative study"
-    ],
-    threshold: 0.2,
-    limit: 12,
-    strategy: 'focused'
-  },
-  
-  technical: {
-    patterns: [
-      /how|implement|code|algorithm|method|technique/i,
-      /architecture|design|structure|framework/i,
-      /configuration|setup|installation/i
-    ],
-    expansions: [
-      "implementation details",
-      "code examples",
-      "algorithm description",
-      "technical approach",
-      "method explanation",
-      "architectural design",
-      "configuration guide"
-    ],
-    threshold: 0.25,
-    limit: 10,
-    strategy: 'focused'
-  },
-  
-  summary: {
-    patterns: [
-      /what|explain|overview|summary|describe/i,
-      /introduction|basics|fundamentals/i,
-      /definition|meaning|concept/i
-    ],
-    expansions: [
-      "overview",
-      "summary",
-      "explanation",
-      "introduction",
-      "description",
-      "concept explanation",
-      "fundamental principles"
-    ],
-    threshold: 0.2,
-    limit: 12,
-    strategy: 'broad'
-  }
+const DEFAULT_SEARCH_PARAMS = {
+  threshold: 0.2,
+  limit: 10,
+  strategy: 'broad' as const
 };
 
 /**
@@ -204,53 +120,24 @@ export class QueryIntelligenceService {
   }
   
   /**
-   * Rule-based query analysis using pattern matching
+   * Basic query analysis - simplified without hardcoded patterns
    */
   private analyzeWithRules(query: string): {
     intent: QueryIntent;
     expandedQueries: string[];
     searchParameters: QueryAnalysis['searchParameters'];
   } {
-    const queryLower = query.toLowerCase();
-    
-    // Find matching patterns
-    for (const [intentType, pattern] of Object.entries(QUERY_PATTERNS)) {
-      const matches = pattern.patterns.some(regex => regex.test(queryLower));
-      
-      if (matches) {
-        const keywords = this.extractKeywords(query);
-        
-        return {
-          intent: {
-            type: intentType as QueryIntent['type'],
-            confidence: 0.8, // High confidence for rule-based matches
-            keywords,
-            expansionStrategy: intentType as QueryIntent['expansionStrategy']
-          },
-          expandedQueries: pattern.expansions,
-          searchParameters: {
-            threshold: pattern.threshold,
-            limit: pattern.limit,
-            strategy: pattern.strategy
-          }
-        };
-      }
-    }
-    
-    // No pattern matched - unknown intent
+    // Always return low confidence to trigger LLM analysis
+    // This ensures context-aware expansion instead of rigid pattern matching
     return {
       intent: {
         type: 'unknown',
-        confidence: 0.3,
+        confidence: 0.3, // Low confidence to trigger LLM
         keywords: this.extractKeywords(query),
         expansionStrategy: 'general'
       },
       expandedQueries: [query],
-      searchParameters: {
-        threshold: 0.2,
-        limit: 10,
-        strategy: 'broad'
-      }
+      searchParameters: DEFAULT_SEARCH_PARAMS
     };
   }
   
@@ -268,46 +155,14 @@ export class QueryIntelligenceService {
     }
     
     try {
-      const prompt = `Analyze this user query and generate related search terms:
+      // Truncate very long queries for analysis
+      const analysisQuery = query.length > 100 ? query.substring(0, 100) + '...' : query;
+      
+      const prompt = `What would you search for to find information about: "${analysisQuery}"?
 
-Query: "${query}"
+Provide a few search term variations that would help find relevant content.
 
-Tasks:
-1. Classify the query intent as one of: performance, comparison, technical, summary, unknown
-2. Generate 5-6 alternative search terms that would find relevant content
-3. Focus on synonyms, related concepts, and what content might actually exist
-
-Respond with JSON only:
-{
-  "intent": {
-    "type": "performance|comparison|technical|summary|unknown",
-    "confidence": 0.8,
-    "keywords": ["keyword1", "keyword2"]
-  },
-  "expandedQueries": [
-    "alternative search term 1",
-    "alternative search term 2",
-    "alternative search term 3",
-    "alternative search term 4",
-    "alternative search term 5"
-  ]
-}
-
-Example for "top 3 runs":
-{
-  "intent": {
-    "type": "performance", 
-    "confidence": 0.9,
-    "keywords": ["top", "runs", "performance"]
-  },
-  "expandedQueries": [
-    "performance results",
-    "benchmark data", 
-    "training speeds",
-    "optimization results",
-    "execution metrics"
-  ]
-}`;
+Also, what type of query is this (performance, comparison, technical, summary, or general)?`;
 
       const response = await this.llmGenerateContent(prompt);
       const parsed = this.parseJSON(response);
@@ -341,15 +196,28 @@ Example for "top 3 runs":
     expandedQueries: string[];
     searchParameters: QueryAnalysis['searchParameters'];
   } {
+    // Validate inputs
+    if (!llmAnalysis || !llmAnalysis.intent) {
+      console.warn('⚠️ Invalid LLM analysis, using rule-based only');
+      return ruleBasedAnalysis;
+    }
+    
     // Use LLM intent if it has higher confidence
     const intent = llmAnalysis.intent.confidence > ruleBasedAnalysis.intent.confidence
       ? llmAnalysis.intent
       : ruleBasedAnalysis.intent;
     
-    // Combine expanded queries from both sources
+    // Safely combine expanded queries from both sources
+    const ruleBasedQueries = Array.isArray(ruleBasedAnalysis.expandedQueries) 
+      ? ruleBasedAnalysis.expandedQueries 
+      : [];
+    const llmQueries = Array.isArray(llmAnalysis.expandedQueries) 
+      ? llmAnalysis.expandedQueries 
+      : [];
+    
     const expandedQueries = [
-      ...ruleBasedAnalysis.expandedQueries,
-      ...llmAnalysis.expandedQueries
+      ...ruleBasedQueries,
+      ...llmQueries
     ];
     
     // Use search parameters from the higher-confidence analysis
@@ -374,6 +242,27 @@ Example for "top 3 runs":
       .filter(word => word.length > 2)
       .filter(word => !['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'].includes(word));
   }
+
+  /**
+   * Get initial intent type based on query keywords
+   */
+  private getIntentType(query: string): string {
+    const lowerQuery = query.toLowerCase();
+    if (lowerQuery.includes('compare') || lowerQuery.includes('vs') || lowerQuery.includes('versus')) {
+      return 'comparison';
+    }
+    if (lowerQuery.includes('how') || lowerQuery.includes('explain') || lowerQuery.includes('what')) {
+      return 'technical';
+    }
+    if (lowerQuery.includes('summary') || lowerQuery.includes('overview') || lowerQuery.includes('list')) {
+      return 'summary';
+    }
+    if (lowerQuery.includes('performance') || lowerQuery.includes('speed') || lowerQuery.includes('fast')) {
+      return 'performance';
+    }
+    return 'unknown';
+  }
+
   
   /**
    * Remove duplicate queries and limit to reasonable number
@@ -397,21 +286,19 @@ Example for "top 3 runs":
    * Get search parameters based on intent type
    */
   private getSearchParametersForIntent(intentType: string): QueryAnalysis['searchParameters'] {
-    const pattern = QUERY_PATTERNS[intentType];
-    if (pattern) {
-      return {
-        threshold: pattern.threshold,
-        limit: pattern.limit,
-        strategy: pattern.strategy
-      };
+    // Use intent-specific parameters without rigid patterns
+    switch (intentType) {
+      case 'performance':
+        return { threshold: 0.15, limit: 15, strategy: 'broad' };
+      case 'comparison':
+        return { threshold: 0.2, limit: 12, strategy: 'focused' };
+      case 'technical':
+        return { threshold: 0.25, limit: 10, strategy: 'focused' };
+      case 'summary':
+        return { threshold: 0.2, limit: 12, strategy: 'broad' };
+      default:
+        return DEFAULT_SEARCH_PARAMS;
     }
-    
-    // Default parameters for unknown intents
-    return {
-      threshold: 0.2,
-      limit: 10,
-      strategy: 'broad'
-    };
   }
   
   /**
@@ -452,38 +339,111 @@ Example for "top 3 runs":
    */
   private parseJSON(text: string): any {
     try {
-      // First try direct parsing
-      return JSON.parse(text);
+      // First try direct parsing if it looks like JSON
+      if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+        return JSON.parse(text);
+      }
     } catch {
-      console.log('🔍 Direct JSON parse failed, cleaning response...');
-      
-      // Clean up response
-      let cleanText = text.trim();
-      
-      // Remove <think> tags if present
-      if (cleanText.includes('<think>') && cleanText.includes('</think>')) {
-        const thinkEnd = cleanText.lastIndexOf('</think>');
-        if (thinkEnd !== -1) {
-          cleanText = cleanText.substring(thinkEnd + 8).trim();
-        }
-      }
-      
-      // Remove common LLM preambles
-      cleanText = cleanText.replace(/^(Okay,? let'?s see\.?|Let me think|First,? I need to)[^\n]*\n/gim, '');
-      
-      // Try to find JSON in the text
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[0]);
-        } catch (e) {
-          console.error('🔍 JSON extraction failed:', e);
-        }
-      }
-      
-      console.error('Failed to parse JSON from:', text.substring(0, 200));
-      throw new Error('Invalid JSON response from LLM');
+      // Continue to flexible parsing
     }
+    
+    // Try to extract JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.intent && parsed.expandedQueries) {
+          return parsed;
+        }
+      } catch {
+        // Continue to natural language parsing
+      }
+    }
+    
+    // Parse natural language response
+    return this.parseNaturalLanguageResponse(text);
+  }
+  
+  /**
+   * Extract search terms and intent from natural language
+   */
+  private parseNaturalLanguageResponse(text: string): any {
+    const lines = text.split('\n').filter(line => line.trim());
+    const searchTerms: string[] = [];
+    let intentType = 'unknown';
+    let confidence = 0.7;
+    
+    // Extract search terms from natural language
+    for (const line of lines) {
+      const lowerLine = line.toLowerCase();
+      
+      // Skip lines that are explaining the type
+      if (lowerLine.includes('type of query') || lowerLine.includes('this is a')) {
+        // Extract intent type from these lines
+        if (lowerLine.includes('performance')) intentType = 'performance';
+        else if (lowerLine.includes('comparison')) intentType = 'comparison';
+        else if (lowerLine.includes('technical')) intentType = 'technical';
+        else if (lowerLine.includes('summary')) intentType = 'summary';
+        else if (lowerLine.includes('general')) intentType = 'unknown';
+        continue;
+      }
+      
+      // Look for quoted terms
+      const quotedTerms = line.match(/"([^"]+)"/g);
+      if (quotedTerms) {
+        searchTerms.push(...quotedTerms.map(t => t.replace(/"/g, '')));
+      }
+      
+      // Look for listed items (1. xxx, - xxx, • xxx)
+      const listMatch = line.match(/^[\d\-•*]\s*(.+)$/);
+      if (listMatch) {
+        const term = listMatch[1].trim();
+        // Clean up the term
+        if (!term.toLowerCase().includes('search for') && 
+            !term.toLowerCase().includes('look for') &&
+            term.length > 2) {
+          searchTerms.push(term);
+        }
+      }
+      
+      // Look for "search for X" patterns
+      const searchForMatch = line.match(/search for:?\s*(.+)/i);
+      if (searchForMatch) {
+        searchTerms.push(searchForMatch[1].trim());
+      }
+    }
+    
+    // If no search terms found, extract key phrases from the response
+    if (searchTerms.length === 0) {
+      // Extract phrases that look like search terms
+      const phrases = text.match(/(?:would be|could search|try|look for|such as|like)\s+"?([^"\n,]+)"?/gi);
+      if (phrases) {
+        searchTerms.push(...phrases.map(p => 
+          p.replace(/(?:would be|could search|try|look for|such as|like)\s*/i, '')
+           .replace(/['"]/g, '')
+           .trim()
+        ));
+      }
+    }
+    
+    // Deduplicate and clean
+    const uniqueTerms = [...new Set(searchTerms)]
+      .filter(term => term && term.length > 2)
+      .slice(0, 5);
+    
+    // If still no terms, use original query
+    if (uniqueTerms.length === 0) {
+      uniqueTerms.push(text.split('\n')[0].substring(0, 50));
+    }
+    
+    return {
+      intent: {
+        type: intentType,
+        confidence: confidence,
+        keywords: this.extractKeywords(uniqueTerms.join(' '))
+      },
+      expandedQueries: uniqueTerms
+    };
   }
 }
 

@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext, ChunkData } from '../interfaces/Context';
+import { ResearchContext, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class SynthesisAgent extends BaseAgent {
@@ -48,7 +48,14 @@ export class SynthesisAgent extends BaseAgent {
     const itemCount = context.extractedData.raw?.length || 0;
     const chunkCount = context.ragResults.chunks?.length || 0;
     
+    // Count web vs RAG sources  
+    const webChunks = context.ragResults.chunks.filter(chunk => 
+      chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
+    ).length;
+    const ragChunks = chunkCount - webChunks;
+    
     console.log(`📝 Synthesizer: Creating final answer from ${itemCount} items`);
+    console.log(`   Sources: ${ragChunks} RAG chunks, ${webChunks} Web sources`);
     
     // Debug log time-based items
     const timeItems = context.extractedData.raw.filter(item => item.value && item.unit);
@@ -62,7 +69,8 @@ export class SynthesisAgent extends BaseAgent {
     
 Query type: ${context.understanding.queryType || 'general'}
 User intent: ${context.understanding.intent || 'information retrieval'}
-Chunks found: ${chunkCount}`);
+Sources: ${ragChunks} RAG chunks, ${webChunks} Web sources
+Total chunks: ${chunkCount}`);
     
     if (itemCount === 0) {
       context.synthesis.answer = this.formatNoResultsReport(context);
@@ -124,21 +132,12 @@ The report has been formatted for maximum clarity and usefulness.`);
   private async classifyItemsWithLLM(context: ResearchContext, groupedItems: any[]): Promise<any[]> {
     if (groupedItems.length === 0) return groupedItems;
     
-    const classificationPrompt = `<think>
-I need to classify these extracted items:
-1. Which items represent current records/achievements?
-2. Which items are historical data or progression?
-3. What's the context of each data point?
-</think>
+    const classificationPrompt = `User asked: "${context.query}"
 
-Please classify these items for the query: "${context.query}"
-
-Items to classify:
+I found these items:
 ${groupedItems.slice(0, 15).map((group, i) => {
   const item = group.bestItem;
-  return `${i + 1}. Content: "${item.content}"
-   Value: ${item.value} ${item.unit || ''}
-   Context: "${item.context?.substring(0, 100)}..."
+  return `${i + 1}. ${item.content} - ${item.value} ${item.unit || ''}
    Type: ${item.metadata?.type || 'unknown'}`;
 }).join('\n\n')}
 
@@ -182,58 +181,144 @@ Focus on understanding the document context to make this distinction.`;
     }
   }
 
+
   /**
    * Generate a comprehensive deep research report with critical info + detailed analysis
    */
   private async generateDeepResearchReport(context: ResearchContext, groupedItems: any[]): Promise<string> {
-    const queryType = context.understanding.queryType;
-    
-    // Filter items based on query intent
-    const filteredItems = this.filterByIntent(context, groupedItems);
-    
-    // Generate different report formats based on query type
-    if (queryType === 'ranking' && context.query.toLowerCase().includes('top')) {
-      return this.generateRankingReport(context, filteredItems);
-    } else if (queryType === 'comparison') {
-      return this.generateComparisonReport(context, filteredItems);
-    } else {
-      return this.generateGeneralReport(context, filteredItems);
+    // Create adaptive synthesis prompt based on document analysis
+    const prompt = this.createAdaptiveSynthesisPrompt(context, groupedItems);
+
+    try {
+      const response = await this.llm(prompt);
+      return response;
+    } catch (error) {
+      console.error('❌ Failed to generate report:', error);
+      // Fallback to basic formatting
+      return this.formatBasicReport(context, groupedItems);
     }
   }
   
-  /**
-   * Generate a ranking-style research report (e.g., "top 3 speed runs")
-   */
-  private generateRankingReport(context: ResearchContext, groupedItems: any[]): string {
-    // Sort items appropriately
-    const sorted = this.sortItemsForRanking(context, groupedItems);
+  private createAdaptiveSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
+    const documentAnalysis = context.documentAnalysis;
+    const query = context.query;
+    const queryLower = query.toLowerCase();
     
-    // Extract number from query (default to 3)
-    const topN = this.extractTopN(context.query) || 3;
-    const topItems = sorted.slice(0, topN);
+    // Prepare extracted data
+    const extractedData = groupedItems.slice(0, 10).map((group, i) => {
+      const item = group.bestItem;
+      return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
+    }).join('\n');
     
-    // Build the report sections
-    const sections: string[] = [];
-    
-    // Section 1: Critical Information (Summary)
-    sections.push(this.generateCriticalInfoSection(context, topItems));
-    
-    // Section 2: Detailed Analysis
-    sections.push(this.generateDetailedAnalysisSection(context, topItems, sorted));
-    
-    // Section 3: Full Results Table (if applicable)
-    if (sorted.length > topN) {
-      sections.push(this.generateFullResultsSection(sorted));
+    if (!documentAnalysis) {
+      // Fallback to generic synthesis
+      return `User asked: "${query}"
+
+Extracted information:
+${extractedData}
+
+Provide a comprehensive answer that directly addresses what the user asked for.`;
     }
     
-    // Section 4: Sources and References
-    sections.push(this.generateSourcesSection(context));
-    
-    // Section 5: Confidence and Methodology
-    sections.push(this.generateConfidenceSection(context, groupedItems));
-    
-    return sections.join('\n\n---\n\n');
+    // Create intelligent synthesis prompt
+    let basePrompt = `INTELLIGENT SYNTHESIS TASK
+
+User Query: "${query}"
+Document Type: ${documentAnalysis.documentType}
+Expected Output Format: ${documentAnalysis.expectedOutputFormat}
+Query Intent: ${documentAnalysis.queryIntent}
+
+Extracted Information:
+${extractedData}
+
+SYNTHESIS INSTRUCTIONS:
+${this.getSynthesisInstructions(query, documentAnalysis)}
+
+Generate your response now:`;
+
+    return basePrompt;
   }
+  
+  private getSynthesisInstructions(query: string, documentAnalysis: DocumentAnalysis): string {
+    const queryLower = query.toLowerCase();
+    const expectedFormat = documentAnalysis.expectedOutputFormat.toLowerCase();
+    const docType = documentAnalysis.documentType.toLowerCase();
+    
+    let instructions = '';
+    
+    // Query-specific instructions
+    if (queryLower.includes('best') || queryLower.includes('top')) {
+      instructions += `- Provide a clear ranking or comparison of the items\n`;
+      instructions += `- Explain WHY each item is ranked as it is\n`;
+      instructions += `- Highlight the "best" item and provide reasoning\n`;
+      instructions += `- Include specific details that support the ranking\n`;
+    }
+    
+    if (queryLower.includes('list') || queryLower.includes('all')) {
+      instructions += `- Present a comprehensive list of all relevant items\n`;
+      instructions += `- Use consistent formatting for each item\n`;
+      instructions += `- Include key details for each item\n`;
+      instructions += `- Organize logically (chronologically, by importance, etc.)\n`;
+    }
+    
+    if (queryLower.includes('explain') || queryLower.includes('how')) {
+      instructions += `- Provide detailed explanations with context\n`;
+      instructions += `- Break down complex information into understandable parts\n`;
+      instructions += `- Include supporting evidence and examples\n`;
+      instructions += `- Structure as a clear, logical explanation\n`;
+    }
+    
+    // Document-specific instructions  
+    if (docType.includes('cv') || docType.includes('resume')) {
+      instructions += `- Focus on specific projects, achievements, and technical details\n`;
+      instructions += `- Include concrete technologies, results, and impact\n`;
+      instructions += `- Avoid generic job description language\n`;
+      instructions += `- Highlight measurable outcomes and specific contributions\n`;
+    }
+    
+    if (docType.includes('research') || docType.includes('paper')) {
+      instructions += `- Focus on methodology, findings, and conclusions\n`;
+      instructions += `- Include specific data, metrics, and results\n`;
+      instructions += `- Maintain scientific accuracy and context\n`;
+      instructions += `- Reference key findings and their implications\n`;
+    }
+    
+    // Format-specific instructions
+    if (expectedFormat.includes('comparison')) {
+      instructions += `- Structure as a clear comparison between options\n`;
+      instructions += `- Use parallel structure for comparing items\n`;
+      instructions += `- Highlight key differences and similarities\n`;
+    }
+    
+    if (expectedFormat.includes('list')) {
+      instructions += `- Use numbered or bulleted list format\n`;
+      instructions += `- Keep items concise but informative\n`;
+      instructions += `- Maintain consistent structure across items\n`;
+    }
+    
+    // Generic fallback
+    if (!instructions) {
+      instructions = `- Provide a comprehensive, well-structured response\n`;
+      instructions += `- Include specific details and concrete information\n`;
+      instructions += `- Structure logically to address the user's query\n`;
+      instructions += `- Focus on being helpful and informative\n`;
+    }
+    
+    return instructions;
+  }
+  
+  /**
+   * Format a basic report when LLM fails
+   */
+  private formatBasicReport(context: ResearchContext, groupedItems: any[]): string {
+    const items = groupedItems.slice(0, 5).map((group, i) => {
+      const item = group.bestItem;
+      return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
+    }).join('\n');
+    
+    return `Found ${groupedItems.length} relevant items for "${context.query}":\n\n${items}`;
+  }
+  
   
   /**
    * Generate critical information section (top of report)
@@ -324,17 +409,17 @@ Focus on understanding the document context to make this distinction.`;
       lines.push(`- Total ${allItems.length} relevant items found across all sources`);
       lines.push(`- Data spans multiple documents and contexts`);
       
-      // For speed runs, add range info
-      if (context.query.toLowerCase().includes('speed run')) {
-        const times = allItems
-          .filter(g => g.bestItem.value && g.bestItem.unit)
+      // Add range info for time-based data
+      const timeBasedItems = allItems.filter(g => g.bestItem.value && g.bestItem.unit);
+      if (timeBasedItems.length >= 2) {
+        const times = timeBasedItems
           .map(g => this.parseTimeToHours(g.bestItem))
           .filter(t => t !== Infinity);
         
         if (times.length >= 2) {
           const fastest = Math.min(...times);
           const slowest = Math.max(...times);
-          lines.push(`- Time range: ${this.formatHours(fastest)} to ${this.formatHours(slowest)}`);
+          lines.push(`- Value range: ${this.formatHours(fastest)} to ${this.formatHours(slowest)}`);
         }
       }
     }
@@ -441,16 +526,23 @@ Focus on understanding the document context to make this distinction.`;
   private sortItemsForRanking(context: ResearchContext, groupedItems: any[]): any[] {
     const query = context.query.toLowerCase();
     
-    if (query.includes('speed') || query.includes('fast') || query.includes('quick')) {
-      // For speed runs, sort by time (ascending - fastest first)
+    // For queries looking for best/fastest/minimum values, sort ascending
+    // For queries looking for worst/slowest/maximum values, sort descending
+    const hasTimeData = groupedItems.some(g => g.bestItem.value && g.bestItem.unit);
+    
+    if (hasTimeData) {
+      // Check if query is looking for minimum or maximum values
+      const wantsMaximum = query.includes('slow') || query.includes('long') || 
+                          query.includes('worst') || query.includes('maximum');
+      
       const sorted = groupedItems.sort((a, b) => {
         const aTime = this.parseTimeToHours(a.bestItem);
         const bTime = this.parseTimeToHours(b.bestItem);
-        return aTime - bTime;
+        return wantsMaximum ? (bTime - aTime) : (aTime - bTime);
       });
       
       // Debug logging
-      console.log('🏁 Speed run sorting:');
+      console.log('📈 Ranking sort:');
       sorted.slice(0, 6).forEach((item, i) => {
         const time = this.parseTimeToHours(item.bestItem);
         console.log(`  ${i + 1}. ${item.bestItem.content} → ${item.bestItem.value} ${item.bestItem.unit} (${time.toFixed(2)} hours)`);
@@ -504,13 +596,6 @@ Focus on understanding the document context to make this distinction.`;
     return sections.join('\n\n---\n\n');
   }
   
-  /**
-   * Generate comparison report
-   */
-  private generateComparisonReport(context: ResearchContext, groupedItems: any[]): string {
-    // TODO: Implement comparison-specific formatting
-    return this.generateGeneralReport(context, groupedItems);
-  }
   
   /**
    * Generate general summary section
@@ -594,79 +679,6 @@ No relevant information was found in the available documents that matches your q
 *Research completed at ${new Date().toISOString()}*`;
   }
 
-  private formatSimpleAnswer(context: ResearchContext, groupedItems: any[]): string {
-    const queryType = context.understanding.queryType;
-    
-    // Filter out items based on query intent
-    const filteredItems = this.filterByIntent(context, groupedItems);
-    
-    if (queryType === 'ranking' && context.query.toLowerCase().includes('top 3')) {
-      // Sort by time value (smallest first for speed runs)
-      const sorted = filteredItems.sort((a, b) => {
-        const aVal = this.parseTimeToHours(a.bestItem);
-        const bVal = this.parseTimeToHours(b.bestItem);
-        return aVal - bVal;
-      });
-      
-      // Format top 3 results
-      const top3 = sorted.slice(0, 3);
-      
-      if (top3.length === 0) {
-        return 'No speed run times found in the available data. The data contained performance metrics (tokens/sec) but not completion times.';
-      }
-      
-      const lines = ['Based on the search results, here are the top 3 speed runs:\n'];
-      
-      top3.forEach((group, index) => {
-        const item = group.bestItem;
-        const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
-        
-        console.log(`🔍 Synthesis debug item ${index + 1}:`, { 
-          originalContent: item.content, 
-          value, 
-          unit: item.unit 
-        });
-        
-        // Clean up the content - remove LLM thinking
-        let content = this.cleanContent(item.content);
-        
-        // Extract run description if present - improved extraction
-        if (content.includes('Run')) {
-          // Try to extract meaningful run description
-          const runMatch = content.match(/Run\s*\d+[:\s-]*([^-\n]+?)(?:\s*-\s*\d+\.?\d*\s*(?:hours?|minutes?))?$/i);
-          if (runMatch && runMatch[1].trim().length > 3) {
-            content = runMatch[1].trim();
-          } else {
-            // Try alternative patterns
-            const altMatch = content.match(/Run\s*(\d+)[:\s-]*(.+)/i);
-            if (altMatch && altMatch[2].trim().length > 3) {
-              content = `Run ${altMatch[1]}: ${altMatch[2].trim()}`;
-            }
-          }
-        }
-        
-        // Smart time formatting - avoid duplicates
-        const formattedLine = this.formatWithTime(content, value);
-        console.log(`✅ Synthesis formatted item ${index + 1}:`, formattedLine);
-        lines.push(`${index + 1}. ${formattedLine}`);
-      });
-      
-      return lines.join('\n');
-    }
-    
-    // Default format for other query types
-    const lines = [`Found ${filteredItems.length} relevant results:\n`];
-    
-    filteredItems.forEach((group, index) => {
-      const item = group.bestItem;
-      const value = item.value && item.unit ? `${item.value} ${item.unit}` : '';
-      const content = this.cleanContent(item.content);
-      const formattedLine = this.formatWithTime(content, value);
-      lines.push(`• ${formattedLine}`);
-    });
-    
-    return lines.join('\n');
-  }
   
   private cleanContent(content: string): string {
     // Remove LLM thinking patterns - expanded list
@@ -732,7 +744,6 @@ No relevant information was found in the available documents that matches your q
     
     // Step 2: Deduplicate by content similarity
     const deduplicatedItems: any[] = [];
-    const seenContent = new Set();
     
     for (const item of cleanedItems) {
       // FIXED: Less aggressive normalization - preserve run numbers and timing differences
@@ -895,6 +906,7 @@ No relevant information was found in the available documents that matches your q
   
   private filterByIntent(context: ResearchContext, groupedItems: any[]): any[] {
     const query = context.query.toLowerCase();
+    const queryType = context.understanding.queryType;
     
     // Minimal filtering - only remove clearly irrelevant items
     let filtered = groupedItems.filter(group => {
@@ -918,9 +930,9 @@ No relevant information was found in the available documents that matches your q
       return true;
     });
     
-    // For speed runs, be very inclusive - keep ALL time-based data
-    if (query.includes('speed run') || query.includes('runs') || query.includes('top')) {
-      // Don't filter out anything with time values
+    // For ranking queries, be inclusive - keep all relevant data
+    if (queryType === 'ranking' || query.includes('top') || query.includes('best')) {
+      // Don't filter out items with values
       filtered = filtered.filter(group => {
         const item = group.bestItem;
         const unit = (item.unit || '').toLowerCase();
@@ -1064,54 +1076,6 @@ Identify:
     return `${contentKey}_${valueKey}_${unitKey}`;
   }
   
-  private async generateAnswer(context: ResearchContext, groupedItems: any[]): Promise<string> {
-    // Prepare items for LLM
-    const itemsDescription = groupedItems.slice(0, 10).map((group, i) => {
-      const item = group.bestItem;
-      return `${i + 1}. ${item.content}${item.value ? ` (${item.value}${item.unit ? ' ' + item.unit : ''})` : ''}
-   Context: "${item.context}"
-   Confidence: ${(item.confidence * 100).toFixed(0)}%
-   Sources: ${group.items.length} mentions`;
-    }).join('\n\n');
-    
-    const prompt = `Create a clear, concise answer to the user's query based on the extracted information:
-
-User Query: "${context.query}"
-Intent: ${context.understanding.intent}
-Expected Format: ${context.understanding.queryType}
-
-Extracted Information:
-${itemsDescription}
-
-Create an answer that:
-1. Directly addresses what the user asked for
-2. Is formatted appropriately for the query type (${context.understanding.queryType})
-3. Includes specific details from the extracted information
-4. Is confident and clear
-5. For ranking queries: Present as a numbered list
-6. For comparison queries: Show clear distinctions
-7. For information queries: Provide comprehensive details
-
-DO NOT mention confidence scores, extraction process, or technical details.
-DO NOT say "based on the extracted information" or similar phrases.
-Write as if you have direct knowledge of the facts.`;
-
-    try {
-      const answer = await this.llm(prompt);
-      
-      // Store full LLM response for thinking extraction
-      this.setReasoning(answer);
-      
-      return answer;
-      
-    } catch (error) {
-      console.error('❌ Failed to generate answer:', error);
-      this.setReasoning('Failed to synthesize answer, returning raw data');
-      
-      // Fallback to simple formatting
-      return this.formatRawData(context, groupedItems);
-    }
-  }
   
   private formatRawData(context: ResearchContext, groupedItems: any[]): string {
     if (context.understanding.queryType === 'ranking') {
@@ -1129,5 +1093,117 @@ Write as if you have direct knowledge of the facts.`;
       const formattedLine = this.formatWithTime(item.content, value);
       return `• ${formattedLine}`;
     }).join('\n\n');
+  }
+  
+  /**
+   * Generate list format output (for "top X" queries)
+   */
+  private generateListFormat(context: ResearchContext, topItems: any[], allItems: any[]): string {
+    const lines: string[] = [];
+    
+    lines.push(`## 🎯 ${context.query}\n`);
+    
+    if (topItems.length === 0) {
+      lines.push('**No results found** matching your criteria.');
+      return lines.join('\n');
+    }
+    
+    lines.push(`**Found ${allItems.length} relevant items. Top ${topItems.length}:**\n`);
+    
+    topItems.forEach((group, index) => {
+      const item = group.bestItem;
+      const value = item.value && item.unit ? ` - ${item.value} ${item.unit}` : '';
+      const content = this.cleanContent(item.content);
+      
+      lines.push(`**${index + 1}. ${content}${value}**`);
+      
+      if (item.context && item.context !== item.content) {
+        lines.push(`   ${item.context.substring(0, 150)}${item.context.length > 150 ? '...' : ''}`);
+      }
+      lines.push('');
+    });
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate table format output (for comparative data)
+   */
+  private generateTableFormat(context: ResearchContext, items: any[]): string {
+    const lines: string[] = [];
+    
+    lines.push(`## 📊 ${context.query}\n`);
+    
+    if (items.length === 0) {
+      lines.push('**No data found** for comparison.');
+      return lines.join('\n');
+    }
+    
+    // Determine column headers based on data
+    const hasValues = items.some(g => g.bestItem.value && g.bestItem.unit);
+    const hasTypes = items.some(g => g.bestItem.metadata?.type);
+    
+    lines.push('| # | Description |' + (hasValues ? ' Value |' : '') + (hasTypes ? ' Type |' : '') + ' Confidence |');
+    lines.push('|---|-------------|' + (hasValues ? '-------|' : '') + (hasTypes ? '------|' : '') + '-----------|');
+    
+    items.slice(0, 15).forEach((group, index) => {
+      const item = group.bestItem;
+      const desc = this.cleanContent(item.content).substring(0, 60);
+      const value = item.value && item.unit ? `${item.value} ${item.unit}` : '-';
+      const type = item.metadata?.type || '-';
+      const confidence = `${(item.confidence * 100).toFixed(0)}%`;
+      
+      let row = `| ${index + 1} | ${desc}${item.content.length > 60 ? '...' : ''} |`;
+      if (hasValues) row += ` ${value} |`;
+      if (hasTypes) row += ` ${type} |`;
+      row += ` ${confidence} |`;
+      
+      lines.push(row);
+    });
+    
+    if (items.length > 15) {
+      lines.push(`\n*Showing top 15 of ${items.length} results*`);
+    }
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * Generate explanation format output (for "how" or "why" queries)
+   */
+  private generateExplanationFormat(context: ResearchContext, topItems: any[], allItems: any[]): string {
+    const lines: string[] = [];
+    
+    lines.push(`## 📖 ${context.query}\n`);
+    
+    if (topItems.length === 0) {
+      lines.push('**No relevant information found** to answer your question.');
+      return lines.join('\n');
+    }
+    
+    // Generate a narrative explanation
+    lines.push('Based on the available information:\n');
+    
+    topItems.forEach((group, index) => {
+      const item = group.bestItem;
+      const content = this.cleanContent(item.content);
+      
+      if (index === 0) {
+        lines.push(`**${content}**`);
+      } else {
+        lines.push(`Additionally, ${content.toLowerCase()}`);
+      }
+      
+      if (item.context && item.context !== item.content) {
+        lines.push(`\n> ${item.context}\n`);
+      }
+    });
+    
+    // Add summary if multiple items
+    if (allItems.length > topItems.length) {
+      lines.push(`\n**Additional context:** ${allItems.length - topItems.length} more related findings were discovered but not included for brevity.`);
+    }
+    
+    return lines.join('\n');
   }
 }
