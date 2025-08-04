@@ -13,6 +13,10 @@ export interface ChunkData {
   source: string;
   similarity?: number;
   metadata?: Record<string, any>;
+  // Enhanced for multi-document support
+  sourceDocument?: string; // Which document this chunk comes from
+  sourceType?: 'rag' | 'web' | 'uploaded'; // Type of source
+  documentIndex?: number; // Index when multiple documents
 }
 
 export interface Understanding {
@@ -29,6 +33,35 @@ export interface DocumentAnalysis {
   queryIntent: string; // What user wants from this document type
   extractionStrategy: string; // How to approach extraction
   expectedOutputFormat: string; // Format for final answer
+  // Enhanced for multi-document support
+  documents?: SingleDocumentAnalysis[]; // Analysis for each document separately
+  relationships?: DocumentRelationship[]; // How documents relate to each other
+  crossDocumentStrategy?: string; // How to combine information across documents
+}
+
+export interface SingleDocumentAnalysis {
+  documentId: string;
+  documentName: string;
+  documentType: string;
+  primaryEntity?: string; // Main person/company/subject in this document
+  structure: string[];
+  contentAreas: string[];
+  keyEntities: EntityReference[]; // People, companies, projects mentioned
+  role: 'source' | 'target' | 'reference'; // Role in answering the query
+}
+
+export interface EntityReference {
+  name: string;
+  type: 'person' | 'company' | 'project' | 'technology' | 'achievement';
+  context: string; // How this entity appears in the document
+  isOwner: boolean; // True if this entity owns/created the content
+}
+
+export interface DocumentRelationship {
+  type: 'tutorial' | 'comparison' | 'reference' | 'example';
+  sourceDoc: string;
+  targetDoc: string;
+  description: string; // How they relate (e.g., "Tyler's methods for Rutwik to learn")
 }
 
 export interface Pattern {
@@ -46,6 +79,11 @@ export interface ExtractedItem {
   confidence: number;
   sourceChunkId: string;
   metadata?: Record<string, any>;
+  // Enhanced for multi-document source attribution
+  sourceDocument?: string; // Which document this item comes from
+  entityOwner?: string; // Which person/entity this fact belongs to
+  factType?: 'achievement' | 'skill' | 'experience' | 'method' | 'result'; // Type of fact
+  attribution?: string; // Clear attribution text (e.g., "Tyler's achievement", "Rutwik's skill")
 }
 
 export interface Synthesis {
@@ -86,11 +124,21 @@ export interface ResearchContext {
   // Agent communications and reasoning trace
   messages: AgentMessage[];
   
+  // Shared knowledge base for agent communication
+  sharedKnowledge: {
+    documentInsights: Record<string, any>; // DataInspector insights
+    extractionStrategies: Record<string, any>; // PatternGenerator strategies
+    discoveredPatterns: Record<string, any>; // Patterns discovered during processing
+    agentFindings: Record<string, any>; // Key findings from each agent
+  };
+  
   // Timing and performance
   metadata: {
     startTime: number;
     agentsInvolved: string[];
     totalChunksProcessed: number;
+    searchApproach: 'claude_code_style' | 'traditional_rag';
+    chunksFromStorage: number; // How many chunks came from RxDB vs generated
   };
 }
 
@@ -123,10 +171,13 @@ export function createInitialContext(
     ragResults: {
       chunks: ragChunks.map(chunk => ({
         id: chunk.id,
-        text: chunk.excerpt || '',
+        text: chunk.fullContent || chunk.excerpt || '', // Use full content if available
         source: chunk.source,
         similarity: chunk.similarity,
-        metadata: chunk.metadata
+        metadata: chunk.metadata,
+        // Enhanced for multi-document support
+        sourceDocument: chunk.source,
+        sourceType: chunk.type === 'chunk' ? 'rag' : chunk.type === 'web' ? 'web' : 'uploaded'
       })),
       summary: ''
     },
@@ -142,10 +193,18 @@ export function createInitialContext(
       structure: 'paragraph'
     },
     messages: [],
+    sharedKnowledge: {
+      documentInsights: {},
+      extractionStrategies: {},
+      discoveredPatterns: {},
+      agentFindings: {}
+    },
     metadata: {
       startTime: Date.now(),
       agentsInvolved: [],
-      totalChunksProcessed: ragChunks.length
+      totalChunksProcessed: ragChunks.length,
+      searchApproach: 'claude_code_style',
+      chunksFromStorage: ragChunks.length
     }
   };
 }

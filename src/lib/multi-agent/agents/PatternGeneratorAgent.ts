@@ -30,20 +30,49 @@ export class PatternGeneratorAgent extends BaseAgent {
   }
   
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {
-    const prompt = `User is looking for: "${context.query}"
+    // ACCESS DataInspector's shared insights for intelligent strategy generation
+    const documentInsights = context.sharedKnowledge.documentInsights;
+    const hasDocumentAnalysis = documentInsights && Object.keys(documentInsights).length > 0;
+    
+    let prompt = `User is looking for: "${context.query}"`;
+    
+    if (hasDocumentAnalysis) {
+      prompt += `
 
-Based on the data type: ${context.understanding.intent || 'general information'}
+DOCUMENT ANALYSIS FROM DataInspector:
+- Document Type: ${documentInsights.documentType}
+- Content Areas: ${documentInsights.contentAreas?.join(', ')}
+- Query Intent: ${documentInsights.queryIntent}
+- Recommended Strategy: ${documentInsights.extractionStrategy}
+- Expected Output: ${documentInsights.expectedOutputFormat}
 
-What patterns or indicators would help find relevant information?`;
+Build upon this analysis to create enhanced extraction patterns.`;
+    } else {
+      prompt += `
+
+Based on the data type: ${context.understanding.intent || 'general information'}`;
+    }
+    
+    prompt += `
+
+What additional patterns or indicators would help find relevant information?`;
 
     try {
       const response = await this.llm(prompt);
-      console.log(`🤖 Strategy generation:`, response.substring(0, 300));
+      console.log(`🤖 Strategy generation (enhanced with DataInspector insights):`, response.substring(0, 300));
+      
+      // Store insights in shared knowledge base
+      context.sharedKnowledge.extractionStrategies = {
+        generatedStrategies: response,
+        basedOnDocumentAnalysis: hasDocumentAnalysis,
+        timestamp: Date.now(),
+        agentSource: 'PatternGenerator'
+      };
       
       // Store full response for thinking extraction
       this.setReasoning(response);
       
-      // Convert LLM response to patterns
+      // Convert LLM response to patterns (EXTENDING DataInspector's patterns)
       this.updatePatternsFromStrategies(context, response);
       
     } catch (error) {
@@ -56,11 +85,11 @@ What patterns or indicators would help find relevant information?`;
   private updatePatternsFromStrategies(context: ResearchContext, response: string) {
     const lower = response.toLowerCase();
     
-    // Clear and rebuild patterns based on LLM strategies
-    const patterns = [];
+    // CRITICAL FIX: Build upon DataInspector's patterns instead of replacing them
+    const newPatterns = [];
     
     // Always include a primary extraction strategy
-    patterns.push({
+    newPatterns.push({
       description: 'Primary extraction strategy',
       examples: this.extractExamples(response),
       extractionStrategy: this.extractStrategy(response),
@@ -69,7 +98,7 @@ What patterns or indicators would help find relevant information?`;
     
     // Add exclusion pattern if mentioned
     if (lower.includes('avoid') || lower.includes('not') || lower.includes('exclude')) {
-      patterns.push({
+      newPatterns.push({
         description: 'Items to exclude',
         examples: ['tokens/sec', 'throughput', 'performance metrics'],
         extractionStrategy: 'Identify these but do not include in results',
@@ -77,9 +106,10 @@ What patterns or indicators would help find relevant information?`;
       });
     }
     
-    context.patterns = patterns;
-    // Don't overwrite the full LLM response stored at line 51
-    console.log(`✅ Generated ${patterns.length} extraction strategies`);
+    // PRESERVE DataInspector's document-specific patterns and ADD new ones
+    context.patterns.push(...newPatterns);
+    
+    console.log(`✅ Extended patterns: ${context.patterns.length} total strategies (preserved ${context.patterns.length - newPatterns.length} from DataInspector)`);
   }
   
   private extractExamples(response: string): string[] {

@@ -12,6 +12,7 @@ import { MessageBus } from './core/MessageBus';
 // Agent imports
 import { QueryPlannerAgent } from './agents/QueryPlannerAgent';
 import { DataInspectorAgent } from './agents/DataInspectorAgent';
+import { ChunkSelectorAgent } from './agents/ChunkSelectorAgent';
 import { PatternGeneratorAgent } from './agents/PatternGeneratorAgent';
 import { ExtractionAgent } from './agents/ExtractionAgent';
 import { SynthesisAgent } from './agents/SynthesisAgent';
@@ -41,6 +42,7 @@ export { createMessage } from './interfaces/Message';
 // Agent exports
 export { QueryPlannerAgent } from './agents/QueryPlannerAgent';
 export { DataInspectorAgent } from './agents/DataInspectorAgent';
+export { ChunkSelectorAgent } from './agents/ChunkSelectorAgent';
 export { PatternGeneratorAgent } from './agents/PatternGeneratorAgent';
 export { ExtractionAgent } from './agents/ExtractionAgent';
 export { SynthesisAgent } from './agents/SynthesisAgent';
@@ -54,9 +56,10 @@ export function createMultiAgentSystem(
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
   
-  // Register all agents
+  // Register all agents in Claude Code style pipeline order
   registry.register(new QueryPlannerAgent(llm));
   registry.register(new DataInspectorAgent(llm));
+  registry.register(new ChunkSelectorAgent(llm)); // NEW: Intelligent chunk filtering
   registry.register(new PatternGeneratorAgent(llm));
   registry.register(new ExtractionAgent(llm));
   registry.register(new SynthesisAgent(llm));

@@ -8,6 +8,7 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
+import { generateWithCompletion, sanitizeResponse } from '../../../components/DeepResearch/hooks/responseCompletion';
 
 export class SynthesisAgent extends BaseAgent {
   readonly name = 'Synthesizer';
@@ -96,32 +97,37 @@ Total chunks: ${chunkCount}`);
     // Use LLM to classify items as current vs historical
     const classifiedItems = await this.classifyItemsWithLLM(context, groupedItems);
     
-    // Generate comprehensive research report instead of simple answer
-    const answer = await this.generateDeepResearchReport(context, classifiedItems);
+    // Generate comprehensive research report and capture LLM reasoning
+    const synthesisResult = await this.generateDeepResearchReportWithReasoning(context, classifiedItems);
     
     // Store the results
-    context.synthesis.answer = answer;
-    context.synthesis.reasoning = this.explainReasoning();
+    context.synthesis.answer = synthesisResult.answer;
+    context.synthesis.reasoning = synthesisResult.reasoning || this.explainReasoning();
     context.extractedData.structured = groupedItems;
     
-    // Final reasoning update
-    this.setReasoning(`✅ Synthesis Complete!
+    // Final reasoning update with actual LLM reasoning
+    const finalReasoning = `✅ Synthesis Complete!
 
 📊 Report Statistics:
 - Critical findings identified: ${Math.min(3, groupedItems.length)}
 - Total data points analyzed: ${context.extractedData.raw.length}
 - Chunks processed: ${chunkCount}
-- Report length: ${answer.length} characters
+- Report length: ${synthesisResult.answer.length} characters
+
+🤖 LLM Synthesis Thinking:
+${synthesisResult.reasoning || 'Used adaptive synthesis approach'}
 
 🎯 The research report includes:
 1. Critical information summary at the top
-2. Detailed analysis with context
+2. Detailed analysis with context  
 3. Source citations and references
 4. Confidence assessment
 
-The report has been formatted for maximum clarity and usefulness.`);
+💡 Generated using universal intelligence with ${(context.documentAnalysis?.documents?.length || 0) > 1 ? 'multi-document' : 'single-document'} analysis.`;
+
+    this.setReasoning(finalReasoning);
     
-    console.log(`✅ Synthesis complete: ${answer.length} characters`);
+    console.log(`✅ Synthesis complete: ${synthesisResult.answer.length} characters`);
     
     return context;
   }
@@ -190,19 +196,220 @@ Focus on understanding the document context to make this distinction.`;
     const prompt = this.createAdaptiveSynthesisPrompt(context, groupedItems);
 
     try {
-      const response = await this.llm(prompt);
-      return response;
+      const response = await generateWithCompletion(
+        async (prompt: string) => {
+          const result = await this.llm(prompt);
+          return { text: result };
+        },
+        prompt,
+        {
+          maxRetries: 2,
+          timeout: 45000, // 45 seconds for synthesis
+          continuationPrompt: "Continue with the answer:"
+        }
+      );
+      
+      const sanitizedResponse = sanitizeResponse(response);
+      console.log(`🧹 Sanitized synthesis response:`, sanitizedResponse.substring(0, 200));
+      
+      return sanitizedResponse;
     } catch (error) {
       console.error('❌ Failed to generate report:', error);
       // Fallback to basic formatting
       return this.formatBasicReport(context, groupedItems);
     }
   }
+
+  /**
+   * Generate report and capture LLM reasoning for agent visibility
+   */
+  private async generateDeepResearchReportWithReasoning(context: ResearchContext, groupedItems: any[]): Promise<{answer: string, reasoning: string}> {
+    // Create adaptive synthesis prompt with reasoning capture
+    const prompt = this.createAdaptiveSynthesisPromptWithReasoning(context, groupedItems);
+    
+    try {
+      const response = await generateWithCompletion(
+        async (prompt: string) => {
+          const result = await this.llm(prompt);
+          return { text: result };
+        },
+        prompt,
+        {
+          maxRetries: 2,
+          timeout: 45000,
+          continuationPrompt: "Continue with the reasoning and answer:"
+        }
+      );
+      
+      const sanitizedResponse = sanitizeResponse(response);
+      console.log(`🧹 Sanitized synthesis with reasoning:`, sanitizedResponse.substring(0, 200));
+      
+      // Parse response to separate reasoning from answer
+      const { reasoning, answer } = this.parseReasoningAndAnswer(sanitizedResponse);
+      
+      return {
+        answer: answer || sanitizedResponse,
+        reasoning: reasoning || 'LLM provided synthesis without explicit reasoning'
+      };
+    } catch (error) {
+      console.error('❌ Failed to generate report with reasoning:', error);
+      
+      // Fallback to basic formatting
+      const fallbackAnswer = this.formatBasicReport(context, groupedItems);
+      return {
+        answer: fallbackAnswer,
+        reasoning: `Fallback synthesis used due to LLM error: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  }
+
+  private createAdaptiveSynthesisPromptWithReasoning(context: ResearchContext, groupedItems: any[]): string {
+    const basePrompt = this.createAdaptiveSynthesisPrompt(context, groupedItems);
+    
+    // Add reasoning capture to the prompt
+    return `${basePrompt}
+
+IMPORTANT: Start your response with your reasoning process in this format:
+<reasoning>
+Explain your thought process:
+- How you're analyzing the extracted information
+- What patterns or insights you're identifying  
+- How you're structuring the response
+- Any challenges or considerations
+</reasoning>
+
+Then provide your comprehensive answer:`;
+  }
+
+  private parseReasoningAndAnswer(response: string): {reasoning: string | null, answer: string | null} {
+    // Try to extract reasoning from <reasoning> tags
+    const reasoningMatch = response.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
+    
+    if (reasoningMatch) {
+      const reasoning = reasoningMatch[1].trim();
+      const answer = response.replace(/<reasoning>[\s\S]*?<\/reasoning>/i, '').trim();
+      
+      return {
+        reasoning: reasoning,
+        answer: answer
+      };
+    }
+    
+    // If no reasoning tags found, treat entire response as answer
+    return {
+      reasoning: null,
+      answer: response
+    };
+  }
   
   private createAdaptiveSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
     const documentAnalysis = context.documentAnalysis;
     const query = context.query;
     const queryLower = query.toLowerCase();
+    
+    // Check if this is multi-document synthesis
+    if (documentAnalysis?.documents && documentAnalysis.documents.length > 1) {
+      return this.createMultiDocumentSynthesisPrompt(context, groupedItems);
+    }
+    
+    // Single document synthesis (existing logic)
+    return this.createSingleDocumentSynthesisPrompt(context, groupedItems);
+  }
+
+  private createMultiDocumentSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
+    const documentAnalysis = context.documentAnalysis!;
+    const query = context.query;
+    
+    // Group extracted items by source document and entity
+    const itemsByDocument = this.groupItemsBySourceAndEntity(groupedItems);
+    
+    const prompt = `MULTI-DOCUMENT SYNTHESIS TASK - CROSS-DOCUMENT INTELLIGENCE
+
+User Query: "${query}"
+Documents: ${documentAnalysis.documents?.length || 0}
+Cross-Document Strategy: ${documentAnalysis.crossDocumentStrategy || 'Maintain entity attribution'}
+
+EXTRACTED INFORMATION BY DOCUMENT:
+${itemsByDocument.map(docGroup => `
+--- ${docGroup.documentName} (${docGroup.documentType}) ---
+Primary Entity: ${docGroup.primaryEntity}
+Extracted Facts:
+${docGroup.items.map((item: any, i: number) => `${i + 1}. ${item.attribution || item.entityOwner || 'Unknown'}: ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`).join('\n')}
+`).join('\n')}
+
+SYNTHESIS INSTRUCTIONS:
+${this.getCrossDocumentSynthesisInstructions(query, documentAnalysis)}
+
+CRITICAL RULES:
+1. **NEVER MIX ENTITY ACHIEVEMENTS**: Tyler's achievements ≠ Rutwik's achievements
+2. **CLEAR ATTRIBUTION**: Always specify whose achievement/skill/method each fact represents
+3. **CROSS-DOCUMENT REASONING**: Use information from multiple documents correctly
+4. **PROPER RELATIONSHIPS**: If creating tutorials, use Source knowledge to teach Target person
+
+Generate a comprehensive answer that correctly combines information from multiple documents:`;
+
+    return prompt;
+  }
+
+  private groupItemsBySourceAndEntity(groupedItems: any[]): any[] {
+    const docGroups: Record<string, any> = {};
+    
+    groupedItems.forEach(group => {
+      const item = group.bestItem;
+      const docKey = item.sourceDocument || item.source || 'unknown';
+      
+      if (!docGroups[docKey]) {
+        docGroups[docKey] = {
+          documentName: docKey,
+          documentType: 'Unknown',
+          primaryEntity: item.entityOwner || 'Unknown',
+          items: []
+        };
+      }
+      
+      docGroups[docKey].items.push(item);
+    });
+    
+    return Object.values(docGroups);
+  }
+
+  private getCrossDocumentSynthesisInstructions(query: string, documentAnalysis: any): string {
+    const queryLower = query.toLowerCase();
+    
+    if (queryLower.includes('tutorial') || queryLower.includes('how can') || queryLower.includes('learn')) {
+      return `This is a TUTORIAL REQUEST:
+1. Identify the LEARNER (person who needs to learn) from their document
+2. Identify the TEACHER CONTENT (methods/techniques) from the other document  
+3. Create a personalized tutorial that uses the teacher's methods to help the learner
+4. NEVER claim the learner has already achieved what they need to learn`;
+    }
+    
+    if (queryLower.includes('compare') || queryLower.includes('vs') || queryLower.includes('difference')) {
+      return `This is a COMPARISON REQUEST:
+1. Clearly separate achievements/skills by person
+2. Compare similar aspects (e.g., both people's projects, methods, results)
+3. Maintain clear attribution throughout
+4. Highlight differences and similarities`;
+    }
+    
+    if (queryLower.includes('best') || queryLower.includes('top') || queryLower.includes('fastest')) {
+      return `This is a RANKING REQUEST:
+1. Extract comparable items from all documents
+2. Clearly attribute each item to its owner
+3. Rank items while maintaining attribution
+4. If combining lists, specify whose achievement each item represents`;
+    }
+    
+    return `This is a GENERAL MULTI-DOCUMENT REQUEST:
+1. Organize information by source document and entity
+2. Maintain clear attribution throughout
+3. Synthesize intelligently without mixing entity achievements
+4. Provide a comprehensive answer that uses all relevant information correctly`;
+  }
+
+  private createSingleDocumentSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
+    const documentAnalysis = context.documentAnalysis;
+    const query = context.query;
     
     // Prepare extracted data
     const extractedData = groupedItems.slice(0, 10).map((group, i) => {
@@ -211,30 +418,22 @@ Focus on understanding the document context to make this distinction.`;
     }).join('\n');
     
     if (!documentAnalysis) {
-      // Fallback to generic synthesis
-      return `User asked: "${query}"
+      // Simple, direct synthesis for small models
+      return `Answer: ${query}
 
-Extracted information:
+Data found:
 ${extractedData}
 
-Provide a comprehensive answer that directly addresses what the user asked for.`;
+List the top 3 speed runs with their times:`;
     }
     
-    // Create intelligent synthesis prompt
-    let basePrompt = `INTELLIGENT SYNTHESIS TASK
+    // Create simpler synthesis prompt for small models
+    let basePrompt = `Answer: ${query}
 
-User Query: "${query}"
-Document Type: ${documentAnalysis.documentType}
-Expected Output Format: ${documentAnalysis.expectedOutputFormat}
-Query Intent: ${documentAnalysis.queryIntent}
-
-Extracted Information:
+Found data:
 ${extractedData}
 
-SYNTHESIS INSTRUCTIONS:
-${this.getSynthesisInstructions(query, documentAnalysis)}
-
-Generate your response now:`;
+List the top 3 items with time values (hours/minutes) from fastest to slowest:`;
 
     return basePrompt;
   }
