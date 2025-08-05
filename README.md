@@ -297,9 +297,29 @@ RESEND_API_KEY=your-resend-api-key
 
 If you're having trouble connecting to Ollama from different domains, use these settings:
 
+**For macOS/Linux:**
+
 ```bash
 # Set Ollama to accept connections from any domain
 OLLAMA_HOST=0.0.0.0 OLLAMA_ORIGINS="*" ollama serve
+```
+
+**For Windows (Command Prompt):**
+
+```cmd
+# Set Ollama to accept connections from any domain
+set OLLAMA_HOST=0.0.0.0
+set OLLAMA_ORIGINS=*
+ollama serve
+```
+
+**For Windows (PowerShell):**
+
+```powershell
+# Set Ollama to accept connections from any domain
+$env:OLLAMA_HOST="0.0.0.0"
+$env:OLLAMA_ORIGINS="*"
+ollama serve
 ```
 
 ### Common Issues
