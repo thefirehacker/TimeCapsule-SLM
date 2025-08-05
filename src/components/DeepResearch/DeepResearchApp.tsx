@@ -533,14 +533,33 @@ export function DeepResearchComponent() {
                     disabled={documents.isUploading}
                     className="space-x-2"
                   >
-                    <Upload className="w-4 h-4" />
-                    <span>Upload Files</span>
+                    {documents.isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Upload Files</span>
+                      </>
+                    )}
                   </Button>
                 </div>
 
                 <ScrollArea className="h-[60vh]">
                   <div className="space-y-3">
-                    {documents.documents.length === 0 ? (
+                    {documents.isUploading && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin" />
+                        <p className="font-medium">Processing documents...</p>
+                        <p className="text-sm">
+                          Please wait while we process and index your files
+                        </p>
+                      </div>
+                    )}
+                    {documents.documents.length === 0 &&
+                    !documents.isUploading ? (
                       <div className="text-center py-12 text-muted-foreground">
                         <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                         <p>No documents uploaded yet</p>
