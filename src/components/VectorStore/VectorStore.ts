@@ -855,6 +855,51 @@ export class VectorStore {
     }
   }
 
+  /**
+   * Get all chunks from all documents for regex search
+   */
+  async getAllChunks(): Promise<any[]> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+    
+    try {
+      const documents = await this.getAllDocuments();
+      const allChunks: any[] = [];
+      
+      // Collect all chunks from all documents
+      for (const doc of documents) {
+        if (doc.chunks && doc.chunks.length > 0) {
+          for (const chunk of doc.chunks) {
+            allChunks.push({
+              ...chunk,
+              text: chunk.content,  // ChunkSelector expects 'text' field
+              content: chunk.content,
+              source: doc.title,
+              sourceDocument: doc.title,
+              documentId: doc.id,
+              similarity: 1.0, // Full similarity for all chunks
+              metadata: {
+                source: 'RxDB',
+                documentId: doc.id,
+                documentTitle: doc.title,
+                chunkIndex: chunk.startIndex || 0,
+                ...doc.metadata
+              }
+            });
+          }
+        }
+      }
+      
+      console.log(`🔍 getAllChunks: Retrieved ${allChunks.length} chunks from ${documents.length} documents`);
+      return allChunks;
+      
+    } catch (error) {
+      console.error('❌ Failed to get all chunks:', error);
+      return [];
+    }
+  }
+
   async clear(): Promise<void> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');

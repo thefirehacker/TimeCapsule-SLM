@@ -101,13 +101,7 @@ Keep your response short and direct.`;
       
     } catch (error) {
       console.error('❌ Failed to analyze query with LLM:', error);
-      // Simple fallback
-      context.understanding = {
-        intent: 'extract information about ' + context.query,
-        domain: 'general',
-        requirements: [context.query],
-        queryType: 'information'
-      };
+      throw new Error(`Query analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
     console.log(`📊 Query analysis complete:`, context.understanding);
@@ -206,12 +200,13 @@ Provide a brief summary of:
    * Plan which agents to use and in what order
    */
   private async planAgentPipeline(context: ResearchContext): Promise<string[]> {
-    // CLAUDE CODE STYLE: Intelligent pipeline with chunk filtering
-    // DataInspector → ChunkSelector → PatternGenerator → Extractor → Synthesizer
-    const defaultPipeline = ['DataInspector', 'ChunkSelector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
+    // CLAUDE CODE STYLE: Intelligent pipeline with pattern-driven chunk filtering
+    // DataInspector → PatternGenerator → ChunkSelector → Extractor → Synthesizer
+    // CRITICAL: PatternGenerator MUST run before ChunkSelector to enable regex search!
+    const defaultPipeline = ['DataInspector', 'PatternGenerator', 'ChunkSelector', 'Extractor', 'Synthesizer'];
     
     console.log(`📋 Using Claude Code style intelligent pipeline:`, defaultPipeline);
-    console.log(`🧠 Pipeline flow: Document Analysis → Chunk Filtering → Pattern Generation → Targeted Extraction → Synthesis`);
+    console.log(`🧠 Pipeline flow: Document Analysis → Pattern Generation → Pattern-based Chunk Filtering → Targeted Extraction → Synthesis`);
     
     // Verify all agents are registered
     const validPipeline = defaultPipeline.filter(name => {

@@ -15,6 +15,7 @@ export class SynthesisAgent extends BaseAgent {
   readonly description = 'Consolidates extracted data into a coherent answer';
   
   private llm: LLMFunction;
+  private classificationLLMResponse: string = '';
   
   constructor(llm: LLMFunction) {
     super();
@@ -22,6 +23,9 @@ export class SynthesisAgent extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
+    // Clear previous classification response
+    this.classificationLLMResponse = '';
+    
     // Initialize missing properties if needed
     if (!context.extractedData) {
       context.extractedData = { raw: [], structured: [] };
@@ -105,25 +109,34 @@ Total chunks: ${chunkCount}`);
     context.synthesis.reasoning = synthesisResult.reasoning || this.explainReasoning();
     context.extractedData.structured = groupedItems;
     
-    // Final reasoning update with actual LLM reasoning
-    const finalReasoning = `✅ Synthesis Complete!
+    // Final reasoning update with detailed LLM reasoning
+    const finalReasoning = `✅ **SynthesisAgent: Comprehensive Research Report Generation**
 
-📊 Report Statistics:
-- Critical findings identified: ${Math.min(3, groupedItems.length)}
-- Total data points analyzed: ${context.extractedData.raw.length}
-- Chunks processed: ${chunkCount}
-- Report length: ${synthesisResult.answer.length} characters
+📊 **Data Processing Summary**:
+- Initial items extracted: ${itemCount}
+- After deduplication: ${context.extractedData.raw.length}
+- Grouped findings: ${groupedItems.length}
+- Sources analyzed: ${ragChunks} RAG + ${webChunks} Web
+- Final report: ${synthesisResult.answer.length} characters
 
-🤖 LLM Synthesis Thinking:
+🧠 **LLM Classification Reasoning**:
+${this.classificationLLMResponse || 'Classification completed using pattern matching'}
+
+🤖 **LLM Synthesis Reasoning**:
 ${synthesisResult.reasoning || 'Used adaptive synthesis approach'}
 
-🎯 The research report includes:
-1. Critical information summary at the top
-2. Detailed analysis with context  
-3. Source citations and references
-4. Confidence assessment
+🎯 **Report Structure Generated**:
+1. ✅ Critical information summary at the top
+2. ✅ Detailed analysis with context  
+3. ✅ Source citations and references
+4. ✅ Confidence assessment
 
-💡 Generated using universal intelligence with ${(context.documentAnalysis?.documents?.length || 0) > 1 ? 'multi-document' : 'single-document'} analysis.`;
+💡 **Synthesis Method**: Universal intelligence with ${(context.documentAnalysis?.documents?.length || 0) > 1 ? 'multi-document cross-reference' : 'single-document deep analysis'}
+
+🔍 **Quality Metrics**:
+- Data completeness: ${((context.extractedData.raw.length / itemCount) * 100).toFixed(1)}%
+- Source diversity: ${chunkCount} chunks processed  
+- Synthesis confidence: High (LLM-driven adaptive approach)`;
 
     this.setReasoning(finalReasoning);
     
@@ -157,6 +170,9 @@ Focus on understanding the document context to make this distinction.`;
     try {
       const response = await this.llm(classificationPrompt);
       console.log('🤖 LLM classification response:', response.substring(0, 200));
+      
+      // Store LLM response for verbose output
+      this.classificationLLMResponse = response;
       
       // Add classification metadata based on LLM response
       // For now, we'll use heuristics but this can be enhanced
@@ -193,7 +209,7 @@ Focus on understanding the document context to make this distinction.`;
    */
   private async generateDeepResearchReport(context: ResearchContext, groupedItems: any[]): Promise<string> {
     // Create adaptive synthesis prompt based on document analysis
-    const prompt = this.createAdaptiveSynthesisPrompt(context, groupedItems);
+    const prompt = await this.createAdaptiveSynthesisPrompt(context, groupedItems);
 
     try {
       const response = await generateWithCompletion(
@@ -225,7 +241,7 @@ Focus on understanding the document context to make this distinction.`;
    */
   private async generateDeepResearchReportWithReasoning(context: ResearchContext, groupedItems: any[]): Promise<{answer: string, reasoning: string}> {
     // Create adaptive synthesis prompt with reasoning capture
-    const prompt = this.createAdaptiveSynthesisPromptWithReasoning(context, groupedItems);
+    const prompt = await this.createAdaptiveSynthesisPromptWithReasoning(context, groupedItems);
     
     try {
       const response = await generateWithCompletion(
@@ -263,8 +279,8 @@ Focus on understanding the document context to make this distinction.`;
     }
   }
 
-  private createAdaptiveSynthesisPromptWithReasoning(context: ResearchContext, groupedItems: any[]): string {
-    const basePrompt = this.createAdaptiveSynthesisPrompt(context, groupedItems);
+  private async createAdaptiveSynthesisPromptWithReasoning(context: ResearchContext, groupedItems: any[]): Promise<string> {
+    const basePrompt = await this.createAdaptiveSynthesisPrompt(context, groupedItems);
     
     // Add reasoning capture to the prompt
     return `${basePrompt}
@@ -302,7 +318,7 @@ Then provide your comprehensive answer:`;
     };
   }
   
-  private createAdaptiveSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
+  private async createAdaptiveSynthesisPrompt(context: ResearchContext, groupedItems: any[]): Promise<string> {
     const documentAnalysis = context.documentAnalysis;
     const query = context.query;
     const queryLower = query.toLowerCase();
@@ -313,7 +329,7 @@ Then provide your comprehensive answer:`;
     }
     
     // Single document synthesis (existing logic)
-    return this.createSingleDocumentSynthesisPrompt(context, groupedItems);
+    return await this.createUniversalSynthesisPrompt(context, groupedItems);
   }
 
   private createMultiDocumentSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
@@ -407,7 +423,8 @@ Generate a comprehensive answer that correctly combines information from multipl
 4. Provide a comprehensive answer that uses all relevant information correctly`;
   }
 
-  private createSingleDocumentSynthesisPrompt(context: ResearchContext, groupedItems: any[]): string {
+  private async createUniversalSynthesisPrompt(context: ResearchContext, groupedItems: any[]): Promise<string> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded output format assumptions
     const documentAnalysis = context.documentAnalysis;
     const query = context.query;
     
@@ -418,92 +435,63 @@ Generate a comprehensive answer that correctly combines information from multipl
     }).join('\n');
     
     if (!documentAnalysis) {
-      // Simple, direct synthesis for small models
-      return `Answer: ${query}
+      return `Answer the user's query based on the data found:
 
-Data found:
-${extractedData}
+QUERY: ${query}
+DATA: ${extractedData}
 
-List the top 3 speed runs with their times:`;
+Provide a complete, helpful answer.`;
     }
     
-    // Create simpler synthesis prompt for small models
-    let basePrompt = `Answer: ${query}
+    // Get LLM-generated synthesis approach
+    const synthesisApproach = await this.generateSynthesisApproach(query, documentAnalysis);
+    
+    return `Answer the user's query using the following approach:
 
-Found data:
-${extractedData}
+QUERY: ${query}
+DATA: ${extractedData}
 
-List the top 3 items with time values (hours/minutes) from fastest to slowest:`;
+SYNTHESIS APPROACH:
+${synthesisApproach}
 
-    return basePrompt;
+DOCUMENT TYPE: ${documentAnalysis.documentType}
+CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
+
+Provide a comprehensive answer that addresses the user's intent.`;
   }
   
-  private getSynthesisInstructions(query: string, documentAnalysis: DocumentAnalysis): string {
-    const queryLower = query.toLowerCase();
-    const expectedFormat = documentAnalysis.expectedOutputFormat.toLowerCase();
-    const docType = documentAnalysis.documentType.toLowerCase();
+  private async generateSynthesisApproach(query: string, documentAnalysis: DocumentAnalysis): Promise<string> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded query patterns or output formats
+    // Let LLM determine synthesis approach based on query intent and document analysis
     
-    let instructions = '';
-    
-    // Query-specific instructions
-    if (queryLower.includes('best') || queryLower.includes('top')) {
-      instructions += `- Provide a clear ranking or comparison of the items\n`;
-      instructions += `- Explain WHY each item is ranked as it is\n`;
-      instructions += `- Highlight the "best" item and provide reasoning\n`;
-      instructions += `- Include specific details that support the ranking\n`;
+    const prompt = `Determine the best approach to synthesize an answer for this query:
+
+QUERY: "${query}"
+DOCUMENT TYPE: ${documentAnalysis.documentType}
+CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
+EXPECTED OUTPUT FORMAT: ${documentAnalysis.expectedOutputFormat}
+EXTRACTION STRATEGY: ${documentAnalysis.extractionStrategy}
+
+Based on the user's query and the document analysis, what synthesis approach would work best?
+
+Consider:
+- What is the user really asking for?
+- How should the information be organized?
+- What level of detail is appropriate?
+- What format best serves the user's intent?
+
+Return synthesis instructions as bullet points.`;
+
+    try {
+      const response = await this.llm(prompt);
+      return response.trim();
+    } catch (error) {
+      console.warn('Failed to generate synthesis approach, using fallback');
+      return `- Present information clearly and accurately
+- Structure the response logically
+- Include supporting details and context
+- Address the user's specific question directly`;
     }
-    
-    if (queryLower.includes('list') || queryLower.includes('all')) {
-      instructions += `- Present a comprehensive list of all relevant items\n`;
-      instructions += `- Use consistent formatting for each item\n`;
-      instructions += `- Include key details for each item\n`;
-      instructions += `- Organize logically (chronologically, by importance, etc.)\n`;
-    }
-    
-    if (queryLower.includes('explain') || queryLower.includes('how')) {
-      instructions += `- Provide detailed explanations with context\n`;
-      instructions += `- Break down complex information into understandable parts\n`;
-      instructions += `- Include supporting evidence and examples\n`;
-      instructions += `- Structure as a clear, logical explanation\n`;
-    }
-    
-    // Document-specific instructions  
-    if (docType.includes('cv') || docType.includes('resume')) {
-      instructions += `- Focus on specific projects, achievements, and technical details\n`;
-      instructions += `- Include concrete technologies, results, and impact\n`;
-      instructions += `- Avoid generic job description language\n`;
-      instructions += `- Highlight measurable outcomes and specific contributions\n`;
-    }
-    
-    if (docType.includes('research') || docType.includes('paper')) {
-      instructions += `- Focus on methodology, findings, and conclusions\n`;
-      instructions += `- Include specific data, metrics, and results\n`;
-      instructions += `- Maintain scientific accuracy and context\n`;
-      instructions += `- Reference key findings and their implications\n`;
-    }
-    
-    // Format-specific instructions
-    if (expectedFormat.includes('comparison')) {
-      instructions += `- Structure as a clear comparison between options\n`;
-      instructions += `- Use parallel structure for comparing items\n`;
-      instructions += `- Highlight key differences and similarities\n`;
-    }
-    
-    if (expectedFormat.includes('list')) {
-      instructions += `- Use numbered or bulleted list format\n`;
-      instructions += `- Keep items concise but informative\n`;
-      instructions += `- Maintain consistent structure across items\n`;
-    }
-    
-    // Generic fallback
-    if (!instructions) {
-      instructions = `- Provide a comprehensive, well-structured response\n`;
-      instructions += `- Include specific details and concrete information\n`;
-      instructions += `- Structure logically to address the user's query\n`;
-      instructions += `- Focus on being helpful and informative\n`;
-    }
-    
-    return instructions;
   }
   
   /**

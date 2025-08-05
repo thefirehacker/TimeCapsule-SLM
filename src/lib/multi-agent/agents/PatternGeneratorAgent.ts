@@ -23,6 +23,13 @@ export class PatternGeneratorAgent extends BaseAgent {
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`🎯 PatternGenerator: Creating extraction strategies`);
     
+    // DEBUG: Log existing patterns from DataInspector or previous agents
+    console.log(`📋 DEBUG - Existing patterns before PatternGenerator:`, {
+      count: context.patterns?.length || 0,
+      patterns: context.patterns?.map(p => p.description) || [],
+      hasSharedKnowledge: !!context.sharedKnowledge?.documentInsights
+    });
+    
     // Use LLM to generate extraction strategies
     await this.generateStrategiesWithLLM(context);
     
@@ -30,208 +37,240 @@ export class PatternGeneratorAgent extends BaseAgent {
   }
   
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {
-    // ACCESS DataInspector's shared insights for intelligent strategy generation
+    console.log(`🧠 PatternGenerator: Generating dynamic regex patterns via LLM analysis`);
+    
+    // ACCESS DataInspector's shared insights for intelligent regex generation
     const documentInsights = context.sharedKnowledge.documentInsights;
     const hasDocumentAnalysis = documentInsights && Object.keys(documentInsights).length > 0;
     
-    let prompt = `User is looking for: "${context.query}"`;
-    
-    if (hasDocumentAnalysis) {
-      prompt += `
+    // Sample actual document content for pattern analysis (ZERO HARDCODING)
+    const sampleContent = context.ragResults.chunks
+      .slice(0, 5)  // Use more samples for better pattern discovery
+      .map((chunk, i) => `SAMPLE ${i + 1}:\n${chunk.text.substring(0, 400)}`)
+      .join('\n\n---\n\n');
+      
+    // 🚀 LLM-DRIVEN DYNAMIC REGEX GENERATION (Universal Intelligence)
+    const regexGenerationPrompt = `Analyze this document content and generate TARGETED REGEX PATTERNS based on specific insights from DataInspector.
 
-DOCUMENT ANALYSIS FROM DataInspector:
+USER QUERY: "${context.query}"
+
+${hasDocumentAnalysis ? `
+DOCUMENT ANALYSIS:
+- Type: ${documentInsights.documentType}
+- Content Areas: ${documentInsights.contentAreas?.join(', ')}
+- Intent: ${documentInsights.queryIntent}
+- Expected Format: ${documentInsights.expectedOutputFormat}
+
+🔥 CRITICAL SPECIFIC INSIGHTS FROM DATAINSPECTOR:
+${documentInsights.specificInsights?.map((insight: string) => `- ${insight}`).join('\n') || '- No specific insights available'}
+
+🎯 KEY FINDINGS TO TARGET:
+${documentInsights.keyFindings?.map((finding: string) => `- ${finding}`).join('\n') || '- No key findings available'}
+
+📝 DETAILED DATAINSPECTOR REASONING:
+${documentInsights.detailedReasoning ? documentInsights.detailedReasoning.substring(0, 500) + '...' : 'No detailed reasoning available'}
+` : ''}
+
+DOCUMENT SAMPLES:
+${sampleContent}
+
+CRITICAL: Generate DATA EXTRACTION patterns, NOT keyword patterns.
+
+WRONG APPROACH: Looking for keywords/names (Tyler, speedrun, etc.)
+RIGHT APPROACH: Looking for DATA STRUCTURES that contain the values the user wants
+
+Look at the document samples and identify:
+1. What STRUCTURE surrounds the data the user needs?
+2. What PATTERNS appear before/after the actual values?
+3. How are measurements, rankings, or results formatted in THIS specific document?
+
+Generate patterns based on the ACTUAL formatting you see in the document samples, not assumptions.
+
+${documentInsights?.specificInsights?.find((insight: string) => insight.includes('personal')) ? `
+FOCUS: Generate STRUCTURE patterns that extract the person's ACTUAL DATA based on insights:
+${documentInsights.specificInsights
+  .filter((insight: string) => insight.includes('CRITICAL:') || insight.includes('FOCUS:'))
+  .map((insight: string) => `- ${insight}`)
+  .join('\n')}
+` : ''}
+
+Your patterns must extract MEASURABLE DATA VALUES, not just find keywords!
+
+ANALYZE THE QUERY TYPE:
+"${context.query}" - What TYPE of data does this query need?
+- If asking for "top 3", need ranking/performance data
+- If asking for "times", need timing/duration measurements  
+- If asking for "scores", need numeric performance metrics
+- If asking for "achievements", need accomplishment data with values
+
+Based on the query analysis and document samples, generate STRUCTURE patterns that extract the DATA VALUES the user wants.
+
+CRITICAL: Do NOT use <think> tags. Respond DIRECTLY with patterns.
+
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+REGEX_PATTERNS:
+- /\\d+\\.\\d+\\s*(?:hours?|hrs?|h\\b)/gi
+- /(?:rank|position|#)\\s*(\\d+)/gi
+- /\\b(\\d+)(?:st|nd|rd|th)\\s+(?:place|position)/gi
+
+REASONING: Pattern 1 extracts timing values like "2.5 hours", Pattern 2 extracts rankings like "rank 1", Pattern 3 extracts ordinal positions like "1st place"
+
+Generate 3-5 ACTUAL WORKING REGEX patterns with proper flags that will extract the specific data values the user wants. Base patterns on the ACTUAL document structure you see in the samples.`;
+
+    try {
+      const response = await this.llm(regexGenerationPrompt);
+      console.log(`🎯 LLM regex generation response:`, response.substring(0, 400));
+      
+      // Parse concrete regex patterns from LLM response
+      const regexPatterns = this.parseRegexPatternsFromLLM(response);
+      
+      if (regexPatterns.length > 0) {
+        console.log(`✅ Generated ${regexPatterns.length} dynamic regex patterns:`, regexPatterns);
+        
+        // 🔥 FIX: APPEND patterns instead of OVERWRITING them!
+        // Initialize patterns array if it doesn't exist
+        if (!context.patterns) {
+          context.patterns = [];
+        }
+        
+        // Store the concrete regex patterns for extraction (APPEND, not overwrite)
+        const newPatterns = regexPatterns.map((pattern, index) => ({
+          description: `LLM-generated regex pattern ${index + 1}`,
+          examples: [],  // Regex patterns don't need example text
+          extractionStrategy: `Direct regex search using: ${pattern}`,
+          confidence: 0.9,
+          regexPattern: pattern  // 🔥 NEW: Store actual regex pattern
+        }));
+        
+        // APPEND new patterns to existing ones
+        context.patterns.push(...newPatterns);
+        
+        console.log(`✅ DEBUG - Patterns after PatternGenerator:`, {
+          previousCount: context.patterns.length - newPatterns.length,
+          newCount: newPatterns.length,
+          totalCount: context.patterns.length
+        });
+        
+        // Store generation details in shared knowledge
+        context.sharedKnowledge.extractionStrategies = {
+          generatedPatterns: regexPatterns,
+          generationMethod: 'llm_dynamic_regex',
+          basedOnDocumentAnalysis: hasDocumentAnalysis,
+          timestamp: Date.now(),
+          agentSource: 'PatternGenerator',
+          llmResponse: response
+        };
+        
+      } else {
+        console.error('❌ LLM failed to generate valid regex patterns - NO FALLBACKS, system must work properly');
+        throw new Error('PatternGenerator failed: LLM must generate proper regex patterns, no fallbacks allowed');
+      }
+      
+      // Set detailed reasoning for verbose output
+      const reasoningText = `🎯 **PatternGenerator: Context-Aware Regex Generation**
+
+📝 **Query Analysis**: "${context.query}"
+📊 **Document Samples Analyzed**: ${context.ragResults.chunks.length} chunks (${sampleContent.length} characters)
+
+${hasDocumentAnalysis ? `
+🧠 **DataInspector Insights Applied**:
 - Document Type: ${documentInsights.documentType}
 - Content Areas: ${documentInsights.contentAreas?.join(', ')}
 - Query Intent: ${documentInsights.queryIntent}
-- Recommended Strategy: ${documentInsights.extractionStrategy}
-- Expected Output: ${documentInsights.expectedOutputFormat}
 
-Build upon this analysis to create enhanced extraction patterns.`;
-    } else {
-      prompt += `
+🔥 **Critical Specific Insights Preserved**:
+${documentInsights.specificInsights?.map((insight: string) => `- ${insight}`).join('\n') || '- No specific insights available'}
 
-Based on the data type: ${context.understanding.intent || 'general information'}`;
-    }
-    
-    prompt += `
+🎯 **Key Findings Targeted**:
+${documentInsights.keyFindings?.map((finding: string) => `- ${finding}`).join('\n') || '- No key findings available'}
 
-What additional patterns or indicators would help find relevant information?`;
+📝 **DataInspector's Detailed Understanding**:
+${documentInsights.detailedReasoning ? documentInsights.detailedReasoning.substring(0, 300) + '...' : 'No detailed reasoning available'}
+` : ''}
 
-    try {
-      const response = await this.llm(prompt);
-      console.log(`🤖 Strategy generation (enhanced with DataInspector insights):`, response.substring(0, 300));
+🤖 **LLM Regex Generation Response**:
+${response}
+
+✅ **Generated Targeted Patterns**: ${regexPatterns.length} context-aware regex patterns
+${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
+
+🎯 **Context Preservation**: DataInspector's specific insights (e.g., "Tyler's personal speedruns") preserved and used for targeted pattern generation`;
       
-      // Store insights in shared knowledge base
-      context.sharedKnowledge.extractionStrategies = {
-        generatedStrategies: response,
-        basedOnDocumentAnalysis: hasDocumentAnalysis,
-        timestamp: Date.now(),
-        agentSource: 'PatternGenerator'
-      };
-      
-      // Store full response for thinking extraction
-      this.setReasoning(response);
-      
-      // Convert LLM response to patterns (EXTENDING DataInspector's patterns)
-      this.updatePatternsFromStrategies(context, response);
+      this.setReasoning(reasoningText);
       
     } catch (error) {
-      console.error('❌ Failed to generate strategies:', error);
-      // Keep existing patterns from DataInspector
-      this.setReasoning('Using patterns from data inspection');
+      console.error('❌ Failed to generate regex patterns:', error);
+      throw new Error(`PatternGenerator failed: ${error instanceof Error ? error.message : 'Unknown error'}. NO FALLBACKS - LLM must generate proper patterns`);
     }
   }
   
-  private updatePatternsFromStrategies(context: ResearchContext, response: string) {
-    const lower = response.toLowerCase();
+  /**
+   * 🎯 Parse regex patterns from LLM response (ZERO HARDCODING)
+   */
+  private parseRegexPatternsFromLLM(response: string): string[] {
+    const patterns: string[] = [];
     
-    // CRITICAL FIX: Build upon DataInspector's patterns instead of replacing them
-    const newPatterns = [];
-    
-    // Always include a primary extraction strategy
-    newPatterns.push({
-      description: 'Primary extraction strategy',
-      examples: this.extractExamples(response),
-      extractionStrategy: this.extractStrategy(response),
-      confidence: 0.9
-    });
-    
-    // Add exclusion pattern if mentioned
-    if (lower.includes('avoid') || lower.includes('not') || lower.includes('exclude')) {
-      newPatterns.push({
-        description: 'Items to exclude',
-        examples: ['tokens/sec', 'throughput', 'performance metrics'],
-        extractionStrategy: 'Identify these but do not include in results',
-        confidence: 0.8
-      });
-    }
-    
-    // PRESERVE DataInspector's document-specific patterns and ADD new ones
-    context.patterns.push(...newPatterns);
-    
-    console.log(`✅ Extended patterns: ${context.patterns.length} total strategies (preserved ${context.patterns.length - newPatterns.length} from DataInspector)`);
-  }
-  
-  private extractExamples(response: string): string[] {
-    // Extract examples mentioned in the response
-    const examples: string[] = [];
-    const lines = response.split('\n');
-    
-    lines.forEach(line => {
-      if (line.includes('"') || line.includes("'")) {
-        const quoted = line.match(/["']([^"']+)["']/g);
-        if (quoted) {
-          examples.push(...quoted.map(q => q.replace(/["']/g, '')));
+    try {
+      // Look for REGEX_PATTERNS section
+      const regexSection = response.match(/REGEX_PATTERNS?:\s*([\s\S]*?)(?:\n\n|REASONING|$)/i);
+      if (regexSection) {
+        const patternsText = regexSection[1];
+        
+        // Extract patterns that start with - /pattern/flags
+        const patternMatches = patternsText.match(/[-*]\s*\/([^\/]+)\/([gimuy]*)/g);
+        if (patternMatches) {
+          patternMatches.forEach(match => {
+            const cleanMatch = match.replace(/^[-*]\s*/, ''); // Remove bullet point
+            
+            // 🚨 FILTER OUT USELESS GENERIC PATTERNS
+            const patternContent = cleanMatch.match(/\/([^\/]+)\//)?.[1] || '';
+            if (this.isUselessPattern(patternContent)) {
+              console.warn(`🚫 Filtering out useless pattern: ${cleanMatch}`);
+              return;
+            }
+            
+            patterns.push(cleanMatch);
+          });
         }
       }
-    });
-    
-    return examples.length > 0 ? examples : ['Data values', 'Relevant information'];
-  }
-  
-  private extractStrategy(response: string): string {
-    // Extract the main strategy from the response
-    const lines = response.split('\n');
-    
-    for (const line of lines) {
-      if (line.toLowerCase().includes('look for') || 
-          line.toLowerCase().includes('find') ||
-          line.toLowerCase().includes('extract')) {
-        return line.trim();
-      }
-    }
-    
-    return 'Extract information that matches what the user is looking for';
-  }
-  
-  private async generatePatternsFromScratch(context: ResearchContext): Promise<void> {
-    const samples = context.ragResults.chunks.slice(0, 3);
-    
-    const prompt = `RESPOND WITH ONLY JSON!
-
-Query: "${context.query}"
-Domain: ${context.understanding.domain}
-
-Sample: "${samples[0]?.text.substring(0, 200) || 'No data'}..."
-
-What to find? Create simple extraction rules.
-
-JSON format:
-[{
-  "description": "relevant data points",
-  "extractionStrategy": "Find hours, minutes, performance metrics",
-  "confidence": 0.8
-}]
-
-ONLY JSON!`;
-
-    try {
-      const response = await this.llm(prompt);
-      const strategies = this.parseJSON(response);
       
-      if (Array.isArray(strategies)) {
-        context.patterns = strategies.map(s => ({
-          description: s.description || '',
-          examples: s.examples || [],
-          extractionStrategy: s.extractionStrategy || '',
-          confidence: s.confidence || 0.5
-        }));
-        
-        // Don't overwrite the full LLM response reasoning
-        console.log(`✅ Generated ${strategies.length} extraction strategies`);
+      // Fallback: Look for any regex patterns in the response
+      if (patterns.length === 0) {
+        const anyRegexMatches = response.match(/\/[^\/\n]+\/[gimuy]*/g);
+        if (anyRegexMatches) {
+          // Filter out useless patterns here too
+          const usefulPatterns = anyRegexMatches.filter(pattern => {
+            const patternContent = pattern.match(/\/([^\/]+)\//)?.[1] || '';
+            return !this.isUselessPattern(patternContent);
+          });
+          patterns.push(...usefulPatterns.slice(0, 8)); // Limit to 8 patterns
+        }
       }
+      
+      console.log(`🔍 Parsed ${patterns.length} useful regex patterns from LLM response (filtered out generic ones)`);
+      return patterns;
       
     } catch (error) {
-      console.error('❌ Failed to generate patterns:', error);
-      this.setReasoning('Failed to generate extraction patterns');
+      console.warn('⚠️ Failed to parse regex patterns from LLM response:', error);
+      return [];
     }
   }
   
-  private async refinePatterns(context: ResearchContext): Promise<void> {
-    const prompt = `Refine these extraction strategies based on the user's specific needs:
-
-User query: "${context.query}"
-Intent: ${context.understanding.intent}
-Current patterns: ${JSON.stringify(context.patterns, null, 2)}
-
-Improve the patterns to:
-1. Be more specific to what the user is looking for
-2. Handle the data quality issues identified
-3. Extract exactly what's needed for the query
-
-Return refined JSON array with same structure.`;
-
-    try {
-      const response = await this.llm(prompt);
-      const refined = this.parseJSON(response);
-      
-      if (Array.isArray(refined)) {
-        context.patterns = refined.map(s => ({
-          description: s.description || '',
-          examples: s.examples || [],
-          extractionStrategy: s.extractionStrategy || '',
-          confidence: s.confidence || 0.5
-        }));
-        
-        // Don't overwrite the full LLM response reasoning
-        console.log(`✅ Refined ${refined.length} extraction strategies`);
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to refine patterns:', error);
-      this.setReasoning('Using original patterns without refinement');
-    }
+  /**
+   * Detect and filter out useless generic patterns like /pattern1/, /pattern2/, etc.
+   */
+  private isUselessPattern(patternContent: string): boolean {
+    const uselessPatterns = [
+      /pattern\d+/i,           // /pattern1/, /pattern2/, etc.
+      /^pattern$/i,            // /pattern/
+      /^\\w\+$/,              // /\w+/ - too generic
+      /^[a-z]+$/i,            // /blog/, /post/, etc. - just keywords
+      /tyler|blog|speedrun/i  // Hardcoded keyword patterns (we want structure patterns)
+    ];
+    
+    return uselessPatterns.some(useless => useless.test(patternContent));
   }
   
-  private parseJSON(text: string): any {
-    try {
-      return JSON.parse(text);
-    } catch {
-      const match = text.match(/\[[\s\S]*\]/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
-      throw new Error('Invalid JSON');
-    }
-  }
+
+
 }

@@ -8,7 +8,7 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ExtractedItem, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
-import { generateWithCompletion, sanitizeResponse } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { generateWithCompletion, sanitizeResponse, parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
 
 export class ExtractionAgent extends BaseAgent {
   readonly name = 'Extractor';
@@ -17,6 +17,7 @@ export class ExtractionAgent extends BaseAgent {
   private llm: LLMFunction;
   private batchReasoning: string[] = [];
   private extractionSummary: string = '';
+  private llmResponses: string[] = [];
   
   constructor(llm: LLMFunction) {
     super();
@@ -33,38 +34,47 @@ export class ExtractionAgent extends BaseAgent {
     }
     
     const extractedItems: ExtractedItem[] = [];
-    const batchSize = 1; // Single chunk for small models to avoid timeout
     const totalChunks = context.ragResults.chunks.length;
     
     // Clear previous batch reasoning
     this.batchReasoning = [];
     this.extractionSummary = '';
+    this.llmResponses = [];
     
-    // Initial reasoning to show we're starting
-    const initialReasoning = `📊 Starting extraction process for ${totalChunks} chunks...
+    // 🚀 CURSOR-STYLE HYBRID: LLM Pattern Discovery → Fast Extraction
+    const patternDiscovery = await this.discoverPatternsWithLLM(context);
+    
+    // Initial reasoning showing LLM-driven approach
+    const initialReasoning = `📊 Starting LLM-driven cursor-style extraction for ${totalChunks} chunks...
 
-🎯 Extraction Strategy:
-- Processing in batches of ${batchSize} for efficiency
-- Using intelligent context understanding
+🎯 Cursor-Style Hybrid Strategy:
+- Phase 1: LLM discovers patterns (${patternDiscovery.success ? 'SUCCESS' : 'FALLBACK'})
+- Phase 2: Fast pattern-based extraction
+- Phase 3: LLM analysis of results
 - Looking for: ${context.understanding.intent || 'relevant information'}`;
     
-    // Process chunks in batches for efficiency
-    for (let i = 0; i < totalChunks; i += batchSize) {
-      const batch = context.ragResults.chunks.slice(i, i + batchSize);
-      const batchNumber = Math.floor(i / batchSize) + 1;
-      const totalBatches = Math.ceil(totalChunks / batchSize);
+    if (patternDiscovery.success) {
+      // Execute fast extraction using LLM-discovered patterns
+      console.log(`🧠 LLM discovered patterns: ${patternDiscovery.patterns.join(', ')}`);
       
-      // Store progress separately from reasoning
-      const progressUpdate = `Processing batch ${batchNumber}/${totalBatches} (chunks ${i + 1}-${Math.min(i + batchSize, totalChunks)} of ${totalChunks})...`;
-      console.log(`📊 ${progressUpdate}`);
+      // Capture LLM pattern discovery response for verbose output
+      this.llmResponses.push(`🧠 **Pattern Discovery LLM Response**:\n${patternDiscovery.sourceResponse}`);
       
-      const batchResults = await this.extractFromBatch(batch, context, batchNumber);
-      extractedItems.push(...batchResults);
+      const patternResults = await this.extractUsingDiscoveredPatterns(context.ragResults.chunks, patternDiscovery, context);
+      extractedItems.push(...patternResults);
       
-      // Append batch findings to reasoning array
-      if (batchResults.length > 0) {
-        this.batchReasoning.push(`Batch ${batchNumber}: Found ${batchResults.length} items`);
+      this.batchReasoning.push(`✅ **LLM Pattern Discovery Success**: Found ${patternResults.length} items using patterns: ${patternDiscovery.patterns.join(', ')}`);
+      this.batchReasoning.push(`🎯 **Strategy Applied**: ${patternDiscovery.strategy}`);
+    } else {
+      // Pattern discovery failed - this should not happen with proper implementation
+      console.error(`❌ Pattern discovery failed - this indicates a system issue that needs fixing`);
+      
+      if (patternDiscovery.sourceResponse) {
+        this.llmResponses.push(`❌ **Pattern Discovery Failed LLM Response**:\n${patternDiscovery.sourceResponse}`);
+        console.error(`❌ LLM Response that failed:`, patternDiscovery.sourceResponse.substring(0, 500));
       }
+      
+      throw new Error('Pattern discovery failed - system needs debugging, no fallback should be needed');
     }
     
     // Deduplicate and sort by confidence
@@ -148,9 +158,15 @@ export class ExtractionAgent extends BaseAgent {
       sections.push(...this.batchReasoning);
     }
     
+    // Add LLM responses for verbose output
+    if (this.llmResponses.length > 0) {
+      sections.push('\n🤖 **LLM Reasoning & Analysis**:');
+      sections.push(...this.llmResponses);
+    }
+    
     // Add extraction summary if available
     if (this.extractionSummary) {
-      sections.push('\n🤖 LLM Extraction Insights:');
+      sections.push('\n📋 **Additional Extraction Insights**:');
       sections.push(this.extractionSummary);
     }
     
@@ -175,7 +191,7 @@ The extracted data will now be synthesized to answer your query.`);
   ): Promise<ExtractedItem[]> {
     // Adaptive extraction prompt based on document analysis
     const documentAnalysis = context.documentAnalysis;
-    const prompt = this.createAdaptiveExtractionPrompt(context.query, chunks, documentAnalysis);
+    const prompt = await this.createAdaptiveExtractionPrompt(context.query, chunks, documentAnalysis);
 
     try {
       // Use response completion for reliable extraction with shorter timeout for small models
@@ -199,8 +215,8 @@ The extracted data will now be synthesized to answer your query.`);
       const sanitizedResponse = sanitizeResponse(response);
       console.log(`🧹 Sanitized response:`, sanitizedResponse.substring(0, 200));
       
-      // Parse the LLM's direct extraction into items
-      const items = this.parseNaturalResponse(sanitizedResponse, chunks[0]?.id || '');
+      // Parse the LLM's direct extraction into items using Universal Intelligence
+      const items = await this.parseUniversalResponse(sanitizedResponse, chunks[0]?.id || '', context.query);
       
       // Add batch-specific insights if items found
       if (items.length > 0 && batchNumber <= 5) {
@@ -220,11 +236,12 @@ The extracted data will now be synthesized to answer your query.`);
       console.error(`❌ LLM extraction failed for batch ${batchNumber}:`, error);
       console.error(`📝 Failed prompt (first 200 chars):`, prompt.substring(0, 200));
       
-      // Add error to batch reasoning
-      this.batchReasoning.push(`Batch ${batchNumber}: ⚠️ LLM failed, using fallback extraction`);
+      // Add error to batch reasoning  
+      this.batchReasoning.push(`Batch ${batchNumber}: ❌ LLM extraction failed`);
+      console.error(`❌ Batch ${batchNumber} extraction failed:`, error);
       
-      // Use fallback extraction
-      return this.fallbackTextExtraction(chunks, context, batchNumber);
+      // Throw error instead of using fallback
+      throw new Error(`Batch extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   
@@ -240,7 +257,7 @@ Consider:
 Extract information that directly answers their question, understanding the context of the document.`;
   }
   
-  private createAdaptiveExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis?: DocumentAnalysis): string {
+  private async createAdaptiveExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis?: DocumentAnalysis): Promise<string> {
     if (!documentAnalysis) {
       // Fallback to generic extraction
       const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
@@ -256,7 +273,7 @@ Extract any relevant data points, facts, or information that helps answer the qu
     if (documentAnalysis.documents && documentAnalysis.documents.length > 1) {
       return this.createMultiDocumentExtractionPrompt(query, chunks, documentAnalysis);
     } else {
-      return this.createSingleDocumentExtractionPrompt(query, chunks, documentAnalysis);
+      return await this.createUniversalExtractionPrompt(query, chunks, documentAnalysis);
     }
   }
 
@@ -264,43 +281,69 @@ Extract any relevant data points, facts, or information that helps answer the qu
     // Group chunks by document
     const docGroups = this.groupChunksBySource(chunks);
     
-    // Much simpler prompt for small models
+    // Get document names from DataInspector analysis
+    const documentMap = new Map();
+    if (documentAnalysis.documents) {
+      documentAnalysis.documents.forEach((doc, i) => {
+        documentMap.set(doc.documentId, {
+          name: doc.documentName || doc.documentId,
+          type: doc.documentType,
+          entity: doc.primaryEntity || 'Unknown'
+        });
+      });
+    }
+    
+    // Much simpler prompt for small models that uses ACTUAL document names
     const simplePrompt = `EXTRACT DATA FOR: ${query}
 
 ${docGroups.map((group, i) => {
-      return `DOCUMENT ${i + 1}:
-${group.chunks.map(chunk => chunk.text).join('\n\n')}
+      const docInfo = documentMap.get(group.source) || { 
+        name: group.source, 
+        type: 'Unknown Document', 
+        entity: 'Unknown Entity' 
+      };
+      return `DOCUMENT: ${docInfo.name} (${docInfo.type})
+PRIMARY ENTITY: ${docInfo.entity}
+${group.chunks.map(chunk => chunk.text.substring(0, 300)).join('\n\n')}
 `;
     }).join('\n---\n')}
 
-Find time values and list with source:
-- Content: 3.14 minutes
-- Source Document: Document 1
-- Entity Owner: Keller Jordan
-- Fact Type: achievement
+Extract relevant data with proper attribution (NO hardcoded examples):
+- Content: [actual extracted value]
+- Source Document: [actual document name from above]
+- Entity Owner: [actual person/entity this data belongs to]  
+- Fact Type: [achievement/measurement/skill/etc based on content]
 
 Direct extraction only:`;
 
     return simplePrompt;
   }
 
-  private createSingleDocumentExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis: DocumentAnalysis): string {
+  private async createUniversalExtractionPrompt(query: string, chunks: ChunkData[], documentAnalysis: DocumentAnalysis): Promise<string> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded extraction format assumptions
+    // Let LLM determine what data to extract and how based on document structure
+    
     const content = chunks.map((chunk, i) => chunk.text).join('\n\n---\n\n');
     
-    // Create a much more direct prompt for small models
-    const directPrompt = `EXTRACT DATA FOR: ${query}
+    // Get LLM-generated extraction approach
+    const extractionApproach = await this.generateExtractionApproach(documentAnalysis, query);
+    
+    const universalPrompt = `EXTRACT DATA FOR: ${query}
 
-From this text:
+DOCUMENT CONTENT:
 ${content}
 
-Find all time values (hours, minutes) and list them like this:
-- 3.14 minutes
-- 7.51 hours
-- 4.26 hours
+EXTRACTION APPROACH:
+${extractionApproach}
 
-Direct extraction only, no analysis:`;
+DOCUMENT STRUCTURE: ${documentAnalysis.structure.join(', ')}
+CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
 
-    return directPrompt;
+Based on the document structure and your analysis, extract ALL relevant data that answers the user's query.
+Focus on completeness - don't miss any data points.
+Present the extracted information clearly.`;
+
+    return universalPrompt;
   }
 
   private groupChunksBySource(chunks: ChunkData[]): { source: string; chunks: ChunkData[] }[] {
@@ -321,231 +364,88 @@ Direct extraction only, no analysis:`;
     }));
   }
   
-  private getExtractionApproach(documentAnalysis: DocumentAnalysis, query: string): string {
-    const queryLower = query.toLowerCase();
-    const docType = documentAnalysis.documentType.toLowerCase();
+  private async generateExtractionApproach(documentAnalysis: DocumentAnalysis, query: string): Promise<string> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded query patterns or document type assumptions
+    // Let LLM determine extraction approach based on actual document content and query intent
     
-    // Generate adaptive extraction instructions
-    let approach = '';
-    
-    if (queryLower.includes('best') || queryLower.includes('top')) {
-      approach += `- Look for items that can be compared and ranked\n`;
-      approach += `- Extract specific names, titles, or identifiers\n`;
-      approach += `- Include metrics, achievements, or distinguishing features\n`;
+    const prompt = `Analyze this query and document to determine the best extraction approach:
+
+QUERY: "${query}"
+DOCUMENT TYPE: ${documentAnalysis.documentType}
+DOCUMENT CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
+DOCUMENT STRUCTURE: ${documentAnalysis.structure.join(', ')}
+
+Based on what the user is asking and what's actually in this document, what extraction approach would work best?
+
+Consider:
+- What specific information does the user want?
+- What type of data organization exists in this document?
+- How should the extraction be structured to answer their question?
+
+Return extraction strategy as bullet points.`;
+
+    try {
+      const response = await this.llm(prompt);
+      return response.trim();
+    } catch (error) {
+      console.warn('Failed to generate extraction approach, using fallback');
+      return '- Extract information directly relevant to the user query\n- Focus on concrete facts and specific details\n- Preserve context and relationships between data points';
     }
-    
-    if (queryLower.includes('list') || queryLower.includes('all')) {
-      approach += `- Extract comprehensive list of items\n`;
-      approach += `- Include all instances found, not just highlights\n`;
-      approach += `- Maintain consistent format for similar items\n`;
-    }
-    
-    if (docType.includes('cv') || docType.includes('resume')) {
-      approach += `- Focus on ${documentAnalysis.contentAreas.join(', ')}\n`;
-      approach += `- Extract specific project names, technologies, and achievements\n`;
-      approach += `- Include concrete details, not just job descriptions\n`;
-    }
-    
-    if (docType.includes('research') || docType.includes('paper')) {
-      approach += `- Focus on ${documentAnalysis.contentAreas.join(', ')}\n`;
-      approach += `- Extract methodology, results, and key findings\n`;
-      approach += `- Include specific data, metrics, and conclusions\n`;
-    }
-    
-    // Add generic intelligent approach if no specific rules apply
-    if (!approach) {
-      approach = `- Extract information relevant to the query context\n`;
-      approach += `- Focus on concrete facts and specific details\n`;
-      approach += `- Include any supporting evidence or context\n`;
-    }
-    
-    return approach;
   }
   
-  private parseNaturalResponse(response: string, chunkId: string): ExtractedItem[] {
-    const items: ExtractedItem[] = [];
+  private async parseUniversalResponse(response: string, chunkId: string, query: string): Promise<ExtractedItem[]> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded parsing patterns
+    // Let LLM understand and structure the response based on content
     
-    // No need to clean thinking tags anymore since we removed them from prompt
-    let cleanResponse = response.trim();
-    
-    // Check for multi-document attribution format first
-    const attributionMatches = cleanResponse.matchAll(/- Content:\s*(.+?)\n- Source Document:\s*(.+?)\n- Entity Owner:\s*(.+?)\n- Fact Type:\s*(.+?)(?:\n|$)/gi);
-    for (const match of attributionMatches) {
-      const content = match[1].trim();
-      const sourceDocument = match[2].trim();  
-      const entityOwner = match[3].trim();
-      const factType = match[4].trim();
+    const parsePrompt = `Parse this extraction response to identify all data points that answer the user query:
+
+USER QUERY: "${query}"
+EXTRACTION RESPONSE: ${response}
+
+Identify every piece of data that helps answer the query. For each data point, provide:
+- The actual content/value
+- Any associated description or context
+- Confidence level (0.0-1.0)
+
+Return as JSON array:
+[
+  {
+    "content": "the extracted information",
+    "value": "numeric value if any",
+    "unit": "unit if any (hours, minutes, etc)",
+    "context": "surrounding context",
+    "confidence": 0.9
+  }
+]
+
+Focus on completeness - capture every relevant data point.`;
+
+    try {
+      const parseResponse = await this.llm(parsePrompt);
+      const parsedData = parseJsonWithResilience(parseResponse);
       
-      // Extract value and unit if present
-      const timeMatch = content.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
-      
-      items.push({
-        content: content,
-        value: timeMatch ? timeMatch[1] : undefined,
-        unit: timeMatch ? timeMatch[2] : undefined,
-        context: `${entityOwner}: ${content}`,
-        confidence: 0.98, // High confidence for structured attribution
-        sourceChunkId: chunkId,
-        sourceDocument: sourceDocument,
-        entityOwner: entityOwner,
-        factType: factType as any,
-        attribution: `${entityOwner}'s ${factType}`,
-        metadata: { 
-          method: 'llm',
-          type: 'attributed_fact',
-          sourceDocument: sourceDocument,
-          entityOwner: entityOwner,
-          factType: factType
-        }
-      });
-    }
-    
-    // If we found attributed items, return them
-    if (items.length > 0) {
-      return items;
-    }
-    
-    // First, check for our expected "Entry X:" format
-    // Look for patterns like "Entry 1:", "Entry 2..4.4.4.4.4:", etc.
-    const entryMatches = cleanResponse.matchAll(/Entry\s*(\d+(?:\.\.\d+(?:\.\d+)*)?|\d+):\s*(.+?)(?:\n|$)/gi);
-    for (const match of entryMatches) {
-      const entryContent = match[2].trim();
-      const entryNumber = match[1];
-      
-      // Parse the entry content (usually separated by - or |)
-      const parts = entryContent.split(/\s*[-|]\s*/);
-      if (parts.length >= 2) {
-        // Extract time value - be more flexible with the pattern
-        const timeMatch = entryContent.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
-        
-        // Extract base entry number for sorting
-        const baseNumber = entryNumber.includes('..') ? 
-          parseInt(entryNumber.split('..')[0]) : 
-          parseInt(entryNumber);
-        
-        items.push({
-          content: `Entry ${entryNumber}: ${parts[0].trim()}`,
-          value: timeMatch ? timeMatch[1] : undefined,
-          unit: timeMatch ? timeMatch[2] : undefined,
-          context: entryContent,
-          confidence: 0.98, // High confidence for structured entries
+      if (Array.isArray(parsedData)) {
+        return parsedData.map((item: any, index: number) => ({
+          content: item.content || '',
+          value: item.value?.toString(),
+          unit: item.unit,
+          context: item.context || item.content,
+          confidence: item.confidence || 0.8,
           sourceChunkId: chunkId,
-          metadata: { 
-            method: 'llm',
-            type: 'table_row',
-            rowNumber: baseNumber.toString(),
-            fullNumber: entryNumber,
-            description: parts[0].trim()
+          metadata: {
+            method: 'llm_universal',
+            type: 'extracted_data',
+            position: index.toString()
           }
-        });
+        }));
       }
+    } catch (error) {
+      console.error('❌ JSON parsing failed completely:', error);
+      throw new Error(`Failed to parse extraction response: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
-    // Also look for listed items with numbers
-    const listMatches = cleanResponse.matchAll(/(?:^|\n)\s*(\d+)[.)\s]+(.+?)(?:\n|$)/gm);
-    for (const match of listMatches) {
-      const itemNumber = match[1];
-      const itemContent = match[2].trim();
-      
-      // Extract time values if present
-      const timeMatch = itemContent.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?)/i);
-      
-      items.push({
-        content: itemContent,
-        value: timeMatch ? timeMatch[1] : undefined,
-        unit: timeMatch ? timeMatch[2] : undefined,
-        context: match[0].trim(),
-        confidence: 0.9,
-        sourceChunkId: chunkId,
-        metadata: { 
-          method: 'llm',
-          type: 'list_item',
-          position: itemNumber
-        }
-      });
-    }
-    
-    // Process all lines to extract any data we might have missed
-    const lines = cleanResponse.split('\n').filter(line => line.trim());
-    
-    lines.forEach(line => {
-      const trimmedLine = line.trim();
-      
-      // Skip empty lines or lines we already processed
-      if (!trimmedLine || trimmedLine.match(/^Entry\s*\d+:|^\d+[.)\s]+/)) {
-        return;
-      }
-      
-      // Look for "Current record:" or similar patterns
-      const recordMatch = trimmedLine.match(/Current\s+record[:\s]+(.+)/i);
-      if (recordMatch) {
-        const recordValue = recordMatch[1].trim();
-        const timeMatch = recordValue.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
-        
-        items.push({
-          content: recordValue,
-          value: timeMatch ? timeMatch[1] : recordValue,
-          unit: timeMatch ? timeMatch[2] : undefined,
-          context: trimmedLine,
-          confidence: 1.0, // High confidence for current records
-          sourceChunkId: chunkId,
-          metadata: { 
-            method: 'llm',
-            type: 'current_record'
-          }
-        });
-        return;
-      }
-      
-      // Extract ANY line with time values - be very inclusive
-      const timeMatch = trimmedLine.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
-      if (timeMatch) {
-        // Try to extract a description from the line
-        let description = trimmedLine;
-        const colonMatch = trimmedLine.match(/(.+?):\s*(\d+\.?\d*\s*(?:hours?|hrs?|minutes?|mins?))/i);
-        if (colonMatch) {
-          description = colonMatch[1].trim();
-        }
-        
-        items.push({
-          content: description,
-          value: timeMatch[1],
-          unit: timeMatch[2],
-          context: trimmedLine,
-          confidence: 0.9,
-          sourceChunkId: chunkId,
-          metadata: { 
-            method: 'llm',
-            type: 'time_data'
-          }
-        });
-      }
-    });
-    
-    // Remove obvious duplicates based on value and unit
-    const uniqueItems = items.reduce((acc, item) => {
-      const isDuplicate = acc.some(existing => 
-        existing.value === item.value && 
-        existing.unit === item.unit &&
-        existing.metadata?.rowNumber === item.metadata?.rowNumber
-      );
-      
-      if (!isDuplicate) {
-        acc.push(item);
-      }
-      
-      return acc;
-    }, [] as ExtractedItem[]);
-    
-    // Sort by confidence and row number (if available)
-    return uniqueItems.sort((a, b) => {
-      // First sort by row number if both have it
-      if (a.metadata?.rowNumber && b.metadata?.rowNumber) {
-        return parseInt(a.metadata.rowNumber) - parseInt(b.metadata.rowNumber);
-      }
-      // Otherwise sort by confidence
-      return b.confidence - a.confidence;
-    });
+    // If we reach here, no valid data was found
+    return [];
   }
   
   private fallbackTextExtraction(
@@ -811,43 +711,228 @@ Direct extraction only, no analysis:`;
   }
   
   private parseJSON(text: string): any {
+    return parseJsonWithResilience(text);
+  }
+
+  /**
+   * 🚀 CURSOR-STYLE HYBRID: LLM Pattern Discovery (Universal Intelligence)
+   * LLM discovers what patterns exist in document instead of hardcoded assumptions
+   */
+  private async discoverPatternsWithLLM(context: ResearchContext): Promise<PatternDiscovery> {
+    console.log(`🧠 LLM discovering patterns for query: "${context.query}"`);
+    
+    // Sample content for pattern discovery (don't process all chunks)
+    const sampleContent = context.ragResults.chunks
+      .slice(0, 3)
+      .map(chunk => chunk.text.substring(0, 300))
+      .join('\n\n---\n\n');
+    
+    const patternDiscoveryPrompt = `Analyze this document and discover what patterns I should search for:
+
+USER QUERY: "${context.query}"
+DOCUMENT SAMPLE:
+${sampleContent}
+
+What patterns, measurements, or data types exist in this document that would answer the user's query?
+
+Examples of what to look for:
+- If user asks about "speed runs" → look for timing patterns, performance metrics
+- If user asks about "recipes" → look for ingredients, cooking times, instructions  
+- If user asks about "projects" → look for project names, technologies, achievements
+
+Generate a simple search strategy:
+PATTERNS: [list the specific patterns to search for]
+STRATEGY: [how to find and extract this data]
+
+Keep it simple and direct.`;
+
     try {
-      return JSON.parse(text);
-    } catch (firstError) {
-      console.log('🔍 Direct JSON parse failed, trying extraction...');
+      const response = await this.llm(patternDiscoveryPrompt);
+      console.log(`🔍 LLM pattern discovery response: ${response.substring(0, 200)}...`);
       
-      // Try to extract JSON from the response
-      // Handle <think> tags if present
-      let cleanText = text;
-      if (cleanText.includes('<think>') && cleanText.includes('</think>')) {
-        const thinkEnd = cleanText.lastIndexOf('</think>');
-        if (thinkEnd !== -1) {
-          cleanText = cleanText.substring(thinkEnd + 8).trim();
-        }
+      // Parse LLM response for patterns
+      const patterns = this.parsePatternsFromLLMResponse(response);
+      
+      if (patterns.length > 0) {
+        return {
+          success: true,
+          patterns: patterns,
+          strategy: response.substring(response.indexOf('STRATEGY:') + 9).trim().substring(0, 200),
+          sourceResponse: response
+        };
+      } else {
+        return { success: false, patterns: [], strategy: '', sourceResponse: response };
       }
-      
-      // Try to find JSON object
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[0]);
-        } catch (secondError) {
-          console.error('🔍 JSON extraction failed:', secondError);
-        }
-      }
-      
-      // Last resort: try to find array
-      const arrayMatch = cleanText.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
-        try {
-          const parsed = JSON.parse(arrayMatch[0]);
-          return { items: parsed }; // Wrap in expected format
-        } catch (thirdError) {
-          console.error('🔍 Array extraction failed:', thirdError);
-        }
-      }
-      
-      throw new Error('Invalid JSON after all extraction attempts');
+    } catch (error) {
+      console.warn('🔧 LLM pattern discovery failed:', error);
+      return { success: false, patterns: [], strategy: '', sourceResponse: '' };
     }
   }
+
+  /**
+   * 🚀 CURSOR-STYLE FAST EXTRACTION: Use LLM-discovered patterns for fast data extraction
+   * This replaces complex structure detection with simple pattern-based extraction
+   */
+  private async extractUsingDiscoveredPatterns(
+    chunks: ChunkData[], 
+    patternDiscovery: PatternDiscovery,
+    context: ResearchContext
+  ): Promise<ExtractedItem[]> {
+    console.log(`⚡ Fast extraction using ${patternDiscovery.patterns.length} LLM-discovered patterns`);
+    
+    const extractedItems: ExtractedItem[] = [];
+    
+    // Process all chunks together using discovered patterns
+    const allContent = chunks.map((chunk, i) => 
+      `CHUNK ${i + 1}:\n${chunk.text}`
+    ).join('\n\n---\n\n');
+    
+    const fastExtractionPrompt = `Extract data using these LLM-discovered patterns:
+
+QUERY: "${context.query}"
+DISCOVERED PATTERNS: ${patternDiscovery.patterns.join(', ')}
+STRATEGY: ${patternDiscovery.strategy}
+
+CONTENT:
+${allContent}
+
+Extract all instances of the discovered patterns. Be direct and complete.
+Focus on the specific patterns the LLM identified.`;
+
+    try {
+      const response = await this.llm(fastExtractionPrompt);
+      console.log(`🎯 Pattern-based extraction (${response.length} chars):`, response.substring(0, 300));
+      
+      // Store LLM response for verbose output
+      this.llmResponses.push(`⚡ **Fast Extraction LLM Response**:\n${response}`);
+      
+      // Simple parsing - no complex JSON attempts
+      const items = this.parseSimpleResponse(response, chunks[0]?.id || 'pattern_extracted');
+      
+      // Add pattern-based metadata
+      const enhancedItems = items.map(item => ({
+        ...item,
+        metadata: {
+          ...item.metadata,
+          extractionMethod: 'llm_pattern_discovery',
+          discoveredPatterns: patternDiscovery.patterns,
+          extractionStrategy: patternDiscovery.strategy
+        }
+      }));
+      
+      console.log(`✅ Pattern-based extraction complete: Found ${enhancedItems.length} items`);
+      this.extractionSummary += `\nLLM Pattern Discovery: Used patterns [${patternDiscovery.patterns.join(', ')}] to find ${enhancedItems.length} items`;
+      
+      return enhancedItems;
+      
+    } catch (error) {
+      console.error(`❌ Pattern-based extraction failed:`, error);
+      return [];
+    }
+  }
+  
+  /**
+   * 🔧 FALLBACK EXTRACTION: Simple extraction when pattern discovery fails
+   */
+  private async fallbackExtraction(chunks: ChunkData[], context: ResearchContext): Promise<ExtractedItem[]> {
+    console.log(`🔧 Using fallback extraction for ${chunks.length} chunks`);
+    
+    const extractedItems: ExtractedItem[] = [];
+    
+    // Simple batch processing fallback
+    for (let i = 0; i < chunks.length; i += 3) {
+      const batch = chunks.slice(i, i + 3);
+      try {
+        const batchResults = await this.extractFromBatch(batch, context, Math.floor(i / 3) + 1);
+        extractedItems.push(...batchResults);
+      } catch (error) {
+        console.warn(`⚠️ Fallback batch ${Math.floor(i / 3) + 1} failed:`, error);
+      }
+    }
+    
+    return extractedItems;
+  }
+  
+  /**
+   * 🔍 Parse patterns from LLM response
+   */
+  private parsePatternsFromLLMResponse(response: string): string[] {
+    const patterns: string[] = [];
+    
+    // Look for PATTERNS: section
+    const patternsMatch = response.match(/PATTERNS:\s*\[([\s\S]*?)\]/);
+    if (patternsMatch) {
+      const patternList = patternsMatch[1];
+      patterns.push(...patternList.split(',').map(p => p.trim().replace(/['"]/g, '')));
+    } else {
+      // Fallback: look for common pattern indicators
+      const fallbackPatterns = [
+        'timing values', 'time measurements', 'performance metrics',
+        'hours and minutes', 'duration data', 'speed data'
+      ];
+      
+      for (const pattern of fallbackPatterns) {
+        if (response.toLowerCase().includes(pattern)) {
+          patterns.push(pattern);
+        }
+      }
+    }
+    
+    return patterns.filter(p => p.length > 0);
+  }
+  
+  /**
+   * 🔍 Simple response parsing - no complex JSON
+   */
+  private parseSimpleResponse(response: string, chunkId: string): ExtractedItem[] {
+    const items: ExtractedItem[] = [];
+    const lines = response.split('\n').filter(line => line.trim().length > 0);
+    
+    for (const line of lines) {
+      // Look for timing patterns in the response
+      const timeMatch = line.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
+      if (timeMatch) {
+        const value = timeMatch[1];
+        const unit = timeMatch[2];
+        
+        items.push({
+          content: line.trim(),
+          value: value,
+          unit: unit,
+          context: line.trim(),
+          confidence: 0.9,
+          sourceChunkId: chunkId,
+          metadata: {
+            method: 'pattern_based',
+            type: 'timing_data',
+            extractedPattern: `${value} ${unit}`
+          }
+        });
+      } else if (line.includes(':') && line.length > 10) {
+        // General data extraction
+        items.push({
+          content: line.trim(),
+          value: '',
+          unit: '',
+          context: line.trim(),
+          confidence: 0.7,
+          sourceChunkId: chunkId,
+          metadata: {
+            method: 'pattern_based',
+            type: 'general_data'
+          }
+        });
+      }
+    }
+    
+    return items;
+  }
+}
+
+// Type definitions
+interface PatternDiscovery {
+  success: boolean;
+  patterns: string[];
+  strategy: string;
+  sourceResponse: string;
 }

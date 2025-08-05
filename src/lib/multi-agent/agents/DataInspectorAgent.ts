@@ -8,6 +8,7 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, DocumentAnalysis, SingleDocumentAnalysis, EntityReference, DocumentRelationship } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
+import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
 
 export class DataInspectorAgent extends BaseAgent {
   readonly name = 'DataInspector';
@@ -102,30 +103,37 @@ Sample content from ${group.chunks.length} chunks:
 ${group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n')}
 `).join('\n')}
 
-Please analyze this multi-document scenario and provide:
+Please analyze this multi-document scenario and answer these CRITICAL questions:
 
 1. **DOCUMENT TYPES**: What type is each document? (CV/Resume, Blog, Research Paper, etc.)
 
-2. **PRIMARY ENTITIES**: Who are the main people/subjects in each document?
+2. **PRIMARY ENTITIES**: Who is the main person/subject in each document? (Extract the actual names from the content)
 
-3. **KEY ENTITIES**: What people, companies, projects, achievements are mentioned in each document? Who owns what?
+3. **DOCUMENT RELEVANCE**: For the specific query "${context.query}", which documents are relevant and which should be ignored?
+   - Only process documents that directly relate to what the user is asking about
+   - If the query mentions a specific person's work, ignore documents about other people
+   - Documents about different people should NOT be combined for person-specific queries
 
-4. **DOCUMENT RELATIONSHIPS**: How do these documents relate to answering the user's query?
+4. **ENTITY OWNERSHIP**: What achievements, skills, or facts belong to which specific person? Never mix these up!
 
-5. **CROSS-DOCUMENT STRATEGY**: How should we combine information from multiple documents to answer the query correctly?
+5. **PROCESSING STRATEGY**: Based on document relevance, which documents should we process and which should we filter out?
 
-6. **ATTRIBUTION RULES**: What rules should we follow to ensure facts are attributed to the correct entities?
+6. **ATTRIBUTION RULES**: How do we ensure facts stay with the correct person and never get mixed up?
 
-7. **EXPECTED OUTPUT FORMAT**: How should the final answer be structured for this multi-document query?
+7. **EXPECTED OUTPUT FORMAT**: What format should the answer take based on the relevant documents only?
 
-CRITICAL: Ensure we never mix up achievements, skills, or facts between different people or entities.`;
+CRITICAL RULES:
+- If query is about one person, ignore documents about other people
+- Never combine achievements from different people
+- Be explicit about which person each fact belongs to
+- Filter irrelevant documents BEFORE processing`;
 
     try {
       const response = await this.llm(prompt);
       console.log(`🤖 Multi-document analysis:`, response.substring(0, 300));
       
       // Update context with multi-document insights
-      this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
+      await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
       
       // Store full response for thinking extraction
       this.setReasoning(response);
@@ -206,7 +214,11 @@ Provide specific, actionable insights that will guide intelligent extraction and
         extractionStrategy: documentAnalysis?.extractionStrategy,
         expectedOutputFormat: documentAnalysis?.expectedOutputFormat,
         analysisTimestamp: Date.now(),
-        agentSource: 'DataInspector'
+        agentSource: 'DataInspector',
+        // 🔥 NEW: Preserve detailed semantic reasoning for next agents
+        detailedReasoning: this.reasoning,  // Full LLM reasoning from DataInspector
+        specificInsights: this.extractSpecificInsights(documentAnalysis, context.query), // Tyler-specific insights
+        keyFindings: this.extractKeyFindings(documentAnalysis) // Important discoveries
       };
       
       // Create adaptive patterns based on document analysis
@@ -225,22 +237,13 @@ Provide specific, actionable insights that will guide intelligent extraction and
       
     } catch (error) {
       console.error('❌ Error parsing document analysis:', error);
-      // Fallback to basic analysis
-      context.documentAnalysis = {
-        documentType: 'Unknown',
-        structure: ['content'],
-        contentAreas: ['general information'],
-        queryIntent: 'Extract relevant information',
-        extractionStrategy: 'Extract based on query keywords',
-        expectedOutputFormat: 'summary'
-      };
-      context.patterns = [];
+      throw new Error(`Document analysis parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   
-  private updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): void {
+  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<void> {
     try {
-      const documentAnalysis = this.parseMultiDocumentAnalysis(response, documentGroups);
+      const documentAnalysis = await this.parseMultiDocumentAnalysis(response, documentGroups, context);
       context.documentAnalysis = documentAnalysis;
       
       // Create adaptive patterns based on multi-document analysis
@@ -260,109 +263,224 @@ Provide specific, actionable insights that will guide intelligent extraction and
       
     } catch (error) {
       console.error('❌ Error parsing multi-document analysis:', error);
-      // Fallback to basic analysis
-      context.documentAnalysis = {
-        documentType: 'Multiple Documents',
-        structure: ['mixed content'],
-        contentAreas: ['general information'],
-        queryIntent: 'Extract and combine information from multiple sources',
-        extractionStrategy: 'Extract based on query keywords from each document separately',
-        expectedOutputFormat: 'structured comparison'
-      };
-      context.patterns = [];
+      throw new Error(`Multi-document analysis parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private parseMultiDocumentAnalysis(response: string, documentGroups: any[]): DocumentAnalysis {
-    // Parse the multi-document analysis response
+  private async parseMultiDocumentAnalysis(response: string, documentGroups: any[], context: ResearchContext): Promise<DocumentAnalysis> {
+    // Parse the multi-document analysis response with new relevance filtering
     const sections = {
       documentTypes: this.extractListSection(response, 'DOCUMENT TYPES'),
       primaryEntities: this.extractListSection(response, 'PRIMARY ENTITIES'),
-      keyEntities: this.extractListSection(response, 'KEY ENTITIES'),
-      relationships: this.extractListSection(response, 'DOCUMENT RELATIONSHIPS'),
-      crossDocumentStrategy: this.extractSection(response, 'CROSS-DOCUMENT STRATEGY'),
+      documentRelevance: this.extractListSection(response, 'DOCUMENT RELEVANCE'),
+      entityOwnership: this.extractListSection(response, 'ENTITY OWNERSHIP'),
+      processingStrategy: this.extractSection(response, 'PROCESSING STRATEGY'),
       attributionRules: this.extractListSection(response, 'ATTRIBUTION RULES'),
       expectedOutputFormat: this.extractSection(response, 'EXPECTED OUTPUT FORMAT')
     };
 
-    // Build individual document analyses
-    const documents: SingleDocumentAnalysis[] = documentGroups.map((group, i) => {
+    // Build individual document analyses with relevance filtering
+    const documents: SingleDocumentAnalysis[] = [];
+    const relevantDocuments: any[] = [];
+    
+    for (let i = 0; i < documentGroups.length; i++) {
+      const group = documentGroups[i];
       const docType = sections.documentTypes[i] || 'Unknown Document';
       const primaryEntity = sections.primaryEntities[i] || 'Unknown Entity';
       
-      return {
+      // Check if this document is relevant based on LLM analysis
+      const relevanceText = sections.documentRelevance.join(' ').toLowerCase();
+      const docNumber = i + 1;
+      
+      // Look for specific mentions of this document
+      const docMentions = [
+        `document ${docNumber}`,
+        docType.toLowerCase(),
+        primaryEntity.toLowerCase()
+      ].filter(mention => mention.length > 2);
+      
+      let isRelevant = false;
+      
+      // Check if any mention of this document indicates relevance
+      for (const mention of docMentions) {
+        if (relevanceText.includes(mention)) {
+          const context = relevanceText;
+          // If the document is mentioned positively or as relevant
+          if (context.includes(`${mention} is relevant`) || 
+              context.includes(`only ${mention}`) ||
+              context.includes(`${mention} should be processed`) ||
+              (context.includes(mention) && !context.includes(`${mention} is irrelevant`) && 
+               !context.includes(`${mention} is unrelated`) && 
+               !context.includes(`ignore ${mention}`))) {
+            isRelevant = true;
+            break;
+          }
+        }
+      }
+      
+      console.log(`🔍 Document ${docNumber} relevance check:`, {
+        docType,
+        primaryEntity,
+        relevanceText: relevanceText.substring(0, 200),
+        isRelevant,
+        mentions: docMentions
+      });
+      
+      if (!isRelevant) {
+        console.log(`🚫 Filtering out irrelevant document: ${docType} (${primaryEntity})`);
+        continue; // Skip this document
+      }
+      
+      console.log(`✅ Processing relevant document: ${docType} (${primaryEntity})`);
+      relevantDocuments.push(group);
+      
+      // Get sample content for LLM analysis
+      const sampleContent = group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n');
+      
+      // Use LLM to discover content areas based on actual content
+      const contentAreas = await this.discoverContentAreas(docType, sampleContent);
+      
+      // Use LLM to discover entities based on actual content
+      const keyEntities = await this.discoverEntities(sections.entityOwnership, i, sampleContent);
+      
+      // Use LLM to discover document role based on query and content
+      const role = await this.discoverDocumentRole(i, documentGroups.length, context.query, sampleContent);
+      
+      documents.push({
         documentId: group.documentId,
         documentName: group.documentId,
         documentType: docType,
         primaryEntity: primaryEntity,
         structure: [docType.toLowerCase() + ' sections'],
-        contentAreas: this.inferContentAreas(docType),
-        keyEntities: this.parseEntities(sections.keyEntities, i),
-        role: this.inferDocumentRole(i, documentGroups.length)
-      };
-    });
+        contentAreas: contentAreas,
+        keyEntities: keyEntities,
+        role: role
+      });
+    }
+    
+    console.log(`📊 Document filtering: ${documentGroups.length} total → ${documents.length} relevant`);
 
-    // Build relationships
-    const relationships: DocumentRelationship[] = this.parseRelationships(sections.relationships, documentGroups);
+    // Build minimal relationships - only connect documents if explicitly needed
+    const relationships: DocumentRelationship[] = documents.length > 1 ? 
+      this.buildMinimalRelationships(documents, context.query) : [];
 
     return {
       documentType: 'Multi-Document Analysis',
       structure: documents.map(d => d.documentType),
       contentAreas: documents.flatMap(d => d.contentAreas),
-      queryIntent: 'Combine information from multiple documents',
-      extractionStrategy: sections.crossDocumentStrategy || 'Extract from each document with proper attribution',
+      queryIntent: `Extract information from ${documents.length} relevant documents`,
+      extractionStrategy: 'Extract from each relevant document separately with proper attribution',
       expectedOutputFormat: sections.expectedOutputFormat || 'structured synthesis',
       documents: documents,
       relationships: relationships,
-      crossDocumentStrategy: sections.crossDocumentStrategy || 'Maintain entity attribution'
+      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination'
     };
   }
 
-  private inferContentAreas(docType: string): string[] {
-    const lowerType = docType.toLowerCase();
-    if (lowerType.includes('cv') || lowerType.includes('resume')) {
-      return ['skills', 'experience', 'projects', 'education'];
+  private async discoverContentAreas(docType: string, sampleContent: string): Promise<string[]> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded assumptions about document types
+    // Let LLM discover content areas based on actual document content
+    
+    const prompt = `Analyze this document type and sample content to discover its actual structure:
+
+DOCUMENT TYPE: ${docType}
+SAMPLE CONTENT: ${sampleContent}
+
+What are the main content areas/sections that this document actually contains?
+List the specific types of information present, based on what you see in the content.
+
+No assumptions - only describe what's actually there.
+Return as comma-separated list.`;
+
+    try {
+      const response = await this.llm(prompt);
+      const areas = response.split(',').map(area => area.trim()).filter(area => area.length > 0);
+      return areas.length > 0 ? areas : ['general information'];
+    } catch (error) {
+      console.warn('Failed to discover content areas, using fallback');
+      return ['general information'];
     }
-    if (lowerType.includes('blog') || lowerType.includes('article')) {
-      return ['methods', 'results', 'techniques', 'insights'];
-    }
-    if (lowerType.includes('research') || lowerType.includes('paper')) {
-      return ['methodology', 'results', 'conclusions', 'data'];
-    }
-    return ['general information'];
   }
 
-  private parseEntities(keyEntitiesList: string[], docIndex: number): EntityReference[] {
-    // Simple parsing - in a real implementation, this would be more sophisticated
-    const docEntities = keyEntitiesList.filter((_, i) => i % 2 === docIndex); // Alternate between docs
-    return docEntities.map(entity => ({
-      name: entity.split(':')[0] || entity,
-      type: 'person' as const,
-      context: entity,
-      isOwner: entity.toLowerCase().includes('owner') || entity.toLowerCase().includes('author')
-    }));
-  }
+  private async discoverEntities(keyEntitiesList: string[], docIndex: number, docContent: string): Promise<EntityReference[]> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded entity type assumptions
+    // Let LLM discover entities based on actual document content
+    
+    const relevantEntities = keyEntitiesList.filter((_, i) => Math.floor(i / 2) === docIndex);
+    if (relevantEntities.length === 0) return [];
+    
+    const prompt = `Analyze these entities in the context of this document content:
 
-  private inferDocumentRole(index: number, totalDocs: number): 'source' | 'target' | 'reference' {
-    if (totalDocs === 2) {
-      return index === 0 ? 'target' : 'source'; // First doc is who we're helping, second is source of knowledge
+ENTITIES MENTIONED: ${relevantEntities.join(', ')}
+DOCUMENT CONTENT: ${docContent.substring(0, 500)}
+
+For each entity, determine:
+1. What type of entity is it? (person, company, project, concept, etc.)
+2. What is their relationship to this document? (author, subject, mentioned, etc.)
+3. What context describes their role?
+
+Return as JSON array:
+[{"name": "entity", "type": "person|company|project|concept", "context": "role description", "isOwner": true/false}]`;
+
+    try {
+      const response = await this.llm(prompt);
+      const entities = parseJsonWithResilience(response);
+      return Array.isArray(entities) ? entities : [];
+    } catch (error) {
+      console.error('❌ Failed to discover entities:', error);
+      throw new Error(`Entity discovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    return 'reference';
   }
 
-  private parseRelationships(relationshipsList: string[], documentGroups: any[]): DocumentRelationship[] {
-    // Build relationships based on the analysis
+  private async discoverDocumentRole(docIndex: number, totalDocs: number, query: string, docContent: string): Promise<'source' | 'target' | 'reference'> {
+    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded role assumptions
+    // Let LLM determine document role based on query and content
+    
+    const prompt = `Analyze this document's role in answering the user query:
+
+USER QUERY: ${query}
+DOCUMENT CONTENT: ${docContent.substring(0, 300)}
+DOCUMENT POSITION: ${docIndex + 1} of ${totalDocs}
+
+What role does this document play in answering the query?
+- "source": Contains information/methods to be used
+- "target": About the person/entity who needs help
+- "reference": Supporting/background information
+
+Return just the role: source, target, or reference`;
+
+    try {
+      const response = await this.llm(prompt);
+      const role = response.trim().toLowerCase();
+      if (['source', 'target', 'reference'].includes(role)) {
+        return role as 'source' | 'target' | 'reference';
+      }
+      return 'reference';
+    } catch (error) {
+      console.warn('Failed to discover document role, using fallback');
+      return 'reference';
+    }
+  }
+
+  private buildMinimalRelationships(documents: SingleDocumentAnalysis[], query: string): DocumentRelationship[] {
+    // Only create relationships if query explicitly requires cross-document analysis
     const relationships: DocumentRelationship[] = [];
     
-    if (documentGroups.length === 2) {
+    // Check if query asks for comparison or combination
+    const queryLower = query.toLowerCase();
+    const needsComparison = queryLower.includes('compare') || queryLower.includes('vs') || 
+                           queryLower.includes('difference') || queryLower.includes('similar');
+    
+    if (needsComparison && documents.length === 2) {
       relationships.push({
-        type: 'tutorial',
-        sourceDoc: documentGroups[1].documentId,
-        targetDoc: documentGroups[0].documentId,
-        description: 'Use methods from source document to create tutorial for target document entity'
+        type: 'comparison',
+        sourceDoc: documents[0].documentId,
+        targetDoc: documents[1].documentId,
+        description: `Compare ${documents[0].documentType} with ${documents[1].documentType}`
       });
     }
     
+    // Otherwise, keep documents independent to prevent contamination
     return relationships;
   }
 
@@ -394,100 +512,140 @@ Provide specific, actionable insights that will guide intelligent extraction and
   }
   
   private extractListSection(text: string, sectionName: string): string[] {
-    const regex = new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\*]+)`, 'i');
-    const match = text.match(regex);
-    if (!match) return [];
+    // Try multiple patterns to find the section content
+    const patterns = [
+      // Standard format: **SECTION**: content
+      new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\*]+)`, 'i'),
+      // Natural format: For SECTION: content  
+      new RegExp(`For ${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
+      // Natural format: SECTION: content
+      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i')
+    ];
     
-    // Extract list items (lines starting with - or numbers)
-    const content = match[1];
-    const items = content.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.match(/^[-•\d]/))
-      .map(line => line.replace(/^[-•\d.\s]+/, '').trim())
-      .filter(line => line.length > 0);
-    
-    return items.length > 0 ? items : [content.trim()];
-  }
-  
-  private async processWithLLM(context: ResearchContext): Promise<void> {
-    // Original LLM-based processing (kept for reference)
-    const samples = context.ragResults.chunks.slice(0, 5);
-    
-    const prompt = `Analyze these data chunks to understand their structure and content:
-
-${samples.map((chunk, i) => `
-Chunk ${i + 1} (Similarity: ${chunk.similarity?.toFixed(2) || 'N/A'}):
-Source: ${chunk.source}
-Content:
-"${chunk.text}"
-`).join('\n---\n')}
-
-User is looking for: "${context.query}"
-
-Analyze and identify:
-1. Data format (prose, table, list, structured, etc.)
-2. Quality issues (repeated text, formatting problems, truncation)
-3. Patterns you observe (how information is structured)
-4. Relevant information related to the query
-5. Extraction challenges
-
-Return JSON with structure:
-{
-  "dataFormat": "description of format",
-  "qualityIssues": ["list of issues"],
-  "patterns": [
-    {
-      "description": "pattern description",
-      "examples": ["example 1", "example 2"],
-      "extractionStrategy": "how to extract this pattern",
-      "confidence": 0.9
-    }
-  ],
-  "relevantContent": ["what's relevant to the query"],
-  "challenges": ["extraction challenges"]
-}`;
-
-    try {
-      const response = await this.llm(prompt);
-      const analysis = this.parseJSON(response);
-      
-      // Update context with patterns
-      if (analysis.patterns && Array.isArray(analysis.patterns)) {
-        context.patterns = analysis.patterns.map((p: any) => ({
-          description: p.description || '',
-          examples: p.examples || [],
-          extractionStrategy: p.extractionStrategy || '',
-          confidence: p.confidence || 0.5
-        }));
+    let content = '';
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match && match[1]?.trim().length > 10) {
+        content = match[1].trim();
+        break;
       }
-      
-      this.setReasoning(
-        `Found ${analysis.patterns?.length || 0} patterns. ` +
-        `Format: ${analysis.dataFormat}. ` +
-        `Issues: ${analysis.qualityIssues?.join(', ') || 'none'}`
+    }
+    
+    if (!content) {
+      console.warn(`❌ Could not extract section: ${sectionName}`);
+      return [];
+    }
+    
+    // Split content into items and clean up
+    const sentences = content.split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 5);
+    
+    // For document types, look for "Document X is a..."
+    if (sectionName.includes('DOCUMENT TYPES')) {
+      const docTypes: string[] = [];
+      for (let i = 1; i <= 5; i++) { // Support up to 5 documents
+        const docMatch = content.match(new RegExp(`Document ${i} is (?:a |an )?(\\w+(?:\\s+\\w+)*)`, 'i'));
+        if (docMatch) {
+          docTypes.push(docMatch[1].trim());
+        }
+      }
+      if (docTypes.length > 0) return docTypes;
+    }
+    
+    // For entities, look for names in content
+    if (sectionName.includes('ENTITIES')) {
+      const entities: string[] = [];
+      const namePattern = /([A-Z][a-z]+ [A-Z][a-z]+)/g;
+      let match;
+      while ((match = namePattern.exec(content)) !== null) {
+        if (!entities.includes(match[1])) {
+          entities.push(match[1]);
+        }
+      }
+      if (entities.length > 0) return entities;
+    }
+    
+    // For relevance, return sentences that mention documents
+    if (sectionName.includes('RELEVANCE')) {
+      const relevantSentences = sentences.filter(s => 
+        s.includes('Document') || s.includes('relevant') || s.includes('irrelevant')
       );
-      
-      console.log(`✅ Data inspection complete:`, {
-        format: analysis.dataFormat,
-        patterns: context.patterns.length,
-        issues: analysis.qualityIssues?.length || 0
-      });
-      
-    } catch (error) {
-      console.error('❌ Failed to inspect data:', error);
-      this.setReasoning('Failed to analyze data structure');
+      return relevantSentences.length > 0 ? relevantSentences : [content];
     }
+    
+    // Default: return cleaned sentences
+    return sentences.length > 0 ? sentences : [content];
   }
   
-  private parseJSON(text: string): any {
-    try {
-      return JSON.parse(text);
-    } catch {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
-      throw new Error('Invalid JSON');
+  /**
+   * 🔥 Extract specific semantic insights that must be preserved (person-specific understanding)
+   */
+  private extractSpecificInsights(documentAnalysis: any, query: string): string[] {
+    const insights: string[] = [];
+    const reasoning = this.reasoning.toLowerCase();
+    const queryLower = query.toLowerCase();
+    
+    // Extract person-specific insights dynamically
+    const personMatches = queryLower.match(/(\w+)'s\s+(\w+)/g);
+    if (personMatches) {
+      personMatches.forEach(match => {
+        const [person, possession] = match.split("'s ");
+        if (reasoning.includes(person.toLowerCase())) {
+          insights.push(`CRITICAL: User wants ${person}'s personal ${possession}, not generic data`);
+          insights.push(`FOCUS: ${person} has their own content documented`);
+        }
+      });
     }
+    
+    // Extract ownership patterns dynamically
+    const ownershipPatterns = reasoning.match(/(\w+)'s (\w+)/g);
+    if (ownershipPatterns) {
+      ownershipPatterns.forEach(pattern => {
+        insights.push(`DOCUMENT OWNERSHIP: This is ${pattern} with their own content`);
+      });
+    }
+    
+    // Extract ranking requirements
+    const topNumbers = queryLower.match(/top\s+(\d+|three|five)/g);
+    if (topNumbers) {
+      insights.push(`RANKING REQUIRED: User wants ${topNumbers[0]} ranked items, not all data`);
+    }
+    
+    // Extract content type patterns
+    const contentTypes = reasoning.match(/(\w+)\s+(?:timing|data|metrics|achievements)/g);
+    if (contentTypes) {
+      contentTypes.forEach(type => {
+        insights.push(`CONTENT TYPE: Document contains ${type} data and performance metrics`);
+      });
+    }
+    
+    return insights;
   }
+  
+  /**
+   * 🔍 Extract key findings from document analysis that patterns should target
+   */
+  private extractKeyFindings(documentAnalysis: any): string[] {
+    const findings: string[] = [];
+    
+    if (documentAnalysis?.contentAreas) {
+      documentAnalysis.contentAreas.forEach((area: string) => {
+        findings.push(`Document contains: ${area}`);
+      });
+    }
+    
+    if (documentAnalysis?.structure) {
+      findings.push(`Document structure: ${documentAnalysis.structure.join(', ')}`);
+    }
+    
+    if (documentAnalysis?.expectedOutputFormat) {
+      findings.push(`Expected output format: ${documentAnalysis.expectedOutputFormat}`);
+    }
+    
+    return findings;
+  }
+  
+  // 🚨 REMOVED: Legacy hardcoded JSON processing
+  // Universal Intelligence approach now uses natural language prompts with LLM-based discovery
 }

@@ -8,6 +8,7 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
+import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
 
 export class QueryPlannerAgent extends BaseAgent {
   readonly name = 'QueryPlanner';
@@ -62,14 +63,6 @@ Return as JSON array of strings.`;
   }
   
   private parseJSON(text: string): any {
-    try {
-      return JSON.parse(text);
-    } catch {
-      const match = text.match(/\[[\s\S]*\]/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
-      throw new Error('Invalid JSON');
-    }
+    return parseJsonWithResilience(text);
   }
 }
