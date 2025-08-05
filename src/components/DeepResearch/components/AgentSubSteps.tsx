@@ -148,6 +148,7 @@ function ThinkingSection({ thinking, agentName, isExpanded, onToggle }: Thinking
 function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
 
   const IconComponent = AgentIcons[subStep.agentType];
   const iconColor = AgentColors[subStep.agentType];
@@ -239,11 +240,21 @@ function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
         {/* Output Summary */}
         {subStep.output && subStep.status === 'completed' && (
           <div className="mb-3">
-            <div className="text-xs text-muted-foreground mb-1">Output:</div>
-            <div className="text-sm text-foreground/80 bg-background/50 p-2 rounded border text-ellipsis overflow-hidden">
+            <div className="text-xs text-muted-foreground mb-1 flex items-center gap-2">
+              Output:
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowOutput(!showOutput)}
+                className="h-5 px-2 text-xs hover:bg-blue-100"
+              >
+                {showOutput ? 'Hide Full Output' : 'Show Full Output'}
+              </Button>
+            </div>
+            <div className={`text-sm text-foreground/80 bg-background/50 p-2 rounded border ${showOutput ? '' : 'text-ellipsis overflow-hidden'}`}>
               {typeof subStep.output === 'string' 
-                ? subStep.output.substring(0, 100) + (subStep.output.length > 100 ? '...' : '')
-                : JSON.stringify(subStep.output).substring(0, 100) + '...'
+                ? (showOutput ? subStep.output : subStep.output.substring(0, 200) + (subStep.output.length > 200 ? '...' : ''))
+                : (showOutput ? JSON.stringify(subStep.output, null, 2) : JSON.stringify(subStep.output).substring(0, 200) + '...')
               }
             </div>
           </div>

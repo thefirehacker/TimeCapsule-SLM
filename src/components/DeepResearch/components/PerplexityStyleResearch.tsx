@@ -66,6 +66,21 @@ const copyMultiAgentProcess = async (subSteps: any[]) => {
         copyText += `   ${subStep.thinking.thinkingContent.replace(/\n/g, '\n   ')}\n`;
       }
       
+      // Add full output if available
+      if (subStep.output) {
+        copyText += `   \n   📤 Full Output:\n`;
+        const outputText = typeof subStep.output === 'string' 
+          ? subStep.output 
+          : JSON.stringify(subStep.output, null, 2);
+        copyText += `   ${outputText.replace(/\n/g, '\n   ')}\n`;
+      }
+      
+      // Add error if available
+      if (subStep.error) {
+        copyText += `   \n   ❌ Error:\n`;
+        copyText += `   ${subStep.error.replace(/\n/g, '\n   ')}\n`;
+      }
+      
       // Add summary if available
       if (subStep.thinking?.summary) {
         copyText += `   📝 Summary: ${subStep.thinking.summary}\n`;

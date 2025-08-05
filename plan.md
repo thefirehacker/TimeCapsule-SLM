@@ -1,60 +1,115 @@
-# Dynamic Tool-Call Multi-Agent Architecture Plan
+# Issue 009 - Comprehensive Multi-Agent Enhancement Plan
 
-## 🎯 CORE DESIGN: LLM Orchestrates Agent Tools (Not Sequential Pipeline)
+## 📊 CURRENT STATUS: ARCHITECTURE FIXED, PATTERN GENERATION NEEDS IMPROVEMENT
 
-**Problem**: Rigid DataInspector → ChunkSelector → ExtractionAgent sequence fails to adapt
-**Solution**: DataInspector once → LLM orchestrates agent tool-calls based on findings
+**Latest Status**: ✅ **DataInspector Real Chunk Sampling COMPLETED** - All critical infrastructure bugs fixed
+**Test Query**: "give me best project by Rutwik"
+**Current Issue**: PatternGenerator LLM prompt doesn't leverage DataInspector intelligence properly
 
-## 🚨 KEY REQUIREMENTS
-- ✅ **Qwen3 0.6b compatibility** (`<think>` tokens expected, not contamination)
-- ✅ **No hardcoding** (universal patterns only)
-- ✅ **Communication preserved** (shared context across tool calls)
-- ✅ **Tool-call understanding** (small models decide when to call agents)
+## ✅ COMPLETED CRITICAL FIXES
 
-## 🔧 ARCHITECTURE
+### **PHASE 1: INFRASTRUCTURE FIXES** ✅ COMPLETED
+- [✅] **DataInspector Real RxDB Chunk Sampling** - Replaced simulation with real VectorStore integration
+- [✅] **Document Source Name Extraction** - Fixed metadata fallback chain for proper document naming
+- [✅] **Smart Chunk Filtering Logic** - Preserves pre-sampled chunks instead of removing all content
+- [✅] **Master LLM Decision Logic** - Intelligent orchestration with context awareness
+- [✅] **Agent State Tracking** - Prevents redundant agent calls with calledAgents Set
+- [✅] **Pattern Parser Enhancement** - Handles patterns with example text properly
+- [✅] **Regex RAG Functionality** - Extractor uses regex patterns when available
+- [✅] **Data Structure Mapping** - Fixed getAllChunks() structure mismatch
+- [✅] **Duplicate RAG Elimination** - Removed redundant initial searches
 
-### **Phase 1: Initial Analysis (Fixed)**
-`DataInspector.analyze()` → Creates BaseContext (preserved throughout)
+## 🎯 ACTIVE TODO LIST
 
-### **Phase 2: Dynamic Tool Orchestration (Adaptive)**
-```
-LLM Orchestrator Loop:
-1. Evaluate current context + query
-2. Decide what tool to call next
-3. Execute agent tool-call
-4. Update shared context  
-5. Repeat until query satisfied
-```
+### **CRITICAL PRIORITY: PATTERN GENERATION IMPROVEMENT**
 
-**Available Agent Tools:**
-- `ChunkSelector.search(patterns)` - Find chunks with LLM-generated patterns
-- `ExtractionAgent.extract(chunks)` - Extract data from found chunks
-- `DataInspector.analyzeSpecific(focus)` - Deep dive analysis
-- `PatternGenerator.generate(context)` - Create new search patterns
+#### **TODO 1: Fix PatternGenerator LLM Prompt** 🔥 HIGH PRIORITY
+- **Issue**: PatternGenerator receives DataInspector intelligence but doesn't use it effectively
+- **Current**: Generic patterns that don't match actual document structure
+- **Required**: Content-aware pattern generation based on DataInspector insights
+- **Test**: Generate resume-specific patterns for project extraction from Rutwik's resume
+- **File**: `src/lib/multi-agent/agents/PatternGeneratorAgent.ts`
 
-## 📋 SPEED RUN EXAMPLE FLOW
-1. **DataInspector**: "Found blog content about training"
-2. **LLM**: "Need timing data → ChunkSelector.search('hours minutes timing')"
-3. **ChunkSelector**: Finds "4.53 hours" chunk
-4. **LLM**: "Found timing → PatternGenerator.generate('more timing patterns')"
-5. **PatternGenerator**: Creates "baseline changes optimization hours"
-6. **LLM**: "New patterns → ChunkSelector.search(new_patterns)"
-7. **ChunkSelector**: Finds table structure + more timing entries
-8. **LLM**: "Complete data → ExtractionAgent.extract(all_chunks)"
-9. **ExtractionAgent**: Extracts all 6 speed run entries ✅
+#### **TODO 2: Enhance Content-Aware Pattern Generation** 🔥 HIGH PRIORITY  
+- **Issue**: Patterns not tailored to discovered document structure
+- **Current**: Generic regex patterns like `project.*?(?=\n\n|\n•|\n-|$)`
+- **Required**: Document-specific patterns based on DataInspector analysis
+- **Example**: If DataInspector finds "• Project Name:" format, generate `• ([^:]+):`
+- **Test**: Pattern should extract "TimeCapsule", "BubblSpace", etc. from actual resume
 
-## 🚀 CRITICAL FIXES
-1. **Agent Communication**: Shared DynamicContext prevents information loss
-2. **Iterative Discovery**: Find partial → generate patterns → find complete
-3. **Universal Intelligence**: LLM generates patterns (no hardcoding)
-4. **Small Model Friendly**: Simple tool-call decision prompts
-5. **Qwen Compatibility**: Accept `<think>` tokens as normal behavior
+#### **TODO 3: Add Pattern Validation Against Actual Content** 📋 MEDIUM PRIORITY
+- **Issue**: No testing of generated patterns against real document samples
+- **Current**: Patterns generated without validation
+- **Required**: Test patterns against DataInspector-sampled chunks before returning
+- **Method**: Run regex patterns against actual chunk content, return only working patterns
+- **Benefit**: Ensures patterns will find content when used by Extractor
 
-## 📊 EXPECTED RESULTS
-- **Complete Data**: All 6 timing values (8.13h, 7.51h, 4.53h, 4.26h, 4.01h, 2.55h)
-- **Universal**: Works with any document type (recipes, CVs, blogs, papers)  
-- **Efficient**: 3-8 adaptive tool calls vs 5-6 rigid calls
-- **Self-Correcting**: Can recover from partial results
+#### **TODO 4: Optimize Agent Communication Flow** 📋 MEDIUM PRIORITY
+- **Issue**: DataInspector insights not fully utilized by downstream agents
+- **Current**: Basic `context.sharedKnowledge.documentInsights` passing
+- **Required**: Richer context sharing with specific formatting hints
+- **Enhancement**: Pass document structure metadata (bullet format, section headers, etc.)
+- **Test**: PatternGenerator should receive and use specific formatting intelligence
+
+### **PERFORMANCE OPTIMIZATION TODOS**
+
+#### **TODO 5: Reduce PatternGenerator Response Time** ⚡ PERFORMANCE
+- **Current**: Pattern generation taking longer than expected
+- **Target**: < 10 seconds for pattern generation
+- **Method**: Optimize prompts for faster LLM decision-making
+- **Measure**: Time PatternGenerator execution in isolation
+
+#### **TODO 6: Optimize Overall Pipeline Performance** ⚡ PERFORMANCE
+- **Current**: 206 seconds total pipeline time
+- **Target**: < 60 seconds total execution
+- **Method**: Parallel agent execution where possible, optimized prompts
+- **Bottlenecks**: DataInspector (60s), need to identify other slow components
+
+### **TESTING AND VALIDATION TODOS**
+
+#### **TODO 7: Create Comprehensive Test Cases** 🧪 TESTING
+- **Test Query**: "give me best project by Rutwik"
+- **Expected Output**: Actual project names and descriptions from resume
+- **Validation**: Verify extracted content matches actual document content
+- **Edge Cases**: Multiple document types, different resume formats
+
+#### **TODO 8: Add Pattern Generation Debugging** 🔍 DEBUG
+- **Issue**: Need visibility into pattern generation process
+- **Required**: Log generated patterns and their test results
+- **Enhancement**: Show which patterns worked vs failed
+- **UI**: Display pattern generation results in research output
+
+### **FUTURE ENHANCEMENT TODOS** (Lower Priority)
+
+#### **TODO 9: Claude UI Enhancement** 🎨 UI (ON HOLD)
+- **Requirement**: Show regex patterns and results in expandable format
+- **Features**: Pattern visualization, match highlighting
+- **Dependencies**: Complete pattern generation fixes first
+
+#### **TODO 10: Multi-Source Integration** 🌐 INTEGRATION (ON HOLD)
+- **Requirement**: Integrate WebSearch and Firecrawl orchestration
+- **Features**: Web → crawl → analysis cycles
+- **Dependencies**: Core pattern generation working first
+
+## 🎯 SUCCESS CRITERIA
+
+### **Immediate Goals (Next 2 Tasks)**
+1. ✅ PatternGenerator uses DataInspector intelligence effectively
+2. ✅ Generated patterns extract actual content from documents
+3. ✅ Test query returns real project information, not "No relevant information found"
+
+### **Performance Targets**
+- **Total Pipeline**: < 60 seconds (current: 206s)
+- **PatternGenerator**: < 10 seconds (needs measurement)
+- **Content Quality**: Extract actual document content, not generic responses
+
+### **Quality Validation**
+- **Test Query**: "give me best project by Rutwik" returns actual project names
+- **Pattern Effectiveness**: Generated regex patterns find content when tested
+- **Agent Communication**: DataInspector insights properly utilized downstream
 
 ---
-**Next**: Implement core tool infrastructure + LLM orchestrator
+
+**NEXT IMMEDIATE ACTION**: Fix PatternGenerator LLM prompt to use DataInspector intelligence for content-aware pattern generation
+
+**Priority Order**: TODO 1 → TODO 2 → TODO 3 → Performance optimization → Testing

@@ -9,6 +9,7 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, DocumentAnalysis, SingleDocumentAnalysis, EntityReference, DocumentRelationship } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { VectorStore } from '@/components/VectorStore/VectorStore';
 
 export class DataInspectorAgent extends BaseAgent {
   readonly name = 'DataInspector';
@@ -19,6 +20,23 @@ export class DataInspectorAgent extends BaseAgent {
   constructor(llm: LLMFunction) {
     super();
     this.llm = llm;
+  }
+
+  private getVectorStore(): VectorStore | null {
+    // Try multiple methods to access VectorStore
+    if (typeof window !== 'undefined') {
+      if ((window as any).sharedVectorStore) {
+        return (window as any).sharedVectorStore;
+      }
+      if ((window as any).getVectorStore) {
+        try {
+          return (window as any).getVectorStore();
+        } catch (error) {
+          console.warn('Failed to get VectorStore via getVectorStore():', error);
+        }
+      }
+    }
+    return null;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
@@ -272,8 +290,13 @@ Provide specific, actionable insights that will guide intelligent extraction and
       
       console.log(`📋 Multi-Document Analysis: ${documentAnalysis.documents?.length || 0} documents with ${documentAnalysis.relationships?.length || 0} relationships`);
       
-      // 🚨 FIX: Filter RAG chunks based on relevant documents to prevent cross-contamination
-      if (documentAnalysis.documents && documentAnalysis.documents.length < documentGroups.length) {
+      // 🔥 SMART FILTERING: Only filter if we have many documents and analysis suggests some are irrelevant
+      // For pre-sampled chunks from performDocumentMetadataAnalysis, we trust DataInspector's sampling
+      const hasPreSampledChunks = context.ragResults.chunks.some(chunk => 
+        chunk.metadata?.originalChunkId !== undefined
+      );
+      
+      if (documentAnalysis.documents && documentAnalysis.documents.length < documentGroups.length && !hasPreSampledChunks) {
         const relevantDocumentIds = new Set(documentAnalysis.documents.map(doc => doc.documentId));
         const originalChunkCount = context.ragResults.chunks.length;
         
@@ -284,11 +307,11 @@ Provide specific, actionable insights that will guide intelligent extraction and
           
           // Check if this chunk belongs to a relevant document
           for (const docId of relevantDocumentIds) {
-            if (chunkSource && chunkSource.includes(docId) || 
+            if (chunkSource && (chunkSource.includes(docId) || 
                 chunk.text.includes(docId) ||
                 documentAnalysis.documents!.some(doc => 
                   doc.primaryEntity && chunk.text.includes(doc.primaryEntity)
-                )) {
+                ))) {
               return true;
             }
           }
@@ -300,6 +323,10 @@ Provide specific, actionable insights that will guide intelligent extraction and
         
         // Update summary to reflect filtering
         context.ragResults.summary = `Filtered to ${filteredChunkCount} relevant chunks from ${documentAnalysis.documents.length} documents`;
+      } else if (hasPreSampledChunks) {
+        console.log(`✅ SMART FILTERING: Preserving ${context.ragResults.chunks.length} pre-sampled chunks from DataInspector - no additional filtering needed`);
+      } else {
+        console.log(`✅ DOCUMENT ANALYSIS: All ${documentGroups.length} documents deemed relevant - no filtering applied`);
       }
       
     } catch (error) {
@@ -921,7 +948,7 @@ Return just the role: source, target, or reference`;
   }
   
   /**
-   * 🔥 CRITICAL: Handle document metadata by sampling actual chunks and performing multi-document analysis
+   * 🔥 CRITICAL: Handle document metadata by sampling actual chunks from VectorStore and performing multi-document analysis
    */
   private async performDocumentMetadataAnalysis(context: ResearchContext): Promise<void> {
     console.log(`🧠 DataInspector Magic: Starting multi-document sampling and filtering`);
@@ -931,42 +958,153 @@ Return just the role: source, target, or reference`;
       chunk.sourceType === 'document' || chunk.text?.startsWith('Document metadata:')
     );
     
-    console.log(`📋 Found ${documentMetadata.length} documents to analyze:`, 
-      documentMetadata.map(doc => doc.source));
+    // Get actual document source names from metadata
+    const documentSources = documentMetadata.map(doc => 
+      doc.source || doc.metadata?.filename || doc.metadata?.source || (doc as any).title || 'Unknown Document'
+    );
     
-    // TODO: Sample 2 chunks per document from VectorStore
-    // For now, we'll simulate the multi-document analysis workflow
+    console.log(`📋 Found ${documentMetadata.length} documents to analyze:`, documentSources);
     
-    // Create document groups for multi-document analysis
-    const documentGroups = documentMetadata.map(docMeta => ({
-      documentId: docMeta.metadata?.documentId || docMeta.id,
-      chunks: [{
-        id: docMeta.id,
-        text: `Document: ${docMeta.source} (${docMeta.metadata?.chunkCount || 0} chunks available)`,
-        source: docMeta.source,
-        similarity: 1.0,
-        metadata: docMeta.metadata,
-        sourceDocument: docMeta.source,
-        sourceType: 'document' as const
-      }]
-    }));
+    // 🔥 REAL VECTORSTORE INTEGRATION: Sample actual chunks from RxDB/IndexedDB
+    const vectorStore = this.getVectorStore();
+    if (!vectorStore) {
+      console.warn(`⚠️ VectorStore not available, falling back to document metadata only`);
+      // Keep the minimal metadata-only approach if VectorStore not available
+      const documentGroups = documentMetadata.map((docMeta, index) => ({
+        documentId: docMeta.metadata?.documentId || docMeta.id,
+        chunks: [{
+          id: docMeta.id,
+          text: `Document: ${documentSources[index]} (metadata only - VectorStore unavailable)`,
+          source: documentSources[index],
+          similarity: 1.0,
+          metadata: docMeta.metadata,
+          sourceDocument: documentSources[index],
+          sourceType: 'document' as const
+        }]
+      }));
+      
+      await this.performMultiDocumentAnalysis(context, documentGroups);
+      return;
+    }
+
+    // Sample 2 real chunks per document from VectorStore
+    console.log(`🔍 Sampling real chunks from ${documentMetadata.length} documents in VectorStore`);
+    const documentGroups: Array<{
+      documentId: string;
+      chunks: Array<{
+        id: string;
+        text: string;
+        source: string;
+        similarity: number;
+        metadata: any;
+        sourceDocument: string;
+        sourceType: 'rag' | 'document';
+      }>;
+    }> = [];
     
-    console.log(`🔍 Performing multi-document analysis on ${documentGroups.length} documents`);
+    for (let i = 0; i < documentMetadata.length; i++) {
+      const docMeta = documentMetadata[i];
+      const documentId = docMeta.metadata?.documentId || docMeta.id;
+      const documentSource = documentSources[i];
+      
+      try {
+        // Get full document from VectorStore with all chunks
+        const fullDocument = await vectorStore.getDocument(documentId);
+        
+        if (fullDocument && fullDocument.chunks && fullDocument.chunks.length > 0) {
+          // Sample up to 2 chunks per document (or all if less than 2)
+          const chunksToSample = Math.min(2, fullDocument.chunks.length);
+          const sampledChunks = [];
+          
+          if (chunksToSample === 1) {
+            // Take the first chunk if only 1 available
+            sampledChunks.push(fullDocument.chunks[0]);
+          } else {
+            // Take first and middle chunks for better document coverage
+            sampledChunks.push(fullDocument.chunks[0]);
+            const middleIndex = Math.floor(fullDocument.chunks.length / 2);
+            sampledChunks.push(fullDocument.chunks[middleIndex]);
+          }
+          
+          // Convert sampled chunks to the expected format
+          const formattedChunks = sampledChunks.map((chunk, idx) => ({
+            id: chunk.id,
+            text: chunk.content, // Real chunk content from VectorStore
+            source: documentSource,
+            similarity: 1.0,
+            metadata: {
+              ...docMeta.metadata,
+              chunkIndex: idx,
+              originalChunkId: chunk.id,
+              startIndex: chunk.startIndex,
+              endIndex: chunk.endIndex
+            },
+            sourceDocument: documentSource,
+            sourceType: 'rag' as const // Use 'rag' as valid sourceType for ChunkData
+          }));
+          
+          documentGroups.push({
+            documentId: documentId,
+            chunks: formattedChunks
+          });
+          
+          console.log(`✅ Sampled ${formattedChunks.length} real chunks from "${documentSource}" (${fullDocument.chunks.length} total chunks)`);
+        } else {
+          console.warn(`⚠️ Document "${documentSource}" has no chunks available`);
+          // Add minimal placeholder if document exists but has no chunks
+          documentGroups.push({
+            documentId: documentId,
+            chunks: [{
+              id: documentId,
+              text: `Document: ${documentSource} (no chunks available)`,
+              source: documentSource,
+              similarity: 1.0,
+              metadata: docMeta.metadata,
+              sourceDocument: documentSource,
+              sourceType: 'document' as const
+            }]
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Failed to sample chunks from document "${documentSource}":`, error);
+        // Add error placeholder
+        documentGroups.push({
+          documentId: documentId,
+          chunks: [{
+            id: documentId,
+            text: `Document: ${documentSource} (error sampling chunks: ${error})`,
+            source: documentSource,
+            similarity: 1.0,
+            metadata: docMeta.metadata,
+            sourceDocument: documentSource,
+            sourceType: 'document' as const
+          }]
+        });
+      }
+    }
     
-    // Use existing multi-document analysis logic
+    console.log(`🔍 Performing multi-document analysis on ${documentGroups.length} documents with real chunk samples`);
+    
+    // 🔥 CRITICAL: Replace document metadata with real sampled chunks in context
+    const allSampledChunks = documentGroups.flatMap(group => group.chunks);
+    console.log(`🔄 Replacing ${context.ragResults.chunks.length} document metadata entries with ${allSampledChunks.length} real chunks`);
+    context.ragResults.chunks = allSampledChunks;
+    
+    // Use existing multi-document analysis logic with real chunks
     await this.performMultiDocumentAnalysis(context, documentGroups);
     
-    // Update reasoning to reflect the document metadata analysis
-    this.setReasoning(`🧠 **DataInspector Magic: Document Metadata Analysis**
+    // Update reasoning to reflect the real chunk sampling
+    const totalSampledChunks = documentGroups.reduce((sum, group) => sum + group.chunks.length, 0);
+    this.setReasoning(`🧠 **DataInspector Magic: Real Chunk Sampling Analysis**
 
 📋 **Document Discovery**: Found ${documentMetadata.length} documents in knowledge base
-${documentMetadata.map(doc => `- ${doc.source} (${doc.metadata?.chunkCount || 0} chunks)`).join('\n')}
+${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chunks.length || 0} chunks sampled)`).join('\n')}
 
-🔍 **Multi-Document Analysis**: Performed intelligent document filtering and analysis on ${documentGroups.length} documents
+🔍 **Real Chunk Sampling**: Sampled ${totalSampledChunks} real chunks from VectorStore/RxDB for intelligent analysis
 
-🎯 **Key Insights**: Analyzed document structure and content areas to enable targeted pattern generation
+🎯 **Key Insights**: Analyzed actual document content and structure to enable targeted pattern generation
 
-🚀 **Next Step**: Filtered documents are ready for PatternGenerator to create extraction strategies`);
+🚀 **Next Step**: Filtered documents with real content are ready for PatternGenerator to create extraction strategies`);
   }
   
   // 🚨 REMOVED: Legacy hardcoded JSON processing
