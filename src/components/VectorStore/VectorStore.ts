@@ -136,6 +136,16 @@ export interface DocumentData {
   }>;
 }
 
+export interface DocumentMetadata {
+  id: string;
+  filename: string;
+  title: string;
+  uploadedAt: string;
+  description: string;
+  metadata: DocumentData['metadata'];
+  chunkCount: number;
+}
+
 export interface SearchResult {
   document: DocumentData;
   chunk: {
@@ -598,6 +608,35 @@ export class VectorStore {
     } catch (error) {
       console.error('❌ Failed to get documents:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get document metadata only (without chunks) for DataInspector magic filtering
+   */
+  async getDocumentMetadata(): Promise<DocumentMetadata[]> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+
+    try {
+      const docs = await this.documentsCollection.documents.find().exec();
+      return docs.map((doc: any) => {
+        const docData = doc.toJSON();
+        return {
+          id: docData.id,
+          filename: docData.filename,
+          title: docData.title,
+          uploadedAt: docData.uploadedAt,
+          description: docData.description,
+          metadata: docData.metadata,
+          chunkCount: docData.chunks?.length || 0,
+          // Don't include chunks - DataInspector will sample them later
+        };
+      });
+    } catch (error) {
+      console.error('❌ Failed to get document metadata:', error);
+      return [];
     }
   }
 

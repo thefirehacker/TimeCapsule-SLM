@@ -104,26 +104,32 @@ export class ResearchOrchestrator {
     console.log(`🔬 Starting research for: "${query}"`);
     
     try {
-      // 🚨 ARCHITECTURE FIX: Quick check if we should use Master Orchestrator BEFORE any traditional pipeline steps
+      // 🚨 DATAINSPECTOR ARCHITECTURE: Get document metadata for DataInspector magic filtering
       if (this.config.enableRAGSearch && this.vectorStore) {
-        // Do a quick RAG search to get initial sources for Master Orchestrator eligibility check
-        const quickRagResults = await this.vectorStore.searchSimilar(query, 0.1, 10);
+        // Get document metadata only - let DataInspector sample and filter chunks
+        console.log(`🎯 DataInspector Architecture: Getting document metadata for intelligent filtering`);
+        const documentMetadata = await this.vectorStore.getDocumentMetadata();
         
-        if (quickRagResults.length > 0) {
-          // Convert to source references for Master Orchestrator check
-          const quickSources: SourceReference[] = quickRagResults.map((result: any) => ({
-            id: result.chunk.id,
-            type: 'chunk',
-            title: result.document.title || 'Untitled Document',
-            source: result.document.metadata?.filename || 'Unknown document',
-            similarity: result.similarity,
-            excerpt: (result.chunk.content || '').replace(/\s+/g, ' ').trim().substring(0, 800),
-            fullContent: result.chunk.content || '',
-            chunkId: result.chunk.id,
+        if (documentMetadata.length > 0) {
+          console.log(`📊 Retrieved ${documentMetadata.length} documents (${documentMetadata.reduce((sum, doc) => sum + doc.chunkCount, 0)} total chunks) - DataInspector will sample and filter`);
+          // 🔥 NEW: Pass document metadata instead of all chunks
+          const quickSources: SourceReference[] = documentMetadata.map((doc: any) => ({
+            id: doc.id,
+            type: 'document', // NEW: 'document' type instead of 'chunk'
+            title: doc.title,
+            source: doc.filename,
+            similarity: 1.0,
+            excerpt: `Document: ${doc.title} (${doc.chunkCount} chunks)`,
+            fullContent: '', // DataInspector will sample chunks as needed
+            chunkId: '',
             metadata: {
-              filename: result.document.metadata?.filename,
-              uploadedAt: result.document.metadata?.uploadedAt,
-              description: result.document.metadata?.description
+              filename: doc.filename,
+              uploadedAt: doc.uploadedAt,
+              description: doc.description,
+              documentId: doc.id,
+              documentTitle: doc.title,
+              chunkCount: doc.chunkCount,
+              ...doc.metadata
             }
           }));
           
@@ -500,39 +506,33 @@ Suggest research steps with reasoning for each.`;
     // Let the multi-agent system handle intelligent query expansion after seeing document content
     const primaryQuery = queryAnalysis.originalQuery;
     
-    console.log(`📚 Executing intelligent RAG search with primary query: "${primaryQuery}"`);
-    console.log(`🔍 Claude Code style: Single semantic search → Document analysis → Intelligent expansion`);
+    console.log(`📚 DataInspector Architecture: Getting ALL documents for intelligent filtering`);
+    console.log(`🎯 New approach: Get all chunks → DataInspector magic filtering → Targeted extraction`);
     
-    // Single semantic search with stored RxDB embeddings (like Claude Code/Cursor)
-    const results = await this.vectorStore.searchSimilar(
-      primaryQuery,
-      0.1, // Lower threshold for broader initial coverage
-      20   // Get more initial results for multi-agent analysis
-    );
+    // 🚀 DATAINSPECTOR MAGIC: Get ALL chunks, let DataInspector filter relevant ones
+    const results = await this.vectorStore.getAllChunks();
     
-    // Use stored chunk data directly (avoid redundant chunking)
-    const allResults = results
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 20); // Use stored chunk limit, not arbitrary expansion
+    // Use ALL chunk data directly - no sorting or limiting needed (DataInspector will filter)
+    const allResults = results; // Keep all chunks for DataInspector magic filtering
     
-    console.log(`📚 Intelligent RAG found ${allResults.length} stored chunks (using RxDB embeddings)`);
-    console.log(`🚀 Multi-agent system will analyze documents → create intelligent queries → extract targeted data`);
+    console.log(`📚 DataInspector Architecture: Retrieved ${allResults.length} total chunks from knowledge base`);
+    console.log(`🎯 DataInspector will filter relevant documents (e.g., keep Rutwik docs, remove Tyler docs for Rutwik query)`);
 
-    // Tag results with intelligent search context
+    // Tag results with DataInspector context
     allResults.forEach((result, index) => {
       (result as any).__searchContext = {
         searchQuery: primaryQuery,
-        searchType: 'intelligent_semantic',
+        searchType: 'datainspector_all_docs',
         rank: index + 1,
         totalResults: allResults.length,
-        approach: 'claude_code_style'
+        approach: 'datainspector_magic_filtering'
       };
     });
     
-    // Convert to source references with FULL chunk content for multi-agent system
-    const sources: SourceReference[] = allResults.map((result: any) => {
+    // 🔥 FIX: Convert chunks to source references - getAllChunks() returns chunks directly
+    const sources: SourceReference[] = allResults.map((chunk: any) => {
       // Clean and validate chunk content
-      let content = result.chunk.content || '';
+      let content = chunk.content || chunk.text || '';
       
       // Remove excessive whitespace and normalize
       content = content.replace(/\s+/g, ' ').trim();
@@ -549,18 +549,20 @@ Suggest research steps with reasoning for each.`;
       }
       
       return {
-        id: result.chunk.id,
+        id: chunk.id,
         type: 'chunk',
-        title: result.document.title || 'Untitled Document',
-        source: result.document.metadata?.filename || 'Unknown document',
-        similarity: result.similarity,
+        title: chunk.sourceDocument || chunk.source || 'Untitled Document',
+        source: chunk.metadata?.filename || chunk.source || 'Unknown document',
+        similarity: chunk.similarity || 1.0,
         excerpt: excerpt, // Short excerpt for display
         fullContent: content, // FULL content for multi-agent processing
-        chunkId: result.chunk.id,
+        chunkId: chunk.id,
         metadata: {
-          filename: result.document.metadata?.filename,
-          uploadedAt: result.document.metadata?.uploadedAt,
-          description: result.document.metadata?.description
+          filename: chunk.metadata?.filename,
+          uploadedAt: chunk.metadata?.uploadedAt,
+          description: chunk.metadata?.description,
+          documentId: chunk.documentId,
+          documentTitle: chunk.metadata?.documentTitle
         }
       };
     });
@@ -1402,8 +1404,8 @@ Answer:`;
    */
   private shouldUseMasterOrchestrator(sources: SourceReference[]): boolean {
     // Use Master Orchestrator for RAG-based queries with substantial content
-    const hasRagSources = sources.some(s => s.type === 'chunk');
-    const hasSubstantialContent = sources.length >= 2 && sources.some(s => (s.fullContent?.length || 0) > 100);
+    const hasRagSources = sources.some(s => s.type === 'chunk' || s.type === 'document');
+    const hasSubstantialContent = sources.length >= 1 && sources.some(s => (s.metadata?.chunkCount || 0) > 0);
     
     console.log(`🧠 Master Orchestrator eligibility: RAG sources: ${hasRagSources}, Substantial content: ${hasSubstantialContent}`);
     return hasRagSources && hasSubstantialContent;
@@ -1415,8 +1417,8 @@ Answer:`;
    */
   private async executeMasterOrchestrator(query: string, sources: SourceReference[], queryAnalysis: any): Promise<string> {
     try {
-      console.log(`🧠 Master Orchestrator: Starting with PURE QUERY APPROACH for "${query}"`);
-      console.log(`🚨 ARCHITECTURE CHANGE: Ignoring ${sources.length} pre-found sources - Master Orchestrator will make its own decisions`);
+      console.log(`🧠 Master Orchestrator: Starting with intelligent document analysis for "${query}"`);
+      console.log(`📊 Found ${sources.length} sources for DataInspector magic filtering`);
       
       // Clear previous sub-steps
       this.currentAgentSubSteps = [];
@@ -1548,9 +1550,9 @@ Answer:`;
       // Create multi-agent system with Master Orchestrator
       const multiAgent = createMultiAgentSystem(this.generateContent!, progressCallback);
       
-      // 🚨 ARCHITECTURE FIX: Execute Master Orchestrator with EMPTY sources - it makes its own decisions
-      console.log(`🧠 Calling Master Orchestrator.research() with PURE QUERY (no pre-found sources)`);
-      const answer = await multiAgent.research(query, []); // Empty array - Master Orchestrator starts fresh
+      // 🔧 ARCHITECTURE FIX: Pass found sources to Master Orchestrator for DataInspector magic filtering
+      console.log(`🧠 Calling Master Orchestrator.research() with ${sources.length} found sources for intelligent analysis`);
+      const answer = await multiAgent.research(query, sources); // Use found sources for DataInspector magic
       
       // Capture final agent sub-steps
       this.currentAgentSubSteps = multiAgent.getAgentSubSteps();

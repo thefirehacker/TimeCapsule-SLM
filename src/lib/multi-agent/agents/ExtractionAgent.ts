@@ -41,40 +41,52 @@ export class ExtractionAgent extends BaseAgent {
     this.extractionSummary = '';
     this.llmResponses = [];
     
-    // 🚀 CURSOR-STYLE HYBRID: LLM Pattern Discovery → Fast Extraction
-    const patternDiscovery = await this.discoverPatternsWithLLM(context);
+    // 🔥 CRITICAL FIX: Check if we have regex patterns from PatternGenerator
+    const hasRegexPatterns = context.patterns.some(pattern => pattern.regexPattern);
     
-    // Initial reasoning showing LLM-driven approach
-    const initialReasoning = `📊 Starting LLM-driven cursor-style extraction for ${totalChunks} chunks...
+    if (hasRegexPatterns) {
+      console.log(`🎯 Using REGEX MODE: Found ${context.patterns.filter(p => p.regexPattern).length} regex patterns from PatternGenerator`);
+      // Use regex-based extraction
+      const regexResults = await this.extractUsingRegexPatterns(context);
+      extractedItems.push(...regexResults);
+      
+    } else {
+      console.log(`🧠 Using LLM DISCOVERY MODE: No regex patterns available, falling back to LLM discovery`);
+      // 🚀 CURSOR-STYLE HYBRID: LLM Pattern Discovery → Fast Extraction
+      const patternDiscovery = await this.discoverPatternsWithLLM(context);
+      
+      // Initial reasoning showing LLM-driven approach
+      const initialReasoning = `📊 Starting LLM-driven cursor-style extraction for ${totalChunks} chunks...
 
 🎯 Cursor-Style Hybrid Strategy:
 - Phase 1: LLM discovers patterns (${patternDiscovery.success ? 'SUCCESS' : 'FALLBACK'})
 - Phase 2: Fast pattern-based extraction
 - Phase 3: LLM analysis of results
 - Looking for: ${context.understanding.intent || 'relevant information'}`;
-    
-    if (patternDiscovery.success) {
-      // Execute fast extraction using LLM-discovered patterns
-      console.log(`🧠 LLM discovered patterns: ${patternDiscovery.patterns.join(', ')}`);
       
-      // Capture LLM pattern discovery response for verbose output
-      this.llmResponses.push(`🧠 **Pattern Discovery LLM Response**:\n${patternDiscovery.sourceResponse}`);
-      
-      const patternResults = await this.extractUsingDiscoveredPatterns(context.ragResults.chunks, patternDiscovery, context);
-      extractedItems.push(...patternResults);
-      
-      this.batchReasoning.push(`✅ **LLM Pattern Discovery Success**: Found ${patternResults.length} items using patterns: ${patternDiscovery.patterns.join(', ')}`);
-      this.batchReasoning.push(`🎯 **Strategy Applied**: ${patternDiscovery.strategy}`);
-    } else {
-      // Pattern discovery failed - this should not happen with proper implementation
-      console.error(`❌ Pattern discovery failed - this indicates a system issue that needs fixing`);
-      
-      if (patternDiscovery.sourceResponse) {
-        this.llmResponses.push(`❌ **Pattern Discovery Failed LLM Response**:\n${patternDiscovery.sourceResponse}`);
-        console.error(`❌ LLM Response that failed:`, patternDiscovery.sourceResponse.substring(0, 500));
+      if (patternDiscovery.success) {
+        // Execute fast extraction using LLM-discovered patterns
+        console.log(`🧠 LLM discovered patterns: ${patternDiscovery.patterns.join(', ')}`);
+        
+        // Capture LLM pattern discovery response for verbose output
+        this.llmResponses.push(`🧠 **Pattern Discovery LLM Response**:\n${patternDiscovery.sourceResponse}`);
+        
+        const patternResults = await this.extractUsingDiscoveredPatterns(context.ragResults.chunks, patternDiscovery, context);
+        extractedItems.push(...patternResults);
+        
+        this.batchReasoning.push(`✅ **LLM Pattern Discovery Success**: Found ${patternResults.length} items using patterns: ${patternDiscovery.patterns.join(', ')}`);
+        this.batchReasoning.push(`🎯 **Strategy Applied**: ${patternDiscovery.strategy}`);
+      } else {
+        // Pattern discovery failed - this should not happen with proper implementation
+        console.error(`❌ Pattern discovery failed - this indicates a system issue that needs fixing`);
+        
+        if (patternDiscovery.sourceResponse) {
+          this.llmResponses.push(`❌ **Pattern Discovery Failed LLM Response**:\n${patternDiscovery.sourceResponse}`);
+          console.error(`❌ LLM Response that failed:`, patternDiscovery.sourceResponse.substring(0, 500));
+        }
+        
+        throw new Error('Pattern discovery failed - system needs debugging, no fallback should be needed');
       }
-      
-      throw new Error('Pattern discovery failed - system needs debugging, no fallback should be needed');
     }
     
     // Deduplicate and sort by confidence
@@ -84,7 +96,11 @@ export class ExtractionAgent extends BaseAgent {
     // Validation: Log extraction statistics
     this.logExtractionStats(extractedItems, uniqueItems);
     
-    // Create final comprehensive reasoning
+    // Create final comprehensive reasoning  
+    const initialReasoning = hasRegexPatterns 
+      ? `🎯 **REGEX MODE**: Using ${context.patterns.filter(p => p.regexPattern).length} patterns from PatternGenerator`
+      : `🧠 **LLM DISCOVERY MODE**: No regex patterns available, using LLM pattern discovery`;
+      
     const finalReasoning = this.createFinalReasoning(
       initialReasoning,
       totalChunks,
@@ -758,6 +774,79 @@ Keep it simple and direct.`;
     }
   }
 
+  /**
+   * 🎯 REGEX EXTRACTION: Use PatternGenerator's regex patterns for true "Regex RAG"
+   * This is the core functionality that was missing - actual regex-based extraction
+   */
+  private async extractUsingRegexPatterns(context: ResearchContext): Promise<ExtractedItem[]> {
+    console.log(`🎯 Starting REGEX extraction with ${context.patterns.filter(p => p.regexPattern).length} patterns`);
+    
+    const extractedItems: ExtractedItem[] = [];
+    const regexPatterns = context.patterns.filter(pattern => pattern.regexPattern);
+    const totalChunks = context.ragResults.chunks.length;
+    
+    console.log(`📊 Processing ${totalChunks} chunks with ${regexPatterns.length} regex patterns`);
+    
+    // Apply each regex pattern to all chunks
+    for (const pattern of regexPatterns) {
+      const regexString = pattern.regexPattern!;
+      console.log(`🔍 Applying pattern: ${regexString}`);
+      
+      try {
+        // Parse regex pattern (handle /pattern/flags format)
+        const regexMatch = regexString.match(/^\/(.+)\/([gimuy]*)$/);
+        const regexBody = regexMatch ? regexMatch[1] : regexString;
+        const regexFlags = regexMatch ? regexMatch[2] : 'gi';
+        
+        const regex = new RegExp(regexBody, regexFlags);
+        let patternMatches = 0;
+        
+        // Apply regex to each chunk
+        for (const chunk of context.ragResults.chunks) {
+          let match;
+          while ((match = regex.exec(chunk.text)) !== null) {
+            const extractedContent = match[1] || match[0]; // Use capture group or full match
+            
+            extractedItems.push({
+              content: extractedContent.trim(),
+              value: extractedContent.trim(),
+              unit: '',
+              context: match[0], // Full match for context
+              confidence: 0.95, // High confidence for regex matches
+              sourceChunkId: chunk.id,
+              sourceDocument: chunk.sourceDocument,
+              metadata: {
+                extractionMethod: 'regex_pattern',
+                regexPattern: regexString,
+                patternDescription: pattern.description,
+                fullMatch: match[0]
+              }
+            });
+            
+            patternMatches++;
+          }
+          
+          // Reset regex lastIndex for global patterns
+          regex.lastIndex = 0;
+        }
+        
+        console.log(`✅ Pattern "${regexString}" found ${patternMatches} matches`);
+        
+      } catch (error) {
+        console.error(`❌ Invalid regex pattern "${regexString}":`, error);
+      }
+    }
+    
+    console.log(`🎯 REGEX extraction complete: ${extractedItems.length} items extracted`);
+    
+    // Update reasoning
+    this.batchReasoning.push(`🎯 **REGEX MODE**: Used ${regexPatterns.length} patterns from PatternGenerator`);
+    this.batchReasoning.push(`✅ **Regex Results**: ${extractedItems.length} items extracted using true regex matching`);
+    this.batchReasoning.push(`📊 **Performance**: ${totalChunks} chunks processed with ${regexPatterns.length} patterns`);
+    
+    return extractedItems;
+  }
+  
   /**
    * 🚀 CURSOR-STYLE FAST EXTRACTION: Use LLM-discovered patterns for fast data extraction
    * This replaces complex structure detection with simple pattern-based extraction

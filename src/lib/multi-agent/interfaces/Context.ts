@@ -15,7 +15,7 @@ export interface ChunkData {
   metadata?: Record<string, any>;
   // Enhanced for multi-document support
   sourceDocument?: string; // Which document this chunk comes from
-  sourceType?: 'rag' | 'web' | 'uploaded'; // Type of source
+  sourceType?: 'rag' | 'web' | 'uploaded' | 'document'; // Type of source
   documentIndex?: number; // Index when multiple documents
 }
 
@@ -172,13 +172,13 @@ export function createInitialContext(
     ragResults: {
       chunks: ragChunks.map(chunk => ({
         id: chunk.id,
-        text: chunk.fullContent || chunk.excerpt || '', // Use full content if available
+        text: chunk.type === 'document' ? `Document metadata: ${chunk.title}` : (chunk.fullContent || chunk.excerpt || ''), // Document metadata or chunk content
         source: chunk.source,
         similarity: chunk.similarity,
         metadata: chunk.metadata,
         // Enhanced for multi-document support
         sourceDocument: chunk.source,
-        sourceType: chunk.type === 'chunk' ? 'rag' : chunk.type === 'web' ? 'web' : 'uploaded'
+        sourceType: chunk.type === 'chunk' ? 'rag' : chunk.type === 'web' ? 'web' : chunk.type === 'document' ? 'document' : 'uploaded'
       })),
       summary: ''
     },

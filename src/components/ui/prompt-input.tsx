@@ -486,9 +486,10 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         hasWebSearch: !!onWebSearch,
       });
 
-      // Only perform RAG search if explicitly enabled
-      if (enableRAG && onRAGSearch) {
-        console.log("🔍 Performing RAG search...");
+      // 🔥 FIX: Skip initial RAG search for deep-research - Master Orchestrator handles DataInspector
+      // Only perform RAG search for other research types that need traditional RAG
+      if (enableRAG && onRAGSearch && selectedResearchType !== "deep-research") {
+        console.log("🔍 Performing traditional RAG search for research type:", selectedResearchType);
         setIsRAGSearching(true);
         try {
           ragContextToSubmit = await onRAGSearch(prompt);
@@ -497,6 +498,8 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         } finally {
           setIsRAGSearching(false);
         }
+      } else if (selectedResearchType === "deep-research") {
+        console.log("🧠 Skipping initial RAG search for deep-research - Master Orchestrator will handle DataInspector magic filtering");
       }
 
       // Only perform web search if explicitly enabled AND configured

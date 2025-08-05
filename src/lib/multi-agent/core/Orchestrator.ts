@@ -22,6 +22,11 @@ export class Orchestrator {
   private progressTracker: AgentProgressTracker;
   private progressCallback?: AgentProgressCallback;
   
+  // 🔥 CRITICAL FIX: Agent state tracking to prevent redundant calls
+  private calledAgents: Set<string> = new Set();
+  private agentResults: Map<string, any> = new Map();
+  private lastAgentCalled: string | null = null;
+  
   constructor(
     registry: AgentRegistry,
     messageBus: MessageBus,
@@ -49,6 +54,11 @@ export class Orchestrator {
    */
   async research(query: string, ragResults: SourceReference[]): Promise<string> {
     console.log(`🧠 Master LLM Orchestrator starting for: "${query}"`);
+    
+    // 🔥 RESET: Clear agent state for new research session
+    this.calledAgents.clear();
+    this.agentResults.clear();
+    this.lastAgentCalled = null;
     
     // Initialize context
     const context = createInitialContext(query, ragResults);
@@ -85,8 +95,20 @@ export class Orchestrator {
       const decision = await this.makeMasterLLMDecision(context, currentGoal, iterationCount);
       
       if (decision.action === 'COMPLETE') {
-        console.log(`✅ Master LLM completed goal: ${decision.reasoning}`);
-        break;
+        // 🔥 CRITICAL: Validate completion conditions before allowing completion
+        const canComplete = this.validateCompletionConditions(context);
+        if (canComplete.allowed) {
+          console.log(`✅ Master LLM completed goal: ${decision.reasoning}`);
+          break;
+        } else {
+          console.log(`⚠️ Master LLM tried to complete prematurely: ${canComplete.reason}`);
+          console.log(`🔄 Forcing continuation with required agent: ${canComplete.nextAgent}`);
+          // Override completion with required next step
+          if (canComplete.nextAgent) {
+            await this.executeToolCall(canComplete.nextAgent, context);
+            currentGoal = `Continue pipeline: call ${canComplete.nextAgent}`;
+          }
+        }
       }
       
       if (decision.action === 'CALL_TOOL') {
@@ -122,44 +144,86 @@ export class Orchestrator {
     // Analyze current state
     const availableData = this.analyzeCurrentState(context);
     
+    
     const masterPrompt = `You are a Master LLM Orchestrator making intelligent tool-call decisions like Claude Code/Cursor.
 
 CURRENT GOAL: ${currentGoal}
 ITERATION: ${iteration}
 
+🔥 CRITICAL AGENT CALL HISTORY:
+- Agents Already Called: ${availableData.agentsCalled.length > 0 ? availableData.agentsCalled.join(', ') : 'NONE'}
+- Agents NOT Called: ${availableData.agentsNotCalled.join(', ')}
+- Last Agent Called: ${availableData.lastAgentCalled || 'NONE'}
+- Total Agent Calls: ${availableData.agentCallCount}
+
 CURRENT SITUATION:
-- Available Documents: ${context.ragResults.chunks.length} chunks loaded ${context.ragResults.chunks.length === 0 ? '- need to search for relevant documents first' : '- ready to analyze'}
-- Document Analysis: ${availableData.hasDocumentAnalysis ? 'COMPLETED - you understand what documents contain' : 'NOT DONE - need to analyze document structure and content'}  
-- Patterns Generated: ${availableData.patternsGenerated} patterns available ${availableData.patternsGenerated === 0 ? '- need to create extraction patterns' : '- ready for extraction'}
-- Data Extracted: ${availableData.dataExtracted ? 'COMPLETED - you have extracted data' : 'NOT DONE - need to extract specific information'}
-- Final Answer: ${availableData.hasFinalAnswer ? 'COMPLETED' : 'NOT DONE - need to synthesize answer from extracted data'}
+- Available Documents: ${context.ragResults.chunks.length} chunks PRE-LOADED (no need to search)
+- Document Analysis: ${availableData.dataInspectorCompleted ? 'COMPLETED ✅ - DataInspector already called' : 'NOT DONE ❌ - need DataInspector'}
+- Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
+- Data Extracted: ${availableData.extractorCompleted ? 'COMPLETED ✅ - Extractor already called' : 'NOT DONE ❌ - need Extractor'}
+- Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need Synthesizer'}
 
-AVAILABLE TOOLS:
-- ChunkSelector: Search and select relevant document chunks from the knowledge base (call FIRST when you have 0 chunks)
-- DataInspector: Analyze document structure and content (call after ChunkSelector finds documents)
-- PatternGenerator: Generate regex patterns for data extraction (call after DataInspector understands documents)
-- Extractor: Extract specific data using generated patterns (call after PatternGenerator creates patterns)
-- Synthesizer: Create final answer from extracted data (call when you have enough extracted data)
+🧠 AVAILABLE TOOLS (use intelligently based on context):
+✅ "DataInspector" - Magic document filtering with 2 samples per doc (${availableData.dataInspectorCompleted ? 'ALREADY CALLED' : 'available'})
+✅ "PlanningAgent" - Creates intelligent execution strategies (${availableData.planningAgentCompleted ? 'ALREADY CALLED' : 'available'})
+✅ "PatternGenerator" - Creates regex patterns for data extraction (${availableData.patternGeneratorCompleted ? 'ALREADY CALLED' : 'available'})
+✅ "Extractor" - Extracts data using patterns or LLM analysis (${availableData.extractorCompleted ? 'ALREADY CALLED' : 'available'})
+✅ "WebSearchAgent" - Expands knowledge base when local data insufficient (${availableData.webSearchAgentCompleted ? 'ALREADY CALLED' : 'available'})
+✅ "Synthesizer" - Creates final answer from available data (${availableData.synthesizerCompleted ? 'ALREADY CALLED' : 'available'})
 
-INTELLIGENT DECISION FLOW:
-1. Have 0 chunks? → CALL ChunkSelector to find relevant documents in the knowledge base  
-2. Have chunks but no analysis? → CALL DataInspector to understand what documents contain
-3. Have analysis but no patterns? → CALL PatternGenerator to create extraction patterns
-4. Have patterns but no extracted data? → CALL Extractor to extract specific information
-5. Have extracted data but need more? → CALL ChunkSelector/DataInspector/PatternGenerator/Extractor again
-6. Have sufficient extracted data? → CALL Synthesizer to create final answer
-7. NEVER COMPLETE unless you have a final synthesized answer
+⚠️ CRITICAL: Use EXACT names above. Do NOT create variations.
 
-CRITICAL DECISION LOGIC:
-- ${context.ragResults.chunks.length === 0 ? 'You have NO chunks loaded. You MUST call ChunkSelector first to search the knowledge base.' : `You have ${context.ragResults.chunks.length} chunks but ${availableData.hasDocumentAnalysis ? 'they are analyzed' : 'they need DataInspector analysis first'}.`}
+🎯 MANDATORY SEQUENCING RULES:
+1. **ALWAYS START WITH DataInspector** - NEVER call any other agent first (already called: ${availableData.agentsCalled.join(', ') || 'none'})
+2. **DataInspector REQUIRED** - Must analyze documents and filter relevant ones before any extraction
+3. **NO Extractor without DataInspector** - Extractor ONLY after DataInspector has filtered documents
+4. **Logical Flow**: DataInspector → PlanningAgent → PatternGenerator → Extractor → WebSearchAgent → Synthesizer
+5. **Never skip DataInspector** even if you think you have enough data - it filters irrelevant documents
 
-What should happen next?
+📊 CURRENT DATA AVAILABLE:
+- Documents: ${availableData.chunksSelected ? `${context.ragResults.chunks.length} chunks available` : 'No documents available'}
+- Document Analysis: ${availableData.hasDocumentAnalysis ? 'Available from DataInspector' : 'Not available'}
+- Patterns: ${availableData.patternsGenerated > 0 ? `${availableData.patternsGenerated} patterns generated` : 'No patterns generated'}
+- Extracted Data: ${availableData.dataExtracted ? 'Data extraction completed' : 'No data extracted yet'}
+- Current Answer: ${availableData.hasFinalAnswer ? 'Final answer ready' : 'No final answer yet'}
 
-Respond in this format:
-ACTION: [CALL_TOOL or COMPLETE]
-TOOL_NAME: [tool name if calling tool]
-REASONING: [why this decision makes sense based on current situation]
-NEXT_GOAL: [updated goal for next iteration]`;
+🤖 INTELLIGENT DECISION:
+Based on the goal "${currentGoal}" and available data above, what tool should be called next?
+
+${availableData.agentCallCount === 0 ? `
+
+🚨 **MANDATORY FIRST CALL**: Since NO agents have been called yet, you MUST start with DataInspector:
+- **REQUIRED**: DataInspector to analyze and filter ${context.ragResults.chunks.length} documents
+- **Purpose**: Filter relevant documents (e.g., keep Rutwik docs, remove Tyler docs for Rutwik query)  
+- **Never skip this step** - DataInspector magic filtering is essential
+
+CALL DataInspector first - no exceptions!` : context.ragResults.chunks.length === 0 ? `
+
+🚨 NO DOCUMENTS AVAILABLE: Since no documents are provided, consider these intelligent options:
+1. **WebSearchAgent** - Search for information about "${context.query}"
+2. **Synthesizer** - Provide guidance on what information would be needed
+3. **COMPLETE** - If the query can be answered without documents (general knowledge)
+
+IMPORTANT: Don't give up! Either search for data or explain what's needed.` : `
+📊 DOCUMENTS AVAILABLE: Continue with logical flow based on completed agents:
+${!availableData.dataInspectorCompleted ? '🔥 **NEXT REQUIRED**: DataInspector (must filter documents first)' : ''}
+${availableData.dataInspectorCompleted && !availableData.planningAgentCompleted ? '📋 **NEXT**: PlanningAgent (create execution strategy)' : ''}
+${availableData.planningAgentCompleted && !availableData.patternGeneratorCompleted ? '🔧 **NEXT**: PatternGenerator (create regex patterns)' : ''}
+${availableData.patternGeneratorCompleted && !availableData.extractorCompleted ? '⚡ **NEXT**: Extractor (execute patterns)' : ''}
+${availableData.extractorCompleted && !availableData.synthesizerCompleted ? '📝 **NEXT**: Synthesizer (create final answer)' : ''}
+Consider: Do you have enough extracted information, or need WebSearchAgent expansion?`}
+
+🎯 RESPONSE FORMAT:
+ACTION: CALL_TOOL
+TOOL_NAME: [DataInspector|PlanningAgent|PatternGenerator|Extractor|WebSearchAgent|Synthesizer]
+REASONING: [explain why this tool is needed for the current goal]
+NEXT_GOAL: [what you hope to accomplish]
+
+OR if you can provide a useful response:
+ACTION: COMPLETE
+TOOL_NAME: 
+REASONING: [explain what you can provide or what's needed]
+NEXT_GOAL: `;
 
     try {
       const response = await this.llm(masterPrompt);
@@ -170,6 +234,12 @@ NEXT_GOAL: [updated goal for next iteration]`;
       const decision = this.parseMasterLLMDecision(response);
       console.log(`🎯 Parsed Decision:`, { action: decision.action, toolName: decision.toolName, reasoning: decision.reasoning?.substring(0, 100) });
       
+      // 🧠 TRUST LLM INTELLIGENCE: Let the orchestrator make adaptive decisions
+      // Only basic validation - no rigid enforcement
+      if (decision.action === 'COMPLETE') {
+        console.log(`🎯 Master LLM decided to complete after ${availableData.agentCallCount} agent calls:`, availableData.agentsCalled);
+      }
+      
       return decision;
     } catch (error) {
       console.error(`❌ Master LLM decision failed:`, error);
@@ -178,15 +248,98 @@ NEXT_GOAL: [updated goal for next iteration]`;
   }
   
   /**
+   * 🔥 CRITICAL: Validate completion conditions to prevent premature completion
+   */
+  private validateCompletionConditions(context: ResearchContext): { allowed: boolean; reason: string; nextAgent?: string } {
+    const calledAgents = Array.from(this.calledAgents);
+    
+    // RULE 1: Must have called DataInspector first
+    if (!this.calledAgents.has('DataInspector')) {
+      return {
+        allowed: false,
+        reason: 'DataInspector not called - required for document analysis',
+        nextAgent: 'DataInspector'
+      };
+    }
+    
+    // RULE 2: Must have generated patterns after DataInspector
+    if (this.calledAgents.has('DataInspector') && !this.calledAgents.has('PatternGenerator')) {
+      return {
+        allowed: false,
+        reason: 'PatternGenerator not called - required after DataInspector analysis',
+        nextAgent: 'PatternGenerator'
+      };
+    }
+    
+    // RULE 3: Must have extracted data using patterns
+    if (this.calledAgents.has('PatternGenerator') && !this.calledAgents.has('Extractor')) {
+      return {
+        allowed: false,
+        reason: 'Extractor not called - required to extract data using generated patterns',
+        nextAgent: 'Extractor'
+      };
+    }
+    
+    // RULE 4: Must have synthesized final answer
+    if (this.calledAgents.has('Extractor') && !this.calledAgents.has('Synthesizer')) {
+      return {
+        allowed: false,
+        reason: 'Synthesizer not called - required to create final answer from extracted data',
+        nextAgent: 'Synthesizer'
+      };
+    }
+    
+    // RULE 5: Must have actual answer content
+    if (!context.synthesis?.answer || context.synthesis.answer.length < 50) {
+      return {
+        allowed: false,
+        reason: 'No substantial answer generated - Synthesizer must create meaningful response',
+        nextAgent: 'Synthesizer'
+      };
+    }
+    
+    // All conditions met - allow completion
+    return {
+      allowed: true,
+      reason: `Pipeline completed successfully with ${calledAgents.length} agents: ${calledAgents.join(' → ')}`
+    };
+  }
+
+  /**
    * 📊 Analyze current context state for Master LLM decisions
+   * 🔥 CRITICAL FIX: Include agent call history to prevent redundant calls
    */
   private analyzeCurrentState(context: ResearchContext): any {
+    const agentStatus = {
+      DataInspector: this.calledAgents.has('DataInspector'),
+      PlanningAgent: this.calledAgents.has('PlanningAgent'),
+      PatternGenerator: this.calledAgents.has('PatternGenerator'), 
+      Extractor: this.calledAgents.has('Extractor'),
+      WebSearchAgent: this.calledAgents.has('WebSearchAgent'),
+      Synthesizer: this.calledAgents.has('Synthesizer')
+    };
+    
     return {
+      // Traditional state checks
       hasDocumentAnalysis: !!context.documentAnalysis,
       patternsGenerated: context.patterns?.length || 0,
       chunksSelected: context.ragResults.chunks.length > 0,
       dataExtracted: context.extractedData && context.extractedData.raw.length > 0,
-      hasFinalAnswer: !!context.synthesis.answer
+      hasFinalAnswer: !!context.synthesis.answer,
+      
+      // 🔥 NEW: Agent call tracking
+      agentsCalled: Array.from(this.calledAgents),
+      agentsNotCalled: ['DataInspector', 'PlanningAgent', 'PatternGenerator', 'Extractor', 'WebSearchAgent', 'Synthesizer'].filter(agent => !this.calledAgents.has(agent)),
+      lastAgentCalled: this.lastAgentCalled,
+      agentCallCount: this.calledAgents.size,
+      
+      // Agent-specific status
+      dataInspectorCompleted: agentStatus.DataInspector,
+      planningAgentCompleted: agentStatus.PlanningAgent,
+      patternGeneratorCompleted: agentStatus.PatternGenerator,
+      extractorCompleted: agentStatus.Extractor,
+      webSearchAgentCompleted: agentStatus.WebSearchAgent,
+      synthesizerCompleted: agentStatus.Synthesizer
     };
   }
   
@@ -216,8 +369,8 @@ NEXT_GOAL: [updated goal for next iteration]`;
     // 🚨 FIX: Handle small model variations and direct tool name responses
     if (!action && !toolName) {
       // Try to find tool names directly in response
-      const toolNames = ['DataInspector', 'PatternGenerator', 'ChunkSelector', 'Extractor', 'Synthesizer'];
-      const upperToolNames = ['DATAINSPECTOR', 'PATTERNGENERATOR', 'CHUNKSELECTOR', 'EXTRACTOR', 'SYNTHESIZER'];
+      const toolNames = ['DataInspector', 'PlanningAgent', 'PatternGenerator', 'Extractor', 'WebSearchAgent', 'Synthesizer'];
+      const upperToolNames = ['DATAINSPECTOR', 'PLANNINGAGENT', 'PATTERNGENERATOR', 'EXTRACTOR', 'WEBSEARCHAGENT', 'SYNTHESIZER'];
       
       for (const tool of toolNames) {
         if (response.includes(tool)) {
@@ -263,6 +416,17 @@ NEXT_GOAL: [updated goal for next iteration]`;
     // 🚨 FIX: Normalize tool name case (LLM returns "EXTRACTOR", registry has "Extractor")
     const normalizedToolName = this.normalizeToolName(toolName);
     
+    // 🔥 MANDATORY SEQUENCING ENFORCEMENT
+    if (normalizedToolName === 'Extractor' && !this.calledAgents.has('DataInspector')) {
+      console.error(`❌ SEQUENCING VIOLATION: Extractor cannot be called before DataInspector!`);
+      console.error(`🔥 DataInspector must filter documents first. Current agents called: [${Array.from(this.calledAgents).join(', ')}]`);
+      throw new Error(`Mandatory sequencing violation: DataInspector required before Extractor`);
+    }
+    
+    if (normalizedToolName === 'PatternGenerator' && !this.calledAgents.has('DataInspector')) {
+      console.warn(`⚠️ RECOMMENDED: PatternGenerator works better after DataInspector filters documents`);
+    }
+    
     const agent = this.registry.get(normalizedToolName);
     if (!agent) {
       console.error(`❌ Tool name normalization failed. Original: "${toolName}", Normalized: "${normalizedToolName}"`);
@@ -270,10 +434,20 @@ NEXT_GOAL: [updated goal for next iteration]`;
       throw new Error(`Tool ${toolName} (normalized: ${normalizedToolName}) not found in registry. Available: ${this.registry.listAgents().map(a => a.name).join(', ')}`);
     }
     
+    // 🔥 CRITICAL FIX: Check if agent already called (prevent redundant calls)
+    if (this.calledAgents.has(normalizedToolName)) {
+      console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
+      return;
+    }
+    
     console.log(`🔧 Executing tool: ${normalizedToolName} (original: ${toolName})`);
     const startTime = Date.now();
     
     try {
+      // 🔥 TRACK: Mark agent as called BEFORE execution
+      this.calledAgents.add(normalizedToolName);
+      this.lastAgentCalled = normalizedToolName;
+      
       // 🚨 FIX: Track agent progress for getAgentSubSteps() to work properly
       this.progressTracker.startAgent(normalizedToolName, normalizedToolName, context);
       
@@ -283,11 +457,26 @@ NEXT_GOAL: [updated goal for next iteration]`;
       const duration = endTime - startTime;
       console.log(`✅ Tool ${normalizedToolName} completed in ${duration}ms`);
       
+      // 🔥 STORE: Save agent result for future reference
+      this.agentResults.set(normalizedToolName, {
+        success: true,
+        duration: duration,
+        timestamp: endTime
+      });
+      
       // 🚨 FIX: Mark agent as completed with result
       this.progressTracker.completeAgent(normalizedToolName, { result: 'success' });
       
     } catch (error) {
       console.error(`❌ Tool ${normalizedToolName} failed:`, error);
+      
+      // 🔥 STORE: Save failed result but keep agent in called set to prevent retries
+      this.agentResults.set(normalizedToolName, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now()
+      });
+      
       // 🚨 FIX: Mark agent as failed
       this.progressTracker.errorAgent(normalizedToolName, error instanceof Error ? error.message : 'Unknown error');
       throw error;
@@ -302,50 +491,67 @@ NEXT_GOAL: [updated goal for next iteration]`;
     const toolNameMap: { [key: string]: string } = {
       // Correct uppercase versions
       'DATAINSPECTOR': 'DataInspector',
+      'PLANNINGAGENT': 'PlanningAgent',
       'PATTERNGENERATOR': 'PatternGenerator', 
-      'CHUNKSELECTOR': 'ChunkSelector',
       'EXTRACTOR': 'Extractor',
+      'WEBSEARCHAGENT': 'WebSearchAgent',
       'SYNTHESIZER': 'Synthesizer',
-      'QUERYPLANNER': 'QueryPlanner',
+      
+      // 🚨 LLM TYPOS/HALLUCINATIONS (backup handling)
+      'DATA_INSPIRETER': 'DataInspector',  // Common LLM typo
+      'DATAINSPIRETER': 'DataInspector',   // Another typo variant
+      'DATA_INSPECTOR_AGENT': 'DataInspector', // LLM adds "AGENT"
+      'PLANNING_AGENT_FULL': 'PlanningAgent',
+      'PATTERN_GENERATOR_AGENT': 'PatternGenerator',
+      'EXTRACTOR_AGENT': 'Extractor',
+      'WEB_SEARCH_AGENT_FULL': 'WebSearchAgent',
       // Lowercase versions
       'datainspector': 'DataInspector',
+      'planningagent': 'PlanningAgent',
       'patterngenerator': 'PatternGenerator',
-      'chunkselector': 'ChunkSelector', 
       'extractor': 'Extractor',
+      'websearchagent': 'WebSearchAgent',
       'synthesizer': 'Synthesizer',
       'queryplanner': 'QueryPlanner',
       // 🚨 SNAKE_CASE variations (LLM converts camelCase to snake_case)
-      'CHUNK_SELECTOR': 'ChunkSelector',
       'DATA_INSPECTOR': 'DataInspector',
+      'PLANNING_AGENT': 'PlanningAgent',
       'PATTERN_GENERATOR': 'PatternGenerator',
+      'WEB_SEARCH_AGENT': 'WebSearchAgent',
       'QUERY_PLANNER': 'QueryPlanner',
       // 🚨 CALL_ prefixed variations (LLM generates "CALL TOOLNAME" format)
-      'CALL_CHUNK_SELECTOR': 'ChunkSelector',
       'CALL_DATA_INSPECTOR': 'DataInspector',
+      'CALL_PLANNING_AGENT': 'PlanningAgent',
       'CALL_PATTERN_GENERATOR': 'PatternGenerator',
       'CALL_EXTRACTOR': 'Extractor',
+      'CALL_WEB_SEARCH_AGENT': 'WebSearchAgent',
       'CALL_SYNTHESIZER': 'Synthesizer',
-      'CALL_CHUNKSELECTOR': 'ChunkSelector',
       'CALL_DATAINSPECTOR': 'DataInspector',
+      'CALL_PLANNINGAGENT': 'PlanningAgent',
       'CALL_PATTERNGENERATOR': 'PatternGenerator',
+      'CALL_WEBSEARCHAGENT': 'WebSearchAgent',
       'CALL_QUERYPLANNER': 'QueryPlanner',
       // 🚨 CALL with space variations (LLM generates "CALL ToolName" format)
-      'CALL ChunkSelector': 'ChunkSelector',
       'CALL DataInspector': 'DataInspector',
+      'CALL PlanningAgent': 'PlanningAgent',
       'CALL PatternGenerator': 'PatternGenerator',
       'CALL Extractor': 'Extractor',
+      'CALL WebSearchAgent': 'WebSearchAgent',
       'CALL Synthesizer': 'Synthesizer',
       'CALL QueryPlanner': 'QueryPlanner',
       // 🚨 LLM Hallucination fixes
       'DATAINSPIRATOR': 'DataInspector', // Common LLM typo/hallucination
       'DATAINSPECTION': 'DataInspector',
       'INSPECTOR': 'DataInspector',
+      'PLANNER': 'PlanningAgent',
+      'PLANNING': 'PlanningAgent',
       'GENERATOR': 'PatternGenerator',
-      'SELECTOR': 'ChunkSelector',
       'EXTRACT': 'Extractor',
+      'WEBSEARCH': 'WebSearchAgent',
+      'SEARCH': 'WebSearchAgent',
       'SYNTHESIS': 'Synthesizer',
       'SYNESTHESIZER': 'Synthesizer', // LLM misspelling "Synthesizer" as "SYNESTHESIZER"
-      'PLANNER': 'QueryPlanner'
+      'QUERYPLANNER': 'QueryPlanner'
     };
     
     // Return mapped name or original if no mapping found

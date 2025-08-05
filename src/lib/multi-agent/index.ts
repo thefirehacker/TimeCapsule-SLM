@@ -12,9 +12,10 @@ import { MessageBus } from './core/MessageBus';
 // Agent imports
 import { QueryPlannerAgent } from './agents/QueryPlannerAgent';
 import { DataInspectorAgent } from './agents/DataInspectorAgent';
-import { ChunkSelectorAgent } from './agents/ChunkSelectorAgent';
+import { PlanningAgent } from './agents/PlanningAgent';
 import { PatternGeneratorAgent } from './agents/PatternGeneratorAgent';
 import { ExtractionAgent } from './agents/ExtractionAgent';
+import { WebSearchAgent } from './agents/WebSearchAgent';
 import { SynthesisAgent } from './agents/SynthesisAgent';
 
 // Core exports
@@ -42,9 +43,10 @@ export { createMessage } from './interfaces/Message';
 // Agent exports
 export { QueryPlannerAgent } from './agents/QueryPlannerAgent';
 export { DataInspectorAgent } from './agents/DataInspectorAgent';
-export { ChunkSelectorAgent } from './agents/ChunkSelectorAgent';
+export { PlanningAgent } from './agents/PlanningAgent';
 export { PatternGeneratorAgent } from './agents/PatternGeneratorAgent';
 export { ExtractionAgent } from './agents/ExtractionAgent';
+export { WebSearchAgent } from './agents/WebSearchAgent';
 export { SynthesisAgent } from './agents/SynthesisAgent';
 
 // Factory function
@@ -56,12 +58,13 @@ export function createMultiAgentSystem(
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
   
-  // Register all agents in Claude Code style pipeline order
+  // Register all agents in new intelligent architecture order
   registry.register(new QueryPlannerAgent(llm));
-  registry.register(new DataInspectorAgent(llm));
-  registry.register(new ChunkSelectorAgent(llm)); // NEW: Intelligent chunk filtering
+  registry.register(new DataInspectorAgent(llm)); // Magic document filtering
+  registry.register(new PlanningAgent(llm)); // NEW: Intelligent execution strategy
   registry.register(new PatternGeneratorAgent(llm));
   registry.register(new ExtractionAgent(llm));
+  registry.register(new WebSearchAgent(llm)); // NEW: Knowledge base expansion
   registry.register(new SynthesisAgent(llm));
   
   // Create and return orchestrator with progress callback
