@@ -95,6 +95,14 @@ export class Orchestrator {
       const decision = await this.makeMasterLLMDecision(context, currentGoal, iterationCount);
       
       if (decision.action === 'COMPLETE') {
+        // 🚨 FIX: Handle invalid COMPLETE+toolName format
+        if (decision.toolName) {
+          console.log(`🔧 Master LLM returned COMPLETE with toolName - treating as CALL_TOOL: ${decision.toolName}`);
+          await this.executeToolCall(decision.toolName, context);
+          currentGoal = decision.nextGoal || currentGoal;
+          continue;
+        }
+        
         // 🔥 CRITICAL: Validate completion conditions before allowing completion
         const canComplete = this.validateCompletionConditions(context);
         if (canComplete.allowed) {
@@ -214,16 +222,17 @@ ${availableData.extractorCompleted && !availableData.synthesizerCompleted ? '�
 Consider: Do you have enough extracted information, or need WebSearchAgent expansion?`}
 
 🎯 RESPONSE FORMAT:
+
+To call a tool:
 ACTION: CALL_TOOL
 TOOL_NAME: [DataInspector|PlanningAgent|PatternGenerator|Extractor|WebSearchAgent|Synthesizer]
 REASONING: [explain why this tool is needed for the current goal]
 NEXT_GOAL: [what you hope to accomplish]
 
-OR if you can provide a useful response:
+To complete (DO NOT include TOOL_NAME):
 ACTION: COMPLETE
-TOOL_NAME: 
 REASONING: [explain what you can provide or what's needed]
-NEXT_GOAL: `;
+NEXT_GOAL: [final goal achieved]`;
 
     try {
       const response = await this.llm(masterPrompt);
@@ -464,8 +473,12 @@ NEXT_GOAL: `;
         timestamp: endTime
       });
       
-      // 🚨 FIX: Mark agent as completed with result
-      this.progressTracker.completeAgent(normalizedToolName, { result: 'success' });
+      // 🚨 FIX: Mark agent as completed with result and capture actual output
+      const agentOutput = this.extractAgentOutput(context, normalizedToolName);
+      this.progressTracker.completeAgent(normalizedToolName, { 
+        result: 'success',
+        output: agentOutput 
+      });
       
     } catch (error) {
       console.error(`❌ Tool ${normalizedToolName} failed:`, error);
@@ -483,6 +496,61 @@ NEXT_GOAL: `;
     }
   }
   
+  /**
+   * 🔥 Extract actual agent output from context for UI display
+   */
+  private extractAgentOutput(context: ResearchContext, agentName: string): any {
+    switch (agentName) {
+      case 'DataInspector':
+        return {
+          documentAnalysis: context.documentAnalysis,
+          sharedKnowledge: context.sharedKnowledge.documentInsights,
+          filteredDocuments: context.ragResults.chunks.length,
+          reasoning: context.sharedKnowledge.documentInsights?.detailedReasoning || 'Document analysis completed'
+        };
+      
+      case 'PatternGenerator':
+        return {
+          patterns: context.patterns,
+          patternCount: context.patterns.length,
+          extractionStrategies: context.sharedKnowledge.extractionStrategies,
+          reasoning: 'Pattern generation completed'
+        };
+      
+      case 'Extractor':
+        return {
+          extractedData: context.extractedData,
+          itemCount: context.extractedData.raw.length,
+          reasoning: 'Data extraction completed'
+        };
+      
+      case 'Synthesizer':
+        return {
+          synthesis: context.synthesis,
+          finalAnswer: context.synthesis.answer,
+          reasoning: context.synthesis.reasoning || 'Synthesis completed'
+        };
+      
+      case 'PlanningAgent':
+        return {
+          executionPlan: 'Execution strategy created',
+          reasoning: 'Planning completed'
+        };
+      
+      case 'WebSearchAgent':
+        return {
+          webResults: 'Web search completed',
+          reasoning: 'Web search completed'
+        };
+      
+      default:
+        return {
+          status: 'completed',
+          reasoning: `${agentName} processing completed`
+        };
+    }
+  }
+
   /**
    * 🔧 Normalize tool names to handle case variations from LLM
    */

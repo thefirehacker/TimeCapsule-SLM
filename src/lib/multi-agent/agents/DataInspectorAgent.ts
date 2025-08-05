@@ -494,6 +494,15 @@ REASON: [your intelligent reasoning]`;
    * Extract simple value from LLM response
    */
   private extractValue(response: string, key: string): string {
+    // 🔥 FIX: Handle <think> tags from Qwen models
+    let cleanResponse = response;
+    
+    // Remove <think> tags but preserve the content after them
+    const thinkMatch = response.match(/<think>[\s\S]*?<\/think>\s*([\s\S]*)/i);
+    if (thinkMatch) {
+      cleanResponse = thinkMatch[1]; // Content after </think>
+    }
+    
     // Try multiple patterns to handle LLM variations
     const patterns = [
       new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i'),           // "TYPE: Document"
@@ -502,9 +511,20 @@ REASON: [your intelligent reasoning]`;
     ];
     
     for (const pattern of patterns) {
-      const match = response.match(pattern);
+      const match = cleanResponse.match(pattern);
       if (match && match[1].trim()) {
         return match[1].trim();
+      }
+    }
+    
+    // 🔥 FALLBACK: For REASON specifically, try to extract from <think> content
+    if (key === 'REASON') {
+      const thinkContent = response.match(/<think>([\s\S]*?)<\/think>/i);
+      if (thinkContent && thinkContent[1].trim()) {
+        // Extract the reasoning from think content
+        const reasoning = thinkContent[1].trim();
+        console.log(`🧠 DataInspector extracted reasoning from <think>: "${reasoning.substring(0, 100)}..."`);
+        return reasoning;
       }
     }
     

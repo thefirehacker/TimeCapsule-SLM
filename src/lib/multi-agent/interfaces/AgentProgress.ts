@@ -37,6 +37,7 @@ export interface AgentTracker {
   stage?: string;
   itemsProcessed?: number;
   totalItems?: number;
+  output?: any; // 🔥 FIX: Store actual agent output for UI display
 }
 
 export class AgentProgressTracker {
@@ -104,6 +105,9 @@ export class AgentProgressTracker {
       tracker.metrics.endTime = tracker.endTime;
       tracker.metrics.responseTime = tracker.endTime - tracker.startTime;
       tracker.progress = 100;
+      
+      // 🔥 FIX: Store the actual agent output
+      tracker.output = output.output || output; // Handle both { output: data } and direct data
 
       // Merge additional metrics
       if (additionalMetrics) {
@@ -146,7 +150,7 @@ export class AgentProgressTracker {
       endTime: tracker.endTime,
       duration: tracker.endTime ? (tracker.endTime - tracker.startTime) : undefined,
       input: {},  // Will be populated by agents
-      output: {}, // Will be populated by agents
+      output: tracker.output || {}, // 🔥 FIX: Use actual stored output
       thinking: tracker.thinking,
       progress: tracker.progress,
       stage: tracker.stage,

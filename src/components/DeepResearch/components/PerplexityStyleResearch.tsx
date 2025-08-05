@@ -205,6 +205,7 @@ function SourcesSection({ sources }: { sources: SourceReference[] }) {
 
 function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
   const [showThinking, setShowThinking] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
   const IconComponent = AgentIcons[subStep.agentType] || Brain;
   
   // Debug thinking data
@@ -324,6 +325,36 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
                   • {subStep.agentName} is analyzing and processing the research data...
                 </div>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Output Display */}
+      {subStep.output && subStep.status === 'completed' && (
+        <div className="mt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowOutput(!showOutput)}
+            className="h-6 px-2 text-xs text-green-600 hover:text-green-800 font-medium"
+          >
+            <FileText className="w-3 h-3 mr-1" />
+            📤 Full Output
+            {showOutput ? <ChevronDown className="w-3 h-3 ml-1" /> : <ChevronRight className="w-3 h-3 ml-1" />}
+          </Button>
+          
+          {showOutput && (
+            <div className="mt-1 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg text-xs">
+              <div className="text-green-800 font-medium mb-2">
+                Complete {subStep.agentName} Output:
+              </div>
+              <div className="text-green-700 font-mono max-h-60 overflow-y-auto whitespace-pre-wrap">
+                {typeof subStep.output === 'string' 
+                  ? subStep.output 
+                  : JSON.stringify(subStep.output, null, 2)
+                }
+              </div>
             </div>
           )}
         </div>
