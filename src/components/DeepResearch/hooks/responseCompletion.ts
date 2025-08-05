@@ -226,9 +226,13 @@ export function parseJsonWithResilience(text: string): any {
     const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        return JSON.parse(jsonMatch[0]);
+        let jsonText = jsonMatch[0];
+        // 🚨 FIX: Clean up common JSON issues from LLM responses
+        jsonText = cleanJsonText(jsonText);
+        return JSON.parse(jsonText);
       } catch (secondError) {
         console.error('🔍 JSON extraction failed:', secondError);
+        console.error('🔍 Problematic JSON text:', jsonMatch[0].substring(0, 200) + '...');
       }
     }
     
@@ -236,15 +240,44 @@ export function parseJsonWithResilience(text: string): any {
     const arrayMatch = cleanText.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
       try {
-        const parsed = JSON.parse(arrayMatch[0]);
-        return { items: parsed }; // Wrap in expected format
+        let arrayText = arrayMatch[0];
+        // 🚨 FIX: Clean up common JSON issues from LLM responses
+        arrayText = cleanJsonText(arrayText);
+        const parsed = JSON.parse(arrayText);
+        return Array.isArray(parsed) ? parsed : [parsed]; // Return as array
       } catch (thirdError) {
         console.error('🔍 Array extraction failed:', thirdError);
+        console.error('🔍 Problematic array text:', arrayMatch[0].substring(0, 200) + '...');
       }
     }
     
     throw new Error('Invalid JSON after all extraction attempts');
   }
+}
+
+/**
+ * 🚨 FIX: Clean up common JSON formatting issues from LLM responses
+ */
+function cleanJsonText(jsonText: string): string {
+  return jsonText
+    // Remove trailing commas before closing brackets/braces
+    .replace(/,(\s*[}\]])/g, '$1')
+    // Fix unescaped quotes in strings (basic attempt)
+    .replace(/: "([^"]*)"([^",}\]]*)"([^",}\]]*)",/g, ': "$1\\"$2\\"$3",')
+    // Remove comments that might be added by LLM
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    // Clean up any markdown formatting
+    .replace(/```json\s*/, '')
+    .replace(/```\s*$/, '')
+    // Ensure proper string quoting for common LLM mistakes
+    .replace(/(\w+):/g, '"$1":')  // Quote unquoted keys
+    .replace(/: ([a-zA-Z_][a-zA-Z0-9_]*)/g, ': "$1"')  // Quote unquoted string values
+    // Fix boolean and null values that got quoted
+    .replace(/: "true"/g, ': true')
+    .replace(/: "false"/g, ': false')
+    .replace(/: "null"/g, ': null')
+    .trim();
 }
 
 /**

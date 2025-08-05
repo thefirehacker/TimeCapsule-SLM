@@ -104,6 +104,83 @@ export class ResearchOrchestrator {
     console.log(`🔬 Starting research for: "${query}"`);
     
     try {
+      // 🚨 ARCHITECTURE FIX: Quick check if we should use Master Orchestrator BEFORE any traditional pipeline steps
+      if (this.config.enableRAGSearch && this.vectorStore) {
+        // Do a quick RAG search to get initial sources for Master Orchestrator eligibility check
+        const quickRagResults = await this.vectorStore.searchSimilar(query, 0.1, 10);
+        
+        if (quickRagResults.length > 0) {
+          // Convert to source references for Master Orchestrator check
+          const quickSources: SourceReference[] = quickRagResults.map((result: any) => ({
+            id: result.chunk.id,
+            type: 'chunk',
+            title: result.document.title || 'Untitled Document',
+            source: result.document.metadata?.filename || 'Unknown document',
+            similarity: result.similarity,
+            excerpt: (result.chunk.content || '').replace(/\s+/g, ' ').trim().substring(0, 800),
+            fullContent: result.chunk.content || '',
+            chunkId: result.chunk.id,
+            metadata: {
+              filename: result.document.metadata?.filename,
+              uploadedAt: result.document.metadata?.uploadedAt,
+              description: result.document.metadata?.description
+            }
+          }));
+          
+          // Check if Master Orchestrator should handle this ENTIRE request
+          if (this.shouldUseMasterOrchestrator(quickSources)) {
+            console.log(`🧠 MASTER ORCHESTRATOR: Bypassing traditional pipeline entirely - using intelligent tool orchestration`);
+            
+            // Create a single Master Orchestrator step
+            const masterStep = {
+              id: this.generateUniqueStepId('master_orchestrator'),
+              type: 'synthesis' as const,
+              status: 'in_progress' as const,
+              timestamp: Date.now(),
+              reasoning: 'Master LLM Orchestrator with intelligent tool calls'
+            };
+            steps.push(masterStep);
+            this.updateStep(masterStep, { status: 'in_progress' });
+            this.currentSynthesisStep = masterStep;
+            
+            // Execute Master Orchestrator with initial sources
+            const finalAnswer = await this.executeMasterOrchestrator(query, quickSources, null);
+            
+            this.updateStep(masterStep, {
+              status: 'completed',
+              duration: Date.now() - masterStep.timestamp,
+              reasoning: `Master Orchestrator processed ${quickSources.length} sources with ${this.currentAgentSubSteps?.length || 0} intelligent tool calls`,
+              subSteps: this.currentAgentSubSteps || [],
+              agentDetails: this.currentAgentSubSteps && this.currentAgentSubSteps.length > 0 ? {
+                orchestratorPlan: `Master LLM Orchestrator with ${this.currentAgentSubSteps.length} intelligent tool calls`,
+                agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+                totalAgents: this.currentAgentSubSteps.length,
+                processingTime: Date.now() - masterStep.timestamp
+              } : undefined
+            });
+            
+            return {
+              query,
+              steps,
+              finalAnswer,
+              sources: quickSources,
+              confidence: this.calculateOverallConfidence(steps, quickSources),
+              processingTime: Date.now() - startTime,
+              metadata: {
+                stepsExecuted: steps.length,
+                ragSearches: 1,
+                webSearches: 0,
+                sourcesFound: quickSources.length,
+                avgSimilarity: quickSources.reduce((sum, s) => sum + (s.similarity || 0), 0) / quickSources.length
+              }
+            };
+          }
+        }
+      }
+      
+      // Traditional pipeline (fallback when Master Orchestrator not applicable)
+      console.log(`🔄 Using traditional pipeline (Master Orchestrator not applicable)`);
+      
       // Step 1: Query Analysis
       const analysisStep = ResearchStepUtils.createAnalysisStep(query);
       steps.push(analysisStep);
@@ -157,7 +234,10 @@ export class ResearchOrchestrator {
         totalContentLength: sources.reduce((sum, s) => sum + (s.excerpt?.length || 0), 0)
       });
       
-      // Step 4: Synthesize Final Answer
+      // Fallback to traditional synthesis if Master Orchestrator not available
+      console.log(`🔄 Falling back to traditional synthesis pipeline`);
+      
+      // Step 4: Synthesize Final Answer (Traditional)
       const synthesisStep = ResearchStepUtils.createSynthesisStep(sources);
       steps.push(synthesisStep);
       this.updateStep(synthesisStep, { status: 'in_progress' });
@@ -1318,6 +1398,187 @@ Answer:`;
   }
 
   /**
+   * 🚨 ARCHITECTURE: Determine if Master Orchestrator should be used
+   */
+  private shouldUseMasterOrchestrator(sources: SourceReference[]): boolean {
+    // Use Master Orchestrator for RAG-based queries with substantial content
+    const hasRagSources = sources.some(s => s.type === 'chunk');
+    const hasSubstantialContent = sources.length >= 2 && sources.some(s => (s.fullContent?.length || 0) > 100);
+    
+    console.log(`🧠 Master Orchestrator eligibility: RAG sources: ${hasRagSources}, Substantial content: ${hasSubstantialContent}`);
+    return hasRagSources && hasSubstantialContent;
+  }
+  
+  /**
+   * 🚨 ARCHITECTURE: Execute Master LLM Orchestrator pipeline
+   * CRITICAL: Master Orchestrator starts with JUST the query and makes all decisions
+   */
+  private async executeMasterOrchestrator(query: string, sources: SourceReference[], queryAnalysis: any): Promise<string> {
+    try {
+      console.log(`🧠 Master Orchestrator: Starting with PURE QUERY APPROACH for "${query}"`);
+      console.log(`🚨 ARCHITECTURE CHANGE: Ignoring ${sources.length} pre-found sources - Master Orchestrator will make its own decisions`);
+      
+      // Clear previous sub-steps
+      this.currentAgentSubSteps = [];
+      
+      // Create progress callback to capture agent sub-steps and update UI
+      const progressCallback: AgentProgressCallback = {
+        onAgentStart: (agentName: string, agentType: string, input: any) => {
+          console.log(`🚀 Master Orchestrator Agent started: ${agentName} (${agentType})`);
+          
+          if (this.currentSynthesisStep) {
+            const agentSubStep = {
+              id: `${agentName.toLowerCase()}_${Date.now()}`,
+              agentName,
+              agentType: agentType as 'query_planner' | 'data_inspector' | 'pattern_generator' | 'extraction' | 'synthesis',
+              status: 'in_progress' as const,
+              startTime: Date.now(),
+              input: input,
+              output: null,
+              progress: 10,
+              stage: 'Initializing',
+              thinking: undefined,
+              error: undefined,
+              duration: undefined,
+              itemsProcessed: 0,
+              totalItems: undefined
+            };
+            
+            this.currentAgentSubSteps.push(agentSubStep);
+            
+            // Real-time UI update
+            this.updateStep(this.currentSynthesisStep, {
+              subSteps: [...this.currentAgentSubSteps],
+              agentDetails: {
+                orchestratorPlan: `Master LLM Orchestrator with ${this.currentAgentSubSteps.length} agents`,
+                agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+                totalAgents: this.currentAgentSubSteps.length,
+                completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
+              }
+            });
+          }
+        },
+        onAgentProgress: (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number) => {
+          console.log(`📊 Master Orchestrator Agent progress: ${agentName} - ${progress}% ${stage ? `(${stage})` : ''}`);
+          
+          if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+            const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+            if (agentIndex >= 0) {
+              this.currentAgentSubSteps[agentIndex] = {
+                ...this.currentAgentSubSteps[agentIndex],
+                progress,
+                stage,
+                itemsProcessed,
+                totalItems
+              };
+              
+              this.updateStep(this.currentSynthesisStep, {
+                subSteps: [...this.currentAgentSubSteps]
+              });
+            }
+          }
+        },
+        onAgentThinking: (agentName: string, thinking: any) => {
+          console.log(`🧠 Master Orchestrator Agent thinking: ${agentName}`);
+          
+          if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+            const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+            if (agentIndex >= 0) {
+              this.currentAgentSubSteps[agentIndex] = {
+                ...this.currentAgentSubSteps[agentIndex],
+                thinking
+              };
+              
+              this.updateStep(this.currentSynthesisStep, {
+                subSteps: [...this.currentAgentSubSteps]
+              });
+            }
+          }
+        },
+        onAgentComplete: (agentName: string, output: any, metrics?: any) => {
+          console.log(`✅ Master Orchestrator Agent completed: ${agentName}`);
+          
+          if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+            const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+            if (agentIndex >= 0) {
+              this.currentAgentSubSteps[agentIndex] = {
+                ...this.currentAgentSubSteps[agentIndex],
+                status: 'completed',
+                progress: 100,
+                endTime: Date.now(),
+                duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
+                stage: 'Completed',
+                output: output
+              };
+              
+              this.updateStep(this.currentSynthesisStep, {
+                subSteps: [...this.currentAgentSubSteps],
+                agentDetails: {
+                  orchestratorPlan: `Master LLM Orchestrator with ${this.currentAgentSubSteps.length} agents`,
+                  agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
+                  totalAgents: this.currentAgentSubSteps.length,
+                  completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
+                }
+              });
+            }
+          }
+        },
+        onAgentError: (agentName: string, error: string, retryCount?: number) => {
+          console.error(`❌ Master Orchestrator Agent failed: ${agentName}:`, error);
+          
+          if (this.currentSynthesisStep && this.currentAgentSubSteps) {
+            const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
+            if (agentIndex >= 0) {
+              this.currentAgentSubSteps[agentIndex] = {
+                ...this.currentAgentSubSteps[agentIndex],
+                status: 'failed',
+                error,
+                endTime: Date.now(),
+                duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime
+              };
+              
+              this.updateStep(this.currentSynthesisStep, {
+                subSteps: [...this.currentAgentSubSteps]
+              });
+            }
+          }
+        }
+      };
+      
+      // Create multi-agent system with Master Orchestrator
+      const multiAgent = createMultiAgentSystem(this.generateContent!, progressCallback);
+      
+      // 🚨 ARCHITECTURE FIX: Execute Master Orchestrator with EMPTY sources - it makes its own decisions
+      console.log(`🧠 Calling Master Orchestrator.research() with PURE QUERY (no pre-found sources)`);
+      const answer = await multiAgent.research(query, []); // Empty array - Master Orchestrator starts fresh
+      
+      // Capture final agent sub-steps
+      this.currentAgentSubSteps = multiAgent.getAgentSubSteps();
+      
+      if (answer && answer.trim().length > 10) {
+        console.log(`✅ Master Orchestrator generated answer with ${this.currentAgentSubSteps.length} agent calls`);
+        return answer;
+      } else {
+        console.log('⚠️ Master Orchestrator returned empty answer, using fallback');
+        return 'Master Orchestrator was unable to generate a comprehensive answer from the available sources.';
+      }
+      
+    } catch (error) {
+      console.error('❌ Master Orchestrator failed:', error);
+      // Don't throw - return an error message instead
+      return `Master Orchestrator encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. The system was unable to process your request using intelligent tool orchestration.`;
+    }
+  }
+  
+  /**
+   * Calculate final confidence for Master Orchestrator results
+   */
+  private calculateFinalConfidence(steps: ResearchStep[]): number {
+    const completedSteps = steps.filter(s => s.status === 'completed').length;
+    return completedSteps > 0 ? Math.min(completedSteps / steps.length, 1.0) : 0.8;
+  }
+  
+  /**
    * Update step and notify callback
    */
   private updateStep(step: ResearchStep, updates: Partial<ResearchStep>) {
@@ -1346,6 +1607,7 @@ export class ResearchUtils {
     }
     return orchestrator;
   }
+  
   
   /**
    * Extract key insights from research results

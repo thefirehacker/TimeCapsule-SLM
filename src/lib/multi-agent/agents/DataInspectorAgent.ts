@@ -261,6 +261,36 @@ Provide specific, actionable insights that will guide intelligent extraction and
       
       console.log(`📋 Multi-Document Analysis: ${documentAnalysis.documents?.length || 0} documents with ${documentAnalysis.relationships?.length || 0} relationships`);
       
+      // 🚨 FIX: Filter RAG chunks based on relevant documents to prevent cross-contamination
+      if (documentAnalysis.documents && documentAnalysis.documents.length < documentGroups.length) {
+        const relevantDocumentIds = new Set(documentAnalysis.documents.map(doc => doc.documentId));
+        const originalChunkCount = context.ragResults.chunks.length;
+        
+        // Filter chunks to only include those from relevant documents
+        context.ragResults.chunks = context.ragResults.chunks.filter(chunk => {
+          // Match chunk to document based on source or content similarity
+          const chunkSource = chunk.sourceDocument || chunk.source;
+          
+          // Check if this chunk belongs to a relevant document
+          for (const docId of relevantDocumentIds) {
+            if (chunkSource && chunkSource.includes(docId) || 
+                chunk.text.includes(docId) ||
+                documentAnalysis.documents!.some(doc => 
+                  doc.primaryEntity && chunk.text.includes(doc.primaryEntity)
+                )) {
+              return true;
+            }
+          }
+          return false;
+        });
+        
+        const filteredChunkCount = context.ragResults.chunks.length;
+        console.log(`🚨 CROSS-CONTAMINATION PREVENTION: Filtered RAG chunks from ${originalChunkCount} to ${filteredChunkCount} (removed ${originalChunkCount - filteredChunkCount} irrelevant chunks)`);
+        
+        // Update summary to reflect filtering
+        context.ragResults.summary = `Filtered to ${filteredChunkCount} relevant chunks from ${documentAnalysis.documents.length} documents`;
+      }
+      
     } catch (error) {
       console.error('❌ Error parsing multi-document analysis:', error);
       throw new Error(`Multi-document analysis parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -268,94 +298,59 @@ Provide specific, actionable insights that will guide intelligent extraction and
   }
 
   private async parseMultiDocumentAnalysis(response: string, documentGroups: any[], context: ResearchContext): Promise<DocumentAnalysis> {
-    // Parse the multi-document analysis response with new relevance filtering
-    const sections = {
-      documentTypes: this.extractListSection(response, 'DOCUMENT TYPES'),
-      primaryEntities: this.extractListSection(response, 'PRIMARY ENTITIES'),
-      documentRelevance: this.extractListSection(response, 'DOCUMENT RELEVANCE'),
-      entityOwnership: this.extractListSection(response, 'ENTITY OWNERSHIP'),
-      processingStrategy: this.extractSection(response, 'PROCESSING STRATEGY'),
-      attributionRules: this.extractListSection(response, 'ATTRIBUTION RULES'),
-      expectedOutputFormat: this.extractSection(response, 'EXPECTED OUTPUT FORMAT')
-    };
-
-    // Build individual document analyses with relevance filtering
+    // 🧠 AWESOME DATAINSPECTOR: Pure LLM Intelligence - No Hardcode, No Fallbacks!
+    // Let LLM make intelligent decisions about document relevance
+    
+    console.log(`🧠 DataInspector analyzing ${documentGroups.length} documents with pure LLM intelligence`);
+    
+    // Build individual document analyses - ANALYZE FIRST, DON'T FILTER
     const documents: SingleDocumentAnalysis[] = [];
     const relevantDocuments: any[] = [];
     
     for (let i = 0; i < documentGroups.length; i++) {
       const group = documentGroups[i];
-      const docType = sections.documentTypes[i] || 'Unknown Document';
-      const primaryEntity = sections.primaryEntities[i] || 'Unknown Entity';
-      
-      // Check if this document is relevant based on LLM analysis
-      const relevanceText = sections.documentRelevance.join(' ').toLowerCase();
       const docNumber = i + 1;
       
-      // Look for specific mentions of this document
-      const docMentions = [
-        `document ${docNumber}`,
-        docType.toLowerCase(),
-        primaryEntity.toLowerCase()
-      ].filter(mention => mention.length > 2);
+      // 🧠 INTELLIGENT DOCUMENT ANALYSIS: Let LLM decide what this document is about
+      const docAnalysis = await this.analyzeDocumentIntelligently(response, group, docNumber, context.query);
       
-      let isRelevant = false;
-      
-      // Check if any mention of this document indicates relevance
-      for (const mention of docMentions) {
-        if (relevanceText.includes(mention)) {
-          const context = relevanceText;
-          // If the document is mentioned positively or as relevant
-          if (context.includes(`${mention} is relevant`) || 
-              context.includes(`only ${mention}`) ||
-              context.includes(`${mention} should be processed`) ||
-              (context.includes(mention) && !context.includes(`${mention} is irrelevant`) && 
-               !context.includes(`${mention} is unrelated`) && 
-               !context.includes(`ignore ${mention}`))) {
-            isRelevant = true;
-            break;
-          }
-        }
-      }
-      
-      console.log(`🔍 Document ${docNumber} relevance check:`, {
-        docType,
-        primaryEntity,
-        relevanceText: relevanceText.substring(0, 200),
-        isRelevant,
-        mentions: docMentions
+      console.log(`🔍 Document ${docNumber} intelligent analysis:`, {
+        docType: docAnalysis.documentType,
+        primaryEntity: docAnalysis.primaryEntity,
+        isRelevant: docAnalysis.isRelevant,
+        reasoning: docAnalysis.reasoning.substring(0, 100) + '...'
       });
       
-      if (!isRelevant) {
-        console.log(`🚫 Filtering out irrelevant document: ${docType} (${primaryEntity})`);
-        continue; // Skip this document
+      // 🎯 TRUST LLM INTELLIGENCE: If LLM says it's relevant, include it
+      if (docAnalysis.isRelevant) {
+        console.log(`✅ Including relevant document: ${docAnalysis.documentType} (${docAnalysis.primaryEntity})`);
+        relevantDocuments.push(group);
+        
+        // Get sample content for deep LLM analysis
+        const sampleContent = group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n');
+        
+        // Use LLM to discover content areas based on actual content
+        const contentAreas = await this.discoverContentAreas(docAnalysis.documentType, sampleContent);
+        
+        // Use LLM to discover entities based on actual content  
+        const keyEntities = await this.discoverEntitiesIntelligently(sampleContent);
+        
+        // Use LLM to discover document role based on query and content
+        const role = await this.discoverDocumentRole(i, documentGroups.length, context.query, sampleContent);
+        
+        documents.push({
+          documentId: group.documentId,
+          documentName: group.documentId,
+          documentType: docAnalysis.documentType,
+          primaryEntity: docAnalysis.primaryEntity,
+          structure: [docAnalysis.documentType.toLowerCase() + ' sections'],
+          contentAreas: contentAreas,
+          keyEntities: keyEntities,
+          role: role
+        });
+      } else {
+        console.log(`⏭️ Skipping irrelevant document: ${docAnalysis.documentType} (${docAnalysis.primaryEntity}) - ${docAnalysis.reasoning.substring(0, 50)}...`);
       }
-      
-      console.log(`✅ Processing relevant document: ${docType} (${primaryEntity})`);
-      relevantDocuments.push(group);
-      
-      // Get sample content for LLM analysis
-      const sampleContent = group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n');
-      
-      // Use LLM to discover content areas based on actual content
-      const contentAreas = await this.discoverContentAreas(docType, sampleContent);
-      
-      // Use LLM to discover entities based on actual content
-      const keyEntities = await this.discoverEntities(sections.entityOwnership, i, sampleContent);
-      
-      // Use LLM to discover document role based on query and content
-      const role = await this.discoverDocumentRole(i, documentGroups.length, context.query, sampleContent);
-      
-      documents.push({
-        documentId: group.documentId,
-        documentName: group.documentId,
-        documentType: docType,
-        primaryEntity: primaryEntity,
-        structure: [docType.toLowerCase() + ' sections'],
-        contentAreas: contentAreas,
-        keyEntities: keyEntities,
-        role: role
-      });
     }
     
     console.log(`📊 Document filtering: ${documentGroups.length} total → ${documents.length} relevant`);
@@ -370,11 +365,160 @@ Provide specific, actionable insights that will guide intelligent extraction and
       contentAreas: documents.flatMap(d => d.contentAreas),
       queryIntent: `Extract information from ${documents.length} relevant documents`,
       extractionStrategy: 'Extract from each relevant document separately with proper attribution',
-      expectedOutputFormat: sections.expectedOutputFormat || 'structured synthesis',
+      expectedOutputFormat: 'structured synthesis with proper attribution',
       documents: documents,
       relationships: relationships,
       crossDocumentStrategy: 'Process each document independently to prevent cross-contamination'
     };
+  }
+
+  /**
+   * 🧠 AWESOME DATAINSPECTOR: Pure LLM Intelligence for Document Analysis
+   * No hardcode, no fallbacks - just smart reasoning about document relevance
+   */
+  private async analyzeDocumentIntelligently(
+    originalResponse: string, 
+    documentGroup: any, 
+    docNumber: number, 
+    query: string
+  ): Promise<{
+    documentType: string;
+    primaryEntity: string;
+    isRelevant: boolean;
+    reasoning: string;
+  }> {
+    const sampleContent = documentGroup.chunks.slice(0, 2)
+      .map((chunk: any) => chunk.text.substring(0, 400))
+      .join('\n\n');
+
+    const intelligentPrompt = `You are an intelligent document analyzer. Analyze this document and make smart decisions.
+
+QUERY: "${query}"
+DOCUMENT ${docNumber} SAMPLE CONTENT:
+${sampleContent}
+
+ORIGINAL ANALYSIS CONTEXT:
+${originalResponse.substring(0, 500)}
+
+Based on your intelligent analysis, answer these questions:
+
+1. DOCUMENT TYPE: What type of document is this? (Resume, Blog, Report, etc.)
+2. PRIMARY ENTITY: Who is the main person/subject this document is about?
+3. RELEVANCE DECISION: For the query "${query}", is this document relevant?
+4. REASONING: Why is this document relevant or irrelevant to answering the user's question?
+
+Think intelligently: If the user asks about "Rutwik's best project" and this document is about Tyler's speedruns, it's clearly irrelevant. But if this document is Rutwik's resume with his projects, it's very relevant.
+
+Respond in simple format:
+TYPE: [document type]
+ENTITY: [primary person/subject]  
+RELEVANT: [YES/NO]
+REASON: [your intelligent reasoning]`;
+
+    try {
+      const response = await this.llm(intelligentPrompt);
+      
+      // 🐛 DEBUG: Log LLM response to understand parsing issues
+      console.log(`🧠 DataInspector Document ${docNumber} LLM Response:`, response.substring(0, 500) + '...');
+      
+      // Parse the intelligent response
+      const docType = this.extractValue(response, 'TYPE') || 'Unknown Document';
+      const primaryEntity = this.extractValue(response, 'ENTITY') || 'Unknown Entity';
+      const relevantText = this.extractValue(response, 'RELEVANT') || 'NO';
+      const reasoning = this.extractValue(response, 'REASON') || 'No reasoning provided';
+      
+      // 🐛 DEBUG: Log parsed values to debug extraction
+      console.log(`🔍 DataInspector Document ${docNumber} Parsed:`, {
+        docType, primaryEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
+      });
+      
+      const isRelevant = relevantText.toUpperCase().includes('YES');
+      
+      return {
+        documentType: docType,
+        primaryEntity: primaryEntity,
+        isRelevant: isRelevant,
+        reasoning: reasoning
+      };
+      
+    } catch (error) {
+      console.warn(`⚠️ Intelligent analysis failed for document ${docNumber}, defaulting to include`);
+      return {
+        documentType: 'Unknown Document',
+        primaryEntity: 'Unknown Entity',
+        isRelevant: true, // Default to including rather than filtering out
+        reasoning: 'Analysis failed, including document to avoid losing data'
+      };
+    }
+  }
+
+  /**
+   * Extract simple value from LLM response
+   */
+  private extractValue(response: string, key: string): string {
+    // Try multiple patterns to handle LLM variations
+    const patterns = [
+      new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i'),           // "TYPE: Document"
+      new RegExp(`${key}\\s*[:=]\\s*(.+?)(?:\\n|$)`, 'i'),   // "TYPE: Document" or "TYPE = Document"
+      new RegExp(`\\b${key}\\b[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i'), // More flexible matching
+    ];
+    
+    for (const pattern of patterns) {
+      const match = response.match(pattern);
+      if (match && match[1].trim()) {
+        return match[1].trim();
+      }
+    }
+    
+    // 🐛 DEBUG: Log if extraction fails
+    console.warn(`⚠️ DataInspector failed to extract ${key} from response: "${response.substring(0, 200)}..."`);
+    return '';
+  }
+
+  /**
+   * 🧠 INTELLIGENT ENTITY DISCOVERY: No hardcoded patterns
+   */
+  private async discoverEntitiesIntelligently(sampleContent: string): Promise<any[]> {
+    const prompt = `Find the key people, companies, or entities mentioned in this content:
+
+CONTENT:
+${sampleContent}
+
+List the important entities (people, companies, projects) you find. For each, identify:
+- Name
+- Type (person, company, project, etc.)  
+- Role/context
+
+Return as simple list:
+NAME: [name] | TYPE: [type] | ROLE: [role]`;
+
+    try {
+      const response = await this.llm(prompt);
+      const entities: any[] = [];
+      
+      const lines = response.split('\n');
+      for (const line of lines) {
+        if (line.includes('NAME:') && line.includes('TYPE:')) {
+          const nameMatch = line.match(/NAME:\s*([^|]+)/);
+          const typeMatch = line.match(/TYPE:\s*([^|]+)/);
+          const roleMatch = line.match(/ROLE:\s*(.+)/);
+          
+          if (nameMatch && typeMatch) {
+            entities.push({
+              name: nameMatch[1].trim(),
+              type: typeMatch[1].trim(),
+              context: roleMatch ? roleMatch[1].trim() : 'Unknown role',
+              isOwner: false
+            });
+          }
+        }
+      }
+      
+      return entities;
+    } catch (error) {
+      console.warn('Failed to discover entities intelligently');
+      return [];
+    }
   }
 
   private async discoverContentAreas(docType: string, sampleContent: string): Promise<string[]> {
@@ -512,6 +656,10 @@ Return just the role: source, target, or reference`;
   }
   
   private extractListSection(text: string, sectionName: string): string[] {
+    // 🔍 NATURAL LANGUAGE PARSING: Handle thinking-style responses
+    // First, remove <think> tags if present to get the actual analysis
+    const cleanText = text.replace(/<\/?think>/g, '');
+    
     // Try multiple patterns to find the section content
     const patterns = [
       // Standard format: **SECTION**: content
@@ -524,15 +672,29 @@ Return just the role: source, target, or reference`;
     
     let content = '';
     for (const pattern of patterns) {
-      const match = text.match(pattern);
+      const match = cleanText.match(pattern);
       if (match && match[1]?.trim().length > 10) {
         content = match[1].trim();
         break;
       }
     }
     
+    // 🔍 FALLBACK: Parse natural language directly for document analysis
+    if (!content && sectionName.includes('DOCUMENT TYPES')) {
+      content = this.extractDocumentTypesFromNaturalLanguage(cleanText);
+    }
+    
+    if (!content && sectionName.includes('PRIMARY ENTITIES')) {
+      content = this.extractEntitiesFromNaturalLanguage(cleanText);
+    }
+    
+    if (!content && sectionName.includes('DOCUMENT RELEVANCE')) {
+      content = this.extractRelevanceFromNaturalLanguage(cleanText);
+    }
+    
     if (!content) {
       console.warn(`❌ Could not extract section: ${sectionName}`);
+      console.log(`📝 Raw response for debugging:`, cleanText.substring(0, 500));
       return [];
     }
     
@@ -541,28 +703,47 @@ Return just the role: source, target, or reference`;
       .map(s => s.trim())
       .filter(s => s.length > 5);
     
-    // For document types, look for "Document X is a..."
+    // For document types, look for "Document X is a..." and natural language patterns
     if (sectionName.includes('DOCUMENT TYPES')) {
       const docTypes: string[] = [];
+      
+      // Try structured format first
       for (let i = 1; i <= 5; i++) { // Support up to 5 documents
         const docMatch = content.match(new RegExp(`Document ${i} is (?:a |an )?(\\w+(?:\\s+\\w+)*)`, 'i'));
         if (docMatch) {
           docTypes.push(docMatch[1].trim());
         }
       }
+      
+      // If no structured format, parse comma-separated list
+      if (docTypes.length === 0 && content.includes(',')) {
+        const types = content.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        docTypes.push(...types);
+      }
+      
       if (docTypes.length > 0) return docTypes;
     }
     
     // For entities, look for names in content
     if (sectionName.includes('ENTITIES')) {
       const entities: string[] = [];
-      const namePattern = /([A-Z][a-z]+ [A-Z][a-z]+)/g;
+      
+      // Look for proper names (First Last)
+      const namePattern = /([A-Z][a-z]+(?: [A-Z][a-z]+)*)/g;
       let match;
       while ((match = namePattern.exec(content)) !== null) {
-        if (!entities.includes(match[1])) {
-          entities.push(match[1]);
+        const name = match[1];
+        if (!entities.includes(name) && name.length > 1 && /^[A-Z]/.test(name)) {
+          entities.push(name);
         }
       }
+      
+      // If no names found, try comma-separated list
+      if (entities.length === 0 && content.includes(',')) {
+        const names = content.split(',').map(n => n.trim()).filter(n => n.length > 0);
+        entities.push(...names);
+      }
+      
       if (entities.length > 0) return entities;
     }
     
@@ -576,6 +757,88 @@ Return just the role: source, target, or reference`;
     
     // Default: return cleaned sentences
     return sentences.length > 0 ? sentences : [content];
+  }
+  
+  /**
+   * 🔍 Extract document types from natural language thinking responses
+   */
+  private extractDocumentTypesFromNaturalLanguage(text: string): string {
+    const docTypePatterns = [
+      // "Document 1 is a resume" or "first document is a resume"
+      /(?:document \d+|first document|second document).*?(?:is (?:a |an )?)(\w+(?:\s+\w+)*)/gi,
+      // "Rutwik_resume.pdf - it's a resume"
+      /([\w_]+\.pdf).*?(?:it'?s (?:a |an )?)(\w+)/gi,
+      // "The resume" or "this CV" 
+      /(?:the |this )(resume|cv|blog|paper|document)/gi,
+      // "starting with the first one, [filename]. It's a [type]"
+      /starting with.*?([\w_]+\.\w+).*?it'?s (?:a |an )?(\w+)/gi
+    ];
+    
+    const foundTypes: string[] = [];
+    for (const pattern of docTypePatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const docType = match[2] || match[1];
+        if (docType && !foundTypes.includes(docType.toLowerCase())) {
+          foundTypes.push(docType.toLowerCase());
+        }
+      }
+    }
+    
+    return foundTypes.length > 0 ? foundTypes.join(', ') : '';
+  }
+  
+  /**
+   * 🔍 Extract primary entities from natural language thinking responses
+   */
+  private extractEntitiesFromNaturalLanguage(text: string): string {
+    const entityPatterns = [
+      // "The user wants to know about [Name]" or "query is about [Name]"
+      /(?:wants to know about|query is about|asking about)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g,
+      // "[Name]'s [something]" or "[Name] did"
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)(?:'s|\s+did|\s+is)/g,
+      // "Document mentions [Name]"
+      /(?:document|content|resume).*?mentions?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g,
+      // Direct filename references: "Rutwik_resume.pdf"
+      /([A-Z][a-z]+)_[\w_]*\.\w+/g
+    ];
+    
+    const foundEntities = new Set<string>();
+    for (const pattern of entityPatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const entity = match[1];
+        if (entity && entity.length > 1 && /^[A-Z]/.test(entity)) {
+          foundEntities.add(entity);
+        }
+      }
+    }
+    
+    return Array.from(foundEntities).join(', ');
+  }
+  
+  /**
+   * 🔍 Extract document relevance from natural language thinking responses
+   */
+  private extractRelevanceFromNaturalLanguage(text: string): string {
+    const relevanceIndicators = [
+      // Positive relevance indicators
+      /(?:document \d+|first document|second document).*?(?:is relevant|should be processed|is about)/gi,
+      // Negative relevance indicators  
+      /(?:document \d+|first document|second document).*?(?:is irrelevant|should be ignored|is not about)/gi,
+      // Query-specific relevance
+      /(?:only|just).*?(?:document \d+|resume|blog).*?(?:is relevant|matters)/gi
+    ];
+    
+    const relevanceStatements: string[] = [];
+    for (const pattern of relevanceIndicators) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        relevanceStatements.push(match[0]);
+      }
+    }
+    
+    return relevanceStatements.length > 0 ? relevanceStatements.join('; ') : text.substring(0, 200);
   }
   
   /**

@@ -44,28 +44,20 @@ export class Orchestrator {
   }
   
   /**
-   * Main entry point for research
+   * 🧠 MASTER LLM ORCHESTRATOR - Intelligent Tool-Call System
+   * Replaces rigid pipeline with Claude Code style intelligent decisions
    */
   async research(query: string, ragResults: SourceReference[]): Promise<string> {
-    console.log(`🎯 Orchestrator starting research for: "${query}"`);
+    console.log(`🧠 Master LLM Orchestrator starting for: "${query}"`);
     
     // Initialize context
     const context = createInitialContext(query, ragResults);
     
-    // Step 1: Analyze the query
-    await this.analyzeQuery(context);
-    
-    // Step 2: Summarize RAG results
-    await this.summarizeRAGResults(context);
-    
-    // Step 3: Plan agent pipeline
-    const pipeline = await this.planAgentPipeline(context);
-    
-    // Step 4: Execute agents
-    await this.executeAgentPipeline(pipeline, context);
+    // 🚀 MASTER LLM ORCHESTRATION: Intelligent tool-call decisions
+    await this.masterLLMOrchestration(context);
     
     // Return final answer
-    console.log(`📝 Final synthesis:`, {
+    console.log(`📝 Master Orchestrator final result:`, {
       hasAnswer: !!context.synthesis.answer,
       answerLength: context.synthesis.answer?.length || 0,
       preview: context.synthesis.answer?.substring(0, 100) || 'No answer'
@@ -75,276 +67,293 @@ export class Orchestrator {
   }
   
   /**
-   * Analyze the query to understand intent and requirements
+   * 🧠 MASTER LLM ORCHESTRATION - Intelligent Tool-Call System
+   * Makes dynamic decisions about which tools to call and when, like Claude Code/Cursor
    */
-  private async analyzeQuery(context: ResearchContext): Promise<void> {
-    const prompt = `Understand what the user is asking for.
-
-Query: "${context.query}"
-
-Answer these questions:
-1. What is the user looking for? (be specific)
-2. What type of answer do they want? (list, comparison, information, etc)
-3. What domain is this? (sports, technology, cooking, etc)
-
-For "top 3" or "best X", they want a ranked list.
-
-Keep your response short and direct.`;
-
-    try {
-      const response = await this.llm(prompt);
-      console.log(`🤖 Query understanding:`, response.substring(0, 200));
+  private async masterLLMOrchestration(context: ResearchContext): Promise<void> {
+    console.log(`🎯 Master LLM analyzing situation and planning tool calls...`);
+    
+    let iterationCount = 0;
+    const maxIterations = 10; // Prevent infinite loops
+    let currentGoal = `Answer the user's query: "${context.query}"`;
+    
+    while (iterationCount < maxIterations) {
+      iterationCount++;
+      console.log(`🔄 Master LLM Iteration ${iterationCount}: ${currentGoal}`);
       
-      // Parse the understanding from natural language
-      const understanding = this.parseUnderstanding(response, context.query);
-      context.understanding = understanding;
+      // 🧠 LLM DECISION: What tool should be called next?
+      const decision = await this.makeMasterLLMDecision(context, currentGoal, iterationCount);
       
-    } catch (error) {
-      console.error('❌ Failed to analyze query with LLM:', error);
-      throw new Error(`Query analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (decision.action === 'COMPLETE') {
+        console.log(`✅ Master LLM completed goal: ${decision.reasoning}`);
+        break;
+      }
+      
+      if (decision.action === 'CALL_TOOL') {
+        console.log(`🔧 Master LLM calling tool: ${decision.toolName} - ${decision.reasoning}`);
+        await this.executeToolCall(decision.toolName, context);
+        
+        // Update goal based on results
+        currentGoal = decision.nextGoal || currentGoal;
+      } else {
+        // 🚨 FIX: Handle case where LLM returns tool name directly as action (common with small models)
+        const possibleToolName = this.normalizeToolName(decision.action);
+        if (this.registry.get(possibleToolName)) {
+          console.log(`🔧 Master LLM returned tool name directly: ${decision.action} → ${possibleToolName}`);
+          await this.executeToolCall(possibleToolName, context);
+          currentGoal = decision.nextGoal || currentGoal;
+        } else {
+          console.error(`❌ Master LLM made invalid decision: ${decision.action}`);
+          console.error(`🐛 Full decision:`, decision);
+          break;
+        }
+      }
     }
     
-    console.log(`📊 Query analysis complete:`, context.understanding);
+    if (iterationCount >= maxIterations) {
+      console.warn(`⚠️ Master LLM reached maximum iterations (${maxIterations})`);
+    }
   }
   
-  private parseUnderstanding(response: string, query: string): any {
-    const lines = response.toLowerCase();
-    const originalQuery = query.toLowerCase();
+  /**
+   * 🧠 MASTER LLM DECISION MAKING - Core intelligence
+   */
+  private async makeMasterLLMDecision(context: ResearchContext, currentGoal: string, iteration: number): Promise<any> {
+    // Analyze current state
+    const availableData = this.analyzeCurrentState(context);
     
-    // Detect query type from response AND original query (more reliable)
-    let queryType = 'information';
-    
-    // Let LLM response determine query type
-    if (lines.includes('ranking') || lines.includes('ordered') || lines.includes('list')) {
-      queryType = 'ranking';
-      console.log(`🎯 Detected ranking query based on LLM analysis`);
-    } else if (lines.includes('compar')) {
-      queryType = 'comparison';
-      console.log(`🔀 Detected comparison query based on LLM analysis`);
-    } else if (lines.includes('explain') || lines.includes('how') || lines.includes('why')) {
-      queryType = 'explanation';
-      console.log(`📖 Detected explanation query based on LLM analysis`);
+    const masterPrompt = `You are a Master LLM Orchestrator making intelligent tool-call decisions like Claude Code/Cursor.
+
+CURRENT GOAL: ${currentGoal}
+ITERATION: ${iteration}
+
+CURRENT SITUATION:
+- Available Documents: ${context.ragResults.chunks.length} chunks loaded ${context.ragResults.chunks.length === 0 ? '- need to search for relevant documents first' : '- ready to analyze'}
+- Document Analysis: ${availableData.hasDocumentAnalysis ? 'COMPLETED - you understand what documents contain' : 'NOT DONE - need to analyze document structure and content'}  
+- Patterns Generated: ${availableData.patternsGenerated} patterns available ${availableData.patternsGenerated === 0 ? '- need to create extraction patterns' : '- ready for extraction'}
+- Data Extracted: ${availableData.dataExtracted ? 'COMPLETED - you have extracted data' : 'NOT DONE - need to extract specific information'}
+- Final Answer: ${availableData.hasFinalAnswer ? 'COMPLETED' : 'NOT DONE - need to synthesize answer from extracted data'}
+
+AVAILABLE TOOLS:
+- ChunkSelector: Search and select relevant document chunks from the knowledge base (call FIRST when you have 0 chunks)
+- DataInspector: Analyze document structure and content (call after ChunkSelector finds documents)
+- PatternGenerator: Generate regex patterns for data extraction (call after DataInspector understands documents)
+- Extractor: Extract specific data using generated patterns (call after PatternGenerator creates patterns)
+- Synthesizer: Create final answer from extracted data (call when you have enough extracted data)
+
+INTELLIGENT DECISION FLOW:
+1. Have 0 chunks? → CALL ChunkSelector to find relevant documents in the knowledge base  
+2. Have chunks but no analysis? → CALL DataInspector to understand what documents contain
+3. Have analysis but no patterns? → CALL PatternGenerator to create extraction patterns
+4. Have patterns but no extracted data? → CALL Extractor to extract specific information
+5. Have extracted data but need more? → CALL ChunkSelector/DataInspector/PatternGenerator/Extractor again
+6. Have sufficient extracted data? → CALL Synthesizer to create final answer
+7. NEVER COMPLETE unless you have a final synthesized answer
+
+CRITICAL DECISION LOGIC:
+- ${context.ragResults.chunks.length === 0 ? 'You have NO chunks loaded. You MUST call ChunkSelector first to search the knowledge base.' : `You have ${context.ragResults.chunks.length} chunks but ${availableData.hasDocumentAnalysis ? 'they are analyzed' : 'they need DataInspector analysis first'}.`}
+
+What should happen next?
+
+Respond in this format:
+ACTION: [CALL_TOOL or COMPLETE]
+TOOL_NAME: [tool name if calling tool]
+REASONING: [why this decision makes sense based on current situation]
+NEXT_GOAL: [updated goal for next iteration]`;
+
+    try {
+      const response = await this.llm(masterPrompt);
+      
+      // 🐛 DEBUG: Log full LLM response to understand decision format
+      console.log(`🧠 Master LLM Decision Response (${response.length} chars):`, response.substring(0, 500) + (response.length > 500 ? '...' : ''));
+      
+      const decision = this.parseMasterLLMDecision(response);
+      console.log(`🎯 Parsed Decision:`, { action: decision.action, toolName: decision.toolName, reasoning: decision.reasoning?.substring(0, 100) });
+      
+      return decision;
+    } catch (error) {
+      console.error(`❌ Master LLM decision failed:`, error);
+      throw new Error(`Master LLM orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    console.log(`📊 Query type determined: ${queryType} for "${query}"`);
-    
-    // Let LLM determine domain from context
-    let domain = 'general';
-    if (lines.includes('gaming') || lines.includes('game')) {
-      domain = 'gaming';
-    } else if (lines.includes('technology') || lines.includes('programming')) {
-      domain = 'technology';
-    } else if (lines.includes('academic') || lines.includes('research')) {
-      domain = 'academic';
-    } else if (lines.includes('business') || lines.includes('professional')) {
-      domain = 'business';
-    }
-    
-    // Build requirements from LLM understanding
-    const requirements = [];
-    
-    // Extract number if mentioned (e.g., "top 3", "5 best")
-    const numberMatch = originalQuery.match(/\b(\d+)\s*(top|best|worst|first|last)/i) || 
-                       originalQuery.match(/\b(top|best|worst|first|last)\s*(\d+)/i);
-    if (numberMatch) {
-      const num = numberMatch[1] || numberMatch[2];
-      requirements.push(`Return exactly ${num} results`);
-    }
-    
-    if (queryType === 'ranking') {
-      requirements.push('Rank results by relevance and value');
-    }
-    
+  }
+  
+  /**
+   * 📊 Analyze current context state for Master LLM decisions
+   */
+  private analyzeCurrentState(context: ResearchContext): any {
     return {
-      intent: `User wants ${queryType} about ${domain}`,
-      domain: domain,
-      requirements: requirements.length > 0 ? requirements : [query],
-      queryType: queryType
+      hasDocumentAnalysis: !!context.documentAnalysis,
+      patternsGenerated: context.patterns?.length || 0,
+      chunksSelected: context.ragResults.chunks.length > 0,
+      dataExtracted: context.extractedData && context.extractedData.raw.length > 0,
+      hasFinalAnswer: !!context.synthesis.answer
     };
   }
   
   /**
-   * Summarize RAG results for better understanding
+   * 📝 Parse Master LLM decision response (robust for small models)
    */
-  private async summarizeRAGResults(context: ResearchContext): Promise<void> {
-    if (context.ragResults.chunks.length === 0) {
-      context.ragResults.summary = 'No relevant documents found';
-      return;
-    }
+  private parseMasterLLMDecision(response: string): any {
+    const lines = response.split('\n').map(line => line.trim());
+    let action = '';
+    let toolName = '';
+    let reasoning = '';
+    let nextGoal = '';
     
-    // Sample first few chunks
-    const samples = context.ragResults.chunks.slice(0, 3);
-    const prompt = `Summarize what kind of data is available in these search results:
-
-${samples.map((chunk, i) => `Chunk ${i + 1} (similarity: ${chunk.similarity || 'N/A'}):
-"${chunk.text.substring(0, 200)}..."
-Source: ${chunk.source}`).join('\n\n')}
-
-Total chunks available: ${context.ragResults.chunks.length}
-
-Provide a brief summary of:
-1. What type of content this is
-2. Data format and quality
-3. Relevance to the query: "${context.query}"`;
-
-    try {
-      context.ragResults.summary = await this.llm(prompt);
-      console.log(`📚 RAG summary: ${context.ragResults.summary.substring(0, 100)}...`);
-    } catch (error) {
-      console.error('❌ Failed to summarize RAG results:', error);
-      context.ragResults.summary = `${context.ragResults.chunks.length} documents found`;
-    }
-  }
-  
-  /**
-   * Plan which agents to use and in what order
-   */
-  private async planAgentPipeline(context: ResearchContext): Promise<string[]> {
-    // CLAUDE CODE STYLE: Intelligent pipeline with pattern-driven chunk filtering
-    // DataInspector → PatternGenerator → ChunkSelector → Extractor → Synthesizer
-    // CRITICAL: PatternGenerator MUST run before ChunkSelector to enable regex search!
-    const defaultPipeline = ['DataInspector', 'PatternGenerator', 'ChunkSelector', 'Extractor', 'Synthesizer'];
-    
-    console.log(`📋 Using Claude Code style intelligent pipeline:`, defaultPipeline);
-    console.log(`🧠 Pipeline flow: Document Analysis → Pattern Generation → Pattern-based Chunk Filtering → Targeted Extraction → Synthesis`);
-    
-    // Verify all agents are registered
-    const validPipeline = defaultPipeline.filter(name => {
-      if (!this.registry.has(name)) {
-        console.warn(`⚠️ Agent ${name} not registered, skipping`);
-        return false;
+    // Standard format parsing
+    for (const line of lines) {
+      if (line.startsWith('ACTION:')) {
+        action = line.replace('ACTION:', '').trim();
+      } else if (line.startsWith('TOOL_NAME:')) {
+        toolName = line.replace('TOOL_NAME:', '').trim();
+      } else if (line.startsWith('REASONING:')) {
+        reasoning = line.replace('REASONING:', '').trim();
+      } else if (line.startsWith('NEXT_GOAL:')) {
+        nextGoal = line.replace('NEXT_GOAL:', '').trim();
       }
-      return true;
-    });
-    
-    if (validPipeline.length === 0) {
-      console.error('❌ No valid agents in pipeline!');
-      throw new Error('No valid agents available');
     }
     
-    return validPipeline;
-  }
-  
-  /**
-   * Execute agents in the planned pipeline with detailed progress tracking
-   */
-  private async executeAgentPipeline(pipeline: string[], context: ResearchContext): Promise<void> {
-    // Clear previous tracking
-    this.progressTracker.clear();
-    
-    for (let i = 0; i < pipeline.length; i++) {
-      const agentName = pipeline[i];
-      const agent = this.registry.get(agentName);
+    // 🚨 FIX: Handle small model variations and direct tool name responses
+    if (!action && !toolName) {
+      // Try to find tool names directly in response
+      const toolNames = ['DataInspector', 'PatternGenerator', 'ChunkSelector', 'Extractor', 'Synthesizer'];
+      const upperToolNames = ['DATAINSPECTOR', 'PATTERNGENERATOR', 'CHUNKSELECTOR', 'EXTRACTOR', 'SYNTHESIZER'];
       
-      if (!agent) {
-        console.warn(`⚠️ Agent ${agentName} not found, skipping`);
-        continue;
-      }
-      
-      // Determine agent type from name
-      const agentType = this.getAgentType(agentName);
-      
-      console.log(`🤖 Executing agent: ${agentName} (${i + 1}/${pipeline.length})`);
-      context.metadata.agentsInvolved.push(agentName);
-      
-      // Start tracking this agent
-      this.progressTracker.startAgent(agentName, agentType, {
-        contextKeys: Object.keys(context),
-        pipelinePosition: i + 1,
-        totalAgents: pipeline.length
-      });
-      
-      try {
-        // Track initial progress
-        this.progressTracker.updateProgress(agentName, 10, 'Initializing');
-        
-        // Intercept agent processing to extract thinking
-        const startTime = Date.now();
-        
-        // Let agent process the context
-        await agent.process(context);
-        
-        const endTime = Date.now();
-        const processingTime = endTime - startTime;
-        
-        // Extract thinking from agent's reasoning if available
-        const reasoning = agent.explainReasoning();
-        console.log(`🔍 Agent ${agentName} reasoning length:`, reasoning?.length || 0);
-        
-        if (reasoning) {
-          const thinkingProcess = extractThinkingProcess(reasoning);
-          console.log(`🧠 Thinking extraction for ${agentName}:`, {
-            hasThinking: thinkingProcess.hasThinking,
-            thinkingLength: thinkingProcess.thinkingContent.length,
-            reasoningSnippet: reasoning.substring(0, 200)
-          });
-          
-          if (thinkingProcess.hasThinking) {
-            const thinkingData = {
-              hasThinking: true,
-              thinkingContent: thinkingProcess.thinkingContent,
-              finalOutput: thinkingProcess.finalOutput,
-              summary: thinkingProcess.thinkingContent.length > 100 
-                ? thinkingProcess.thinkingContent.substring(0, 100) + '...'
-                : thinkingProcess.thinkingContent,
-              insights: this.extractInsights(thinkingProcess.thinkingContent)
-            };
-            
-            console.log(`✅ Setting thinking for ${agentName}:`, {
-              thinkingContentLength: thinkingData.thinkingContent.length,
-              summaryLength: thinkingData.summary.length
-            });
-            
-            this.progressTracker.setThinking(agentName, thinkingData);
-          } else {
-            console.log(`❌ No thinking found for ${agentName}, reasoning starts with:`, reasoning.substring(0, 100));
-          }
-        } else {
-          console.log(`❌ No reasoning available for ${agentName}`);
+      for (const tool of toolNames) {
+        if (response.includes(tool)) {
+          action = 'CALL_TOOL';
+          toolName = tool;
+          break;
         }
-        
-        // Complete agent tracking
-        this.progressTracker.completeAgent(agentName, {
-          reasoning: reasoning,
-          contextUpdated: Object.keys(context)
-        }, {
-          llmCalls: 1, // Assuming 1 LLM call per agent for now
-          tokensUsed: reasoning?.length || 0,
-          responseTime: processingTime,
-          confidence: 0.8 // Default confidence
-        });
-        
-        // Broadcast completion
-        await this.messageBus.broadcast(
-          agentName,
-          MessageType.COMPLETE,
-          `${agentName} completed processing`,
-          reasoning,
-          { agentName },
-          context
-        );
-        
-      } catch (error) {
-        console.error(`❌ Agent ${agentName} failed:`, error);
-        
-        // Track error
-        this.progressTracker.errorAgent(
-          agentName, 
-          error instanceof Error ? error.message : String(error)
-        );
-        
-        // Broadcast error
-        await this.messageBus.broadcast(
-          agentName,
-          MessageType.ERROR,
-          `${agentName} encountered an error`,
-          error instanceof Error ? error.message : String(error),
-          { agentName, error },
-          context
-        );
+      }
+      
+      if (!toolName) {
+        for (const tool of upperToolNames) {
+          if (response.includes(tool)) {
+            action = 'CALL_TOOL';
+            toolName = this.normalizeToolName(tool);
+            break;
+          }
+        }
       }
     }
+    
+    // Handle case where LLM returns tool name as action
+    // 🚨 CRITICAL FIX: Never override COMPLETE decisions - prevents infinite loops
+    if (action && !toolName && action !== 'COMPLETE') {
+      const normalizedAction = this.normalizeToolName(action);
+      if (this.registry.get(normalizedAction)) {
+        toolName = normalizedAction;
+        action = 'CALL_TOOL';
+      }
+    }
+    
+    // Default reasoning if missing
+    if (!reasoning && toolName) {
+      reasoning = `Need to call ${toolName} to progress toward the goal`;
+    }
+    
+    return { action, toolName, reasoning, nextGoal };
   }
+  
+  /**
+   * 🔧 Execute tool call based on Master LLM decision
+   */
+  private async executeToolCall(toolName: string, context: ResearchContext): Promise<void> {
+    // 🚨 FIX: Normalize tool name case (LLM returns "EXTRACTOR", registry has "Extractor")
+    const normalizedToolName = this.normalizeToolName(toolName);
+    
+    const agent = this.registry.get(normalizedToolName);
+    if (!agent) {
+      console.error(`❌ Tool name normalization failed. Original: "${toolName}", Normalized: "${normalizedToolName}"`);
+      console.error(`📋 Available tools:`, this.registry.listAgents().map(a => a.name));
+      throw new Error(`Tool ${toolName} (normalized: ${normalizedToolName}) not found in registry. Available: ${this.registry.listAgents().map(a => a.name).join(', ')}`);
+    }
+    
+    console.log(`🔧 Executing tool: ${normalizedToolName} (original: ${toolName})`);
+    const startTime = Date.now();
+    
+    try {
+      // 🚨 FIX: Track agent progress for getAgentSubSteps() to work properly
+      this.progressTracker.startAgent(normalizedToolName, normalizedToolName, context);
+      
+      await agent.process(context);
+      
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log(`✅ Tool ${normalizedToolName} completed in ${duration}ms`);
+      
+      // 🚨 FIX: Mark agent as completed with result
+      this.progressTracker.completeAgent(normalizedToolName, { result: 'success' });
+      
+    } catch (error) {
+      console.error(`❌ Tool ${normalizedToolName} failed:`, error);
+      // 🚨 FIX: Mark agent as failed
+      this.progressTracker.errorAgent(normalizedToolName, error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+  
+  /**
+   * 🔧 Normalize tool names to handle case variations from LLM
+   */
+  private normalizeToolName(toolName: string): string {
+    // 🤖 Map of common LLM variations and hallucinations to correct tool names
+    const toolNameMap: { [key: string]: string } = {
+      // Correct uppercase versions
+      'DATAINSPECTOR': 'DataInspector',
+      'PATTERNGENERATOR': 'PatternGenerator', 
+      'CHUNKSELECTOR': 'ChunkSelector',
+      'EXTRACTOR': 'Extractor',
+      'SYNTHESIZER': 'Synthesizer',
+      'QUERYPLANNER': 'QueryPlanner',
+      // Lowercase versions
+      'datainspector': 'DataInspector',
+      'patterngenerator': 'PatternGenerator',
+      'chunkselector': 'ChunkSelector', 
+      'extractor': 'Extractor',
+      'synthesizer': 'Synthesizer',
+      'queryplanner': 'QueryPlanner',
+      // 🚨 SNAKE_CASE variations (LLM converts camelCase to snake_case)
+      'CHUNK_SELECTOR': 'ChunkSelector',
+      'DATA_INSPECTOR': 'DataInspector',
+      'PATTERN_GENERATOR': 'PatternGenerator',
+      'QUERY_PLANNER': 'QueryPlanner',
+      // 🚨 CALL_ prefixed variations (LLM generates "CALL TOOLNAME" format)
+      'CALL_CHUNK_SELECTOR': 'ChunkSelector',
+      'CALL_DATA_INSPECTOR': 'DataInspector',
+      'CALL_PATTERN_GENERATOR': 'PatternGenerator',
+      'CALL_EXTRACTOR': 'Extractor',
+      'CALL_SYNTHESIZER': 'Synthesizer',
+      'CALL_CHUNKSELECTOR': 'ChunkSelector',
+      'CALL_DATAINSPECTOR': 'DataInspector',
+      'CALL_PATTERNGENERATOR': 'PatternGenerator',
+      'CALL_QUERYPLANNER': 'QueryPlanner',
+      // 🚨 CALL with space variations (LLM generates "CALL ToolName" format)
+      'CALL ChunkSelector': 'ChunkSelector',
+      'CALL DataInspector': 'DataInspector',
+      'CALL PatternGenerator': 'PatternGenerator',
+      'CALL Extractor': 'Extractor',
+      'CALL Synthesizer': 'Synthesizer',
+      'CALL QueryPlanner': 'QueryPlanner',
+      // 🚨 LLM Hallucination fixes
+      'DATAINSPIRATOR': 'DataInspector', // Common LLM typo/hallucination
+      'DATAINSPECTION': 'DataInspector',
+      'INSPECTOR': 'DataInspector',
+      'GENERATOR': 'PatternGenerator',
+      'SELECTOR': 'ChunkSelector',
+      'EXTRACT': 'Extractor',
+      'SYNTHESIS': 'Synthesizer',
+      'SYNESTHESIZER': 'Synthesizer', // LLM misspelling "Synthesizer" as "SYNESTHESIZER"
+      'PLANNER': 'QueryPlanner'
+    };
+    
+    // Return mapped name or original if no mapping found
+    return toolNameMap[toolName] || toolName;
+  }
+  
+  // 🗑️ OLD METHODS: Replaced by Master LLM Orchestrator
+  // All rigid pipeline logic replaced with intelligent tool-call decisions
   
   /**
    * Get sub-steps created during agent pipeline execution
@@ -355,76 +364,8 @@ Provide a brief summary of:
       .filter(subStep => subStep !== null) as AgentSubStep[];
   }
   
-  /**
-   * Map agent names to types for UI display
-   */
-  private getAgentType(agentName: string): string {
-    const typeMap: { [key: string]: string } = {
-      'QueryPlanner': 'query_planner',
-      'DataInspector': 'data_inspector',
-      'ChunkSelector': 'chunk_selector', // NEW: Intelligent chunk filtering
-      'PatternGenerator': 'pattern_generator',
-      'Extractor': 'extraction',
-      'Synthesizer': 'synthesis'
-    };
-    
-    return typeMap[agentName] || 'extraction';
-  }
+  // 🗑️ REMOVED: Unused helper methods (getAgentType, extractInsights) 
+  // These were part of old pipeline logic that's now replaced by Master LLM Orchestrator
   
-  /**
-   * Extract key insights from thinking content
-   */
-  private extractInsights(thinking: string): string[] {
-    if (!thinking) return [];
-    
-    const insights: string[] = [];
-    const sentences = thinking.split(/[.!?]+/).filter(s => s.trim().length > 20);
-    
-    // Look for reasoning patterns
-    for (const sentence of sentences.slice(0, 5)) {
-      const trimmed = sentence.trim();
-      if (trimmed.match(/^(First|Second|Third|Then|So|Therefore|I need|Let me)/i)) {
-        insights.push(trimmed);
-      }
-    }
-    
-    return insights.slice(0, 3); // Limit to 3 key insights
-  }
-  
-  /**
-   * Parse JSON with error handling
-   */
-  private parseJSON(text: string): any {
-    // Try to extract JSON from the response
-    try {
-      // First try direct parsing
-      return JSON.parse(text);
-    } catch {
-      console.log('🔍 Direct parse failed, trying extraction...');
-      
-      // Clean up common issues
-      let cleanText = text.trim();
-      
-      // Remove <think> tags if present
-      if (cleanText.includes('<think>') && cleanText.includes('</think>')) {
-        const thinkEnd = cleanText.lastIndexOf('</think>');
-        if (thinkEnd !== -1) {
-          cleanText = cleanText.substring(thinkEnd + 8).trim();
-        }
-      }
-      
-      // Try to find JSON in the text
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[0]);
-        } catch (e) {
-          console.error('🔍 JSON extraction failed:', e);
-        }
-      }
-      
-      console.error('Failed to parse JSON from:', text.substring(0, 200));
-      throw new Error('Invalid JSON response from LLM');
-    }
-  }
+  // 🗑️ OLD METHODS: No longer needed with Master LLM Orchestrator
 }

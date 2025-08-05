@@ -107,15 +107,24 @@ Based on the query analysis and document samples, generate STRUCTURE patterns th
 
 CRITICAL: Do NOT use <think> tags. Respond DIRECTLY with patterns.
 
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+Your task: Analyze the actual document samples above and discover what DATA STRUCTURES exist that contain the information the user wants.
+
+Look at the actual text content and identify:
+1. How are numbers/measurements formatted in this specific document? 
+2. What words or symbols appear before/after the data values?
+3. What patterns surround the information the user is asking for?
+
+Based on your analysis of the ACTUAL document content, generate regex patterns that extract the data structures you discovered.
+
+Format as:
 REGEX_PATTERNS:
-- /\\d+\\.\\d+\\s*(?:hours?|hrs?|h\\b)/gi
-- /(?:rank|position|#)\\s*(\\d+)/gi
-- /\\b(\\d+)(?:st|nd|rd|th)\\s+(?:place|position)/gi
+- [your discovered pattern 1]
+- [your discovered pattern 2] 
+- [your discovered pattern 3]
 
-REASONING: Pattern 1 extracts timing values like "2.5 hours", Pattern 2 extracts rankings like "rank 1", Pattern 3 extracts ordinal positions like "1st place"
+REASONING: [Explain what specific data structures you found in the documents and why your patterns will extract them]
 
-Generate 3-5 ACTUAL WORKING REGEX patterns with proper flags that will extract the specific data values the user wants. Base patterns on the ACTUAL document structure you see in the samples.`;
+Generate 3-5 patterns based on what you actually see in the document samples, not assumptions about what might be there.`;
 
     try {
       const response = await this.llm(regexGenerationPrompt);
@@ -162,8 +171,9 @@ Generate 3-5 ACTUAL WORKING REGEX patterns with proper flags that will extract t
         };
         
       } else {
-        console.error('❌ LLM failed to generate valid regex patterns - NO FALLBACKS, system must work properly');
-        throw new Error('PatternGenerator failed: LLM must generate proper regex patterns, no fallbacks allowed');
+        // 🚨 NO FALLBACKS: LLM must generate proper patterns or fail
+        console.error('❌ LLM failed to generate valid regex patterns');
+        throw new Error('PatternGenerator failed: LLM must generate proper patterns. NO FALLBACKS allowed.');
       }
       
       // Set detailed reasoning for verbose output
@@ -219,32 +229,30 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
         // Extract patterns that start with - /pattern/flags
         const patternMatches = patternsText.match(/[-*]\s*\/([^\/]+)\/([gimuy]*)/g);
         if (patternMatches) {
+          console.log(`🔍 Found ${patternMatches.length} potential regex patterns in LLM response`);
           patternMatches.forEach(match => {
             const cleanMatch = match.replace(/^[-*]\s*/, ''); // Remove bullet point
             
-            // 🚨 FILTER OUT USELESS GENERIC PATTERNS
+            // 🚨 FILTER OUT USELESS GENERIC PATTERNS  
             const patternContent = cleanMatch.match(/\/([^\/]+)\//)?.[1] || '';
+            console.log(`🧪 Evaluating pattern: ${cleanMatch} (content: "${patternContent}")`);
+            
             if (this.isUselessPattern(patternContent)) {
               console.warn(`🚫 Filtering out useless pattern: ${cleanMatch}`);
               return;
             }
             
+            console.log(`✅ Keeping useful pattern: ${cleanMatch}`);
             patterns.push(cleanMatch);
           });
+        } else {
+          console.warn(`⚠️ No regex patterns found in REGEX_PATTERNS section: "${patternsText.substring(0, 200)}..."`);
         }
       }
       
-      // Fallback: Look for any regex patterns in the response
+      // NO FALLBACKS: If no patterns found, LLM failed
       if (patterns.length === 0) {
-        const anyRegexMatches = response.match(/\/[^\/\n]+\/[gimuy]*/g);
-        if (anyRegexMatches) {
-          // Filter out useless patterns here too
-          const usefulPatterns = anyRegexMatches.filter(pattern => {
-            const patternContent = pattern.match(/\/([^\/]+)\//)?.[1] || '';
-            return !this.isUselessPattern(patternContent);
-          });
-          patterns.push(...usefulPatterns.slice(0, 8)); // Limit to 8 patterns
-        }
+        console.warn(`⚠️ No regex patterns found in REGEX_PATTERNS section`);
       }
       
       console.log(`🔍 Parsed ${patterns.length} useful regex patterns from LLM response (filtered out generic ones)`);
@@ -258,19 +266,34 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
   
   /**
    * Detect and filter out useless generic patterns like /pattern1/, /pattern2/, etc.
+   * 🚨 FIX: Less aggressive filtering to allow useful patterns
    */
   private isUselessPattern(patternContent: string): boolean {
     const uselessPatterns = [
-      /pattern\d+/i,           // /pattern1/, /pattern2/, etc.
-      /^pattern$/i,            // /pattern/
-      /^\\w\+$/,              // /\w+/ - too generic
-      /^[a-z]+$/i,            // /blog/, /post/, etc. - just keywords
-      /tyler|blog|speedrun/i  // Hardcoded keyword patterns (we want structure patterns)
+      /^pattern\d*$/i,         // /pattern/, /pattern1/, /pattern2/, etc. (but not patterns containing other text)
+      /^\\w\+$/,              // /\w+/ - too generic (single word capture)
+      /^[a-z]{1,3}$/i,        // Very short single words like /a/, /is/, /the/ - too generic
+      /^\\d\+$/,              // /\d+/ - too generic (just numbers)
+      /^\.+$/,                // Just dots
+      /^\*$/,                 // Just asterisk
     ];
+    
+    // Only filter if it matches these exact useless patterns
+    // Allow patterns that contain structure indicators
+    const hasStructure = /[\\()\[\]{}|+*?.,\-:]/;  // Contains regex structure characters
+    const hasLength = patternContent.length > 5;    // Reasonable length
+    
+    // If it has structure or reasonable length, likely useful
+    if (hasStructure.test(patternContent) || hasLength) {
+      return false;
+    }
     
     return uselessPatterns.some(useless => useless.test(patternContent));
   }
   
+  // 🚨 REMOVED: generateIntelligentFallbackPatterns - NO FALLBACKS ALLOWED
+  // User feedback: "you also added stupid fallbacks to Patterngen"
+  // System must use pure LLM intelligence or fail gracefully
 
 
 }
