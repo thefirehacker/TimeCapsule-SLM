@@ -114,18 +114,24 @@ export function OllamaConnectionModal({
       setTestResult(result);
 
       if (result.success && result.models.length > 0) {
-        // Auto-select saved model if available, otherwise first model
-        const modelToSelect =
+        // Auto-select saved model if available, otherwise prioritize Gemma models
+        let modelToSelect =
           connectionState.selectedModel &&
           result.models.includes(connectionState.selectedModel)
             ? connectionState.selectedModel
-            : result.models[0];
+            : null;
+
+        if (!modelToSelect) {
+          // Since models are already sorted with Gemma first, just take the first one
+          modelToSelect = result.models[0];
+        }
+
         setSelectedModel(modelToSelect);
       } else if (result.success && result.models.length === 0) {
         setTestResult({
           ...result,
           error:
-            "No models found. Install models using: ollama pull <model-name>",
+            "No models found. Install a model using: ollama pull llama2 or ollama pull mistral. Then restart the connection test.",
         });
       }
     } catch (error) {
@@ -254,6 +260,10 @@ export function OllamaConnectionModal({
                         <Label>
                           Available Models ({testResult.models.length})
                         </Label>
+                        <div className="text-xs text-muted-foreground mb-2">
+                          💡 Our platform is optimized for Gemma models, but
+                          feel free to try others.
+                        </div>
                         <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 bg-muted/50 rounded">
                           {testResult.models.map((model) => (
                             <Badge
@@ -270,9 +280,13 @@ export function OllamaConnectionModal({
                       <Alert>
                         <AlertCircle className="w-4 h-4" />
                         <AlertDescription>
-                          No models found. Install models using:{" "}
+                          No models found. Install a model using:{" "}
                           <code className="bg-muted px-1 rounded">
                             ollama pull llama2
+                          </code>{" "}
+                          or{" "}
+                          <code className="bg-muted px-1 rounded">
+                            ollama pull mistral
                           </code>
                         </AlertDescription>
                       </Alert>
@@ -290,13 +304,28 @@ export function OllamaConnectionModal({
                     <div className="text-xs text-muted-foreground space-y-1 bg-muted/50 p-3 rounded">
                       <p className="font-medium">Troubleshooting:</p>
                       <p>
-                        • Make sure Ollama is running: <code>ollama serve</code>
+                        • Start Ollama server: <code>ollama serve</code>
                       </p>
-                      <p>• Check if the URL is correct</p>
-                      <p>• Verify firewall settings if using a remote server</p>
                       <p>
-                        • Try installing a model:{" "}
-                        <code>ollama pull llama2</code>
+                        • Configure origins (if needed):{" "}
+                        <code>
+                          OLLAMA_HOST=0.0.0.0 OLLAMA_ORIGINS="*" ollama serve
+                        </code>
+                      </p>
+                      <p>
+                        • Install a model: <code>ollama pull llama2</code>
+                      </p>
+                      <p>
+                        • Check Ollama status: <code>ollama list</code>
+                      </p>
+                      <p>
+                        • Check if Ollama is running: <code>ollama ps</code>
+                      </p>
+                      <p>• Verify the URL is correct and accessible</p>
+                      <p>• Check firewall settings if using a remote server</p>
+                      <p>
+                        • Restart Ollama:{" "}
+                        <code>pkill ollama && ollama serve</code>
                       </p>
                     </div>
                   </div>
@@ -318,14 +347,22 @@ export function OllamaConnectionModal({
                   <SelectValue placeholder="Choose a model..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {testResult.models.map((model) => (
-                    <SelectItem key={model} value={model}>
-                      <div className="flex items-center gap-2">
-                        <Server className="w-3 h-3" />
-                        <span>{model}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {testResult.models.map((model, index) => {
+                    const isGemma = model.toLowerCase().includes("gemma");
+                    return (
+                      <SelectItem key={model} value={model}>
+                        <div className="flex items-center gap-2">
+                          <Server className="w-3 h-3" />
+                          <span>{model}</span>
+                          {isGemma && (
+                            <Badge variant="secondary" className="text-xs ml-1">
+                              Optimized
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
