@@ -1,8 +1,8 @@
-<reasoning>
-The best project by Rutwik is the **serverless backend optimized with AWS Lambda, Dynamo DB, and S3**, as it showcases scalability and cost efficiency, aligning with the resume's emphasis on resource optimization. Other relevant projects include the **e-commerce platform** (showing technical expertise), **secure authentication system**, and **interactive quizzes** (highlighting user engagement). These projects collectively demonstrate Rutwik's ability to tackle scalable and innovative projects.
-</reasoning>
+# Final output 
 
-# agent
+So the key points are his name, contact info, experience in AI, technologies, projects. I should list these as bullet points, ensuring all details are included. Make sure there are no errors in the data. Check for any missing sections. Once structured, present it clearly.
+
+# ai agent 
 🤖 Multi-Agent Process Details
 ════════════════════════════════════════
 
@@ -10,39 +10,50 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
    Type: DataInspector
    Status: completed
    Progress: 100%
-   Duration: 39988ms
+   Duration: 41613ms
    
    📤 Full Output:
    {
      "documentAnalysis": {
        "documentType": "Multi-Document Analysis",
        "structure": [
-         "Resume"
+         "RESUME"
        ],
        "contentAreas": [
          "<think>\nOkay",
-         "let me start by analyzing the given document type and sample content. The user mentioned it's a resume",
-         "so the structure should follow typical resume sections. \n\nFirst",
-         "I need to identify the main content areas. Looking at the sample content",
-         "there's Rutwik's name",
-         "contact information",
-         "and his experience. Then there's his skills listed under \"Experience\"",
-         "which includes a Full Stack AI Developer role with specific dates. \n\nI should check if there are other sections. The sample mentions technologies like Next.js",
-         "Sanity CMS",
-         "and Mongo DB. Also",
-         "there's a part about using these technologies for product listings and order flow. So that's another content area. \n\nWait",
-         "the user wants specific types of information. Let me make sure I'm not missing anything. The resume sections usually include the person's name",
-         "contact details",
-         "location",
-         "and then the professional experience. The skills and technologies also fall under experience or skills. \n\nSo putting it all together: Name",
+         "let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a resume",
+         "so I need to look at the sample content to identify the sections present.\n\nFirst",
+         "the sample content starts with Rutwik Shinde",
+         "his name",
          "contact info",
-         "location",
-         "experience (skills and technologies)",
-         "and specific projects or responsibilities. The sample content covers all these aspects. I need to list them as a comma-separated list without any assumptions.\n</think>\n\nName",
-         "Contact Information",
-         "Location",
-         "Professional Experience (Skills and Technologies)",
-         "Projects and Responsibilities."
+         "and LinkedIn and GitHub links. Then there's a section about his experience as a Full Stack AI Developer",
+         "Ai Edx (Remote) from 01/2024 to present. \n\nLooking at the content",
+         "there's a list of projects or experiences",
+         "mentioning technologies like Next.js",
+         "Sanity CMS",
+         "and Mongo DB. They also talk about using these technologies for 10+ shops and online brands. Then there's a section about product listings",
+         "category filtering",
+         "and detailed product pages with SEO. Plus",
+         "they built an end-to-end order flow with cart",
+         "address input",
+         "checkout",
+         "and payment systems.\n\nSo putting this all together",
+         "the main content areas would be his name",
+         "contact details",
+         "experience in Full Stack AI",
+         "technologies used",
+         "number of shops or brands",
+         "product features",
+         "and order flow systems. Each of these should be listed as specific sections. I need to make sure there are no assumptions and only describe what's actually there.\n</think>\n\n- Name: Rutwik Shinde  \n- Contact Information: LinkedIn (in/rutwik187)",
+         "GitHub (github.com/rutwik187)  \n- Experience: Full Stack AI Developer",
+         "Ai Edx (Remote) from 01/2024 – Present  \n- Technologies Used: Next.js",
+         "Sanity CMS",
+         "Mongo DB  \n- Projects/Experience: Built frontend architecture",
+         "managed storefronts for 10+ brands",
+         "developed product listings",
+         "category filters",
+         "SEO enhancements",
+         "and built end-to-end order flow systems."
        ],
        "queryIntent": "Extract information from 1 relevant documents",
        "extractionStrategy": "Extract from each relevant document separately with proper attribution",
@@ -51,53 +62,52 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
          {
            "documentId": "doc_1754292542574_sgxyitqvj",
            "documentName": "doc_1754292542574_sgxyitqvj",
-           "documentType": "Resume",
+           "documentType": "RESUME",
            "primaryEntity": "Rutwik Shinde",
            "structure": [
              "resume sections"
            ],
            "contentAreas": [
              "<think>\nOkay",
-             "let me start by analyzing the given document type and sample content. The user mentioned it's a resume",
-             "so the structure should follow typical resume sections. \n\nFirst",
-             "I need to identify the main content areas. Looking at the sample content",
-             "there's Rutwik's name",
-             "contact information",
-             "and his experience. Then there's his skills listed under \"Experience\"",
-             "which includes a Full Stack AI Developer role with specific dates. \n\nI should check if there are other sections. The sample mentions technologies like Next.js",
-             "Sanity CMS",
-             "and Mongo DB. Also",
-             "there's a part about using these technologies for product listings and order flow. So that's another content area. \n\nWait",
-             "the user wants specific types of information. Let me make sure I'm not missing anything. The resume sections usually include the person's name",
-             "contact details",
-             "location",
-             "and then the professional experience. The skills and technologies also fall under experience or skills. \n\nSo putting it all together: Name",
+             "let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a resume",
+             "so I need to look at the sample content to identify the sections present.\n\nFirst",
+             "the sample content starts with Rutwik Shinde",
+             "his name",
              "contact info",
-             "location",
-             "experience (skills and technologies)",
-             "and specific projects or responsibilities. The sample content covers all these aspects. I need to list them as a comma-separated list without any assumptions.\n</think>\n\nName",
-             "Contact Information",
-             "Location",
-             "Professional Experience (Skills and Technologies)",
-             "Projects and Responsibilities."
+             "and LinkedIn and GitHub links. Then there's a section about his experience as a Full Stack AI Developer",
+             "Ai Edx (Remote) from 01/2024 to present. \n\nLooking at the content",
+             "there's a list of projects or experiences",
+             "mentioning technologies like Next.js",
+             "Sanity CMS",
+             "and Mongo DB. They also talk about using these technologies for 10+ shops and online brands. Then there's a section about product listings",
+             "category filtering",
+             "and detailed product pages with SEO. Plus",
+             "they built an end-to-end order flow with cart",
+             "address input",
+             "checkout",
+             "and payment systems.\n\nSo putting this all together",
+             "the main content areas would be his name",
+             "contact details",
+             "experience in Full Stack AI",
+             "technologies used",
+             "number of shops or brands",
+             "product features",
+             "and order flow systems. Each of these should be listed as specific sections. I need to make sure there are no assumptions and only describe what's actually there.\n</think>\n\n- Name: Rutwik Shinde  \n- Contact Information: LinkedIn (in/rutwik187)",
+             "GitHub (github.com/rutwik187)  \n- Experience: Full Stack AI Developer",
+             "Ai Edx (Remote) from 01/2024 – Present  \n- Technologies Used: Next.js",
+             "Sanity CMS",
+             "Mongo DB  \n- Projects/Experience: Built frontend architecture",
+             "managed storefronts for 10+ brands",
+             "developed product listings",
+             "category filters",
+             "SEO enhancements",
+             "and built end-to-end order flow systems."
            ],
            "keyEntities": [
              {
                "name": "Rutwik Shinde",
-               "type": "Person",
-               "context": "Full Stack AI Developer | Ai Edx (Remote)",
-               "isOwner": false
-             },
-             {
-               "name": "Ai Edx",
-               "type": "Company",
-               "context": "Full Stack AI Developer",
-               "isOwner": false
-             },
-             {
-               "name": "Order Flow System",
-               "type": "Project",
-               "context": "end-to-end order flow",
+               "type": "Software Developer",
+               "context": "Full Stack AI Developer, Ai Edx (Remote) 01/2024 – Present • Built and maintained the complete frontend architecture, iterating rapidly based on user and client",
                "isOwner": false
              }
            ],
@@ -118,7 +128,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
    Type: PlanningAgent
    Status: completed
    Progress: 100%
-   Duration: 10231ms
+   Duration: 12512ms
    
    📤 Full Output:
    {
@@ -132,75 +142,86 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
    Type: PatternGenerator
    Status: completed
    Progress: 100%
-   Duration: 15556ms
+   Duration: 9673ms
    
    📤 Full Output:
    {
      "patterns": [
        {
-         "description": "Resume extraction pattern for Rutwik Shinde",
+         "description": "RESUME extraction pattern for Rutwik Shinde",
          "examples": [
            "<think>\nOkay",
-           "let me start by analyzing the given document type and sample content. The user mentioned it's a resume",
-           "so the structure should follow typical resume sections. \n\nFirst",
-           "I need to identify the main content areas. Looking at the sample content",
-           "there's Rutwik's name",
-           "contact information",
-           "and his experience. Then there's his skills listed under \"Experience\"",
-           "which includes a Full Stack AI Developer role with specific dates. \n\nI should check if there are other sections. The sample mentions technologies like Next.js",
-           "Sanity CMS",
-           "and Mongo DB. Also",
-           "there's a part about using these technologies for product listings and order flow. So that's another content area. \n\nWait",
-           "the user wants specific types of information. Let me make sure I'm not missing anything. The resume sections usually include the person's name",
-           "contact details",
-           "location",
-           "and then the professional experience. The skills and technologies also fall under experience or skills. \n\nSo putting it all together: Name",
+           "let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a resume",
+           "so I need to look at the sample content to identify the sections present.\n\nFirst",
+           "the sample content starts with Rutwik Shinde",
+           "his name",
            "contact info",
-           "location",
-           "experience (skills and technologies)",
-           "and specific projects or responsibilities. The sample content covers all these aspects. I need to list them as a comma-separated list without any assumptions.\n</think>\n\nName",
-           "Contact Information",
-           "Location",
-           "Professional Experience (Skills and Technologies)",
-           "Projects and Responsibilities."
+           "and LinkedIn and GitHub links. Then there's a section about his experience as a Full Stack AI Developer",
+           "Ai Edx (Remote) from 01/2024 to present. \n\nLooking at the content",
+           "there's a list of projects or experiences",
+           "mentioning technologies like Next.js",
+           "Sanity CMS",
+           "and Mongo DB. They also talk about using these technologies for 10+ shops and online brands. Then there's a section about product listings",
+           "category filtering",
+           "and detailed product pages with SEO. Plus",
+           "they built an end-to-end order flow with cart",
+           "address input",
+           "checkout",
+           "and payment systems.\n\nSo putting this all together",
+           "the main content areas would be his name",
+           "contact details",
+           "experience in Full Stack AI",
+           "technologies used",
+           "number of shops or brands",
+           "product features",
+           "and order flow systems. Each of these should be listed as specific sections. I need to make sure there are no assumptions and only describe what's actually there.\n</think>\n\n- Name: Rutwik Shinde  \n- Contact Information: LinkedIn (in/rutwik187)",
+           "GitHub (github.com/rutwik187)  \n- Experience: Full Stack AI Developer",
+           "Ai Edx (Remote) from 01/2024 – Present  \n- Technologies Used: Next.js",
+           "Sanity CMS",
+           "Mongo DB  \n- Projects/Experience: Built frontend architecture",
+           "managed storefronts for 10+ brands",
+           "developed product listings",
+           "category filters",
+           "SEO enhancements",
+           "and built end-to-end order flow systems."
          ],
-         "extractionStrategy": "Extract <think>\nOkay, let me start by analyzing the given document type and sample content. The user mentioned it's a resume, so the structure should follow typical resume sections. \n\nFirst, I need to identify the main content areas. Looking at the sample content, there's Rutwik's name, contact information, and his experience. Then there's his skills listed under \"Experience\", which includes a Full Stack AI Developer role with specific dates. \n\nI should check if there are other sections. The sample mentions technologies like Next.js, Sanity CMS, and Mongo DB. Also, there's a part about using these technologies for product listings and order flow. So that's another content area. \n\nWait, the user wants specific types of information. Let me make sure I'm not missing anything. The resume sections usually include the person's name, contact details, location, and then the professional experience. The skills and technologies also fall under experience or skills. \n\nSo putting it all together: Name, contact info, location, experience (skills and technologies), and specific projects or responsibilities. The sample content covers all these aspects. I need to list them as a comma-separated list without any assumptions.\n</think>\n\nName, Contact Information, Location, Professional Experience (Skills and Technologies), Projects and Responsibilities. from doc_1754292542574_sgxyitqvj",
+         "extractionStrategy": "Extract <think>\nOkay, let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a resume, so I need to look at the sample content to identify the sections present.\n\nFirst, the sample content starts with Rutwik Shinde, his name, contact info, and LinkedIn and GitHub links. Then there's a section about his experience as a Full Stack AI Developer, Ai Edx (Remote) from 01/2024 to present. \n\nLooking at the content, there's a list of projects or experiences, mentioning technologies like Next.js, Sanity CMS, and Mongo DB. They also talk about using these technologies for 10+ shops and online brands. Then there's a section about product listings, category filtering, and detailed product pages with SEO. Plus, they built an end-to-end order flow with cart, address input, checkout, and payment systems.\n\nSo putting this all together, the main content areas would be his name, contact details, experience in Full Stack AI, technologies used, number of shops or brands, product features, and order flow systems. Each of these should be listed as specific sections. I need to make sure there are no assumptions and only describe what's actually there.\n</think>\n\n- Name: Rutwik Shinde  \n- Contact Information: LinkedIn (in/rutwik187), GitHub (github.com/rutwik187)  \n- Experience: Full Stack AI Developer, Ai Edx (Remote) from 01/2024 – Present  \n- Technologies Used: Next.js, Sanity CMS, Mongo DB  \n- Projects/Experience: Built frontend architecture, managed storefronts for 10+ brands, developed product listings, category filters, SEO enhancements, and built end-to-end order flow systems. from doc_1754292542574_sgxyitqvj",
          "confidence": 0.9
        },
        {
          "description": "LLM-generated regex pattern 1",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /•\\s*([^\\n•]+)/g",
-         "confidence": 0.9,
-         "regexPattern": "/•\\s*([^\\n•]+)/g"
-       },
-       {
-         "description": "LLM-generated regex pattern 2",
          "examples": [],
          "extractionStrategy": "Direct regex search using: /Projects?:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]|$)/gi",
          "confidence": 0.9,
          "regexPattern": "/Projects?:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]|$)/gi"
        },
        {
+         "description": "LLM-generated regex pattern 2",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /•\\s*([^\\n•]+)/g",
+         "confidence": 0.9,
+         "regexPattern": "/•\\s*([^\\n•]+)/g"
+       },
+       {
          "description": "LLM-generated regex pattern 3",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /216k tokens/second/g",
+         "extractionStrategy": "Direct regex search using: /(\\d+)(\\.\\d+)/g",
          "confidence": 0.9,
-         "regexPattern": "/216k tokens/second/g"
+         "regexPattern": "/(\\d+)(\\.\\d+)/g"
        }
      ],
      "patternCount": 4,
      "extractionStrategies": {
        "generatedPatterns": [
-         "/•\\s*([^\\n•]+)/g",
          "/Projects?:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]|$)/gi",
-         "/216k tokens/second/g"
+         "/•\\s*([^\\n•]+)/g",
+         "/(\\d+)(\\.\\d+)/g"
        ],
        "generationMethod": "llm_dynamic_regex",
        "basedOnDocumentAnalysis": false,
-       "timestamp": 1754487544828,
+       "timestamp": 1754489531079,
        "agentSource": "PatternGenerator",
-       "llmResponse": "<think>\nOkay, let's tackle this query. The user wants to find the best project by Rutwik. First, I need to look at the document content provided.\n\nLooking at sample 1, Rutwik Shinde has a project mentioned: \"Full Stack AI Developer, Ai Edx (Remote) 01/2024 – Present •Built and maintained the complete frontend architecture...\" Here, the data value is \"Full Stack AI Developer, Ai Edx (Remote)\". So the pattern would be something like \"Full Stack AI Developer, Ai Edx (Remote)\".\n\nSample 2 talks about projects like \"Next.js, Sanity CMS, and Mongo DB\" and \"end-to-end order flow\" with specific technologies. The data here is \"Next.js, Sanity CMS, and Mongo DB\". So the pattern would be \"Next.js, Sanity CMS, and Mongo DB\".\n\nSample 3 mentions a project about training GPT-2 with GPUs, but there's no number here. Sample 4 mentions a performance metric of 216k tokens/second. So the pattern would be \"216k tokens/second\".\n\nSample 2 also has \"built end-to-end order flow\" which is a project. So the pattern is \"end-to-end order flow\".\n\nWait, but the user asked specifically for the best project by Rutwik. So looking at all samples, the data values are projects related to his work, technologies he uses, and performance metrics. The patterns should capture these elements.\n\nSo, the regex patterns would be for each of these data points. Each pattern should match the specific structure in the text. For example, using bullet points for projects, technologies, and performance metrics. Since the user wants the best, maybe prioritize the highest-ranking projects, but the actual content shows different project details. The key is to capture the specific values and structures found in the text.\n\nI need to make sure each pattern starts with a hyphen and ends with the flags, and that they're based on the actual content. Let me check again. Each sample has a specific data value, so the regex should capture those. So the final answer should list three patterns based on the data found in the document.\n</think>\n\nREGEX_PATTERNS:\n- /•\\s*([^\\n•]+)/g  \n- /Projects?:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]|$)/gi  \n- /216k tokens/second/g  \n\nRATIONING:  \n- The first pattern captures project descriptions with bullet points, extracting values like \"Full Stack AI Developer, Ai Edx (Remote)\" or \"Next.js, Sanity CMS, and Mongo DB\".  \n- The second pattern matches project lists with sections, extracting \"end-to-end order flow\" as a structure.  \n- The third pattern highlights a specific performance metric \"216k tokens/second\" from sample 4.  \n\nEach pattern matches the ACTUAL document structure, extracting measurable data values without assumptions."
+       "llmResponse": "<think>\nOkay, let's see. The user wants to find patterns in the document content related to Rutwik's projects, specifically the best one. First, I need to look at the three samples provided.\n\nStarting with Sample 1: Rutwik Shinde has a Software Developer role with GitHub links and some project experience. The key here is the bullet points. They mention built and maintained the frontend architecture, which is a project. So maybe a bullet point pattern for projects. Also, numbers like 9370947507 and GitHub links are there, so maybe include those in the pattern.\n\nSample 2 talks about using Next.js, Sanity, and MongoDB. They mention 10+ shops and online brands, which shows a project's impact. The data here includes numbers and categories, so maybe a pattern like \"Projects: [Category: Number]\".\n\nSample 3 is about a speedrun project, mentioning the GPU and validation loss. The pattern here is about performance metrics, so maybe a bullet point with numbers like 2.28 and 3.31 for training steps.\n\nSample 4 has a mention of 216k tokens and a time frame. The pattern here could be about time and performance, so maybe a table with time and tokens.\n\nWait, the user's query is about the best project, so I need to focus on that. Each pattern should match the actual structure in the document. Let me check again. For each sample, the data values are numbers or measurements, and the structure is either bullet points or tables. So the regex patterns should capture those elements. Let me compile the patterns accordingly.\n</think>\n\nREGEX_PATTERNS:\n- /Projects?:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]|$)/gi\n- /•\\s*([^\\n•]+)/g\n- /(\\d+)(\\.\\d+)/g\n\nRATIONING:  \n- In Sample 1, the project description includes bullet points like \"• Built...\", so the pattern captures technical achievements.  \n- In Sample 2, numbers like 10+ and MongoDB are structured with word boundaries, matching the data structure.  \n- In Sample 3, performance metrics (tokens and validation loss) are presented with numerical values.  \n- In Sample 4, time and token metrics are organized in a table format.  \n\nEach pattern matches the actual data structure in the document, extracting measurable values for the user's query."
      },
      "reasoning": "Pattern generation completed"
    }
@@ -211,7 +232,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
    Type: Extractor
    Status: completed
    Progress: 100%
-   Duration: 4ms
+   Duration: 2ms
    
    📤 Full Output:
    {
@@ -228,7 +249,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Designed a serverless backend with AWS Lambda, Dynamo DB, and S3, optimizing scalability and cost efficiency. Full Stack Developer Intern, Priyam IT Services (Pune) 06/2022 – 01/2024 "
            },
            "originalContent": "Designed a serverless backend with AWS Lambda, Dynamo DB, and S3, optimizing scalability and cost efficiency. Full Stack Developer Intern, Priyam IT Services (Pune) 06/2022 – 01/2024"
@@ -244,7 +265,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Created technical documentation and optimized legacy codebases. Education B. Tech in Information Technology, JSPM RSCOE (CGPA: 8.7+) 06/2020 – 06/2024 Key Achievements "
            },
            "originalContent": "Created technical documentation and optimized legacy codebases. Education B. Tech in Information Technology, JSPM RSCOE (CGPA: 8.7+) 06/2020 – 06/2024 Key Achievements"
@@ -260,7 +281,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Qualified for Smart India Hackathon Nationals and contributed to open source during Hacktoberfest. Projects E-commerce Platform for Small Businesses "
            },
            "originalContent": "Qualified for Smart India Hackathon Nationals and contributed to open source during Hacktoberfest. Projects E-commerce Platform for Small Businesses"
@@ -276,7 +297,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Developed a secure authentication system with role-based access control (RBAC) and a user management dash- board for seamless admin control. "
            },
            "originalContent": "Developed a secure authentication system with role-based access control (RBAC) and a user management dash- board for seamless admin control."
@@ -292,7 +313,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Added interactive quizzes, progress-based summaries, and visual roadmaps for enhanced learning experience. Alumni Portal for College "
            },
            "originalContent": "Added interactive quizzes, progress-based summaries, and visual roadmaps for enhanced learning experience. Alumni Portal for College"
@@ -308,7 +329,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Built provider dashboard to manage bookings, availability, and service details. ----------------Page (0) Break----------------"
            },
            "originalContent": "Built provider dashboard to manage bookings, availability, and service details. ----------------Page (0) Break----------------"
@@ -324,7 +345,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Used React Query for efficient data fetching and caching; currently used by 5,000+ students. On-Demand Services Platform "
            },
            "originalContent": "Used React Query for efficient data fetching and caching; currently used by 5,000+ students. On-Demand Services Platform"
@@ -340,7 +361,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Leveraged Open AI for course content, You Tube API for curated video lectures, and DALL·E for visual thumbnails. "
            },
            "originalContent": "Leveraged Open AI for course content, You Tube API for curated video lectures, and DALL·E for visual thumbnails."
@@ -356,7 +377,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Built and maintained the complete frontend architecture, iterating rapidly based on user and client feedback. "
            },
            "originalContent": "Built and maintained the complete frontend architecture, iterating rapidly based on user and client feedback."
@@ -372,7 +393,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Integrated real-time order notifications and email confirmations for customers. Personalized Course Generator "
            },
            "originalContent": "Integrated real-time order notifications and email confirmations for customers. Personalized Course Generator"
@@ -388,7 +409,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Developed dynamic product listings, category filtering, and detailed product pages with SEO enhancements. "
            },
            "originalContent": "Developed dynamic product listings, category filtering, and detailed product pages with SEO enhancements."
@@ -404,7 +425,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Integrated Git Hub API, Razorpay payment gateway, and Eleven Labs API, enhancing platform functionality. "
            },
            "originalContent": "Integrated Git Hub API, Razorpay payment gateway, and Eleven Labs API, enhancing platform functionality."
@@ -420,7 +441,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Built admin dashboard for managing inventory, orders, users, stock status, and invoice generation. "
            },
            "originalContent": "Built admin dashboard for managing inventory, orders, users, stock status, and invoice generation."
@@ -436,7 +457,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Built end-to-end order flow: cart, address input, checkout, payment, and order status tracking. "
            },
            "originalContent": "Built end-to-end order flow: cart, address input, checkout, payment, and order status tracking."
@@ -452,7 +473,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Engineered real-time features using Web Sockets for live collaboration and instant updates. "
            },
            "originalContent": "Engineered real-time features using Web Sockets for live collaboration and instant updates."
@@ -468,7 +489,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Developed geolocation-based service provider discovery and responsive booking interfaces. "
            },
            "originalContent": "Developed geolocation-based service provider discovery and responsive booking interfaces."
@@ -484,7 +505,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Designed user account section with order history, address book, and profile management. "
            },
            "originalContent": "Designed user account section with order history, address book, and profile management."
@@ -500,7 +521,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Built features like student registration, profile management, and real-time messaging. "
            },
            "originalContent": "Built features like student registration, profile management, and real-time messaging."
@@ -516,7 +537,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Scalable and responsive web application built with Next.js, Sanity CMS, and Mongo DB. "
            },
            "originalContent": "Scalable and responsive web application built with Next.js, Sanity CMS, and Mongo DB."
@@ -532,7 +553,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Integrated Stripe and Razorpay for secure transactions and coupon-based discounts. "
            },
            "originalContent": "Integrated Stripe and Razorpay for secure transactions and coupon-based discounts."
@@ -548,7 +569,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Developed e-commerce platforms, inventory systems, and business landing pages. "
            },
            "originalContent": "Developed e-commerce platforms, inventory systems, and business landing pages."
@@ -564,7 +585,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•MERN stack application enabling users to book local professional services. "
            },
            "originalContent": "MERN stack application enabling users to book local professional services."
@@ -580,7 +601,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Used by 10+ shops and online brands to manage their online storefronts. "
            },
            "originalContent": "Used by 10+ shops and online brands to manage their online storefronts."
@@ -596,7 +617,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•AI-powered tool for generating customized educational course journeys. "
            },
            "originalContent": "AI-powered tool for generating customized educational course journeys."
@@ -612,7 +633,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Engineered scalable systems with Next.js, Postgre SQL, and Node.js. "
            },
            "originalContent": "Engineered scalable systems with Next.js, Postgre SQL, and Node.js."
@@ -628,7 +649,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Authored and implemented AI research papers published by Springer. "
            },
            "originalContent": "Authored and implemented AI research papers published by Springer."
@@ -644,7 +665,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•React-based portal for connecting alumni and students. "
            },
            "originalContent": "React-based portal for connecting alumni and students."
@@ -660,7 +681,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•1st place in nationwide Waving the Web Hackathon. "
            },
            "originalContent": "1st place in nationwide Waving the Web Hackathon."
@@ -676,7 +697,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Integrated payment gateways and Sanity CMS. "
            },
            "originalContent": "Integrated payment gateways and Sanity CMS."
@@ -692,26 +713,10 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/•\\s*([^\\n•]+)/g",
-             "patternDescription": "LLM-generated regex pattern 1",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "•Integrated Stripe and Razorpay for"
            },
            "originalContent": "Integrated Stripe and Razorpay for"
-         },
-         {
-           "content": "216k tokens/second",
-           "value": "216k tokens/second",
-           "unit": "",
-           "context": "216k tokens/second",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754311559806_f7eqwqkcn_1754311572503_9_j9ramt",
-           "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/216k tokens/second/g",
-             "patternDescription": "LLM-generated regex pattern 3",
-             "fullMatch": "216k tokens/second"
-           },
-           "originalContent": "216k tokens/second"
          }
        ],
        "structured": [
@@ -728,7 +733,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Designed a serverless backend with AWS Lambda, Dynamo DB, and S3, optimizing scalability and cost efficiency. Full Stack Developer Intern, Priyam IT Services (Pune) 06/2022 – 01/2024 "
                },
                "originalContent": "Designed a serverless backend with AWS Lambda, Dynamo DB, and S3, optimizing scalability and cost efficiency. Full Stack Developer Intern, Priyam IT Services (Pune) 06/2022 – 01/2024"
@@ -745,7 +750,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Designed a serverless backend with AWS Lambda, Dynamo DB, and S3, optimizing scalability and cost efficiency. Full Stack Developer Intern, Priyam IT Services (Pune) 06/2022 – 01/2024 "
              },
              "originalContent": "Designed a serverless backend with AWS Lambda, Dynamo DB, and S3, optimizing scalability and cost efficiency. Full Stack Developer Intern, Priyam IT Services (Pune) 06/2022 – 01/2024"
@@ -766,7 +771,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Created technical documentation and optimized legacy codebases. Education B. Tech in Information Technology, JSPM RSCOE (CGPA: 8.7+) 06/2020 – 06/2024 Key Achievements "
                },
                "originalContent": "Created technical documentation and optimized legacy codebases. Education B. Tech in Information Technology, JSPM RSCOE (CGPA: 8.7+) 06/2020 – 06/2024 Key Achievements"
@@ -783,7 +788,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Created technical documentation and optimized legacy codebases. Education B. Tech in Information Technology, JSPM RSCOE (CGPA: 8.7+) 06/2020 – 06/2024 Key Achievements "
              },
              "originalContent": "Created technical documentation and optimized legacy codebases. Education B. Tech in Information Technology, JSPM RSCOE (CGPA: 8.7+) 06/2020 – 06/2024 Key Achievements"
@@ -804,7 +809,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Qualified for Smart India Hackathon Nationals and contributed to open source during Hacktoberfest. Projects E-commerce Platform for Small Businesses "
                },
                "originalContent": "Qualified for Smart India Hackathon Nationals and contributed to open source during Hacktoberfest. Projects E-commerce Platform for Small Businesses"
@@ -821,7 +826,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Qualified for Smart India Hackathon Nationals and contributed to open source during Hacktoberfest. Projects E-commerce Platform for Small Businesses "
              },
              "originalContent": "Qualified for Smart India Hackathon Nationals and contributed to open source during Hacktoberfest. Projects E-commerce Platform for Small Businesses"
@@ -842,7 +847,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Developed a secure authentication system with role-based access control (RBAC) and a user management dash- board for seamless admin control. "
                },
                "originalContent": "Developed a secure authentication system with role-based access control (RBAC) and a user management dash- board for seamless admin control."
@@ -859,7 +864,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Developed a secure authentication system with role-based access control (RBAC) and a user management dash- board for seamless admin control. "
              },
              "originalContent": "Developed a secure authentication system with role-based access control (RBAC) and a user management dash- board for seamless admin control."
@@ -880,7 +885,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Added interactive quizzes, progress-based summaries, and visual roadmaps for enhanced learning experience. Alumni Portal for College "
                },
                "originalContent": "Added interactive quizzes, progress-based summaries, and visual roadmaps for enhanced learning experience. Alumni Portal for College"
@@ -897,7 +902,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Added interactive quizzes, progress-based summaries, and visual roadmaps for enhanced learning experience. Alumni Portal for College "
              },
              "originalContent": "Added interactive quizzes, progress-based summaries, and visual roadmaps for enhanced learning experience. Alumni Portal for College"
@@ -918,7 +923,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Built provider dashboard to manage bookings, availability, and service details. ----------------Page (0) Break----------------"
                },
                "originalContent": "Built provider dashboard to manage bookings, availability, and service details. ----------------Page (0) Break----------------"
@@ -935,7 +940,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Built provider dashboard to manage bookings, availability, and service details. ----------------Page (0) Break----------------"
              },
              "originalContent": "Built provider dashboard to manage bookings, availability, and service details. ----------------Page (0) Break----------------"
@@ -956,7 +961,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Used React Query for efficient data fetching and caching; currently used by 5,000+ students. On-Demand Services Platform "
                },
                "originalContent": "Used React Query for efficient data fetching and caching; currently used by 5,000+ students. On-Demand Services Platform"
@@ -973,7 +978,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Used React Query for efficient data fetching and caching; currently used by 5,000+ students. On-Demand Services Platform "
              },
              "originalContent": "Used React Query for efficient data fetching and caching; currently used by 5,000+ students. On-Demand Services Platform"
@@ -994,7 +999,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Leveraged Open AI for course content, You Tube API for curated video lectures, and DALL·E for visual thumbnails. "
                },
                "originalContent": "Leveraged Open AI for course content, You Tube API for curated video lectures, and DALL·E for visual thumbnails."
@@ -1011,7 +1016,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Leveraged Open AI for course content, You Tube API for curated video lectures, and DALL·E for visual thumbnails. "
              },
              "originalContent": "Leveraged Open AI for course content, You Tube API for curated video lectures, and DALL·E for visual thumbnails."
@@ -1032,7 +1037,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Built and maintained the complete frontend architecture, iterating rapidly based on user and client feedback. "
                },
                "originalContent": "Built and maintained the complete frontend architecture, iterating rapidly based on user and client feedback."
@@ -1049,7 +1054,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Built and maintained the complete frontend architecture, iterating rapidly based on user and client feedback. "
              },
              "originalContent": "Built and maintained the complete frontend architecture, iterating rapidly based on user and client feedback."
@@ -1070,7 +1075,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Integrated real-time order notifications and email confirmations for customers. Personalized Course Generator "
                },
                "originalContent": "Integrated real-time order notifications and email confirmations for customers. Personalized Course Generator"
@@ -1087,7 +1092,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Integrated real-time order notifications and email confirmations for customers. Personalized Course Generator "
              },
              "originalContent": "Integrated real-time order notifications and email confirmations for customers. Personalized Course Generator"
@@ -1108,7 +1113,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Developed dynamic product listings, category filtering, and detailed product pages with SEO enhancements. "
                },
                "originalContent": "Developed dynamic product listings, category filtering, and detailed product pages with SEO enhancements."
@@ -1125,7 +1130,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Developed dynamic product listings, category filtering, and detailed product pages with SEO enhancements. "
              },
              "originalContent": "Developed dynamic product listings, category filtering, and detailed product pages with SEO enhancements."
@@ -1146,7 +1151,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Integrated Git Hub API, Razorpay payment gateway, and Eleven Labs API, enhancing platform functionality. "
                },
                "originalContent": "Integrated Git Hub API, Razorpay payment gateway, and Eleven Labs API, enhancing platform functionality."
@@ -1163,7 +1168,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Integrated Git Hub API, Razorpay payment gateway, and Eleven Labs API, enhancing platform functionality. "
              },
              "originalContent": "Integrated Git Hub API, Razorpay payment gateway, and Eleven Labs API, enhancing platform functionality."
@@ -1184,7 +1189,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Built admin dashboard for managing inventory, orders, users, stock status, and invoice generation. "
                },
                "originalContent": "Built admin dashboard for managing inventory, orders, users, stock status, and invoice generation."
@@ -1201,7 +1206,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Built admin dashboard for managing inventory, orders, users, stock status, and invoice generation. "
              },
              "originalContent": "Built admin dashboard for managing inventory, orders, users, stock status, and invoice generation."
@@ -1222,7 +1227,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Built end-to-end order flow: cart, address input, checkout, payment, and order status tracking. "
                },
                "originalContent": "Built end-to-end order flow: cart, address input, checkout, payment, and order status tracking."
@@ -1239,7 +1244,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Built end-to-end order flow: cart, address input, checkout, payment, and order status tracking. "
              },
              "originalContent": "Built end-to-end order flow: cart, address input, checkout, payment, and order status tracking."
@@ -1260,7 +1265,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Engineered real-time features using Web Sockets for live collaboration and instant updates. "
                },
                "originalContent": "Engineered real-time features using Web Sockets for live collaboration and instant updates."
@@ -1277,7 +1282,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Engineered real-time features using Web Sockets for live collaboration and instant updates. "
              },
              "originalContent": "Engineered real-time features using Web Sockets for live collaboration and instant updates."
@@ -1298,7 +1303,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Developed geolocation-based service provider discovery and responsive booking interfaces. "
                },
                "originalContent": "Developed geolocation-based service provider discovery and responsive booking interfaces."
@@ -1315,7 +1320,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Developed geolocation-based service provider discovery and responsive booking interfaces. "
              },
              "originalContent": "Developed geolocation-based service provider discovery and responsive booking interfaces."
@@ -1336,7 +1341,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Designed user account section with order history, address book, and profile management. "
                },
                "originalContent": "Designed user account section with order history, address book, and profile management."
@@ -1353,7 +1358,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Designed user account section with order history, address book, and profile management. "
              },
              "originalContent": "Designed user account section with order history, address book, and profile management."
@@ -1374,7 +1379,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Built features like student registration, profile management, and real-time messaging. "
                },
                "originalContent": "Built features like student registration, profile management, and real-time messaging."
@@ -1391,7 +1396,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Built features like student registration, profile management, and real-time messaging. "
              },
              "originalContent": "Built features like student registration, profile management, and real-time messaging."
@@ -1412,7 +1417,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Scalable and responsive web application built with Next.js, Sanity CMS, and Mongo DB. "
                },
                "originalContent": "Scalable and responsive web application built with Next.js, Sanity CMS, and Mongo DB."
@@ -1429,7 +1434,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Scalable and responsive web application built with Next.js, Sanity CMS, and Mongo DB. "
              },
              "originalContent": "Scalable and responsive web application built with Next.js, Sanity CMS, and Mongo DB."
@@ -1450,7 +1455,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Integrated Stripe and Razorpay for secure transactions and coupon-based discounts. "
                },
                "originalContent": "Integrated Stripe and Razorpay for secure transactions and coupon-based discounts."
@@ -1467,7 +1472,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Integrated Stripe and Razorpay for secure transactions and coupon-based discounts. "
              },
              "originalContent": "Integrated Stripe and Razorpay for secure transactions and coupon-based discounts."
@@ -1488,7 +1493,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Developed e-commerce platforms, inventory systems, and business landing pages. "
                },
                "originalContent": "Developed e-commerce platforms, inventory systems, and business landing pages."
@@ -1505,7 +1510,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Developed e-commerce platforms, inventory systems, and business landing pages. "
              },
              "originalContent": "Developed e-commerce platforms, inventory systems, and business landing pages."
@@ -1526,7 +1531,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•MERN stack application enabling users to book local professional services. "
                },
                "originalContent": "MERN stack application enabling users to book local professional services."
@@ -1543,7 +1548,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•MERN stack application enabling users to book local professional services. "
              },
              "originalContent": "MERN stack application enabling users to book local professional services."
@@ -1564,7 +1569,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Used by 10+ shops and online brands to manage their online storefronts. "
                },
                "originalContent": "Used by 10+ shops and online brands to manage their online storefronts."
@@ -1581,7 +1586,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Used by 10+ shops and online brands to manage their online storefronts. "
              },
              "originalContent": "Used by 10+ shops and online brands to manage their online storefronts."
@@ -1602,7 +1607,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•AI-powered tool for generating customized educational course journeys. "
                },
                "originalContent": "AI-powered tool for generating customized educational course journeys."
@@ -1619,7 +1624,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•AI-powered tool for generating customized educational course journeys. "
              },
              "originalContent": "AI-powered tool for generating customized educational course journeys."
@@ -1640,7 +1645,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Engineered scalable systems with Next.js, Postgre SQL, and Node.js. "
                },
                "originalContent": "Engineered scalable systems with Next.js, Postgre SQL, and Node.js."
@@ -1657,7 +1662,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Engineered scalable systems with Next.js, Postgre SQL, and Node.js. "
              },
              "originalContent": "Engineered scalable systems with Next.js, Postgre SQL, and Node.js."
@@ -1678,7 +1683,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Authored and implemented AI research papers published by Springer. "
                },
                "originalContent": "Authored and implemented AI research papers published by Springer."
@@ -1695,7 +1700,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Authored and implemented AI research papers published by Springer. "
              },
              "originalContent": "Authored and implemented AI research papers published by Springer."
@@ -1716,7 +1721,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•React-based portal for connecting alumni and students. "
                },
                "originalContent": "React-based portal for connecting alumni and students."
@@ -1733,7 +1738,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•React-based portal for connecting alumni and students. "
              },
              "originalContent": "React-based portal for connecting alumni and students."
@@ -1754,7 +1759,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•1st place in nationwide Waving the Web Hackathon. "
                },
                "originalContent": "1st place in nationwide Waving the Web Hackathon."
@@ -1771,7 +1776,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•1st place in nationwide Waving the Web Hackathon. "
              },
              "originalContent": "1st place in nationwide Waving the Web Hackathon."
@@ -1792,7 +1797,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Integrated payment gateways and Sanity CMS. "
                },
                "originalContent": "Integrated payment gateways and Sanity CMS."
@@ -1809,7 +1814,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Integrated payment gateways and Sanity CMS. "
              },
              "originalContent": "Integrated payment gateways and Sanity CMS."
@@ -1830,7 +1835,7 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
                "metadata": {
                  "extractionMethod": "regex_pattern",
                  "regexPattern": "/•\\s*([^\\n•]+)/g",
-                 "patternDescription": "LLM-generated regex pattern 1",
+                 "patternDescription": "LLM-generated regex pattern 2",
                  "fullMatch": "•Integrated Stripe and Razorpay for"
                },
                "originalContent": "Integrated Stripe and Razorpay for"
@@ -1847,94 +1852,42 @@ The best project by Rutwik is the **serverless backend optimized with AWS Lambda
              "metadata": {
                "extractionMethod": "regex_pattern",
                "regexPattern": "/•\\s*([^\\n•]+)/g",
-               "patternDescription": "LLM-generated regex pattern 1",
+               "patternDescription": "LLM-generated regex pattern 2",
                "fullMatch": "•Integrated Stripe and Razorpay for"
              },
              "originalContent": "Integrated Stripe and Razorpay for"
            },
            "totalConfidence": 0.95,
            "isTableData": false
-         },
-         {
-           "items": [
-             {
-               "content": "216k tokens/second",
-               "value": "216k tokens/second",
-               "unit": "",
-               "context": "216k tokens/second",
-               "confidence": 0.95,
-               "sourceChunkId": "chunk_doc_1754311559806_f7eqwqkcn_1754311572503_9_j9ramt",
-               "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-               "metadata": {
-                 "extractionMethod": "regex_pattern",
-                 "regexPattern": "/216k tokens/second/g",
-                 "patternDescription": "LLM-generated regex pattern 3",
-                 "fullMatch": "216k tokens/second"
-               },
-               "originalContent": "216k tokens/second"
-             }
-           ],
-           "bestItem": {
-             "content": "216k tokens/second",
-             "value": "216k tokens/second",
-             "unit": "",
-             "context": "216k tokens/second",
-             "confidence": 0.95,
-             "sourceChunkId": "chunk_doc_1754311559806_f7eqwqkcn_1754311572503_9_j9ramt",
-             "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-             "metadata": {
-               "extractionMethod": "regex_pattern",
-               "regexPattern": "/216k tokens/second/g",
-               "patternDescription": "LLM-generated regex pattern 3",
-               "fullMatch": "216k tokens/second"
-             },
-             "originalContent": "216k tokens/second"
-           },
-           "totalConfidence": 0.95,
-           "isTableData": false
          }
        ]
      },
-     "itemCount": 31,
+     "itemCount": 34,
      "reasoning": "Data extraction completed"
    }
 
 ───────────────────────────────────
 
-5. WebSearchAgent ✅
-   Type: WebSearchAgent
-   Status: completed
-   Progress: 100%
-   Duration: 9592ms
-   
-   📤 Full Output:
-   {
-     "webResults": "Web search completed",
-     "reasoning": "Web search completed"
-   }
-
-───────────────────────────────────
-
-6. Synthesizer ✅
+5. Synthesizer ✅
    Type: Synthesizer
    Status: completed
    Progress: 100%
-   Duration: 46092ms
+   Duration: 55098ms
    
    📤 Full Output:
    {
      "synthesis": {
-       "answer": "<reasoning>\nThe best project by Rutwik is the **serverless backend optimized with AWS Lambda, Dynamo DB, and S3**, as it showcases scalability and cost efficiency, aligning with the resume's emphasis on resource optimization. Other relevant projects include the **e-commerce platform** (showing technical expertise), **secure authentication system**, and **interactive quizzes** (highlighting user engagement). These projects collectively demonstrate Rutwik's ability to tackle scalable and innovative projects.\n</reasoning>",
+       "answer": "So the key points are his name, contact info, experience in AI, technologies, projects. I should list these as bullet points, ensuring all details are included. Make sure there are no errors in the data. Check for any missing sections. Once structured, present it clearly.",
        "confidence": 0,
-       "reasoning": "The best project by Rutwik is the **serverless backend optimized with AWS Lambda, Dynamo DB, and S3**, as it demonstrates scalability and cost efficiency, aligning with the resume's emphasis on optimizing resources. Additionally, the **e-commerce platform** project showcases technical expertise and real-world application. Other projects like secure authentication, dashboard, and interactive quizzes also highlight key skills and contributions. These projects reflect Rutwik's ability to tackle scalable and innovative projects.",
+       "reasoning": "The document outlines Rutwik Shinde's professional experience, key technologies, and projects. The main content areas are:\n\n1. **Name and Contact**: Rutwik Shinde with LinkedIn and GitHub links.  \n2. **Experience**: Full Stack AI Developer at Ai Edx from 01/2024 to present.  \n3. **Key Technologies**: Next.js, Sanity CMS, and MongoDB.  \n4. **Projects/Experience**: Built frontend architecture, managed 10+ brands, optimized product listings, and developed an end-to-end order flow system.  \n\nThis synthesis highlights his expertise in AI, technology stack, and project outcomes.",
        "structure": "paragraph"
      },
-     "finalAnswer": "<reasoning>\nThe best project by Rutwik is the **serverless backend optimized with AWS Lambda, Dynamo DB, and S3**, as it showcases scalability and cost efficiency, aligning with the resume's emphasis on resource optimization. Other relevant projects include the **e-commerce platform** (showing technical expertise), **secure authentication system**, and **interactive quizzes** (highlighting user engagement). These projects collectively demonstrate Rutwik's ability to tackle scalable and innovative projects.\n</reasoning>",
-     "reasoning": "The best project by Rutwik is the **serverless backend optimized with AWS Lambda, Dynamo DB, and S3**, as it demonstrates scalability and cost efficiency, aligning with the resume's emphasis on optimizing resources. Additionally, the **e-commerce platform** project showcases technical expertise and real-world application. Other projects like secure authentication, dashboard, and interactive quizzes also highlight key skills and contributions. These projects reflect Rutwik's ability to tackle scalable and innovative projects."
+     "finalAnswer": "So the key points are his name, contact info, experience in AI, technologies, projects. I should list these as bullet points, ensuring all details are included. Make sure there are no errors in the data. Check for any missing sections. Once structured, present it clearly.",
+     "reasoning": "The document outlines Rutwik Shinde's professional experience, key technologies, and projects. The main content areas are:\n\n1. **Name and Contact**: Rutwik Shinde with LinkedIn and GitHub links.  \n2. **Experience**: Full Stack AI Developer at Ai Edx from 01/2024 to present.  \n3. **Key Technologies**: Next.js, Sanity CMS, and MongoDB.  \n4. **Projects/Experience**: Built frontend architecture, managed 10+ brands, optimized product listings, and developed an end-to-end order flow system.  \n\nThis synthesis highlights his expertise in AI, technology stack, and project outcomes."
    }
 
 ───────────────────────────────────
 
-Total Agents: 6
-Completed: 6
-Generated: 06/08/2025, 19:13:53
+Total Agents: 5
+Completed: 5
+Generated: 06/08/2025, 19:44:38

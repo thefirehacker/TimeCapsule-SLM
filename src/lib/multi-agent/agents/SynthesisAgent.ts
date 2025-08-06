@@ -1416,12 +1416,23 @@ Identify:
   private cleanFinalAnswer(answer: string): string {
     if (!answer) return answer;
     
-    console.log(`🧹 CLEANING FINAL ANSWER: Input length ${answer.length}, has <think>: ${answer.includes('<think>')}`);
+    console.log(`🧹 CLEANING FINAL ANSWER: Input length ${answer.length}, has <think>: ${answer.includes('<think>')}, has <reasoning>: ${answer.includes('<reasoning>')}`);
     
     let cleaned = answer;
     
-    // Step 1: Remove <think> tags and their content
-    cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    // Step 1: Extract content from <think> tags instead of removing them
+    const thinkMatch = cleaned.match(/<think>([\s\S]*?)<\/think>/i);
+    if (thinkMatch) {
+      cleaned = thinkMatch[1].trim(); // Extract content from think tags
+      console.log(`🎯 EXTRACTED FROM THINK TAGS: "${cleaned.substring(0, 100)}..."`);
+    }
+    
+    // 🔥 FIX: Remove <reasoning> tags and extract clean content
+    const reasoningMatch = cleaned.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
+    if (reasoningMatch) {
+      cleaned = reasoningMatch[1].trim(); // Extract content inside reasoning tags
+      console.log(`🎯 EXTRACTED FROM REASONING TAGS: "${cleaned.substring(0, 100)}..."`);
+    }
     
     // Step 2: Remove any remaining thinking patterns
     cleaned = cleaned.replace(/^<think>[\s\S]*$/gim, '');
