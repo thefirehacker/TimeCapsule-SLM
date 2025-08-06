@@ -1,95 +1,115 @@
-# AI-Frames Development Plan
+# Issue 009 - Comprehensive Multi-Agent Enhancement Plan
 
-## 🎯 **CURRENT STATUS: UNIFIED STORAGE 80% COMPLETE**
+## 📊 CURRENT STATUS: ARCHITECTURE FIXED, PATTERN GENERATION NEEDS IMPROVEMENT
 
-### **📋 Issue #003 TODO Status (2025-01-20)**
-- **Total TODOs**: 21 (12 ✅ Complete, 9 📋 Remaining)
-- **Phase 1**: ⚠️ **80% COMPLETE** - 3 Critical blockers remain
-- **Next Milestone**: TODO-013 Optimistic UI Updates → Issue resolution
+**Latest Status**: ✅ **DataInspector Real Chunk Sampling COMPLETED** - All critical infrastructure bugs fixed
+**Test Query**: "give me best project by Rutwik"
+**Current Issue**: PatternGenerator LLM prompt doesn't leverage DataInspector intelligence properly
 
-## 🔥 **PHASE 1: CRITICAL FOUNDATION (12/15 Complete - 80%)**
+## ✅ COMPLETED CRITICAL FIXES
 
-### **✅ COMPLETED TODOs (12)**
-- [x] **TODO-001**: Remove `retryVectorStoreLoad` corrupting frames ✅
-- [x] **TODO-002**: Fix stale closure in `handleFrameUpdate` ✅
-- [x] **TODO-003**: Implement unified storage architecture ✅
-- [x] **TODO-004**: Add auto-save visual indicators ✅
-- [x] **TODO-005**: Fix frame edit event capture ✅
-- [x] **TODO-006**: Implement dynamic property merging ✅
-- [x] **TODO-007**: Fix VectorStore schema compliance ✅
-- [x] **TODO-008**: Prevent frame blinking during drag ✅
-- [x] **TODO-009**: Optimize auto-save performance ✅
-- [x] **TODO-010**: Fix save operation state management ✅
-- [x] **TODO-011**: Add comprehensive error logging ✅
-- [x] **TODO-012**: Fix race condition in node deletion ✅
+### **PHASE 1: INFRASTRUCTURE FIXES** ✅ COMPLETED
+- [✅] **DataInspector Real RxDB Chunk Sampling** - Replaced simulation with real VectorStore integration
+- [✅] **Document Source Name Extraction** - Fixed metadata fallback chain for proper document naming
+- [✅] **Smart Chunk Filtering Logic** - Preserves pre-sampled chunks instead of removing all content
+- [✅] **Master LLM Decision Logic** - Intelligent orchestration with context awareness
+- [✅] **Agent State Tracking** - Prevents redundant agent calls with calledAgents Set
+- [✅] **Pattern Parser Enhancement** - Handles patterns with example text properly
+- [✅] **Regex RAG Functionality** - Extractor uses regex patterns when available
+- [✅] **Data Structure Mapping** - Fixed getAllChunks() structure mismatch
+- [✅] **Duplicate RAG Elimination** - Removed redundant initial searches
 
-### **🔥 CRITICAL BLOCKERS (3 Remaining)**
-- [ ] **TODO-013**: ⭐ **URGENT - Implement Optimistic UI Updates**
-  - **Priority**: HIGHEST - Fixes specification violation
-  - **Pattern**: Apply Excalidraw's instant UI + background save
-  - **Impact**: TC-001 6/6 criteria, Issue #003 resolution
-  - **Files**: `useUnifiedStorage.ts`, `EnhancedLearningGraph.tsx`
+## 🎯 ACTIVE TODO LIST
 
-- [ ] **TODO-014**: **Fix Frame-Node Synchronization After Load**
-  - **Dependency**: TODO-013 (optimistic updates will resolve this)
-  - **Files**: `useUnifiedStorage.ts:169-218`
+### **CRITICAL PRIORITY: PATTERN GENERATION IMPROVEMENT**
 
-- [ ] **TODO-015**: **Implement Event-Driven State Management**
-  - **Requirement**: "Event-driven updates, Google Docs broadcast pattern"
-  - **Pattern**: Operation dispatch → reducer → broadcast
+#### **TODO 1: Fix PatternGenerator LLM Prompt** 🔥 HIGH PRIORITY
+- **Issue**: PatternGenerator receives DataInspector intelligence but doesn't use it effectively
+- **Current**: Generic patterns that don't match actual document structure
+- **Required**: Content-aware pattern generation based on DataInspector insights
+- **Test**: Generate resume-specific patterns for project extraction from Rutwik's resume
+- **File**: `src/lib/multi-agent/agents/PatternGeneratorAgent.ts`
 
-## 🚀 **PHASE 2: ENHANCED FEATURES (0/4 Complete)**
-- [ ] **TODO-016**: Smart batching system (80% VectorStore reduction)
-- [ ] **TODO-017**: Undo/redo functionality (Ctrl+Z/Y, 50 changes)
-- [ ] **TODO-018**: Position preservation (exact layout restoration)
-- [ ] **TODO-019**: Connection persistence (no refresh delay)
+#### **TODO 2: Enhance Content-Aware Pattern Generation** 🔥 HIGH PRIORITY  
+- **Issue**: Patterns not tailored to discovered document structure
+- **Current**: Generic regex patterns like `project.*?(?=\n\n|\n•|\n-|$)`
+- **Required**: Document-specific patterns based on DataInspector analysis
+- **Example**: If DataInspector finds "• Project Name:" format, generate `• ([^:]+):`
+- **Test**: Pattern should extract "TimeCapsule", "BubblSpace", etc. from actual resume
 
-## 🔮 **PHASE 3: AI & EXTENSIBILITY (0/2 Complete)**
-- [ ] **TODO-020**: AI headless frame operations
-- [ ] **TODO-021**: Dynamic frame type creation
+#### **TODO 3: Add Pattern Validation Against Actual Content** 📋 MEDIUM PRIORITY
+- **Issue**: No testing of generated patterns against real document samples
+- **Current**: Patterns generated without validation
+- **Required**: Test patterns against DataInspector-sampled chunks before returning
+- **Method**: Run regex patterns against actual chunk content, return only working patterns
+- **Benefit**: Ensures patterns will find content when used by Extractor
 
-## 🔥 **CRITICAL INSIGHT: SPECIFICATION WAS CORRECT**
+#### **TODO 4: Optimize Agent Communication Flow** 📋 MEDIUM PRIORITY
+- **Issue**: DataInspector insights not fully utilized by downstream agents
+- **Current**: Basic `context.sharedKnowledge.documentInsights` passing
+- **Required**: Richer context sharing with specific formatting hints
+- **Enhancement**: Pass document structure metadata (bullet format, section headers, etc.)
+- **Test**: PatternGenerator should receive and use specific formatting intelligence
 
-### **Implementation Flaw: Backwards Save Pattern**
-**Our Specification Said**: ✅ `"instant UI updates" + "debounced saves"`  
-**What We Implemented**: ❌ `await save → then update UI` (blocking)  
-**What Excalidraw Does**: ✅ `update UI instantly → background save`  
+### **PERFORMANCE OPTIMIZATION TODOS**
 
-```typescript
-// ❌ CURRENT: Blocking saves
-await unifiedStorage.saveAll(frames);
-setFrames(frames); // User waits
+#### **TODO 5: Reduce PatternGenerator Response Time** ⚡ PERFORMANCE
+- **Current**: Pattern generation taking longer than expected
+- **Target**: < 10 seconds for pattern generation
+- **Method**: Optimize prompts for faster LLM decision-making
+- **Measure**: Time PatternGenerator execution in isolation
 
-// ✅ REQUIRED: Instant UI
-setFrames(frames); // Instant response
-queueBackgroundSave(frames); // Non-blocking
-```
+#### **TODO 6: Optimize Overall Pipeline Performance** ⚡ PERFORMANCE
+- **Current**: 206 seconds total pipeline time
+- **Target**: < 60 seconds total execution
+- **Method**: Parallel agent execution where possible, optimized prompts
+- **Bottlenecks**: DataInspector (60s), need to identify other slow components
 
-## 📊 **SUCCESS METRICS**
+### **TESTING AND VALIDATION TODOS**
 
-### **Current TC-001 Compliance**: 3/6 ❌
-- ✅ Frame appears after refresh
-- ❌ Title shows stale data  
-- ❌ Goal shows stale data
-- ❌ Context shows stale data
-- ✅ Auto-save indicator works
-- ✅ Load messages correct
+#### **TODO 7: Create Comprehensive Test Cases** 🧪 TESTING
+- **Test Query**: "give me best project by Rutwik"
+- **Expected Output**: Actual project names and descriptions from resume
+- **Validation**: Verify extracted content matches actual document content
+- **Edge Cases**: Multiple document types, different resume formats
 
-### **Target After TODO-013**: 6/6 ✅
-- All criteria pass with optimistic updates
+#### **TODO 8: Add Pattern Generation Debugging** 🔍 DEBUG
+- **Issue**: Need visibility into pattern generation process
+- **Required**: Log generated patterns and their test results
+- **Enhancement**: Show which patterns worked vs failed
+- **UI**: Display pattern generation results in research output
 
-## 🎯 **IMMEDIATE NEXT STEPS**
+### **FUTURE ENHANCEMENT TODOS** (Lower Priority)
 
-### **PRIORITY FOCUS**
-**IMMEDIATE**: TODO-013 (Optimistic UI Updates)  
-**NEXT SESSION**: Phase 1 completion → Issue resolution  
-**SUCCESS**: TC-001 passes 6/6 criteria  
+#### **TODO 9: Claude UI Enhancement** 🎨 UI (ON HOLD)
+- **Requirement**: Show regex patterns and results in expandable format
+- **Features**: Pattern visualization, match highlighting
+- **Dependencies**: Complete pattern generation fixes first
 
-### **Expected Impact**: 
-- User types "f1" → sees instantly → refresh → still "f1"
-- Full specification compliance achieved
-- Issue #003 **RESOLVED**
+#### **TODO 10: Multi-Source Integration** 🌐 INTEGRATION (ON HOLD)
+- **Requirement**: Integrate WebSearch and Firecrawl orchestration
+- **Features**: Web → crawl → analysis cycles
+- **Dependencies**: Core pattern generation working first
+
+## 🎯 SUCCESS CRITERIA
+
+### **Immediate Goals (Next 2 Tasks)**
+1. ✅ PatternGenerator uses DataInspector intelligence effectively
+2. ✅ Generated patterns extract actual content from documents
+3. ✅ Test query returns real project information, not "No relevant information found"
+
+### **Performance Targets**
+- **Total Pipeline**: < 60 seconds (current: 206s)
+- **PatternGenerator**: < 10 seconds (needs measurement)
+- **Content Quality**: Extract actual document content, not generic responses
+
+### **Quality Validation**
+- **Test Query**: "give me best project by Rutwik" returns actual project names
+- **Pattern Effectiveness**: Generated regex patterns find content when tested
+- **Agent Communication**: DataInspector insights properly utilized downstream
 
 ---
 
-**Next Session Goal**: Implement optimistic UI updates → achieve 100% TC-001 compliance → Issue #003 **RESOLVED**
+**NEXT IMMEDIATE ACTION**: Fix PatternGenerator LLM prompt to use DataInspector intelligence for content-aware pattern generation
+
+**Priority Order**: TODO 1 → TODO 2 → TODO 3 → Performance optimization → Testing

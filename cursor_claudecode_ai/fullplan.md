@@ -2,6 +2,67 @@
 
 ## Active Issues
 
+### Issue #009: Comprehensive Multi-Agent Enhancement - Pattern Generation Fix
+**Status**: 🔥 **CRITICAL - INFRASTRUCTURE FIXED, PATTERN OPTIMIZATION NEEDED**  
+**Priority**: URGENT - Core Functionality  
+**Type**: LLM Prompt Engineering & Pattern Generation  
+**Created**: 2025-01-21  
+**Updated**: 2025-01-21  
+**File**: [cursor_claudecode_ai/issues/Issue-009-Comprehensive-Multi-Agent-Enhancement.md](./issues/Issue-009-Comprehensive-Multi-Agent-Enhancement.md)
+
+**Current Status**: 
+- **Infrastructure**: ✅ All critical architecture bugs fixed (DataInspector real chunk sampling, agent communication, etc.)
+- **Test Query**: "give me best project by Rutwik" - pipeline executes successfully in 206s but pattern generation needs improvement
+- **Root Issue**: PatternGenerator receives DataInspector intelligence but LLM prompt doesn't leverage it effectively
+- **Content Quality**: Generic patterns instead of document-specific patterns based on actual content structure
+
+**Key Problems Fixed**: 
+- ✅ DataInspector now uses real RxDB chunk sampling instead of simulation placeholders
+- ✅ Document source names properly extracted from metadata fallback chain  
+- ✅ Smart chunk filtering preserves content instead of removing everything
+- ✅ Master LLM orchestration with proper agent sequencing working
+- ✅ Agent communication via context.sharedKnowledge.documentInsights functional
+
+**Remaining Critical TODO**: 
+- **TODO 1**: Fix PatternGenerator LLM prompt to use DataInspector intelligence for content-aware patterns
+- **TODO 2**: Generate document-specific patterns (e.g., resume bullet points) instead of generic regex
+- **TODO 3**: Add pattern validation against actual content samples before returning to Extractor
+- **TODO 4**: Optimize overall pipeline performance (current: 206s, target: <60s)
+
+**Next Session Goal**: 
+- Fix PatternGenerator prompt engineering to leverage DataInspector insights
+- Generate patterns like `• ([^:]+):` when DataInspector finds "• Project Name:" format
+- Test pattern effectiveness against actual document content samples
+- Achieve successful extraction of real project information from Rutwik's resume
+
+### Issue #004: Knowledge Base Management - Enhanced RAG Features
+**Status**: 🚀 **READY FOR IMPLEMENTATION**  
+**Priority**: HIGH - Feature Enhancement  
+**Type**: UI/UX & Search Enhancement  
+**Created**: 2025-07-21  
+**Updated**: 2025-07-21  
+**File**: [cursor_claudecode_ai/issues/Issue-004-Build-Dependencies-Fix.md](./issues/Issue-004-Build-Dependencies-Fix.md)
+
+**Current Status**: 
+- **System Analysis**: Complete analysis of existing KB Manager UI (15 docs, 3.72 KB)
+- **Functional System**: RxDB + semantic search + model caching all working perfectly
+- **UI Documentation**: Comprehensive specs with actual component analysis from screenshots
+- **Test Coverage**: 7 test cases covering all existing functionality (6/7 passing)
+- **Enhancement Plan**: Clear priorities for User Docs upload, advanced search, bulk operations
+
+**Current System State**: 
+- **User Docs**: 0 documents (upload UI ready for enhancement)
+- **AI Frames**: 4 documents (working integration) 
+- **System**: 11 documents (generated content)
+- **Model Cache**: 23MB Xenova all-MiniLM-L6-v2 (cached and working)
+
+**Next Session Goals**: 
+- Configure Webpack to bundle 22MB Xenova model files at build time
+- Implement lazy loading strategy (fast page load → modal → model ready)
+- Update both AI Frames and Deep Research to use bundled models
+- Eliminate duplicate model loading (save 22MB memory)
+- Test performance improvements and bundle size impact
+
 ### Issue #003: Unified Storage Integration
 **Status**: ⚠️ **PHASE 1 - 80% COMPLETE** (12/21 TODOs, 3 critical remain)  
 **Priority**: HIGH - Next session resolution target  
@@ -165,3 +226,53 @@
 - Fix frame-node sync during load operations
 - Achieve TC-001 complete compliance (6/6 criteria)
 - Progress to Phase 2 system hardening
+
+### Issue #006: Deep Research Component Layout & Key Duplication Fix
+**Status**: 🔧 **READY FOR IMPLEMENTATION**  
+**Priority**: HIGH - UI/UX Critical Issues  
+**Type**: Bug Fix & Layout Enhancement  
+**Created**: 2025-07-21  
+**File**: [cursor_claudecode_ai/issues/Issue-006-Deep-Research-Component-Fix.md](./issues/Issue-006-Deep-Research-Component-Fix.md)
+
+**Summary**: 
+- Duplicate research output display: shows in both ResearchSteps and ResearchOutput components
+- Content overflow in ResearchSteps component breaking layout on dynamic content
+- React key duplication errors causing console warnings (synthesis_*_* keys)
+- Poor responsive design for research step details
+
+**Impact**: 
+- Confusing user experience with duplicate content
+- Broken UI layout when research results are long
+- React performance warnings and potential rendering issues
+- Poor mobile/responsive experience
+
+**Next Steps**: 
+- Fix layout to show research output ONLY in steps panel
+- Implement proper CSS containment for dynamic content
+- Fix ResearchStepUtils.generateUniqueId() for truly unique keys
+- Test responsive design and scrolling behavior
+
+### Issue #007: Deep Research Critical Fixes - Race Condition & Quality
+**Status**: 🚨 **CRITICAL - URGENT FIX REQUIRED**  
+**Priority**: URGENT - User Experience Breaking  
+**Type**: Bug Fix & Quality Enhancement  
+**Created**: 2025-07-21  
+**File**: [cursor_claudecode_ai/issues/Issue-007-Deep-Research-Critical-Fixes.md](./issues/Issue-007-Deep-Research-Critical-Fixes.md)
+
+**Summary**: 
+- React key duplication persists: same step IDs causing warnings (`analysis_1754064717413_1_0f8c9e4c`)
+- Poor research output quality: malformed text, incorrect synthesis, corrupted results
+- Race condition in useResearch hook: `onStepUpdate` fires multiple times for same step
+- RAG retrieval and synthesis producing irrelevant/corrupted content
+
+**Impact**: 
+- User experience severely degraded with React warnings and UI glitches
+- Research functionality unreliable with poor quality outputs
+- Core product value compromised by inaccurate information delivery
+- Trust issues due to malformed and incorrect research results
+
+**Next Steps**: 
+- URGENT: Implement step deduplication mechanism in useResearch hook
+- Fix race condition with Set-based step tracking and functional state updates
+- Improve RAG retrieval quality and synthesis output validation
+- Add post-processing cleanup for malformed text and artifacts

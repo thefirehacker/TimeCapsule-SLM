@@ -136,6 +136,16 @@ export interface DocumentData {
   }>;
 }
 
+export interface DocumentMetadata {
+  id: string;
+  filename: string;
+  title: string;
+  uploadedAt: string;
+  description: string;
+  metadata: DocumentData['metadata'];
+  chunkCount: number;
+}
+
 export interface SearchResult {
   document: DocumentData;
   chunk: {
@@ -441,13 +451,18 @@ export class VectorStore {
                  // Success callback
          async (processedDoc: ProcessedDocument) => {
            try {
-             // Convert chunks from Web Worker format to VectorStore format
-             const chunks = processedDoc.chunks.map((chunk, index) => ({
-               id: `chunk_${processedDoc.id}_${index}`,
-               content: chunk.content,
-               startIndex: index * 500, // Approximate start based on chunk index
-               endIndex: (index * 500) + chunk.content.length
-             }));
+                         // Convert chunks from Web Worker format to VectorStore format with unique IDs
+            const chunkTimestamp = Date.now();
+            const chunks = processedDoc.chunks.map((chunk, index) => {
+              const chunkRandom = Math.random().toString(36).substring(2, 8);
+              const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              return {
+                id: uniqueId,
+                content: chunk.content,
+                startIndex: index * 500, // Approximate start based on chunk index
+                endIndex: (index * 500) + chunk.content.length
+              };
+            });
 
              // Convert to our DocumentData format
              const documentData: DocumentData = {
@@ -536,13 +551,18 @@ export class VectorStore {
         // Success callback
         async (processedDoc: ProcessedDocument) => {
           try {
-            // Convert chunks from Web Worker format to VectorStore format
-            const chunks = processedDoc.chunks.map((chunk, index) => ({
-              id: `chunk_${processedDoc.id}_${index}`,
-              content: chunk.content,
-              startIndex: index * 500, // Approximate start based on chunk index
-              endIndex: (index * 500) + chunk.content.length
-            }));
+            // Convert chunks from Web Worker format to VectorStore format with unique IDs
+            const chunkTimestamp = Date.now();
+            const chunks = processedDoc.chunks.map((chunk, index) => {
+              const chunkRandom = Math.random().toString(36).substring(2, 8);
+              const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              return {
+                id: uniqueId,
+                content: chunk.content,
+                startIndex: index * 500, // Approximate start based on chunk index
+                endIndex: (index * 500) + chunk.content.length
+              };
+            });
 
             // Convert to our DocumentData format
             const documentData: DocumentData = {
@@ -588,6 +608,35 @@ export class VectorStore {
     } catch (error) {
       console.error('❌ Failed to get documents:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get document metadata only (without chunks) for DataInspector magic filtering
+   */
+  async getDocumentMetadata(): Promise<DocumentMetadata[]> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+
+    try {
+      const docs = await this.documentsCollection.documents.find().exec();
+      return docs.map((doc: any) => {
+        const docData = doc.toJSON();
+        return {
+          id: docData.id,
+          filename: docData.filename,
+          title: docData.title,
+          uploadedAt: docData.uploadedAt,
+          description: docData.description,
+          metadata: docData.metadata,
+          chunkCount: docData.chunks?.length || 0,
+          // Don't include chunks - DataInspector will sample them later
+        };
+      });
+    } catch (error) {
+      console.error('❌ Failed to get document metadata:', error);
+      return [];
     }
   }
 
@@ -842,6 +891,51 @@ export class VectorStore {
     } catch (error) {
       console.error('❌ Failed to get stats:', error);
       return { documentCount: 0, chunkCount: 0, vectorCount: 0 };
+    }
+  }
+
+  /**
+   * Get all chunks from all documents for regex search
+   */
+  async getAllChunks(): Promise<any[]> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+    
+    try {
+      const documents = await this.getAllDocuments();
+      const allChunks: any[] = [];
+      
+      // Collect all chunks from all documents
+      for (const doc of documents) {
+        if (doc.chunks && doc.chunks.length > 0) {
+          for (const chunk of doc.chunks) {
+            allChunks.push({
+              ...chunk,
+              text: chunk.content,  // ChunkSelector expects 'text' field
+              content: chunk.content,
+              source: doc.title,
+              sourceDocument: doc.title,
+              documentId: doc.id,
+              similarity: 1.0, // Full similarity for all chunks
+              metadata: {
+                source: 'RxDB',
+                documentId: doc.id,
+                documentTitle: doc.title,
+                chunkIndex: chunk.startIndex || 0,
+                ...doc.metadata
+              }
+            });
+          }
+        }
+      }
+      
+      console.log(`🔍 getAllChunks: Retrieved ${allChunks.length} chunks from ${documents.length} documents`);
+      return allChunks;
+      
+    } catch (error) {
+      console.error('❌ Failed to get all chunks:', error);
+      return [];
     }
   }
 

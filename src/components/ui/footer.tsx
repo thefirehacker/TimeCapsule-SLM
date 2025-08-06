@@ -11,16 +11,15 @@ import {
   ExternalLink,
   Microscope,
   Palette,
-  Search,
   FileText,
   Shield,
+  Users,
+  Globe,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Separator } from "./separator";
 
 const navigationLinks = [
   { name: "Home", href: "/" },
-  { name: "About Us", href: "/about" },
   { name: "DeepResearch", href: "/deep-research" },
   { name: "AI-Frames", href: "/ai-frames" },
   { name: "Contact", href: "/contact" },
@@ -49,16 +48,24 @@ const legalLinks = [
 const socialLinks = [
   {
     name: "GitHub",
-    href: "https://github.com/firehacker/TimeCapsuleSLM",
+    href: "https://github.com/thefirehacker/TimeCapsule-SLM",
     icon: Github,
   },
-  { name: "Twitter", href: "https://x.com/thefirehacker", icon: Twitter },
-  { name: "Email", href: "mailto:contact@bubblspace.com", icon: Mail },
+  {
+    name: "Twitter",
+    href: "https://x.com/thefirehacker",
+    icon: Twitter,
+  },
+  {
+    name: "Email",
+    href: "mailto:contact@bubblspace.com",
+    icon: Mail,
+  },
 ];
 
 export function Footer() {
   return (
-    <footer className="bg-background border-t">
+    <footer className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
       <div className="container mx-auto px-6 py-12">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
@@ -73,11 +80,11 @@ export function Footer() {
                   className="object-contain rounded-md"
                 />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
                 TimeCapsule
               </span>
             </Link>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-4">
               AI-powered research and learning platform that transforms how you
               discover, create, and share knowledge.
             </p>
@@ -88,7 +95,7 @@ export function Footer() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-primary transition-colors"
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                   aria-label={link.name}
                 >
                   <link.icon className="w-5 h-5" />
@@ -99,13 +106,16 @@ export function Footer() {
 
           {/* Navigation Links */}
           <div>
-            <h3 className="font-semibold text-foreground mb-4">Navigation</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Navigation
+            </h3>
             <ul className="space-y-3">
               {navigationLinks.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground hover:text-foreground transition-colors text-sm"
+                    className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
                   >
                     {link.name}
                   </Link>
@@ -116,18 +126,21 @@ export function Footer() {
 
           {/* Product Features */}
           <div>
-            <h3 className="font-semibold text-foreground mb-4">Features</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Features
+            </h3>
             <ul className="space-y-3">
               {productFeatures.map((feature) => (
                 <li key={feature.name}>
                   <Link
                     href={feature.href}
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors text-sm group"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm group"
                   >
-                    <feature.icon className="w-4 h-4" />
+                    <feature.icon className="w-4 h-4 text-blue-600" />
                     <div>
                       <span className="font-medium">{feature.name}</span>
-                      <p className="text-xs text-muted-foreground group-hover:text-foreground/70">
+                      <p className="text-xs text-gray-500 dark:text-gray-500">
                         {feature.description}
                       </p>
                     </div>
@@ -139,7 +152,8 @@ export function Footer() {
 
           {/* Legal & Support */}
           <div>
-            <h3 className="font-semibold text-foreground mb-4">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Shield className="w-4 h-4" />
               Legal & Support
             </h3>
             <ul className="space-y-3 mb-6">
@@ -147,7 +161,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
                   >
                     <link.icon className="w-4 h-4" />
                     <span>{link.name}</span>
@@ -157,10 +171,13 @@ export function Footer() {
             </ul>
 
             <div className="space-y-3">
-              <h4 className="font-medium text-foreground text-sm">Contact</h4>
+              <h4 className="font-medium text-gray-900 dark:text-white text-sm flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Contact
+              </h4>
               <Link
                 href="mailto:contact@bubblspace.com"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+                className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
               >
                 <Mail className="w-4 h-4" />
                 <span>contact@bubblspace.com</span>
@@ -173,7 +190,7 @@ export function Footer() {
 
         {/* Bottom Section */}
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
             <span>© 2025 TimeCapsule. Made with</span>
             <Heart className="w-4 h-4 text-red-500 fill-current" />
             <span>by</span>
@@ -181,25 +198,25 @@ export function Footer() {
               href="https://x.com/thefirehacker"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline flex items-center space-x-1"
+              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-1"
             >
               <span>FireHacker</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
 
-          <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-            <span>AIEDX Private Limited</span>
+          <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
+            <span className="font-medium">AIEDX Private Limited</span>
             <div className="flex items-center space-x-4">
               <Link
                 href="/terms-and-conditions"
-                className="hover:text-foreground transition-colors"
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 Terms
               </Link>
               <Link
                 href="/privacy-policy"
-                className="hover:text-foreground transition-colors"
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 Privacy
               </Link>

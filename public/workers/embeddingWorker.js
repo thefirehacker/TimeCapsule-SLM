@@ -104,10 +104,11 @@ async function processDocument(documentData) {
     } 
   });
   
-  // Chunk the document text using word-based chunking
+  // Chunk the document text using optimized word-based chunking
   const chunks = await chunkText(documentData.content, {
-    wordsPerChunk: 500,
-    maxChunks: 50
+    wordsPerChunk: 250,
+    overlapWords: 50,
+    maxChunks: 200
   });
   
   self.postMessage({ 
@@ -133,10 +134,11 @@ async function processDocument(documentData) {
   };
 }
 
-// Chunk text into smaller pieces - Word-based chunking with memory safety
+// Chunk text into smaller pieces - Word-based chunking with overlap and memory safety
 async function chunkText(text, options = {}) {
-  const wordsPerChunk = options.wordsPerChunk || 500;
-  const maxChunks = options.maxChunks || 50;
+  const wordsPerChunk = options.wordsPerChunk || 250;
+  const overlapWords = options.overlapWords || 50;
+  const maxChunks = options.maxChunks || 200;
   
   console.log(`📝 Chunking text: ${text.length} characters`);
   
@@ -146,22 +148,23 @@ async function chunkText(text, options = {}) {
   
   const chunks = [];
   let chunkIndex = 0;
-  const totalPossibleChunks = Math.min(Math.ceil(words.length / wordsPerChunk), maxChunks);
+  let currentPosition = 0;
   
-  // Create word-based chunks with progress reporting
-  for (let i = 0; i < words.length; i += wordsPerChunk) {
-    // Safety check - enforce maximum chunks limit
-    if (chunkIndex >= maxChunks) {
-      console.warn(`⚠️ Reached maximum chunk limit (${maxChunks}), truncating document`);
-      break;
-    }
-    
-    const chunkWords = words.slice(i, i + wordsPerChunk);
+  // Calculate step size (chunk size minus overlap)
+  const stepSize = Math.max(wordsPerChunk - overlapWords, wordsPerChunk / 2);
+  const totalPossibleChunks = Math.min(Math.ceil(words.length / stepSize), maxChunks);
+  
+  console.log(`📊 Chunking parameters: ${wordsPerChunk} words/chunk, ${overlapWords} overlap, ${stepSize} step`);
+  
+  // Create word-based chunks with overlap and progress reporting
+  while (currentPosition < words.length && chunkIndex < maxChunks) {
+    const endPosition = Math.min(currentPosition + wordsPerChunk, words.length);
+    const chunkWords = words.slice(currentPosition, endPosition);
     const chunkContent = chunkWords.join(' ');
     
     // Calculate character positions for compatibility
-    const allWordsBeforeChunk = words.slice(0, i);
-    const startIndex = allWordsBeforeChunk.join(' ').length + (allWordsBeforeChunk.length > 0 ? 1 : 0);
+    const wordsBeforeChunk = words.slice(0, currentPosition);
+    const startIndex = wordsBeforeChunk.join(' ').length + (wordsBeforeChunk.length > 0 ? 1 : 0);
     const endIndex = startIndex + chunkContent.length;
     
     chunks.push({
@@ -169,10 +172,14 @@ async function chunkText(text, options = {}) {
       content: chunkContent.trim(),
       startIndex: startIndex,
       endIndex: endIndex,
-      wordCount: chunkWords.length
+      wordCount: chunkWords.length,
+      hasOverlap: chunkIndex > 0 && overlapWords > 0
     });
     
     chunkIndex++;
+    
+    // Move position forward by step size (creates overlap)
+    currentPosition += stepSize;
     
     // Report progress during chunking (25% to 75% range)
     const progress = Math.round(25 + (chunkIndex / totalPossibleChunks) * 50);
@@ -180,13 +187,22 @@ async function chunkText(text, options = {}) {
       type: 'progress', 
       data: { 
         status: 'chunking',
-        message: `Processing chunk ${chunkIndex}/${totalPossibleChunks}...`,
+        message: `Processing chunk ${chunkIndex}/${Math.min(totalPossibleChunks, maxChunks)} (${overlapWords > 0 ? 'with overlap' : 'no overlap'})...`,
         progress: progress
       } 
     });
+    
+    // Break if we've processed all text (avoid infinite loop)
+    if (endPosition >= words.length) {
+      break;
+    }
   }
   
-  console.log(`✅ Created ${chunks.length} word-based chunks (${wordsPerChunk} words per chunk, max ${maxChunks} chunks)`);
+  if (chunkIndex >= maxChunks && currentPosition < words.length) {
+    console.warn(`⚠️ Reached maximum chunk limit (${maxChunks}), truncating document`);
+  }
+  
+  console.log(`✅ Created ${chunks.length} word-based chunks (${wordsPerChunk} words per chunk, ${overlapWords} word overlap, max ${maxChunks} chunks)`);
   
   // Return at least one chunk even if text is empty
   if (chunks.length === 0) {
@@ -195,7 +211,8 @@ async function chunkText(text, options = {}) {
       content: text.trim(),
       startIndex: 0,
       endIndex: text.length,
-      wordCount: words.length
+      wordCount: words.length,
+      hasOverlap: false
     });
   }
   
