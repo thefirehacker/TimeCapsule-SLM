@@ -3,17 +3,20 @@
 
 # 🚀 TimeCapsuleSLM
 
-### **The Ultimate AI-Powered Research & Learning Platform**
+### **Solving Open Learning with a Complete AI-Powered Platform for Research, Creativity, and Collaboration**
+
+The Ultimate AI-Powered Research & Learning Platform
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.3.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![Ollama](https://img.shields.io/badge/Ollama-1.2.0-orange?style=for-the-badge)](https://ollama.ai/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/thefirehacker/TimeCapsule-SLM/pulls)
+
+**🏆 Participating in [Google Gemma 3n Impact Challenge](https://www.kaggle.com/competitions/google-gemma-3n-hackathon)**
 
 **Transform how you research, learn, and collaborate with AI-powered tools that adapt to your workflow.**
 
-[🚀 Live Demo](https://timecapsule.bubblspace.com/) • [🐛 Report Bug](https://github.com/thefirehacker/TimeCapsule-SLM/issues) • [💡 Request Feature](https://github.com/thefirehacker/TimeCapsule-SLM/issues)
+[🚀 **Live Demo**](https://timecapsule.bubblspace.com/) • [🐛 Report Bug](https://github.com/thefirehacker/TimeCapsule-SLM/issues) • [💡 Request Feature](https://github.com/thefirehacker/TimeCapsule-SLM/issues)
 
 </div>
 
@@ -176,27 +179,42 @@ TimeCapsuleSLM revolutionizes education by providing powerful tools for both tea
 
 ---
 
+## 🤖 **AI Models & Agentic Capabilities**
+
+### **Supported Models**
+
+- **🟢 Gemma 3n**: Google's latest open model for research and learning
+- **🟡 Quen**: Advanced reasoning and problem-solving capabilities
+- **🔵 Ollama Models**: Local deployment of various open-source models
+
+### **Agentic Features**
+
+- **🤖 Multi-Agent Collaboration**: Multiple AI agents working together on complex tasks
+- **🧠 Contextual Memory**: AI agents maintain context across sessions
+- **🎯 Task Specialization**: Different agents for research, learning, and analysis
+- **🔄 Adaptive Behavior**: Agents learn and adapt to user preferences
+- **📊 Intelligent Orchestration**: Smart coordination between different AI capabilities
+
+---
+
 ## 🛠️ **Technology Stack**
 
 <div align="center">
   <img src="https://img.shields.io/badge/Next.js-15.3.5-black?style=for-the-badge&logo=next.js" alt="Next.js">
   <img src="https://img.shields.io/badge/React-19.0.0-blue?style=for-the-badge&logo=react" alt="React">
   <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind CSS">
-  <img src="https://img.shields.io/badge/Radix_UI-1.0-black?style=for-the-badge" alt="Radix UI">
-  <img src="https://img.shields.io/badge/RxDB-16.15.0-green?style=for-the-badge" alt="RxDB">
   <img src="https://img.shields.io/badge/Ollama-1.2.0-orange?style=for-the-badge" alt="Ollama">
+  <img src="https://img.shields.io/badge/RxDB-16.15.0-green?style=for-the-badge" alt="RxDB">
 </div>
 
 ### **Core Technologies**
 
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
-- **UI Components**: Radix UI, Framer Motion, Lucide React
-- **Database**: RxDB (local), AWS DynamoDB (cloud)
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Database**: RxDB (local)
 - **AI Integration**: Ollama, OpenAI, LM Studio
 - **Document Processing**: PDF.js, Transformers.js
+- **UI Components**: Radix UI, Framer Motion, Lucide React
 - **Authentication**: NextAuth.js
-- **Styling**: Tailwind CSS, CSS Modules
 
 ---
 
@@ -204,9 +222,9 @@ TimeCapsuleSLM revolutionizes education by providing powerful tools for both tea
 
 ### Prerequisites
 
+- Ollama for local AI models
 - Node.js 18+
 - npm, yarn, pnpm, or bun
-- (Optional) Ollama for local AI models
 
 ### Installation
 
@@ -248,11 +266,6 @@ Create a `.env.local` file with the following variables:
 # Authentication
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your-secret-key
-
-# Database (Optional - for cloud features)
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_REGION=your-aws-region
 
 # AI Providers (Optional)
 OPENAI_API_KEY=your-openai-api-key
@@ -333,7 +346,6 @@ ollama serve
 
 ### Getting Help
 
-- 📖 [Documentation](https://github.com/thefirehacker/TimeCapsule-SLM/wiki)
 - 🐛 [Report Issues](https://github.com/thefirehacker/TimeCapsule-SLM/issues)
 - 💬 [Discussions](https://github.com/thefirehacker/TimeCapsule-SLM/discussions)
 
@@ -390,17 +402,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ---
 
-## 🙏 **Acknowledgments**
-
-- **Next.js Team** for the amazing React framework
-- **Vercel** for hosting and deployment
-- **Ollama** for local AI capabilities
-- **Radix UI** for accessible components
-- **Tailwind CSS** for utility-first styling
-- **Our Contributors** for making this project better
-
----
-
 ## 📊 **Project Statistics**
 
 <div align="center">
@@ -434,6 +435,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ---
 
 <div align="center">
-  <p><strong>Made with ❤️ by the TimeCapsuleSLM Team</strong></p>
+  <p><strong>Made with ❤️ by thefirehacker</strong></p>
   <p>If this project helps you, please give it a ⭐️ on GitHub!</p>
 </div>

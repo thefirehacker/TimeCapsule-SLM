@@ -3,6 +3,7 @@
 import { HeroSection } from "@/components/landing/hero";
 import { FeaturesSection } from "@/components/landing/features";
 import { GitHubSection } from "@/components/landing/github";
+import { GemmaChallengeSection } from "@/components/landing/gemma-challenge";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { usePageAnalytics } from "@/components/analytics/Analytics";
@@ -96,6 +97,7 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <FeaturesSection />
+      <GemmaChallengeSection />
       <GitHubSection />
       <Footer />
     </div>
