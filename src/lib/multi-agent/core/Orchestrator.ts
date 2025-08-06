@@ -255,9 +255,10 @@ CURRENT SITUATION:
 🎯 INTELLIGENT ORCHESTRATION GUIDANCE:
 1. **START WITH DataInspector** if not called yet - Analyzes and filters documents (${availableData.dataInspectorCompleted ? 'DONE ✅' : 'REQUIRED ❌'})
 2. **THEN PlanningAgent** if DataInspector done - Creates execution strategy (${availableData.planningAgentCompleted ? 'DONE ✅' : availableData.dataInspectorCompleted ? 'RECOMMENDED' : 'NOT YET'})
-3. **FOLLOW EXECUTION PLAN** if available - Use the intelligent plan created by PlanningAgent
-4. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
-5. **ADAPTIVE DECISIONS** - Make contextual decisions based on available data and plan
+3. **🔥 CRITICAL: FOLLOW EXECUTION PLAN** if available - The plan is validated and prevents sequencing errors
+4. **PLAN-AWARE DECISIONS** - Your decisions are validated against the execution plan automatically
+5. **TRUST THE PLAN** - The PlanningAgent created an intelligent sequence - follow it exactly
+6. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
 
 📊 CURRENT DATA AVAILABLE:
 - Documents: ${availableData.chunksSelected ? `${context.ragResults.chunks.length} chunks available` : 'No documents available'}
@@ -287,7 +288,12 @@ IMPORTANT: Don't give up! Either search for data or explain what's needed.` : `
 📊 AVAILABLE DATA & NEXT STEPS:
 ${!availableData.dataInspectorCompleted ? '🔥 **REQUIRED**: DataInspector must analyze documents first' : ''}
 ${availableData.dataInspectorCompleted && !availableData.planningAgentCompleted ? '📋 **RECOMMENDED**: PlanningAgent to create intelligent execution strategy' : ''}
-${availableData.planningAgentCompleted ? this.getNextPlannedStep(context, availableData) : ''}
+${availableData.planningAgentCompleted ? `
+🎯 **EXECUTION PLAN ACTIVE**: Plan-aware validation is ENABLED
+${this.getNextPlannedStep(context, availableData)}
+
+⚠️ **CRITICAL**: Your decision will be validated against this plan. Follow the recommended step to avoid sequencing violations.
+` : ''}
 ${!availableData.planningAgentCompleted && availableData.dataInspectorCompleted ? '\n💡 **OR** make intelligent tool decisions based on document analysis' : ''}`}
 
 🎯 RESPONSE FORMAT:
@@ -667,30 +673,228 @@ NEXT_GOAL: [final goal achieved]`;
   }
   
   /**
+   * 🧠 PLAN-AWARE SEQUENCING VALIDATION - Replaces rigid hardcoded rules
+   */
+  private validateAgentExecution(toolName: string, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+    const normalizedToolName = this.normalizeToolName(toolName);
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+    const calledAgents = Array.from(this.calledAgents);
+    
+    console.log(`🔍 PLAN-GUIDED VALIDATION: ${normalizedToolName}`);
+    console.log(`📋 Current agents called: [${calledAgents.join(', ')}]`);
+    console.log(`💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps`);
+    
+    // RULE 1: Always allow DataInspector (must be first)
+    if (normalizedToolName === 'DataInspector') {
+      return { allowed: true, reason: 'DataInspector always allowed as first agent' };
+    }
+    
+    // RULE 2: DataInspector must be called before other agents (critical dependency)
+    if (!this.calledAgents.has('DataInspector') && normalizedToolName !== 'DataInspector') {
+      return {
+        allowed: false,
+        reason: 'DataInspector must be called first to analyze and filter documents',
+        suggestion: 'Call DataInspector before proceeding'
+      };
+    }
+    
+    // RULE 3: Plan-aware validation (intelligent sequencing)
+    if (executionPlan && executionPlan.steps && executionPlan.steps.length > 0) {
+      return this.validateAgainstExecutionPlan(normalizedToolName, executionPlan, calledAgents, context);
+    }
+    
+    // RULE 4: Intelligent fallback validation (when no plan exists)
+    return this.validateWithIntelligentDefaults(normalizedToolName, context, calledAgents);
+  }
+  
+  /**
+   * 🤖 Validate intelligent additions to execution plan (agents not explicitly planned)
+   */
+  private validateIntelligentAddition(toolName: string, plan: ExecutionPlan, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+    const calledAgents = Array.from(this.calledAgents);
+    
+    console.log(`🧠 Validating intelligent addition: ${toolName}`);
+    console.log(`📋 Original plan: [${plan.steps.map(s => s.agent).join(', ')}]`);
+    
+    // ALWAYS ALLOW: Critical agents that should never be blocked
+    if (toolName === 'DataInspector') {
+      return { 
+        allowed: true, 
+        reason: 'DataInspector is always allowed - critical for document analysis' 
+      };
+    }
+    
+    if (toolName === 'Extractor') {
+      // Extractor is essential for data extraction - allow even if not planned
+      console.log(`⚡ Extractor is essential for data extraction - allowing intelligent addition`);
+      return { 
+        allowed: true, 
+        reason: 'Extractor is essential for data extraction - intelligent addition to plan' 
+      };
+    }
+    
+    if (toolName === 'WebSearchAgent') {
+      // WebSearch can expand knowledge - reasonable addition
+      return { 
+        allowed: true, 
+        reason: 'WebSearchAgent is valid for knowledge expansion - intelligent addition' 
+      };
+    }
+    
+    if (toolName === 'Synthesizer') {
+      // Check if we have data to synthesize
+      const hasExtractedData = this.hasExtractedData(context);
+      const hasDocumentAnalysis = context.documentAnalysis?.documents && context.documentAnalysis.documents.length > 0;
+      const hasUsefulContent = context.ragResults.chunks.length > 0;
+      
+      if (hasExtractedData || hasDocumentAnalysis || hasUsefulContent) {
+        return { 
+          allowed: true, 
+          reason: 'Synthesizer has sufficient data available - intelligent addition' 
+        };
+      }
+      
+      return { 
+        allowed: false, 
+        reason: 'Synthesizer has no meaningful data to synthesize',
+        suggestion: 'Extract data first or ensure document analysis is complete'
+      };
+    }
+    
+    if (toolName === 'PatternGenerator') {
+      // PatternGenerator can be useful for extraction
+      return { 
+        allowed: true, 
+        reason: 'PatternGenerator can improve extraction quality - intelligent addition' 
+      };
+    }
+    
+    if (toolName === 'PlanningAgent') {
+      // Planning can be called to revise strategy
+      return { 
+        allowed: true, 
+        reason: 'PlanningAgent can revise execution strategy - intelligent addition' 
+      };
+    }
+    
+    // For unknown agents, check if they exist in registry
+    const agent = this.registry.get(toolName);
+    if (agent) {
+      console.log(`⚠️ Unknown agent ${toolName} exists in registry - allowing but with caution`);
+      return { 
+        allowed: true, 
+        reason: `${toolName} exists in registry - allowing as potential intelligent addition`,
+        suggestion: 'Consider adding this agent to future execution plans'
+      };
+    }
+    
+    // Agent doesn't exist
+    return { 
+      allowed: false, 
+      reason: `${toolName} is not a registered agent`,
+      suggestion: `Available agents: ${this.registry.listAgents().map(a => a.name).join(', ')}`
+    };
+  }
+  
+  /**
+   * 📋 Validate agent execution against PlanningAgent's execution plan
+   */
+  private validateAgainstExecutionPlan(toolName: string, plan: ExecutionPlan, calledAgents: string[], context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+    // Find the agent's position in the execution plan
+    const agentStepIndex = plan.steps.findIndex((step: PlanStep) => 
+      this.normalizeToolName(step.agent) === toolName
+    );
+    
+    if (agentStepIndex === -1) {
+      // Agent not explicitly in plan - validate if it's an intelligent addition
+      console.log(`🤔 ${toolName} not explicitly in execution plan - validating as intelligent addition`);
+      return this.validateIntelligentAddition(toolName, plan, context);
+    }
+    
+    // Check if prerequisite steps have been completed
+    const prerequisiteSteps = plan.steps.slice(0, agentStepIndex);
+    const uncompletedPrerequisites = prerequisiteSteps.filter((step: PlanStep) => 
+      !calledAgents.includes(this.normalizeToolName(step.agent))
+    );
+    
+    if (uncompletedPrerequisites.length > 0) {
+      const nextRequired = uncompletedPrerequisites[0];
+      return {
+        allowed: false,
+        reason: `Plan requires ${this.normalizeToolName(nextRequired.agent)} before ${toolName}`,
+        suggestion: `Next planned step: ${nextRequired.agent} - ${nextRequired.action}`
+      };
+    }
+    
+    // Agent can be executed according to plan
+    console.log(`✅ ${toolName} validated against execution plan - prerequisites met`);
+    return { allowed: true, reason: `${toolName} execution follows planned sequence - step ${agentStepIndex + 1} of ${plan.steps.length}` };
+  }
+  
+  /**
+   * 🤖 Intelligent validation when no execution plan exists
+   */
+  private validateWithIntelligentDefaults(toolName: string, context: ResearchContext, calledAgents: string[]): { allowed: boolean; reason: string; suggestion?: string } {
+    // Smart dependency validation based on data availability and agent purpose
+    
+    // PatternGenerator: Works better with document analysis but not strictly required
+    if (toolName === 'PatternGenerator') {
+      if (!calledAgents.includes('DataInspector')) {
+        console.log(`⚠️ PatternGenerator works better after DataInspector, but allowing`);
+      }
+      return { allowed: true, reason: 'PatternGenerator can work with available data' };
+    }
+    
+    // Extractor: Needs either patterns or can work with LLM analysis
+    if (toolName === 'Extractor') {
+      return { allowed: true, reason: 'Extractor can work with LLM analysis or patterns' };
+    }
+    
+    // Synthesizer: Check if we have meaningful data to synthesize
+    if (toolName === 'Synthesizer') {
+      const hasExtractedData = this.hasExtractedData(context);
+      const hasDocumentAnalysis = context.documentAnalysis?.documents && context.documentAnalysis.documents.length > 0;
+      const hasUsefulContent = context.ragResults.chunks.length > 0;
+      
+      if (hasExtractedData || hasDocumentAnalysis || hasUsefulContent) {
+        return { allowed: true, reason: 'Sufficient data available for synthesis' };
+      }
+      
+      // If no extracted data but Extractor hasn't been called, suggest it
+      if (!calledAgents.includes('Extractor')) {
+        return {
+          allowed: false,
+          reason: 'No extracted data available for synthesis',
+          suggestion: 'Call Extractor first to extract relevant information'
+        };
+      }
+      
+      // Allow synthesis even if data is limited (better than failing)
+      return { allowed: true, reason: 'Attempting synthesis with available data' };
+    }
+    
+    // PlanningAgent and WebSearchAgent are always allowed
+    return { allowed: true, reason: `${toolName} execution is contextually appropriate` };
+  }
+  
+  /**
    * 🔧 Execute tool call based on Master LLM decision
    */
   private async executeToolCall(toolName: string, context: ResearchContext): Promise<void> {
     // 🚨 FIX: Normalize tool name case (LLM returns "EXTRACTOR", registry has "Extractor")
     const normalizedToolName = this.normalizeToolName(toolName);
     
-    // 🔥 MANDATORY SEQUENCING ENFORCEMENT
-    if (normalizedToolName === 'Extractor' && !this.calledAgents.has('DataInspector')) {
-      console.error(`❌ SEQUENCING VIOLATION: Extractor cannot be called before DataInspector!`);
-      console.error(`🔥 DataInspector must filter documents first. Current agents called: [${Array.from(this.calledAgents).join(', ')}]`);
-      throw new Error(`Mandatory sequencing violation: DataInspector required before Extractor`);
+    // 🧠 PLAN-AWARE SEQUENCING VALIDATION - Replaces hardcoded rules with intelligent validation
+    const validation = this.validateAgentExecution(normalizedToolName, context);
+    if (!validation.allowed) {
+      console.error(`❌ PLAN-AWARE SEQUENCING VIOLATION: ${validation.reason}`);
+      if (validation.suggestion) {
+        console.error(`💡 Suggestion: ${validation.suggestion}`);
+      }
+      throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
     }
     
-    // 🚨 CRITICAL FIX: Prevent Synthesizer from running before Extractor has data
-    if (normalizedToolName === 'Synthesizer' && !this.calledAgents.has('Extractor')) {
-      console.error(`❌ SEQUENCING VIOLATION: Synthesizer cannot be called before Extractor!`);
-      console.error(`🔥 Extractor must extract data first. Current agents called: [${Array.from(this.calledAgents).join(', ')}]`);
-      console.error(`📊 This prevents "No relevant information found" when data exists but hasn't been extracted yet`);
-      throw new Error(`Mandatory sequencing violation: Extractor required before Synthesizer`);
-    }
-    
-    if (normalizedToolName === 'PatternGenerator' && !this.calledAgents.has('DataInspector')) {
-      console.warn(`⚠️ RECOMMENDED: PatternGenerator works better after DataInspector filters documents`);
-    }
+    console.log(`✅ Agent execution validated: ${validation.reason}`);
     
     const agent = this.registry.get(normalizedToolName);
     if (!agent) {
