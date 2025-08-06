@@ -797,6 +797,96 @@ NEXT_GOAL: [final goal achieved]`;
   }
   
   /**
+   * 🧠 Identify which prerequisites are CRITICAL vs OPTIONAL
+   */
+  private getCriticalPrerequisites(toolName: string, uncompletedPrerequisites: PlanStep[], context: ResearchContext): PlanStep[] {
+    const critical: PlanStep[] = [];
+    
+    // Define critical dependencies for each agent
+    switch (toolName) {
+      case 'Synthesizer':
+        // Synthesizer needs data - but WebSearchAgent is OPTIONAL
+        for (const step of uncompletedPrerequisites) {
+          const agentName = this.normalizeToolName(step.agent);
+          
+          // WebSearchAgent is ALWAYS optional - can be skipped
+          if (agentName === 'WebSearchAgent') {
+            console.log(`📝 WebSearchAgent is optional for Synthesizer - allowing skip`);
+            continue;
+          }
+          
+          // PatternGenerator is optional if we have other data sources
+          if (agentName === 'PatternGenerator') {
+            const hasData = this.hasExtractedData(context) || 
+                          (context.documentAnalysis?.documents && context.documentAnalysis.documents.length > 0);
+            if (hasData) {
+              console.log(`📝 PatternGenerator is optional - sufficient data exists`);
+              continue;
+            }
+          }
+          
+          // Check if we have sufficient data to synthesize without this agent
+          if (agentName === 'Extractor') {
+            const hasAlternativeData = context.documentAnalysis?.documents && 
+                                      context.documentAnalysis.documents.length > 0 &&
+                                      context.ragResults.chunks.length > 0;
+            if (hasAlternativeData) {
+              console.log(`📝 Extractor is optional - alternative data sources available`);
+              continue;
+            }
+            // Extractor is critical if no alternative data exists
+            critical.push(step);
+          }
+        }
+        break;
+        
+      case 'Extractor':
+        // Extractor can work with patterns OR direct LLM analysis
+        for (const step of uncompletedPrerequisites) {
+          const agentName = this.normalizeToolName(step.agent);
+          
+          // WebSearchAgent is never required for Extractor
+          if (agentName === 'WebSearchAgent') {
+            continue;
+          }
+          
+          // PatternGenerator is helpful but not critical - Extractor can use LLM
+          if (agentName === 'PatternGenerator') {
+            console.log(`📝 PatternGenerator is optional for Extractor - can use LLM analysis`);
+            continue;
+          }
+          
+          // Other prerequisites might be critical
+          critical.push(step);
+        }
+        break;
+        
+      case 'WebSearchAgent':
+        // WebSearchAgent has no critical prerequisites
+        console.log(`📝 WebSearchAgent has no critical prerequisites`);
+        break;
+        
+      default:
+        // For other agents, check data dependencies
+        for (const step of uncompletedPrerequisites) {
+          const agentName = this.normalizeToolName(step.agent);
+          
+          // WebSearchAgent is always optional
+          if (agentName === 'WebSearchAgent') {
+            continue;
+          }
+          
+          // DataInspector is usually critical (except for WebSearchAgent)
+          if (agentName === 'DataInspector' && toolName !== 'WebSearchAgent') {
+            critical.push(step);
+          }
+        }
+    }
+    
+    return critical;
+  }
+  
+  /**
    * 📋 Validate agent execution against PlanningAgent's execution plan
    */
   private validateAgainstExecutionPlan(toolName: string, plan: ExecutionPlan, calledAgents: string[], context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
@@ -817,13 +907,24 @@ NEXT_GOAL: [final goal achieved]`;
       !calledAgents.includes(this.normalizeToolName(step.agent))
     );
     
-    if (uncompletedPrerequisites.length > 0) {
-      const nextRequired = uncompletedPrerequisites[0];
+    // 🧠 SMART PREREQUISITES: Only enforce CRITICAL dependencies, allow skipping optional ones
+    const criticalPrerequisites = this.getCriticalPrerequisites(toolName, uncompletedPrerequisites, context);
+    
+    if (criticalPrerequisites.length > 0) {
+      const nextRequired = criticalPrerequisites[0];
       return {
         allowed: false,
-        reason: `Plan requires ${this.normalizeToolName(nextRequired.agent)} before ${toolName}`,
-        suggestion: `Next planned step: ${nextRequired.agent} - ${nextRequired.action}`
+        reason: `Critical prerequisite required: ${this.normalizeToolName(nextRequired.agent)} must run before ${toolName}`,
+        suggestion: `${nextRequired.agent} is essential for ${toolName} - ${nextRequired.action}`
       };
+    }
+    
+    // Log skipped optional prerequisites for transparency
+    const skippedOptional = uncompletedPrerequisites.filter(step => 
+      !criticalPrerequisites.includes(step)
+    );
+    if (skippedOptional.length > 0) {
+      console.log(`⚡ Allowing ${toolName} to skip optional prerequisites: [${skippedOptional.map(s => s.agent).join(', ')}]`);
     }
     
     // Agent can be executed according to plan
