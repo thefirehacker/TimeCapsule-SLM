@@ -160,21 +160,21 @@ Return as JSON:
             action: 'create basic patterns',
             reasoning: 'extract structured data',
             expectedOutput: 'regex patterns',
-            priority: 'high'
+            priority: 'high' as const
           },
           {
             agent: 'Extractor', 
             action: 'extract using patterns',
             reasoning: 'get structured data',
             expectedOutput: 'extracted information',
-            priority: 'high'
+            priority: 'high' as const
           },
           {
             agent: 'Synthesizer',
             action: 'create final answer',
             reasoning: 'combine extracted data',
             expectedOutput: 'user answer',
-            priority: 'high'
+            priority: 'high' as const
           }
         ],
         fallbackOptions: ['web-search-expansion'],
@@ -267,7 +267,8 @@ Return as JSON:
         return plan;
         
       } catch (error) {
-        console.warn(`⚠️ Parsing attempt ${i + 1} failed:`, error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`⚠️ Parsing attempt ${i + 1} failed:`, errorMessage);
         if (i === parsingAttempts.length - 1) {
           console.error('❌ All parsing attempts failed, using intelligent fallback');
           return this.createIntelligentFallback(response);
@@ -304,7 +305,6 @@ Return as JSON:
     // Analyze response to create intelligent fallback
     const hasPatternMention = /pattern|regex|extract/i.test(response);
     const hasWebMention = /web|search|expand/i.test(response);
-    const hasSynthesisMention = /synthesis|answer|final/i.test(response);
     
     const steps = [];
     
@@ -314,7 +314,7 @@ Return as JSON:
       action: 'create extraction patterns',
       reasoning: 'extract structured data from documents',
       expectedOutput: 'regex patterns for data extraction',
-      priority: 'high'
+      priority: 'high' as const
     });
     
     // Add Extractor
@@ -323,7 +323,7 @@ Return as JSON:
       action: 'extract using patterns',
       reasoning: 'get structured information from documents',
       expectedOutput: 'extracted data items',
-      priority: 'high'
+      priority: 'high' as const
     });
     
     // Add WebSearchAgent if mentioned or if data quality seems low
@@ -333,7 +333,7 @@ Return as JSON:
         action: 'expand knowledge base',
         reasoning: 'supplement local data with web information',
         expectedOutput: 'additional relevant information',
-        priority: 'medium'
+        priority: 'medium' as const
       });
     }
     
@@ -343,7 +343,7 @@ Return as JSON:
       action: 'create final answer',
       reasoning: 'combine all extracted data into user answer',
       expectedOutput: 'comprehensive final answer',
-      priority: 'high'
+      priority: 'high' as const
     });
     
     return {
@@ -371,7 +371,7 @@ Return as JSON:
         action: 'create patterns',
         reasoning: 'extract structured data',
         expectedOutput: 'regex patterns',
-        priority: 'high'
+        priority: 'high' as const
       });
     }
     
@@ -381,7 +381,7 @@ Return as JSON:
         action: 'extract data',
         reasoning: 'get information',
         expectedOutput: 'extracted items',
-        priority: 'high'
+        priority: 'high' as const
       });
     }
     
@@ -391,7 +391,7 @@ Return as JSON:
         action: 'search web',
         reasoning: 'expand knowledge',
         expectedOutput: 'web results',
-        priority: 'medium'
+        priority: 'medium' as const
       });
     }
     
@@ -401,7 +401,7 @@ Return as JSON:
         action: 'create answer',
         reasoning: 'combine data',
         expectedOutput: 'final answer',
-        priority: 'high'
+        priority: 'high' as const
       });
     }
     

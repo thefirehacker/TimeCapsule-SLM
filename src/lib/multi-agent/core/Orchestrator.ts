@@ -357,9 +357,26 @@ NEXT_GOAL: [final goal achieved]`;
         };
       }
       
-      // All planned steps completed - check if we have a meaningful result
-      if (!context.synthesis?.answer || context.synthesis.answer.length < 20) {
-        // Plan complete but no answer - try fallback options
+      // 🔥 CRITICAL FIX: Check if Synthesizer has generated meaningful answer
+      const synthesizerCalled = this.calledAgents.has('Synthesizer');
+      const hasValidAnswer = context.synthesis?.answer && 
+                            context.synthesis.answer.length > 50 && 
+                            !context.synthesis.answer.includes('No relevant information found');
+      
+      console.log(`🔍 COMPLETION CHECK: Synthesizer called: ${synthesizerCalled}, Valid answer: ${hasValidAnswer}`);
+      console.log(`📝 Answer preview: "${context.synthesis?.answer?.substring(0, 100) || 'No answer'}..."`);
+      
+      // If Synthesizer completed successfully, allow completion
+      if (synthesizerCalled && hasValidAnswer) {
+        console.log(`✅ COMPLETION ALLOWED: Synthesizer generated meaningful answer (${context.synthesis.answer.length} chars)`);
+        return {
+          allowed: true,
+          reason: `Execution plan completed with valid synthesis: ${executionPlan.strategy}`
+        };
+      }
+      
+      // If no meaningful answer yet, check fallback options
+      if (!hasValidAnswer) {
         const fallback = executionPlan.fallbackOptions?.[0];
         if (fallback === 'web-search-expansion' && !this.calledAgents.has('WebSearchAgent')) {
           return {
@@ -369,14 +386,21 @@ NEXT_GOAL: [final goal achieved]`;
           };
         }
         
-        // Try Synthesizer as last resort
-        if (!this.calledAgents.has('Synthesizer')) {
+        // Try Synthesizer if not called yet
+        if (!synthesizerCalled) {
           return {
             allowed: false,
             reason: 'Need to synthesize available information',
             nextAgent: 'Synthesizer'
           };
         }
+        
+        // Synthesizer called but failed - don't retry infinitely
+        console.warn(`⚠️ FORCED COMPLETION: Synthesizer called but produced insufficient result`);
+        return {
+          allowed: true,
+          reason: 'Forced completion - Synthesizer attempted but produced limited results'
+        };
       }
       
       // Execution plan complete with result

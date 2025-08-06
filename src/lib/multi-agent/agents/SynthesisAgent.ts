@@ -116,8 +116,11 @@ Total chunks: ${chunkCount}`);
     // Generate comprehensive research report and capture LLM reasoning
     const synthesisResult = await this.generateDeepResearchReportWithReasoning(context, classifiedItems);
     
+    // 🔥 CRITICAL FIX: Clean answer before storing
+    const cleanedAnswer = this.cleanFinalAnswer(synthesisResult.answer);
+    
     // Store the results
-    context.synthesis.answer = synthesisResult.answer;
+    context.synthesis.answer = cleanedAnswer;
     context.synthesis.reasoning = synthesisResult.reasoning || this.explainReasoning();
     context.extractedData.structured = groupedItems;
     
@@ -1404,5 +1407,50 @@ Identify:
     }
     
     return lines.join('\n');
+  }
+
+  /**
+   * 🔥 CRITICAL FIX: Clean final answer for user presentation
+   * Removes thinking tags and formats for clean output
+   */
+  private cleanFinalAnswer(answer: string): string {
+    if (!answer) return answer;
+    
+    console.log(`🧹 CLEANING FINAL ANSWER: Input length ${answer.length}, has <think>: ${answer.includes('<think>')}`);
+    
+    let cleaned = answer;
+    
+    // Step 1: Remove <think> tags and their content
+    cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    
+    // Step 2: Remove any remaining thinking patterns
+    cleaned = cleaned.replace(/^<think>[\s\S]*$/gim, '');
+    cleaned = cleaned.replace(/Okay,?\s*let me[\s\S]*?(?=\n\n|\n[A-Z]|$)/gi, '');
+    
+    // Step 3: Clean up common LLM artifacts
+    cleaned = cleaned.replace(/^(Looking at|Let me|First|Based on)[\s\S]*?(?=\n\n|\n[#*]|$)/gim, '');
+    
+    // Step 4: Remove empty lines and normalize spacing
+    cleaned = cleaned.replace(/\n\s*\n\s*\n/g, '\n\n'); // Max 2 consecutive newlines
+    cleaned = cleaned.replace(/^\s+|\s+$/g, ''); // Trim whitespace
+    
+    // Step 5: Ensure it starts with actual content, not meta-commentary
+    const lines = cleaned.split('\n').filter(line => line.trim());
+    const contentStartIndex = lines.findIndex(line => 
+      !line.toLowerCase().includes('analyzing') &&
+      !line.toLowerCase().includes('looking at') &&
+      !line.toLowerCase().includes('let me') &&
+      !line.toLowerCase().includes('first,') &&
+      !line.toLowerCase().startsWith('okay') &&
+      line.length > 10
+    );
+    
+    if (contentStartIndex > 0) {
+      cleaned = lines.slice(contentStartIndex).join('\n');
+    }
+    
+    console.log(`🧹 CLEANED FINAL ANSWER: Output length ${cleaned.length}, preview: "${cleaned.substring(0, 100)}..."`);
+    
+    return cleaned;
   }
 }

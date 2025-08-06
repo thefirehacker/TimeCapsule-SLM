@@ -316,5 +316,63 @@ const parsingAttempts = [
 - **Agent Sequence**: DataInspector → PlanningAgent → PatternGenerator → **Extractor** → Synthesizer
 - **PlanningAgent**: ✅ Creates valid execution plans despite JSON syntax issues
 
-**Total Critical Items**: ✅ **ALL 13 CRITICAL FIXES COMPLETED** - System should now work correctly
-**Total Legacy Items**: 8 items on hold (UI enhancements and content expansion)
+## 🚨 **NEW CRITICAL ISSUES DISCOVERED (CURRENT SESSION)**
+
+### **PATTERNGENERATOR BREAKTHROUGH: BULLETPROOF TRIPLE-TIER PARSER** ✅ COMPLETED
+**Problem**: PatternGenerator failed with "LLM must generate proper patterns. NO FALLBACKS allowed" when Qwen models used `<think>` tags instead of structured `REGEX_PATTERNS:` format
+**Solution Implemented**: 
+```typescript
+// ✅ Added /no_think directive to suppress thinking tokens
+const regexGenerationPrompt = `/no_think
+
+YOU ARE A PATTERN DISCOVERY AGENT...`;
+
+// ✅ Implemented bulletproof triple-tier parser
+private parseRegexPatternsFromLLM(response: string): string[] {
+  // Tier 1: Try structured format (preferred)
+  let patterns = this.parseStructuredFormat(response);
+  if (patterns.length > 0) return patterns;
+  
+  // Tier 2: Try extracting from <think> content (Qwen fallback)  
+  patterns = this.parseFromThinkContent(response);
+  if (patterns.length > 0) return patterns;
+  
+  // Tier 3: Try free-form text parsing (universal fallback)
+  patterns = this.parseFromFreeFormText(response);
+  return patterns;
+}
+```
+**Impact**: ✅ **PatternGenerator now works with ANY model behavior** - structured output, thinking tokens, or free-form responses. System never fails due to format issues.
+
+### **NEW CRITICAL ISSUE: MASTER LLM INFINITE LOOP** 🚨 HIGH PRIORITY
+**Problem**: Master LLM gets stuck calling already-completed Synthesizer repeatedly until hitting 10-iteration limit
+**Evidence**: Lines 721-885 in logs show 8 consecutive attempts: `⚠️ Agent Synthesizer already called with data, skipping to prevent redundant processing`
+**Root Cause**: Completion detection logic fails to recognize when synthesis is complete and should return final answer
+**Status**: 🔧 **NEEDS FIX** - Primary blocking issue preventing clean completion
+
+### **NEW ISSUE: DATAINSPECTOR PARSING INCONSISTENCY** ⚠️ MEDIUM PRIORITY  
+**Problem**: One-off parsing failure where LLM correctly reasoned Tyler's blog as "irrelevant" but parser extracted `isRelevant: true`
+**Evidence**: Line 278-280 shows correct reasoning but wrong extraction
+**Note**: DataInspector worked correctly in previous 2 runs - this appears to be an anomaly
+**Status**: 🔄 **NEEDS INVESTIGATION** - Add robustness to prevent future parsing inconsistencies
+
+### **NEW ISSUE: FINAL ANSWER PRESENTATION** 📝 MEDIUM PRIORITY
+**Problem**: Generated answer (2683 chars) still contains `<think>` tags and isn't cleanly formatted for user
+**Evidence**: `preview: '<think>\nOkay, let me start by understanding the problem...'`
+**Status**: 🔄 **NEEDS CLEANUP** - Final synthesis output requires cleaning before presentation
+
+## 📊 **UPDATED STATUS: MIXED RESULTS**
+
+### ✅ **MAJOR SUCCESS: PATTERNGENERATOR BULLETPROOF**
+- **PatternGenerator Triple-Tier Parser**: ✅ **BREAKTHROUGH SUCCESS** - Now handles any model response format
+- **Tier 1 Success**: Found 5 patterns in structured format (line 451 in logs)
+- **Extractor Success**: Successfully processed 7656 → 163 deduplicated items
+- **Core Pipeline**: Works correctly when completion logic functions properly
+
+### 🚨 **NEW BLOCKING ISSUES**
+1. **Master LLM Infinite Loop**: PRIMARY BLOCKER - System hits iteration limit instead of clean completion
+2. **DataInspector Parsing**: Intermittent relevance detection failures causing document contamination
+3. **Answer Formatting**: Final output contains thinking tags instead of clean presentation
+
+**Total Critical Items**: ✅ **13 PREVIOUS FIXES COMPLETED** + 🚨 **3 NEW CRITICAL ISSUES** = 16 total
+**System Status**: 🔄 **PARTIALLY FUNCTIONAL** - Core pipeline works but completion logic fails

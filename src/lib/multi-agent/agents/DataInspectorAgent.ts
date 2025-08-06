@@ -473,7 +473,10 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
         docType, primaryEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
       });
       
-      const isRelevant = relevantText.toUpperCase().includes('YES');
+      // 🔥 CRITICAL FIX: More robust relevance detection
+      const isRelevant = this.determineRelevance(relevantText, reasoning, primaryEntity, query);
+      
+      console.log(`🔍 RELEVANCE ANALYSIS: Text="${relevantText}", Entity="${primaryEntity}", Query="${query}" → Result: ${isRelevant}`);
       
       return {
         documentType: docType,
@@ -491,6 +494,67 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
         reasoning: 'Analysis failed, including document to avoid losing data'
       };
     }
+  }
+
+  /**
+   * 🔥 CRITICAL FIX: Robust relevance determination
+   * Fixes parsing inconsistency where LLM reasoning was correct but extraction failed
+   */
+  private determineRelevance(relevantText: string, reasoning: string, primaryEntity: string, query: string): boolean {
+    const upperRelevantText = relevantText.toUpperCase();
+    const upperReasoning = reasoning.toUpperCase();
+    const upperQuery = query.toUpperCase();
+    
+    // Extract the person name from the query
+    const queryPersonMatch = query.match(/(?:by|about|for)\s+([A-Z][a-z]+)/i);
+    const queryPerson = queryPersonMatch ? queryPersonMatch[1].toLowerCase() : '';
+    
+    // Extract the entity name for comparison
+    const entityWords = primaryEntity.toLowerCase().split(/[\s,]+/);
+    
+    console.log(`🔍 RELEVANCE DEBUG: Query person: "${queryPerson}", Entity words: [${entityWords.join(', ')}]`);
+    
+    // Method 1: Direct YES/NO check
+    if (upperRelevantText.includes('YES')) {
+      // Double-check: ensure the entity actually matches the query
+      if (queryPerson && !entityWords.some(word => word.includes(queryPerson))) {
+        console.warn(`⚠️ RELEVANCE OVERRIDE: LLM said YES but entity "${primaryEntity}" doesn't match query person "${queryPerson}"`);
+        return false;
+      }
+      return true;
+    }
+    
+    if (upperRelevantText.includes('NO') || upperRelevantText.includes('IRRELEVANT')) {
+      return false;
+    }
+    
+    // Method 2: Check reasoning for explicit relevance statements
+    if (upperReasoning.includes('IRRELEVANT') || upperReasoning.includes('NOT RELEVANT')) {
+      console.log(`📝 REASONING OVERRIDE: Found "irrelevant" in reasoning`);
+      return false;
+    }
+    
+    if (upperReasoning.includes('RELEVANT') && !upperReasoning.includes('NOT RELEVANT')) {
+      // Double-check entity match
+      if (queryPerson && !entityWords.some(word => word.includes(queryPerson))) {
+        console.warn(`⚠️ REASONING OVERRIDE: LLM reasoning says relevant but entity mismatch`);
+        return false;
+      }
+      return true;
+    }
+    
+    // Method 3: Entity name matching as fallback
+    if (queryPerson) {
+      const entityMatches = entityWords.some(word => 
+        word.includes(queryPerson) || queryPerson.includes(word)
+      );
+      console.log(`🔍 ENTITY MATCHING: "${queryPerson}" vs [${entityWords.join(', ')}] → ${entityMatches}`);
+      return entityMatches;
+    }
+    
+    // Default: if unclear, include to avoid losing data
+    console.warn(`⚠️ RELEVANCE UNCERTAIN: Defaulting to RELEVANT for "${primaryEntity}"`);
+    return true;
   }
 
   /**
