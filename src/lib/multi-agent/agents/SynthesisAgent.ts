@@ -1420,11 +1420,11 @@ Identify:
     
     let cleaned = answer;
     
-    // Step 1: Extract content from <think> tags instead of removing them
+    // Step 1: Remove <think> tags to preserve actual synthesis content
     const thinkMatch = cleaned.match(/<think>([\s\S]*?)<\/think>/i);
     if (thinkMatch) {
-      cleaned = thinkMatch[1].trim(); // Extract content from think tags
-      console.log(`🎯 EXTRACTED FROM THINK TAGS: "${cleaned.substring(0, 100)}..."`);
+      cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      console.log(`🎯 REMOVED THINK TAGS: Content preserved, length ${cleaned.length} chars`);
     }
     
     // 🔥 FIX: Remove <reasoning> tags and extract clean content
