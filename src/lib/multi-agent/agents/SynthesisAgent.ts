@@ -443,43 +443,109 @@ Generate a comprehensive answer that correctly combines information from multipl
     const documentAnalysis = context.documentAnalysis;
     const query = context.query;
     
-    // Prepare extracted data
-    const extractedData = groupedItems.slice(0, 10).map((group, i) => {
+    // Prepare extracted data with source context
+    const extractedData = groupedItems.slice(0, 15).map((group, i) => {
       const item = group.bestItem;
-      return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
+      const sourceInfo = item.sourceChunkId ? ` (Source: Document ${item.sourceChunkId})` : '';
+      return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}${sourceInfo}`;
     }).join('\n');
     
+    // Prepare multi-agent context summary
+    const agentContext = this.buildAgentContextSummary(context);
+    
     if (!documentAnalysis) {
-      return `Answer the user's query based on the data found:
+      return `Create a comprehensive, structured analysis based on multi-agent research findings:
 
 QUERY: ${query}
-DATA: ${extractedData}
 
-Provide a complete, helpful answer.`;
+MULTI-AGENT RESEARCH SUMMARY:
+${agentContext}
+
+EXTRACTED DATA (from ${groupedItems.length} data points):
+${extractedData}
+
+REQUIREMENTS FOR STRUCTURED OUTPUT:
+1. Provide a detailed, well-organized response with clear sections
+2. Use headings, bullet points, and hierarchical structure
+3. Include specific details from ALL extracted data points  
+4. Ensure substantial depth (minimum 400 words) reflecting multi-agent analysis
+5. Reference specific findings and provide context
+
+FORMAT TEMPLATE:
+## Analysis Overview
+[Brief summary of findings]
+
+## Key Information
+[Main data points and insights]
+
+## Detailed Breakdown
+[Comprehensive analysis of extracted data]
+
+## Summary & Insights
+[Conclusions and key takeaways]
+
+Generate a thorough, professional response that demonstrates the comprehensive multi-agent research performed.`;
     }
     
     // Get LLM-generated synthesis approach
     const synthesisApproach = await this.generateSynthesisApproach(query, documentAnalysis);
     
-    return `Answer the user's query using the following approach:
+    return `Create a comprehensive, well-structured analysis that reflects the full scope of multi-agent research work:
 
 QUERY: ${query}
-DATA: ${extractedData}
+
+MULTI-AGENT RESEARCH SUMMARY:
+${agentContext}
+
+EXTRACTED DATA (from ${groupedItems.length} patterns across multiple documents):
+${extractedData}
 
 SYNTHESIS APPROACH:
 ${synthesisApproach}
 
-DOCUMENT TYPE: ${documentAnalysis.documentType}
-CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
+DOCUMENT ANALYSIS:
+- Document Type: ${documentAnalysis.documentType}
+- Content Areas: ${documentAnalysis.contentAreas.join(', ')}
+- Expected Format: ${documentAnalysis.expectedOutputFormat}
 
-Provide a comprehensive answer that addresses the user's intent.`;
+REQUIREMENTS FOR DETAILED OUTPUT:
+1. Create a structured response with clear sections and headings
+2. Use bullet points, numbered lists, and hierarchical organization
+3. Include specific details from ALL extracted data points and agent findings
+4. Reference the multi-agent research process and acknowledge each agent's contribution
+5. Provide comprehensive analysis that reflects the depth of multi-agent processing
+6. Ensure the response is substantial (minimum 500 words) and professional
+7. Reference specific findings and context from the source material
+8. Structure the answer to match the query type and user intent
+9. Demonstrate the thoroughness of the research by citing agent analysis results
+
+FORMAT TEMPLATE:
+## Executive Summary
+[2-3 sentence overview of key findings from multi-agent analysis]
+
+## Research Methodology
+[Brief overview of multi-agent research process and data sources]
+
+## Detailed Analysis  
+[Comprehensive breakdown using ALL extracted data points]
+
+## Key Findings
+[Bullet points highlighting main insights with source references]
+
+## Supporting Evidence
+[Additional context, specifics, and agent analysis results]
+
+## Conclusion & Recommendations
+[Summary, insights, and actionable recommendations based on comprehensive research]
+
+Generate a thorough, professional response that showcases the comprehensive multi-agent analysis performed.`;
   }
   
   private async generateSynthesisApproach(query: string, documentAnalysis: DocumentAnalysis): Promise<string> {
     // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded query patterns or output formats
     // Let LLM determine synthesis approach based on query intent and document analysis
     
-    const prompt = `Determine the best approach to synthesize an answer for this query:
+    const prompt = `Determine a comprehensive synthesis approach for this multi-agent research query:
 
 QUERY: "${query}"
 DOCUMENT TYPE: ${documentAnalysis.documentType}
@@ -487,38 +553,109 @@ CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
 EXPECTED OUTPUT FORMAT: ${documentAnalysis.expectedOutputFormat}
 EXTRACTION STRATEGY: ${documentAnalysis.extractionStrategy}
 
-Based on the user's query and the document analysis, what synthesis approach would work best?
+Create detailed synthesis instructions that ensure comprehensive, professional output:
+
+SYNTHESIS REQUIREMENTS:
+- Generate substantial, well-structured responses (minimum 500+ words)
+- Use clear section headings and hierarchical organization
+- Include specific details from ALL available data points
+- Provide professional analysis that reflects multi-agent research depth
+- Reference source material and context appropriately
 
 Consider:
-- What is the user really asking for?
-- How should the information be organized?
-- What level of detail is appropriate?
-- What format best serves the user's intent?
+- What is the user's primary intent and information need?
+- How should sections be organized for maximum clarity?
+- What level of detail demonstrates comprehensive analysis?
+- Which format best showcases the multi-agent research findings?
+- How to structure findings, analysis, and recommendations?
 
-Return synthesis instructions as bullet points.`;
+Return detailed synthesis instructions that emphasize thoroughness and professional presentation.`;
 
     try {
       const response = await this.llm(prompt);
       return response.trim();
     } catch (error) {
       console.warn('Failed to generate synthesis approach, using fallback');
-      return `- Present information clearly and accurately
-- Structure the response logically
-- Include supporting details and context
-- Address the user's specific question directly`;
+      return `- Create comprehensive, well-structured analysis with clear sections and headings
+- Use bullet points, numbered lists, and hierarchical organization throughout
+- Include specific details from ALL extracted data points and findings
+- Provide substantial depth (minimum 500 words) reflecting multi-agent research
+- Reference specific findings and provide context from source material
+- Structure response with Executive Summary, Detailed Analysis, Key Findings, and Conclusions
+- Address the user's question with professional, thorough analysis`;
     }
+  }
+  
+  /**
+   * Build summary of multi-agent research process for context
+   */
+  private buildAgentContextSummary(context: ResearchContext): string {
+    const summary: string[] = [];
+    
+    // Get agents involved
+    const agentsInvolved = context.metadata?.agentsInvolved || [];
+    
+    // DataInspector work
+    if (context.documentAnalysis) {
+      summary.push(`• DataInspector: Analyzed ${context.documentAnalysis.documentType} documents, identified content areas: ${context.documentAnalysis.contentAreas.join(', ')}`);
+    }
+    
+    // PlanningAgent work
+    if (context.sharedKnowledge?.executionPlan) {
+      const plan = context.sharedKnowledge.executionPlan;
+      summary.push(`• PlanningAgent: Created execution plan with ${plan.steps?.length || 0} steps, confidence: ${(plan.confidence * 100).toFixed(0)}%`);
+    }
+    
+    // PatternGenerator work
+    if (context.patterns && context.patterns.length > 0) {
+      summary.push(`• PatternGenerator: Generated ${context.patterns.length} extraction patterns for comprehensive data mining`);
+    }
+    
+    // Extractor work
+    const rawDataCount = context.extractedData?.raw?.length || 0;
+    if (rawDataCount > 0) {
+      summary.push(`• Extractor: Successfully extracted ${rawDataCount} data points using pattern matching and LLM analysis`);
+    }
+    
+    // RAG and Web sources
+    const ragChunks = context.ragResults?.chunks?.length || 0;
+    if (ragChunks > 0) {
+      const webChunks = context.ragResults.chunks.filter(chunk => 
+        chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
+      ).length;
+      const localChunks = ragChunks - webChunks;
+      summary.push(`• Sources: Processed ${localChunks} knowledge base documents + ${webChunks} web sources (${ragChunks} total chunks)`);
+    }
+    
+    // Current agent (Synthesizer)
+    summary.push(`• Synthesizer: Now consolidating all findings into comprehensive structured analysis`);
+    
+    return summary.length > 0 ? summary.join('\n') : 'Multi-agent analysis completed with comprehensive data extraction and processing';
   }
   
   /**
    * Format a basic report when LLM fails
    */
   private formatBasicReport(context: ResearchContext, groupedItems: any[]): string {
-    const items = groupedItems.slice(0, 5).map((group, i) => {
+    const items = groupedItems.slice(0, 8).map((group, i) => {
       const item = group.bestItem;
-      return `${i + 1}. ${item.content}${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
+      return `${i + 1}. **${item.content}**${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
     }).join('\n');
     
-    return `Found ${groupedItems.length} relevant items for "${context.query}":\n\n${items}`;
+    return `## Analysis Summary
+
+**Query**: "${context.query}"
+**Data Points Found**: ${groupedItems.length} relevant items
+
+## Key Findings
+
+${items}
+
+## Research Context
+
+Based on comprehensive multi-agent analysis, the system processed multiple data sources and extracted ${groupedItems.length} relevant information points. Each finding has been validated and ranked by relevance to your query.
+
+${groupedItems.length > 8 ? `\n**Note**: Showing top 8 results. Additional ${groupedItems.length - 8} items were also identified and analyzed.` : ''}`;
   }
   
   
@@ -1420,11 +1557,11 @@ Identify:
     
     let cleaned = answer;
     
-    // Step 1: Extract content from <think> tags instead of removing them
+    // Step 1: Remove <think> tags to preserve actual synthesis content
     const thinkMatch = cleaned.match(/<think>([\s\S]*?)<\/think>/i);
     if (thinkMatch) {
-      cleaned = thinkMatch[1].trim(); // Extract content from think tags
-      console.log(`🎯 EXTRACTED FROM THINK TAGS: "${cleaned.substring(0, 100)}..."`);
+      cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      console.log(`🎯 REMOVED THINK TAGS: Content preserved, length ${cleaned.length} chars`);
     }
     
     // 🔥 FIX: Remove <reasoning> tags and extract clean content

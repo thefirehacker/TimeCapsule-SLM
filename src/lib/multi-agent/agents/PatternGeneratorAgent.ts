@@ -300,7 +300,7 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
         const lines = patternsText.split('\n').filter(line => line.trim().startsWith('-'));
         
         lines.forEach(line => {
-          const trimmedLine = line.trim().replace(/^[-*]\s*/, '');
+          const trimmedLine = line.trim().replace(/^[-*\s]*/, '');
           const normalizedPattern = this.normalizePattern(trimmedLine);
           
           if (normalizedPattern && !this.isUselessPattern(normalizedPattern.match(/\/([^\/]+)\//)?.[1] || '')) {
