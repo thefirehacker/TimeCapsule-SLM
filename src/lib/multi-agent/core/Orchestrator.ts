@@ -12,6 +12,7 @@ import { MessageType } from '../interfaces/Message';
 import { SourceReference, AgentSubStep } from '@/components/DeepResearch/components/ResearchSteps';
 import { AgentProgressTracker, AgentProgressCallback } from '../interfaces/AgentProgress';
 import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtractor';
+import type { ExecutionPlan, PlanStep } from '../agents/PlanningAgent';
 
 export type LLMFunction = (prompt: string) => Promise<string>;
 
@@ -38,6 +39,75 @@ export class Orchestrator {
     this.llm = llm;
     this.progressCallback = progressCallback;
     this.progressTracker = new AgentProgressTracker(progressCallback);
+  }
+  
+  /**
+   * 🎯 Get next step from execution plan
+   */
+  private getNextPlannedStep(context: ResearchContext, availableData: any): string {
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+    
+    if (!executionPlan || !executionPlan.steps || executionPlan.steps.length === 0) {
+      return '📋 No execution plan available - use intelligent decision making';
+    }
+    
+    // Find next uncompleted step from plan
+    for (const step of executionPlan.steps) {
+      // Normalize agent name to handle variations
+      const agentName = this.normalizeToolName(step.agent);
+      const isCompleted = this.calledAgents.has(agentName);
+      
+      if (!isCompleted) {
+        console.log(`📋 Following execution plan: Next step is ${agentName} - ${step.action}`);
+        return `\n🎯 **EXECUTION PLAN GUIDANCE**:\n- Next Planned Step: ${agentName}\n- Action: ${step.action}\n- Reasoning: ${step.reasoning}\n- Priority: ${step.priority || 'high'}\n\n**RECOMMENDED**: Call ${agentName} to ${step.action}`;
+      }
+    }
+    
+    // All planned steps completed
+    return `\n✅ **EXECUTION PLAN COMPLETE**: All ${executionPlan.steps.length} planned steps have been executed.\nConsider: ${executionPlan.fallbackOptions?.join(', ') || 'Synthesizer for final answer'}`;
+  }
+  
+  /**
+   * 🔍 Check if execution plan has remaining steps
+   */
+  private hasRemainingPlanSteps(context: ResearchContext): boolean {
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+    
+    if (!executionPlan || !executionPlan.steps) {
+      return false;
+    }
+    
+    // Check if any planned steps are not completed (with name normalization)
+    return executionPlan.steps.some((step: PlanStep) => {
+      const normalizedName = this.normalizeToolName(step.agent);
+      return !this.calledAgents.has(normalizedName);
+    });
+  }
+  
+  /**
+   * 📊 Get execution plan status for master prompt
+   */
+  private getExecutionPlanStatus(context: ResearchContext): string {
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+    
+    if (!executionPlan) {
+      return 'NOT CREATED ❌ - PlanningAgent not called yet';
+    }
+    
+    const totalSteps = executionPlan.steps.length;
+    const completedSteps = executionPlan.steps.filter((step: PlanStep) => 
+      this.calledAgents.has(step.agent)
+    ).length;
+    
+    if (completedSteps === totalSteps) {
+      return `COMPLETED ✅ - All ${totalSteps} planned steps executed`;
+    }
+    
+    const currentStep = executionPlan.steps.find((step: PlanStep) => 
+      !this.calledAgents.has(step.agent)
+    );
+    
+    return `IN PROGRESS 🔄 - ${completedSteps}/${totalSteps} steps done, next: ${currentStep?.agent || 'unknown'}`;
   }
   
   /**
@@ -167,6 +237,7 @@ ITERATION: ${iteration}
 CURRENT SITUATION:
 - Available Documents: ${context.ragResults.chunks.length} chunks PRE-LOADED (no need to search)
 - Document Analysis: ${availableData.dataInspectorCompleted ? 'COMPLETED ✅ - DataInspector already called' : 'NOT DONE ❌ - need DataInspector'}
+- Execution Plan: ${this.getExecutionPlanStatus(context)}
 - Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
 - Data Extracted: ${availableData.extractorCompleted ? 'COMPLETED ✅ - Extractor already called' : 'NOT DONE ❌ - need Extractor'}
 - Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need Synthesizer'}
@@ -181,12 +252,12 @@ CURRENT SITUATION:
 
 ⚠️ CRITICAL: Use EXACT names above. Do NOT create variations.
 
-🎯 MANDATORY SEQUENCING RULES:
-1. **ALWAYS START WITH DataInspector** - NEVER call any other agent first (already called: ${availableData.agentsCalled.join(', ') || 'none'})
-2. **DataInspector REQUIRED** - Must analyze documents and filter relevant ones before any extraction
-3. **NO Extractor without DataInspector** - Extractor ONLY after DataInspector has filtered documents
-4. **Logical Flow**: DataInspector → PlanningAgent → PatternGenerator → Extractor → WebSearchAgent → Synthesizer
-5. **Never skip DataInspector** even if you think you have enough data - it filters irrelevant documents
+🎯 INTELLIGENT ORCHESTRATION GUIDANCE:
+1. **START WITH DataInspector** if not called yet - Analyzes and filters documents (${availableData.dataInspectorCompleted ? 'DONE ✅' : 'REQUIRED ❌'})
+2. **THEN PlanningAgent** if DataInspector done - Creates execution strategy (${availableData.planningAgentCompleted ? 'DONE ✅' : availableData.dataInspectorCompleted ? 'RECOMMENDED' : 'NOT YET'})
+3. **FOLLOW EXECUTION PLAN** if available - Use the intelligent plan created by PlanningAgent
+4. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
+5. **ADAPTIVE DECISIONS** - Make contextual decisions based on available data and plan
 
 📊 CURRENT DATA AVAILABLE:
 - Documents: ${availableData.chunksSelected ? `${context.ragResults.chunks.length} chunks available` : 'No documents available'}
@@ -213,13 +284,11 @@ CALL DataInspector first - no exceptions!` : context.ragResults.chunks.length ==
 3. **COMPLETE** - If the query can be answered without documents (general knowledge)
 
 IMPORTANT: Don't give up! Either search for data or explain what's needed.` : `
-📊 DOCUMENTS AVAILABLE: Continue with logical flow based on completed agents:
-${!availableData.dataInspectorCompleted ? '🔥 **NEXT REQUIRED**: DataInspector (must filter documents first)' : ''}
-${availableData.dataInspectorCompleted && !availableData.planningAgentCompleted ? '📋 **NEXT**: PlanningAgent (create execution strategy)' : ''}
-${availableData.planningAgentCompleted && !availableData.patternGeneratorCompleted ? '🔧 **NEXT**: PatternGenerator (create regex patterns)' : ''}
-${availableData.patternGeneratorCompleted && !availableData.extractorCompleted ? '⚡ **NEXT**: Extractor (execute patterns)' : ''}
-${availableData.extractorCompleted && !availableData.synthesizerCompleted ? '📝 **NEXT**: Synthesizer (create final answer)' : ''}
-Consider: Do you have enough extracted information, or need WebSearchAgent expansion?`}
+📊 AVAILABLE DATA & NEXT STEPS:
+${!availableData.dataInspectorCompleted ? '🔥 **REQUIRED**: DataInspector must analyze documents first' : ''}
+${availableData.dataInspectorCompleted && !availableData.planningAgentCompleted ? '📋 **RECOMMENDED**: PlanningAgent to create intelligent execution strategy' : ''}
+${availableData.planningAgentCompleted ? this.getNextPlannedStep(context, availableData) : ''}
+${!availableData.planningAgentCompleted && availableData.dataInspectorCompleted ? '\n💡 **OR** make intelligent tool decisions based on document analysis' : ''}`}
 
 🎯 RESPONSE FORMAT:
 
@@ -257,12 +326,13 @@ NEXT_GOAL: [final goal achieved]`;
   }
   
   /**
-   * 🔥 CRITICAL: Validate completion conditions to prevent premature completion
+   * 🔥 CRITICAL: Validate completion conditions based on execution plan
    */
   private validateCompletionConditions(context: ResearchContext): { allowed: boolean; reason: string; nextAgent?: string } {
     const calledAgents = Array.from(this.calledAgents);
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
     
-    // RULE 1: Must have called DataInspector first
+    // RULE 1: Must have called DataInspector first (always required)
     if (!this.calledAgents.has('DataInspector')) {
       return {
         allowed: false,
@@ -271,38 +341,113 @@ NEXT_GOAL: [final goal achieved]`;
       };
     }
     
-    // RULE 2: Must have generated patterns after DataInspector
-    if (this.calledAgents.has('DataInspector') && !this.calledAgents.has('PatternGenerator')) {
+    // RULE 2: If we have an execution plan, follow it
+    if (executionPlan && executionPlan.steps && executionPlan.steps.length > 0) {
+      // Check if all planned steps are completed
+      const remainingSteps = executionPlan.steps.filter((step: PlanStep) => 
+        !this.calledAgents.has(step.agent)
+      );
+      
+      if (remainingSteps.length > 0) {
+        const nextStep = remainingSteps[0];
+        return {
+          allowed: false,
+          reason: `Execution plan incomplete - ${remainingSteps.length} steps remaining`,
+          nextAgent: nextStep.agent
+        };
+      }
+      
+      // All planned steps completed - check if we have a meaningful result
+      if (!context.synthesis?.answer || context.synthesis.answer.length < 20) {
+        // Plan complete but no answer - try fallback options
+        const fallback = executionPlan.fallbackOptions?.[0];
+        if (fallback === 'web-search-expansion' && !this.calledAgents.has('WebSearchAgent')) {
+          return {
+            allowed: false,
+            reason: 'No answer found - trying web search fallback',
+            nextAgent: 'WebSearchAgent'
+          };
+        }
+        
+        // Try Synthesizer as last resort
+        if (!this.calledAgents.has('Synthesizer')) {
+          return {
+            allowed: false,
+            reason: 'Need to synthesize available information',
+            nextAgent: 'Synthesizer'
+          };
+        }
+      }
+      
+      // Execution plan complete with result
       return {
-        allowed: false,
-        reason: 'PatternGenerator not called - required after DataInspector analysis',
-        nextAgent: 'PatternGenerator'
+        allowed: true,
+        reason: `Execution plan completed: ${executionPlan.strategy} (${calledAgents.length} agents used)`
       };
     }
     
-    // RULE 3: Must have extracted data using patterns
-    if (this.calledAgents.has('PatternGenerator') && !this.calledAgents.has('Extractor')) {
+    // RULE 3: No execution plan - use intelligent fallback sequencing
+    // Ensure PlanningAgent is called after DataInspector
+    if (!this.calledAgents.has('PlanningAgent')) {
       return {
         allowed: false,
-        reason: 'Extractor not called - required to extract data using generated patterns',
+        reason: 'PlanningAgent not called - need execution strategy',
+        nextAgent: 'PlanningAgent'
+      };
+    }
+    
+    // Ensure Extractor runs before Synthesizer
+    if (!this.calledAgents.has('Extractor')) {
+      return {
+        allowed: false,
+        reason: 'Extractor not called - must extract data before synthesis',
         nextAgent: 'Extractor'
       };
     }
     
-    // RULE 4: Must have synthesized final answer
-    if (this.calledAgents.has('Extractor') && !this.calledAgents.has('Synthesizer')) {
+    // Check if we have extracted data
+    const hasExtractedData = context.extractedData?.raw && context.extractedData.raw.length > 0;
+    
+    // If Extractor ran but no data, we might need PatternGenerator
+    if (!hasExtractedData && !this.calledAgents.has('PatternGenerator')) {
       return {
         allowed: false,
-        reason: 'Synthesizer not called - required to create final answer from extracted data',
-        nextAgent: 'Synthesizer'
+        reason: 'No data extracted - need PatternGenerator to create extraction patterns',
+        nextAgent: 'PatternGenerator'
       };
     }
     
-    // RULE 5: Must have actual answer content
-    if (!context.synthesis?.answer || context.synthesis.answer.length < 50) {
+    // Now ensure Synthesizer runs AFTER we have data
+    if (!this.calledAgents.has('Synthesizer')) {
+      if (hasExtractedData) {
+        return {
+          allowed: false,
+          reason: 'Data extracted - ready for Synthesizer to create final answer',
+          nextAgent: 'Synthesizer'
+        };
+      } else {
+        // No data even after extraction attempts - still try synthesizer
+        return {
+          allowed: false,
+          reason: 'Synthesizer not called - required to create final answer',
+          nextAgent: 'Synthesizer'
+        };
+      }
+    }
+    
+    // Check for meaningful answer
+    if (!context.synthesis?.answer || context.synthesis.answer.length < 20) {
+      // If Synthesizer was called but no answer, might be because it ran too early
+      if (!hasExtractedData) {
+        return {
+          allowed: false,
+          reason: 'Synthesizer produced no answer - need to extract data first',
+          nextAgent: 'Extractor'
+        };
+      }
       return {
         allowed: false,
-        reason: 'No substantial answer generated - Synthesizer must create meaningful response',
+        reason: 'No substantial answer generated',
         nextAgent: 'Synthesizer'
       };
     }
@@ -356,66 +501,145 @@ NEXT_GOAL: [final goal achieved]`;
    * 📝 Parse Master LLM decision response (robust for small models)
    */
   private parseMasterLLMDecision(response: string): any {
+    console.log(`🔍 PARSING DEBUG: Full response (${response.length} chars):`, response.substring(0, 800) + (response.length > 800 ? '...' : ''));
+    
     const lines = response.split('\n').map(line => line.trim());
     let action = '';
     let toolName = '';
     let reasoning = '';
     let nextGoal = '';
     
-    // Standard format parsing
+    // PRIORITY 1: Standard structured format parsing (most reliable)
+    // 🚨 CRITICAL FIX: Take FIRST occurrence, not LAST (prevents overwriting correct decisions)
     for (const line of lines) {
-      if (line.startsWith('ACTION:')) {
+      if (line.startsWith('ACTION:') && !action) {
         action = line.replace('ACTION:', '').trim();
-      } else if (line.startsWith('TOOL_NAME:')) {
+        console.log(`🎯 PARSED ACTION (FIRST):`, action);
+      } else if (line.startsWith('TOOL_NAME:') && !toolName) {
         toolName = line.replace('TOOL_NAME:', '').trim();
-      } else if (line.startsWith('REASONING:')) {
+        console.log(`🎯 PARSED TOOL_NAME (FIRST):`, toolName);
+      } else if (line.startsWith('REASONING:') && !reasoning) {
         reasoning = line.replace('REASONING:', '').trim();
-      } else if (line.startsWith('NEXT_GOAL:')) {
+      } else if (line.startsWith('NEXT_GOAL:') && !nextGoal) {
         nextGoal = line.replace('NEXT_GOAL:', '').trim();
       }
+      
+      // Early termination: if we have action and toolName, we have the primary decision
+      if (action && toolName) {
+        console.log(`✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps`);
+        break;
+      }
     }
     
-    // 🚨 FIX: Handle small model variations and direct tool name responses
-    if (!action && !toolName) {
-      // Try to find tool names directly in response
-      const toolNames = ['DataInspector', 'PlanningAgent', 'PatternGenerator', 'Extractor', 'WebSearchAgent', 'Synthesizer'];
-      const upperToolNames = ['DATAINSPECTOR', 'PLANNINGAGENT', 'PATTERNGENERATOR', 'EXTRACTOR', 'WEBSEARCHAGENT', 'SYNTHESIZER'];
+    // PRIORITY 2: If structured format found, use it (don't override with fallback)
+    if (action || toolName) {
+      console.log(`✅ USING STRUCTURED FORMAT: action=${action}, toolName=${toolName}`);
       
-      for (const tool of toolNames) {
-        if (response.includes(tool)) {
+      // Handle case where LLM returns tool name as action
+      if (action && !toolName && action !== 'COMPLETE') {
+        const normalizedAction = this.normalizeToolName(action);
+        if (this.registry.get(normalizedAction)) {
+          toolName = normalizedAction;
           action = 'CALL_TOOL';
-          toolName = tool;
-          break;
+          console.log(`🔧 CONVERTED ACTION TO TOOL_NAME: ${toolName}`);
         }
       }
       
-      if (!toolName) {
-        for (const tool of upperToolNames) {
-          if (response.includes(tool)) {
-            action = 'CALL_TOOL';
-            toolName = this.normalizeToolName(tool);
-            break;
-          }
-        }
+      // Default reasoning if missing
+      if (!reasoning && toolName) {
+        reasoning = `Need to call ${toolName} to progress toward the goal`;
       }
+      
+      return { action, toolName, reasoning, nextGoal };
     }
     
-    // Handle case where LLM returns tool name as action
-    // 🚨 CRITICAL FIX: Never override COMPLETE decisions - prevents infinite loops
-    if (action && !toolName && action !== 'COMPLETE') {
-      const normalizedAction = this.normalizeToolName(action);
-      if (this.registry.get(normalizedAction)) {
-        toolName = normalizedAction;
+    // PRIORITY 3: Fallback parsing - look for decision context (not thinking context)
+    console.log(`⚠️ NO STRUCTURED FORMAT FOUND - attempting intelligent fallback parsing`);
+    
+    // Try to find decision section (after thinking)
+    const decisionSection = this.extractDecisionSection(response);
+    console.log(`🔍 DECISION SECTION:`, decisionSection.substring(0, 200));
+    
+    // Look for tool names in decision context with priority order
+    const priorityOrder = ['DataInspector', 'PlanningAgent', 'PatternGenerator', 'Extractor', 'WebSearchAgent', 'Synthesizer'];
+    
+    for (const tool of priorityOrder) {
+      // Look for decision indicators near tool names
+      const toolRegex = new RegExp(`(call|use|run|execute|start)\\s+(with\\s+)?${tool}`, 'i');
+      if (toolRegex.test(decisionSection) || 
+          (decisionSection.includes(tool) && this.isInDecisionContext(decisionSection, tool))) {
         action = 'CALL_TOOL';
+        toolName = tool;
+        console.log(`🎯 FALLBACK FOUND DECISION: ${toolName} (matched: ${toolRegex.test(decisionSection) ? 'action pattern' : 'decision context'})`);
+        break;
       }
     }
     
-    // Default reasoning if missing
+    // If no decision context found, check for completion indicators
+    if (!toolName && /complete|done|finish|ready/i.test(decisionSection)) {
+      action = 'COMPLETE';
+      reasoning = 'Task appears to be complete based on response content';
+      console.log(`🏁 FALLBACK FOUND COMPLETION`);
+    }
+    
+    // Last resort: default reasoning
     if (!reasoning && toolName) {
       reasoning = `Need to call ${toolName} to progress toward the goal`;
     }
     
+    console.log(`📋 FINAL PARSED DECISION: action=${action}, toolName=${toolName}, reasoning=${reasoning?.substring(0, 50)}...`);
     return { action, toolName, reasoning, nextGoal };
+  }
+  
+  /**
+   * 🧠 Extract decision section from response (after thinking)
+   */
+  private extractDecisionSection(response: string): string {
+    // Look for common decision indicators
+    const decisionMarkers = [
+      '</think>',
+      'DECISION:',
+      'NEXT:',
+      'CALL_TOOL',
+      'ACTION:',
+      'Based on',
+      'Therefore',
+      'I need to',
+      'First step',
+      'Next step'
+    ];
+    
+    let decisionStart = 0;
+    for (const marker of decisionMarkers) {
+      const markerIndex = response.lastIndexOf(marker);
+      if (markerIndex > decisionStart) {
+        decisionStart = markerIndex;
+      }
+    }
+    
+    // If we found decision markers, extract from there
+    if (decisionStart > 0) {
+      return response.substring(decisionStart);
+    }
+    
+    // Otherwise, take the last portion (likely to be decision)
+    const lines = response.split('\n');
+    const lastThird = Math.floor(lines.length * 2/3);
+    return lines.slice(lastThird).join('\n');
+  }
+  
+  /**
+   * 🧠 Check if tool mention is in decision context (not just thinking/reasoning)
+   */
+  private isInDecisionContext(text: string, toolName: string): boolean {
+    const toolIndex = text.indexOf(toolName);
+    if (toolIndex === -1) return false;
+    
+    // Look for decision words near the tool mention
+    const contextWindow = text.substring(Math.max(0, toolIndex - 50), toolIndex + 50);
+    const decisionWords = ['call', 'use', 'run', 'execute', 'start', 'need', 'should', 'must', 'first', 'next'];
+    
+    return decisionWords.some(word => contextWindow.toLowerCase().includes(word));
   }
   
   /**
@@ -432,6 +656,14 @@ NEXT_GOAL: [final goal achieved]`;
       throw new Error(`Mandatory sequencing violation: DataInspector required before Extractor`);
     }
     
+    // 🚨 CRITICAL FIX: Prevent Synthesizer from running before Extractor has data
+    if (normalizedToolName === 'Synthesizer' && !this.calledAgents.has('Extractor')) {
+      console.error(`❌ SEQUENCING VIOLATION: Synthesizer cannot be called before Extractor!`);
+      console.error(`🔥 Extractor must extract data first. Current agents called: [${Array.from(this.calledAgents).join(', ')}]`);
+      console.error(`📊 This prevents "No relevant information found" when data exists but hasn't been extracted yet`);
+      throw new Error(`Mandatory sequencing violation: Extractor required before Synthesizer`);
+    }
+    
     if (normalizedToolName === 'PatternGenerator' && !this.calledAgents.has('DataInspector')) {
       console.warn(`⚠️ RECOMMENDED: PatternGenerator works better after DataInspector filters documents`);
     }
@@ -443,10 +675,27 @@ NEXT_GOAL: [final goal achieved]`;
       throw new Error(`Tool ${toolName} (normalized: ${normalizedToolName}) not found in registry. Available: ${this.registry.listAgents().map(a => a.name).join(', ')}`);
     }
     
-    // 🔥 CRITICAL FIX: Check if agent already called (prevent redundant calls)
+    // 🔥 INTELLIGENT DUPLICATE PREVENTION: Allow Synthesizer re-execution if previously called with no data
     if (this.calledAgents.has(normalizedToolName)) {
-      console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
-      return;
+      if (normalizedToolName === 'Synthesizer') {
+        // Check if Synthesizer was called before with no data and now data is available
+        const hasExtractedData = this.hasExtractedData(context);
+        const synthesisAnswer = context.synthesis?.answer || '';
+        const wasCalledWithNoData = synthesisAnswer.trim() === '' || synthesisAnswer.includes('No relevant information found');
+        
+        if (hasExtractedData && wasCalledWithNoData) {
+          console.log(`🔄 RE-CALLING Synthesizer: Data now available after previous empty call`);
+          console.log(`📊 Previously had no data, now has extracted data - allowing re-execution`);
+          // Remove from called agents to allow re-execution
+          this.calledAgents.delete(normalizedToolName);
+        } else {
+          console.warn(`⚠️ Agent ${normalizedToolName} already called with data, skipping to prevent redundant processing`);
+          return;
+        }
+      } else {
+        console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
+        return;
+      }
     }
     
     console.log(`🔧 Executing tool: ${normalizedToolName} (original: ${toolName})`);
@@ -573,6 +822,13 @@ NEXT_GOAL: [final goal achieved]`;
       'PATTERN_GENERATOR_AGENT': 'PatternGenerator',
       'EXTRACTOR_AGENT': 'Extractor',
       'WEB_SEARCH_AGENT_FULL': 'WebSearchAgent',
+      
+      // 🔥 CRITICAL: Common confusion between PatternGenerator and Extractor
+      'PATTERNEXTRACTOR': 'Extractor',  // Common mix-up
+      'PatternExtractor': 'Extractor',  // Case variation
+      'pattern-extractor': 'Extractor',
+      'pattern_extractor': 'Extractor',
+      'PATTERN_EXTRACTOR': 'Extractor',
       // Lowercase versions
       'datainspector': 'DataInspector',
       'planningagent': 'PlanningAgent',
@@ -624,6 +880,29 @@ NEXT_GOAL: [final goal achieved]`;
     
     // Return mapped name or original if no mapping found
     return toolNameMap[toolName] || toolName;
+  }
+  
+  /**
+   * 📊 Check if Extractor has successfully extracted data
+   */
+  private hasExtractedData(context: ResearchContext): boolean {
+    // Check if extractedData exists and has raw items
+    if (context.extractedData?.raw && context.extractedData.raw.length > 0) {
+      return true;
+    }
+    
+    // Check if extractedData has structured data
+    if (context.extractedData?.structured && context.extractedData.structured.length > 0) {
+      return true;
+    }
+    
+    // Check agent findings for extracted data from Extractor
+    const extractorFindings = context.sharedKnowledge?.agentFindings?.Extractor;
+    if (extractorFindings && extractorFindings.extractedData && extractorFindings.extractedData.length > 0) {
+      return true;
+    }
+    
+    return false;
   }
   
   // 🗑️ OLD METHODS: Replaced by Master LLM Orchestrator

@@ -61,7 +61,9 @@ Since no document content is available, generate patterns that would typically e
 Example for this query: Generate patterns to find project names, person names, rankings, etc.`;
       
     // 🔥 CRITICAL FIX: Force LLM to use DataInspector intelligence, not generic assumptions
-    const regexGenerationPrompt = `YOU ARE A PATTERN DISCOVERY AGENT. Your job is to find ACTUAL patterns in the provided document content, NOT to guess or make assumptions.
+    const regexGenerationPrompt = `/no_think
+
+YOU ARE A PATTERN DISCOVERY AGENT. Your job is to find ACTUAL patterns in the provided document content, NOT to guess or make assumptions.
 
 🚨 MANDATORY: You MUST analyze the ACTUAL document samples below and generate patterns based on what you observe, NOT generic assumptions.
 
@@ -250,10 +252,41 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
   }
   
   /**
-   * 🎯 Parse regex patterns from LLM response (ENHANCED - handles multiple formats)
-   * 🔥 CRITICAL FIX: Accept patterns with OR without slashes, normalize format
+   * 🎯 BULLETPROOF Parse regex patterns from LLM response (TRIPLE-TIER PARSER)
+   * Handles: Structured format, <think> content, and free-form text
    */
   private parseRegexPatternsFromLLM(response: string): string[] {
+    console.log(`🔍 Starting triple-tier pattern parsing from LLM response (${response.length} chars)`);
+    
+    // Tier 1: Try structured format (preferred)
+    let patterns = this.parseStructuredFormat(response);
+    if (patterns.length > 0) {
+      console.log(`✅ Tier 1 SUCCESS: Found ${patterns.length} patterns in structured format`);
+      return patterns;
+    }
+    
+    // Tier 2: Try extracting from <think> content (Qwen fallback)  
+    patterns = this.parseFromThinkContent(response);
+    if (patterns.length > 0) {
+      console.log(`✅ Tier 2 SUCCESS: Found ${patterns.length} patterns in think content`);
+      return patterns;
+    }
+    
+    // Tier 3: Try free-form text parsing (universal fallback)
+    patterns = this.parseFromFreeFormText(response);
+    if (patterns.length > 0) {
+      console.log(`✅ Tier 3 SUCCESS: Found ${patterns.length} patterns in free-form text`);
+      return patterns;
+    }
+    
+    console.warn(`❌ ALL TIERS FAILED: No patterns found in any format`);
+    return [];
+  }
+
+  /**
+   * Tier 1: Parse structured REGEX_PATTERNS: section format
+   */
+  private parseStructuredFormat(response: string): string[] {
     const patterns: string[] = [];
     
     try {
@@ -261,67 +294,168 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
       const regexSection = response.match(/REGEX_PATTERNS?:\s*([\s\S]*?)(?:\n\n|REASONING|$)/i);
       if (regexSection) {
         const patternsText = regexSection[1];
-        console.log(`🔍 Found REGEX_PATTERNS section: "${patternsText.substring(0, 300)}..."`);
+        console.log(`🔍 Found REGEX_PATTERNS section: "${patternsText.substring(0, 200)}..."`);
         
-        // 🔥 ENHANCED: Extract patterns in multiple formats
-        // Format 1: - /pattern/flags (ideal)
-        // Format 2: - (pattern) (LLM generated - needs normalization)
-        // Format 3: - pattern (raw pattern)
+        // Extract patterns in multiple formats
         const lines = patternsText.split('\n').filter(line => line.trim().startsWith('-'));
         
         lines.forEach(line => {
           const trimmedLine = line.trim().replace(/^[-*]\s*/, '');
-          console.log(`🧪 Processing line: "${trimmedLine}"`);
+          const normalizedPattern = this.normalizePattern(trimmedLine);
           
-          let normalizedPattern = '';
-          
-          // Try different pattern formats
-          if (trimmedLine.match(/^\/.*\/[gimuy]*$/)) {
-            // Format 1: Already in /pattern/flags format
-            normalizedPattern = trimmedLine;
-            console.log(`✅ Format 1 (perfect): ${normalizedPattern}`);
-          } else if (trimmedLine.match(/^\/.*\/[gimuy]*\s+\(extracts:/)) {
-            // Format: /pattern/flags (extracts: "example") - extract just the pattern part
-            const patternMatch = trimmedLine.match(/^(\/.*\/[gimuy]*)/);
-            if (patternMatch) {
-              normalizedPattern = patternMatch[1];
-              console.log(`✅ Format 1 with examples (extracted): ${normalizedPattern}`);
-            }
-          } else if (trimmedLine.match(/^\(.+\)$/)) {
-            // Format 2: (pattern) - add slashes and flags
-            normalizedPattern = `/${trimmedLine}/gi`;
-            console.log(`✅ Format 2 (normalized): ${normalizedPattern}`);
-          } else if (trimmedLine.length > 2 && !trimmedLine.includes(':')) {
-            // Format 3: raw pattern - add slashes and flags
-            normalizedPattern = `/${trimmedLine}/gi`;
-            console.log(`✅ Format 3 (raw normalized): ${normalizedPattern}`);
-          } else {
-            console.warn(`⚠️ Skipping unrecognized format: "${trimmedLine}"`);
-            return;
+          if (normalizedPattern && !this.isUselessPattern(normalizedPattern.match(/\/([^\/]+)\//)?.[1] || '')) {
+            patterns.push(normalizedPattern);
           }
-          
-          // Validate normalized pattern
-          const patternContent = normalizedPattern.match(/\/([^\/]+)\//)?.[1] || '';
-          if (this.isUselessPattern(patternContent)) {
-            console.warn(`🚫 Filtering out useless pattern: ${normalizedPattern}`);
-            return;
-          }
-          
-          console.log(`✅ Keeping useful pattern: ${normalizedPattern}`);
-          patterns.push(normalizedPattern);
         });
-        
-      } else {
-        console.warn(`⚠️ No REGEX_PATTERNS section found in LLM response`);
       }
       
-      console.log(`🔍 Parsed ${patterns.length} useful regex patterns from LLM response`);
       return patterns;
       
     } catch (error) {
-      console.warn('⚠️ Failed to parse regex patterns from LLM response:', error);
+      console.warn('⚠️ Structured format parsing failed:', error);
       return [];
     }
+  }
+
+  /**
+   * Tier 2: Extract patterns from <think> content
+   */
+  private parseFromThinkContent(response: string): string[] {
+    const patterns: string[] = [];
+    
+    try {
+      // Extract content between <think> and </think>
+      const thinkMatch = response.match(/<think>([\s\S]*?)<\/think>/i);
+      if (thinkMatch) {
+        const thinkContent = thinkMatch[1];
+        console.log(`🧠 Found think content (${thinkContent.length} chars): "${thinkContent.substring(0, 200)}..."`);
+        
+        // Look for regex patterns in think content
+        const regexPatterns = thinkContent.match(/\/[^\/\n]+\/[gimuy]*/g);
+        if (regexPatterns) {
+          regexPatterns.forEach(pattern => {
+            const patternContent = pattern.match(/\/([^\/]+)\//)?.[1] || '';
+            if (!this.isUselessPattern(patternContent)) {
+              patterns.push(pattern);
+            }
+          });
+        }
+        
+        // Look for pattern descriptions and convert them
+        const descriptions = this.extractPatternDescriptions(thinkContent);
+        patterns.push(...descriptions);
+      }
+      
+      return patterns;
+      
+    } catch (error) {
+      console.warn('⚠️ Think content parsing failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Tier 3: Universal fallback - extract patterns from any text
+   */
+  private parseFromFreeFormText(response: string): string[] {
+    const patterns: string[] = [];
+    
+    try {
+      console.log(`🔍 Attempting free-form pattern extraction from response`);
+      
+      // Look for any regex patterns in the entire response
+      const regexPatterns = response.match(/\/[^\/\n]+\/[gimuy]*/g);
+      if (regexPatterns) {
+        regexPatterns.forEach(pattern => {
+          const patternContent = pattern.match(/\/([^\/]+)\//)?.[1] || '';
+          if (!this.isUselessPattern(patternContent)) {
+            patterns.push(pattern);
+          }
+        });
+      }
+      
+      // Look for quoted patterns
+      const quotedPatterns = response.match(/"([^"]+)"/g);
+      if (quotedPatterns) {
+        quotedPatterns.forEach(quoted => {
+          const pattern = quoted.replace(/"/g, '');
+          if (pattern.length > 3 && !this.isUselessPattern(pattern)) {
+            patterns.push(`/${pattern}/gi`);
+          }
+        });
+      }
+      
+      return patterns;
+      
+    } catch (error) {
+      console.warn('⚠️ Free-form text parsing failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Normalize pattern to standard /pattern/flags format
+   */
+  private normalizePattern(line: string): string | null {
+    console.log(`🧪 Normalizing pattern: "${line}"`);
+    
+    // Already in /pattern/flags format
+    if (line.match(/^\/.*\/[gimuy]*$/)) {
+      console.log(`✅ Already normalized: ${line}`);
+      return line;
+    }
+    
+    // Format: /pattern/flags (extracts: "example")
+    if (line.match(/^\/.*\/[gimuy]*\s+\(extracts:/)) {
+      const patternMatch = line.match(/^(\/.*\/[gimuy]*)/);
+      if (patternMatch) {
+        console.log(`✅ Extracted from example format: ${patternMatch[1]}`);
+        return patternMatch[1];
+      }
+    }
+    
+    // Format: (pattern) - add slashes and flags
+    if (line.match(/^\(.+\)$/)) {
+      const normalized = `/${line}/gi`;
+      console.log(`✅ Normalized parentheses: ${normalized}`);
+      return normalized;
+    }
+    
+    // Raw pattern - add slashes and flags
+    if (line.length > 2 && !line.includes(':')) {
+      const normalized = `/${line}/gi`;
+      console.log(`✅ Normalized raw: ${normalized}`);
+      return normalized;
+    }
+    
+    console.warn(`⚠️ Could not normalize: "${line}"`);
+    return null;
+  }
+
+  /**
+   * Extract pattern descriptions from text and convert to regex
+   */
+  private extractPatternDescriptions(text: string): string[] {
+    const patterns: string[] = [];
+    
+    // Look for common pattern descriptions
+    const descriptions = [
+      /(?:pattern for|regex for|extract)\s+([^.!?\n]+)/gi,
+      /(?:built|developed|created)\s+([^.!?\n]+)/gi,
+      /(?:using|with|via)\s+([A-Z][^.!?\n]*)/gi
+    ];
+    
+    descriptions.forEach(desc => {
+      const matches = [...text.matchAll(desc)];
+      matches.forEach(match => {
+        const content = match[1].trim();
+        if (content.length > 3) {
+          patterns.push(`/${content.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/gi`);
+        }
+      });
+    });
+    
+    return patterns;
   }
   
   /**

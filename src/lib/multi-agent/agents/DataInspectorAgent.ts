@@ -335,7 +335,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
     }
   }
 
-  private async parseMultiDocumentAnalysis(response: string, documentGroups: any[], context: ResearchContext): Promise<DocumentAnalysis> {
+  private async parseMultiDocumentAnalysis(_response: string, documentGroups: any[], context: ResearchContext): Promise<DocumentAnalysis> {
     // 🧠 AWESOME DATAINSPECTOR: Pure LLM Intelligence - No Hardcode, No Fallbacks!
     // Let LLM make intelligent decisions about document relevance
     
@@ -350,7 +350,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
       const docNumber = i + 1;
       
       // 🧠 INTELLIGENT DOCUMENT ANALYSIS: Let LLM decide what this document is about
-      const docAnalysis = await this.analyzeDocumentIntelligently(response, group, docNumber, context.query);
+      const docAnalysis = await this.analyzeDocumentIntelligently(group, docNumber, context.query);
       
       console.log(`🔍 Document ${docNumber} intelligent analysis:`, {
         docType: docAnalysis.documentType,
@@ -415,7 +415,6 @@ Provide specific, actionable insights that will guide intelligent extraction and
    * No hardcode, no fallbacks - just smart reasoning about document relevance
    */
   private async analyzeDocumentIntelligently(
-    originalResponse: string, 
     documentGroup: any, 
     docNumber: number, 
     query: string
@@ -429,29 +428,33 @@ Provide specific, actionable insights that will guide intelligent extraction and
       .map((chunk: any) => chunk.text.substring(0, 400))
       .join('\n\n');
 
-    const intelligentPrompt = `You are an intelligent document analyzer. Analyze this document and make smart decisions.
+    const intelligentPrompt = `You are an intelligent document analyzer. Analyze ONLY the document content to identify who owns/created it.
 
-QUERY: "${query}"
 DOCUMENT ${docNumber} SAMPLE CONTENT:
 ${sampleContent}
 
-ORIGINAL ANALYSIS CONTEXT:
-${originalResponse.substring(0, 500)}
+🚨 CRITICAL: Look at the document content above and identify WHO this document is about or written by. Ignore the user's query for now.
 
-Based on your intelligent analysis, answer these questions:
+STEP 1: Document Analysis
+- What type of document is this? (Resume, Blog, Report, Manual, etc.)
+- Who is the main person this document belongs to or is about?
+- Look for names, signatures, "My projects", "I built", author bylines, etc.
 
-1. DOCUMENT TYPE: What type of document is this? (Resume, Blog, Report, etc.)
-2. PRIMARY ENTITY: Who is the main person/subject this document is about?
-3. RELEVANCE DECISION: For the query "${query}", is this document relevant?
-4. REASONING: Why is this document relevant or irrelevant to answering the user's question?
+STEP 2: Relevance Check  
+- USER QUERY: "${query}"
+- Is this document about the person mentioned in the query?
+- If document is about Tyler but query asks about Rutwik → IRRELEVANT
+- If document is about Rutwik and query asks about Rutwik → RELEVANT
 
-Think intelligently: If the user asks about "Rutwik's best project" and this document is about Tyler's speedruns, it's clearly irrelevant. But if this document is Rutwik's resume with his projects, it's very relevant.
+🎯 EXAMPLE:
+- Document about "Tyler Romero's blog post" + Query "Rutwik's project" = ENTITY: Tyler Romero, RELEVANT: NO
+- Document about "Rutwik Shinde's resume" + Query "Rutwik's project" = ENTITY: Rutwik Shinde, RELEVANT: YES
 
 Respond in simple format:
-TYPE: [document type]
-ENTITY: [primary person/subject]  
-RELEVANT: [YES/NO]
-REASON: [your intelligent reasoning]`;
+TYPE: [document type - what kind of document]
+ENTITY: [who owns/created this document - the actual person's name from the document]
+RELEVANT: [YES only if ENTITY matches the person in query, otherwise NO]
+REASON: [explain who the document is about and why it's relevant/irrelevant]`;
 
     try {
       const response = await this.llm(intelligentPrompt);

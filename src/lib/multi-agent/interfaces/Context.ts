@@ -131,6 +131,7 @@ export interface ResearchContext {
     extractionStrategies: Record<string, any>; // PatternGenerator strategies
     discoveredPatterns: Record<string, any>; // Patterns discovered during processing
     agentFindings: Record<string, any>; // Key findings from each agent
+    executionPlan?: any; // PlanningAgent execution plan
   };
   
   // Timing and performance

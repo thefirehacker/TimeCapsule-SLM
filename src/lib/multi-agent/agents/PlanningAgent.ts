@@ -113,10 +113,11 @@ Based on this analysis, create an intelligent execution plan:
 1. **STRATEGY**: What's the best approach? (regex-extraction, web-expansion, direct-synthesis)
 
 2. **EXECUTION STEPS**: What agents should be called and in what order?
-   - PatternGenerator: For structured data extraction using regex
-   - Extractor: For executing patterns or LLM extraction  
-   - WebSearchAgent: For expanding knowledge base when local data insufficient
-   - Synthesizer: For creating final answer
+   IMPORTANT: Use EXACT agent names as listed below:
+   - "PatternGenerator": For structured data extraction using regex
+   - "Extractor": For executing patterns or LLM extraction (NOT "PatternExtractor")
+   - "WebSearchAgent": For expanding knowledge base when local data insufficient
+   - "Synthesizer": For creating final answer
 
 3. **FALLBACK OPTIONS**: What to do if primary approach fails?
 
@@ -183,22 +184,252 @@ Return as JSON:
     }
   }
   
+  private normalizeAgentName(name: string): string {
+    // Normalize common variations to correct agent names
+    const normalizations: Record<string, string> = {
+      'patternextractor': 'Extractor',
+      'pattern-extractor': 'Extractor',
+      'pattern_extractor': 'Extractor',
+      'extractionagent': 'Extractor',
+      'extraction': 'Extractor',
+      'patterngenerator': 'PatternGenerator',
+      'pattern-generator': 'PatternGenerator',
+      'pattern_generator': 'PatternGenerator',
+      'websearch': 'WebSearchAgent',
+      'web-search': 'WebSearchAgent',
+      'web_search': 'WebSearchAgent',
+      'synthesis': 'Synthesizer',
+      'synthesize': 'Synthesizer',
+      'datainspector': 'DataInspector',
+      'data-inspector': 'DataInspector',
+      'data_inspector': 'DataInspector',
+      'planningagent': 'PlanningAgent',
+      'planning': 'PlanningAgent',
+      'planner': 'PlanningAgent'
+    };
+    
+    const normalized = normalizations[name.toLowerCase()] || name;
+    return normalized;
+  }
+
   private parseExecutionPlan(response: string): ExecutionPlan {
-    try {
-      const parsed = parseJsonWithResilience(response);
+    // Multiple parsing attempts with increasing resilience
+    const parsingAttempts = [
+      // Attempt 1: Standard JSON parsing
+      () => parseJsonWithResilience(response),
       
-      // Validate and provide defaults
-      return {
-        strategy: parsed.strategy || 'regex-extraction',
-        steps: Array.isArray(parsed.steps) ? parsed.steps : [],
-        fallbackOptions: Array.isArray(parsed.fallbackOptions) ? parsed.fallbackOptions : ['web-search'],
-        expectedDataSources: Array.isArray(parsed.expectedDataSources) ? parsed.expectedDataSources : ['local documents'],
-        confidenceLevel: typeof parsed.confidenceLevel === 'number' ? parsed.confidenceLevel : 0.7
-      };
-    } catch (error) {
-      console.warn('⚠️ Failed to parse execution plan, using fallback');
-      throw error;
+      // Attempt 2: Extract JSON block if wrapped in markdown
+      () => {
+        const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (jsonMatch) {
+          return parseJsonWithResilience(jsonMatch[1]);
+        }
+        throw new Error('No JSON block found');
+      },
+      
+      // Attempt 3: Find first complete JSON object
+      () => {
+        const jsonStart = response.indexOf('{');
+        const jsonEnd = response.lastIndexOf('}') + 1;
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+          return parseJsonWithResilience(response.substring(jsonStart, jsonEnd));
+        }
+        throw new Error('No JSON object found');
+      },
+      
+      // Attempt 4: Manual extraction from text
+      () => this.extractPlanFromText(response)
+    ];
+    
+    for (let i = 0; i < parsingAttempts.length; i++) {
+      try {
+        console.log(`🔄 PlanningAgent parsing attempt ${i + 1}/${parsingAttempts.length}`);
+        const parsed = parsingAttempts[i]();
+        
+        // Normalize agent names in steps
+        if (Array.isArray(parsed.steps)) {
+          parsed.steps = parsed.steps.map((step: any) => ({
+            ...step,
+            agent: this.normalizeAgentName(step.agent || '')
+          }));
+        }
+        
+        // Validate and provide defaults
+        const plan = {
+          strategy: parsed.strategy || 'regex-extraction',
+          steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+          fallbackOptions: Array.isArray(parsed.fallbackOptions) ? parsed.fallbackOptions : ['web-search'],
+          expectedDataSources: Array.isArray(parsed.expectedDataSources) ? parsed.expectedDataSources : ['local documents'],
+          confidenceLevel: typeof parsed.confidenceLevel === 'number' ? parsed.confidenceLevel : 0.7
+        };
+        
+        console.log(`✅ Successfully parsed execution plan on attempt ${i + 1}`);
+        return plan;
+        
+      } catch (error) {
+        console.warn(`⚠️ Parsing attempt ${i + 1} failed:`, error.message);
+        if (i === parsingAttempts.length - 1) {
+          console.error('❌ All parsing attempts failed, using intelligent fallback');
+          return this.createIntelligentFallback(response);
+        }
+      }
     }
+    
+    // This should never be reached due to fallback
+    throw new Error('Failed to create execution plan');
+  }
+  
+  private extractPlanFromText(response: string): any {
+    console.log(`🔍 Attempting manual plan extraction from text response`);
+    
+    // Try to extract key information from text
+    const strategy = this.extractStrategy(response);
+    const steps = this.extractSteps(response);
+    const fallbackOptions = this.extractFallbackOptions(response);
+    const expectedDataSources = this.extractDataSources(response);
+    const confidenceLevel = this.extractConfidence(response);
+    
+    return {
+      strategy,
+      steps,
+      fallbackOptions,
+      expectedDataSources,
+      confidenceLevel
+    };
+  }
+  
+  private createIntelligentFallback(response: string): ExecutionPlan {
+    console.log(`🤖 Creating intelligent fallback based on response content`);
+    
+    // Analyze response to create intelligent fallback
+    const hasPatternMention = /pattern|regex|extract/i.test(response);
+    const hasWebMention = /web|search|expand/i.test(response);
+    const hasSynthesisMention = /synthesis|answer|final/i.test(response);
+    
+    const steps = [];
+    
+    // Always start with PatternGenerator for structured extraction
+    steps.push({
+      agent: 'PatternGenerator',
+      action: 'create extraction patterns',
+      reasoning: 'extract structured data from documents',
+      expectedOutput: 'regex patterns for data extraction',
+      priority: 'high'
+    });
+    
+    // Add Extractor
+    steps.push({
+      agent: 'Extractor',
+      action: 'extract using patterns',
+      reasoning: 'get structured information from documents',
+      expectedOutput: 'extracted data items',
+      priority: 'high'
+    });
+    
+    // Add WebSearchAgent if mentioned or if data quality seems low
+    if (hasWebMention) {
+      steps.push({
+        agent: 'WebSearchAgent',
+        action: 'expand knowledge base',
+        reasoning: 'supplement local data with web information',
+        expectedOutput: 'additional relevant information',
+        priority: 'medium'
+      });
+    }
+    
+    // Always end with Synthesizer
+    steps.push({
+      agent: 'Synthesizer',
+      action: 'create final answer',
+      reasoning: 'combine all extracted data into user answer',
+      expectedOutput: 'comprehensive final answer',
+      priority: 'high'
+    });
+    
+    return {
+      strategy: hasPatternMention ? 'regex-extraction' : 'llm-analysis',
+      steps: steps,
+      fallbackOptions: ['web-search-expansion', 'direct-synthesis'],
+      expectedDataSources: ['local documents'],
+      confidenceLevel: 0.6 // Lower confidence for fallback
+    };
+  }
+  
+  private extractStrategy(text: string): string {
+    if (/regex|pattern/i.test(text)) return 'regex-extraction';
+    if (/web|search/i.test(text)) return 'web-expansion';
+    if (/synthesis|direct/i.test(text)) return 'direct-synthesis';
+    return 'regex-extraction';
+  }
+  
+  private extractSteps(text: string): any[] {
+    const steps = [];
+    
+    if (/patterngenerator|pattern/i.test(text)) {
+      steps.push({
+        agent: 'PatternGenerator',
+        action: 'create patterns',
+        reasoning: 'extract structured data',
+        expectedOutput: 'regex patterns',
+        priority: 'high'
+      });
+    }
+    
+    if (/extractor|extract/i.test(text)) {
+      steps.push({
+        agent: 'Extractor',
+        action: 'extract data',
+        reasoning: 'get information',
+        expectedOutput: 'extracted items',
+        priority: 'high'
+      });
+    }
+    
+    if (/websearch|web/i.test(text)) {
+      steps.push({
+        agent: 'WebSearchAgent',
+        action: 'search web',
+        reasoning: 'expand knowledge',
+        expectedOutput: 'web results',
+        priority: 'medium'
+      });
+    }
+    
+    if (/synthesizer|synthesis|final/i.test(text)) {
+      steps.push({
+        agent: 'Synthesizer',
+        action: 'create answer',
+        reasoning: 'combine data',
+        expectedOutput: 'final answer',
+        priority: 'high'
+      });
+    }
+    
+    return steps;
+  }
+  
+  private extractFallbackOptions(text: string): string[] {
+    const options = [];
+    if (/web|search/i.test(text)) options.push('web-search-expansion');
+    if (/synthesis|direct/i.test(text)) options.push('direct-synthesis');
+    return options.length > 0 ? options : ['web-search-expansion'];
+  }
+  
+  private extractDataSources(text: string): string[] {
+    const sources = [];
+    if (/local|document/i.test(text)) sources.push('local documents');
+    if (/web|search/i.test(text)) sources.push('web search');
+    if (/general|knowledge/i.test(text)) sources.push('general knowledge');
+    return sources.length > 0 ? sources : ['local documents'];
+  }
+  
+  private extractConfidence(text: string): number {
+    const confMatch = text.match(/confidence[:\s]*(\d*\.?\d+)/i);
+    if (confMatch) {
+      const conf = parseFloat(confMatch[1]);
+      return conf <= 1 ? conf : conf / 100; // Handle 80 vs 0.8
+    }
+    return 0.7; // Default confidence
   }
   
   private analyzeQueryType(query: string): string {

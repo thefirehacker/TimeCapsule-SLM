@@ -78,6 +78,18 @@ Sources: ${ragChunks} RAG chunks, ${webChunks} Web sources
 Total chunks: ${chunkCount}`);
     
     if (itemCount === 0) {
+      // Check if extraction has been attempted
+      const extractorCalled = context.metadata?.agentsInvolved?.includes('Extractor');
+      
+      if (!extractorCalled) {
+        // Extractor hasn't run yet - tell orchestrator to run it first
+        context.synthesis.answer = '';
+        this.setReasoning('⚠️ Cannot synthesize - Extractor must run first to extract data from documents');
+        console.warn('⚠️ Synthesizer called before Extractor - no data to synthesize');
+        return context;
+      }
+      
+      // Extractor ran but found nothing
       context.synthesis.answer = this.formatNoResultsReport(context);
       this.setReasoning('No extracted data to synthesize - generating empty results report');
       return context;

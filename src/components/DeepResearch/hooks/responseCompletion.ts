@@ -259,7 +259,7 @@ export function parseJsonWithResilience(text: string): any {
  * 🚨 FIX: Clean up common JSON formatting issues from LLM responses
  */
 function cleanJsonText(jsonText: string): string {
-  return jsonText
+  let cleaned = jsonText
     // Remove trailing commas before closing brackets/braces
     .replace(/,(\s*[}\]])/g, '$1')
     // Fix unescaped quotes in strings (basic attempt)
@@ -277,7 +277,52 @@ function cleanJsonText(jsonText: string): string {
     .replace(/: "true"/g, ': true')
     .replace(/: "false"/g, ': false')
     .replace(/: "null"/g, ': null')
-    .trim();
+  
+  // 🚨 CRITICAL FIX: Handle "Expected ',' or ']' after array element" errors  
+  // These occur when array elements are missing commas or have malformed objects
+  cleaned = fixArrayElementSeparation(cleaned);
+  
+  return cleaned.trim();
+}
+
+/**
+ * 🚨 CRITICAL FIX: Fix array element separation issues that cause "Expected ',' or ']'" errors
+ */
+function fixArrayElementSeparation(jsonText: string): string {
+  let fixed = jsonText;
+  
+  try {
+    // Fix 1: Missing commas between array objects
+    // Pattern: }{ should be },{
+    fixed = fixed.replace(/\}\s*\{/g, '},{');
+    
+    // Fix 2: Missing commas between array elements  
+    // Pattern: "value" "nextvalue" should be "value", "nextvalue"
+    fixed = fixed.replace(/"\s+"([^",}\]]+)"/g, '", "$1"');
+    
+    // Fix 3: Missing commas after object properties before closing bracket
+    // Pattern: "value": "something" ] should be "value": "something" ]
+    fixed = fixed.replace(/([^,\s])\s*\]/g, '$1]');
+    
+    // Fix 4: Handle incomplete objects in arrays (common LLM error)  
+    // Pattern: incomplete object followed by complete one
+    fixed = fixed.replace(/\{\s*"([^"]*)":\s*"([^"]*)"([^,}]*)\s*\}/g, '{"$1": "$2"}');
+    
+    // Fix 5: Fix position-specific errors around array elements
+    // Handle malformed strings that break array parsing
+    fixed = fixed.replace(/": "([^"]*)"([^",}\]]*)"([^",}\]]*)",/g, '": "$1\\"$2\\"$3",');
+    
+    // Fix 6: Remove duplicate commas that might have been introduced
+    fixed = fixed.replace(/,+/g, ',');
+    fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+    
+    console.log(`🔧 Array element separation fixes applied`);
+    return fixed;
+    
+  } catch (error) {
+    console.warn(`⚠️ Array fixing failed, returning original:`, error);
+    return jsonText;
+  }
 }
 
 /**
