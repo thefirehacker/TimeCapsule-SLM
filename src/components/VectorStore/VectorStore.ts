@@ -15,6 +15,9 @@ import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument }
 import { getRAGTracker } from '../../lib/RAGTracker';
 import { RAGDocument } from '../../types/rag';
 
+// Document type enum
+export type DocumentType = 'userdocs' | 'virtual-docs' | 'ai-frames' | 'timecapsule' | 'bubblspace';
+
 // Add RxDB plugins
 addRxPlugin(RxDBDevModePlugin);
 addRxPlugin(RxDBUpdatePlugin);
@@ -23,7 +26,7 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Document schema for RxDB
 const documentSchema = {
-  version: 1, // Incremented from 0 to handle schema migration
+  version: 2, // Incremented from 1 to handle documentType field addition
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -47,6 +50,10 @@ const documentSchema = {
         source: { type: 'string' },
         description: { type: 'string' },
         isGenerated: { type: 'boolean' },
+        documentType: { 
+          type: 'string',
+          enum: ['userdocs', 'virtual-docs', 'ai-frames', 'timecapsule', 'bubblspace']
+        },
         // Additional fields from previous schema
         bubblSpaceId: { type: 'string' },
         category: { type: 'string' },
@@ -105,6 +112,7 @@ export interface DocumentData {
     source: string;
     description: string;
     isGenerated: boolean;
+    documentType: DocumentType;
     // Additional fields from previous schema
     bubblSpaceId?: string;
     category?: string;
@@ -169,7 +177,6 @@ export class VectorStore {
   private _processorAvailable = false;
   private _downloadProgress = 0;
   private _downloadStatus = 'unknown';
-  private _downloadError = '';
 
   // Operation queue and locking for concurrent operations
   private operationQueue: Map<string, Promise<any>> = new Map();
@@ -296,7 +303,6 @@ export class VectorStore {
           this._processorAvailable = false;
           this._downloadProgress = 0;
           this._downloadStatus = 'error';
-          this._downloadError = error.message;
         });
 
       // Create RxDB database with validation wrapper (continues immediately)
@@ -344,6 +350,31 @@ export class VectorStore {
                   }
                 };
                 return newDoc;
+              },
+              // Migration from version 1 to version 2 - add documentType field
+              2: function(oldDoc: any) {
+                // Determine document type based on existing metadata
+                let documentType: DocumentType = 'userdocs'; // default
+                
+                if (oldDoc.metadata) {
+                  if (oldDoc.metadata.source === 'generated' || oldDoc.metadata.isGenerated) {
+                    documentType = 'ai-frames';
+                  } else if (oldDoc.metadata.type === 'timecapsule' || oldDoc.metadata.timeCapsuleId) {
+                    documentType = 'timecapsule';
+                  } else if (oldDoc.metadata.bubblSpaceId) {
+                    documentType = 'bubblspace';
+                  } else if (oldDoc.metadata.source === 'websearch' || oldDoc.metadata.source === 'scraping') {
+                    documentType = 'virtual-docs';
+                  }
+                }
+                
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    documentType: documentType
+                  }
+                };
               }
             }
           }
@@ -395,6 +426,7 @@ export class VectorStore {
   async addDocument(
     file: File, 
     content: string, 
+    documentType: DocumentType = 'userdocs',
     onProgress?: (progress: ProcessingProgress) => void
   ): Promise<string> {
     if (!this.isInitialized) {
@@ -421,7 +453,7 @@ export class VectorStore {
     console.log(`📄 File size: ${this.formatFileSize(file.size)}, Content length: ${content.length} characters`);
     
     // Generate document ID
-    const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const docId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     // Prepare document data for Web Worker
     const documentData = {
@@ -435,7 +467,8 @@ export class VectorStore {
         uploadedAt: new Date().toISOString(),
         source: 'upload',
         description: `Uploaded file: ${file.name}`,
-        isGenerated: false
+        isGenerated: false,
+        documentType: documentType
       }
     };
 
@@ -497,9 +530,116 @@ export class VectorStore {
     });
   }
 
+  /**
+   * Add a virtual document from web search results
+   */
+  async addVirtualDocument(
+    title: string,
+    content: string,
+    url: string,
+    onProgress?: (progress: ProcessingProgress) => void
+  ): Promise<string> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+
+    // Enhanced ready state management
+    const downloadStatus = this._downloadStatus;
+    
+    if (downloadStatus === 'downloading') {
+      throw new Error('AI models are still downloading in the background. Please wait a moment and try again.');
+    } else if (downloadStatus === 'error') {
+      throw new Error('AI model download failed. Document processing requires AI processing capabilities.');
+    } else if (!this.documentProcessor || !this._processorAvailable) {
+      throw new Error('Document processing is unavailable. Please refresh the page and try again.');
+    }
+
+    console.log(`📄 Processing virtual document: ${title} from ${url}`);
+    console.log(`📄 Content length: ${content.length} characters`);
+    
+    // Generate document ID with virtual prefix
+    const docId = `virtual_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+    // Prepare document data for Web Worker
+    const documentData = {
+      id: docId,
+      title: title,
+      content: content,
+      metadata: {
+        filename: title,
+        filesize: content.length,
+        filetype: 'text/html',
+        uploadedAt: new Date().toISOString(),
+        source: 'websearch',
+        description: `Web search result: ${title}`,
+        isGenerated: false,
+        documentType: 'virtual-docs' as DocumentType,
+        url: url
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      // Use Web Worker to process document
+      this.documentProcessor.processDocument(
+        documentData,
+        // Progress callback
+        (progress: ProcessingProgress) => {
+          console.log(`📊 Virtual document processing: ${progress.message} (${progress.progress}%)`);
+          onProgress?.(progress);
+        },
+        // Success callback
+        async (processedDoc: ProcessedDocument) => {
+          try {
+            // Convert chunks from Web Worker format to VectorStore format with unique IDs
+            const chunkTimestamp = Date.now();
+            const chunks = processedDoc.chunks.map((chunk, index) => {
+              const chunkRandom = Math.random().toString(36).substring(2, 8);
+              const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              return {
+                id: uniqueId,
+                content: chunk.content,
+                startIndex: index * 500, // Approximate start based on chunk index
+                endIndex: (index * 500) + chunk.content.length
+              };
+            });
+
+            // Convert to our DocumentData format
+            const documentData: DocumentData = {
+              id: processedDoc.id,
+              title: processedDoc.title,
+              content: processedDoc.content,
+              metadata: processedDoc.metadata,
+              chunks: chunks,
+              vectors: processedDoc.vectors.map((embedding, index) => ({
+                chunkId: chunks[index].id,
+                embedding: embedding
+              }))
+            };
+
+            // Insert into RxDB
+            await this.documentsCollection.documents.insert(documentData);
+            console.log(`✅ Virtual document stored with ID: ${docId}`);
+            console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
+            
+            resolve(docId);
+          } catch (error) {
+            console.error('❌ Failed to store processed virtual document:', error);
+            reject(error);
+          }
+        },
+        // Error callback
+        (error: string) => {
+          console.error('❌ Virtual document processing failed:', error);
+          reject(new Error(error));
+        }
+      );
+    });
+  }
+
   async addGeneratedDocument(
     title: string, 
     content: string,
+    documentType: DocumentType = 'ai-frames',
     onProgress?: (progress: ProcessingProgress) => void
   ): Promise<string> {
     if (!this.isInitialized) {
@@ -521,7 +661,7 @@ export class VectorStore {
     console.log(`📄 Content length: ${content.length} characters`);
     
     // Generate document ID
-    const docId = `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const docId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     // Prepare document data for Web Worker
     const documentData = {
@@ -535,7 +675,8 @@ export class VectorStore {
         uploadedAt: new Date().toISOString(),
         source: 'generated',
         description: `Generated research: ${title}`,
-        isGenerated: true
+        isGenerated: true,
+        documentType: documentType
       }
     };
 
@@ -607,6 +748,31 @@ export class VectorStore {
       return docs.map((doc: any) => doc.toJSON());
     } catch (error) {
       console.error('❌ Failed to get documents:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get documents filtered by type - for DeepResearch to use only userdocs
+   */
+  async getDocumentsByType(documentType: DocumentType): Promise<DocumentData[]> {
+    if (!this.isInitialized) {
+      throw new Error('Vector Store not initialized');
+    }
+
+    try {
+      const docs = await this.documentsCollection.documents
+        .find({
+          selector: {
+            'metadata.documentType': documentType
+          }
+        })
+        .exec();
+      
+      console.log(`📚 Retrieved ${docs.length} documents of type: ${documentType}`);
+      return docs.map((doc: any) => doc.toJSON());
+    } catch (error) {
+      console.error(`❌ Failed to get documents of type ${documentType}:`, error);
       throw error;
     }
   }
@@ -749,6 +915,7 @@ export class VectorStore {
       agentId?: string;
       sessionId?: string;
       queryType?: 'user_search' | 'agent_rag' | 'auto_enrichment';
+      documentTypes?: DocumentType[];
     } = {}
   ): Promise<SearchResult[]> {
     if (!this.isInitialized) {
@@ -789,12 +956,25 @@ export class VectorStore {
 
       console.log(`🧠 RAG Query ${queryId}: Generated embedding in ${embeddingTime}ms`);
 
-      // Get all documents
+      // Get documents (filtered by type if specified)
       const documentsStartTime = Date.now();
-      const documents = await this.getAllDocuments();
+      let documents: DocumentData[];
+      
+      if (options.documentTypes && options.documentTypes.length > 0) {
+        // Get documents filtered by types
+        const filteredDocs: DocumentData[] = [];
+        for (const docType of options.documentTypes) {
+          const docsOfType = await this.getDocumentsByType(docType);
+          filteredDocs.push(...docsOfType);
+        }
+        documents = filteredDocs;
+        console.log(`📚 RAG Query ${queryId}: Filtered to ${documents.length} documents of types: ${options.documentTypes.join(', ')}`);
+      } else {
+        documents = await this.getAllDocuments();
+        console.log(`📚 RAG Query ${queryId}: Retrieved all ${documents.length} documents`);
+      }
+      
       const documentsTime = Date.now() - documentsStartTime;
-
-      console.log(`📚 RAG Query ${queryId}: Retrieved ${documents.length} documents in ${documentsTime}ms`);
 
       const results: SearchResult[] = [];
       const similarityStartTime = Date.now();
@@ -919,11 +1099,11 @@ export class VectorStore {
               documentId: doc.id,
               similarity: 1.0, // Full similarity for all chunks
               metadata: {
+                ...doc.metadata,
                 source: 'RxDB',
                 documentId: doc.id,
                 documentTitle: doc.title,
-                chunkIndex: chunk.startIndex || 0,
-                ...doc.metadata
+                chunkIndex: chunk.startIndex || 0
               }
             });
           }
@@ -1141,7 +1321,7 @@ export class VectorStore {
             
             // Use atomic update instead of delete-then-insert to avoid conflicts
             try {
-              const updateResult = await existingDoc.atomicUpdate((docData: any) => {
+              await existingDoc.atomicUpdate((docData: any) => {
                 return {
                   ...docData,
                   title: documentData.title,
@@ -1404,71 +1584,73 @@ export class VectorStore {
       return matrix[str2.length][str1.length];
     }
 
-    private createChunks(content: string): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
-      const chunks = [];
-      let startIndex = 0;
-      let chunkIndex = 0;
+    // Deprecated: createChunks is no longer used - Web Worker handles chunking
+    // private createChunks(content: string): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
+    //   const chunks = [];
+    //   let startIndex = 0;
+    //   let chunkIndex = 0;
+    //
+    //   console.log(`📄 Creating chunks from ${content.length} characters`);
+    //   
+    //   while (startIndex < content.length) {
+    //     const endIndex = Math.min(startIndex + this.CHUNK_SIZE, content.length);
+    //     const chunkContent = content.substring(startIndex, endIndex);
+    //     
+    //     chunks.push({
+    //       id: `chunk_${Date.now()}_${chunkIndex}_${Math.random().toString(36).substring(2, 11)}`,
+    //       content: chunkContent,
+    //       startIndex: startIndex,
+    //       endIndex: endIndex
+    //     });
+    //
+    //     // Move start index forward, accounting for overlap
+    //     startIndex = endIndex - this.CHUNK_OVERLAP;
+    //     chunkIndex++;
+    //     
+    //     if (startIndex >= content.length) break;
+    //   }
+    //
+    //   console.log(`✅ Created ${chunks.length} chunks with ${this.CHUNK_SIZE} char size and ${this.CHUNK_OVERLAP} char overlap`);
+    //   return chunks;
+    // }
 
-      console.log(`📄 Creating chunks from ${content.length} characters`);
-      
-      while (startIndex < content.length) {
-        const endIndex = Math.min(startIndex + this.CHUNK_SIZE, content.length);
-        const chunkContent = content.substring(startIndex, endIndex);
-        
-        chunks.push({
-          id: `chunk_${Date.now()}_${chunkIndex}_${Math.random().toString(36).substr(2, 9)}`,
-          content: chunkContent,
-          startIndex: startIndex,
-          endIndex: endIndex
-        });
+    // Deprecated: createWordBasedChunks is no longer used - Web Worker handles chunking
+    // private createWordBasedChunks(text: string, wordsPerChunk: number): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
+    //   const words = text.split(/\s+/);
+    //   const chunks = [];
+    //   
+    //   console.log(`📄 Creating word-based chunks from ${words.length} words (${wordsPerChunk} words per chunk)`);
+    //   
+    //   for (let i = 0; i < words.length; i += wordsPerChunk) {
+    //     const chunkWords = words.slice(i, i + wordsPerChunk);
+    //     const chunkContent = chunkWords.join(' ');
+    //     
+    //     // Calculate character positions for compatibility
+    //     const allWordsBeforeChunk = words.slice(0, i);
+    //     const startIndex = allWordsBeforeChunk.join(' ').length + (allWordsBeforeChunk.length > 0 ? 1 : 0);
+    //     const endIndex = startIndex + chunkContent.length;
+    //     
+    //     chunks.push({
+    //       id: `chunk_${Date.now()}_${Math.floor(i / wordsPerChunk)}_${Math.random().toString(36).substring(2, 11)}`,
+    //       content: chunkContent,
+    //       startIndex: startIndex,
+    //       endIndex: endIndex
+    //     });
+    //   }
+    //   
+    //   console.log(`✅ Created ${chunks.length} word-based chunks`);
+    //   return chunks.length > 0 ? chunks : [{
+    //     id: `chunk_${Date.now()}_0_${Math.random().toString(36).substring(2, 11)}`,
+    //     content: text,
+    //     startIndex: 0,
+    //     endIndex: text.length
+    //   }];
+    // }
 
-        // Move start index forward, accounting for overlap
-        startIndex = endIndex - this.CHUNK_OVERLAP;
-        chunkIndex++;
-        
-        if (startIndex >= content.length) break;
-      }
-
-      console.log(`✅ Created ${chunks.length} chunks with ${this.CHUNK_SIZE} char size and ${this.CHUNK_OVERLAP} char overlap`);
-      return chunks;
-    }
-
-    // Word-based chunking (following reference implementation)
-    private createWordBasedChunks(text: string, wordsPerChunk: number): Array<{ id: string; content: string; startIndex: number; endIndex: number }> {
-      const words = text.split(/\s+/);
-      const chunks = [];
-      
-      console.log(`📄 Creating word-based chunks from ${words.length} words (${wordsPerChunk} words per chunk)`);
-      
-      for (let i = 0; i < words.length; i += wordsPerChunk) {
-        const chunkWords = words.slice(i, i + wordsPerChunk);
-        const chunkContent = chunkWords.join(' ');
-        
-        // Calculate character positions for compatibility
-        const allWordsBeforeChunk = words.slice(0, i);
-        const startIndex = allWordsBeforeChunk.join(' ').length + (allWordsBeforeChunk.length > 0 ? 1 : 0);
-        const endIndex = startIndex + chunkContent.length;
-        
-        chunks.push({
-          id: `chunk_${Date.now()}_${Math.floor(i / wordsPerChunk)}_${Math.random().toString(36).substr(2, 9)}`,
-          content: chunkContent,
-          startIndex: startIndex,
-          endIndex: endIndex
-        });
-      }
-      
-      console.log(`✅ Created ${chunks.length} word-based chunks`);
-      return chunks.length > 0 ? chunks : [{
-        id: `chunk_${Date.now()}_0_${Math.random().toString(36).substr(2, 9)}`,
-        content: text,
-        startIndex: 0,
-        endIndex: text.length
-      }];
-    }
-
-    private async generateEmbedding(text: string): Promise<number[]> {
-      throw new Error('Embedding generation is now handled by Web Worker - use DocumentProcessor');
-    }
+    // Deprecated: generateEmbedding is now handled by Web Worker - use DocumentProcessor
+    // private async generateEmbedding(text: string): Promise<number[]> {
+    //   throw new Error('Embedding generation is now handled by Web Worker - use DocumentProcessor');
+    // }
 
     private cosineSimilarity(a: number[], b: number[]): number {
       if (a.length !== b.length) {

@@ -861,8 +861,8 @@ Suggest research steps with reasoning for each.`;
             }
           };
           
-          // Create multi-agent system with progress tracking
-          const multiAgent = createMultiAgentSystem(this.generateContent, progressCallback);
+          // Create multi-agent system with progress tracking and VectorStore for WebSearchAgent persistence
+          const multiAgent = createMultiAgentSystem(this.generateContent, progressCallback, this.vectorStore);
           
           // Execute multi-agent research process with full content sources
           const answer = await multiAgent.research(query, sources);
@@ -1547,8 +1547,8 @@ Answer:`;
         }
       };
       
-      // Create multi-agent system with Master Orchestrator
-      const multiAgent = createMultiAgentSystem(this.generateContent!, progressCallback);
+      // Create multi-agent system with Master Orchestrator and VectorStore for WebSearchAgent persistence
+      const multiAgent = createMultiAgentSystem(this.generateContent!, progressCallback, this.vectorStore);
       
       // 🔧 ARCHITECTURE FIX: Pass found sources to Master Orchestrator for DataInspector magic filtering
       console.log(`🧠 Calling Master Orchestrator.research() with ${sources.length} found sources for intelligent analysis`);

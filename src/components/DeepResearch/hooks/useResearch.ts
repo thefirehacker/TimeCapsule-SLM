@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import {
   VectorStore,
   SearchResult,
+  DocumentType,
 } from "@/components/VectorStore/VectorStore";
 import { useOllamaConnection } from "./useOllamaConnection";
 import {
@@ -275,7 +276,7 @@ export function useResearch(
           sessionId,
         } = options;
 
-        // Perform semantic search using VectorStore directly
+        // Perform semantic search using VectorStore directly - ONLY USERDOCS for clean base analysis
         const searchResults = await vectorStore.searchSimilar(
           query,
           threshold,
@@ -284,6 +285,7 @@ export function useResearch(
             agentId,
             sessionId,
             queryType: "agent_rag",
+            documentTypes: ["userdocs"], // CRITICAL: Only search user uploaded documents to prevent contamination
           }
         );
 
