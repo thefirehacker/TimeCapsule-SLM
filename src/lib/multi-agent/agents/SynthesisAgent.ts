@@ -235,7 +235,7 @@ Focus on understanding the document context to make this distinction.`;
         prompt,
         {
           maxRetries: 2,
-          timeout: 45000, // 45 seconds for synthesis
+          timeout: 900000, // 15 minutes for synthesis (slower models like Gemma 3n)
           continuationPrompt: "Continue with the answer:"
         }
       );
@@ -267,7 +267,7 @@ Focus on understanding the document context to make this distinction.`;
         prompt,
         {
           maxRetries: 2,
-          timeout: 45000,
+          timeout: 900000, // 15 minutes for synthesis (slower models like Gemma 3n)
           continuationPrompt: "Continue with the reasoning and answer:"
         }
       );
@@ -617,20 +617,100 @@ Return detailed synthesis instructions that emphasize thoroughness and professio
       summary.push(`• Extractor: Successfully extracted ${rawDataCount} data points using pattern matching and LLM analysis`);
     }
     
-    // RAG and Web sources
+    // Enhanced WebSearchAgent integration
+    const webSearchFindings = context.sharedKnowledge?.agentFindings?.WebSearchAgent;
+    if (webSearchFindings && webSearchFindings.resultsCount > 0) {
+      const strategy = webSearchFindings.strategy;
+      const queries = webSearchFindings.searchQueries || [];
+      summary.push(`• WebSearchAgent: Executed ${queries.length} intelligent search queries, found ${webSearchFindings.resultsCount} relevant web sources using ${strategy?.reasoning || 'targeted search strategy'}`);
+    }
+
+    // Enhanced source analysis with better virtual-docs integration  
     const ragChunks = context.ragResults?.chunks?.length || 0;
     if (ragChunks > 0) {
-      const webChunks = context.ragResults.chunks.filter(chunk => 
-        chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
-      ).length;
-      const localChunks = ragChunks - webChunks;
-      summary.push(`• Sources: Processed ${localChunks} knowledge base documents + ${webChunks} web sources (${ragChunks} total chunks)`);
+      const sourceAnalysis = this.analyzeSourceTypes(context.ragResults.chunks);
+      let sourceDesc = `• Sources: Processed ${sourceAnalysis.localDocs} local documents`;
+      
+      if (sourceAnalysis.virtualDocs > 0) {
+        sourceDesc += ` + ${sourceAnalysis.virtualDocs} web-sourced virtual documents`;
+      }
+      
+      if (sourceAnalysis.webChunks > 0) {
+        sourceDesc += ` + ${sourceAnalysis.webChunks} live web results`;
+      }
+      
+      sourceDesc += ` (${ragChunks} total chunks)`;
+      summary.push(sourceDesc);
+      
+      // Add web source details if available
+      if (sourceAnalysis.webDomains.length > 0) {
+        summary.push(`• Web Sources: ${sourceAnalysis.webDomains.slice(0, 3).join(', ')}${sourceAnalysis.webDomains.length > 3 ? ` +${sourceAnalysis.webDomains.length - 3} more` : ''}`);
+      }
     }
     
     // Current agent (Synthesizer)
     summary.push(`• Synthesizer: Now consolidating all findings into comprehensive structured analysis`);
     
     return summary.length > 0 ? summary.join('\n') : 'Multi-agent analysis completed with comprehensive data extraction and processing';
+  }
+
+  /**
+   * Analyze source types to distinguish between local docs, virtual docs (saved web content), and live web results
+   */
+  private analyzeSourceTypes(chunks: ChunkData[]): {
+    localDocs: number;
+    virtualDocs: number;
+    webChunks: number;
+    webDomains: string[];
+  } {
+    const analysis = {
+      localDocs: 0,
+      virtualDocs: 0,
+      webChunks: 0,
+      webDomains: [] as string[]
+    };
+
+    const uniqueWebDomains = new Set<string>();
+
+    for (const chunk of chunks) {
+      // Check for virtual documents (web content saved to VectorStore)
+      if (chunk.metadata?.documentType === 'virtual-docs' || chunk.metadata?.source === 'websearch') {
+        analysis.virtualDocs++;
+        
+        // Extract domain from virtual doc if it has a URL
+        const url = chunk.metadata?.url;
+        if (url) {
+          try {
+            const domain = new URL(url).hostname;
+            uniqueWebDomains.add(domain);
+          } catch (e) {
+            // Invalid URL, ignore
+          }
+        }
+      }
+      // Check for live web results (from current WebSearchAgent execution)
+      else if (chunk.sourceType === 'web' || chunk.id.startsWith('web_') || chunk.metadata?.searchEngine === 'firecrawl') {
+        analysis.webChunks++;
+
+        // Extract domain from web chunk
+        const url = chunk.metadata?.url || chunk.source;
+        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+          try {
+            const domain = new URL(url).hostname;
+            uniqueWebDomains.add(domain);
+          } catch (e) {
+            // Invalid URL, ignore
+          }
+        }
+      }
+      // Everything else is considered local documents
+      else {
+        analysis.localDocs++;
+      }
+    }
+
+    analysis.webDomains = Array.from(uniqueWebDomains);
+    return analysis;
   }
   
   /**

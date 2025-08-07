@@ -60,103 +60,8 @@ Since no document content is available, generate patterns that would typically e
 
 Example for this query: Generate patterns to find project names, person names, rankings, etc.`;
       
-    // 🔥 CRITICAL FIX: Force LLM to use DataInspector intelligence, not generic assumptions
-    const regexGenerationPrompt = `/no_think
-
-YOU ARE A PATTERN DISCOVERY AGENT. Your job is to find ACTUAL patterns in the provided document content, NOT to guess or make assumptions.
-
-🚨 MANDATORY: You MUST analyze the ACTUAL document samples below and generate patterns based on what you observe, NOT generic assumptions.
-
-USER QUERY: "${context.query}"
-
-${hasDocumentAnalysis ? `
-🧠 DATAINSPECTOR INTELLIGENCE (MANDATORY TO USE):
-- Document Type: ${documentInsights.documentType}
-- Content Areas Found: ${documentInsights.contentAreas?.join(', ')}
-- Document Structure: ${documentInsights.structure ? JSON.stringify(documentInsights.structure) : 'Not available'}
-- Extraction Strategy: ${documentInsights.extractionStrategy}
-
-🔥 CRITICAL: DataInspector already analyzed these documents. You MUST use this intelligence, not ignore it.
-` : ''}
-
-📝 ACTUAL DOCUMENT CONTENT TO ANALYZE:
-${sampleContent}
-
-🚨 CRITICAL INSTRUCTIONS:
-
-1. **LOOK AT THE ACTUAL TEXT ABOVE** - Don't assume formats, analyze what's actually there
-2. **USE DATAINSPECTOR'S FINDINGS** - The document type and content areas are already identified
-3. **GENERATE CONTENT-SPECIFIC PATTERNS** - For resumes: bullet points, sections. For blogs: paragraphs. For reports: tables.
-4. **NO GENERIC PATTERNS** - Don't generate patterns like "Best:" unless you see "Best:" in the actual content
-
-🎯 FOR THIS SPECIFIC QUERY "${context.query}":
-- Look for project descriptions, achievements, work experience in the actual content above
-- Generate patterns that match the ACTUAL formatting you see (bullet points, section headers, etc.)
-- Focus on extracting information that would help determine the "best" project
-
-📊 PATTERN GENERATION RULES:
-1. **Analyze actual content samples** - Look at the text structure above
-2. **Match document type** - ${hasDocumentAnalysis ? `This is a ${documentInsights.documentType}, so use ${documentInsights.documentType}-specific patterns` : 'Analyze the content to determine appropriate patterns'}
-3. **Extract meaningful data** - Projects, technologies, achievements, timeframes
-4. **Use observed formatting** - If you see bullet points (•), generate bullet point patterns. If you see headers, generate header patterns.
-
-🚨 EXAMPLE ANALYSIS:
-If you see: "• Built TimeCapsule app using React"
-Generate: /•\\s*([^\\n•]+)/g
-
-If you see: "Projects:\\nProject 1: Web App"
-Generate: /Projects?:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]|$)/gi
-
-CRITICAL: Generate patterns based on the ACTUAL formatting you see in the document samples, not assumptions.
-
-${documentInsights?.specificInsights?.find((insight: string) => insight.includes('personal')) ? `
-FOCUS: Generate STRUCTURE patterns that extract the person's ACTUAL DATA based on insights:
-${documentInsights.specificInsights
-  .filter((insight: string) => insight.includes('CRITICAL:') || insight.includes('FOCUS:'))
-  .map((insight: string) => `- ${insight}`)
-  .join('\n')}
-` : ''}
-
-Your patterns must extract MEASURABLE DATA VALUES, not just find keywords!
-
-ANALYZE THE QUERY TYPE:
-"${context.query}" - What TYPE of data does this query need?
-- If asking for "top 3", need ranking/performance data
-- If asking for "times", need timing/duration measurements  
-- If asking for "scores", need numeric performance metrics
-- If asking for "achievements", need accomplishment data with values
-
-Based on the query analysis and document samples, generate STRUCTURE patterns that extract the DATA VALUES the user wants.
-
-CRITICAL: Do NOT use <think> tags. Respond DIRECTLY with patterns.
-
-Your task: Analyze the actual document samples above and discover what DATA STRUCTURES exist that contain the information the user wants.
-
-Look at the actual text content and identify:
-1. How are numbers/measurements formatted in this specific document? 
-2. What words or symbols appear before/after the data values?
-3. What patterns surround the information the user is asking for?
-
-Based on your analysis of the ACTUAL document content, generate regex patterns that extract the data structures you discovered.
-
-🎯 REQUIRED OUTPUT FORMAT:
-REGEX_PATTERNS:
-- [Pattern 1 based on actual content structure you observed]
-- [Pattern 2 based on actual content structure you observed]  
-- [Pattern 3 based on actual content structure you observed]
-
-REASONING: [Explain what specific structures you found in the actual document content above and how your patterns match them]
-
-🚨 CRITICAL FORMAT RULES:
-1. Each pattern MUST start with "- /" and end with "/flags"
-2. Use proper regex escaping: \\s for space, \\d for digit, \\b for word boundary
-3. Add capture groups () around the data you want to extract
-4. Use flags: /gi (global, case-insensitive) or /g (global only)
-5. Generate 3-5 patterns based on what you ACTUALLY SEE in the document samples above
-
-🚨 REMEMBER: Generate patterns based on what you SEE in the document samples above, not what you THINK should be there.
-
-NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure you analyzed above.`;
+    // 🔥 GEMMA COMPATIBILITY: Use simplified prompt for smaller models to avoid complexity overload
+    const regexGenerationPrompt = this.createModelOptimizedPrompt(context, hasDocumentAnalysis, documentInsights, sampleContent);
 
     try {
       const response = await this.llm(regexGenerationPrompt);
@@ -203,12 +108,36 @@ NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure yo
         };
         
       } else {
-        // 🔥 ENHANCED: Better error handling with context info
+        // 🔥 ENHANCED: Intelligent error recovery for malformed patterns
         const hasContent = context.ragResults.chunks.length > 0;
         const contentInfo = hasContent ? `${context.ragResults.chunks.length} chunks` : 'no document content';
         
         console.error(`❌ LLM failed to generate valid regex patterns (${contentInfo} available)`);
         console.error(`📝 LLM Response sample: ${response.substring(0, 200)}...`);
+        
+        // 🎯 GEMMA RECOVERY: Try simplified fallback patterns for small models
+        const fallbackPatterns = this.createFallbackPatterns(context, hasDocumentAnalysis, documentInsights);
+        if (fallbackPatterns.length > 0) {
+          console.warn(`🔄 Using fallback patterns for pattern generation failure`);
+          
+          // Store the fallback patterns
+          if (!context.patterns) {
+            context.patterns = [];
+          }
+          
+          const fallbackPatternObjects = fallbackPatterns.map((pattern, index) => ({
+            description: `Fallback pattern ${index + 1} for ${documentInsights?.documentType || 'document'}`,
+            examples: [],
+            extractionStrategy: `Fallback regex search using: ${pattern}`,
+            confidence: 0.6, // Lower confidence for fallback patterns
+            regexPattern: pattern
+          }));
+          
+          context.patterns.push(...fallbackPatternObjects);
+          
+          console.log(`✅ Applied ${fallbackPatterns.length} fallback patterns`);
+          return; // Continue with fallback patterns instead of failing
+        }
         
         throw new Error(`PatternGenerator failed: LLM must generate proper patterns. Context: ${contentInfo}. NO FALLBACKS allowed.`);
       }
@@ -251,6 +180,243 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
     }
   }
   
+  /**
+   * 🎯 GEMMA COMPATIBILITY: Create optimized prompt based on model capabilities
+   * Smaller models get simplified prompts, larger models get detailed instructions
+   */
+  private createModelOptimizedPrompt(
+    context: ResearchContext,
+    hasDocumentAnalysis: boolean,
+    documentInsights: any,
+    sampleContent: string
+  ): string {
+    // Detect if this is likely a smaller model that needs simplified prompts
+    // Heuristic: Check if document chunks are limited (smaller models typically process less)
+    const isLikelySmallModel = context.ragResults.chunks.length <= 5 || sampleContent.length < 1000;
+    
+    if (isLikelySmallModel) {
+      return this.createSimplifiedPrompt(context, hasDocumentAnalysis, documentInsights, sampleContent);
+    } else {
+      return this.createDetailedPrompt(context, hasDocumentAnalysis, documentInsights, sampleContent);
+    }
+  }
+
+  /**
+   * 🎯 SIMPLIFIED PROMPT: For smaller models like Gemma 3n 2b
+   * Focus on clear, simple instructions without overwhelming complexity
+   */
+  private createSimplifiedPrompt(
+    context: ResearchContext,
+    hasDocumentAnalysis: boolean,
+    documentInsights: any,
+    sampleContent: string
+  ): string {
+    return `/no_think
+
+TASK: Create simple patterns to find information in the document.
+
+QUERY: "${context.query}"
+
+${hasDocumentAnalysis ? `
+DOCUMENT TYPE: ${documentInsights.documentType}
+CONTENT TO FIND: ${documentInsights.contentAreas?.join(', ')}
+` : ''}
+
+SAMPLE TEXT:
+${sampleContent.substring(0, 800)} ${sampleContent.length > 800 ? '...' : ''}
+
+INSTRUCTIONS:
+1. Look at the text above
+2. Find patterns that match the content structure
+3. Create simple regex patterns
+
+${hasDocumentAnalysis && documentInsights.documentType === 'Resume' ? `
+EXAMPLES FOR RESUME:
+- /•\\s*([^\\n•]+)/g  (finds bullet points)
+- /Experience\\s*([^\\n]+)/gi  (finds experience section)
+- /Skills?\\s*([^\\n]+)/gi  (finds skills)
+` : ''}
+
+OUTPUT FORMAT:
+REGEX_PATTERNS:
+- /pattern1/gi
+- /pattern2/gi  
+- /pattern3/gi
+
+RULES:
+- Use simple patterns only
+- Each pattern starts with "- /"
+- Use /gi flags for most patterns
+- Keep patterns under 50 characters
+
+Generate 3 simple patterns based on the text above.`;
+  }
+
+  /**
+   * 🎯 DETAILED PROMPT: For larger models that can handle complex instructions
+   * Full feature prompt with detailed examples and requirements  
+   */
+  private createDetailedPrompt(
+    context: ResearchContext,
+    hasDocumentAnalysis: boolean,
+    documentInsights: any,
+    sampleContent: string
+  ): string {
+    return `/no_think
+
+YOU ARE A PATTERN DISCOVERY AGENT. Your job is to find ACTUAL patterns in the provided document content, NOT to guess or make assumptions.
+
+🚨 MANDATORY: You MUST analyze the ACTUAL document samples below and generate patterns based on what you observe, NOT generic assumptions.
+
+USER QUERY: "${context.query}"
+
+${hasDocumentAnalysis ? `
+🧠 DATAINSPECTOR INTELLIGENCE (MANDATORY TO USE):
+- Document Type: ${documentInsights.documentType}
+- Content Areas Found: ${documentInsights.contentAreas?.join(', ')}
+- Document Structure: ${documentInsights.structure ? JSON.stringify(documentInsights.structure) : 'Not available'}
+- Extraction Strategy: ${documentInsights.extractionStrategy}
+
+🔥 CRITICAL: DataInspector already analyzed these documents. You MUST use this intelligence, not ignore it.
+` : ''}
+
+📝 ACTUAL DOCUMENT CONTENT TO ANALYZE:
+${sampleContent}
+
+🚨 CRITICAL INSTRUCTIONS:
+
+1. **LOOK AT THE ACTUAL TEXT ABOVE** - Don't assume formats, analyze what's actually there
+2. **USE DATAINSPECTOR'S FINDINGS** - The document type and content areas are already identified
+3. **GENERATE CONTENT-SPECIFIC PATTERNS** - For resumes: bullet points, sections. For blogs: paragraphs. For reports: tables.
+4. **NO GENERIC PATTERNS** - Don't generate patterns like "Best:" unless you see "Best:" in the actual content
+
+🎯 FOR THIS SPECIFIC QUERY "${context.query}":
+- Look for project descriptions, achievements, work experience in the actual content above
+- Generate patterns that match the ACTUAL formatting you see (bullet points, section headers, etc.)
+- Focus on extracting information that would help determine the "best" project
+
+📊 PATTERN GENERATION RULES:
+1. **Analyze actual content samples** - Look at the text structure above
+2. **Match document type** - ${hasDocumentAnalysis ? `This is a ${documentInsights.documentType}, so use ${documentInsights.documentType}-specific patterns` : 'Analyze the content to determine appropriate patterns'}
+3. **Extract meaningful data** - Projects, technologies, achievements, timeframes
+4. **Use observed formatting** - If you see bullet points (•), generate bullet point patterns. If you see headers, generate header patterns.
+
+🚨 EXAMPLE ANALYSIS:
+If you see: "• Built TimeCapsule app using React"
+Generate: /•\\\\s*([^\\\\n•]+)/g
+
+If you see: "Projects:\\\\nProject 1: Web App"
+Generate: /Projects?:\\\\s*\\\\n([\\\\s\\\\S]*?)(?=\\\\n[A-Z]|$)/gi
+
+CRITICAL: Generate patterns based on the ACTUAL formatting you see in the document samples, not assumptions.
+
+${documentInsights?.specificInsights?.find((insight: string) => insight.includes('personal')) ? `
+FOCUS: Generate STRUCTURE patterns that extract the person's ACTUAL DATA based on insights:
+${documentInsights.specificInsights
+  .filter((insight: string) => insight.includes('CRITICAL:') || insight.includes('FOCUS:'))
+  .map((insight: string) => `- ${insight}`)
+  .join('\\n')}
+` : ''}
+
+Your patterns must extract MEASURABLE DATA VALUES, not just find keywords!
+
+ANALYZE THE QUERY TYPE:
+"${context.query}" - What TYPE of data does this query need?
+- If asking for "top 3", need ranking/performance data
+- If asking for "times", need timing/duration measurements  
+- If asking for "scores", need numeric performance metrics
+- If asking for "achievements", need accomplishment data with values
+
+Based on the query analysis and document samples, generate STRUCTURE patterns that extract the DATA VALUES the user wants.
+
+CRITICAL: Do NOT use <think> tags. Respond DIRECTLY with patterns.
+
+Your task: Analyze the actual document samples above and discover what DATA STRUCTURES exist that contain the information the user wants.
+
+Look at the actual text content and identify:
+1. How are numbers/measurements formatted in this specific document? 
+2. What words or symbols appear before/after the data values?
+3. What patterns surround the information the user is asking for?
+
+Based on your analysis of the ACTUAL document content, generate regex patterns that extract the data structures you discovered.
+
+🎯 REQUIRED OUTPUT FORMAT:
+REGEX_PATTERNS:
+- [Pattern 1 based on actual content structure you observed]
+- [Pattern 2 based on actual content structure you observed]  
+- [Pattern 3 based on actual content structure you observed]
+
+REASONING: [Explain what specific structures you found in the actual document content above and how your patterns match them]
+
+🚨 CRITICAL FORMAT RULES:
+1. Each pattern MUST start with "- /" and end with "/flags"
+2. Use proper regex escaping: \\\\s for space, \\\\d for digit, \\\\b for word boundary
+3. Add capture groups () around the data you want to extract
+4. Use flags: /gi (global, case-insensitive) or /g (global only)
+5. Generate 3-5 patterns based on what you ACTUALLY SEE in the document samples above
+
+🚨 REMEMBER: Generate patterns based on what you SEE in the document samples above, not what you THINK should be there.
+
+NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure you analyzed above.`;
+  }
+
+  /**
+   * 🎯 FALLBACK PATTERNS: Simple, reliable patterns when LLM generation fails
+   * Provides basic extraction based on document type for continuity
+   */
+  private createFallbackPatterns(
+    context: ResearchContext, 
+    hasDocumentAnalysis: boolean, 
+    documentInsights: any
+  ): string[] {
+    const documentType = documentInsights?.documentType?.toLowerCase() || 'unknown';
+    const fallbackPatterns: string[] = [];
+    
+    // Resume-specific fallback patterns
+    if (documentType.includes('resume') || documentType.includes('cv')) {
+      fallbackPatterns.push(
+        '/•\\s*([^\\n•]+)/gi',              // Bullet points
+        '/Experience\\s*:?\\s*([^\\n]+)/gi',  // Experience section
+        '/Skills?\\s*:?\\s*([^\\n]+)/gi',     // Skills section
+        '/Projects?\\s*:?\\s*([^\\n]+)/gi',   // Projects section
+        '/([A-Za-z][^\\n]*(?:built|developed|created|implemented)[^\\n]*)/gi' // Achievement descriptions
+      );
+    }
+    
+    // Blog/Article fallback patterns  
+    else if (documentType.includes('blog') || documentType.includes('article')) {
+      fallbackPatterns.push(
+        '/^([^\\n]+)$/gm',                    // Line-by-line content
+        '/([A-Z][^.!?]*[.!?])/g',            // Sentences
+        '/\\b([A-Z][a-z]+\\s+[A-Z][a-z]+)\\b/g', // Proper names
+        '/\\b(\\d+)\\b/g'                     // Numbers
+      );
+    }
+    
+    // Generic fallback patterns for any document
+    else {
+      fallbackPatterns.push(
+        '/([A-Z][^\\n]*)/g',                  // Capitalized lines
+        '/([^\\n]{20,})/g',                   // Long lines (likely content)
+        '/\\b([A-Za-z]+(?:\\s+[A-Za-z]+){2,})\\b/g' // Multi-word phrases
+      );
+    }
+    
+    // Filter to only tested, working patterns
+    const validatedPatterns = fallbackPatterns.filter(pattern => {
+      try {
+        new RegExp(pattern.slice(1, pattern.lastIndexOf('/'))); // Test pattern compilation
+        return true;
+      } catch {
+        console.warn(`⚠️ Skipping invalid fallback pattern: ${pattern}`);
+        return false;
+      }
+    });
+    
+    console.log(`🔄 Generated ${validatedPatterns.length} fallback patterns for ${documentType}`);
+    return validatedPatterns;
+  }
+
   /**
    * 🎯 BULLETPROOF Parse regex patterns from LLM response (TRIPLE-TIER PARSER)
    * Handles: Structured format, <think> content, and free-form text
@@ -300,7 +466,8 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
         const lines = patternsText.split('\n').filter(line => line.trim().startsWith('-'));
         
         lines.forEach(line => {
-          const trimmedLine = line.trim().replace(/^[-*\s]*/, '');
+          // Handle double-dash format from Gemma: "- - /pattern/" → "/pattern/"
+          const trimmedLine = line.trim().replace(/^[-\s]*-\s*/, '');
           const normalizedPattern = this.normalizePattern(trimmedLine);
           
           if (normalizedPattern && !this.isUselessPattern(normalizedPattern.match(/\/([^\/]+)\//)?.[1] || '')) {
@@ -459,10 +626,52 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
   }
   
   /**
+   * Detect malformed patterns (Gemma 3n 2b specific issues)
+   * Only catches obviously broken patterns while preserving all valid complex patterns
+   */
+  private isMalformedPattern(patternContent: string): boolean {
+    // 1. Excessive repetition detection (•.*?•.*?•.*?... 10+ times)
+    const repetitiveSequences = [
+      /(•\.\*\?){10,}/g,           // •.*?•.*?•.*?... (10+ repetitions)
+      /(\.\*\?){15,}/g,            // .*?.*?.*?... (15+ repetitions)  
+      /(\\s\*){10,}/g,             // \s*\s*\s*... (10+ repetitions)
+      /(\([^)]+\)\*\?){5,}/g,      // (pattern)*?(pattern)*?... (5+ repetitions) - Gemma common issue
+      /(\(\\s\+,\\s\+\)\*\?){3,}/g, // (\s+,\s+)*?(\s+,\s+)*?... (3+ repetitions) - Specific Gemma pattern
+    ];
+    
+    for (const pattern of repetitiveSequences) {
+      if (pattern.test(patternContent)) {
+        console.warn(`🚨 Malformed pattern detected: excessive repetition in "${patternContent.substring(0, 100)}..."`);
+        return true;
+      }
+    }
+    
+    // 2. Unreasonable length (>300 chars likely malformed for regex)
+    if (patternContent.length > 300) {
+      console.warn(`🚨 Malformed pattern detected: excessive length (${patternContent.length} chars)`);
+      return true;
+    }
+    
+    // 3. Detect patterns that are just repetitive symbols
+    if (/^(.)\1{50,}$/.test(patternContent)) {
+      console.warn(`🚨 Malformed pattern detected: repetitive symbol pattern`);
+      return true;
+    }
+    
+    return false; // Default: pattern is valid
+  }
+
+  /**
    * Detect and filter out useless generic patterns like /pattern1/, /pattern2/, etc.
    * 🚨 FIX: Less aggressive filtering to allow useful patterns
    */
   private isUselessPattern(patternContent: string): boolean {
+    // 🔥 NEW: Check for malformed patterns first (Gemma 3n 2b fix)
+    if (this.isMalformedPattern(patternContent)) {
+      return true; // Reject malformed patterns
+    }
+    
+    // 🔄 PRESERVE: All existing Qwen validation logic (unchanged)
     const uselessPatterns = [
       /^pattern\d*$/i,         // /pattern/, /pattern1/, /pattern2/, etc. (but not patterns containing other text)
       /^\\w\+$/,              // /\w+/ - too generic (single word capture)

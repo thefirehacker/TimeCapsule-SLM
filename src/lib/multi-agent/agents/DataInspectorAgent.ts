@@ -296,7 +296,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
         chunk.metadata?.originalChunkId !== undefined
       );
       
-      if (documentAnalysis.documents && documentAnalysis.documents.length < documentGroups.length && !hasPreSampledChunks) {
+      if (documentAnalysis.documents && documentAnalysis.documents.length < documentGroups.length) {
         const relevantDocumentIds = new Set(documentAnalysis.documents.map(doc => doc.documentId));
         const originalChunkCount = context.ragResults.chunks.length;
         
@@ -319,12 +319,12 @@ Provide specific, actionable insights that will guide intelligent extraction and
         });
         
         const filteredChunkCount = context.ragResults.chunks.length;
-        console.log(`🚨 CROSS-CONTAMINATION PREVENTION: Filtered RAG chunks from ${originalChunkCount} to ${filteredChunkCount} (removed ${originalChunkCount - filteredChunkCount} irrelevant chunks)`);
+        console.log(`🚨 CROSS-CONTAMINATION PREVENTION: Filtered ${hasPreSampledChunks ? 'pre-sampled' : 'RAG'} chunks from ${originalChunkCount} to ${filteredChunkCount} (removed ${originalChunkCount - filteredChunkCount} irrelevant chunks)`);
         
         // Update summary to reflect filtering
         context.ragResults.summary = `Filtered to ${filteredChunkCount} relevant chunks from ${documentAnalysis.documents.length} documents`;
       } else if (hasPreSampledChunks) {
-        console.log(`✅ SMART FILTERING: Preserving ${context.ragResults.chunks.length} pre-sampled chunks from DataInspector - no additional filtering needed`);
+        console.log(`✅ DOCUMENT ANALYSIS: All ${documentGroups.length} documents deemed relevant - preserving ${context.ragResults.chunks.length} chunks (${hasPreSampledChunks ? 'pre-sampled' : 'original'})`);
       } else {
         console.log(`✅ DOCUMENT ANALYSIS: All ${documentGroups.length} documents deemed relevant - no filtering applied`);
       }
@@ -558,6 +558,20 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
   }
 
   /**
+   * Normalize key to handle common LLM typos (while preserving exact matching)
+   */
+  private normalizeKey(key: string): string {
+    // Handle common typos from different LLM models
+    const typoMap: { [key: string]: string } = {
+      'RELLEVANT': 'RELEVANT',  // Gemma 3n 2b common typo
+      'RELEVENT': 'RELEVANT',   // Other common misspelling
+      'RELEVAN': 'RELEVANT',    // Truncated version
+    };
+    
+    return typoMap[key.toUpperCase()] || key;
+  }
+
+  /**
    * Extract simple value from LLM response
    */
   private extractValue(response: string, key: string): string {
@@ -570,17 +584,40 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
       cleanResponse = thinkMatch[1]; // Content after </think>
     }
     
-    // Try multiple patterns to handle LLM variations
-    const patterns = [
-      new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i'),           // "TYPE: Document"
-      new RegExp(`${key}\\s*[:=]\\s*(.+?)(?:\\n|$)`, 'i'),   // "TYPE: Document" or "TYPE = Document"
-      new RegExp(`\\b${key}\\b[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i'), // More flexible matching
-    ];
+    // 🔥 ENHANCED: Try with original key first, then with typo-corrected variations
+    const keysToTry = [key]; // Start with original key
     
-    for (const pattern of patterns) {
-      const match = cleanResponse.match(pattern);
-      if (match && match[1].trim()) {
-        return match[1].trim();
+    // Add potential typo corrections for common LLM mistakes
+    if (key === 'RELEVANT') {
+      // Look for common typos in the response
+      if (/RELLEVANT\s*[:=]/i.test(cleanResponse)) {
+        keysToTry.push('RELLEVANT');
+      }
+      if (/RELEVENT\s*[:=]/i.test(cleanResponse)) {
+        keysToTry.push('RELEVENT');
+      }
+      if (/RELEVAN\s*[:=]/i.test(cleanResponse)) {
+        keysToTry.push('RELEVAN');
+      }
+    }
+    
+    // Try multiple patterns for each key variation
+    for (const keyVariation of keysToTry) {
+      const patterns = [
+        new RegExp(`${keyVariation}:\\s*(.+?)(?:\\n|$)`, 'i'),           // "TYPE: Document"
+        new RegExp(`${keyVariation}\\s*[:=]\\s*(.+?)(?:\\n|$)`, 'i'),   // "TYPE: Document" or "TYPE = Document"  
+        new RegExp(`\\b${keyVariation}\\b[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i'), // More flexible matching
+      ];
+      
+      for (const pattern of patterns) {
+        const match = cleanResponse.match(pattern);
+        if (match && match[1].trim()) {
+          // Log successful typo correction for debugging
+          if (keyVariation !== key) {
+            console.log(`🔧 DataInspector: Fixed typo "${keyVariation}" → "${key}" for value: "${match[1].trim()}"`);
+          }
+          return match[1].trim();
+        }
       }
     }
     
@@ -1074,8 +1111,38 @@ Return just the role: source, target, or reference`;
       return;
     }
 
-    // Sample 2 real chunks per document from VectorStore
-    console.log(`🔍 Sampling real chunks from ${documentMetadata.length} documents in VectorStore`);
+    // First analyze documents for relevance BEFORE sampling chunks
+    console.log(`🔍 Analyzing ${documentMetadata.length} documents for relevance BEFORE sampling`);
+    
+    // Create temporary document groups with minimal metadata for relevance analysis
+    const tempDocumentGroups = documentMetadata.map((docMeta, index) => ({
+      documentId: docMeta.metadata?.documentId || docMeta.id,
+      chunks: [{
+        id: docMeta.id,
+        text: docMeta.text || `Document: ${documentSources[index]}`,
+        source: documentSources[index],
+        similarity: 1.0,
+        metadata: docMeta.metadata,
+        sourceDocument: documentSources[index],
+        sourceType: 'document' as const
+      }]
+    }));
+    
+    // Perform relevance analysis FIRST
+    await this.performMultiDocumentAnalysis(context, tempDocumentGroups);
+    
+    // Get list of relevant documents from analysis
+    const relevantDocIds = new Set<string>();
+    if (context.documentAnalysis?.documents) {
+      context.documentAnalysis.documents.forEach(doc => {
+        relevantDocIds.add(doc.documentId);
+      });
+    }
+    
+    console.log(`📊 Relevance analysis: ${relevantDocIds.size} relevant out of ${documentMetadata.length} total documents`);
+    
+    // Now sample chunks ONLY from relevant documents
+    console.log(`🔍 Sampling real chunks from ${relevantDocIds.size} RELEVANT documents only`);
     const documentGroups: Array<{
       documentId: string;
       chunks: Array<{
@@ -1093,6 +1160,12 @@ Return just the role: source, target, or reference`;
       const docMeta = documentMetadata[i];
       const documentId = docMeta.metadata?.documentId || docMeta.id;
       const documentSource = documentSources[i];
+      
+      // Skip irrelevant documents - no sampling!
+      if (!relevantDocIds.has(documentId)) {
+        console.log(`⏭️ Skipping chunk sampling for irrelevant document: ${documentSource}`);
+        continue;
+      }
       
       try {
         // Get full document from VectorStore with all chunks
@@ -1170,15 +1243,14 @@ Return just the role: source, target, or reference`;
       }
     }
     
-    console.log(`🔍 Performing multi-document analysis on ${documentGroups.length} documents with real chunk samples`);
+    console.log(`✅ Sampled chunks from ${documentGroups.length} RELEVANT documents only`);
     
-    // 🔥 CRITICAL: Replace document metadata with real sampled chunks in context
+    // Replace chunks with ONLY relevant document chunks
     const allSampledChunks = documentGroups.flatMap(group => group.chunks);
-    console.log(`🔄 Replacing ${context.ragResults.chunks.length} document metadata entries with ${allSampledChunks.length} real chunks`);
+    console.log(`🔄 Replacing ${context.ragResults.chunks.length} document metadata with ${allSampledChunks.length} relevant chunks (NO CONTAMINATION)`);
     context.ragResults.chunks = allSampledChunks;
     
-    // Use existing multi-document analysis logic with real chunks
-    await this.performMultiDocumentAnalysis(context, documentGroups);
+    // No need to re-analyze - we already did relevance analysis above
     
     // Update reasoning to reflect the real chunk sampling
     const totalSampledChunks = documentGroups.reduce((sum, group) => sum + group.chunks.length, 0);

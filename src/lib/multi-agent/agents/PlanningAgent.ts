@@ -113,11 +113,14 @@ Based on this analysis, create an intelligent execution plan:
 1. **STRATEGY**: What's the best approach? (regex-extraction, web-expansion, direct-synthesis)
 
 2. **EXECUTION STEPS**: What agents should be called and in what order?
-   IMPORTANT: Use EXACT agent names as listed below:
-   - "PatternGenerator": For structured data extraction using regex
-   - "Extractor": For executing patterns or LLM extraction (NOT "PatternExtractor")
-   - "WebSearchAgent": For expanding knowledge base when local data insufficient
-   - "Synthesizer": For creating final answer
+   CRITICAL DATA DEPENDENCIES - Follow these rules:
+   - "PatternGenerator": Creates regex patterns (MUST run BEFORE Extractor for efficient extraction)
+   - "WebSearchAgent": Expands knowledge when local data insufficient (SHOULD run BEFORE Extractor for comprehensive data extraction)
+   - "Extractor": Uses patterns to extract data (REQUIRES patterns from PatternGenerator, BENEFITS from WebSearchAgent results)
+   - "Synthesizer": Creates final answer (REQUIRES extracted data from Extractor)
+   
+   OPTIMAL DEPENDENCY CHAIN: PatternGenerator → WebSearchAgent → Extractor → Synthesizer
+   (WebSearchAgent is optional but when used should run before Extractor)
 
 3. **FALLBACK OPTIONS**: What to do if primary approach fails?
 
@@ -151,32 +154,49 @@ Return as JSON:
     } catch (error) {
       console.error('❌ Failed to create execution plan:', error);
       
-      // Fallback to simple plan
+      // Fallback to simple plan following optimal dependency chain
+      const fallbackSteps = [
+        {
+          agent: 'PatternGenerator',
+          action: 'create basic patterns',
+          reasoning: 'extract structured data',
+          expectedOutput: 'regex patterns',
+          priority: 'high' as const
+        }
+      ];
+
+      // Add WebSearchAgent before Extractor for optimal data gathering (if data quality suggests it's needed)
+      const dataQuality = this.assessDataQuality(context);
+      if (dataQuality === 'no-data' || dataQuality === 'limited') {
+        fallbackSteps.push({
+          agent: 'WebSearchAgent',
+          action: 'expand knowledge base',
+          reasoning: 'supplement insufficient local data before extraction',
+          expectedOutput: 'additional relevant information',
+          priority: 'medium' as const
+        });
+      }
+
+      fallbackSteps.push(
+        {
+          agent: 'Extractor', 
+          action: 'extract using patterns',
+          reasoning: 'get structured data from all available sources',
+          expectedOutput: 'extracted information',
+          priority: 'high' as const
+        },
+        {
+          agent: 'Synthesizer',
+          action: 'create final answer',
+          reasoning: 'combine extracted data',
+          expectedOutput: 'user answer',
+          priority: 'high' as const
+        }
+      );
+
       return {
         strategy: 'fallback-simple-extraction',
-        steps: [
-          {
-            agent: 'PatternGenerator',
-            action: 'create basic patterns',
-            reasoning: 'extract structured data',
-            expectedOutput: 'regex patterns',
-            priority: 'high' as const
-          },
-          {
-            agent: 'Extractor', 
-            action: 'extract using patterns',
-            reasoning: 'get structured data',
-            expectedOutput: 'extracted information',
-            priority: 'high' as const
-          },
-          {
-            agent: 'Synthesizer',
-            action: 'create final answer',
-            reasoning: 'combine extracted data',
-            expectedOutput: 'user answer',
-            priority: 'high' as const
-          }
-        ],
+        steps: fallbackSteps,
         fallbackOptions: ['web-search-expansion'],
         expectedDataSources: ['local documents'],
         confidenceLevel: 0.6
@@ -317,25 +337,25 @@ Return as JSON:
       priority: 'high' as const
     });
     
-    // Add Extractor
-    steps.push({
-      agent: 'Extractor',
-      action: 'extract using patterns',
-      reasoning: 'get structured information from documents',
-      expectedOutput: 'extracted data items',
-      priority: 'high' as const
-    });
-    
-    // Add WebSearchAgent if mentioned or if data quality seems low
+    // Add WebSearchAgent BEFORE Extractor for optimal data gathering (when needed)
     if (hasWebMention) {
       steps.push({
         agent: 'WebSearchAgent',
         action: 'expand knowledge base',
-        reasoning: 'supplement local data with web information',
+        reasoning: 'supplement local data with web information before extraction',
         expectedOutput: 'additional relevant information',
         priority: 'medium' as const
       });
     }
+    
+    // Add Extractor after WebSearchAgent so it can extract from all available data
+    steps.push({
+      agent: 'Extractor',
+      action: 'extract using patterns',
+      reasoning: 'get structured information from documents and web results',
+      expectedOutput: 'extracted data items',
+      priority: 'high' as const
+    });
     
     // Always end with Synthesizer
     steps.push({

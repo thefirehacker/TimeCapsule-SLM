@@ -502,24 +502,12 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         console.log("🧠 Skipping initial RAG search for deep-research - Master Orchestrator will handle DataInspector magic filtering");
       }
 
-      // Only perform web search if explicitly enabled AND configured
-      if (webSearchEnabled && onWebSearch && webSearchStatus?.configured) {
-        console.log("🔍 Performing web search...");
-        setIsWebSearching(true);
-        try {
-          webContextToSubmit = await onWebSearch(prompt);
-        } catch (error) {
-          console.error("Web search failed:", error);
-        } finally {
-          setIsWebSearching(false);
-        }
-      } else {
-        console.log("🔍 Web search skipped:", {
-          webSearchEnabled,
-          hasWebSearch: !!onWebSearch,
-          configured: webSearchStatus?.configured,
-        });
-      }
+      // 🚫 UI WEB SEARCH DISABLED: Let WebSearchAgent make intelligent decisions
+      // Web search now handled by multi-agent WebSearchAgent with pattern-based queries
+      console.log("🚫 UI web search disabled - WebSearchAgent will handle intelligent web expansion when needed");
+      
+      // Skip UI web search entirely - WebSearchAgent will use PatternGenerator results
+      // for targeted, intelligent searches based on document analysis
 
       if (onSubmit) {
         onSubmit(

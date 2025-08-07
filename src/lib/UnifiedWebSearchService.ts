@@ -1,18 +1,14 @@
 /**
  * Unified Web Search Service
- * Combines Firecrawl and DuckDuckGo search capabilities
+ * Uses Firecrawl for web search and scraping capabilities
  */
 
 import {
   getFirecrawlService,
   WebSearchContext as FirecrawlSearchContext,
 } from "./FirecrawlService";
-import {
-  getDuckDuckGoService,
-  DuckDuckGoSearchContext,
-} from "./DuckDuckGoService";
 
-export type WebSearchProvider = "firecrawl" | "duckduckgo" | "both";
+export type WebSearchProvider = "firecrawl";
 
 export interface UnifiedWebSearchResult {
   url: string;
@@ -20,7 +16,7 @@ export interface UnifiedWebSearchResult {
   description: string;
   content: string;
   relevanceScore?: number;
-  provider: "firecrawl" | "duckduckgo";
+  provider: "firecrawl";
   metadata: {
     searchQuery: string;
     searchTime: number;
@@ -58,14 +54,13 @@ export interface UnifiedWebSearchOptions {
 
 export class UnifiedWebSearchService {
   private firecrawlService = getFirecrawlService();
-  private duckDuckGoService = getDuckDuckGoService();
 
   async searchWeb(
     query: string,
     options: UnifiedWebSearchOptions = {}
   ): Promise<UnifiedWebSearchContext> {
     const {
-      provider = "both",
+      provider = "firecrawl",
       limit = 5,
       maxContentLength = 2000,
       language = "en",
@@ -84,82 +79,44 @@ export class UnifiedWebSearchService {
         `🌐 Unified web search for: "${query}" with provider: ${provider}`
       );
 
-      // Perform Firecrawl search if enabled
-      if (provider === "firecrawl" || provider === "both") {
-        if (this.firecrawlService.isConfigured) {
-          try {
-            console.log("🔥 Performing Firecrawl search...");
-            const firecrawlResults = await this.firecrawlService.searchWeb(
-              query,
-              {
-                limit: Math.ceil(limit / 2),
-                excludeDomains,
-                includeDomains,
-                maxContentLength,
-                searchMode,
-                language,
-              }
-            );
-
-            // Convert Firecrawl results to unified format
-            const unifiedFirecrawlResults: UnifiedWebSearchResult[] =
-              firecrawlResults.results.map((result) => ({
-                url: result.url,
-                title: result.title,
-                description: result.description,
-                content: result.content,
-                relevanceScore: result.relevanceScore,
-                provider: "firecrawl" as const,
-                metadata: result.metadata,
-              }));
-
-            allResults.push(...unifiedFirecrawlResults);
-            providers.push("firecrawl");
-            console.log(
-              `🔥 Firecrawl search completed: ${unifiedFirecrawlResults.length} results`
-            );
-          } catch (error) {
-            console.error("❌ Firecrawl search failed:", error);
-          }
-        } else {
-          console.log("⚠️ Firecrawl not configured, skipping...");
-        }
-      }
-
-      // Perform DuckDuckGo search if enabled
-      if (provider === "duckduckgo" || provider === "both") {
+      // Perform Firecrawl search
+      if (this.firecrawlService.isConfigured) {
         try {
-          console.log("🦆 Performing DuckDuckGo search...");
-          const duckDuckGoResults = await this.duckDuckGoService.searchWeb(
+          console.log("🔥 Performing Firecrawl search...");
+          const firecrawlResults = await this.firecrawlService.searchWeb(
             query,
             {
-              limit: Math.ceil(limit / 2),
+              limit: limit,
+              excludeDomains,
+              includeDomains,
               maxContentLength,
+              searchMode,
               language,
-              safeSearch,
             }
           );
 
-          // Convert DuckDuckGo results to unified format
-          const unifiedDuckDuckGoResults: UnifiedWebSearchResult[] =
-            duckDuckGoResults.results.map((result) => ({
+          // Convert Firecrawl results to unified format
+          const unifiedFirecrawlResults: UnifiedWebSearchResult[] =
+            firecrawlResults.results.map((result) => ({
               url: result.url,
               title: result.title,
               description: result.description,
               content: result.content,
               relevanceScore: result.relevanceScore,
-              provider: "duckduckgo" as const,
+              provider: "firecrawl" as const,
               metadata: result.metadata,
             }));
 
-          allResults.push(...unifiedDuckDuckGoResults);
-          providers.push("duckduckgo");
+          allResults.push(...unifiedFirecrawlResults);
+          providers.push("firecrawl");
           console.log(
-            `🦆 DuckDuckGo search completed: ${unifiedDuckDuckGoResults.length} results`
+            `🔥 Firecrawl search completed: ${unifiedFirecrawlResults.length} results`
           );
         } catch (error) {
-          console.error("❌ DuckDuckGo search failed:", error);
+          console.error("❌ Firecrawl search failed:", error);
         }
+      } else {
+        console.log("⚠️ Firecrawl not configured, skipping web search...");
       }
 
       // Sort all results by relevance score

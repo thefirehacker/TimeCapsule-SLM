@@ -8,7 +8,7 @@
  * - Loop detection and breaking
  */
 
-const RESPONSE_TIMEOUT = 60000; // 60 seconds for small models
+const RESPONSE_TIMEOUT = 600000; // 10 minutes for slower models like Gemma 3n
 const MAX_RETRIES = 3;
 const CONTINUATION_PROMPT = "Please complete your previous response starting from where you left off.";
 

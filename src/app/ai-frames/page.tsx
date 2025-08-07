@@ -369,57 +369,87 @@ export default function AIFramesPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  // Tab configuration for AI Frames Knowledge Base Manager
+  const aiFramesTabConfigs = [
+    {
+      id: 'user',
+      label: 'User Docs',
+      icon: Upload,
+      filter: (doc: any) => {
+        return !(
+          doc.title.toLowerCase().includes("agent log") ||
+          doc.metadata.source === "research_state" ||
+          doc.metadata.source === "ai-frames" ||
+          doc.title.toLowerCase().includes("ai-frame") ||
+          doc.metadata.source === "timecapsule_export" ||
+          doc.metadata.source === "timecapsule_import" ||
+          doc.metadata.source === "aiframes_import" ||
+          doc.metadata.source === "aiframes_combined" ||
+          doc.title.toLowerCase().includes("timecapsule") ||
+          doc.metadata.isGenerated === true
+        );
+      }
+    },
+    {
+      id: 'aiFrames',
+      label: 'AI Frames',
+      icon: Bot,
+      filter: (doc: any) => {
+        return doc.metadata.source === "ai-frames" ||
+               doc.title.toLowerCase().includes("ai-frame");
+      }
+    },
+    {
+      id: 'system',
+      label: 'System',
+      icon: Package,
+      filter: (doc: any) => {
+        return doc.metadata.source === "timecapsule_export" ||
+               doc.metadata.source === "timecapsule_import" ||
+               doc.metadata.source === "aiframes_import" ||
+               doc.metadata.source === "aiframes_combined" ||
+               doc.title.toLowerCase().includes("timecapsule") ||
+               doc.metadata.isGenerated === true;
+      }
+    },
+    {
+      id: 'agentLogs',
+      label: 'Logs',
+      icon: Settings,
+      filter: (doc: any) => {
+        return doc.title.toLowerCase().includes("agent log") ||
+               doc.metadata.source === "research_state";
+      }
+    }
+  ];
+
+  // Legacy function for backward compatibility (if needed elsewhere)
   const categorizeDocuments = (docs: any[]) => {
-    const categories = {
-      user: [] as any[],
-      aiFrames: [] as any[],
-      system: [] as any[],
-      agentLogs: [] as any[],
-    };
-
-    docs.forEach((doc) => {
-      // Agent Logs
-      if (
-        doc.title.toLowerCase().includes("agent log") ||
-        doc.metadata.source === "research_state"
-      ) {
-        categories.agentLogs.push(doc);
-      }
-      // AI Frames
-      else if (
-        doc.metadata.source === "ai-frames" ||
-        doc.title.toLowerCase().includes("ai-frame")
-      ) {
-        categories.aiFrames.push(doc);
-      }
-      // System & Metadata (TimeCapsules, BubblSpace, etc.)
-      else if (
-        doc.metadata.source === "timecapsule_export" ||
-        doc.metadata.source === "timecapsule_import" ||
-        doc.metadata.source === "aiframes_import" ||
-        doc.metadata.source === "aiframes_combined" ||
-        doc.title.toLowerCase().includes("timecapsule") ||
-        doc.metadata.isGenerated === true
-      ) {
-        categories.system.push(doc);
-      }
-      // User Documents (uploads, Firecrawl, etc.)
-      else {
-        categories.user.push(doc);
-      }
+    const categories: Record<string, any[]> = {};
+    
+    // Initialize categories
+    aiFramesTabConfigs.forEach(config => {
+      categories[config.id] = [];
     });
-
+    
+    // Categorize each document
+    docs.forEach(doc => {
+      aiFramesTabConfigs.forEach(config => {
+        if (config.filter(doc)) {
+          categories[config.id].push(doc);
+        }
+      });
+    });
+    
     return categories;
   };
 
   const getDocumentCategoryCounts = () => {
-    const categorized = categorizeDocuments(documents);
-    return {
-      user: categorized.user.length,
-      aiFrames: categorized.aiFrames.length,
-      system: categorized.system.length,
-      agentLogs: categorized.agentLogs.length,
-    };
+    const counts: Record<string, number> = {};
+    aiFramesTabConfigs.forEach(config => {
+      counts[config.id] = documents.filter(config.filter).length;
+    });
+    return counts;
   };
 
   const getSemanticResultsByCategory = (category: string) => {

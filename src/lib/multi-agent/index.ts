@@ -52,7 +52,8 @@ export { SynthesisAgent } from './agents/SynthesisAgent';
 // Factory function
 export function createMultiAgentSystem(
   llm: (prompt: string) => Promise<string>, 
-  progressCallback?: import('./interfaces/AgentProgress').AgentProgressCallback
+  progressCallback?: import('./interfaces/AgentProgress').AgentProgressCallback,
+  vectorStore?: import('../../components/VectorStore/VectorStore').VectorStore
 ) {
   // Create core components
   const registry = new AgentRegistry();
@@ -64,7 +65,7 @@ export function createMultiAgentSystem(
   registry.register(new PlanningAgent(llm)); // NEW: Intelligent execution strategy
   registry.register(new PatternGeneratorAgent(llm));
   registry.register(new ExtractionAgent(llm));
-  registry.register(new WebSearchAgent(llm)); // NEW: Knowledge base expansion
+  registry.register(new WebSearchAgent(llm, vectorStore)); // NEW: Knowledge base expansion with persistence
   registry.register(new SynthesisAgent(llm));
   
   // Create and return orchestrator with progress callback
