@@ -9,6 +9,7 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ChunkData } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { getFirecrawlService } from '../../FirecrawlService';
 
 export interface WebSearchStrategy {
   searchQueries: string[];
@@ -23,6 +24,7 @@ export class WebSearchAgent extends BaseAgent {
   readonly description = 'Expands knowledge base using intelligent web search when local data is insufficient';
   
   private llm: LLMFunction;
+  private firecrawlService = getFirecrawlService();
   
   constructor(llm: LLMFunction) {
     super();
@@ -210,43 +212,56 @@ Return as JSON:
   }
   
   private async executeWebSearch(strategy: WebSearchStrategy, context: ResearchContext): Promise<ChunkData[]> {
-    console.log(`🔍 Executing web search with ${strategy.searchQueries.length} queries...`);
+    console.log(`🔍 WebSearch executing ${strategy.searchQueries.length} queries...`);
     
-    // TODO: Integrate with Firecrawl API
-    // For now, return placeholder results to maintain system functionality
-    
-    const mockResults: ChunkData[] = [];
-    
-    for (let i = 0; i < strategy.searchQueries.length; i++) {
-      const query = strategy.searchQueries[i];
-      console.log(`🌐 [PLACEHOLDER] Searching for: "${query}"`);
-      
-      // Placeholder result structure
-      const placeholderResult: ChunkData = {
-        id: `web_search_${Date.now()}_${i}`,
-        text: `[WEB SEARCH PLACEHOLDER] Results for "${query}" would appear here when Firecrawl integration is complete.`,
-        source: `Web Search: ${query}`,
-        similarity: 0.8,
-        sourceType: 'web',
-        metadata: {
-          searchQuery: query,
-          searchEngine: 'firecrawl_placeholder',
-          timestamp: Date.now(),
-          agent: 'WebSearchAgent'
-        }
-      };
-      
-      mockResults.push(placeholderResult);
+    if (!this.firecrawlService.isConfigured) {
+      console.log(`⚠️ Firecrawl not configured, skipping web search`);
+      return [];
     }
     
-    console.log(`🌐 [PLACEHOLDER] Web search simulation complete: ${mockResults.length} placeholder results`);
+    const webChunks: ChunkData[] = [];
     
-    // In real implementation, this would:
-    // 1. Use Firecrawl API to search and crawl results
-    // 2. Extract content from found pages
-    // 3. Process and chunk the content
-    // 4. Return structured ChunkData objects
+    for (const query of strategy.searchQueries) {
+      try {
+        console.log(`🌐 Executing Firecrawl search: "${query}"`);
+        
+        const searchResults = await this.firecrawlService.searchWeb(query, {
+          limit: Math.min(strategy.maxResults, 3), // Limit per query
+          maxContentLength: 2000,
+          searchMode: 'web'
+        });
+        
+        // Convert WebSearchResult to ChunkData format
+        for (const result of searchResults.results) {
+          const chunk: ChunkData = {
+            id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            text: result.content || result.description || '',
+            source: result.title || result.url,
+            similarity: result.relevanceScore || 0.7,
+            sourceType: 'web',
+            metadata: {
+              url: result.url,
+              title: result.title,
+              searchQuery: query,
+              searchEngine: 'firecrawl',
+              timestamp: Date.now(),
+              agent: 'WebSearchAgent',
+              domain: result.metadata.domain,
+              crawlTime: result.metadata.crawlTime
+            }
+          };
+          
+          webChunks.push(chunk);
+        }
+        
+        console.log(`✅ Found ${searchResults.results.length} results for "${query}"`);
+        
+      } catch (error) {
+        console.error(`❌ Search failed for "${query}":`, error);
+      }
+    }
     
-    return mockResults;
+    console.log(`🌐 Web search completed: ${webChunks.length} web chunks added`);
+    return webChunks;
   }
 }

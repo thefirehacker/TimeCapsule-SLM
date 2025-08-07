@@ -113,11 +113,14 @@ Based on this analysis, create an intelligent execution plan:
 1. **STRATEGY**: What's the best approach? (regex-extraction, web-expansion, direct-synthesis)
 
 2. **EXECUTION STEPS**: What agents should be called and in what order?
-   IMPORTANT: Use EXACT agent names as listed below:
-   - "PatternGenerator": For structured data extraction using regex
-   - "Extractor": For executing patterns or LLM extraction (NOT "PatternExtractor")
-   - "WebSearchAgent": For expanding knowledge base when local data insufficient
-   - "Synthesizer": For creating final answer
+   CRITICAL DATA DEPENDENCIES - Follow these rules:
+   - "PatternGenerator": Creates regex patterns (MUST run BEFORE Extractor for efficient extraction)
+   - "Extractor": Uses patterns to extract data (REQUIRES patterns from PatternGenerator)
+   - "WebSearchAgent": Expands knowledge when local data insufficient (OPTIONAL)
+   - "Synthesizer": Creates final answer (REQUIRES extracted data from Extractor)
+   
+   DEPENDENCY CHAIN: PatternGenerator → Extractor → Synthesizer
+   (WebSearchAgent can run anywhere after DataInspector)
 
 3. **FALLBACK OPTIONS**: What to do if primary approach fails?
 

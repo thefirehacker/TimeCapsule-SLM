@@ -235,7 +235,7 @@ Focus on understanding the document context to make this distinction.`;
         prompt,
         {
           maxRetries: 2,
-          timeout: 45000, // 45 seconds for synthesis
+          timeout: 900000, // 15 minutes for synthesis (slower models like Gemma 3n)
           continuationPrompt: "Continue with the answer:"
         }
       );
@@ -267,7 +267,7 @@ Focus on understanding the document context to make this distinction.`;
         prompt,
         {
           maxRetries: 2,
-          timeout: 45000,
+          timeout: 900000, // 15 minutes for synthesis (slower models like Gemma 3n)
           continuationPrompt: "Continue with the reasoning and answer:"
         }
       );

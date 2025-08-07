@@ -41,17 +41,25 @@ export class ExtractionAgent extends BaseAgent {
     this.extractionSummary = '';
     this.llmResponses = [];
     
-    // 🔥 CRITICAL FIX: Check if we have regex patterns from PatternGenerator
-    const hasRegexPatterns = context.patterns.some(pattern => pattern.regexPattern);
+    // 🔥 INTELLIGENT DATA DEPENDENCY: Check for proper regex patterns from PatternGenerator
+    const regexPatterns = context.patterns.filter(p => p.regexPattern);
+    const nonRegexPatterns = context.patterns.filter(p => !p.regexPattern);
+    const hasRegexPatterns = regexPatterns.length > 0;
     
-    if (hasRegexPatterns) {
-      console.log(`🎯 Using REGEX MODE: Found ${context.patterns.filter(p => p.regexPattern).length} regex patterns from PatternGenerator`);
+    console.log(`🔍 Pattern Analysis: ${regexPatterns.length} regex patterns, ${nonRegexPatterns.length} descriptor patterns`);
+    
+    if (regexPatterns.length > 0) {
+      console.log(`🎯 Using REGEX MODE: Found ${regexPatterns.length} regex patterns from PatternGenerator`);
+      console.log(`📋 Regex patterns: ${regexPatterns.map(p => p.regexPattern).join(', ')}`);
+      
       // Use regex-based extraction
       const regexResults = await this.extractUsingRegexPatterns(context);
       extractedItems.push(...regexResults);
       
-    } else {
-      console.log(`🧠 Using LLM DISCOVERY MODE: No regex patterns available, falling back to LLM discovery`);
+    } else if (nonRegexPatterns.length > 0) {
+      console.log(`⚠️ DATA DEPENDENCY WARNING: Found ${nonRegexPatterns.length} descriptor patterns but no regex patterns`);
+      console.log(`📋 Available patterns: ${nonRegexPatterns.map(p => p.description).join(', ')}`);
+      console.log(`🧠 FALLBACK TO LLM DISCOVERY: Expected PatternGenerator to provide regex patterns for efficient extraction`);
       // 🚀 CURSOR-STYLE HYBRID: LLM Pattern Discovery → Fast Extraction
       const patternDiscovery = await this.discoverPatternsWithLLM(context);
       
@@ -219,7 +227,7 @@ The extracted data will now be synthesized to answer your query.`);
         prompt,
         {
           maxRetries: 2, // Reduced retries
-          timeout: 30000, // 30 seconds instead of 60
+          timeout: 600000, // 10 minutes for slower models like Gemma 3n
           continuationPrompt: "Continue extracting the data:"
         }
       );

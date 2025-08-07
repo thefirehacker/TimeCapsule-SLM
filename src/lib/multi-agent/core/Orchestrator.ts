@@ -805,7 +805,11 @@ NEXT_GOAL: [final goal achieved]`;
     // Define critical dependencies for each agent
     switch (toolName) {
       case 'Synthesizer':
-        // Synthesizer needs data - but WebSearchAgent is OPTIONAL
+        // 🔥 CRITICAL: Synthesizer needs EXTRACTED DATA from documents, not just raw chunks
+        console.log(`🎯 Validating Synthesizer prerequisites - checking data availability`);
+        const hasExtractedData = this.hasExtractedData(context);
+        console.log(`📊 Has extracted data: ${hasExtractedData}`);
+        
         for (const step of uncompletedPrerequisites) {
           const agentName = this.normalizeToolName(step.agent);
           
@@ -815,26 +819,15 @@ NEXT_GOAL: [final goal achieved]`;
             continue;
           }
           
-          // PatternGenerator is optional if we have other data sources
-          if (agentName === 'PatternGenerator') {
-            const hasData = this.hasExtractedData(context) || 
-                          (context.documentAnalysis?.documents && context.documentAnalysis.documents.length > 0);
-            if (hasData) {
-              console.log(`📝 PatternGenerator is optional - sufficient data exists`);
-              continue;
-            }
+          // 🔥 CRITICAL DEPENDENCY CHAIN: PatternGenerator → Extractor → Synthesizer
+          if (agentName === 'PatternGenerator' || agentName === 'Extractor') {
+            console.log(`🎯 ${agentName} is CRITICAL for Synthesizer - ensures proper data extraction`);
+            critical.push(step);
+            continue;
           }
           
-          // Check if we have sufficient data to synthesize without this agent
-          if (agentName === 'Extractor') {
-            const hasAlternativeData = context.documentAnalysis?.documents && 
-                                      context.documentAnalysis.documents.length > 0 &&
-                                      context.ragResults.chunks.length > 0;
-            if (hasAlternativeData) {
-              console.log(`📝 Extractor is optional - alternative data sources available`);
-              continue;
-            }
-            // Extractor is critical if no alternative data exists
+          // DataInspector is critical for document understanding
+          if (agentName === 'DataInspector') {
             critical.push(step);
           }
         }
@@ -850,14 +843,22 @@ NEXT_GOAL: [final goal achieved]`;
             continue;
           }
           
-          // PatternGenerator is helpful but not critical - Extractor can use LLM
+          // 🔥 CRITICAL DATA DEPENDENCY: PatternGenerator is REQUIRED for Extractor
           if (agentName === 'PatternGenerator') {
-            console.log(`📝 PatternGenerator is optional for Extractor - can use LLM analysis`);
+            console.log(`🎯 CRITICAL DEPENDENCY: PatternGenerator must run before Extractor for regex patterns`);
+            console.log(`📊 Current patterns in context: ${context.patterns?.length || 0} patterns`);
+            const regexPatterns = context.patterns?.filter(p => p.regexPattern)?.length || 0;
+            console.log(`🔍 Regex patterns available: ${regexPatterns}`);
+            
+            // Always require PatternGenerator - this fixes the execution order issue
+            critical.push(step);
             continue;
           }
           
-          // Other prerequisites might be critical
-          critical.push(step);
+          // DataInspector is critical for document analysis
+          if (agentName === 'DataInspector') {
+            critical.push(step);
+          }
         }
         break;
         
@@ -1116,9 +1117,14 @@ NEXT_GOAL: [final goal achieved]`;
         };
       
       case 'WebSearchAgent':
+        const webSearchFindings = context.sharedKnowledge?.agentFindings?.WebSearchAgent;
         return {
-          webResults: 'Web search completed',
-          reasoning: 'Web search completed'
+          webResults: webSearchFindings?.resultsCount || 0,
+          searchQueries: webSearchFindings?.searchQueries || [],
+          strategy: webSearchFindings?.strategy || {},
+          sourcesAdded: webSearchFindings?.resultsCount || 0,
+          timestamp: webSearchFindings?.timestamp,
+          reasoning: `Web search executed: ${webSearchFindings?.resultsCount || 0} additional sources found`
         };
       
       default:
