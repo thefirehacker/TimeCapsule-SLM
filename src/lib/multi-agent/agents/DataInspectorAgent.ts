@@ -445,62 +445,78 @@ Provide specific, actionable insights that will guide intelligent extraction and
     const sampleContent = documentGroup.chunks
       .map((chunk: any, idx: number) => `[CHUNK ${idx + 1}]:\n${chunk.text.substring(0, 800)}`)
       .join('\n\n---\n\n');
+    
+    // 🐛 DEBUG: Log the sample content to verify document content is available
+    console.log(`🔍 DEBUG DataInspector Document ${docNumber} Sample Content:`, {
+      chunksCount: documentGroup.chunks.length,
+      sampleLength: sampleContent.length,
+      firstChunkPreview: documentGroup.chunks[0]?.text?.substring(0, 200) + '...',
+      hasActualContent: sampleContent.length > 100 && !sampleContent.includes('Please provide the content')
+    });
 
-    const intelligentPrompt = `You are an intelligent document analyzer. Analyze ONLY the document content to identify who owns/created it.
+    const intelligentPrompt = `You are an intelligent document analyzer. Perform comprehensive analysis to understand what this document contains.
 
 DOCUMENT ${docNumber} SAMPLE CONTENT:
 ${sampleContent}
 
-🚨 CRITICAL: Look at the document content above and identify WHO this document is about or written by. Ignore the user's query for now.
+STEP 1: Comprehensive Document Analysis
+Extract ALL information from this document:
 
-STEP 1: Document Analysis
-- What type of document is this? (Resume, Blog, Report, Manual, etc.)
-- Who is the main person this document belongs to or is about?
-- Look for names, signatures, "My projects", "I built", author bylines, etc.
+TOPICS: List all topics, subjects, domains, and fields covered (broad and specific)
+PEOPLE: List all people mentioned (authors, researchers, subjects, references)  
+METHODS: List all techniques, algorithms, approaches, methodologies described
+CONCEPTS: List all key ideas, principles, theories, frameworks discussed
+DATA: List all datasets, experiments, results, metrics, findings mentioned
 
-STEP 2: Relevance Check  
-- USER QUERY: "${query}"
-- Is this document about the person/topic mentioned in the query?
-- If document is about Person A but query asks about Person B → IRRELEVANT
-- If document is about Person A and query asks about Person A → RELEVANT
-- If query is about a general topic, check if document contains relevant information
+STEP 2: Document Classification
+TYPE: [what kind of document this is]
+MAIN_ENTITY: [primary person/organization/subject this document is about]
 
-🎯 DYNAMIC EXAMPLES:
-- Document about "Person A's blog post" + Query about "Person B's project" = ENTITY: Person A, RELEVANT: NO
-- Document about "Person A's resume" + Query about "Person A's experience" = ENTITY: Person A, RELEVANT: YES
-- Document about "Rocket Engineering Guide" + Query about "rocket design" = RELEVANT: YES
+STEP 3: Query Relevance Analysis
+USER_QUERY: "${query}"
+Using the comprehensive analysis above, determine if this document contains information that helps answer the query.
 
-Respond in simple format:
-TYPE: [document type - what kind of document]
-ENTITY: [who owns/created this document - the actual person's name from the document]
-RELEVANT: [YES only if ENTITY matches the person in query, otherwise NO]
-REASON: [explain who the document is about and why it's relevant/irrelevant]`;
+RELEVANT: [YES if any extracted topics/methods/concepts relate to the query, NO if completely unrelated]
+REASON: [explain specifically what content relates to the query and why]
+
+Respond in exact format:
+TYPE: [document type]
+MAIN_ENTITY: [main subject]
+RELEVANT: [YES/NO]
+REASON: [detailed reasoning based on extracted content]`;
 
     try {
+      // 🐛 DEBUG: Log the full prompt being sent to LLM
+      console.log(`📤 DEBUG DataInspector Document ${docNumber} LLM Prompt:`, {
+        promptLength: intelligentPrompt.length,
+        containsDocumentContent: intelligentPrompt.includes('[CHUNK 1]'),
+        contentSampleInPrompt: intelligentPrompt.substring(intelligentPrompt.indexOf('DOCUMENT SAMPLE CONTENT:'), intelligentPrompt.indexOf('DOCUMENT SAMPLE CONTENT:') + 300) + '...'
+      });
+      
       const response = await this.llm(intelligentPrompt);
       
       // 🐛 DEBUG: Log LLM response to understand parsing issues
       console.log(`🧠 DataInspector Document ${docNumber} LLM Response:`, response.substring(0, 500) + '...');
       
-      // Parse the intelligent response
+      // Parse the enhanced response
       const docType = this.extractValue(response, 'TYPE') || 'Unknown Document';
-      const primaryEntity = this.extractValue(response, 'ENTITY') || 'Unknown Entity';
+      const mainEntity = this.extractValue(response, 'MAIN_ENTITY') || 'Unknown Entity';
       const relevantText = this.extractValue(response, 'RELEVANT') || 'NO';
       const reasoning = this.extractValue(response, 'REASON') || 'No reasoning provided';
       
       // 🐛 DEBUG: Log parsed values to debug extraction
       console.log(`🔍 DataInspector Document ${docNumber} Parsed:`, {
-        docType, primaryEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
+        docType, mainEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
       });
       
-      // 🔥 CRITICAL FIX: More robust relevance detection
-      const isRelevant = this.determineRelevance(relevantText, reasoning, primaryEntity, query);
+      // Direct relevance determination from comprehensive analysis
+      const isRelevant = relevantText.toUpperCase().includes('YES');
       
-      console.log(`🔍 RELEVANCE ANALYSIS: Text="${relevantText}", Entity="${primaryEntity}", Query="${query}" → Result: ${isRelevant}`);
+      console.log(`🔍 COMPREHENSIVE ANALYSIS: Query="${query}", Entity="${mainEntity}" → Result: ${isRelevant}`);
       
       return {
         documentType: docType,
-        primaryEntity: primaryEntity,
+        primaryEntity: mainEntity,
         isRelevant: isRelevant,
         reasoning: reasoning
       };
@@ -516,86 +532,11 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
     }
   }
 
-  /**
-   * 🔥 CRITICAL FIX: Robust relevance determination
-   * Fixes parsing inconsistency where LLM reasoning was correct but extraction failed
-   */
-  private determineRelevance(relevantText: string, reasoning: string, primaryEntity: string, query: string): boolean {
-    const upperRelevantText = relevantText.toUpperCase();
-    const upperReasoning = reasoning.toUpperCase();
-    
-    // Extract the person name from the query (only for person-specific queries)
-    const queryPersonMatch = query.match(/(?:by|about|for)\s+([A-Z][a-z]+)/i);
-    const queryPerson = queryPersonMatch ? queryPersonMatch[1].toLowerCase() : '';
-    
-    // Extract the entity name for comparison
-    const entityWords = primaryEntity.toLowerCase().split(/[\s,]+/);
-    
-    console.log(`🔍 RELEVANCE DEBUG: Query person: "${queryPerson}", Entity words: [${entityWords.join(', ')}]`);
-    
-    // Method 1: Direct YES/NO check - TRUST LLM JUDGMENT
-    if (upperRelevantText.includes('YES')) {
-      // ONLY override for explicit person-specific queries where entity clearly doesn't match
-      if (queryPerson && !entityWords.some(word => word.includes(queryPerson))) {
-        // Additional check: ensure this is really a person mismatch and not a topic query
-        const isPersonSpecificQuery = query.toLowerCase().includes(`${queryPerson}'s`) || 
-                                     query.toLowerCase().includes(`by ${queryPerson}`) ||
-                                     query.toLowerCase().includes(`about ${queryPerson}`);
-        
-        if (isPersonSpecificQuery) {
-          console.warn(`⚠️ RELEVANCE OVERRIDE: Person-specific query about "${queryPerson}" but document is about "${primaryEntity}"`);
-          return false;
-        }
-      }
-      // For all other cases: TRUST LLM's judgment completely
-      console.log(`✅ TRUSTING LLM: Document marked as relevant by intelligent analysis`);
-      return true;
-    }
-    
-    if (upperRelevantText.includes('NO') || upperRelevantText.includes('IRRELEVANT')) {
-      return false;
-    }
-    
-    // Method 2: Check reasoning for explicit relevance statements
-    if (upperReasoning.includes('IRRELEVANT') || upperReasoning.includes('NOT RELEVANT')) {
-      console.log(`📝 REASONING OVERRIDE: Found "irrelevant" in reasoning`);
-      return false;
-    }
-    
-    if (upperReasoning.includes('RELEVANT') && !upperReasoning.includes('NOT RELEVANT')) {
-      // ONLY override for explicit person-specific queries where entity clearly doesn't match
-      if (queryPerson && !entityWords.some(word => word.includes(queryPerson))) {
-        const isPersonSpecificQuery = query.toLowerCase().includes(`${queryPerson}'s`) || 
-                                     query.toLowerCase().includes(`by ${queryPerson}`) ||
-                                     query.toLowerCase().includes(`about ${queryPerson}`);
-        
-        if (isPersonSpecificQuery) {
-          console.warn(`⚠️ REASONING OVERRIDE: Person-specific query about "${queryPerson}" but document is about "${primaryEntity}"`);
-          return false;
-        }
-      }
-      // For all other cases: TRUST LLM's reasoning completely
-      console.log(`✅ TRUSTING LLM: Document reasoning indicates relevance`);
-      return true;
-    }
-    
-    // Method 3: Entity name matching as fallback
-    if (queryPerson) {
-      const entityMatches = entityWords.some(word => 
-        word.includes(queryPerson) || queryPerson.includes(word)
-      );
-      console.log(`🔍 ENTITY MATCHING: "${queryPerson}" vs [${entityWords.join(', ')}] → ${entityMatches}`);
-      return entityMatches;
-    }
-    
-    // Default: if unclear, include to avoid losing data
-    console.warn(`⚠️ RELEVANCE UNCERTAIN: Defaulting to RELEVANT for "${primaryEntity}"`);
-    return true;
-  }
 
   /**
    * Normalize key to handle common LLM typos (while preserving exact matching)
    */
+  // @ts-ignore - Currently unused but kept for future LLM compatibility
   private normalizeKey(key: string): string {
     // Handle common typos from different LLM models
     const typoMap: { [key: string]: string } = {
@@ -744,6 +685,7 @@ Return as comma-separated list.`;
     }
   }
 
+  // @ts-ignore - Currently unused but kept for future entity discovery
   private async discoverEntities(keyEntitiesList: string[], docIndex: number, docContent: string): Promise<EntityReference[]> {
     // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded entity type assumptions
     // Let LLM discover entities based on actual document content
@@ -1043,6 +985,7 @@ Return just the role: source, target, or reference`;
    * 🔥 Extract specific semantic insights that must be preserved (person-specific understanding)
    */
   private extractSpecificInsights(documentAnalysis: any, query: string): string[] {
+    // @ts-ignore - documentAnalysis parameter currently unused but kept for future enhancement
     const insights: string[] = [];
     const reasoning = this.reasoning.toLowerCase();
     const queryLower = query.toLowerCase();
@@ -1147,39 +1090,9 @@ Return just the role: source, target, or reference`;
       return;
     }
 
-    // First analyze documents for relevance BEFORE sampling chunks
-    console.log(`🔍 Analyzing ${documentMetadata.length} documents for relevance BEFORE sampling`);
-    this.progressCallback?.onAgentProgress?.(this.name, 15, `Analyzing ${documentMetadata.length} documents for relevance`, 0, documentMetadata.length);
-    
-    // Create temporary document groups with minimal metadata for relevance analysis
-    const tempDocumentGroups = documentMetadata.map((docMeta, index) => ({
-      documentId: docMeta.metadata?.documentId || docMeta.id,
-      chunks: [{
-        id: docMeta.id,
-        text: docMeta.text || `Document: ${documentSources[index]}`,
-        source: documentSources[index],
-        similarity: 1.0,
-        metadata: docMeta.metadata,
-        sourceDocument: documentSources[index],
-        sourceType: 'document' as const
-      }]
-    }));
-    
-    // Perform relevance analysis FIRST
-    await this.performMultiDocumentAnalysis(context, tempDocumentGroups);
-    
-    // Get list of relevant documents from analysis
-    const relevantDocIds = new Set<string>();
-    if (context.documentAnalysis?.documents) {
-      context.documentAnalysis.documents.forEach(doc => {
-        relevantDocIds.add(doc.documentId);
-      });
-    }
-    
-    console.log(`📊 Relevance analysis: ${relevantDocIds.size} relevant out of ${documentMetadata.length} total documents`);
-    
-    // Now sample chunks ONLY from relevant documents
-    console.log(`🔍 Sampling real chunks from ${relevantDocIds.size} RELEVANT documents only`);
+    // 🔄 FIXED: Sample real chunks from ALL documents FIRST, then analyze with real content
+    console.log(`🔍 Sampling real chunks from ${documentMetadata.length} documents for intelligent analysis`);
+    this.progressCallback?.onAgentProgress?.(this.name, 15, `Sampling real chunks from ${documentMetadata.length} documents`, 0, documentMetadata.length);
     const documentGroups: Array<{
       documentId: string;
       chunks: Array<{
@@ -1193,16 +1106,13 @@ Return just the role: source, target, or reference`;
       }>;
     }> = [];
     
+    // 🔄 FIXED: Sample chunks from ALL documents, let LLM decide relevance based on real content
     for (let i = 0; i < documentMetadata.length; i++) {
       const docMeta = documentMetadata[i];
       const documentId = docMeta.metadata?.documentId || docMeta.id;
       const documentSource = documentSources[i];
       
-      // Skip irrelevant documents - no sampling!
-      if (!relevantDocIds.has(documentId)) {
-        console.log(`⏭️ Skipping chunk sampling for irrelevant document: ${documentSource}`);
-        continue;
-      }
+      console.log(`🔍 Sampling chunks from document ${i + 1}/${documentMetadata.length}: ${documentSource}`);
       
       try {
         // Get full document from VectorStore with all chunks
@@ -1304,27 +1214,46 @@ Return just the role: source, target, or reference`;
       }
     }
     
-    console.log(`✅ Sampled chunks from ${documentGroups.length} RELEVANT documents only`);
+    console.log(`✅ Sampled chunks from ${documentGroups.length} documents with real content`);
     
-    // Replace chunks with ONLY relevant document chunks
-    const allSampledChunks = documentGroups.flatMap(group => group.chunks);
-    console.log(`🔄 Replacing ${context.ragResults.chunks.length} document metadata with ${allSampledChunks.length} relevant chunks (NO CONTAMINATION)`);
-    context.ragResults.chunks = allSampledChunks;
+    // 🔄 FIXED: Now analyze documents with REAL CONTENT, not metadata
+    console.log(`🧠 Analyzing ${documentGroups.length} documents with real sampled content for intelligent relevance decisions`);
+    await this.performMultiDocumentAnalysis(context, documentGroups);
     
-    // No need to re-analyze - we already did relevance analysis above
+    // Filter to keep only relevant documents after analysis
+    const relevantDocIds = new Set<string>();
+    if (context.documentAnalysis?.documents) {
+      context.documentAnalysis.documents.forEach(doc => {
+        relevantDocIds.add(doc.documentId);
+      });
+      console.log(`📊 Relevance filtering: ${relevantDocIds.size} relevant out of ${documentGroups.length} total documents`);
+      
+      // Keep only relevant document chunks
+      const filteredDocumentGroups = documentGroups.filter(group => relevantDocIds.has(group.documentId));
+      const allSampledChunks = filteredDocumentGroups.flatMap(group => group.chunks);
+      console.log(`🔄 Replacing ${context.ragResults.chunks.length} document metadata with ${allSampledChunks.length} relevant chunks from intelligent analysis`);
+      context.ragResults.chunks = allSampledChunks;
+    } else {
+      // If no analysis results, keep all chunks
+      const allSampledChunks = documentGroups.flatMap(group => group.chunks);
+      console.log(`🔄 No relevance filtering - keeping all ${allSampledChunks.length} sampled chunks`);
+      context.ragResults.chunks = allSampledChunks;
+    }
     
-    // Update reasoning to reflect the real chunk sampling
-    const totalSampledChunks = documentGroups.reduce((sum, group) => sum + group.chunks.length, 0);
-    this.setReasoning(`🧠 **DataInspector Magic: Real Chunk Sampling Analysis**
+    // Update reasoning to reflect the FIXED approach
+    const totalSampledChunks = context.ragResults.chunks.length;
+    const relevantDocs = context.documentAnalysis?.documents?.length || 0;
+    this.setReasoning(`🔄 **FIXED DataInspector: Real Content Analysis**
 
 📋 **Document Discovery**: Found ${documentMetadata.length} documents in knowledge base
 ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chunks.length || 0} chunks sampled)`).join('\n')}
 
-🔍 **Real Chunk Sampling**: Sampled ${totalSampledChunks} real chunks from VectorStore/RxDB for intelligent analysis
+🔍 **Real Chunk Sampling**: Sampled actual content from VectorStore (30% chunks per document)
+🧠 **Intelligent Analysis**: LLM analyzed REAL document content, not just filenames
+📊 **Relevance Filtering**: ${relevantDocs} documents deemed relevant after content analysis
+✅ **Final Result**: ${totalSampledChunks} chunks from relevant documents ready for PatternGenerator
 
-🎯 **Key Insights**: Analyzed actual document content and structure to enable targeted pattern generation
-
-🚀 **Next Step**: Filtered documents with real content are ready for PatternGenerator to create extraction strategies`);
+🚀 **BUG FIXED**: Now analyzing real content instead of metadata-only chunks!`);
   }
   
   // 🚨 REMOVED: Legacy hardcoded JSON processing

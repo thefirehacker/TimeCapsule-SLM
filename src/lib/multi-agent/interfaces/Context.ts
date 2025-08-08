@@ -142,6 +142,29 @@ export interface ResearchContext {
     searchApproach: 'claude_code_style' | 'traditional_rag';
     chunksFromStorage: number; // How many chunks came from RxDB vs generated
   };
+  
+  // New properties for multi-synthesis agents
+  analyzedData?: {
+    cleaned: ExtractedItem[];
+    categorized: any[];
+    insights: string;
+  };
+  
+  reportSections?: {
+    executive: string;
+    findings: string;
+    details: string;
+  };
+  
+  citations?: {
+    sources: string[];
+    attributions: string[];
+  };
+  
+  summary?: {
+    executive: string;
+    keyFindings: string[];
+  };
 }
 
 export interface AgentMessage {
