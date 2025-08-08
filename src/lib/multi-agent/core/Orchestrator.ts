@@ -273,7 +273,7 @@ ${availableData.agentCallCount === 0 ? `
 
 🚨 **MANDATORY FIRST CALL**: Since NO agents have been called yet, you MUST start with DataInspector:
 - **REQUIRED**: DataInspector to analyze and filter ${context.ragResults.chunks.length} documents
-- **Purpose**: Filter relevant documents (e.g., keep Rutwik docs, remove Tyler docs for Rutwik query)  
+- **Purpose**: Filter relevant documents (e.g., keep person-specific docs, remove irrelevant docs for targeted queries)  
 - **Never skip this step** - DataInspector magic filtering is essential
 
 CALL DataInspector first - no exceptions!` : context.ragResults.chunks.length === 0 ? `
@@ -496,12 +496,13 @@ NEXT_GOAL: [final goal achieved]`;
     const registeredAgents = this.registry.listAgents();
     const toolDescriptions: { [key: string]: string } = {
       'QueryPlanner': 'Expands queries based on intent and domain understanding',
-      'DataInspector': 'Magic document filtering with 2 samples per doc',
+      'DataInspector': 'Magic document filtering with enhanced chunk sampling',
       'PlanningAgent': 'Creates intelligent execution strategies',
-      'PatternGenerator': 'Creates regex patterns for data extraction',
+      'PatternGenerator': 'Creates content-aware patterns for data extraction',
       'Extractor': 'Extracts data using patterns or LLM analysis',
       'WebSearchAgent': 'Expands knowledge base when local data insufficient',
-      'Synthesizer': 'Creates final answer from available data'
+      'Synthesizer': 'Creates final answer from available data',
+      'ResponseFormatter': 'Ensures responses directly answer questions with clear formatting'
     };
 
     return registeredAgents.map(agent => {

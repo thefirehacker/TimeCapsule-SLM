@@ -253,7 +253,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
         agentSource: 'DataInspector',
         // 🔥 NEW: Preserve detailed semantic reasoning for next agents
         detailedReasoning: this.reasoning,  // Full LLM reasoning from DataInspector
-        specificInsights: this.extractSpecificInsights(documentAnalysis, context.query), // Tyler-specific insights
+        specificInsights: this.extractSpecificInsights(documentAnalysis, context.query), // Entity-specific insights
         keyFindings: this.extractKeyFindings(documentAnalysis) // Important discoveries
       };
       
@@ -442,9 +442,9 @@ Provide specific, actionable insights that will guide intelligent extraction and
     isRelevant: boolean;
     reasoning: string;
   }> {
-    const sampleContent = documentGroup.chunks.slice(0, 2)
-      .map((chunk: any) => chunk.text.substring(0, 400))
-      .join('\n\n');
+    const sampleContent = documentGroup.chunks
+      .map((chunk: any, idx: number) => `[CHUNK ${idx + 1}]:\n${chunk.text.substring(0, 800)}`)
+      .join('\n\n---\n\n');
 
     const intelligentPrompt = `You are an intelligent document analyzer. Analyze ONLY the document content to identify who owns/created it.
 
@@ -460,13 +460,15 @@ STEP 1: Document Analysis
 
 STEP 2: Relevance Check  
 - USER QUERY: "${query}"
-- Is this document about the person mentioned in the query?
-- If document is about Tyler but query asks about Rutwik → IRRELEVANT
-- If document is about Rutwik and query asks about Rutwik → RELEVANT
+- Is this document about the person/topic mentioned in the query?
+- If document is about Person A but query asks about Person B → IRRELEVANT
+- If document is about Person A and query asks about Person A → RELEVANT
+- If query is about a general topic, check if document contains relevant information
 
-🎯 EXAMPLE:
-- Document about "Tyler Romero's blog post" + Query "Rutwik's project" = ENTITY: Tyler Romero, RELEVANT: NO
-- Document about "Rutwik Shinde's resume" + Query "Rutwik's project" = ENTITY: Rutwik Shinde, RELEVANT: YES
+🎯 DYNAMIC EXAMPLES:
+- Document about "Person A's blog post" + Query about "Person B's project" = ENTITY: Person A, RELEVANT: NO
+- Document about "Person A's resume" + Query about "Person A's experience" = ENTITY: Person A, RELEVANT: YES
+- Document about "Rocket Engineering Guide" + Query about "rocket design" = RELEVANT: YES
 
 Respond in simple format:
 TYPE: [document type - what kind of document]
@@ -521,9 +523,8 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
   private determineRelevance(relevantText: string, reasoning: string, primaryEntity: string, query: string): boolean {
     const upperRelevantText = relevantText.toUpperCase();
     const upperReasoning = reasoning.toUpperCase();
-    const upperQuery = query.toUpperCase();
     
-    // Extract the person name from the query
+    // Extract the person name from the query (only for person-specific queries)
     const queryPersonMatch = query.match(/(?:by|about|for)\s+([A-Z][a-z]+)/i);
     const queryPerson = queryPersonMatch ? queryPersonMatch[1].toLowerCase() : '';
     
@@ -532,13 +533,22 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
     
     console.log(`🔍 RELEVANCE DEBUG: Query person: "${queryPerson}", Entity words: [${entityWords.join(', ')}]`);
     
-    // Method 1: Direct YES/NO check
+    // Method 1: Direct YES/NO check - TRUST LLM JUDGMENT
     if (upperRelevantText.includes('YES')) {
-      // Double-check: ensure the entity actually matches the query
+      // ONLY override for explicit person-specific queries where entity clearly doesn't match
       if (queryPerson && !entityWords.some(word => word.includes(queryPerson))) {
-        console.warn(`⚠️ RELEVANCE OVERRIDE: LLM said YES but entity "${primaryEntity}" doesn't match query person "${queryPerson}"`);
-        return false;
+        // Additional check: ensure this is really a person mismatch and not a topic query
+        const isPersonSpecificQuery = query.toLowerCase().includes(`${queryPerson}'s`) || 
+                                     query.toLowerCase().includes(`by ${queryPerson}`) ||
+                                     query.toLowerCase().includes(`about ${queryPerson}`);
+        
+        if (isPersonSpecificQuery) {
+          console.warn(`⚠️ RELEVANCE OVERRIDE: Person-specific query about "${queryPerson}" but document is about "${primaryEntity}"`);
+          return false;
+        }
       }
+      // For all other cases: TRUST LLM's judgment completely
+      console.log(`✅ TRUSTING LLM: Document marked as relevant by intelligent analysis`);
       return true;
     }
     
@@ -553,11 +563,19 @@ REASON: [explain who the document is about and why it's relevant/irrelevant]`;
     }
     
     if (upperReasoning.includes('RELEVANT') && !upperReasoning.includes('NOT RELEVANT')) {
-      // Double-check entity match
+      // ONLY override for explicit person-specific queries where entity clearly doesn't match
       if (queryPerson && !entityWords.some(word => word.includes(queryPerson))) {
-        console.warn(`⚠️ REASONING OVERRIDE: LLM reasoning says relevant but entity mismatch`);
-        return false;
+        const isPersonSpecificQuery = query.toLowerCase().includes(`${queryPerson}'s`) || 
+                                     query.toLowerCase().includes(`by ${queryPerson}`) ||
+                                     query.toLowerCase().includes(`about ${queryPerson}`);
+        
+        if (isPersonSpecificQuery) {
+          console.warn(`⚠️ REASONING OVERRIDE: Person-specific query about "${queryPerson}" but document is about "${primaryEntity}"`);
+          return false;
+        }
       }
+      // For all other cases: TRUST LLM's reasoning completely
+      console.log(`✅ TRUSTING LLM: Document reasoning indicates relevance`);
       return true;
     }
     
@@ -946,7 +964,7 @@ Return just the role: source, target, or reference`;
     const docTypePatterns = [
       // "Document 1 is a resume" or "first document is a resume"
       /(?:document \d+|first document|second document).*?(?:is (?:a |an )?)(\w+(?:\s+\w+)*)/gi,
-      // "Rutwik_resume.pdf - it's a resume"
+      // "PersonName_documenttype.pdf - it's a document"
       /([\w_]+\.pdf).*?(?:it'?s (?:a |an )?)(\w+)/gi,
       // "The resume" or "this CV" 
       /(?:the |this )(resume|cv|blog|paper|document)/gi,
@@ -979,7 +997,7 @@ Return just the role: source, target, or reference`;
       /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)(?:'s|\s+did|\s+is)/g,
       // "Document mentions [Name]"
       /(?:document|content|resume).*?mentions?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g,
-      // Direct filename references: "Rutwik_resume.pdf"
+      // Direct filename references: "PersonName_document.pdf"
       /([A-Z][a-z]+)_[\w_]*\.\w+/g
     ];
     
@@ -1191,18 +1209,42 @@ Return just the role: source, target, or reference`;
         const fullDocument = await vectorStore.getDocument(documentId);
         
         if (fullDocument && fullDocument.chunks && fullDocument.chunks.length > 0) {
-          // Sample up to 2 chunks per document (or all if less than 2)
-          const chunksToSample = Math.min(2, fullDocument.chunks.length);
+          // Enhanced sampling: 30% of chunks or minimum 5 chunks (all if less than 5)
+          const totalChunks = fullDocument.chunks.length;
+          const chunksToSample = totalChunks <= 5 ? totalChunks : Math.max(5, Math.ceil(totalChunks * 0.3));
           const sampledChunks = [];
           
-          if (chunksToSample === 1) {
-            // Take the first chunk if only 1 available
+          if (chunksToSample >= totalChunks) {
+            // Take all chunks if we need most/all of them
+            sampledChunks.push(...fullDocument.chunks);
+          } else if (chunksToSample === 1) {
+            // Take the first chunk if only 1 needed
             sampledChunks.push(fullDocument.chunks[0]);
           } else {
-            // Take first and middle chunks for better document coverage
-            sampledChunks.push(fullDocument.chunks[0]);
-            const middleIndex = Math.floor(fullDocument.chunks.length / 2);
-            sampledChunks.push(fullDocument.chunks[middleIndex]);
+            // Smart distribution: first + last + evenly distributed middle chunks
+            const indices = new Set<number>();
+            
+            // Always include first chunk (title/header)
+            indices.add(0);
+            
+            // Always include last chunk (conclusion/summary) if we have room
+            if (chunksToSample > 1) {
+              indices.add(totalChunks - 1);
+            }
+            
+            // Fill remaining slots with evenly distributed chunks
+            const remainingSlots = chunksToSample - indices.size;
+            if (remainingSlots > 0) {
+              const step = Math.floor((totalChunks - 2) / (remainingSlots + 1));
+              for (let i = 1; i <= remainingSlots; i++) {
+                const index = Math.min(step * i, totalChunks - 2);
+                indices.add(index);
+              }
+            }
+            
+            // Convert to sorted array and sample chunks
+            const sortedIndices = Array.from(indices).sort((a, b) => a - b);
+            sampledChunks.push(...sortedIndices.map(i => fullDocument.chunks[i]));
           }
           
           // Convert sampled chunks to the expected format

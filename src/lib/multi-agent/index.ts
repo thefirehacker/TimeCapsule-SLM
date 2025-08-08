@@ -17,6 +17,7 @@ import { PatternGeneratorAgent } from './agents/PatternGeneratorAgent';
 import { ExtractionAgent } from './agents/ExtractionAgent';
 import { WebSearchAgent } from './agents/WebSearchAgent';
 import { SynthesisAgent } from './agents/SynthesisAgent';
+import { ResponseFormatterAgent } from './agents/ResponseFormatterAgent';
 
 // Core exports
 export { Orchestrator } from './core/Orchestrator';
@@ -48,6 +49,7 @@ export { PatternGeneratorAgent } from './agents/PatternGeneratorAgent';
 export { ExtractionAgent } from './agents/ExtractionAgent';
 export { WebSearchAgent } from './agents/WebSearchAgent';
 export { SynthesisAgent } from './agents/SynthesisAgent';
+export { ResponseFormatterAgent } from './agents/ResponseFormatterAgent';
 
 // Factory function
 export function createMultiAgentSystem(
@@ -61,7 +63,7 @@ export function createMultiAgentSystem(
   const messageBus = new MessageBus();
   
   // Build list of available agents based on configuration
-  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
+  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'Synthesizer', 'ResponseFormatter'];
   if (config?.enableWebSearch !== false) {
     availableAgents.splice(4, 0, 'WebSearchAgent'); // Insert WebSearchAgent before Synthesizer
   }
@@ -81,6 +83,7 @@ export function createMultiAgentSystem(
   }
   
   registry.register(new SynthesisAgent(llm));
+  registry.register(new ResponseFormatterAgent(llm, progressCallback)); // Ensure direct question answering with good formatting
   
   // Create and return orchestrator with progress callback and config
   return new Orchestrator(registry, messageBus, llm, progressCallback, config);

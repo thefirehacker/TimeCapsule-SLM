@@ -48,7 +48,7 @@ export class PatternGeneratorAgent extends BaseAgent {
   }
   
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {
-    console.log(`🧠 PatternGenerator: Generating dynamic regex patterns via LLM analysis`);
+    console.log(`🧠 PatternGenerator: Generating dynamic patterns via LLM analysis`);
     
     // ACCESS DataInspector's shared insights for intelligent regex generation
     const documentInsights = context.sharedKnowledge.documentInsights;
@@ -57,8 +57,8 @@ export class PatternGeneratorAgent extends BaseAgent {
     // Sample actual document content for pattern analysis (ZERO HARDCODING)
     const sampleContent = context.ragResults.chunks.length > 0 
       ? context.ragResults.chunks
-          .slice(0, 5)  // Use more samples for better pattern discovery
-          .map((chunk, i) => `SAMPLE ${i + 1}:\n${chunk.text.substring(0, 400)}`)
+          .slice(0, Math.min(8, context.ragResults.chunks.length))  // Use more samples for better pattern discovery
+          .map((chunk, i) => `SAMPLE ${i + 1}:\n${chunk.text.substring(0, 600)}`)
           .join('\n\n---\n\n')
       : `NO DOCUMENT SAMPLES AVAILABLE - Generate generic patterns based on query intent.
 
@@ -70,9 +70,12 @@ Since no document content is available, generate patterns that would typically e
 - Key terms from the query context
 
 Example for this query: Generate patterns to find project names, person names, rankings, etc.`;
-      
-    // 🔥 GEMMA COMPATIBILITY: Use simplified prompt for smaller models to avoid complexity overload
-    const regexGenerationPrompt = this.createModelOptimizedPrompt(context, hasDocumentAnalysis, documentInsights, sampleContent);
+
+    // STEP 1: Extract document-specific terms from actual content
+    const documentSpecificTerms = await this.extractDocumentTerms(context, sampleContent);
+    
+    // STEP 2: Generate patterns combining document terms + query intent
+    const regexGenerationPrompt = this.createContentAwarePrompt(context, hasDocumentAnalysis, documentInsights, sampleContent, documentSpecificTerms);
 
     try {
       // Report progress: Calling LLM for pattern generation
@@ -187,7 +190,7 @@ ${response}
 ✅ **Generated Targeted Patterns**: ${regexPatterns.length} context-aware regex patterns
 ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
 
-🎯 **Context Preservation**: DataInspector's specific insights (e.g., "Tyler's personal speedruns") preserved and used for targeted pattern generation`;
+🎯 **Context Preservation**: DataInspector's specific insights preserved and used for targeted pattern generation`;
       
       this.setReasoning(reasoningText);
       
@@ -575,6 +578,103 @@ NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure yo
       console.warn('⚠️ Free-form text parsing failed:', error);
       return [];
     }
+  }
+
+  /**
+   * Extract document-specific terms from actual content for pattern generation
+   */
+  private async extractDocumentTerms(context: ResearchContext, sampleContent: string): Promise<string[]> {
+    if (context.ragResults.chunks.length === 0) {
+      return [];
+    }
+
+    try {
+      this.progressCallback?.onAgentProgress(this.name, 25, 'Extracting document-specific terms');
+      
+      const termExtractionPrompt = `Analyze this document content and extract specific terms, names, and concepts that are unique to this document:
+
+${sampleContent}
+
+USER QUERY: "${context.query}"
+
+Extract key terms that would be useful for finding information relevant to the query. Look for:
+- Specific names (people, projects, technologies, methods)
+- Technical terms and acronyms (e.g., GRPO, CNN, API names)
+- Measurement units or specific values
+- Domain-specific terminology
+
+Return ONLY a comma-separated list of the most important terms you find in the content above.
+Focus on terms that appear in the actual content, not generic assumptions.
+
+Example format: GRPO, neural networks, batch size, accuracy metrics, PyTorch`;
+
+      const response = await this.llm(termExtractionPrompt);
+      const terms = response
+        .split(',')
+        .map(term => term.trim())
+        .filter(term => term.length > 1 && term.length < 50)
+        .slice(0, 10); // Limit to top 10 terms
+
+      console.log(`🎯 Extracted document-specific terms: ${terms.join(', ')}`);
+      return terms;
+    } catch (error) {
+      console.warn('🔧 Term extraction failed, proceeding without document-specific terms:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create content-aware prompt that combines document analysis + specific terms + query intent
+   */
+  private createContentAwarePrompt(
+    context: ResearchContext,
+    hasDocumentAnalysis: boolean,
+    documentInsights: any,
+    sampleContent: string,
+    documentSpecificTerms: string[]
+  ): string {
+    const hasTerms = documentSpecificTerms.length > 0;
+    
+    return `/no_think
+
+PATTERN GENERATION FOR INTELLIGENT EXTRACTION
+
+USER QUERY: "${context.query}"
+
+${hasDocumentAnalysis ? `
+🧠 DOCUMENT ANALYSIS (from DataInspector):
+- Document Type: ${documentInsights.documentType}
+- Content Areas: ${documentInsights.contentAreas?.join(', ')}
+- Extraction Strategy: ${documentInsights.extractionStrategy}
+` : ''}
+
+${hasTerms ? `
+🎯 DOCUMENT-SPECIFIC TERMS FOUND:
+${documentSpecificTerms.join(', ')}
+
+These terms were extracted from the actual document content. Generate patterns that can find these specific terms and related information.
+` : ''}
+
+📄 ACTUAL DOCUMENT CONTENT:
+${sampleContent}
+
+🎯 GENERATE REGEX PATTERNS for extracting information relevant to: "${context.query}"
+
+Create patterns that will find:
+1. Query-relevant information (based on what the user is asking)
+${hasTerms ? `2. Document-specific terms: ${documentSpecificTerms.join(', ')}` : ''}
+3. Related technical information visible in the content above
+
+CRITICAL RULES:
+- Analyze the ACTUAL content above, don't assume formats
+- Generate patterns for terms that actually appear in the content
+- Include both specific terms and broader context patterns
+- Use proper regex syntax: /pattern/gi
+
+Format each pattern as:
+/your_pattern_here/gi
+
+Generate 3-6 effective patterns:`;
   }
 
   /**

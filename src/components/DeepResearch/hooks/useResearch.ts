@@ -929,6 +929,9 @@ export function useResearch(
       return;
     }
 
+    // Clear previous results immediately when starting new research
+    setResults("");
+    setResearchResult(null);
     setIsIntelligentResearching(true);
     setIsGenerating(true);
     setIsStreaming(true);
