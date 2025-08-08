@@ -1,115 +1,93 @@
-# Issue 009 - Comprehensive Multi-Agent Enhancement Plan
+# Plan for Document Grounding & Knowledge Base Enhancement
 
-## 📊 CURRENT STATUS: ARCHITECTURE FIXED, PATTERN GENERATION NEEDS IMPROVEMENT
+## 🚨 CRITICAL ISSUES (Must Fix First)
 
-**Latest Status**: ✅ **DataInspector Real Chunk Sampling COMPLETED** - All critical infrastructure bugs fixed
-**Test Query**: "give me best project by Rutwik"
-**Current Issue**: PatternGenerator LLM prompt doesn't leverage DataInspector intelligence properly
+### Issue A: Document Filtering Bypass - CRITICAL PRIORITY
+**Problem**: DataInspector receives ALL 11 documents instead of only userdocs
+**Root Cause**: `getDocumentMetadata()` calls unfiltered `getAllDocuments()` - different code path than our fixed `getAllChunks(['userdocs'])`
+**Impact**: Document contamination affects analysis quality
 
-## ✅ COMPLETED CRITICAL FIXES
+**Technical Fix Needed**:
+- Add `documentTypes` parameter to `getDocumentMetadata()` method
+- Update ResearchOrchestrator to call `getDocumentMetadata(['userdocs'])`
+- Two paths exist: Path 1 (broken) uses getDocumentMetadata(), Path 2 (fixed) uses getAllChunks()
 
-### **PHASE 1: INFRASTRUCTURE FIXES** ✅ COMPLETED
-- [✅] **DataInspector Real RxDB Chunk Sampling** - Replaced simulation with real VectorStore integration
-- [✅] **Document Source Name Extraction** - Fixed metadata fallback chain for proper document naming
-- [✅] **Smart Chunk Filtering Logic** - Preserves pre-sampled chunks instead of removing all content
-- [✅] **Master LLM Decision Logic** - Intelligent orchestration with context awareness
-- [✅] **Agent State Tracking** - Prevents redundant agent calls with calledAgents Set
-- [✅] **Pattern Parser Enhancement** - Handles patterns with example text properly
-- [✅] **Regex RAG Functionality** - Extractor uses regex patterns when available
-- [✅] **Data Structure Mapping** - Fixed getAllChunks() structure mismatch
-- [✅] **Duplicate RAG Elimination** - Removed redundant initial searches
+### Issue B: UI Progress Updates Overwritten - HIGH PRIORITY  
+**Problem**: Progress updates work but get overwritten - only latest shown instead of cumulative
+**Evidence**: "Analyzing document 10 of 11(9/11 items)" shows updates work but steps 1-9 disappear
+**Impact**: Users lose visibility of progress history
 
-## 🎯 ACTIVE TODO LIST
+**Technical Fix Needed**:
+- Show cumulative progress or maintain progress history with timestamps
+- UI component overwrites previous progress instead of accumulating
 
-### **CRITICAL PRIORITY: PATTERN GENERATION IMPROVEMENT**
+### Issue C: WebSearch Toggle Ignored - MEDIUM PRIORITY
+**Problem**: WebSearch executes when disabled in UI toggle
+**Impact**: Unwanted searches, performance issues, user preferences ignored
 
-#### **TODO 1: Fix PatternGenerator LLM Prompt** 🔥 HIGH PRIORITY
-- **Issue**: PatternGenerator receives DataInspector intelligence but doesn't use it effectively
-- **Current**: Generic patterns that don't match actual document structure
-- **Required**: Content-aware pattern generation based on DataInspector insights
-- **Test**: Generate resume-specific patterns for project extraction from Rutwik's resume
-- **File**: `src/lib/multi-agent/agents/PatternGeneratorAgent.ts`
-
-#### **TODO 2: Enhance Content-Aware Pattern Generation** 🔥 HIGH PRIORITY  
-- **Issue**: Patterns not tailored to discovered document structure
-- **Current**: Generic regex patterns like `project.*?(?=\n\n|\n•|\n-|$)`
-- **Required**: Document-specific patterns based on DataInspector analysis
-- **Example**: If DataInspector finds "• Project Name:" format, generate `• ([^:]+):`
-- **Test**: Pattern should extract "TimeCapsule", "BubblSpace", etc. from actual resume
-
-#### **TODO 3: Add Pattern Validation Against Actual Content** 📋 MEDIUM PRIORITY
-- **Issue**: No testing of generated patterns against real document samples
-- **Current**: Patterns generated without validation
-- **Required**: Test patterns against DataInspector-sampled chunks before returning
-- **Method**: Run regex patterns against actual chunk content, return only working patterns
-- **Benefit**: Ensures patterns will find content when used by Extractor
-
-#### **TODO 4: Optimize Agent Communication Flow** 📋 MEDIUM PRIORITY
-- **Issue**: DataInspector insights not fully utilized by downstream agents
-- **Current**: Basic `context.sharedKnowledge.documentInsights` passing
-- **Required**: Richer context sharing with specific formatting hints
-- **Enhancement**: Pass document structure metadata (bullet format, section headers, etc.)
-- **Test**: PatternGenerator should receive and use specific formatting intelligence
-
-### **PERFORMANCE OPTIMIZATION TODOS**
-
-#### **TODO 5: Reduce PatternGenerator Response Time** ⚡ PERFORMANCE
-- **Current**: Pattern generation taking longer than expected
-- **Target**: < 10 seconds for pattern generation
-- **Method**: Optimize prompts for faster LLM decision-making
-- **Measure**: Time PatternGenerator execution in isolation
-
-#### **TODO 6: Optimize Overall Pipeline Performance** ⚡ PERFORMANCE
-- **Current**: 206 seconds total pipeline time
-- **Target**: < 60 seconds total execution
-- **Method**: Parallel agent execution where possible, optimized prompts
-- **Bottlenecks**: DataInspector (60s), need to identify other slow components
-
-### **TESTING AND VALIDATION TODOS**
-
-#### **TODO 7: Create Comprehensive Test Cases** 🧪 TESTING
-- **Test Query**: "give me best project by Rutwik"
-- **Expected Output**: Actual project names and descriptions from resume
-- **Validation**: Verify extracted content matches actual document content
-- **Edge Cases**: Multiple document types, different resume formats
-
-#### **TODO 8: Add Pattern Generation Debugging** 🔍 DEBUG
-- **Issue**: Need visibility into pattern generation process
-- **Required**: Log generated patterns and their test results
-- **Enhancement**: Show which patterns worked vs failed
-- **UI**: Display pattern generation results in research output
-
-### **FUTURE ENHANCEMENT TODOS** (Lower Priority)
-
-#### **TODO 9: Claude UI Enhancement** 🎨 UI (ON HOLD)
-- **Requirement**: Show regex patterns and results in expandable format
-- **Features**: Pattern visualization, match highlighting
-- **Dependencies**: Complete pattern generation fixes first
-
-#### **TODO 10: Multi-Source Integration** 🌐 INTEGRATION (ON HOLD)
-- **Requirement**: Integrate WebSearch and Firecrawl orchestration
-- **Features**: Web → crawl → analysis cycles
-- **Dependencies**: Core pattern generation working first
-
-## 🎯 SUCCESS CRITERIA
-
-### **Immediate Goals (Next 2 Tasks)**
-1. ✅ PatternGenerator uses DataInspector intelligence effectively
-2. ✅ Generated patterns extract actual content from documents
-3. ✅ Test query returns real project information, not "No relevant information found"
-
-### **Performance Targets**
-- **Total Pipeline**: < 60 seconds (current: 206s)
-- **PatternGenerator**: < 10 seconds (needs measurement)
-- **Content Quality**: Extract actual document content, not generic responses
-
-### **Quality Validation**
-- **Test Query**: "give me best project by Rutwik" returns actual project names
-- **Pattern Effectiveness**: Generated regex patterns find content when tested
-- **Agent Communication**: DataInspector insights properly utilized downstream
+**Technical Fix Needed**:
+- Pass UI toggle state to ResearchOrchestrator
+- WebSearchAgent should check enableWebSearch config before executing
 
 ---
 
-**NEXT IMMEDIATE ACTION**: Fix PatternGenerator LLM prompt to use DataInspector intelligence for content-aware pattern generation
+## 📋 PHASE 5: SYSTEM INTEGRATION (After Critical Fixes)
 
-**Priority Order**: TODO 1 → TODO 2 → TODO 3 → Performance optimization → Testing
+### Task 5: Integrate Enhanced Components with Live System
+- 5.1: Replace DeepResearch KnowledgeBaseManager with EnhancedKnowledgeBaseManager
+- 5.2: Connect ChunkViewerModal to multi-agent synthesis results
+- 5.3: Integrate WebSourceManager with WebSearchAgent virtual-docs
+- 5.4: Add SourcesPanel to main research interface
+- 5.5: Test component integration with real VectorStore data
+- 5.6: Verify chunk navigation works with extracted content
+- 5.7: Test web source attribution displays correctly
+- 5.8: Validate bulk operations with live document collections
+
+### Task 6: Comprehensive Testing & Validation
+- 6.1: Unit testing for all 6 components
+- 6.2: Integration testing with multi-agent results
+- 6.3: Performance testing with large document collections (100+ docs)
+- 6.4: Mobile responsiveness validation
+- 6.5: Accessibility compliance testing
+
+---
+
+## ✅ COMPLETED: PHASE 4 - USER EXPERIENCE ENHANCEMENT
+
+**6 Enhanced Components Already Built** (No TODO items needed):
+- SourcesPanel.tsx, ChunkViewerModal.tsx, ChunkCard.tsx  
+- EnhancedKnowledgeBaseManager.tsx, WebSourceCard.tsx, WebSourceManager.tsx
+- Complete documentation and 40+ advanced features implemented
+
+---
+
+## 🎯 CURRENT STATUS
+
+**Overall Progress**: 55% Complete
+- ✅ Phase 1-3: Multi-Agent Foundation (COMPLETED)
+- ✅ Phase 4: User Experience Enhancement (COMPLETED)
+- ✅ Critical Bugs Fixed: Document filtering + WebSearchAgent registry (COMPLETED)
+- 📊 1 Bug Remaining: UI Progress Updates (HIGH priority)
+- ⏳ Phase 5: System Integration & Testing (NEXT)
+
+**Success Criteria for Next Phase**:
+- ✅ Document filtering fixed (DataInspector gets only userdocs)
+- ✅ WebSearchAgent registry errors resolved (LLM only calls registered agents)
+- [ ] UI shows real-time agent progress (not generic loading)
+- [ ] All 6 components integrated with live system
+- ✅ No regressions in existing multi-agent functionality
+
+**Dependencies Ready**:
+- VectorStore access ✅
+- Multi-agent results ✅
+- 6 enhanced components ✅
+- TypeScript interfaces ✅
+
+---
+
+## 🔄 EXECUTION STRATEGY
+
+1. **CRITICAL FIXES FIRST**: Address document filtering and UI progress issues
+2. **INCREMENTAL INTEGRATION**: Test one component at a time
+3. **ROLLBACK READY**: Original components preserved for fallback
+4. **PERFORMANCE MONITORING**: Track system performance during integration

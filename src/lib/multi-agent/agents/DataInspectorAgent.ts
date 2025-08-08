@@ -10,16 +10,19 @@ import { ResearchContext, DocumentAnalysis, SingleDocumentAnalysis, EntityRefere
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
 import { VectorStore } from '@/components/VectorStore/VectorStore';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class DataInspectorAgent extends BaseAgent {
   readonly name = 'DataInspector';
   readonly description = 'Analyzes RAG chunks to understand data structure and quality';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
 
   private getVectorStore(): VectorStore | null {
@@ -40,6 +43,9 @@ export class DataInspectorAgent extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
+    // Report start of processing
+    this.progressCallback?.onAgentProgress?.(this.name, 5, 'Initializing document analysis', 0, undefined);
+    
     // 🔥 CRITICAL: Detect if we received document metadata instead of actual chunks
     const hasDocumentMetadata = context.ragResults.chunks.some(chunk => 
       chunk.sourceType === 'document' || chunk.text?.startsWith('Document metadata:')
@@ -47,6 +53,7 @@ export class DataInspectorAgent extends BaseAgent {
     
     if (hasDocumentMetadata) {
       console.log(`🔎 DataInspector: Received document metadata - performing multi-document sampling and analysis`);
+      this.progressCallback?.onAgentProgress?.(this.name, 10, 'Starting multi-document analysis', 0, undefined);
       await this.performDocumentMetadataAnalysis(context);
       return context;
     }
@@ -349,6 +356,12 @@ Provide specific, actionable insights that will guide intelligent extraction and
       const group = documentGroups[i];
       const docNumber = i + 1;
       
+      // Report progress for each document with timestamp and cumulative info
+      const progress = 15 + (60 * i / documentGroups.length); // Progress from 15% to 75%
+      const timestamp = new Date().toLocaleTimeString();
+      const progressStage = `[${timestamp}] Step ${docNumber}/${documentGroups.length}: Analyzing ${group.documentId}`;
+      this.progressCallback?.onAgentProgress?.(this.name, Math.round(progress), progressStage, i, documentGroups.length);
+      
       // 🧠 INTELLIGENT DOCUMENT ANALYSIS: Let LLM decide what this document is about
       const docAnalysis = await this.analyzeDocumentIntelligently(group, docNumber, context.query);
       
@@ -363,6 +376,8 @@ Provide specific, actionable insights that will guide intelligent extraction and
       if (docAnalysis.isRelevant) {
         console.log(`✅ Including relevant document: ${docAnalysis.documentType} (${docAnalysis.primaryEntity})`);
         relevantDocuments.push(group);
+        const includeTimestamp = new Date().toLocaleTimeString();
+        this.progressCallback?.onAgentProgress?.(this.name, Math.round(progress + 5), `[${includeTimestamp}] ✅ Including: ${docAnalysis.primaryEntity}`, i + 1, documentGroups.length);
         
         // Get sample content for deep LLM analysis
         const sampleContent = group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n');
@@ -388,10 +403,13 @@ Provide specific, actionable insights that will guide intelligent extraction and
         });
       } else {
         console.log(`⏭️ Skipping irrelevant document: ${docAnalysis.documentType} (${docAnalysis.primaryEntity}) - ${docAnalysis.reasoning.substring(0, 50)}...`);
+        const skipTimestamp = new Date().toLocaleTimeString();
+        this.progressCallback?.onAgentProgress?.(this.name, Math.round(progress + 5), `[${skipTimestamp}] ⏭️ Skipping: ${docAnalysis.primaryEntity}`, i + 1, documentGroups.length);
       }
     }
     
     console.log(`📊 Document filtering: ${documentGroups.length} total → ${documents.length} relevant`);
+    this.progressCallback?.onAgentProgress?.(this.name, 90, `Filtered ${documentGroups.length} documents → ${documents.length} relevant`, documentGroups.length, documentGroups.length);
 
     // Build minimal relationships - only connect documents if explicitly needed
     const relationships: DocumentRelationship[] = documents.length > 1 ? 
@@ -1113,6 +1131,7 @@ Return just the role: source, target, or reference`;
 
     // First analyze documents for relevance BEFORE sampling chunks
     console.log(`🔍 Analyzing ${documentMetadata.length} documents for relevance BEFORE sampling`);
+    this.progressCallback?.onAgentProgress?.(this.name, 15, `Analyzing ${documentMetadata.length} documents for relevance`, 0, documentMetadata.length);
     
     // Create temporary document groups with minimal metadata for relevance analysis
     const tempDocumentGroups = documentMetadata.map((docMeta, index) => ({

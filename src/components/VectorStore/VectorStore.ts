@@ -780,14 +780,62 @@ export class VectorStore {
   /**
    * Get document metadata only (without chunks) for DataInspector magic filtering
    */
-  async getDocumentMetadata(): Promise<DocumentMetadata[]> {
+  async getDocumentMetadata(documentTypes?: DocumentType[]): Promise<DocumentMetadata[]> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
     }
 
     try {
-      const docs = await this.documentsCollection.documents.find().exec();
-      return docs.map((doc: any) => {
+      // Filter by document types if specified
+      let query = this.documentsCollection.documents.find();
+      
+      if (documentTypes && documentTypes.length > 0) {
+        query = query.where('metadata.documentType').in(documentTypes);
+        console.log(`🔍 getDocumentMetadata: Filtering for document types [${documentTypes.join(', ')}]`);
+      } else {
+        console.log(`🔍 getDocumentMetadata: Getting ALL document types (no filter)`);
+      }
+      
+      const docs = await query.exec();
+      
+      // 🚨 AUTO-FIX: If we got 0 userdocs, check and fix documents automatically
+      if (documentTypes?.includes('userdocs') && docs.length === 0) {
+        console.log('🔍 DEBUG: No userdocs found, checking all documents...');
+        const allDocs = await this.documentsCollection.documents.find().exec();
+        console.log(`🔍 DEBUG: Total documents in database: ${allDocs.length}`);
+        allDocs.forEach((doc, i) => {
+          const docData = doc.toJSON();
+          console.log(`🔍 DEBUG Doc ${i+1}: documentType="${docData.metadata?.documentType}", source="${docData.metadata?.source}", title="${docData.title}"`);
+        });
+        
+        // 🔧 AUTO-FIX: If we find uploaded documents without documentType, fix them automatically
+        console.log('🔧 AUTO-FIXING: Setting documentType for uploaded documents...');
+        await this.fixDocumentTypes();
+        
+        // 🔄 RETRY: Try the query again after fixing
+        console.log('🔄 RETRYING: Query after fixing documentTypes...');
+        const retryQuery = this.documentsCollection.documents.find().where('metadata.documentType').in(documentTypes);
+        const retryDocs = await retryQuery.exec();
+        
+        // Return the retry results
+        const retryResult = retryDocs.map((doc: any) => {
+          const docData = doc.toJSON();
+          return {
+            id: docData.id,
+            filename: docData.metadata?.filename,
+            title: docData.title,
+            uploadedAt: docData.metadata?.uploadedAt,
+            description: docData.metadata?.description,
+            metadata: docData.metadata,
+            chunkCount: docData.chunks?.length || 0,
+            type: docData.type,
+          };
+        });
+        console.log(`✅ RETRY SUCCESS: Found ${retryResult.length} userdocs after fix!`);
+        return retryResult;
+      }
+      
+      const result = docs.map((doc: any) => {
         const docData = doc.toJSON();
         return {
           id: docData.id,
@@ -797,13 +845,40 @@ export class VectorStore {
           description: docData.description,
           metadata: docData.metadata,
           chunkCount: docData.chunks?.length || 0,
+          type: docData.type, // Include type for verification
           // Don't include chunks - DataInspector will sample them later
         };
       });
+      
+      const filterInfo = documentTypes && documentTypes.length > 0 
+        ? ` (filtered for: ${documentTypes.join(', ')})` 
+        : ' (no filter - all types)';
+      console.log(`🔍 getDocumentMetadata: Retrieved ${result.length} documents${filterInfo}`);
+      
+      return result;
     } catch (error) {
       console.error('❌ Failed to get document metadata:', error);
       return [];
     }
+  }
+
+  // 🔧 DEBUG METHOD: Fix documents missing documentType
+  async fixDocumentTypes(): Promise<void> {
+    console.log('🔧 Fixing documents missing documentType...');
+    const allDocs = await this.documentsCollection.documents.find().exec();
+    
+    for (const doc of allDocs) {
+      const docData = doc.toJSON();
+      if (!docData.metadata?.documentType) {
+        console.log(`🔧 Fixing document "${docData.title}" - setting documentType to 'userdocs'`);
+        await doc.update({
+          $set: {
+            'metadata.documentType': docData.metadata?.source === 'upload' ? 'userdocs' : 'virtual-docs'
+          }
+        });
+      }
+    }
+    console.log('✅ Document types fixed!');
   }
 
   async getDocument(id: string): Promise<DocumentData | null> {
@@ -1075,15 +1150,29 @@ export class VectorStore {
   }
 
   /**
-   * Get all chunks from all documents for regex search
+   * Get all chunks from documents, optionally filtered by document type
+   * @param documentTypes Optional array of document types to filter by (e.g., ['userdocs'])
    */
-  async getAllChunks(): Promise<any[]> {
+  async getAllChunks(documentTypes?: DocumentType[]): Promise<any[]> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
     }
     
     try {
-      const documents = await this.getAllDocuments();
+      // Get documents - filtered by type if specified, otherwise all documents
+      let documents: DocumentData[];
+      if (documentTypes && documentTypes.length > 0) {
+        // Get documents filtered by the specified types
+        documents = [];
+        for (const docType of documentTypes) {
+          const typedDocs = await this.getDocumentsByType(docType);
+          documents.push(...typedDocs);
+        }
+        console.log(`🔍 getAllChunks: Filtering for document types [${documentTypes.join(', ')}]`);
+      } else {
+        documents = await this.getAllDocuments();
+        console.log(`🔍 getAllChunks: Getting chunks from ALL document types (no filter)`);
+      }
       const allChunks: any[] = [];
       
       // Collect all chunks from all documents
@@ -1110,7 +1199,10 @@ export class VectorStore {
         }
       }
       
-      console.log(`🔍 getAllChunks: Retrieved ${allChunks.length} chunks from ${documents.length} documents`);
+      const filterInfo = documentTypes && documentTypes.length > 0 
+        ? ` (filtered for: ${documentTypes.join(', ')})` 
+        : ' (no filter - all types)';
+      console.log(`🔍 getAllChunks: Retrieved ${allChunks.length} chunks from ${documents.length} documents${filterInfo}`);
       return allChunks;
       
     } catch (error) {

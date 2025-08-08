@@ -14,14 +14,19 @@ export class PatternGeneratorAgent extends BaseAgent {
   readonly description = 'Creates extraction strategies based on data inspection';
   
   private llm: LLMFunction;
+  private progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback;
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`🎯 PatternGenerator: Creating extraction strategies`);
+    
+    // Report progress: Starting pattern analysis
+    this.progressCallback?.onAgentProgress(this.name, 10, 'Analyzing existing patterns');
     
     // DEBUG: Log existing patterns from DataInspector or previous agents
     console.log(`📋 DEBUG - Existing patterns before PatternGenerator:`, {
@@ -30,8 +35,14 @@ export class PatternGeneratorAgent extends BaseAgent {
       hasSharedKnowledge: !!context.sharedKnowledge?.documentInsights
     });
     
+    // Report progress: Generating strategies
+    this.progressCallback?.onAgentProgress(this.name, 30, 'Generating extraction strategies');
+    
     // Use LLM to generate extraction strategies
     await this.generateStrategiesWithLLM(context);
+    
+    // Report progress: Completed
+    this.progressCallback?.onAgentProgress(this.name, 100, 'Pattern generation completed');
     
     return context;
   }
@@ -64,8 +75,14 @@ Example for this query: Generate patterns to find project names, person names, r
     const regexGenerationPrompt = this.createModelOptimizedPrompt(context, hasDocumentAnalysis, documentInsights, sampleContent);
 
     try {
+      // Report progress: Calling LLM for pattern generation
+      this.progressCallback?.onAgentProgress(this.name, 50, 'Generating patterns with LLM');
+      
       const response = await this.llm(regexGenerationPrompt);
       console.log(`🎯 LLM regex generation response:`, response.substring(0, 400));
+      
+      // Report progress: Parsing generated patterns
+      this.progressCallback?.onAgentProgress(this.name, 70, 'Parsing generated patterns');
       
       // Parse concrete regex patterns from LLM response
       const regexPatterns = this.parseRegexPatternsFromLLM(response);

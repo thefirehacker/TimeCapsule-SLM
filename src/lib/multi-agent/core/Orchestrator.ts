@@ -32,14 +32,18 @@ export class Orchestrator {
     registry: AgentRegistry,
     messageBus: MessageBus,
     llm: LLMFunction,
-    progressCallback?: AgentProgressCallback
+    progressCallback?: AgentProgressCallback,
+    config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean }
   ) {
     this.registry = registry;
     this.messageBus = messageBus;
     this.llm = llm;
     this.progressCallback = progressCallback;
     this.progressTracker = new AgentProgressTracker(progressCallback);
+    this.config = config;
   }
+  
+  private config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean };
   
   /**
    * 🎯 Get next step from execution plan
@@ -243,12 +247,7 @@ CURRENT SITUATION:
 - Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need Synthesizer'}
 
 🧠 AVAILABLE TOOLS (use intelligently based on context):
-✅ "DataInspector" - Magic document filtering with 2 samples per doc (${availableData.dataInspectorCompleted ? 'ALREADY CALLED' : 'available'})
-✅ "PlanningAgent" - Creates intelligent execution strategies (${availableData.planningAgentCompleted ? 'ALREADY CALLED' : 'available'})
-✅ "PatternGenerator" - Creates regex patterns for data extraction (${availableData.patternGeneratorCompleted ? 'ALREADY CALLED' : 'available'})
-✅ "Extractor" - Extracts data using patterns or LLM analysis (${availableData.extractorCompleted ? 'ALREADY CALLED' : 'available'})
-✅ "WebSearchAgent" - Expands knowledge base when local data insufficient (${availableData.webSearchAgentCompleted ? 'ALREADY CALLED' : 'available'})
-✅ "Synthesizer" - Creates final answer from available data (${availableData.synthesizerCompleted ? 'ALREADY CALLED' : 'available'})
+${this.buildDynamicToolsList(availableData)}
 
 ⚠️ CRITICAL: Use EXACT names above. Do NOT create variations.
 
@@ -280,9 +279,10 @@ ${availableData.agentCallCount === 0 ? `
 CALL DataInspector first - no exceptions!` : context.ragResults.chunks.length === 0 ? `
 
 🚨 NO DOCUMENTS AVAILABLE: Since no documents are provided, consider these intelligent options:
-1. **WebSearchAgent** - Search for information about "${context.query}"
+${this.registry.has('WebSearchAgent') ? `1. **WebSearchAgent** - Search for information about "${context.query}"
 2. **Synthesizer** - Provide guidance on what information would be needed
-3. **COMPLETE** - If the query can be answered without documents (general knowledge)
+3. **COMPLETE** - If the query can be answered without documents (general knowledge)` : `1. **Synthesizer** - Provide guidance on what information would be needed
+2. **COMPLETE** - If the query can be answered without documents (general knowledge)`}
 
 IMPORTANT: Don't give up! Either search for data or explain what's needed.` : `
 📊 AVAILABLE DATA & NEXT STEPS:
@@ -300,7 +300,7 @@ ${!availableData.planningAgentCompleted && availableData.dataInspectorCompleted 
 
 To call a tool:
 ACTION: CALL_TOOL
-TOOL_NAME: [DataInspector|PlanningAgent|PatternGenerator|Extractor|WebSearchAgent|Synthesizer]
+TOOL_NAME: [${this.registry.listAgents().map(a => a.name).join('|')}]
 REASONING: [explain why this tool is needed for the current goal]
 NEXT_GOAL: [what you hope to accomplish]
 
@@ -490,6 +490,28 @@ NEXT_GOAL: [final goal achieved]`;
   }
 
   /**
+   * 🛠️ Build dynamic tools list based on registered agents
+   */
+  private buildDynamicToolsList(availableData: any): string {
+    const registeredAgents = this.registry.listAgents();
+    const toolDescriptions: { [key: string]: string } = {
+      'QueryPlanner': 'Expands queries based on intent and domain understanding',
+      'DataInspector': 'Magic document filtering with 2 samples per doc',
+      'PlanningAgent': 'Creates intelligent execution strategies',
+      'PatternGenerator': 'Creates regex patterns for data extraction',
+      'Extractor': 'Extracts data using patterns or LLM analysis',
+      'WebSearchAgent': 'Expands knowledge base when local data insufficient',
+      'Synthesizer': 'Creates final answer from available data'
+    };
+
+    return registeredAgents.map(agent => {
+      const description = toolDescriptions[agent.name] || agent.description;
+      const status = this.calledAgents.has(agent.name) ? 'ALREADY CALLED' : 'available';
+      return `✅ "${agent.name}" - ${description} (${status})`;
+    }).join('\n');
+  }
+
+  /**
    * 📊 Analyze current context state for Master LLM decisions
    * 🔥 CRITICAL FIX: Include agent call history to prevent redundant calls
    */
@@ -513,7 +535,7 @@ NEXT_GOAL: [final goal achieved]`;
       
       // 🔥 NEW: Agent call tracking
       agentsCalled: Array.from(this.calledAgents),
-      agentsNotCalled: ['DataInspector', 'PlanningAgent', 'PatternGenerator', 'Extractor', 'WebSearchAgent', 'Synthesizer'].filter(agent => !this.calledAgents.has(agent)),
+      agentsNotCalled: this.registry.listAgents().map(a => a.name).filter(agent => !this.calledAgents.has(agent)),
       lastAgentCalled: this.lastAgentCalled,
       agentCallCount: this.calledAgents.size,
       
@@ -591,7 +613,7 @@ NEXT_GOAL: [final goal achieved]`;
     console.log(`🔍 DECISION SECTION:`, decisionSection.substring(0, 200));
     
     // Look for tool names in decision context with priority order
-    const priorityOrder = ['DataInspector', 'PlanningAgent', 'PatternGenerator', 'Extractor', 'WebSearchAgent', 'Synthesizer'];
+    const priorityOrder = this.registry.listAgents().map(a => a.name);
     
     for (const tool of priorityOrder) {
       // Look for decision indicators near tool names

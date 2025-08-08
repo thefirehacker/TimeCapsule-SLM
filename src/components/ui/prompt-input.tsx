@@ -336,7 +336,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       onVoiceRecord,
       isRecording = false,
       onFileAttach,
-      acceptedFileTypes = "image/*",
+      acceptedFileTypes = "image/*,.pdf,.doc,.docx,.txt,.md",
       ...props
     },
     ref

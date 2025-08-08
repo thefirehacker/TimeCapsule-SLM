@@ -53,21 +53,35 @@ export { SynthesisAgent } from './agents/SynthesisAgent';
 export function createMultiAgentSystem(
   llm: (prompt: string) => Promise<string>, 
   progressCallback?: import('./interfaces/AgentProgress').AgentProgressCallback,
-  vectorStore?: import('../../components/VectorStore/VectorStore').VectorStore
+  vectorStore?: import('../../components/VectorStore/VectorStore').VectorStore,
+  config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean }
 ) {
   // Create core components
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
   
+  // Build list of available agents based on configuration
+  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
+  if (config?.enableWebSearch !== false) {
+    availableAgents.splice(4, 0, 'WebSearchAgent'); // Insert WebSearchAgent before Synthesizer
+  }
+  
   // Register all agents in new intelligent architecture order
   registry.register(new QueryPlannerAgent(llm));
-  registry.register(new DataInspectorAgent(llm)); // Magic document filtering
-  registry.register(new PlanningAgent(llm)); // NEW: Intelligent execution strategy
-  registry.register(new PatternGeneratorAgent(llm));
+  registry.register(new DataInspectorAgent(llm, progressCallback)); // Magic document filtering with progress reporting
+  registry.register(new PlanningAgent(llm, availableAgents, progressCallback)); // NEW: Intelligent execution strategy with available agents and progress tracking
+  registry.register(new PatternGeneratorAgent(llm, progressCallback));
   registry.register(new ExtractionAgent(llm));
-  registry.register(new WebSearchAgent(llm, vectorStore)); // NEW: Knowledge base expansion with persistence
+  
+  // Only register WebSearchAgent if web search is enabled
+  if (config?.enableWebSearch !== false) { // Default to enabled unless explicitly disabled
+    registry.register(new WebSearchAgent(llm, vectorStore, config)); // Knowledge base expansion with config
+  } else {
+    console.log('🌐 WebSearchAgent disabled by configuration');
+  }
+  
   registry.register(new SynthesisAgent(llm));
   
-  // Create and return orchestrator with progress callback
-  return new Orchestrator(registry, messageBus, llm, progressCallback);
+  // Create and return orchestrator with progress callback and config
+  return new Orchestrator(registry, messageBus, llm, progressCallback, config);
 }

@@ -27,15 +27,24 @@ export class WebSearchAgent extends BaseAgent {
   private llm: LLMFunction;
   private firecrawlService = getFirecrawlService();
   private vectorStore: VectorStore | null;
+  private config?: { enableWebSearch?: boolean };
   
-  constructor(llm: LLMFunction, vectorStore?: VectorStore) {
+  constructor(llm: LLMFunction, vectorStore?: VectorStore, config?: { enableWebSearch?: boolean }) {
     super();
     this.llm = llm;
     this.vectorStore = vectorStore || null;
+    this.config = config;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`🌐 WebSearchAgent: Expanding knowledge base for "${context.query}"`);
+    
+    // 🚨 CRITICAL: Check if web search is disabled by configuration
+    if (this.config?.enableWebSearch === false) {
+      console.log(`⏭️ WebSearchAgent disabled by configuration - skipping web search`);
+      this.setReasoning('Web search disabled by user configuration');
+      return context;
+    }
     
     // Check if web search is needed
     const searchNeeded = this.isWebSearchNeeded(context);

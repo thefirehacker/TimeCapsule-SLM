@@ -207,9 +207,26 @@ export class DocumentProcessor {
     console.log(`📄 Starting document processing: ${documentData.title}`);
 
     // Step 1: Send document to worker for text chunking
+    // CRITICAL: Create completely clean serializable object - NO callbacks, functions, or circular refs
+    const cleanSerializableData = JSON.parse(JSON.stringify({
+      id: documentData.id,
+      title: documentData.title,
+      content: documentData.content,
+      metadata: {
+        filename: documentData.metadata?.filename,
+        filesize: documentData.metadata?.filesize,
+        filetype: documentData.metadata?.filetype,
+        uploadedAt: documentData.metadata?.uploadedAt,
+        source: documentData.metadata?.source,
+        description: documentData.metadata?.description,
+        isGenerated: documentData.metadata?.isGenerated,
+        documentType: documentData.metadata?.documentType
+      }
+    }));
+    
     this.worker?.postMessage({
       type: 'process_document',
-      data: documentData,
+      data: cleanSerializableData,
       id: Date.now().toString()
     });
   }

@@ -31,21 +31,34 @@ export class PlanningAgent extends BaseAgent {
   readonly description = 'Creates intelligent execution strategies based on document analysis and query requirements';
   
   private llm: LLMFunction;
+  private availableAgents: string[];
+  private progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback;
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, availableAgents?: string[], progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.availableAgents = availableAgents || ['DataInspector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`🎯 PlanningAgent: Creating intelligent execution strategy for "${context.query}"`);
     
+    // Report progress: Starting analysis
+    this.progressCallback?.onAgentProgress(this.name, 10, 'Analyzing research context');
+    
     // Analyze current situation
     const situationAnalysis = this.analyzeSituation(context);
     console.log(`📊 Situation Analysis:`, situationAnalysis);
     
+    // Report progress: Situation analyzed
+    this.progressCallback?.onAgentProgress(this.name, 30, 'Creating execution strategy');
+    
     // Create execution plan using LLM intelligence
     const executionPlan = await this.createExecutionPlan(context, situationAnalysis);
+    
+    // Report progress: Plan created
+    this.progressCallback?.onAgentProgress(this.name, 70, 'Storing execution plan');
     
     // Store plan in shared knowledge for other agents
     context.sharedKnowledge.executionPlan = executionPlan;
@@ -56,6 +69,9 @@ export class PlanningAgent extends BaseAgent {
     };
     
     this.setReasoning(`Created execution strategy: ${executionPlan.strategy} with ${executionPlan.steps.length} steps and ${executionPlan.fallbackOptions.length} fallback options`);
+    
+    // Report progress: Completed
+    this.progressCallback?.onAgentProgress(this.name, 100, 'Execution plan completed');
     
     console.log(`✅ Execution plan created: ${executionPlan.strategy}`);
     return context;
@@ -113,14 +129,17 @@ Based on this analysis, create an intelligent execution plan:
 1. **STRATEGY**: What's the best approach? (regex-extraction, web-expansion, direct-synthesis)
 
 2. **EXECUTION STEPS**: What agents should be called and in what order?
+   AVAILABLE AGENTS: ${this.availableAgents.join(', ')}
+   
    CRITICAL DATA DEPENDENCIES - Follow these rules:
    - "PatternGenerator": Creates regex patterns (MUST run BEFORE Extractor for efficient extraction)
-   - "WebSearchAgent": Expands knowledge when local data insufficient (SHOULD run BEFORE Extractor for comprehensive data extraction)
-   - "Extractor": Uses patterns to extract data (REQUIRES patterns from PatternGenerator, BENEFITS from WebSearchAgent results)
+   ${this.availableAgents.includes('WebSearchAgent') ? 
+     '- "WebSearchAgent": Expands knowledge when local data insufficient (SHOULD run BEFORE Extractor for comprehensive data extraction)' : ''}
+   - "Extractor": Uses patterns to extract data (REQUIRES patterns from PatternGenerator${this.availableAgents.includes('WebSearchAgent') ? ', BENEFITS from WebSearchAgent results' : ''})
    - "Synthesizer": Creates final answer (REQUIRES extracted data from Extractor)
    
-   OPTIMAL DEPENDENCY CHAIN: PatternGenerator → WebSearchAgent → Extractor → Synthesizer
-   (WebSearchAgent is optional but when used should run before Extractor)
+   OPTIMAL DEPENDENCY CHAIN: PatternGenerator${this.availableAgents.includes('WebSearchAgent') ? ' → WebSearchAgent' : ''} → Extractor → Synthesizer
+   ${this.availableAgents.includes('WebSearchAgent') ? '(WebSearchAgent is optional but when used should run before Extractor)' : ''}
 
 3. **FALLBACK OPTIONS**: What to do if primary approach fails?
 
@@ -140,7 +159,14 @@ Return as JSON:
 }`;
 
     try {
+      // Report progress: Calling LLM for plan generation
+      this.progressCallback?.onAgentProgress(this.name, 50, 'Generating strategic plan with LLM');
+      
       const response = await this.llm(prompt);
+      
+      // Report progress: Parsing plan
+      this.progressCallback?.onAgentProgress(this.name, 60, 'Parsing execution strategy');
+      
       const plan = this.parseExecutionPlan(response);
       
       console.log(`🎯 Generated execution plan:`, {
@@ -155,7 +181,7 @@ Return as JSON:
       console.error('❌ Failed to create execution plan:', error);
       
       // Fallback to simple plan following optimal dependency chain
-      const fallbackSteps = [
+      const fallbackSteps: PlanStep[] = [
         {
           agent: 'PatternGenerator',
           action: 'create basic patterns',
@@ -165,9 +191,9 @@ Return as JSON:
         }
       ];
 
-      // Add WebSearchAgent before Extractor for optimal data gathering (if data quality suggests it's needed)
+      // Add WebSearchAgent before Extractor for optimal data gathering (only if available and data quality suggests it's needed)
       const dataQuality = this.assessDataQuality(context);
-      if (dataQuality === 'no-data' || dataQuality === 'limited') {
+      if (this.availableAgents.includes('WebSearchAgent') && (dataQuality === 'no-data' || dataQuality === 'limited')) {
         fallbackSteps.push({
           agent: 'WebSearchAgent',
           action: 'expand knowledge base',
