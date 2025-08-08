@@ -1149,11 +1149,17 @@ NEXT_GOAL: [final goal achieved]`;
           this.calledAgents.delete(normalizedToolName);
         } else {
           console.warn(`⚠️ Agent ${normalizedToolName} already called with data, skipping to prevent redundant processing`);
-          return;
+          
+          // 🔧 FIX: Provide progression guidance instead of just returning
+          const nextStepGuidance = this.getExecutionPlanGuidance(context);
+          return `⚠️ Agent ${normalizedToolName} was already executed successfully with data. ${nextStepGuidance}`;
         }
       } else {
         console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
-        return;
+        
+        // 🔧 FIX: Provide progression guidance instead of just returning
+        const nextStepGuidance = this.getExecutionPlanGuidance(context);
+        return `⚠️ Agent ${normalizedToolName} was already executed successfully. ${nextStepGuidance}`;
       }
     }
     

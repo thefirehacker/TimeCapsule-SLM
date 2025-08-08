@@ -273,7 +273,17 @@ Return as JSON:
       'data_inspector': 'DataInspector',
       'planningagent': 'PlanningAgent',
       'planning': 'PlanningAgent',
-      'planner': 'PlanningAgent'
+      'planner': 'PlanningAgent',
+      // Fix LLM typo: DataAnalzyzer -> DataAnalyzer
+      'dataanalzyzer': 'DataAnalyzer',
+      'data-analzyzer': 'DataAnalyzer',
+      'data_analzyzer': 'DataAnalyzer',
+      'dataanalyzer': 'DataAnalyzer',
+      'data-analyzer': 'DataAnalyzer',
+      'data_analyzer': 'DataAnalyzer',
+      'synthesiscoordinator': 'SynthesisCoordinator',
+      'synthesis-coordinator': 'SynthesisCoordinator',
+      'synthesis_coordinator': 'SynthesisCoordinator'
     };
     
     const normalized = normalizations[name.toLowerCase()] || name;
