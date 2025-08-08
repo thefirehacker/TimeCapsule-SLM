@@ -296,3 +296,109 @@ After fixes, output should contain:
 -  **No hallucinations**: Content grounded in actual document
 
 **Success Metric**: User asks about "best RL method" � Gets specific analysis of GRPO from the available paper, not generic RL overview.
+
+## ✅ **CRITICAL FIX: DataInspector Chunk Sampling Order (RESOLVED)**
+
+### **Bug Identified and Fixed**
+**Root Cause**: DataInspector was analyzing metadata-only chunks (`"Document metadata: GRPO_Papper.pdf"`) instead of real document content, causing GRPO to be marked irrelevant.
+
+**Problem Flow**: 
+```
+Metadata Analysis → Relevance Decision → Chunk Sampling (never reached)
+```
+
+**Fixed Flow**:
+```
+Real Chunk Sampling → Content Analysis → Intelligent Relevance Decision
+```
+
+### **Evidence of Success**
+**Before Fix**:
+- `chunksCount: 1, sampleLength: 45, hasActualContent: false`
+- Content: `"Document metadata: GRPO_Papper.pdf"`
+- Result: Generic synthesis with hallucinated methods
+
+**After Fix** (from latest logs):
+- `chunksCount: 18, sampleLength: 14726, hasActualContent: true` 
+- Content: `"Deep Seek Math: Pushing the Limits of Mathematical...reinforcement learning, math reasoning...group relative policy optimization (GRP)"`
+- Result: ✅ GRPO correctly identified as relevant for RL queries
+
+### **Key Changes Made**
+1. **Reordered Analysis Logic**: Sample real chunks BEFORE relevance analysis
+2. **30% Chunk Sampling**: Now correctly getting 18 chunks (30% of 60) from GRPO paper
+3. **Real Content Analysis**: LLM analyzes actual research content, not filenames
+4. **No Hardcoding**: Pure LLM intelligence making relevance decisions
+
+### **Verification: No Hardcoding Confirmed**
+- ✅ **No "GRPO" hardcoded** in relevance logic
+- ✅ **No "RL" hardcoded** in analysis patterns  
+- ✅ **No query-specific** hardcoded decisions
+- ✅ **Pure LLM intelligence** making relevance decisions based on actual content
+
+GRPO identified as relevant through **intelligent content analysis**, not hardcoding.
+
+### **Current Pipeline Status**
+- ✅ **DataInspector**: Fixed and working with real content
+- ✅ **PlanningAgent**: Creating extraction strategies (see logs line 416-418)
+- ⏳ **PatternGenerator**: Testing with guided pattern generation (logs line 654-671)
+- ⏳ **Complete Pipeline**: Testing full flow with real GRPO content
+
+### **Latest Test Results (From New Logs)**
+**PatternGenerator Status**:
+- ✅ Using PlanningAgent extraction strategy (line 663)
+- ✅ Generated 4 strategy-based patterns (line 667)
+- ✅ Patterns include: performance ranking, comparative metrics (lines 666-667)
+
+**Extraction Status**:
+- ✅ Found 33 items with pattern matching (line 737)
+- ✅ After deduplication: 32 items (line 740)
+
+**Issues Identified**:
+- ❌ Master LLM stuck in DataAnalyzer loop (lines 861, 911, 962, 1014, 1064)
+- ❌ Reached max iterations without synthesis (line 1068)
+
+## 🔥 **CURRENT CRITICAL ISSUE: DataAnalyzer Infinite Loop (IN PROGRESS)**
+
+### **Root Cause Identified**
+**The Master LLM is stuck in an infinite loop preventing synthesis due to a two-part bug:**
+
+1. **Execution Plan Typo**: PlanningAgent generates plan with "DataAnalzyzer" but registry has "DataAnalyzer"
+2. **Orchestrator Stuck Logic**: When agent already called, Orchestrator returns without progression
+
+### **Evidence from Latest Logs**
+**What's Working Perfectly:**
+- ✅ **DataInspector**: 18 real chunks (14,726 chars) from GRPO paper 
+- ✅ **PlanningAgent**: Created extraction strategy with 6 pattern categories
+- ✅ **PatternGenerator**: Generated 4 strategy-based patterns (performance ranking, comparative metrics)
+- ✅ **Extractor**: Found 32 items successfully with pattern matching
+- ✅ **DataAnalyzer**: Ran once successfully, cleaned 30 items (line 810)
+
+**The Bug Loop:**
+- **Line 752**: Execution plan says next step is "DataAnalzyzer" (typo)
+- **Line 782**: Plan has "DataAnalzyzer" but registry has "DataAnalyzer" 
+- **Lines 861, 911, 962, 1014, 1064**: `⚠️ Agent DataAnalyzer already called, skipping`
+- **Line 1068**: `⚠️ Master LLM reached maximum iterations (10)`
+- **Line 1071**: `📝 Master Orchestrator final result: {hasAnswer: false, answerLength: 0}`
+
+### **The Infinite Loop Pattern**
+```mermaid
+graph LR
+    A[Master LLM: Call DataAnalyzer] --> B[Plan says: DataAnalzyzer]
+    B --> C[Registry has: DataAnalyzer] 
+    C --> D[Orchestrator: Agent already called, skip]
+    D --> E[Master LLM: Still need DataAnalyzer]
+    E --> A
+    style A fill:#FFB6C1
+    style E fill:#FFB6C1
+```
+
+### **Two-Part Fix Required**
+1. **Fix Plan Generation**: Correct "DataAnalzyzer" → "DataAnalyzer" typo in PlanningAgent
+2. **Fix Progression Logic**: When agent skipped, proceed to next step instead of returning
+
+### **Expected Result After Fix**
+- ✅ **DataAnalyzer**: Recognized as already completed
+- ✅ **SynthesisCoordinator**: Proceeds to final synthesis with 30 cleaned items
+- ✅ **Final Output**: GRPO-specific analysis instead of "Unable to generate answer"
+
+**The pipeline is 95% working - just need to fix this final orchestration bug!**
