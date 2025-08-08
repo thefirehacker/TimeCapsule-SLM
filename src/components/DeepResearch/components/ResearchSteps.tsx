@@ -36,6 +36,15 @@ export interface AgentThinking {
   insights: string[];
 }
 
+export interface ProgressHistoryEntry {
+  timestamp: number;
+  stage: string;
+  progress: number;
+  itemsProcessed?: number;
+  totalItems?: number;
+  message?: string;
+}
+
 export interface AgentSubStep {
   id: string;
   agentName: string;
@@ -55,6 +64,7 @@ export interface AgentSubStep {
   stage?: string;
   itemsProcessed?: number;
   totalItems?: number;
+  progressHistory?: ProgressHistoryEntry[]; // NEW: Store all progress updates
   
   // Error handling
   error?: string;

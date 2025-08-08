@@ -200,17 +200,17 @@ export function KnowledgeBaseManager({
       {/* Tabbed Document Interface */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         {/* Tab Navigation */}
-        <TabsList className={`grid w-full grid-cols-${tabConfigs.length} mb-4`}>
+        <TabsList className="w-full flex justify-start gap-1 mb-4 h-auto p-1 bg-muted rounded-lg">
           {tabConfigs.map((config) => {
             const IconComponent = config.icon;
             return (
               <TabsTrigger
                 key={config.id}
                 value={config.id}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 flex-1 min-w-0 justify-center px-3 py-2"
               >
-                <IconComponent className="w-4 h-4" />
-                {config.label} ({documentCounts[config.id]})
+                <IconComponent className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{config.label} ({documentCounts[config.id]})</span>
               </TabsTrigger>
             );
           })}

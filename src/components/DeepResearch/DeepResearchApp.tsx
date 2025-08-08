@@ -510,59 +510,6 @@ export function DeepResearchComponent() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Documents:</span>
-                      <span className="font-medium ml-1">
-                        {documents.documentStatus.count}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total Size:</span>
-                      <span className="font-medium ml-1">
-                        {formatFileSize(documents.documentStatus.totalSize)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Total Chunks:
-                      </span>
-                      <span className="font-medium ml-1">
-                        {documents.documentStatus.totalChunks}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Total Vectors:
-                      </span>
-                      <span className="font-medium ml-1">
-                        {documents.documentStatus.totalVectors}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={() =>
-                      document.getElementById("file-upload")?.click()
-                    }
-                    disabled={documents.isUploading}
-                    className="space-x-2"
-                  >
-                    {documents.isUploading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" />
-                        <span>Upload Files</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-
                 {/* Common Knowledge Base Manager Component */}
                 <KnowledgeBaseManager
                   documents={documents.documents}
