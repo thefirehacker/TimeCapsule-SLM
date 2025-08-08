@@ -102,6 +102,7 @@
 - **40+ Advanced Features**: Source transparency, bulk operations, chunk inspection
 - **Enterprise-Ready UX**: Professional interface with comprehensive document management
 - **Complete Documentation**: Integration guides and component specifications
+- **3 Critical Bugs Resolved**: Document filtering, WebSearchAgent calls, UI progress visibility ✅
 
 ---
 
@@ -235,17 +236,17 @@
 - [x] **A.3**: User verification completed ✅
 - [x] **A.4**: No regression in existing functionality ✅
 
-### **Issue B: UI Progress Visibility Gap** (Priority: **HIGH**)
-**Status**: 📊 **HIGH PRIORITY** - Generic UI loading while backend has rich progress data  
-**Evidence**: UI shows "DataInspector Initializing(0 items)" vs detailed logs (see `multi-agent-output.md`)  
-**Impact**: Poor user experience, no visibility into agent operations
+### **Issue B: UI Progress Visibility Gap** (Priority: **RESOLVED** ✅)
+**Status**: ✅ **COMPLETED** - Comprehensive progress history system implemented for all agents  
+**Evidence**: All agents now show expandable progress history with timestamps and detailed workflow visibility  
+**Impact**: Excellent user experience with complete transparency into multi-agent operations
 
 **Tasks**:
-- [ ] **B.1**: Stream detailed progress from DataInspector to UI
-- [ ] **B.2**: Replace generic loading with real-time agent status
-- [ ] **B.3**: Show document analysis progress ("Analyzing 5 of 11 documents")
-- [ ] **B.4**: Display current agent operations and substeps
-- [ ] **B.5**: Implement progress updates for all agents in pipeline
+- [x] **B.1**: ✅ Stream detailed progress from DataInspector to UI
+- [x] **B.2**: ✅ Replace generic loading with real-time agent status display  
+- [x] **B.3**: ✅ Show document analysis progress with cumulative history and timestamps
+- [x] **B.4**: ✅ Display current agent operations and substeps with collapsible UI
+- [x] **B.5**: ✅ Implement progress updates for all agents in pipeline (DataInspector, PlanningAgent, PatternGeneratorAgent)
 
 ### **Issue C: LLM Calling Non-Existent WebSearchAgent** (Priority: **RESOLVED** ✅)
 **Status**: ✅ **FIXED** - Dynamic agent registry system implemented in current session  
@@ -274,7 +275,7 @@
 ### **Success Criteria for Critical Bug Fixes**:
 - [x] **Document Filtering**: DataInspector receives ONLY userdocs (2-3 docs vs 11) ✅
 - [x] **WebSearchAgent Calls**: LLM only calls registered agents, no more "tool not found" errors ✅
-- [ ] **UI Progress**: Real-time agent progress replaces generic loading
+- [x] **UI Progress**: Real-time agent progress with cumulative history replaces generic loading ✅
 - [x] **No Regression**: Existing multi-agent functionality maintained ✅
 
 ### **Success Criteria for Phase 5**:
