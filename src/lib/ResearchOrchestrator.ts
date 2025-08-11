@@ -107,8 +107,8 @@ export class ResearchOrchestrator {
       // 🚨 DATAINSPECTOR ARCHITECTURE: Get document metadata for DataInspector magic filtering
       if (this.config.enableRAGSearch && this.vectorStore) {
         // Get document metadata only - let DataInspector sample and filter chunks
-        console.log(`🎯 DataInspector Architecture: Getting document metadata for intelligent filtering`);
-        const documentMetadata = await this.vectorStore.getDocumentMetadata();
+        console.log(`🎯 DataInspector Architecture: Getting userdocs metadata for intelligent filtering`);
+        const documentMetadata = await this.vectorStore.getDocumentMetadata(['userdocs']);
         
         if (documentMetadata.length > 0) {
           console.log(`📊 Retrieved ${documentMetadata.length} documents (${documentMetadata.reduce((sum, doc) => sum + doc.chunkCount, 0)} total chunks) - DataInspector will sample and filter`);
@@ -161,7 +161,7 @@ export class ResearchOrchestrator {
                 orchestratorPlan: `Master LLM Orchestrator with ${this.currentAgentSubSteps.length} intelligent tool calls`,
                 agentPipeline: this.currentAgentSubSteps.map(s => s.agentName),
                 totalAgents: this.currentAgentSubSteps.length,
-                processingTime: Date.now() - masterStep.timestamp
+                completedAgents: this.currentAgentSubSteps.filter(s => s.status === 'completed').length
               } : undefined
             });
             
@@ -506,17 +506,17 @@ Suggest research steps with reasoning for each.`;
     // Let the multi-agent system handle intelligent query expansion after seeing document content
     const primaryQuery = queryAnalysis.originalQuery;
     
-    console.log(`📚 DataInspector Architecture: Getting ALL documents for intelligent filtering`);
-    console.log(`🎯 New approach: Get all chunks → DataInspector magic filtering → Targeted extraction`);
+    console.log(`📚 DataInspector Architecture: Getting USERDOCS for intelligent filtering`);
+    console.log(`🎯 New approach: Get userdocs chunks → DataInspector magic filtering → Targeted extraction`);
     
-    // 🚀 DATAINSPECTOR MAGIC: Get ALL chunks, let DataInspector filter relevant ones
-    const results = await this.vectorStore.getAllChunks();
+    // 🚀 DATAINSPECTOR MAGIC: Get chunks from userdocs only, let DataInspector filter relevant ones
+    const results = await this.vectorStore.getAllChunks(['userdocs']);
     
     // Use ALL chunk data directly - no sorting or limiting needed (DataInspector will filter)
     const allResults = results; // Keep all chunks for DataInspector magic filtering
     
-    console.log(`📚 DataInspector Architecture: Retrieved ${allResults.length} total chunks from knowledge base`);
-    console.log(`🎯 DataInspector will filter relevant documents (e.g., keep Rutwik docs, remove Tyler docs for Rutwik query)`);
+    console.log(`📚 DataInspector Architecture: Retrieved ${allResults.length} chunks from userdocs only`);
+    console.log(`🎯 DataInspector will filter relevant documents from user-uploaded content (excludes virtual-docs, ai-frames, etc.)`);
 
     // Tag results with DataInspector context
     allResults.forEach((result, index) => {
@@ -767,12 +767,29 @@ Suggest research steps with reasoning for each.`;
               if (this.currentSynthesisStep && this.currentAgentSubSteps) {
                 const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
                 if (agentIndex >= 0) {
+                  const currentAgent = this.currentAgentSubSteps[agentIndex];
+                  
+                  // Build progress history entry
+                  const progressEntry = {
+                    timestamp: Date.now(),
+                    stage: stage || 'Processing',
+                    progress,
+                    itemsProcessed,
+                    totalItems,
+                    message: stage ? `${stage}${itemsProcessed !== undefined ? ` (${itemsProcessed}${totalItems ? `/${totalItems}` : ''} items)` : ''}` : undefined
+                  };
+                  
+                  // Initialize or update progress history
+                  const progressHistory = currentAgent.progressHistory || [];
+                  progressHistory.push(progressEntry);
+                  
                   this.currentAgentSubSteps[agentIndex] = {
-                    ...this.currentAgentSubSteps[agentIndex],
+                    ...currentAgent,
                     progress,
                     stage,
                     itemsProcessed,
-                    totalItems
+                    totalItems,
+                    progressHistory: progressHistory
                   };
                   
                   // Update synthesis step with updated progress
@@ -861,8 +878,8 @@ Suggest research steps with reasoning for each.`;
             }
           };
           
-          // Create multi-agent system with progress tracking
-          const multiAgent = createMultiAgentSystem(this.generateContent, progressCallback);
+          // Create multi-agent system with progress tracking, VectorStore, and config for WebSearchAgent
+          const multiAgent = createMultiAgentSystem(this.generateContent, progressCallback, this.vectorStore || undefined, this.config);
           
           // Execute multi-agent research process with full content sources
           const answer = await multiAgent.research(query, sources);
@@ -1405,7 +1422,7 @@ Answer:`;
   private shouldUseMasterOrchestrator(sources: SourceReference[]): boolean {
     // Use Master Orchestrator for RAG-based queries with substantial content
     const hasRagSources = sources.some(s => s.type === 'chunk' || s.type === 'document');
-    const hasSubstantialContent = sources.length >= 1 && sources.some(s => (s.metadata?.chunkCount || 0) > 0);
+    const hasSubstantialContent = sources.length >= 1 && sources.some(s => ((s.metadata as any)?.chunkCount || 0) > 0);
     
     console.log(`🧠 Master Orchestrator eligibility: RAG sources: ${hasRagSources}, Substantial content: ${hasSubstantialContent}`);
     return hasRagSources && hasSubstantialContent;
@@ -1466,12 +1483,29 @@ Answer:`;
           if (this.currentSynthesisStep && this.currentAgentSubSteps) {
             const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
             if (agentIndex >= 0) {
+              const currentAgent = this.currentAgentSubSteps[agentIndex];
+              
+              // Build progress history entry
+              const progressEntry = {
+                timestamp: Date.now(),
+                stage: stage || 'Processing',
+                progress,
+                itemsProcessed,
+                totalItems,
+                message: stage ? `${stage}${itemsProcessed !== undefined ? ` (${itemsProcessed}${totalItems ? `/${totalItems}` : ''} items)` : ''}` : undefined
+              };
+              
+              // Initialize or update progress history
+              const progressHistory = currentAgent.progressHistory || [];
+              progressHistory.push(progressEntry);
+              
               this.currentAgentSubSteps[agentIndex] = {
-                ...this.currentAgentSubSteps[agentIndex],
+                ...currentAgent,
                 progress,
                 stage,
                 itemsProcessed,
-                totalItems
+                totalItems,
+                progressHistory: progressHistory
               };
               
               this.updateStep(this.currentSynthesisStep, {
@@ -1547,8 +1581,8 @@ Answer:`;
         }
       };
       
-      // Create multi-agent system with Master Orchestrator
-      const multiAgent = createMultiAgentSystem(this.generateContent!, progressCallback);
+      // Create multi-agent system with Master Orchestrator, VectorStore, and config for WebSearchAgent
+      const multiAgent = createMultiAgentSystem(this.generateContent!, progressCallback, this.vectorStore || undefined, this.config);
       
       // 🔧 ARCHITECTURE FIX: Pass found sources to Master Orchestrator for DataInspector magic filtering
       console.log(`🧠 Calling Master Orchestrator.research() with ${sources.length} found sources for intelligent analysis`);

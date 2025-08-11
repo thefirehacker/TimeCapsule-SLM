@@ -205,6 +205,7 @@ function SourcesSection({ sources }: { sources: SourceReference[] }) {
 
 function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
   const [showThinking, setShowThinking] = useState(false);
+  const [showProgressHistory, setShowProgressHistory] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
   const IconComponent = AgentIcons[subStep.agentType] || Brain;
   
@@ -272,6 +273,65 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
       {subStep.progress !== undefined && subStep.status === 'in_progress' && (
         <div className="mb-2">
           <Progress value={subStep.progress} className="h-1" />
+        </div>
+      )}
+
+      {/* Progress History - Show cumulative progress steps */}
+      {subStep.progressHistory && subStep.progressHistory.length > 1 && (
+        <div className="mt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowProgressHistory(!showProgressHistory)}
+            className="h-6 px-2 text-xs text-green-600 hover:text-green-800 font-medium"
+          >
+            <Clock className="w-3 h-3 mr-1" />
+            📊 Progress History ({subStep.progressHistory.length} steps)
+            {showProgressHistory ? <ChevronDown className="w-3 h-3 ml-1" /> : <ChevronRight className="w-3 h-3 ml-1" />}
+          </Button>
+          
+          {showProgressHistory && (
+            <div className="mt-1 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg text-xs">
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {subStep.progressHistory.map((entry, idx) => {
+                  const isLatest = idx === subStep.progressHistory!.length - 1;
+                  const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`flex items-center justify-between p-2 rounded ${
+                        isLatest ? 'bg-green-100 border border-green-300' : 'bg-white border border-gray-200'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className={`font-medium ${isLatest ? 'text-green-800' : 'text-gray-700'}`}>
+                          {entry.stage}
+                          {isLatest && <span className="ml-2 text-xs bg-green-200 text-green-800 px-1 rounded">CURRENT</span>}
+                        </div>
+                        {entry.itemsProcessed !== undefined && (
+                          <div className="text-xs text-gray-500">
+                            ({entry.itemsProcessed}{entry.totalItems ? `/${entry.totalItems}` : ''} items)
+                          </div>
+                        )}
+                        {entry.message && (
+                          <div className="text-xs text-gray-600 mt-1">{entry.message}</div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-sm font-medium ${isLatest ? 'text-green-700' : 'text-gray-600'}`}>
+                          {entry.progress}%
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {timestamp}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -9,6 +9,8 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ChunkData } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { getFirecrawlService } from '../../FirecrawlService';
+import { VectorStore } from '../../../components/VectorStore/VectorStore';
 
 export interface WebSearchStrategy {
   searchQueries: string[];
@@ -23,14 +25,26 @@ export class WebSearchAgent extends BaseAgent {
   readonly description = 'Expands knowledge base using intelligent web search when local data is insufficient';
   
   private llm: LLMFunction;
+  private firecrawlService = getFirecrawlService();
+  private vectorStore: VectorStore | null;
+  private config?: { enableWebSearch?: boolean };
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, vectorStore?: VectorStore, config?: { enableWebSearch?: boolean }) {
     super();
     this.llm = llm;
+    this.vectorStore = vectorStore || null;
+    this.config = config;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`🌐 WebSearchAgent: Expanding knowledge base for "${context.query}"`);
+    
+    // 🚨 CRITICAL: Check if web search is disabled by configuration
+    if (this.config?.enableWebSearch === false) {
+      console.log(`⏭️ WebSearchAgent disabled by configuration - skipping web search`);
+      this.setReasoning('Web search disabled by user configuration');
+      return context;
+    }
     
     // Check if web search is needed
     const searchNeeded = this.isWebSearchNeeded(context);
@@ -42,8 +56,8 @@ export class WebSearchAgent extends BaseAgent {
     
     console.log(`🔍 Web search needed: ${searchNeeded.reason}`);
     
-    // Create search strategy
-    const searchStrategy = await this.createSearchStrategy(context);
+    // Create search strategy using PatternGenerator results for targeted queries
+    const searchStrategy = await this.createIntelligentSearchStrategy(context);
     console.log(`📋 Search strategy:`, searchStrategy);
     
     // Execute web search (placeholder for Firecrawl integration)
@@ -57,6 +71,9 @@ export class WebSearchAgent extends BaseAgent {
       // Update metadata
       context.metadata.totalChunksProcessed += webResults.length;
       context.metadata.agentsInvolved.push('WebSearchAgent');
+      
+      // Save useful web content to VectorStore as virtual documents for persistence
+      await this.saveWebResultsToVectorStore(webResults, context);
     }
     
     // Store insights
@@ -121,6 +138,98 @@ export class WebSearchAgent extends BaseAgent {
     return words;
   }
   
+  /**
+   * Create intelligent search strategy using PatternGenerator results for targeted queries
+   * This leverages pattern analysis to create more specific and effective web searches
+   */
+  private async createIntelligentSearchStrategy(context: ResearchContext): Promise<WebSearchStrategy> {
+    // Check if PatternGenerator has been run and generated useful patterns
+    const patterns = context.patterns || [];
+    const hasPatterns = patterns.length > 0 && patterns.some(p => p.regexPattern);
+    
+    if (hasPatterns) {
+      console.log(`🧠 Using PatternGenerator results to create targeted search queries`);
+      return await this.createPatternBasedStrategy(context);
+    } else {
+      console.log(`📝 No patterns available, falling back to standard search strategy`);
+      return await this.createSearchStrategy(context);
+    }
+  }
+
+  /**
+   * Create pattern-based search strategy using PatternGenerator intelligence
+   */
+  private async createPatternBasedStrategy(context: ResearchContext): Promise<WebSearchStrategy> {
+    const patterns = context.patterns || [];
+    const query = context.query;
+    
+    // Extract pattern-based search terms
+    const patternTerms = patterns
+      .filter(p => p.description && p.description.length > 5)
+      .map(p => p.description.replace(/[^\w\s]/g, '').trim())
+      .filter(term => term.length > 0)
+      .slice(0, 3); // Limit to top 3 pattern-derived terms
+    
+    // Analyze document analysis for entity extraction
+    const documentAnalysis = context.documentAnalysis;
+    const entityTerms: string[] = [];
+    
+    if (documentAnalysis?.documents) {
+      for (const doc of documentAnalysis.documents) {
+        if (doc.analysis?.primaryEntity && doc.analysis.primaryEntity !== 'Unknown Entity') {
+          entityTerms.push(doc.analysis.primaryEntity);
+        }
+      }
+    }
+    
+    // Create pattern-enhanced search queries
+    const searchQueries: string[] = [
+      query, // Original query
+    ];
+    
+    // Add pattern-based queries
+    if (patternTerms.length > 0) {
+      searchQueries.push(`${patternTerms[0]} ${query}`);
+      if (patternTerms.length > 1) {
+        searchQueries.push(`${patternTerms.join(' ')}`);
+      }
+    }
+    
+    // Add entity-based queries
+    if (entityTerms.length > 0) {
+      const uniqueEntities = [...new Set(entityTerms)];
+      searchQueries.push(`${uniqueEntities[0]} ${query}`);
+      if (uniqueEntities.length > 1) {
+        searchQueries.push(`${uniqueEntities.join(' OR ')}`);
+      }
+    }
+    
+    // Determine target sites based on patterns and entities
+    let targetSites = ['github.com', 'linkedin.com', 'medium.com', 'stackoverflow.com'];
+    let expectedContentTypes = ['technical content', 'professional profiles', 'project documentation'];
+    
+    // Enhance based on query analysis
+    const queryLower = query.toLowerCase();
+    if (queryLower.includes('project') || queryLower.includes('portfolio')) {
+      targetSites = ['github.com', 'gitlab.com', 'bitbucket.org', 'personal websites'];
+      expectedContentTypes = ['code repositories', 'project portfolios', 'technical blogs'];
+    } else if (queryLower.includes('company') || queryLower.includes('business')) {
+      targetSites = ['linkedin.com', 'crunchbase.com', 'company websites'];
+      expectedContentTypes = ['business profiles', 'company information', 'professional networking'];
+    } else if (queryLower.includes('research') || queryLower.includes('academic')) {
+      targetSites = ['scholar.google.com', 'arxiv.org', 'researchgate.net'];
+      expectedContentTypes = ['academic papers', 'research publications', 'scholarly articles'];
+    }
+    
+    return {
+      searchQueries: searchQueries.slice(0, 3), // Limit to 3 queries for performance
+      targetSites: targetSites.slice(0, 4),
+      expectedContentTypes,
+      maxResults: 6, // Slightly higher than fallback for pattern-based searches
+      reasoning: `Pattern-based strategy: leveraging ${patterns.length} patterns and ${entityTerms.length} entities for targeted search`
+    };
+  }
+
   private async createSearchStrategy(context: ResearchContext): Promise<WebSearchStrategy> {
     const prompt = `Create an intelligent web search strategy for this research query:
 
@@ -210,43 +319,126 @@ Return as JSON:
   }
   
   private async executeWebSearch(strategy: WebSearchStrategy, context: ResearchContext): Promise<ChunkData[]> {
-    console.log(`🔍 Executing web search with ${strategy.searchQueries.length} queries...`);
+    console.log(`🔍 WebSearch executing ${strategy.searchQueries.length} queries...`);
     
-    // TODO: Integrate with Firecrawl API
-    // For now, return placeholder results to maintain system functionality
-    
-    const mockResults: ChunkData[] = [];
-    
-    for (let i = 0; i < strategy.searchQueries.length; i++) {
-      const query = strategy.searchQueries[i];
-      console.log(`🌐 [PLACEHOLDER] Searching for: "${query}"`);
-      
-      // Placeholder result structure
-      const placeholderResult: ChunkData = {
-        id: `web_search_${Date.now()}_${i}`,
-        text: `[WEB SEARCH PLACEHOLDER] Results for "${query}" would appear here when Firecrawl integration is complete.`,
-        source: `Web Search: ${query}`,
-        similarity: 0.8,
-        sourceType: 'web',
-        metadata: {
-          searchQuery: query,
-          searchEngine: 'firecrawl_placeholder',
-          timestamp: Date.now(),
-          agent: 'WebSearchAgent'
-        }
-      };
-      
-      mockResults.push(placeholderResult);
+    if (!this.firecrawlService.isConfigured) {
+      console.log(`⚠️ Firecrawl not configured, skipping web search`);
+      return [];
     }
     
-    console.log(`🌐 [PLACEHOLDER] Web search simulation complete: ${mockResults.length} placeholder results`);
+    const webChunks: ChunkData[] = [];
     
-    // In real implementation, this would:
-    // 1. Use Firecrawl API to search and crawl results
-    // 2. Extract content from found pages
-    // 3. Process and chunk the content
-    // 4. Return structured ChunkData objects
+    for (const query of strategy.searchQueries) {
+      try {
+        console.log(`🌐 Executing Firecrawl search: "${query}"`);
+        
+        const searchResults = await this.firecrawlService.searchWeb(query, {
+          limit: Math.min(strategy.maxResults, 3), // Limit per query
+          maxContentLength: 2000,
+          searchMode: 'web'
+        });
+        
+        // Convert WebSearchResult to ChunkData format
+        for (const result of searchResults.results) {
+          const chunk: ChunkData = {
+            id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            text: result.content || result.description || '',
+            source: result.title || result.url,
+            similarity: result.relevanceScore || 0.7,
+            sourceType: 'web',
+            metadata: {
+              url: result.url,
+              title: result.title,
+              searchQuery: query,
+              searchEngine: 'firecrawl',
+              timestamp: Date.now(),
+              agent: 'WebSearchAgent',
+              domain: result.metadata.domain,
+              crawlTime: result.metadata.crawlTime
+            }
+          };
+          
+          webChunks.push(chunk);
+        }
+        
+        console.log(`✅ Found ${searchResults.results.length} results for "${query}"`);
+        
+      } catch (error) {
+        console.error(`❌ Search failed for "${query}":`, error);
+      }
+    }
     
-    return mockResults;
+    console.log(`🌐 Web search completed: ${webChunks.length} web chunks added`);
+    return webChunks;
+  }
+
+  /**
+   * Save web search results to VectorStore as virtual documents for persistence
+   * This ensures useful web content is available for future queries
+   */
+  private async saveWebResultsToVectorStore(webResults: ChunkData[], context: ResearchContext): Promise<void> {
+    if (!this.vectorStore || !this.vectorStore.isInitialized) {
+      console.log(`⚠️ VectorStore not available, skipping web results persistence`);
+      return;
+    }
+
+    try {
+      console.log(`💾 Saving ${webResults.length} web search results to VectorStore as virtual documents...`);
+      
+      // Group chunks by URL to create coherent documents
+      const urlGroups = new Map<string, ChunkData[]>();
+      
+      for (const chunk of webResults) {
+        const url = chunk.metadata?.url || 'unknown-url';
+        if (!urlGroups.has(url)) {
+          urlGroups.set(url, []);
+        }
+        urlGroups.get(url)!.push(chunk);
+      }
+
+      let savedCount = 0;
+      
+      for (const [url, chunks] of urlGroups) {
+        try {
+          // Create a cohesive document from chunks
+          const title = chunks[0].metadata?.title || `Web Result: ${url}`;
+          const content = chunks.map(chunk => chunk.text).join('\n\n');
+          const searchQuery = chunks[0].metadata?.searchQuery || context.query;
+          
+          // Create virtual document with proper metadata
+          const documentTitle = `${title} (Web Search: ${searchQuery})`;
+          
+          // Use VectorStore's addVirtualDocument method for WebSearchAgent results
+          await this.vectorStore.addVirtualDocument(
+            documentTitle,
+            content,
+            {
+              source: 'websearch',
+              url: url,
+              title: title,
+              searchQuery: searchQuery,
+              domain: chunks[0].metadata?.domain || new URL(url).hostname,
+              crawlTime: chunks[0].metadata?.crawlTime || Date.now(),
+              agent: 'WebSearchAgent',
+              chunkCount: chunks.length,
+              relevanceScore: Math.max(...chunks.map(c => c.similarity || 0.7))
+            }
+          );
+          
+          savedCount++;
+          console.log(`✅ Saved web document: ${documentTitle}`);
+          
+        } catch (error) {
+          console.error(`❌ Failed to save web document for ${url}:`, error);
+        }
+      }
+      
+      if (savedCount > 0) {
+        console.log(`💾 Successfully saved ${savedCount} virtual documents from web search to knowledge base`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error saving web results to VectorStore:`, error);
+    }
   }
 }
