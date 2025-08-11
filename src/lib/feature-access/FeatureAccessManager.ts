@@ -1,5 +1,10 @@
 import { docClient } from "../aws/dynamodb";
-import { UpdateCommand, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  UpdateCommand,
+  GetCommand,
+  QueryCommand,
+  PutCommand,
+} from "@aws-sdk/lib-dynamodb";
 import { getUserById } from "../auth/auth";
 
 // Feature definitions with limits
@@ -285,7 +290,12 @@ export class FeatureAccessManager {
       Item: usage,
     };
 
-    await docClient.send(new UpdateCommand(params));
+    await docClient.send(
+      new PutCommand({
+        TableName: "FeatureUsage",
+        Item: usage,
+      })
+    );
     this.cache.set(`${userId}_${feature}`, usage);
   }
 
