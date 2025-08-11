@@ -145,6 +145,7 @@ interface ResearchStepsProps {
   expandedSteps: Set<string>;
   className?: string;
   fullScreenMode?: boolean;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
 /**
@@ -155,7 +156,8 @@ export function ResearchSteps({
   onStepClick, 
   expandedSteps, 
   className = "",
-  fullScreenMode = false
+  fullScreenMode = false,
+  onRerunAgent
 }: ResearchStepsProps) {
   const completedSteps = steps.filter(step => step.status === 'completed').length;
   const totalSteps = steps.length;
@@ -201,6 +203,7 @@ export function ResearchSteps({
                   index={index}
                   isExpanded={expandedSteps.has(step.id)}
                   onToggle={() => onStepClick(step)}
+                  onRerunAgent={onRerunAgent}
                 />
               ))}
           </div>
@@ -218,9 +221,10 @@ interface StepCardProps {
   index: number;
   isExpanded: boolean;
   onToggle: () => void;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
-function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) {
+function ResearchStepCard({ step, index, isExpanded, onToggle, onRerunAgent }: StepCardProps) {
   const getStepIcon = (type: string, status: string) => {
     const iconProps = { className: "w-4 h-4" };
     
@@ -287,7 +291,12 @@ function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) 
       'border-gray-200'
     }`}>
       <CardHeader 
-        className="pb-2 cursor-pointer hover:bg-gray-50/50 transition-colors"
+        className={`pb-2 cursor-pointer transition-colors ${
+          step.status === 'completed' ? 'hover:bg-green-50/50' :
+          step.status === 'failed' ? 'hover:bg-red-50/50' :
+          step.status === 'in_progress' ? 'hover:bg-blue-50/50' :
+          'hover:bg-gray-50/50'
+        }`}
         onClick={onToggle}
       >
         <div className="flex items-center justify-between">
@@ -328,7 +337,7 @@ function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) 
       
       {isExpanded && (
         <CardContent className="pt-0 pb-3">
-          <ResearchStepDetails step={step} />
+          <ResearchStepDetails step={step} onRerunAgent={onRerunAgent} />
         </CardContent>
       )}
     </Card>
@@ -340,9 +349,10 @@ function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) 
  */
 interface StepDetailsProps {
   step: ResearchStep;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
-function ResearchStepDetails({ step }: StepDetailsProps) {
+function ResearchStepDetails({ step, onRerunAgent }: StepDetailsProps) {
   return (
     <div className="space-y-3 text-sm">
       {/* Reasoning */}
@@ -418,8 +428,9 @@ function ResearchStepDetails({ step }: StepDetailsProps) {
         <div className="border-t border-border/50 pt-3 mt-3">
           <AgentSubSteps 
             subSteps={step.subSteps}
-            isExpanded={false}
+            isExpanded={step.status === 'completed' || step.status === 'failed'}
             className="bg-background/50 rounded-lg p-3"
+            onRerunAgent={onRerunAgent}
           />
         </div>
       )}

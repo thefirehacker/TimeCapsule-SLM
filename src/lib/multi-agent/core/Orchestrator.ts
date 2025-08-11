@@ -46,29 +46,190 @@ export class Orchestrator {
   private config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean };
   
   /**
-   * 🎯 Get next step from execution plan
+   * 🎯 Get next step from execution plan with comprehensive pipeline view
    */
   private getNextPlannedStep(context: ResearchContext, availableData: any): string {
     const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
     
     if (!executionPlan || !executionPlan.steps || executionPlan.steps.length === 0) {
-      return '📋 No execution plan available - use intelligent decision making';
+      // Provide intelligent guidance based on current state
+      const guidance = this.getIntelligentNextStepGuidance(availableData);
+      return `📋 No formal execution plan - ${guidance}`;
     }
     
-    // Find next uncompleted step from plan
+    // Build pipeline progress visualization
+    const pipelineProgress: string[] = [];
+    let nextStep: any = null;
+    let remainingSteps: string[] = [];
+    
     for (const step of executionPlan.steps) {
-      // Normalize agent name to handle variations
       const agentName = this.normalizeToolName(step.agent);
       const isCompleted = this.calledAgents.has(agentName);
       
-      if (!isCompleted) {
-        console.log(`📋 Following execution plan: Next step is ${agentName} - ${step.action}`);
-        return `\n🎯 **EXECUTION PLAN GUIDANCE**:\n- Next Planned Step: ${agentName}\n- Action: ${step.action}\n- Reasoning: ${step.reasoning}\n- Priority: ${step.priority || 'high'}\n\n**RECOMMENDED**: Call ${agentName} to ${step.action}`;
+      if (isCompleted) {
+        pipelineProgress.push(`✅ ${agentName}`);
+      } else if (!nextStep) {
+        nextStep = { ...step, normalizedName: agentName };
+        pipelineProgress.push(`→ ${agentName} (NEXT)`);
+        remainingSteps.push(agentName);
+      } else {
+        pipelineProgress.push(`⏳ ${agentName}`);
+        remainingSteps.push(agentName);
       }
     }
     
-    // All planned steps completed
-    return `\n✅ **EXECUTION PLAN COMPLETE**: All ${executionPlan.steps.length} planned steps have been executed.\nConsider: ${executionPlan.fallbackOptions?.join(', ') || 'Synthesizer for final answer'}`;
+    // Build comprehensive guidance
+    let guidance = `\n📊 **PIPELINE PROGRESS**:\n${pipelineProgress.join(' → ')}\n\n`;
+    
+    if (nextStep) {
+      guidance += `🎯 **IMMEDIATE NEXT STEP**:\n`;
+      guidance += `- Agent: ${nextStep.normalizedName}\n`;
+      guidance += `- Action: ${nextStep.action}\n`;
+      guidance += `- Purpose: ${nextStep.reasoning}\n\n`;
+      guidance += `**CRITICAL**: Call ${nextStep.normalizedName} now to continue the pipeline.\n`;
+      
+      if (remainingSteps.length > 1) {
+        guidance += `\n📋 **Remaining Pipeline**: ${remainingSteps.join(' → ')}\n`;
+      }
+      
+      // Add skip awareness
+      if (context.sharedKnowledge?.lastSkippedAgent) {
+        guidance += `\n⚠️ **Note**: ${context.sharedKnowledge.lastSkippedAgent.agent} was skipped (already executed). Continue with ${nextStep.normalizedName}.\n`;
+      }
+    } else {
+      guidance += `✅ **All planned steps completed** - Pipeline execution finished.\n`;
+      guidance += `Consider: ${executionPlan.fallbackOptions?.join(', ') || 'final synthesis or completion'}.\n`;
+    }
+    
+    return guidance;
+  }
+  
+  /**
+   * 🎯 Get synthesis guidance when data is ready
+   */
+  private getSynthesisGuidance(availableData: any, context: ResearchContext): string {
+    const dataAnalyzerCompleted = availableData.agentsCalled.includes('DataAnalyzer');
+    const extractorCompleted = availableData.extractorCompleted;
+    const synthesisStarted = availableData.agentsCalled.includes('SynthesisCoordinator') || 
+                             availableData.agentsCalled.includes('Synthesizer') ||
+                             availableData.agentsCalled.includes('ResponseFormatter');
+    
+    // Check if we have data ready for synthesis
+    const hasAnalyzedData = context.analyzedData?.cleaned && context.analyzedData.cleaned.length > 0;
+    const hasExtractedData = context.extractedData?.raw && context.extractedData.raw.length > 0;
+    const dataReady = hasAnalyzedData || hasExtractedData;
+    
+    if (dataReady && !synthesisStarted) {
+      // Data is ready but synthesis hasn't started
+      return `
+🚨 **SYNTHESIS READY**: Data has been extracted and processed. Time to synthesize the final answer!
+- DataAnalyzer: ${dataAnalyzerCompleted ? 'COMPLETE ✅' : 'Available but optional'}
+- Extracted Data: ${hasExtractedData ? 'READY ✅' : 'Not available'}
+- Analyzed Data: ${hasAnalyzedData ? 'READY ✅' : 'Not available'}
+
+**RECOMMENDED NEXT STEP**: Call SynthesisCoordinator to orchestrate final synthesis
+**ALTERNATIVE**: Call ResponseFormatter if synthesis coordination not needed
+`;
+    }
+    
+    if (synthesisStarted && !availableData.hasFinalAnswer) {
+      // Synthesis started but not complete
+      return `
+⏳ **SYNTHESIS IN PROGRESS**: Continue with synthesis pipeline
+- SynthesisCoordinator: ${availableData.agentsCalled.includes('SynthesisCoordinator') ? 'CALLED ✅' : 'Available'}
+- ResponseFormatter: ${availableData.agentsCalled.includes('ResponseFormatter') ? 'CALLED ✅' : 'Ready to format final answer'}
+
+**NEXT**: ${!availableData.agentsCalled.includes('ResponseFormatter') ? 'Call ResponseFormatter to enhance and format the final answer' : 'Check if synthesis is complete'}
+`;
+    }
+    
+    return ''; // No specific synthesis guidance needed
+  }
+  
+  /**
+   * 📊 Get pipeline phase status for better visibility
+   */
+  private getPipelinePhaseStatus(availableData: any): string {
+    const phases = [];
+    
+    // Phase 1: Analysis
+    if (availableData.dataInspectorCompleted) {
+      phases.push('✅ Phase 1: Analysis (DataInspector) - COMPLETE');
+    } else {
+      phases.push('⏳ Phase 1: Analysis (DataInspector) - PENDING');
+    }
+    
+    // Phase 2: Planning
+    if (availableData.planningAgentCompleted) {
+      phases.push('✅ Phase 2: Planning (PlanningAgent) - COMPLETE');
+    } else if (availableData.dataInspectorCompleted) {
+      phases.push('→ Phase 2: Planning (PlanningAgent) - READY');
+    } else {
+      phases.push('⏳ Phase 2: Planning (PlanningAgent) - WAITING');
+    }
+    
+    // Phase 3: Pattern & Extraction
+    if (availableData.extractorCompleted) {
+      phases.push('✅ Phase 3: Extraction (PatternGenerator + Extractor) - COMPLETE');
+    } else if (availableData.patternGeneratorCompleted) {
+      phases.push('→ Phase 3: Extraction (Extractor) - IN PROGRESS');
+    } else if (availableData.dataInspectorCompleted) {
+      phases.push('→ Phase 3: Extraction (PatternGenerator) - READY');
+    } else {
+      phases.push('⏳ Phase 3: Extraction - WAITING');
+    }
+    
+    // Phase 4: Data Processing
+    const dataAnalyzerCompleted = availableData.agentsCalled.includes('DataAnalyzer');
+    if (dataAnalyzerCompleted) {
+      phases.push('✅ Phase 4: Data Processing (DataAnalyzer) - COMPLETE');
+    } else if (availableData.extractorCompleted) {
+      phases.push('→ Phase 4: Data Processing (DataAnalyzer) - READY');
+    } else {
+      phases.push('⏳ Phase 4: Data Processing - WAITING');
+    }
+    
+    // Phase 5: Synthesis
+    const synthesisCompleted = availableData.agentsCalled.includes('SynthesisCoordinator') || 
+                              availableData.agentsCalled.includes('Synthesizer') ||
+                              availableData.agentsCalled.includes('ResponseFormatter');
+    
+    if (synthesisCompleted) {
+      phases.push('✅ Phase 5: Synthesis - COMPLETE');
+    } else if (dataAnalyzerCompleted || availableData.extractorCompleted) {
+      phases.push('🎯 Phase 5: Synthesis (SynthesisCoordinator/ResponseFormatter) - READY TO START');
+    } else {
+      phases.push('⏳ Phase 5: Synthesis - WAITING');
+    }
+    
+    return phases.join('\n');
+  }
+  
+  /**
+   * 🧠 Intelligent guidance when no plan exists
+   */
+  private getIntelligentNextStepGuidance(availableData: any): string {
+    // Provide state-aware guidance without hardcoding
+    if (!availableData.dataInspectorCompleted) {
+      return 'DataInspector recommended for document analysis';
+    }
+    if (!availableData.planningAgentCompleted && availableData.dataInspectorCompleted) {
+      return 'PlanningAgent recommended to create execution strategy';
+    }
+    if (!availableData.patternGeneratorCompleted && availableData.dataInspectorCompleted) {
+      return 'PatternGenerator recommended for extraction patterns';
+    }
+    if (!availableData.extractorCompleted && availableData.patternGeneratorCompleted) {
+      return 'Extractor recommended to extract data using patterns';
+    }
+    if (availableData.extractorCompleted && !availableData.synthesizerCompleted) {
+      // Check for synthesis agents
+      if (this.registry.has('SynthesisCoordinator')) {
+        return 'SynthesisCoordinator recommended to orchestrate final synthesis';
+      }
+      return 'Synthesizer recommended to create final answer';
+    }
+    return 'use intelligent decision making based on current state';
   }
   
   /**
@@ -172,6 +333,136 @@ export class Orchestrator {
   }
   
   /**
+   * 🔄 RERUN SPECIFIC AGENT - Targeted Agent Execution with Context Preservation
+   * Allows rerunning specific agents without restarting the entire pipeline
+   */
+  async rerunAgent(
+    agentName: string, 
+    context: ResearchContext, 
+    preservedResults?: Map<string, any>
+  ): Promise<ResearchContext> {
+    console.log(`🔄 Rerunning agent: ${agentName}`);
+    
+    // Validate agent exists
+    const agent = this.registry.get(agentName);
+    if (!agent) {
+      throw new Error(`Agent ${agentName} not found in registry`);
+    }
+    
+    // Validate dependencies before rerun
+    const missingDependencies = this.validateAgentDependencies(agentName, context);
+    if (missingDependencies.length > 0) {
+      throw new Error(`Cannot rerun ${agentName}: missing dependencies [${missingDependencies.join(', ')}]`);
+    }
+    
+    // Restore preserved results if provided
+    if (preservedResults) {
+      this.agentResults.clear();
+      preservedResults.forEach((result, agentName) => {
+        this.agentResults.set(agentName, result);
+        this.calledAgents.add(agentName);
+      });
+      console.log(`🔄 Restored ${preservedResults.size} previous agent results`);
+    }
+    
+    // Remove the target agent from called agents to allow rerun
+    this.calledAgents.delete(agentName);
+    this.agentResults.delete(agentName);
+    
+    // Clear downstream results that depend on this agent
+    this.clearDependentAgentResults(agentName, context);
+    
+    // Execute the specific agent
+    try {
+      console.log(`⚡ Executing agent: ${agentName}`);
+      await this.executeToolCall(agentName, context);
+      
+      console.log(`✅ Successfully reran agent: ${agentName}`);
+      return context;
+    } catch (error) {
+      console.error(`❌ Failed to rerun agent ${agentName}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 🔍 VALIDATE AGENT DEPENDENCIES - Ensure prerequisites are met
+   */
+  private validateAgentDependencies(agentName: string, context: ResearchContext): string[] {
+    const missing: string[] = [];
+    
+    // Define dependency chain
+    const dependencies: Record<string, string[]> = {
+      'DataInspector': [], // No dependencies
+      'PlanningAgent': ['DataInspector'],
+      'PatternGenerator': ['DataInspector', 'PlanningAgent'], 
+      'Extractor': ['DataInspector', 'PatternGenerator'],
+      'SynthesisCoordinator': ['DataInspector'], // Can work with raw data
+      'Synthesizer': ['DataInspector'],
+    };
+    
+    const requiredDeps = dependencies[agentName] || [];
+    
+    for (const dep of requiredDeps) {
+      if (!this.calledAgents.has(dep)) {
+        missing.push(dep);
+      }
+    }
+    
+    return missing;
+  }
+  
+  /**
+   * 🧹 CLEAR DEPENDENT AGENT RESULTS - Remove downstream agents that depend on the rerun agent
+   */
+  private clearDependentAgentResults(agentName: string, context: ResearchContext): void {
+    // Define what agents depend on each agent
+    const dependents: Record<string, string[]> = {
+      'DataInspector': ['PlanningAgent', 'PatternGenerator', 'Extractor', 'SynthesisCoordinator', 'Synthesizer'],
+      'PlanningAgent': ['PatternGenerator', 'Extractor'],
+      'PatternGenerator': ['Extractor'],
+      'Extractor': ['SynthesisCoordinator', 'Synthesizer'],
+      'SynthesisCoordinator': [],
+      'Synthesizer': [],
+    };
+    
+    const toRemove = dependents[agentName] || [];
+    
+    for (const depAgent of toRemove) {
+      if (this.calledAgents.has(depAgent)) {
+        console.log(`🧹 Clearing dependent agent result: ${depAgent}`);
+        this.calledAgents.delete(depAgent);
+        this.agentResults.delete(depAgent);
+        
+        // Clear relevant context based on agent type
+        if (depAgent === 'SynthesisCoordinator' || depAgent === 'Synthesizer') {
+          context.synthesis.answer = '';
+          context.synthesis.confidence = 0;
+        }
+      }
+    }
+  }
+  
+  /**
+   * 💾 CREATE CONTEXT SNAPSHOT - Save current agent results for rerun operations
+   */
+  createContextSnapshot(): { 
+    calledAgents: Set<string>, 
+    agentResults: Map<string, any>,
+    context: Partial<ResearchContext>
+  } {
+    return {
+      calledAgents: new Set(this.calledAgents),
+      agentResults: new Map(this.agentResults),
+      context: {
+        // Add any context state that needs preservation
+        synthesis: { answer: '', confidence: 0 }, // Will be filled by current context
+        sharedKnowledge: {} // Will be filled by current context
+      }
+    };
+  }
+  
+  /**
    * 🧠 MASTER LLM ORCHESTRATION - Intelligent Tool-Call System
    * Makes dynamic decisions about which tools to call and when, like Claude Code/Cursor
    */
@@ -179,7 +470,7 @@ export class Orchestrator {
     console.log(`🎯 Master LLM analyzing situation and planning tool calls...`);
     
     let iterationCount = 0;
-    const maxIterations = 10; // Prevent infinite loops
+    const maxIterations = 15; // Increased to handle skipped agents gracefully
     let currentGoal = `Answer the user's query: "${context.query}"`;
     
     while (iterationCount < maxIterations) {
@@ -221,16 +512,36 @@ export class Orchestrator {
         // Update goal based on results
         currentGoal = decision.nextGoal || currentGoal;
       } else {
-        // 🚨 FIX: Handle case where LLM returns tool name directly as action (common with small models)
-        const possibleToolName = this.normalizeToolName(decision.action);
-        if (this.registry.get(possibleToolName)) {
-          console.log(`🔧 Master LLM returned tool name directly: ${decision.action} → ${possibleToolName}`);
-          await this.executeToolCall(possibleToolName, context);
-          currentGoal = decision.nextGoal || currentGoal;
+        // 🚨 FIX: Check if action is a completion variant first
+        if (/^COMP?LETE$/i.test(decision.action) || /^(DONE|FINISH|END)$/i.test(decision.action)) {
+          console.log(`🏁 Master LLM indicated completion with: "${decision.action}" - treating as COMPLETE`);
+          
+          // Validate completion conditions before allowing completion
+          const canComplete = this.validateCompletionConditions(context);
+          if (canComplete.allowed) {
+            console.log(`✅ Master LLM completed goal: ${decision.reasoning || 'Task complete'}`);
+            break;
+          } else {
+            console.log(`⚠️ Master LLM tried to complete prematurely: ${canComplete.reason}`);
+            console.log(`🔄 Forcing continuation with required agent: ${canComplete.nextAgent}`);
+            // Override completion with required next step
+            if (canComplete.nextAgent) {
+              await this.executeToolCall(canComplete.nextAgent, context);
+              currentGoal = `Continue pipeline: call ${canComplete.nextAgent}`;
+            }
+          }
         } else {
-          console.error(`❌ Master LLM made invalid decision: ${decision.action}`);
-          console.error(`🐛 Full decision:`, decision);
-          break;
+          // 🚨 FIX: Handle case where LLM returns tool name directly as action (common with small models)
+          const possibleToolName = this.normalizeToolName(decision.action);
+          if (this.registry.get(possibleToolName)) {
+            console.log(`🔧 Master LLM returned tool name directly: ${decision.action} → ${possibleToolName}`);
+            await this.executeToolCall(possibleToolName, context);
+            currentGoal = decision.nextGoal || currentGoal;
+          } else {
+            console.error(`❌ Master LLM made invalid decision: ${decision.action}`);
+            console.error(`🐛 Full decision:`, decision);
+            break;
+          }
         }
       }
     }
@@ -259,18 +570,25 @@ ITERATION: ${iteration}
 - Last Agent Called: ${availableData.lastAgentCalled || 'NONE'}
 - Total Agent Calls: ${availableData.agentCallCount}
 
+📊 PIPELINE PHASES:
+${this.getPipelinePhaseStatus(availableData)}
+
 CURRENT SITUATION:
 - Available Documents: ${context.ragResults.chunks.length} chunks PRE-LOADED (no need to search)
 - Document Analysis: ${availableData.dataInspectorCompleted ? 'COMPLETED ✅ - DataInspector already called' : 'NOT DONE ❌ - need DataInspector'}
 - Execution Plan: ${this.getExecutionPlanStatus(context)}
 - Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
 - Data Extracted: ${availableData.extractorCompleted ? 'COMPLETED ✅ - Extractor already called' : 'NOT DONE ❌ - need Extractor'}
-- Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need Synthesizer'}${context.sharedKnowledge.lastSkippedAgent ? `
+- Data Analyzed: ${availableData.dataAnalyzerCompleted ? 'COMPLETED ✅ - DataAnalyzer already called' : 'NOT DONE ❌ - need DataAnalyzer'}
+- Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need synthesis'}${context.sharedKnowledge.lastSkippedAgent ? `
 
-⚠️ LAST SKIPPED AGENT:
-- Agent: ${context.sharedKnowledge.lastSkippedAgent.agent}
+⚠️ IMPORTANT - LAST AGENT WAS SKIPPED:
+- Skipped Agent: ${context.sharedKnowledge.lastSkippedAgent.agent}
 - Reason: ${context.sharedKnowledge.lastSkippedAgent.reason}
-- Guidance: Continue to next step in execution plan` : ''}
+- RECOMMENDED ACTION: ${context.sharedKnowledge.lastSkippedAgent.recommendedNext || 'Continue to next step in execution plan'}
+- Pipeline Status: ${context.sharedKnowledge.lastSkippedAgent.planStatus || 'Check execution plan'}
+
+**CRITICAL**: When an agent is skipped because it's already executed, immediately proceed to the next uncompleted agent in the pipeline. Do not retry the skipped agent.` : ''}
 
 🧠 AVAILABLE TOOLS (use intelligently based on context):
 ${this.buildDynamicToolsList(availableData)}
@@ -294,6 +612,8 @@ ${this.buildDynamicToolsList(availableData)}
 
 🤖 INTELLIGENT DECISION:
 Based on the goal "${currentGoal}" and available data above, what tool should be called next?
+
+${this.getSynthesisGuidance(availableData, context)}
 
 ${availableData.agentCallCount === 0 ? `
 
@@ -622,7 +942,7 @@ NEXT_GOAL: [final goal achieved]`;
     // 🚨 CRITICAL FIX: Take FIRST occurrence, not LAST (prevents overwriting correct decisions)
     for (const line of lines) {
       if (line.startsWith('ACTION:') && !action) {
-        action = line.replace('ACTION:', '').trim();
+        action = line.replace('ACTION:', '').trim().toUpperCase(); // Make case-insensitive
         console.log(`🎯 PARSED ACTION (FIRST):`, action);
       } else if (line.startsWith('TOOL_NAME:') && !toolName) {
         toolName = line.replace('TOOL_NAME:', '').trim();
@@ -685,7 +1005,7 @@ NEXT_GOAL: [final goal achieved]`;
     }
     
     // If no decision context found, check for completion indicators
-    if (!toolName && /complete|done|finish|ready/i.test(decisionSection)) {
+    if (!toolName && /comp?lete|done|finish|ready|end/i.test(decisionSection)) {
       action = 'COMPLETE';
       reasoning = 'Task appears to be complete based on response content';
       console.log(`🏁 FALLBACK FOUND COMPLETION`);
@@ -1194,19 +1514,38 @@ NEXT_GOAL: [final goal achieved]`;
       } else {
         console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
         
-        // 🔧 FIX: Log progression guidance for Master LLM to see in next iteration
+        // 🔧 ENHANCED: Provide clear next-step guidance when agent is skipped
         const planStatus = this.getExecutionPlanStatus(context);
+        const nextGuidance = this.getNextPlannedStep(context, this.analyzeCurrentState(context));
+        
         console.log(`📋 Agent ${normalizedToolName} was already executed successfully.`);
         console.log(`📊 Current Pipeline Status: ${planStatus}`);
-        console.log(`💡 Suggestion: Continue to the next planned step in your execution sequence.`);
+        console.log(`💡 Next Step Guidance: ${nextGuidance}`);
         
-        // Store guidance in context for persistence
+        // Store detailed guidance in context for Master LLM's next iteration
+        const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+        let recommendedNext = 'Continue to next agent in pipeline';
+        
+        if (executionPlan?.steps) {
+          // Find the next uncompleted agent
+          for (const step of executionPlan.steps) {
+            const agentName = this.normalizeToolName(step.agent);
+            if (!this.calledAgents.has(agentName)) {
+              recommendedNext = `Call ${agentName} next - ${step.action}`;
+              break;
+            }
+          }
+        }
+        
         context.sharedKnowledge.lastSkippedAgent = {
           agent: normalizedToolName,
-          reason: 'Already executed',
+          reason: 'Already executed - continue pipeline',
+          recommendedNext: recommendedNext,
           planStatus: planStatus,
           timestamp: Date.now()
         };
+        
+        console.log(`🎯 Recommended Next Action: ${recommendedNext}`);
         return;
       }
     }

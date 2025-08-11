@@ -1,14 +1,3 @@
- # Output
- I couldn't find specific information to answer your query: "give me the best RL  method?"
-
-The data extraction and analysis process completed but didn't yield relevant results. This could be because:
-- The documents don't contain the requested information
-- The query needs to be more specific
-- The extraction patterns need adjustment
-
-Please try rephrasing your query or providing additional context.
-
-# AI Agent 
 🤖 Multi-Agent Process Details
 ════════════════════════════════════════
 
@@ -16,7 +5,7 @@ Please try rephrasing your query or providing additional context.
    Type: DataInspector
    Status: completed
    Progress: 100%
-   Duration: 268180ms
+   Duration: 258265ms
    
    📤 Full Output:
    {
@@ -28,21 +17,11 @@ Please try rephrasing your query or providing additional context.
        ],
        "contentAreas": [
          "Here's an analysis of the document type and sample content",
-         "outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\") - A concise description of the paper's focus.\n*   **Authors:** (Zhihong Shao",
-         "Peiyi Wang",
-         "Qihao Zhu",
-         "etc.) - List of individuals contributing to the work.\n*   **Affiliations:** (Deep Seek-AI",
-         "Tsinghua University",
-         "Peking University) - Institutions associated with the authors.\n*   **Abstract/Introduction:** (First few lines of the sample content) - Briefly summarizes the paper's purpose",
-         "methods",
-         "and findings.\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\") - Describes the techniques used to develop the model.\n*   **Results/Evaluation:** (Mention of \"MMLU\" and \"BBH benchmarks\") - Presents the performance of the model on standard benchmarks.\n*   **Conclusion/Discussion:** (Implied - the statement about \"amplifies general reasoning capabilities\") - Summarizes the key findings and implications.\n*   **References:** (Hendrycks et al.",
-         "Suzgun et al.",
-         "2020",
-         "2022) - Citations of relevant research.\n\n**Specific Types of Information:**\n\n*   **Names:** (Authors",
-         "Affiliations)\n*   **Titles:** (Paper title)\n*   **Keywords:** (Implied - \"mathematical reasoning",
-         "\" \"open language models",
-         "\" \"instruction tuning",
-         "\" \"benchmarks\")\n*   **Methodology:** (Mathematical instruction tuning)\n*   **Results/Metrics:** (Performance on MMLU and BBH benchmarks)\n*   **References:** (Citation information)\n*   **Statements of Significance:** (The claim that the model enhances both mathematical and general reasoning)\n*   **Data/Evaluation:** (Mention of benchmarks)",
+         "outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\")\n*   **Abstract/Introduction:** (The first paragraph serves as a brief overview)\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\")\n*   **Results/Evaluation:** (Reference to \"MMLU\" and \"BBH benchmarks\")\n*   **Conclusion/Discussion:** (Implied - summarizing the findings)\n\n**Specific Types of Information:**\n\n*   **Authors:** (List of names with affiliations)\n*   **Affiliations:** (Institutions and locations)\n*   **References:** (Citation to \"Hendrycks et al.",
+         "2020\" and \"Suzgun et al.",
+         "2022\")\n*   **Keywords/Topic:** (Mathematical reasoning",
+         "Open Language Models",
+         "Instruction Tuning)\n*   **Claims/Findings:** (The model enhances mathematical abilities and general reasoning)\n*   **Experimental Data:** (Mention of benchmarks like MMLU and BBH)\n*   **Methodological Details:** (Reference to \"mathematical instruction tuning\")",
          "Abstract",
          "Introduction",
          "Literature Review",
@@ -50,17 +29,22 @@ Please try rephrasing your query or providing additional context.
          "Results",
          "Discussion",
          "Conclusion",
-         "References.\n\n\n\n**Content Types:**\n\n*   Title",
-         "Author",
-         "Date",
-         "Abstract",
-         "Introduction",
-         "Literature Review",
-         "Methodology",
-         "Results",
-         "Discussion",
-         "Conclusion",
-         "References."
+         "References",
+         "Acknowledgements (likely)",
+         "Future Work (possibly)\n\n\n\n**Specific types of information:**\n\n*   **Title:** (e.g.",
+         "\"LLMS FORENGINEEERING: TEACHING MODELS TO DESIGN HIGH POWERED ROCKETS\")\n*   **Author(s):** (e.g.",
+         "\"Toby Simonds\")\n*   **Affiliation:** (e.g.",
+         "\"Tufa Labs\")\n*   **Date:** (e.g.",
+         "\"May 1",
+         "2025\")\n*   **Keywords:** (Implied",
+         "but not explicitly stated - likely related to LLMs",
+         "rocket design",
+         "computational efficiency)\n*   **Summary/Overview:** (Abstract)\n*   **Methodology:** (Description of the approach used)\n*   **Results:** (Findings of the research)\n*   **Discussion:** (Interpretation and analysis of the results)\n*   **Conclusion:** (Summary of the key findings and implications)\n*   **References:** (Citations of other works)\n*   **Specific Algorithms/Techniques:** (e.g.",
+         "\"novel matrix multiplication algorithms",
+         "\" \"low-level sorting algorithms",
+         "\" \"parameter space exploration\")\n*   **Software/Hardware:** (e.g.",
+         "\"Alpha Dev",
+         "\" \"Alpha Chip\")\n*   **Performance Metrics:** (Implied - likely related to computational efficiency)"
        ],
        "queryIntent": "Extract information from 2 relevant documents",
        "extractionStrategy": "Extract from each relevant document separately with proper attribution",
@@ -70,133 +54,26 @@ Please try rephrasing your query or providing additional context.
            "documentId": "doc_1754658663251_vpl5u967b",
            "documentName": "doc_1754658663251_vpl5u967b",
            "documentType": "** Research paper/Technical report",
-           "primaryEntity": "** Reinforcement Learning for Mathematical Reasoning",
+           "primaryEntity": "** Reinforcement Learning for Math Reasoning",
            "structure": [
              "** research paper/technical report sections"
            ],
            "contentAreas": [
              "Here's an analysis of the document type and sample content",
-             "outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\") - A concise description of the paper's focus.\n*   **Authors:** (Zhihong Shao",
-             "Peiyi Wang",
-             "Qihao Zhu",
-             "etc.) - List of individuals contributing to the work.\n*   **Affiliations:** (Deep Seek-AI",
-             "Tsinghua University",
-             "Peking University) - Institutions associated with the authors.\n*   **Abstract/Introduction:** (First few lines of the sample content) - Briefly summarizes the paper's purpose",
-             "methods",
-             "and findings.\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\") - Describes the techniques used to develop the model.\n*   **Results/Evaluation:** (Mention of \"MMLU\" and \"BBH benchmarks\") - Presents the performance of the model on standard benchmarks.\n*   **Conclusion/Discussion:** (Implied - the statement about \"amplifies general reasoning capabilities\") - Summarizes the key findings and implications.\n*   **References:** (Hendrycks et al.",
-             "Suzgun et al.",
-             "2020",
-             "2022) - Citations of relevant research.\n\n**Specific Types of Information:**\n\n*   **Names:** (Authors",
-             "Affiliations)\n*   **Titles:** (Paper title)\n*   **Keywords:** (Implied - \"mathematical reasoning",
-             "\" \"open language models",
-             "\" \"instruction tuning",
-             "\" \"benchmarks\")\n*   **Methodology:** (Mathematical instruction tuning)\n*   **Results/Metrics:** (Performance on MMLU and BBH benchmarks)\n*   **References:** (Citation information)\n*   **Statements of Significance:** (The claim that the model enhances both mathematical and general reasoning)\n*   **Data/Evaluation:** (Mention of benchmarks)"
+             "outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\")\n*   **Abstract/Introduction:** (The first paragraph serves as a brief overview)\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\")\n*   **Results/Evaluation:** (Reference to \"MMLU\" and \"BBH benchmarks\")\n*   **Conclusion/Discussion:** (Implied - summarizing the findings)\n\n**Specific Types of Information:**\n\n*   **Authors:** (List of names with affiliations)\n*   **Affiliations:** (Institutions and locations)\n*   **References:** (Citation to \"Hendrycks et al.",
+             "2020\" and \"Suzgun et al.",
+             "2022\")\n*   **Keywords/Topic:** (Mathematical reasoning",
+             "Open Language Models",
+             "Instruction Tuning)\n*   **Claims/Findings:** (The model enhances mathematical abilities and general reasoning)\n*   **Experimental Data:** (Mention of benchmarks like MMLU and BBH)\n*   **Methodological Details:** (Reference to \"mathematical instruction tuning\")"
            ],
-           "keyEntities": [
-             {
-               "name": "Zhihong Shao",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Peiyi Wang",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Qihao Zhu",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Runxin Xu",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Junxiao Song",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Xiao Bi",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Haowei Zhang",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Mingchuan Zhang",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Y. K. Li",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Y. Wu",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Daya Guo",
-               "type": "Person",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Deep Seek-AI",
-               "type": "Company",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Tsinghua University",
-               "type": "Company",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "Peking University",
-               "type": "Company",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "MMLU",
-               "type": "Project/Benchmark",
-               "context": "Unknown role",
-               "isOwner": false
-             },
-             {
-               "name": "BBH benchmarks",
-               "type": "Project/Benchmark",
-               "context": "Unknown role",
-               "isOwner": false
-             }
-           ],
+           "keyEntities": [],
            "role": "source"
          },
          {
            "documentId": "doc_1754658915966_7rvdl7exw",
            "documentName": "doc_1754658915966_7rvdl7exw",
            "documentType": "** Research Paper/Preprint",
-           "primaryEntity": "** Large Language Models (LLMs) in Rocketry Design",
+           "primaryEntity": "** Large Language Models in Aerospace Engineering",
            "structure": [
              "** research paper/preprint sections"
            ],
@@ -208,17 +85,22 @@ Please try rephrasing your query or providing additional context.
              "Results",
              "Discussion",
              "Conclusion",
-             "References.\n\n\n\n**Content Types:**\n\n*   Title",
-             "Author",
-             "Date",
-             "Abstract",
-             "Introduction",
-             "Literature Review",
-             "Methodology",
-             "Results",
-             "Discussion",
-             "Conclusion",
-             "References."
+             "References",
+             "Acknowledgements (likely)",
+             "Future Work (possibly)\n\n\n\n**Specific types of information:**\n\n*   **Title:** (e.g.",
+             "\"LLMS FORENGINEEERING: TEACHING MODELS TO DESIGN HIGH POWERED ROCKETS\")\n*   **Author(s):** (e.g.",
+             "\"Toby Simonds\")\n*   **Affiliation:** (e.g.",
+             "\"Tufa Labs\")\n*   **Date:** (e.g.",
+             "\"May 1",
+             "2025\")\n*   **Keywords:** (Implied",
+             "but not explicitly stated - likely related to LLMs",
+             "rocket design",
+             "computational efficiency)\n*   **Summary/Overview:** (Abstract)\n*   **Methodology:** (Description of the approach used)\n*   **Results:** (Findings of the research)\n*   **Discussion:** (Interpretation and analysis of the results)\n*   **Conclusion:** (Summary of the key findings and implications)\n*   **References:** (Citations of other works)\n*   **Specific Algorithms/Techniques:** (e.g.",
+             "\"novel matrix multiplication algorithms",
+             "\" \"low-level sorting algorithms",
+             "\" \"parameter space exploration\")\n*   **Software/Hardware:** (e.g.",
+             "\"Alpha Dev",
+             "\" \"Alpha Chip\")\n*   **Performance Metrics:** (Implied - likely related to computational efficiency)"
            ],
            "keyEntities": [],
            "role": "reference"
@@ -238,7 +120,7 @@ Please try rephrasing your query or providing additional context.
    Type: PlanningAgent
    Status: completed
    Progress: 100%
-   Duration: 25691ms
+   Duration: 34904ms
    
    📤 Full Output:
    {
@@ -252,36 +134,26 @@ Please try rephrasing your query or providing additional context.
    Type: PatternGenerator
    Status: completed
    Progress: 100%
-   Duration: 63210ms
+   Duration: 69025ms
    
    📤 Full Output:
    {
      "patterns": [
        {
-         "description": "** Research paper/Technical report extraction pattern for ** Reinforcement Learning for Mathematical Reasoning",
+         "description": "** Research paper/Technical report extraction pattern for ** Reinforcement Learning for Math Reasoning",
          "examples": [
            "Here's an analysis of the document type and sample content",
-           "outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\") - A concise description of the paper's focus.\n*   **Authors:** (Zhihong Shao",
-           "Peiyi Wang",
-           "Qihao Zhu",
-           "etc.) - List of individuals contributing to the work.\n*   **Affiliations:** (Deep Seek-AI",
-           "Tsinghua University",
-           "Peking University) - Institutions associated with the authors.\n*   **Abstract/Introduction:** (First few lines of the sample content) - Briefly summarizes the paper's purpose",
-           "methods",
-           "and findings.\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\") - Describes the techniques used to develop the model.\n*   **Results/Evaluation:** (Mention of \"MMLU\" and \"BBH benchmarks\") - Presents the performance of the model on standard benchmarks.\n*   **Conclusion/Discussion:** (Implied - the statement about \"amplifies general reasoning capabilities\") - Summarizes the key findings and implications.\n*   **References:** (Hendrycks et al.",
-           "Suzgun et al.",
-           "2020",
-           "2022) - Citations of relevant research.\n\n**Specific Types of Information:**\n\n*   **Names:** (Authors",
-           "Affiliations)\n*   **Titles:** (Paper title)\n*   **Keywords:** (Implied - \"mathematical reasoning",
-           "\" \"open language models",
-           "\" \"instruction tuning",
-           "\" \"benchmarks\")\n*   **Methodology:** (Mathematical instruction tuning)\n*   **Results/Metrics:** (Performance on MMLU and BBH benchmarks)\n*   **References:** (Citation information)\n*   **Statements of Significance:** (The claim that the model enhances both mathematical and general reasoning)\n*   **Data/Evaluation:** (Mention of benchmarks)"
+           "outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\")\n*   **Abstract/Introduction:** (The first paragraph serves as a brief overview)\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\")\n*   **Results/Evaluation:** (Reference to \"MMLU\" and \"BBH benchmarks\")\n*   **Conclusion/Discussion:** (Implied - summarizing the findings)\n\n**Specific Types of Information:**\n\n*   **Authors:** (List of names with affiliations)\n*   **Affiliations:** (Institutions and locations)\n*   **References:** (Citation to \"Hendrycks et al.",
+           "2020\" and \"Suzgun et al.",
+           "2022\")\n*   **Keywords/Topic:** (Mathematical reasoning",
+           "Open Language Models",
+           "Instruction Tuning)\n*   **Claims/Findings:** (The model enhances mathematical abilities and general reasoning)\n*   **Experimental Data:** (Mention of benchmarks like MMLU and BBH)\n*   **Methodological Details:** (Reference to \"mathematical instruction tuning\")"
          ],
-         "extractionStrategy": "Extract Here's an analysis of the document type and sample content, outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\") - A concise description of the paper's focus.\n*   **Authors:** (Zhihong Shao, Peiyi Wang, Qihao Zhu, etc.) - List of individuals contributing to the work.\n*   **Affiliations:** (Deep Seek-AI, Tsinghua University, Peking University) - Institutions associated with the authors.\n*   **Abstract/Introduction:** (First few lines of the sample content) - Briefly summarizes the paper's purpose, methods, and findings.\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\") - Describes the techniques used to develop the model.\n*   **Results/Evaluation:** (Mention of \"MMLU\" and \"BBH benchmarks\") - Presents the performance of the model on standard benchmarks.\n*   **Conclusion/Discussion:** (Implied - the statement about \"amplifies general reasoning capabilities\") - Summarizes the key findings and implications.\n*   **References:** (Hendrycks et al., Suzgun et al., 2020, 2022) - Citations of relevant research.\n\n**Specific Types of Information:**\n\n*   **Names:** (Authors, Affiliations)\n*   **Titles:** (Paper title)\n*   **Keywords:** (Implied - \"mathematical reasoning, \" \"open language models, \" \"instruction tuning, \" \"benchmarks\")\n*   **Methodology:** (Mathematical instruction tuning)\n*   **Results/Metrics:** (Performance on MMLU and BBH benchmarks)\n*   **References:** (Citation information)\n*   **Statements of Significance:** (The claim that the model enhances both mathematical and general reasoning)\n*   **Data/Evaluation:** (Mention of benchmarks) from doc_1754658663251_vpl5u967b",
+         "extractionStrategy": "Extract Here's an analysis of the document type and sample content, outlining the structure and information types:\n\n**Main Content Areas/Sections:**\n\n*   **Title:** (Implied - \"Deep Seek Math: ...\")\n*   **Abstract/Introduction:** (The first paragraph serves as a brief overview)\n*   **Methodology/Approach:** (Mention of \"mathematical instruction tuning\")\n*   **Results/Evaluation:** (Reference to \"MMLU\" and \"BBH benchmarks\")\n*   **Conclusion/Discussion:** (Implied - summarizing the findings)\n\n**Specific Types of Information:**\n\n*   **Authors:** (List of names with affiliations)\n*   **Affiliations:** (Institutions and locations)\n*   **References:** (Citation to \"Hendrycks et al., 2020\" and \"Suzgun et al., 2022\")\n*   **Keywords/Topic:** (Mathematical reasoning, Open Language Models, Instruction Tuning)\n*   **Claims/Findings:** (The model enhances mathematical abilities and general reasoning)\n*   **Experimental Data:** (Mention of benchmarks like MMLU and BBH)\n*   **Methodological Details:** (Reference to \"mathematical instruction tuning\") from doc_1754658663251_vpl5u967b",
          "confidence": 0.9
        },
        {
-         "description": "** Research Paper/Preprint extraction pattern for ** Large Language Models (LLMs) in Rocketry Design",
+         "description": "** Research Paper/Preprint extraction pattern for ** Large Language Models in Aerospace Engineering",
          "examples": [
            "Abstract",
            "Introduction",
@@ -290,19 +162,24 @@ Please try rephrasing your query or providing additional context.
            "Results",
            "Discussion",
            "Conclusion",
-           "References.\n\n\n\n**Content Types:**\n\n*   Title",
-           "Author",
-           "Date",
-           "Abstract",
-           "Introduction",
-           "Literature Review",
-           "Methodology",
-           "Results",
-           "Discussion",
-           "Conclusion",
-           "References."
+           "References",
+           "Acknowledgements (likely)",
+           "Future Work (possibly)\n\n\n\n**Specific types of information:**\n\n*   **Title:** (e.g.",
+           "\"LLMS FORENGINEEERING: TEACHING MODELS TO DESIGN HIGH POWERED ROCKETS\")\n*   **Author(s):** (e.g.",
+           "\"Toby Simonds\")\n*   **Affiliation:** (e.g.",
+           "\"Tufa Labs\")\n*   **Date:** (e.g.",
+           "\"May 1",
+           "2025\")\n*   **Keywords:** (Implied",
+           "but not explicitly stated - likely related to LLMs",
+           "rocket design",
+           "computational efficiency)\n*   **Summary/Overview:** (Abstract)\n*   **Methodology:** (Description of the approach used)\n*   **Results:** (Findings of the research)\n*   **Discussion:** (Interpretation and analysis of the results)\n*   **Conclusion:** (Summary of the key findings and implications)\n*   **References:** (Citations of other works)\n*   **Specific Algorithms/Techniques:** (e.g.",
+           "\"novel matrix multiplication algorithms",
+           "\" \"low-level sorting algorithms",
+           "\" \"parameter space exploration\")\n*   **Software/Hardware:** (e.g.",
+           "\"Alpha Dev",
+           "\" \"Alpha Chip\")\n*   **Performance Metrics:** (Implied - likely related to computational efficiency)"
          ],
-         "extractionStrategy": "Extract Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, References.\n\n\n\n**Content Types:**\n\n*   Title, Author, Date, Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, References. from doc_1754658915966_7rvdl7exw",
+         "extractionStrategy": "Extract Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, References, Acknowledgements (likely), Future Work (possibly)\n\n\n\n**Specific types of information:**\n\n*   **Title:** (e.g., \"LLMS FORENGINEEERING: TEACHING MODELS TO DESIGN HIGH POWERED ROCKETS\")\n*   **Author(s):** (e.g., \"Toby Simonds\")\n*   **Affiliation:** (e.g., \"Tufa Labs\")\n*   **Date:** (e.g., \"May 1, 2025\")\n*   **Keywords:** (Implied, but not explicitly stated - likely related to LLMs, rocket design, computational efficiency)\n*   **Summary/Overview:** (Abstract)\n*   **Methodology:** (Description of the approach used)\n*   **Results:** (Findings of the research)\n*   **Discussion:** (Interpretation and analysis of the results)\n*   **Conclusion:** (Summary of the key findings and implications)\n*   **References:** (Citations of other works)\n*   **Specific Algorithms/Techniques:** (e.g., \"novel matrix multiplication algorithms, \" \"low-level sorting algorithms, \" \"parameter space exploration\")\n*   **Software/Hardware:** (e.g., \"Alpha Dev, \" \"Alpha Chip\")\n*   **Performance Metrics:** (Implied - likely related to computational efficiency) from doc_1754658915966_7rvdl7exw",
          "confidence": 0.9
        },
        {
@@ -315,486 +192,302 @@ Please try rephrasing your query or providing additional context.
        {
          "description": "LLM-generated regex pattern 2",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /reinf(orcement) learning/gi",
+         "extractionStrategy": "Direct regex search using: /deep seek-llm/gi",
          "confidence": 0.9,
-         "regexPattern": "/reinf(orcement) learning/gi"
+         "regexPattern": "/deep seek-llm/gi"
        },
        {
          "description": "LLM-generated regex pattern 3",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /reinforcement learning/gi",
+         "extractionStrategy": "Direct regex search using: /hai-llm/gi",
          "confidence": 0.9,
-         "regexPattern": "/reinforcement learning/gi"
+         "regexPattern": "/hai-llm/gi"
        },
        {
          "description": "LLM-generated regex pattern 4",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /reinforce learning/gi",
+         "extractionStrategy": "Direct regex search using: /adam w/gi",
          "confidence": 0.9,
-         "regexPattern": "/reinforce learning/gi"
+         "regexPattern": "/adam w/gi"
        },
        {
          "description": "LLM-generated regex pattern 5",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /deep seek-llm/gi",
+         "extractionStrategy": "Direct regex search using: /proof-pile-2/gi",
          "confidence": 0.9,
-         "regexPattern": "/deep seek-llm/gi"
+         "regexPattern": "/proof-pile-2/gi"
        },
        {
          "description": "LLM-generated regex pattern 6",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /deep seek/gi",
+         "extractionStrategy": "Direct regex search using: /azerbayev et al. (2023)/gi",
          "confidence": 0.9,
-         "regexPattern": "/deep seek/gi"
+         "regexPattern": "/azerbayev et al. (2023)/gi"
        },
        {
          "description": "LLM-generated regex pattern 7",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /deep seek-llm/gi",
+         "extractionStrategy": "Direct regex search using: /mini f2f/gi",
          "confidence": 0.9,
-         "regexPattern": "/deep seek-llm/gi"
+         "regexPattern": "/mini f2f/gi"
        },
        {
          "description": "LLM-generated regex pattern 8",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /deep seek-ai/gi",
+         "extractionStrategy": "Direct regex search using: /sledgehammer/gi",
          "confidence": 0.9,
-         "regexPattern": "/deep seek-ai/gi"
+         "regexPattern": "/sledgehammer/gi"
        },
        {
          "description": "LLM-generated regex pattern 9",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /hai-llm/gi",
-         "confidence": 0.9,
-         "regexPattern": "/hai-llm/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 10",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /high-flyer/gi",
-         "confidence": 0.9,
-         "regexPattern": "/high-flyer/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 11",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /hai-llm/gi",
-         "confidence": 0.9,
-         "regexPattern": "/hai-llm/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 12",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /adam w/gi",
-         "confidence": 0.9,
-         "regexPattern": "/adam w/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 13",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /adam w/gi",
-         "confidence": 0.9,
-         "regexPattern": "/adam w/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 14",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /adam w/gi",
-         "confidence": 0.9,
-         "regexPattern": "/adam w/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 15",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /proof-pile-2/gi",
-         "confidence": 0.9,
-         "regexPattern": "/proof-pile-2/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 16",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /proof-pile-2/gi",
-         "confidence": 0.9,
-         "regexPattern": "/proof-pile-2/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 17",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /azerbayev et al. (2023)/gi",
-         "confidence": 0.9,
-         "regexPattern": "/azerbayev et al. (2023)/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 18",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /azerbayev et al./gi",
-         "confidence": 0.9,
-         "regexPattern": "/azerbayev et al./gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 19",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /azerbayev et al. (2023)/gi",
-         "confidence": 0.9,
-         "regexPattern": "/azerbayev et al. (2023)/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 20",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /mini f2f/gi",
-         "confidence": 0.9,
-         "regexPattern": "/mini f2f/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 21",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /mini f2f/gi",
-         "confidence": 0.9,
-         "regexPattern": "/mini f2f/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 22",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /sledghammer/gi",
-         "confidence": 0.9,
-         "regexPattern": "/sledghammer/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 23",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /sledghammer/gi",
-         "confidence": 0.9,
-         "regexPattern": "/sledghammer/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 24",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /few-shot prompting/gi",
-         "confidence": 0.9,
-         "regexPattern": "/few-shot prompting/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 25",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /few shot prompting/gi",
-         "confidence": 0.9,
-         "regexPattern": "/few shot prompting/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 26",
          "examples": [],
          "extractionStrategy": "Direct regex search using: /baichuan-34/gi",
          "confidence": 0.9,
          "regexPattern": "/baichuan-34/gi"
        },
        {
-         "description": "LLM-generated regex pattern 27",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /bai-chuan-34/gi",
-         "confidence": 0.9,
-         "regexPattern": "/bai-chuan-34/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 28",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /bai-chuan-34/gi",
-         "confidence": 0.9,
-         "regexPattern": "/bai-chuan-34/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 29",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /openai/gi",
-         "confidence": 0.9,
-         "regexPattern": "/openai/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 30",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /openai/gi",
-         "confidence": 0.9,
-         "regexPattern": "/openai/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 31",
+         "description": "LLM-generated regex pattern 10",
          "examples": [],
          "extractionStrategy": "Direct regex search using: /glm-45/gi",
          "confidence": 0.9,
          "regexPattern": "/glm-45/gi"
        },
        {
-         "description": "LLM-generated regex pattern 32",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /glm-45/gi",
-         "confidence": 0.9,
-         "regexPattern": "/glm-45/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 33",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /chatgpt plugins/gi",
-         "confidence": 0.9,
-         "regexPattern": "/chatgpt plugins/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 34",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /chatgpt plugins/gi",
-         "confidence": 0.9,
-         "regexPattern": "/chatgpt plugins/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 35",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /alignment procedures/gi",
-         "confidence": 0.9,
-         "regexPattern": "/alignment procedures/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 36",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /alignment procedures/gi",
-         "confidence": 0.9,
-         "regexPattern": "/alignment procedures/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 37",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /training framework/gi",
-         "confidence": 0.9,
-         "regexPattern": "/training framework/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 38",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /training framework/gi",
-         "confidence": 0.9,
-         "regexPattern": "/training framework/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 39",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /learning rate/gi",
-         "confidence": 0.9,
-         "regexPattern": "/learning rate/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 40",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /learning rate/gi",
-         "confidence": 0.9,
-         "regexPattern": "/learning rate/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 41",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /batch size/gi",
-         "confidence": 0.9,
-         "regexPattern": "/batch size/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 42",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /batch size/gi",
-         "confidence": 0.9,
-         "regexPattern": "/batch size/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 43",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /model card/gi",
-         "confidence": 0.9,
-         "regexPattern": "/model card/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 44",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /model card/gi",
-         "confidence": 0.9,
-         "regexPattern": "/model card/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 45",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /open source models/gi",
-         "confidence": 0.9,
-         "regexPattern": "/open source models/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 46",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /open source models/gi",
-         "confidence": 0.9,
-         "regexPattern": "/open source models/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 47",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /natural language processing/gi",
-         "confidence": 0.9,
-         "regexPattern": "/natural language processing/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 48",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /natural language processing/gi",
-         "confidence": 0.9,
-         "regexPattern": "/natural language processing/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 49",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /formal proof/gi",
-         "confidence": 0.9,
-         "regexPattern": "/formal proof/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 50",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /formal proof/gi",
-         "confidence": 0.9,
-         "regexPattern": "/formal proof/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 51",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /theorem proving/gi",
-         "confidence": 0.9,
-         "regexPattern": "/theorem proving/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 52",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /theorem proving/gi",
-         "confidence": 0.9,
-         "regexPattern": "/theorem proving/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 53",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /off-the-shelf automated prover/gi",
-         "confidence": 0.9,
-         "regexPattern": "/off-the-shelf automated prover/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 54",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /off the shelf automated prover/gi",
-         "confidence": 0.9,
-         "regexPattern": "/off the shelf automated prover/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 55",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /optimization/gi",
-         "confidence": 0.9,
-         "regexPattern": "/optimization/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 56",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /optimization/gi",
-         "confidence": 0.9,
-         "regexPattern": "/optimization/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 57",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /give me the best RL method?/gi",
-         "confidence": 0.9,
-         "regexPattern": "/give me the best RL method?/gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 58",
-         "examples": [],
-         "extractionStrategy": "Direct regex search using: /best RL method./gi",
-         "confidence": 0.9,
-         "regexPattern": "/best RL method./gi"
-       },
-       {
-         "description": "LLM-generated regex pattern 59",
+         "description": "LLM-generated regex pattern 11",
          "examples": [],
          "extractionStrategy": "Direct regex search using: /reinforcement learning/gi",
          "confidence": 0.9,
          "regexPattern": "/reinforcement learning/gi"
        },
        {
-         "description": "LLM-generated regex pattern 60",
+         "description": "LLM-generated regex pattern 12",
          "examples": [],
-         "extractionStrategy": "Direct regex search using: /training framework./gi",
+         "extractionStrategy": "Direct regex search using: /deep seek-llm/gi",
          "confidence": 0.9,
-         "regexPattern": "/training framework./gi"
+         "regexPattern": "/deep seek-llm/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 13",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /training setting/gi",
+         "confidence": 0.9,
+         "regexPattern": "/training setting/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 14",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /optimization/gi",
+         "confidence": 0.9,
+         "regexPattern": "/optimization/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 15",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /learning rate/gi",
+         "confidence": 0.9,
+         "regexPattern": "/learning rate/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 16",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /batch size/gi",
+         "confidence": 0.9,
+         "regexPattern": "/batch size/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 17",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /tool-integrated reasoning/gi",
+         "confidence": 0.9,
+         "regexPattern": "/tool-integrated reasoning/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 18",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /chain-of-thought/gi",
+         "confidence": 0.9,
+         "regexPattern": "/chain-of-thought/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 19",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /program-of-thought/gi",
+         "confidence": 0.9,
+         "regexPattern": "/program-of-thought/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 20",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /mathematical reasoning/gi",
+         "confidence": 0.9,
+         "regexPattern": "/mathematical reasoning/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 21",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /proof generation/gi",
+         "confidence": 0.9,
+         "regexPattern": "/proof generation/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 22",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /formal theorem proving/gi",
+         "confidence": 0.9,
+         "regexPattern": "/formal theorem proving/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 23",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /alignment procedures/gi",
+         "confidence": 0.9,
+         "regexPattern": "/alignment procedures/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 24",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /open-source models/gi",
+         "confidence": 0.9,
+         "regexPattern": "/open-source models/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 25",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /general purpose models/gi",
+         "confidence": 0.9,
+         "regexPattern": "/general purpose models/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 26",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /model card/gi",
+         "confidence": 0.9,
+         "regexPattern": "/model card/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 27",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /training pipeline/gi",
+         "confidence": 0.9,
+         "regexPattern": "/training pipeline/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 28",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /pre-training/gi",
+         "confidence": 0.9,
+         "regexPattern": "/pre-training/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 29",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /fine-tuning/gi",
+         "confidence": 0.9,
+         "regexPattern": "/fine-tuning/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 30",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /benchmarks/gi",
+         "confidence": 0.9,
+         "regexPattern": "/benchmarks/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 31",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /mathematical corpus/gi",
+         "confidence": 0.9,
+         "regexPattern": "/mathematical corpus/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 32",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /language model/gi",
+         "confidence": 0.9,
+         "regexPattern": "/language model/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 33",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /natural language processing/gi",
+         "confidence": 0.9,
+         "regexPattern": "/natural language processing/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 34",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /inference/gi",
+         "confidence": 0.9,
+         "regexPattern": "/inference/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 35",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /evaluation metrics/gi",
+         "confidence": 0.9,
+         "regexPattern": "/evaluation metrics/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 36",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /give me the best RL method/gi",
+         "confidence": 0.9,
+         "regexPattern": "/give me the best RL method/gi"
+       },
+       {
+         "description": "LLM-generated regex pattern 37",
+         "examples": [],
+         "extractionStrategy": "Direct regex search using: /best RL method./gi",
+         "confidence": 0.9,
+         "regexPattern": "/best RL method./gi"
        }
      ],
-     "patternCount": 62,
+     "patternCount": 39,
      "extractionStrategies": {
        "generatedPatterns": [
          "/reinforcement learning/gi",
-         "/reinf(orcement) learning/gi",
-         "/reinforcement learning/gi",
-         "/reinforce learning/gi",
          "/deep seek-llm/gi",
-         "/deep seek/gi",
-         "/deep seek-llm/gi",
-         "/deep seek-ai/gi",
-         "/hai-llm/gi",
-         "/high-flyer/gi",
          "/hai-llm/gi",
          "/adam w/gi",
-         "/adam w/gi",
-         "/adam w/gi",
-         "/proof-pile-2/gi",
          "/proof-pile-2/gi",
          "/azerbayev et al. (2023)/gi",
-         "/azerbayev et al./gi",
-         "/azerbayev et al. (2023)/gi",
          "/mini f2f/gi",
-         "/mini f2f/gi",
-         "/sledghammer/gi",
-         "/sledghammer/gi",
-         "/few-shot prompting/gi",
-         "/few shot prompting/gi",
+         "/sledgehammer/gi",
          "/baichuan-34/gi",
-         "/bai-chuan-34/gi",
-         "/bai-chuan-34/gi",
-         "/openai/gi",
-         "/openai/gi",
          "/glm-45/gi",
-         "/glm-45/gi",
-         "/chatgpt plugins/gi",
-         "/chatgpt plugins/gi",
-         "/alignment procedures/gi",
-         "/alignment procedures/gi",
-         "/training framework/gi",
-         "/training framework/gi",
-         "/learning rate/gi",
-         "/learning rate/gi",
-         "/batch size/gi",
-         "/batch size/gi",
-         "/model card/gi",
-         "/model card/gi",
-         "/open source models/gi",
-         "/open source models/gi",
-         "/natural language processing/gi",
-         "/natural language processing/gi",
-         "/formal proof/gi",
-         "/formal proof/gi",
-         "/theorem proving/gi",
-         "/theorem proving/gi",
-         "/off-the-shelf automated prover/gi",
-         "/off the shelf automated prover/gi",
-         "/optimization/gi",
-         "/optimization/gi",
-         "/give me the best RL method?/gi",
-         "/best RL method./gi",
          "/reinforcement learning/gi",
-         "/training framework./gi"
+         "/deep seek-llm/gi",
+         "/training setting/gi",
+         "/optimization/gi",
+         "/learning rate/gi",
+         "/batch size/gi",
+         "/tool-integrated reasoning/gi",
+         "/chain-of-thought/gi",
+         "/program-of-thought/gi",
+         "/mathematical reasoning/gi",
+         "/proof generation/gi",
+         "/formal theorem proving/gi",
+         "/alignment procedures/gi",
+         "/open-source models/gi",
+         "/general purpose models/gi",
+         "/model card/gi",
+         "/training pipeline/gi",
+         "/pre-training/gi",
+         "/fine-tuning/gi",
+         "/benchmarks/gi",
+         "/mathematical corpus/gi",
+         "/language model/gi",
+         "/natural language processing/gi",
+         "/inference/gi",
+         "/evaluation metrics/gi",
+         "/give me the best RL method/gi",
+         "/best RL method./gi"
        ],
        "generationMethod": "llm_dynamic_regex",
        "basedOnDocumentAnalysis": false,
-       "timestamp": 1754916621614,
+       "timestamp": 1754929856202,
        "agentSource": "PatternGenerator",
-       "llmResponse": "Here are a few regex patterns designed to extract information relevant to the user query \"give me the best RL method?\". They are formatted as requested and include both specific terms and broader context patterns.\n\n/reinforcement learning/gi\n/reinf(orcement) learning/gi\n/reinforcement learning/gi\n/reinforce learning/gi\n\n/deep seek-llm/gi\n/deep seek/gi\n/deep seek-llm/gi\n/deep seek-ai/gi\n\n/hai-llm/gi\n/high-flyer/gi\n/hai-llm/gi\n\n/adam w/gi\n/adam w/gi\n/adam w/gi\n\n/proof-pile-2/gi\n/proof-pile-2/gi\n\n/azerbayev et al. (2023)/gi\n/azerbayev et al./gi\n/azerbayev et al. (2023)/gi\n\n/mini f2f/gi\n/mini f2f/gi\n\n/sledghammer/gi\n/sledghammer/gi\n\n/few-shot prompting/gi\n/few shot prompting/gi\n\n/baichuan-34/gi\n/bai-chuan-34/gi\n/bai-chuan-34/gi\n\n/openai/gi\n/openai/gi\n\n/glm-45/gi\n/glm-45/gi\n\n/chatgpt plugins/gi\n/chatgpt plugins/gi\n\n/alignment procedures/gi\n/alignment procedures/gi\n\n/training framework/gi\n/training framework/gi\n\n/learning rate/gi\n/learning rate/gi\n\n/batch size/gi\n/batch size/gi\n\n/model card/gi\n/model card/gi\n\n/open source models/gi\n/open source models/gi\n\n/natural language processing/gi\n/natural language processing/gi\n\n/formal proof/gi\n/formal proof/gi\n\n/theorem proving/gi\n/theorem proving/gi\n\n/off-the-shelf automated prover/gi\n/off the shelf automated prover/gi\n\n/optimization/gi\n/optimization/gi\n\n\n\nThese patterns aim to capture the key terms and concepts mentioned in the document samples, which are highly relevant to the user's query about the \"best RL method.\" They cover both specific model names and broader concepts like \"reinforcement learning\" and \"training framework.\""
+       "llmResponse": "Here are some regex patterns designed to extract information relevant to the user query \"give me the best RL method\" from the provided document content. They are formatted as requested and include both specific terms and broader context patterns.\n\n1. /reinforcement learning/gi\n2. /deep seek-llm/gi\n3. /hai-llm/gi\n4. /adam w/gi\n5. /proof-pile-2/gi\n6. /azerbayev et al. (2023)/gi\n7. /mini f2f/gi\n8. /sledgehammer/gi\n9. /baichuan-34/gi\n10. /glm-45/gi\n11. /reinforcement learning/gi\n12. /deep seek-llm/gi\n13. /training setting/gi\n14. /optimization/gi\n15. /learning rate/gi\n16. /batch size/gi\n17. /tool-integrated reasoning/gi\n18. /chain-of-thought/gi\n19. /program-of-thought/gi\n20. /mathematical reasoning/gi\n21. /proof generation/gi\n22. /formal theorem proving/gi\n23. /alignment procedures/gi\n24. /open-source models/gi\n25. /general purpose models/gi\n26. /model card/gi\n27. /training pipeline/gi\n28. /pre-training/gi\n29. /fine-tuning/gi\n30. /benchmarks/gi\n31. /mathematical corpus/gi\n32. /language model/gi\n33. /natural language processing/gi\n34. /inference/gi\n35. /evaluation metrics/gi\n\n\n\nThese patterns aim to capture the key terms and concepts discussed in the documents, which are directly related to the user's query about the \"best RL method.\" They cover various aspects like specific models, training techniques, and evaluation methods."
      },
      "reasoning": "Pattern generation completed"
    }
@@ -805,7 +498,7 @@ Please try rephrasing your query or providing additional context.
    Type: Extractor
    Status: completed
    Progress: 100%
-   Duration: 26ms
+   Duration: 10ms
    
    📤 Full Output:
    {
@@ -824,22 +517,8 @@ Please try rephrasing your query or providing additional context.
              "regexPattern": "/reinforcement learning/gi",
              "patternDescription": "LLM-generated regex pattern 1",
              "fullMatch": "reinforcement learning"
-           }
-         },
-         {
-           "content": "orcement",
-           "value": "orcement",
-           "unit": "",
-           "context": "reinforcement learning",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/reinf(orcement) learning/gi",
-             "patternDescription": "LLM-generated regex pattern 2",
-             "fullMatch": "reinforcement learning"
-           }
+           },
+           "originalContent": "reinforcement learning"
          },
          {
            "content": "Deep Seek-LLM",
@@ -852,39 +531,10 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/deep seek-llm/gi",
-             "patternDescription": "LLM-generated regex pattern 5",
+             "patternDescription": "LLM-generated regex pattern 2",
              "fullMatch": "Deep Seek-LLM"
-           }
-         },
-         {
-           "content": "Deep Seek",
-           "value": "Deep Seek",
-           "unit": "",
-           "context": "Deep Seek",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/deep seek/gi",
-             "patternDescription": "LLM-generated regex pattern 6",
-             "fullMatch": "Deep Seek"
-           }
-         },
-         {
-           "content": "Deep Seek-AI",
-           "value": "Deep Seek-AI",
-           "unit": "",
-           "context": "Deep Seek-AI",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/deep seek-ai/gi",
-             "patternDescription": "LLM-generated regex pattern 8",
-             "fullMatch": "Deep Seek-AI"
-           }
+           },
+           "originalContent": "Deep Seek-LLM"
          },
          {
            "content": "HAI-LLM",
@@ -897,24 +547,10 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/hai-llm/gi",
-             "patternDescription": "LLM-generated regex pattern 9",
+             "patternDescription": "LLM-generated regex pattern 3",
              "fullMatch": "HAI-LLM"
-           }
-         },
-         {
-           "content": "High-flyer",
-           "value": "High-flyer",
-           "unit": "",
-           "context": "High-flyer",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/high-flyer/gi",
-             "patternDescription": "LLM-generated regex pattern 10",
-             "fullMatch": "High-flyer"
-           }
+           },
+           "originalContent": "HAI-LLM"
          },
          {
            "content": "Adam W",
@@ -927,9 +563,10 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/adam w/gi",
-             "patternDescription": "LLM-generated regex pattern 12",
+             "patternDescription": "LLM-generated regex pattern 4",
              "fullMatch": "Adam W"
-           }
+           },
+           "originalContent": "Adam W"
          },
          {
            "content": "Proof-Pile-2",
@@ -942,24 +579,10 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/proof-pile-2/gi",
-             "patternDescription": "LLM-generated regex pattern 15",
+             "patternDescription": "LLM-generated regex pattern 5",
              "fullMatch": "Proof-Pile-2"
-           }
-         },
-         {
-           "content": "Azerbayev et al.",
-           "value": "Azerbayev et al.",
-           "unit": "",
-           "context": "Azerbayev et al.",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_6_5vghv4",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/azerbayev et al./gi",
-             "patternDescription": "LLM-generated regex pattern 18",
-             "fullMatch": "Azerbayev et al."
-           }
+           },
+           "originalContent": "Proof-Pile-2"
          },
          {
            "content": "mini F2F",
@@ -972,24 +595,26 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/mini f2f/gi",
-             "patternDescription": "LLM-generated regex pattern 20",
+             "patternDescription": "LLM-generated regex pattern 7",
              "fullMatch": "mini F2F"
-           }
+           },
+           "originalContent": "mini F2F"
          },
          {
-           "content": "few-shot prompting",
-           "value": "few-shot prompting",
+           "content": "Sledgehammer",
+           "value": "Sledgehammer",
            "unit": "",
-           "context": "few-shot prompting",
+           "context": "Sledgehammer",
            "confidence": 0.95,
            "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_18_4hmkky",
            "sourceDocument": "GRPO_Papper.pdf",
            "metadata": {
              "extractionMethod": "regex_pattern",
-             "regexPattern": "/few-shot prompting/gi",
-             "patternDescription": "LLM-generated regex pattern 24",
-             "fullMatch": "few-shot prompting"
-           }
+             "regexPattern": "/sledgehammer/gi",
+             "patternDescription": "LLM-generated regex pattern 8",
+             "fullMatch": "Sledgehammer"
+           },
+           "originalContent": "Sledgehammer"
          },
          {
            "content": "Baichuan-34",
@@ -1002,24 +627,10 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/baichuan-34/gi",
-             "patternDescription": "LLM-generated regex pattern 26",
+             "patternDescription": "LLM-generated regex pattern 9",
              "fullMatch": "Baichuan-34"
-           }
-         },
-         {
-           "content": "openai",
-           "value": "openai",
-           "unit": "",
-           "context": "openai",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_21_5k3xdq",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/openai/gi",
-             "patternDescription": "LLM-generated regex pattern 29",
-             "fullMatch": "openai"
-           }
+           },
+           "originalContent": "Baichuan-34"
          },
          {
            "content": "GLM-45",
@@ -1032,114 +643,26 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/glm-45/gi",
-             "patternDescription": "LLM-generated regex pattern 31",
+             "patternDescription": "LLM-generated regex pattern 10",
              "fullMatch": "GLM-45"
-           }
+           },
+           "originalContent": "GLM-45"
          },
          {
-           "content": "alignment procedures",
-           "value": "alignment procedures",
+           "content": "Training Setting",
+           "value": "Training Setting",
            "unit": "",
-           "context": "alignment procedures",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_21_5k3xdq",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/alignment procedures/gi",
-             "patternDescription": "LLM-generated regex pattern 35",
-             "fullMatch": "alignment procedures"
-           }
-         },
-         {
-           "content": "training framework",
-           "value": "training framework",
-           "unit": "",
-           "context": "training framework",
+           "context": "Training Setting",
            "confidence": 0.95,
            "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
            "sourceDocument": "GRPO_Papper.pdf",
            "metadata": {
              "extractionMethod": "regex_pattern",
-             "regexPattern": "/training framework/gi",
-             "patternDescription": "LLM-generated regex pattern 37",
-             "fullMatch": "training framework"
-           }
-         },
-         {
-           "content": "learning rate",
-           "value": "learning rate",
-           "unit": "",
-           "context": "learning rate",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_9_lwjnk5",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/learning rate/gi",
-             "patternDescription": "LLM-generated regex pattern 39",
-             "fullMatch": "learning rate"
-           }
-         },
-         {
-           "content": "batch size",
-           "value": "batch size",
-           "unit": "",
-           "context": "batch size",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/batch size/gi",
-             "patternDescription": "LLM-generated regex pattern 41",
-             "fullMatch": "batch size"
-           }
-         },
-         {
-           "content": "formal proof",
-           "value": "formal proof",
-           "unit": "",
-           "context": "formal proof",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_18_4hmkky",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/formal proof/gi",
-             "patternDescription": "LLM-generated regex pattern 49",
-             "fullMatch": "formal proof"
-           }
-         },
-         {
-           "content": "theorem proving",
-           "value": "theorem proving",
-           "unit": "",
-           "context": "theorem proving",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_15_g5me6s",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/theorem proving/gi",
-             "patternDescription": "LLM-generated regex pattern 51",
-             "fullMatch": "theorem proving"
-           }
-         },
-         {
-           "content": "off-the-shelf automated prover",
-           "value": "off-the-shelf automated prover",
-           "unit": "",
-           "context": "off-the-shelf automated prover",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_18_4hmkky",
-           "sourceDocument": "GRPO_Papper.pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/off-the-shelf automated prover/gi",
-             "patternDescription": "LLM-generated regex pattern 53",
-             "fullMatch": "off-the-shelf automated prover"
-           }
+             "regexPattern": "/training setting/gi",
+             "patternDescription": "LLM-generated regex pattern 13",
+             "fullMatch": "Training Setting"
+           },
+           "originalContent": "Training Setting"
          },
          {
            "content": "Optimization",
@@ -1152,29 +675,812 @@ Please try rephrasing your query or providing additional context.
            "metadata": {
              "extractionMethod": "regex_pattern",
              "regexPattern": "/optimization/gi",
-             "patternDescription": "LLM-generated regex pattern 55",
+             "patternDescription": "LLM-generated regex pattern 14",
              "fullMatch": "Optimization"
-           }
+           },
+           "originalContent": "Optimization"
          },
          {
-           "content": "training framework.",
-           "value": "training framework.",
+           "content": "learning rate",
+           "value": "learning rate",
            "unit": "",
-           "context": "training framework.",
+           "context": "learning rate",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_9_lwjnk5",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/learning rate/gi",
+             "patternDescription": "LLM-generated regex pattern 15",
+             "fullMatch": "learning rate"
+           },
+           "originalContent": "learning rate"
+         },
+         {
+           "content": "batch size",
+           "value": "batch size",
+           "unit": "",
+           "context": "batch size",
            "confidence": 0.95,
            "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
            "sourceDocument": "GRPO_Papper.pdf",
            "metadata": {
              "extractionMethod": "regex_pattern",
-             "regexPattern": "/training framework./gi",
-             "patternDescription": "LLM-generated regex pattern 60",
-             "fullMatch": "training framework."
-           }
+             "regexPattern": "/batch size/gi",
+             "patternDescription": "LLM-generated regex pattern 16",
+             "fullMatch": "batch size"
+           },
+           "originalContent": "batch size"
+         },
+         {
+           "content": "tool-integrated reasoning",
+           "value": "tool-integrated reasoning",
+           "unit": "",
+           "context": "tool-integrated reasoning",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/tool-integrated reasoning/gi",
+             "patternDescription": "LLM-generated regex pattern 17",
+             "fullMatch": "tool-integrated reasoning"
+           },
+           "originalContent": "tool-integrated reasoning"
+         },
+         {
+           "content": "chain-of-thought",
+           "value": "chain-of-thought",
+           "unit": "",
+           "context": "chain-of-thought",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/chain-of-thought/gi",
+             "patternDescription": "LLM-generated regex pattern 18",
+             "fullMatch": "chain-of-thought"
+           },
+           "originalContent": "chain-of-thought"
+         },
+         {
+           "content": "program-of-thought",
+           "value": "program-of-thought",
+           "unit": "",
+           "context": "program-of-thought",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/program-of-thought/gi",
+             "patternDescription": "LLM-generated regex pattern 19",
+             "fullMatch": "program-of-thought"
+           },
+           "originalContent": "program-of-thought"
+         },
+         {
+           "content": "Mathematical Reasoning",
+           "value": "Mathematical Reasoning",
+           "unit": "",
+           "context": "Mathematical Reasoning",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/mathematical reasoning/gi",
+             "patternDescription": "LLM-generated regex pattern 20",
+             "fullMatch": "Mathematical Reasoning"
+           },
+           "originalContent": "Mathematical Reasoning"
+         },
+         {
+           "content": "formal theorem proving",
+           "value": "formal theorem proving",
+           "unit": "",
+           "context": "formal theorem proving",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_15_g5me6s",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/formal theorem proving/gi",
+             "patternDescription": "LLM-generated regex pattern 22",
+             "fullMatch": "formal theorem proving"
+           },
+           "originalContent": "formal theorem proving"
+         },
+         {
+           "content": "alignment procedures",
+           "value": "alignment procedures",
+           "unit": "",
+           "context": "alignment procedures",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_21_5k3xdq",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/alignment procedures/gi",
+             "patternDescription": "LLM-generated regex pattern 23",
+             "fullMatch": "alignment procedures"
+           },
+           "originalContent": "alignment procedures"
+         },
+         {
+           "content": "open-source models",
+           "value": "open-source models",
+           "unit": "",
+           "context": "open-source models",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/open-source models/gi",
+             "patternDescription": "LLM-generated regex pattern 24",
+             "fullMatch": "open-source models"
+           },
+           "originalContent": "open-source models"
+         },
+         {
+           "content": "pre-training",
+           "value": "pre-training",
+           "unit": "",
+           "context": "pre-training",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/pre-training/gi",
+             "patternDescription": "LLM-generated regex pattern 28",
+             "fullMatch": "pre-training"
+           },
+           "originalContent": "pre-training"
+         },
+         {
+           "content": "Fine-Tuning",
+           "value": "Fine-Tuning",
+           "unit": "",
+           "context": "Fine-Tuning",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/fine-tuning/gi",
+             "patternDescription": "LLM-generated regex pattern 29",
+             "fullMatch": "Fine-Tuning"
+           },
+           "originalContent": "Fine-Tuning"
+         },
+         {
+           "content": "benchmarks",
+           "value": "benchmarks",
+           "unit": "",
+           "context": "benchmarks",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/benchmarks/gi",
+             "patternDescription": "LLM-generated regex pattern 30",
+             "fullMatch": "benchmarks"
+           },
+           "originalContent": "benchmarks"
+         },
+         {
+           "content": "mathematical corpus",
+           "value": "mathematical corpus",
+           "unit": "",
+           "context": "mathematical corpus",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/mathematical corpus/gi",
+             "patternDescription": "LLM-generated regex pattern 31",
+             "fullMatch": "mathematical corpus"
+           },
+           "originalContent": "mathematical corpus"
+         },
+         {
+           "content": "Language Model",
+           "value": "Language Model",
+           "unit": "",
+           "context": "Language Model",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/language model/gi",
+             "patternDescription": "LLM-generated regex pattern 32",
+             "fullMatch": "Language Model"
+           },
+           "originalContent": "Language Model"
+         },
+         {
+           "content": "Inference",
+           "value": "Inference",
+           "unit": "",
+           "context": "Inference",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658915966_7rvdl7exw_1754658932262_18_njs105",
+           "sourceDocument": "LLMS FOR ENGINEERING- TEACHING MODELS TO DESIGN HIGH POWERED ROCKETS_2504.19394v2.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/inference/gi",
+             "patternDescription": "LLM-generated regex pattern 34",
+             "fullMatch": "Inference"
+           },
+           "originalContent": "Inference"
+         },
+         {
+           "content": "evaluation metrics",
+           "value": "evaluation metrics",
+           "unit": "",
+           "context": "evaluation metrics",
+           "confidence": 0.95,
+           "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_30_5akyr7",
+           "sourceDocument": "GRPO_Papper.pdf",
+           "metadata": {
+             "extractionMethod": "regex_pattern",
+             "regexPattern": "/evaluation metrics/gi",
+             "patternDescription": "LLM-generated regex pattern 35",
+             "fullMatch": "evaluation metrics"
+           },
+           "originalContent": "evaluation metrics"
          }
        ],
-       "structured": []
+       "structured": [
+         {
+           "bestItem": {
+             "content": "reinforcement learning",
+             "value": "reinforcement learning",
+             "unit": "",
+             "context": "reinforcement learning",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/reinforcement learning/gi",
+               "patternDescription": "LLM-generated regex pattern 1",
+               "fullMatch": "reinforcement learning"
+             },
+             "originalContent": "reinforcement learning"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Deep Seek-LLM",
+             "value": "Deep Seek-LLM",
+             "unit": "",
+             "context": "Deep Seek-LLM",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/deep seek-llm/gi",
+               "patternDescription": "LLM-generated regex pattern 2",
+               "fullMatch": "Deep Seek-LLM"
+             },
+             "originalContent": "Deep Seek-LLM"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "HAI-LLM",
+             "value": "HAI-LLM",
+             "unit": "",
+             "context": "HAI-LLM",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/hai-llm/gi",
+               "patternDescription": "LLM-generated regex pattern 3",
+               "fullMatch": "HAI-LLM"
+             },
+             "originalContent": "HAI-LLM"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Adam W",
+             "value": "Adam W",
+             "unit": "",
+             "context": "Adam W",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/adam w/gi",
+               "patternDescription": "LLM-generated regex pattern 4",
+               "fullMatch": "Adam W"
+             },
+             "originalContent": "Adam W"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Proof-Pile-2",
+             "value": "Proof-Pile-2",
+             "unit": "",
+             "context": "Proof-Pile-2",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/proof-pile-2/gi",
+               "patternDescription": "LLM-generated regex pattern 5",
+               "fullMatch": "Proof-Pile-2"
+             },
+             "originalContent": "Proof-Pile-2"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "mini F2F",
+             "value": "mini F2F",
+             "unit": "",
+             "context": "mini F2F",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_18_4hmkky",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/mini f2f/gi",
+               "patternDescription": "LLM-generated regex pattern 7",
+               "fullMatch": "mini F2F"
+             },
+             "originalContent": "mini F2F"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Sledgehammer",
+             "value": "Sledgehammer",
+             "unit": "",
+             "context": "Sledgehammer",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_18_4hmkky",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/sledgehammer/gi",
+               "patternDescription": "LLM-generated regex pattern 8",
+               "fullMatch": "Sledgehammer"
+             },
+             "originalContent": "Sledgehammer"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Baichuan-34",
+             "value": "Baichuan-34",
+             "unit": "",
+             "context": "Baichuan-34",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_21_5k3xdq",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/baichuan-34/gi",
+               "patternDescription": "LLM-generated regex pattern 9",
+               "fullMatch": "Baichuan-34"
+             },
+             "originalContent": "Baichuan-34"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "GLM-45",
+             "value": "GLM-45",
+             "unit": "",
+             "context": "GLM-45",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_21_5k3xdq",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/glm-45/gi",
+               "patternDescription": "LLM-generated regex pattern 10",
+               "fullMatch": "GLM-45"
+             },
+             "originalContent": "GLM-45"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Training Setting",
+             "value": "Training Setting",
+             "unit": "",
+             "context": "Training Setting",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/training setting/gi",
+               "patternDescription": "LLM-generated regex pattern 13",
+               "fullMatch": "Training Setting"
+             },
+             "originalContent": "Training Setting"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Optimization",
+             "value": "Optimization",
+             "unit": "",
+             "context": "Optimization",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/optimization/gi",
+               "patternDescription": "LLM-generated regex pattern 14",
+               "fullMatch": "Optimization"
+             },
+             "originalContent": "Optimization"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "learning rate",
+             "value": "learning rate",
+             "unit": "",
+             "context": "learning rate",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_9_lwjnk5",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/learning rate/gi",
+               "patternDescription": "LLM-generated regex pattern 15",
+               "fullMatch": "learning rate"
+             },
+             "originalContent": "learning rate"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "batch size",
+             "value": "batch size",
+             "unit": "",
+             "context": "batch size",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/batch size/gi",
+               "patternDescription": "LLM-generated regex pattern 16",
+               "fullMatch": "batch size"
+             },
+             "originalContent": "batch size"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "tool-integrated reasoning",
+             "value": "tool-integrated reasoning",
+             "unit": "",
+             "context": "tool-integrated reasoning",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/tool-integrated reasoning/gi",
+               "patternDescription": "LLM-generated regex pattern 17",
+               "fullMatch": "tool-integrated reasoning"
+             },
+             "originalContent": "tool-integrated reasoning"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "chain-of-thought",
+             "value": "chain-of-thought",
+             "unit": "",
+             "context": "chain-of-thought",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/chain-of-thought/gi",
+               "patternDescription": "LLM-generated regex pattern 18",
+               "fullMatch": "chain-of-thought"
+             },
+             "originalContent": "chain-of-thought"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "program-of-thought",
+             "value": "program-of-thought",
+             "unit": "",
+             "context": "program-of-thought",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/program-of-thought/gi",
+               "patternDescription": "LLM-generated regex pattern 19",
+               "fullMatch": "program-of-thought"
+             },
+             "originalContent": "program-of-thought"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Mathematical Reasoning",
+             "value": "Mathematical Reasoning",
+             "unit": "",
+             "context": "Mathematical Reasoning",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/mathematical reasoning/gi",
+               "patternDescription": "LLM-generated regex pattern 20",
+               "fullMatch": "Mathematical Reasoning"
+             },
+             "originalContent": "Mathematical Reasoning"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "formal theorem proving",
+             "value": "formal theorem proving",
+             "unit": "",
+             "context": "formal theorem proving",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_15_g5me6s",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/formal theorem proving/gi",
+               "patternDescription": "LLM-generated regex pattern 22",
+               "fullMatch": "formal theorem proving"
+             },
+             "originalContent": "formal theorem proving"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "alignment procedures",
+             "value": "alignment procedures",
+             "unit": "",
+             "context": "alignment procedures",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_21_5k3xdq",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/alignment procedures/gi",
+               "patternDescription": "LLM-generated regex pattern 23",
+               "fullMatch": "alignment procedures"
+             },
+             "originalContent": "alignment procedures"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "open-source models",
+             "value": "open-source models",
+             "unit": "",
+             "context": "open-source models",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/open-source models/gi",
+               "patternDescription": "LLM-generated regex pattern 24",
+               "fullMatch": "open-source models"
+             },
+             "originalContent": "open-source models"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "pre-training",
+             "value": "pre-training",
+             "unit": "",
+             "context": "pre-training",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/pre-training/gi",
+               "patternDescription": "LLM-generated regex pattern 28",
+               "fullMatch": "pre-training"
+             },
+             "originalContent": "pre-training"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Fine-Tuning",
+             "value": "Fine-Tuning",
+             "unit": "",
+             "context": "Fine-Tuning",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/fine-tuning/gi",
+               "patternDescription": "LLM-generated regex pattern 29",
+               "fullMatch": "Fine-Tuning"
+             },
+             "originalContent": "Fine-Tuning"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "benchmarks",
+             "value": "benchmarks",
+             "unit": "",
+             "context": "benchmarks",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_3_s02fqv",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/benchmarks/gi",
+               "patternDescription": "LLM-generated regex pattern 30",
+               "fullMatch": "benchmarks"
+             },
+             "originalContent": "benchmarks"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "mathematical corpus",
+             "value": "mathematical corpus",
+             "unit": "",
+             "context": "mathematical corpus",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_12_fm1222",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/mathematical corpus/gi",
+               "patternDescription": "LLM-generated regex pattern 31",
+               "fullMatch": "mathematical corpus"
+             },
+             "originalContent": "mathematical corpus"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Language Model",
+             "value": "Language Model",
+             "unit": "",
+             "context": "Language Model",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_0_zl31nl",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/language model/gi",
+               "patternDescription": "LLM-generated regex pattern 32",
+               "fullMatch": "Language Model"
+             },
+             "originalContent": "Language Model"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "Inference",
+             "value": "Inference",
+             "unit": "",
+             "context": "Inference",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658915966_7rvdl7exw_1754658932262_18_njs105",
+             "sourceDocument": "LLMS FOR ENGINEERING- TEACHING MODELS TO DESIGN HIGH POWERED ROCKETS_2504.19394v2.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/inference/gi",
+               "patternDescription": "LLM-generated regex pattern 34",
+               "fullMatch": "Inference"
+             },
+             "originalContent": "Inference"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         },
+         {
+           "bestItem": {
+             "content": "evaluation metrics",
+             "value": "evaluation metrics",
+             "unit": "",
+             "context": "evaluation metrics",
+             "confidence": 0.95,
+             "sourceChunkId": "chunk_doc_1754658663251_vpl5u967b_1754658860766_30_5akyr7",
+             "sourceDocument": "GRPO_Papper.pdf",
+             "metadata": {
+               "extractionMethod": "regex_pattern",
+               "regexPattern": "/evaluation metrics/gi",
+               "patternDescription": "LLM-generated regex pattern 35",
+               "fullMatch": "evaluation metrics"
+             },
+             "originalContent": "evaluation metrics"
+           },
+           "similarItems": [],
+           "confidence": 0.95
+         }
+       ]
      },
-     "itemCount": 24,
+     "itemCount": 27,
      "reasoning": "Data extraction completed"
    }
 
@@ -1184,7 +1490,7 @@ Please try rephrasing your query or providing additional context.
    Type: SynthesisCoordinator
    Status: completed
    Progress: 100%
-   Duration: 6ms
+   Duration: 71380ms
    
    📤 Full Output:
    {
@@ -1194,6 +1500,34 @@ Please try rephrasing your query or providing additional context.
 
 ───────────────────────────────────
 
-Total Agents: 5
-Completed: 5
-Generated: 11/08/2025, 18:42:20
+6. ResponseFormatter ✅
+   Type: ResponseFormatter
+   Status: completed
+   Progress: 100%
+   Duration: 53727ms
+   
+   📤 Full Output:
+   {
+     "status": "completed",
+     "reasoning": "ResponseFormatter processing completed"
+   }
+
+───────────────────────────────────
+
+7. DataAnalyzer ✅
+   Type: DataAnalyzer
+   Status: completed
+   Progress: 100%
+   Duration: 5ms
+   
+   📤 Full Output:
+   {
+     "status": "completed",
+     "reasoning": "DataAnalyzer processing completed"
+   }
+
+───────────────────────────────────
+
+Total Agents: 7
+Completed: 7
+Generated: 11/08/2025, 22:11:14

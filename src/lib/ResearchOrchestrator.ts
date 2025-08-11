@@ -1623,6 +1623,113 @@ Answer:`;
       this.onStepUpdate(step);
     }
   }
+  
+  /**
+   * 🔄 RERUN SPECIFIC AGENT - Execute individual agent with context preservation
+   * This enables targeted agent rerun without restarting the entire pipeline
+   */
+  async rerunSpecificAgent(
+    agentName: string, 
+    context: any, // Will be ResearchContext when available 
+    query: string
+  ): Promise<ResearchResult> {
+    console.log(`🔄 ResearchOrchestrator: Rerunning specific agent: ${agentName}`);
+    
+    const startTime = Date.now();
+    const steps: ResearchStep[] = [];
+    const sources: SourceReference[] = [];
+    
+    try {
+      // Validate that we're using Master Orchestrator path
+      if (!this.shouldUseMasterOrchestrator([])) {
+        throw new Error('Agent rerun requires Master Orchestrator architecture');
+      }
+      
+      // Create a rerun step for tracking
+      const rerunStep = {
+        id: this.generateUniqueStepId('agent_rerun'),
+        type: 'synthesis' as const,
+        status: 'in_progress' as const,
+        timestamp: Date.now(),
+        reasoning: `Rerunning agent: ${agentName}`
+      };
+      steps.push(rerunStep);
+      this.updateStep(rerunStep, { status: 'in_progress' });
+      this.currentSynthesisStep = rerunStep;
+      
+      // Execute the specific agent using Master Orchestrator
+      const finalAnswer = await this.executeSpecificAgentRerun(agentName, context, query);
+      
+      this.updateStep(rerunStep, {
+        status: 'completed',
+        duration: Date.now() - rerunStep.timestamp,
+        reasoning: `Successfully reran ${agentName}`,
+        subSteps: this.currentAgentSubSteps || [],
+        agentDetails: this.currentAgentSubSteps && this.currentAgentSubSteps.length > 0 ? {
+          orchestratorPlan: `Agent rerun: ${agentName}`,
+          agentPipeline: [agentName],
+          totalAgents: 1,
+          completedAgents: 1
+        } : undefined
+      });
+      
+      return {
+        query,
+        steps,
+        finalAnswer,
+        sources, // Will be populated by the agent
+        confidence: this.calculateOverallConfidence(steps, sources),
+        processingTime: Date.now() - startTime,
+        metadata: {
+          stepsExecuted: 1,
+          ragSearches: 0,
+          webSearches: 0,
+          sourcesFound: sources.length,
+          avgSimilarity: sources.length > 0 
+            ? sources.reduce((sum, s) => sum + (s.similarity || 0), 0) / sources.length
+            : 0
+        }
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to rerun agent ${agentName}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 🎯 EXECUTE SPECIFIC AGENT RERUN - Use Master Orchestrator for targeted execution
+   */
+  private async executeSpecificAgentRerun(
+    agentName: string, 
+    context: any, 
+    query: string
+  ): Promise<string> {
+    console.log(`🎯 Executing specific agent rerun: ${agentName}`);
+    
+    // Create multi-agent system for targeted execution
+    const multiAgentSystem = createMultiAgentSystem(
+      this.vectorStore,
+      (prompt) => this.generateContent ? this.generateContent(prompt) : Promise.reject('No LLM configured'),
+      this.progressCallback
+    );
+    
+    // Execute the specific agent
+    try {
+      // Restore context and execute targeted agent
+      const result = await multiAgentSystem.rerunAgent(agentName, context);
+      
+      // Extract the final answer from the result
+      if (result && result.synthesis && result.synthesis.answer) {
+        return result.synthesis.answer;
+      } else {
+        return `Agent ${agentName} completed but no synthesis available`;
+      }
+    } catch (error) {
+      console.error(`❌ Multi-agent rerun failed for ${agentName}:`, error);
+      throw error;
+    }
+  }
 }
 
 /**
