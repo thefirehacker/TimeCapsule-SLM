@@ -22,21 +22,28 @@ export class SynthesisCoordinator extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
-    // Check prerequisites
-    if (!context.analyzedData?.cleaned || context.analyzedData.cleaned.length === 0) {
-      this.setReasoning('⚠️ No analyzed data available - cannot coordinate synthesis');
-      context.synthesis.answer = this.generateEmptyReport(context);
+    // Use extracted data directly if no cleaned analysis available
+    const extractedData = context.extractedData?.raw || [];
+    const analysisData = context.analyzedData?.cleaned || [];
+    
+    // Determine data source intelligently
+    const dataToUse = analysisData.length > 0 ? analysisData : extractedData;
+    
+    if (dataToUse.length === 0) {
+      this.setReasoning('No data available for synthesis - both extraction and analysis are empty');
       return context;
     }
     
-    const itemCount = context.analyzedData.cleaned.length;
+    console.log(`🎯 SynthesisCoordinator: Using ${analysisData.length > 0 ? 'analyzed' : 'extracted'} data (${dataToUse.length} items)`);
+    
+    const itemCount = dataToUse.length;
     const sectionCount = Object.keys(context.reportSections || {}).length;
     const hasCitations = context.citations?.sources?.length > 0;
     
     console.log(`🎯 SynthesisCoordinator: Assembling final report from ${sectionCount} sections`);
     
-    // Combine all components into final report
-    const finalReport = await this.assembleReport(context);
+    // Combine all components into final report  
+    const finalReport = await this.assembleReport(context, dataToUse);
     
     // Clean and validate
     const cleanedReport = this.cleanFinalAnswer(finalReport);
@@ -56,7 +63,7 @@ export class SynthesisCoordinator extends BaseAgent {
     return context;
   }
   
-  private async assembleReport(context: ResearchContext): Promise<string> {
+  private async assembleReport(context: ResearchContext, dataToUse: any[]): Promise<string> {
     const sections = context.reportSections || {};
     const summary = context.summary || {};
     const citations = context.citations || {};
@@ -66,19 +73,27 @@ export class SynthesisCoordinator extends BaseAgent {
       return this.combineExistingSections(sections, summary, citations);
     }
     
-    // Otherwise, generate a simple report from analyzed data
-    const prompt = `Based on this analyzed data, create a comprehensive answer:
+    // Generate report from available data
+    const isExtractedData = !context.analyzedData?.categorized;
+    
+    const prompt = `Based on this ${isExtractedData ? 'extracted' : 'analyzed'} data, create a comprehensive answer:
 
 Query: "${context.query}"
 
 Key Findings:
-${context.analyzedData?.categorized?.slice(0, 10).map((item, i) => 
-  `${i+1}. ${item.bestItem.content} - ${item.bestItem.value || 'N/A'}`
-).join('\n')}
+${isExtractedData 
+  ? dataToUse.slice(0, 15).map((item, i) => 
+      `${i+1}. ${item.content || item.value || 'N/A'} (from ${item.sourceDocument || 'unknown source'})`
+    ).join('\n')
+  : context.analyzedData?.categorized?.slice(0, 10).map((item, i) => 
+      `${i+1}. ${item.bestItem.content} - ${item.bestItem.value || 'N/A'}`
+    ).join('\n')
+}
 
-Insights: ${context.analyzedData?.insights || 'N/A'}
+${isExtractedData ? 'Source Documents: ' + [...new Set(dataToUse.map(item => item.sourceDocument).filter(Boolean))].join(', ') 
+  : 'Insights: ' + (context.analyzedData?.insights || 'N/A')}
 
-Create a well-structured report that directly answers the query.`;
+Create a well-structured report that directly answers the query with specific information from the data.`;
     
     try {
       const response = await this.llm(prompt);

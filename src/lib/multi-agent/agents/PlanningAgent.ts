@@ -169,14 +169,26 @@ Based on this analysis, create an intelligent execution plan:
 
 5. **CONFIDENCE LEVEL**: How confident are you this plan will succeed? (0.1-1.0)
 
-Return as JSON:
+CRITICAL JSON FORMATTING REQUIREMENTS:
+- Keep all text descriptions under 100 characters
+- Use only basic punctuation (no quotes, colons, or special characters in text values)
+- Ensure all JSON is properly escaped and valid
+- No line breaks within string values
+
+Return as properly formatted JSON:
 {
-  "strategy": "brief strategy description",
+  "strategy": "concise strategy under 100 chars",
   "steps": [
-    {"agent": "AgentName", "action": "what to do", "reasoning": "why needed", "expectedOutput": "what we get", "priority": "high|medium|low"}
+    {
+      "agent": "AgentName", 
+      "action": "brief action under 80 chars", 
+      "reasoning": "short reason under 60 chars", 
+      "expectedOutput": "expected result under 60 chars", 
+      "priority": "high"
+    }
   ],
-  "fallbackOptions": ["option1", "option2"],
-  "expectedDataSources": ["local documents", "web search", "general knowledge"],
+  "fallbackOptions": ["option1 under 50 chars", "option2 under 50 chars"],
+  "expectedDataSources": ["source1", "source2"],
   "confidenceLevel": 0.8
 }`;
 
@@ -589,7 +601,8 @@ Return as JSON:
     });
 
     // Store strategy in shared knowledge for PatternGenerator to use
-    context.sharedKnowledge.extractionStrategy = strategy;
+    context.sharedKnowledge.extractionStrategies = context.sharedKnowledge.extractionStrategies || {};
+    context.sharedKnowledge.extractionStrategies[strategy.documentType] = strategy;
     
     return strategy;
   }
@@ -601,7 +614,8 @@ Return as JSON:
     console.log(`🔍 PlanningAgent: Assessing pattern quality`);
     
     const patterns = context.patterns || [];
-    const strategy = context.sharedKnowledge.extractionStrategy;
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const strategy = Object.values(strategies)[0]; // Get first strategy
     
     if (patterns.length === 0) {
       console.warn(`❌ Pattern quality: insufficient - no patterns generated`);
@@ -620,16 +634,19 @@ Return as JSON:
     let totalCategories = 0;
     
     // Check coverage of pattern categories from extraction strategy
-    Object.entries(strategy.patternCategories).forEach(([category, terms]) => {
-      if (terms.length > 0) {
-        totalCategories++;
-        const hasTerms = terms.some(term => 
-          patternStrings.includes(term.toLowerCase()) || 
-          patternStrings.includes(term.toLowerCase().replace(/\s+/g, ''))
-        );
-        if (hasTerms) categoryMatches++;
-      }
-    });
+    if (strategy && strategy.patternCategories) {
+      Object.entries(strategy.patternCategories).forEach(([, terms]) => {
+        const termArray = Array.isArray(terms) ? terms : [];
+        if (termArray.length > 0) {
+          totalCategories++;
+          const hasTerms = termArray.some((term: any) => 
+            patternStrings.includes(String(term).toLowerCase()) || 
+            patternStrings.includes(String(term).toLowerCase().replace(/\s+/g, ''))
+          );
+          if (hasTerms) categoryMatches++;
+        }
+      });
+    }
 
     // Check query alignment
     const queryTerms = context.query.toLowerCase().split(/\s+/);
@@ -672,7 +689,8 @@ Return as JSON:
     console.log(`🔍 PlanningAgent: Assessing extraction success`);
     
     const extractedData = context.extractedData?.raw || [];
-    const strategy = context.sharedKnowledge.extractionStrategy;
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const strategy = Object.values(strategies)[0]; // Get first strategy
     
     if (extractedData.length === 0) {
       console.warn(`❌ Extraction failed: no data extracted`);
@@ -681,7 +699,7 @@ Return as JSON:
 
     // Check if extracted data contains query-relevant information
     const queryTerms = context.query.toLowerCase().split(/\s+/);
-    const extractedText = extractedData.map(item => item.text || '').join(' ').toLowerCase();
+    const extractedText = extractedData.map(item => item.content || '').join(' ').toLowerCase();
     
     const queryRelevance = queryTerms.filter(term => 
       term.length > 3 && extractedText.includes(term)
@@ -733,7 +751,8 @@ Return as JSON:
     console.log(`🔄 PlanningAgent: Re-engaging PatternGenerator with refined strategy`);
     
     // Create refined extraction strategy
-    const currentStrategy = context.sharedKnowledge.extractionStrategy;
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const currentStrategy = Object.values(strategies)[0] as any; // Get first strategy
     const refinedStrategy = this.refineExtractionStrategy(currentStrategy, context);
     
     console.log(`🎯 Refined extraction strategy:`, {
@@ -742,7 +761,8 @@ Return as JSON:
     });
     
     // Update strategy in shared knowledge
-    context.sharedKnowledge.extractionStrategy = refinedStrategy;
+    context.sharedKnowledge.extractionStrategies = context.sharedKnowledge.extractionStrategies || {};
+    context.sharedKnowledge.extractionStrategies[refinedStrategy.documentType] = refinedStrategy;
     
     // Re-run PatternGenerator with refined strategy
     console.log(`🔄 Re-running PatternGenerator with refined strategy...`);

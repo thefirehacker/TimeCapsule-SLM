@@ -132,6 +132,12 @@ export interface ResearchContext {
     discoveredPatterns: Record<string, any>; // Patterns discovered during processing
     agentFindings: Record<string, any>; // Key findings from each agent
     executionPlan?: any; // PlanningAgent execution plan
+    lastSkippedAgent?: { // Track skipped agents for progression guidance
+      agent: string;
+      reason: string;
+      planStatus: string;
+      timestamp: number;
+    };
   };
   
   // Timing and performance

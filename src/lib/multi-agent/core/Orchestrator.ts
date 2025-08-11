@@ -115,6 +115,27 @@ export class Orchestrator {
   }
   
   /**
+   * 💡 Get execution plan guidance for master prompt - provides specific next step recommendations
+   */
+  private getExecutionPlanGuidance(context: ResearchContext): string {
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+    
+    if (!executionPlan) {
+      return 'Call PlanningAgent first to create execution plan.';
+    }
+    
+    const nextStep = executionPlan.steps.find((step: PlanStep) => 
+      !this.calledAgents.has(step.agent)
+    );
+    
+    if (!nextStep) {
+      return 'All planned steps completed. Call Synthesizer to generate final answer.';
+    }
+    
+    return `Next recommended step: Call ${nextStep.agent} - ${nextStep.description}`;
+  }
+
+  /**
    * Set or update progress callback for UI updates
    */
   setProgressCallback(callback: AgentProgressCallback) {
@@ -244,7 +265,12 @@ CURRENT SITUATION:
 - Execution Plan: ${this.getExecutionPlanStatus(context)}
 - Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
 - Data Extracted: ${availableData.extractorCompleted ? 'COMPLETED ✅ - Extractor already called' : 'NOT DONE ❌ - need Extractor'}
-- Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need Synthesizer'}
+- Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need Synthesizer'}${context.sharedKnowledge.lastSkippedAgent ? `
+
+⚠️ LAST SKIPPED AGENT:
+- Agent: ${context.sharedKnowledge.lastSkippedAgent.agent}
+- Reason: ${context.sharedKnowledge.lastSkippedAgent.reason}
+- Guidance: Continue to next step in execution plan` : ''}
 
 🧠 AVAILABLE TOOLS (use intelligently based on context):
 ${this.buildDynamicToolsList(availableData)}
@@ -1150,16 +1176,38 @@ NEXT_GOAL: [final goal achieved]`;
         } else {
           console.warn(`⚠️ Agent ${normalizedToolName} already called with data, skipping to prevent redundant processing`);
           
-          // 🔧 FIX: Provide progression guidance instead of just returning
-          const nextStepGuidance = this.getExecutionPlanGuidance(context);
-          return `⚠️ Agent ${normalizedToolName} was already executed successfully with data. ${nextStepGuidance}`;
+          // 🔧 FIX: Log progression guidance for Master LLM to see in next iteration
+          const planStatus = this.getExecutionPlanStatus(context);
+          console.log(`📋 Agent ${normalizedToolName} was already executed successfully with data.`);
+          console.log(`📊 Current Pipeline Status: ${planStatus}`);
+          console.log(`💡 Suggestion: Continue to the next planned step in your execution sequence.`);
+          
+          // Store guidance in context for persistence
+          context.sharedKnowledge.lastSkippedAgent = {
+            agent: normalizedToolName,
+            reason: 'Already executed with data',
+            planStatus: planStatus,
+            timestamp: Date.now()
+          };
+          return;
         }
       } else {
         console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
         
-        // 🔧 FIX: Provide progression guidance instead of just returning
-        const nextStepGuidance = this.getExecutionPlanGuidance(context);
-        return `⚠️ Agent ${normalizedToolName} was already executed successfully. ${nextStepGuidance}`;
+        // 🔧 FIX: Log progression guidance for Master LLM to see in next iteration
+        const planStatus = this.getExecutionPlanStatus(context);
+        console.log(`📋 Agent ${normalizedToolName} was already executed successfully.`);
+        console.log(`📊 Current Pipeline Status: ${planStatus}`);
+        console.log(`💡 Suggestion: Continue to the next planned step in your execution sequence.`);
+        
+        // Store guidance in context for persistence
+        context.sharedKnowledge.lastSkippedAgent = {
+          agent: normalizedToolName,
+          reason: 'Already executed',
+          planStatus: planStatus,
+          timestamp: Date.now()
+        };
+        return;
       }
     }
     
