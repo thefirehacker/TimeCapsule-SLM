@@ -20,11 +20,7 @@ interface GroupedItem {
   isHistorical?: boolean;
 }
 
-interface AnalyzedData {
-  cleaned: ExtractedItem[];
-  categorized: GroupedItem[];
-  insights: string;
-}
+// Removed unused interface - using the one in Context.ts
 
 export class DataAnalysisAgent extends BaseAgent {
   readonly name = 'DataAnalyzer';
@@ -56,30 +52,35 @@ export class DataAnalysisAgent extends BaseAgent {
     const cleaned = this.cleanAndDeduplicateItems(context.extractedData.raw);
     console.log(`🧹 After cleaning: ${cleaned.length} items remain`);
     
-    // Step 2: Group and categorize
-    const categorized = await this.groupAndCategorize(cleaned, context.query);
+    // Step 2: 🎯 NEW - Apply query-relevance filtering
+    const queryFiltered = this.filterByQueryRelevance(cleaned, context);
+    console.log(`🎯 After query filtering: ${queryFiltered.length} items remain (${cleaned.length - queryFiltered.length} irrelevant items removed)`);
     
-    // Step 3: Generate insights
-    const insights = this.generateInsights(cleaned, categorized);
+    // Step 3: Group and categorize the filtered items
+    const categorized = await this.groupAndCategorize(queryFiltered, context.query);
+    
+    // Step 4: Generate insights
+    const insights = this.generateInsights(queryFiltered, categorized);
     
     // Store results in new context property
     if (!context.analyzedData) {
       context.analyzedData = { cleaned: [], categorized: [], insights: '' };
     }
     
-    context.analyzedData.cleaned = cleaned;
+    context.analyzedData.cleaned = queryFiltered; // Use filtered data
     context.analyzedData.categorized = categorized;
     context.analyzedData.insights = insights;
     
     // Also update extractedData for backward compatibility
-    context.extractedData.raw = cleaned;
+    context.extractedData.raw = queryFiltered; // Use filtered data
     context.extractedData.structured = categorized;
     
     this.setReasoning(`📊 Data Analysis Complete:
 - Initial items: ${initialCount}
 - After cleaning: ${cleaned.length}
+- After query filtering: ${queryFiltered.length}
 - Categories found: ${categorized.length}
-- Duplicates removed: ${initialCount - cleaned.length}
+- Query-irrelevant items removed: ${cleaned.length - queryFiltered.length}
 ${insights}`);
     
     return context;
@@ -126,7 +127,7 @@ ${insights}`);
     return `${content.substring(0, 50)}_${value}`;
   }
   
-  private async groupAndCategorize(items: ExtractedItem[], query: string): Promise<GroupedItem[]> {
+  private async groupAndCategorize(items: ExtractedItem[], _query: string): Promise<GroupedItem[]> {
     if (items.length === 0) return [];
     
     // Group similar items
@@ -188,6 +189,263 @@ Reply with just the classifications in order.`;
     return item.content.substring(0, 30).toLowerCase();
   }
   
+  /**
+   * 🎯 NEW: Filter extracted items by query relevance (no hardcoding)
+   */
+  private filterByQueryRelevance(items: ExtractedItem[], context: ResearchContext): ExtractedItem[] {
+    if (!context.query || items.length === 0) {
+      return items;
+    }
+
+    console.log(`🎯 DataAnalyzer: Filtering ${items.length} items for query relevance`);
+    
+    // Extract query key terms dynamically
+    const queryKeyTerms = this.extractQueryKeyTerms(context.query);
+    const queryIntent = this.parseQueryIntent(context.query);
+    
+    console.log(`🔍 Query key terms:`, queryKeyTerms);
+    console.log(`🔍 Query intent:`, queryIntent);
+
+    // Get document relevance scores from PlanningAgent if available
+    const documentRelevance = context.sharedKnowledge.documentSectionRelevance || {};
+    
+    // 🎯 NEW: Get PlanningAgent's extraction strategies for category alignment
+    const extractionStrategies = context.sharedKnowledge.extractionStrategies || {};
+    const planningStrategy = Object.values(extractionStrategies)[0]; // Get first available strategy
+    
+    console.log(`🔍 PlanningAgent categories available:`, planningStrategy ? 'Yes' : 'No');
+    if (planningStrategy) {
+      console.log(`📋 Categories: methods(${planningStrategy.patternCategories?.methods?.length || 0}), concepts(${planningStrategy.patternCategories?.concepts?.length || 0}), people(${planningStrategy.patternCategories?.people?.length || 0})`);
+    }
+
+    const relevantItems = items.filter(item => {
+      const relevanceScore = this.calculateItemRelevance(item, queryKeyTerms, queryIntent, documentRelevance, planningStrategy);
+      
+      // Log items that are filtered out for debugging
+      if (relevanceScore < 0.3) {
+        console.log(`❌ Filtered out low-relevance item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
+      } else {
+        console.log(`✅ Keeping relevant item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
+      }
+
+      return relevanceScore >= 0.3; // Dynamic threshold based on query relevance
+    });
+
+    console.log(`🎯 Query filtering complete: ${relevantItems.length}/${items.length} items kept`);
+    return relevantItems;
+  }
+
+  /**
+   * 🎯 ENHANCED: Calculate relevance score for an extracted item (now synchronized with PlanningAgent)
+   */
+  private calculateItemRelevance(item: ExtractedItem, queryKeyTerms: string[], queryIntent: string, documentRelevance: any, planningStrategy?: any): number {
+    let score = 0;
+
+    // 1. Direct content relevance (30% weight - reduced to make room for category boost)
+    const contentRelevance = this.calculateContentRelevance(item.content || '', queryKeyTerms);
+    score += contentRelevance * 0.3;
+
+    // 2. Value/context relevance (20% weight)
+    const valueRelevance = this.calculateContentRelevance(item.value || item.context || '', queryKeyTerms);
+    score += valueRelevance * 0.2;
+
+    // 3. Document source relevance (20% weight - reduced to make room for category boost)
+    if (item.sourceDocument && documentRelevance[item.sourceDocument]) {
+      score += documentRelevance[item.sourceDocument].score * 0.2;
+    } else {
+      score += 0.5 * 0.2; // Default moderate relevance
+    }
+
+    // 4. Intent-based relevance (15% weight)
+    const intentRelevance = this.calculateIntentRelevance(item, queryIntent);
+    score += intentRelevance * 0.15;
+
+    // 🎯 NEW: 5. PlanningAgent category alignment boost (15% weight)
+    const categoryRelevance = this.calculateCategoryRelevance(item, planningStrategy);
+    score += categoryRelevance * 0.15;
+
+    return Math.min(score, 1.0);
+  }
+
+  /**
+   * 🎯 NEW: Calculate content relevance using semantic similarity
+   */
+  private calculateContentRelevance(content: string, queryKeyTerms: string[]): number {
+    if (!content || queryKeyTerms.length === 0) return 0;
+
+    const contentTerms = content.toLowerCase().split(/\s+/).map(term => term.replace(/[^\w]/g, '')).filter(term => term.length > 2);
+    
+    let matches = 0;
+    let partialMatches = 0;
+
+    queryKeyTerms.forEach(queryTerm => {
+      contentTerms.forEach(contentTerm => {
+        if (queryTerm === contentTerm) {
+          matches += 1;
+        } else if (queryTerm.length > 3 && (
+          contentTerm.includes(queryTerm) || 
+          queryTerm.includes(contentTerm) ||
+          this.calculateLevenshteinSimilarity(queryTerm, contentTerm) > 0.7
+        )) {
+          partialMatches += 0.5;
+        }
+      });
+    });
+
+    return Math.min((matches + partialMatches) / queryKeyTerms.length, 1.0);
+  }
+
+  /**
+   * 🎯 NEW: Calculate intent-based relevance
+   */
+  private calculateIntentRelevance(item: ExtractedItem, queryIntent: string): number {
+    const content = (item.content || '').toLowerCase();
+    const value = (item.value || '').toLowerCase();
+    const context = (item.context || '').toLowerCase();
+    const combined = `${content} ${value} ${context}`;
+
+    let score = 0;
+
+    // Intent-based scoring
+    if (queryIntent.includes('performance_ranking') || queryIntent.includes('performance')) {
+      if (combined.includes('performance') || combined.includes('result') || combined.includes('score') || 
+          combined.includes('accuracy') || combined.includes('benchmark') || /\d+(\.\d+)?/.test(combined)) {
+        score += 0.8;
+      }
+    }
+
+    if (queryIntent.includes('methodology')) {
+      if (combined.includes('method') || combined.includes('algorithm') || combined.includes('approach') ||
+          combined.includes('technique') || combined.includes('procedure') || combined.includes('strategy')) {
+        score += 0.8;
+      }
+    }
+
+    if (queryIntent.includes('comparison')) {
+      if (combined.includes('versus') || combined.includes('compared') || combined.includes('better') ||
+          combined.includes('worse') || combined.includes('difference') || combined.includes('vs')) {
+        score += 0.8;
+      }
+    }
+
+    return Math.min(score, 1.0);
+  }
+
+  /**
+   * 🎯 NEW: Calculate Levenshtein similarity (reused from PlanningAgent pattern)
+   */
+  private calculateLevenshteinSimilarity(str1: string, str2: string): number {
+    const maxLen = Math.max(str1.length, str2.length);
+    if (maxLen === 0) return 1;
+    
+    const distance = this.levenshteinDistance(str1, str2);
+    return 1 - (distance / maxLen);
+  }
+
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + indicator
+        );
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  }
+
+  /**
+   * 🎯 NEW: Extract key terms from query (reused from PlanningAgent)
+   */
+  private extractQueryKeyTerms(query: string): string[] {
+    const stopWords = ['the', 'best', 'give', 'what', 'how', 'can', 'you', 'tell', 'about', 'and', 'for', 'from', 'with'];
+    
+    return query.toLowerCase()
+      .split(/\s+/)
+      .filter(term => term.length > 2 && !stopWords.includes(term))
+      .map(term => term.replace(/[^\w]/g, ''))
+      .filter(term => term.length > 2);
+  }
+
+  /**
+   * 🎯 NEW: Parse query intent (reused from PlanningAgent)
+   */
+  private parseQueryIntent(query: string): string {
+    const q = query.toLowerCase();
+    
+    if (q.includes('best') || q.includes('top')) return 'performance_ranking';
+    if (q.includes('method') || q.includes('approach')) return 'methodology';
+    if (q.includes('how') || q.includes('what')) return 'explanation';
+    if (q.includes('compare')) return 'comparison';
+    if (q.includes('performance') || q.includes('result')) return 'performance';
+    
+    return 'general_information';
+  }
+
+  /**
+   * 🎯 NEW: Calculate category relevance based on PlanningAgent's focused categories
+   */
+  private calculateCategoryRelevance(item: ExtractedItem, planningStrategy?: any): number {
+    if (!planningStrategy?.patternCategories) {
+      return 0.5; // Default moderate relevance when no strategy available
+    }
+
+    const content = (item.content || '').toLowerCase();
+    const value = (item.value || '').toLowerCase(); 
+    const context = (item.context || '').toLowerCase();
+    const combined = `${content} ${value} ${context}`;
+
+    let maxRelevance = 0;
+    
+    // Check alignment with PlanningAgent's focused method categories
+    if (planningStrategy.patternCategories.methods?.length > 0) {
+      planningStrategy.patternCategories.methods.forEach((method: string) => {
+        const methodLower = method.toLowerCase();
+        if (combined.includes(methodLower)) {
+          maxRelevance = Math.max(maxRelevance, 1.0); // Perfect match
+          console.log(`🎯 Category boost: Item matches PlanningAgent method "${method}"`);
+        } else if (this.calculateLevenshteinSimilarity(methodLower, content) > 0.7) {
+          maxRelevance = Math.max(maxRelevance, 0.8); // Similar match
+          console.log(`🎯 Category boost: Item similar to PlanningAgent method "${method}"`);
+        }
+      });
+    }
+
+    // Check alignment with PlanningAgent's focused concept categories
+    if (planningStrategy.patternCategories.concepts?.length > 0) {
+      planningStrategy.patternCategories.concepts.forEach((concept: string) => {
+        const conceptLower = concept.toLowerCase();
+        if (combined.includes(conceptLower)) {
+          maxRelevance = Math.max(maxRelevance, 0.9); // High relevance for concepts
+          console.log(`🎯 Category boost: Item matches PlanningAgent concept "${concept}"`);
+        } else if (this.calculateLevenshteinSimilarity(conceptLower, content) > 0.7) {
+          maxRelevance = Math.max(maxRelevance, 0.7); // Good relevance for similar concepts
+        }
+      });
+    }
+
+    // Check alignment with PlanningAgent's people categories
+    if (planningStrategy.patternCategories.people?.length > 0) {
+      planningStrategy.patternCategories.people.forEach((person: string) => {
+        const personLower = person.toLowerCase();
+        if (combined.includes(personLower)) {
+          maxRelevance = Math.max(maxRelevance, 0.8); // High relevance for people
+          console.log(`🎯 Category boost: Item matches PlanningAgent person "${person}"`);
+        }
+      });
+    }
+
+    return maxRelevance;
+  }
+
   private generateInsights(cleaned: ExtractedItem[], categorized: GroupedItem[]): string {
     const tableItems = cleaned.filter(item => 
       item.metadata?.type?.includes('table') || 

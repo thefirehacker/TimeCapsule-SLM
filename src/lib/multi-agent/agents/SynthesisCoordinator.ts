@@ -73,35 +73,202 @@ export class SynthesisCoordinator extends BaseAgent {
       return this.combineExistingSections(sections, summary, citations);
     }
     
-    // Generate report from available data
-    const isExtractedData = !context.analyzedData?.categorized;
+    // 🎯 NEW: Generate query-focused report with context awareness
+    return this.generateQueryFocusedReport(context, dataToUse);
+  }
+
+  /**
+   * 🎯 NEW: Generate query-focused synthesis with enhanced context awareness
+   */
+  private async generateQueryFocusedReport(context: ResearchContext, dataToUse: any[]): Promise<string> {
+    console.log(`🎯 SynthesisCoordinator: Generating query-focused report for: "${context.query}"`);
     
-    const prompt = `Based on this ${isExtractedData ? 'extracted' : 'analyzed'} data, create a comprehensive answer:
-
-Query: "${context.query}"
-
-Key Findings:
-${isExtractedData 
-  ? dataToUse.slice(0, 15).map((item, i) => 
-      `${i+1}. ${item.content || item.value || 'N/A'} (from ${item.sourceDocument || 'unknown source'})`
-    ).join('\n')
-  : context.analyzedData?.categorized?.slice(0, 10).map((item, i) => 
-      `${i+1}. ${item.bestItem.content} - ${item.bestItem.value || 'N/A'}`
-    ).join('\n')
-}
-
-${isExtractedData ? 'Source Documents: ' + [...new Set(dataToUse.map(item => item.sourceDocument).filter(Boolean))].join(', ') 
-  : 'Insights: ' + (context.analyzedData?.insights || 'N/A')}
-
-Create a well-structured report that directly answers the query with specific information from the data.`;
+    // Extract query context dynamically
+    const queryIntent = this.parseQueryIntent(context.query);
+    const queryKeyTerms = this.extractQueryKeyTerms(context.query);
+    
+    // Get document relevance from PlanningAgent
+    const documentRelevance = context.sharedKnowledge.documentSectionRelevance || {};
+    
+    // Rank data items by query relevance
+    const rankedData = this.rankDataByQueryRelevance(dataToUse, queryKeyTerms, queryIntent, documentRelevance);
+    
+    console.log(`🎯 Ranked ${rankedData.length} data items by query relevance`);
+    
+    // Build context-aware synthesis prompt
+    const prompt = this.buildQueryAwareSynthesisPrompt(context, rankedData, queryIntent, queryKeyTerms);
     
     try {
       const response = await this.llm(prompt);
-      return this.formatResponse(response, context);
+      return this.formatQueryFocusedResponse(response, context, queryIntent);
     } catch (error) {
-      console.error('LLM synthesis failed:', error);
-      return this.fallbackReport(context);
+      console.error('Query-focused synthesis failed:', error);
+      return this.generateFallbackReport(context, rankedData);
     }
+  }
+
+  /**
+   * 🎯 NEW: Rank data items by query relevance
+   */
+  private rankDataByQueryRelevance(dataItems: any[], queryKeyTerms: string[], queryIntent: string, documentRelevance: any): any[] {
+    return dataItems
+      .map(item => {
+        const relevanceScore = this.calculateItemQueryRelevance(item, queryKeyTerms, queryIntent, documentRelevance);
+        return { ...item, _queryRelevanceScore: relevanceScore };
+      })
+      .sort((a, b) => (b._queryRelevanceScore || 0) - (a._queryRelevanceScore || 0));
+  }
+
+  /**
+   * 🎯 NEW: Calculate item relevance to query
+   */
+  private calculateItemQueryRelevance(item: any, queryKeyTerms: string[], queryIntent: string, documentRelevance: any): number {
+    let score = 0;
+
+    // Content relevance
+    const content = (item.content || item.bestItem?.content || '').toLowerCase();
+    const value = (item.value || item.bestItem?.value || '').toLowerCase();
+    const combined = `${content} ${value}`;
+
+    // Direct term matching
+    queryKeyTerms.forEach(term => {
+      if (combined.includes(term)) {
+        score += 0.3;
+      }
+    });
+
+    // Intent-based relevance
+    if (queryIntent.includes('performance_ranking') || queryIntent.includes('methodology')) {
+      if (combined.includes('method') || combined.includes('algorithm') || combined.includes('approach') ||
+          combined.includes('performance') || combined.includes('result')) {
+        score += 0.4;
+      }
+    }
+
+    // Document source relevance
+    const sourceDocument = item.sourceDocument || item.bestItem?.sourceDocument;
+    if (sourceDocument && documentRelevance[sourceDocument]) {
+      score += documentRelevance[sourceDocument].score * 0.3;
+    }
+
+    return Math.min(score, 1.0);
+  }
+
+  /**
+   * 🎯 NEW: Build query-aware synthesis prompt
+   */
+  private buildQueryAwareSynthesisPrompt(context: ResearchContext, rankedData: any[], queryIntent: string, queryKeyTerms: string[]): string {
+    const isExtractedData = !context.analyzedData?.categorized;
+    const topRelevantItems = rankedData.slice(0, 10); // Focus on most relevant items
+    
+    const promptSections = [
+      `You are synthesizing information to answer this specific query: "${context.query}"`,
+      '',
+      `QUERY ANALYSIS:`,
+      `- Intent: ${queryIntent}`,
+      `- Key terms: ${queryKeyTerms.join(', ')}`,
+      '',
+      `RELEVANT DATA (ranked by query relevance):`
+    ];
+
+    // Add ranked data with relevance scores for context
+    topRelevantItems.forEach((item, i) => {
+      const content = item.content || item.bestItem?.content || 'N/A';
+      const value = item.value || item.bestItem?.value || '';
+      const source = item.sourceDocument || item.bestItem?.sourceDocument || 'unknown';
+      const relevanceScore = Math.round((item._queryRelevanceScore || 0) * 100);
+      
+      promptSections.push(`${i+1}. "${content}"${value ? ` - ${value}` : ''} (from ${source}, relevance: ${relevanceScore}%)`);
+    });
+
+    promptSections.push('');
+    
+    // Add document context from PlanningAgent if available
+    const documentRelevance = context.sharedKnowledge.documentSectionRelevance || {};
+    if (Object.keys(documentRelevance).length > 0) {
+      promptSections.push('DOCUMENT RELEVANCE CONTEXT:');
+      Object.entries(documentRelevance).forEach(([docId, info]: [string, any]) => {
+        promptSections.push(`- Document ${docId}: ${Math.round(info.score * 100)}% relevant`);
+      });
+      promptSections.push('');
+    }
+
+    promptSections.push(
+      'SYNTHESIS REQUIREMENTS:',
+      `1. Answer the query "${context.query}" directly and specifically`,
+      '2. Focus on the highest-relevance items listed above',
+      '3. Avoid including information that is not relevant to the query',
+      '4. Provide specific details and evidence from the relevant data',
+      '5. Structure the response clearly and concisely',
+      '',
+      'Generate a comprehensive, query-focused response based on the relevant data above:'
+    );
+
+    return promptSections.join('\n');
+  }
+
+  /**
+   * 🎯 NEW: Format query-focused response
+   */
+  private formatQueryFocusedResponse(response: string, context: ResearchContext, queryIntent: string): string {
+    // Clean up LLM response
+    let formatted = response
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .replace(/<bos>|<\/bos>/g, '')
+      .trim();
+
+    // Add query-specific formatting based on intent
+    if (queryIntent.includes('performance_ranking') && !formatted.includes('##') && !formatted.includes('**')) {
+      // Add structure for ranking queries if LLM didn't provide it
+      if (formatted.includes('1.') || formatted.includes('First') || formatted.includes('best')) {
+        formatted = `## Answer to: "${context.query}"\n\n${formatted}`;
+      }
+    }
+
+    // Add source context if helpful
+    const sourceCount = context.analyzedData?.cleaned?.length || context.extractedData?.raw?.length || 0;
+    if (sourceCount > 0 && !formatted.includes('Source') && !formatted.includes('based on')) {
+      formatted += `\n\n---\n*Analysis based on ${sourceCount} relevant data points from the document collection.*`;
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🎯 NEW: Generate fallback report with query focus
+   */
+  private generateFallbackReport(context: ResearchContext, rankedData: any[]): string {
+    if (rankedData.length === 0) {
+      return this.generateEmptyReport(context);
+    }
+
+    const queryIntent = this.parseQueryIntent(context.query);
+    const topItems = rankedData.slice(0, 8);
+
+    let report = `## Response to: "${context.query}"\n\n`;
+    
+    if (queryIntent.includes('performance_ranking') || queryIntent.includes('methodology')) {
+      report += 'Based on the available data, here are the key findings:\n\n';
+    } else {
+      report += 'Here is the relevant information found:\n\n';
+    }
+
+    topItems.forEach((item, i) => {
+      const content = item.content || item.bestItem?.content || '';
+      const value = item.value || item.bestItem?.value || '';
+      const source = item.sourceDocument || item.bestItem?.sourceDocument || '';
+      
+      report += `${i+1}. **${content}**`;
+      if (value && value !== content) {
+        report += ` - ${value}`;
+      }
+      if (source) {
+        report += ` (from ${source})`;
+      }
+      report += '\n';
+    });
+
+    return report;
   }
   
   private combineExistingSections(sections: any, summary: any, citations: any): string {
@@ -200,5 +367,33 @@ The data extraction and analysis process completed but didn't yield relevant res
 - The extraction patterns need adjustment
 
 Please try rephrasing your query or providing additional context.`;
+  }
+
+  /**
+   * 🎯 NEW: Extract key terms from query (consistent with other agents)
+   */
+  private extractQueryKeyTerms(query: string): string[] {
+    const stopWords = ['the', 'best', 'give', 'what', 'how', 'can', 'you', 'tell', 'about', 'and', 'for', 'from', 'with'];
+    
+    return query.toLowerCase()
+      .split(/\s+/)
+      .filter(term => term.length > 2 && !stopWords.includes(term))
+      .map(term => term.replace(/[^\w]/g, ''))
+      .filter(term => term.length > 2);
+  }
+
+  /**
+   * 🎯 NEW: Parse query intent (consistent with other agents)
+   */
+  private parseQueryIntent(query: string): string {
+    const q = query.toLowerCase();
+    
+    if (q.includes('best') || q.includes('top')) return 'performance_ranking';
+    if (q.includes('method') || q.includes('approach')) return 'methodology';
+    if (q.includes('how') || q.includes('what')) return 'explanation';
+    if (q.includes('compare')) return 'comparison';
+    if (q.includes('performance') || q.includes('result')) return 'performance';
+    
+    return 'general_information';
   }
 }

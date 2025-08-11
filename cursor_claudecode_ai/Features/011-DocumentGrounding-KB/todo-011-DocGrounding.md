@@ -480,7 +480,28 @@
 ### **Detailed Task List** (47 of 48 completed):
 
 **✅ COMPLETED TASKS**:
-  ⎿  ☒ Fix all PatternGenerator TypeScript errors                          
+  ⎿  ☒ **CRITICAL: Fix PlanningAgent → PatternGenerator data flow disconnect** 
+       - Root cause: PlanningAgent stores extractionStrategies[docType], PatternGenerator looks for extractionStrategy (singular)
+       - Fix key mismatch causing PatternGenerator to always fall back to generic patterns
+       - Result: PatternGenerator will receive rich query-aware categories from PlanningAgent
+       
+     ☒ **HIGH: Repair PatternGenerator document-specific pattern creation**
+       - Issue: PatternGenerator creates generic patterns like "/reinforcement learning/gi" despite having rich context
+       - Solution: Use PlanningAgent's focused categories (methods, concepts) for targeted extraction
+       - Expected: Extract specific method names like "GRPO" instead of generic "reinforcement learning"
+       
+     ☒ **MEDIUM: Synchronize DataAnalysisAgent with PlanningAgent pattern focus**
+       - Problem: DataAnalysisAgent filtering ignores PlanningAgent's query-focused categories
+       - Fix: Boost relevance scoring for items matching PlanningAgent's focused pattern categories
+       - Impact: Better relevance filtering aligned with query intent
+       
+     ☒ **CRITICAL: Fix PatternGenerator null reference crash (URGENT)**
+       - Root cause: Unsafe property access `patternCategories.people.length` when properties undefined
+       - Error: "Cannot read properties of undefined (reading 'length')" at line 829
+       - Fix: Added safe property access with defaults and defensive programming
+       - Result: PatternGenerator no longer crashes when strategy object is malformed
+
+     ☒ Fix all PatternGenerator TypeScript errors                          
      ☒ Fix all DataInspector linting and build errors
      ☒ Fix DataInspector syntax error in debug logging
      ☒ Debug DataInspector document content delivery - LLM not receiving 
