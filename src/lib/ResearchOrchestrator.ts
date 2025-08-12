@@ -1640,10 +1640,8 @@ Answer:`;
     const sources: SourceReference[] = [];
     
     try {
-      // Validate that we're using Master Orchestrator path
-      if (!this.shouldUseMasterOrchestrator([])) {
-        throw new Error('Agent rerun requires Master Orchestrator architecture');
-      }
+      // For agent rerun, we always use Master Orchestrator since we're working with existing research context
+      console.log(`🔄 Agent rerun: Using Master Orchestrator architecture for ${agentName}`);
       
       // Create a rerun step for tracking
       const rerunStep = {

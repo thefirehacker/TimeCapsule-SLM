@@ -171,6 +171,9 @@ CRITICAL RULES:
       // Update context with multi-document insights
       await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
       
+      // 🎯 INTELLIGENT: Extract query-relevant terms based on Master Orchestrator guidance
+      await this.extractQueryRelevantTerms(context, documentGroups);
+      
       // Store full response for thinking extraction
       this.setReasoning(response);
       
@@ -1258,4 +1261,310 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
   
   // 🚨 REMOVED: Legacy hardcoded JSON processing
   // Universal Intelligence approach now uses natural language prompts with LLM-based discovery
+
+  /**
+   * 🎯 INTELLIGENT: Extract query-relevant terms using query analysis (no hardcoding)
+   */
+  private async extractQueryRelevantTerms(context: ResearchContext, documentGroups: any[]): Promise<void> {
+    try {
+      console.log(`🔬 DataInspector: Extracting query-relevant terms from ${documentGroups.length} documents for: "${context.query}"`);
+      
+      // 🎯 INTELLIGENT: Build query-aware content sample  
+      const contentSample = await this.buildQueryAwareContentSample(context, documentGroups);
+
+      console.log(`🔍 Content sample for technical extraction (${contentSample.length} chars):`, contentSample.substring(0, 200) + '...');
+
+      // 🎯 Check for improvement guidance from Master Orchestrator
+      const improvementGuidance = context.sharedKnowledge.agentGuidance?.DataInspector;
+      
+      // 🎯 INTELLIGENT: Create query-aware prompt
+      const prompt = await this.buildQueryAwareExtractionPrompt(context, contentSample, improvementGuidance);
+
+      const response = await this.llm(prompt);
+      console.log(`🎯 Technical terms LLM response:`, response);
+      
+      // Parse the response and store in shared knowledge
+      const documentInsights = this.parseQueryRelevantTermsResponse(response);
+      console.log(`🔍 Parsed technical terms:`, documentInsights);
+      
+      // Store in shared knowledge for PlanningAgent to access
+      if (!context.sharedKnowledge.documentInsights) {
+        context.sharedKnowledge.documentInsights = {};
+      }
+      
+      // Merge with existing insights
+      Object.assign(context.sharedKnowledge.documentInsights, documentInsights);
+      
+      console.log(`✅ Document insights stored in context.sharedKnowledge:`, {
+        methods: documentInsights.methods?.length || 0,
+        concepts: documentInsights.concepts?.length || 0,
+        people: documentInsights.people?.length || 0,
+        data: documentInsights.data?.length || 0
+      });
+      
+      // Detailed logging for debugging
+      if (documentInsights.methods && documentInsights.methods.length > 0) {
+        console.log(`📋 Extracted methods:`, documentInsights.methods);
+      } else {
+        console.warn(`⚠️ No methods extracted from document content`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to extract query-relevant terms:', error);
+      // Don't fail the whole process - just set empty insights
+      context.sharedKnowledge.documentInsights = {
+        methods: [],
+        concepts: [],
+        people: [],
+        data: []
+      };
+    }
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Parse query-relevant terms response from LLM
+   */
+  private parseQueryRelevantTermsResponse(response: string): any {
+    const insights = {
+      methods: [] as string[],
+      concepts: [] as string[],
+      people: [] as string[],
+      data: [] as string[]
+    };
+
+    try {
+      const lines = response.split('\n');
+      
+      for (const line of lines) {
+        const trimmed = line.trim().toLowerCase();
+        
+        if (trimmed.startsWith('methods:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing methods line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.methods = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+            console.log(`✅ Parsed methods:`, insights.methods);
+          }
+        } else if (trimmed.startsWith('concepts:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing concepts line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.concepts = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+          }
+        } else if (trimmed.startsWith('people:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing people line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.people = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+          }
+        } else if (trimmed.startsWith('data_types:') || trimmed.startsWith('data:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing data line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.data = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to parse technical terms response, using defaults');
+    }
+
+    return insights;
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Build query-aware content sample prioritizing relevant content
+   */
+  private async buildQueryAwareContentSample(context: ResearchContext, documentGroups: any[]): Promise<string> {
+    // First, analyze query to understand what to prioritize
+    const queryAnalysis = await this.analyzeQueryForContentPrioritization(context.query);
+    
+    return documentGroups
+      .slice(0, 2) // Focus on fewer docs but better content selection
+      .map((group, i) => {
+        // Intelligently select chunks based on query analysis
+        const prioritizedChunks = this.prioritizeChunksForQuery(group.chunks, queryAnalysis);
+        
+        // Use more content per chunk but be strategic about it
+        const chunks = prioritizedChunks.slice(0, 6)
+          .map((chunk: any) => {
+            // Adaptive chunk size - preserve more content for important chunks
+            const chunkSize = this.calculateOptimalChunkSize(chunk, queryAnalysis);
+            return chunk.text.substring(0, chunkSize);
+          })
+          .join('\n\n');
+          
+        return `--- DOCUMENT ${i + 1}: ${group.documentId} ---\n${chunks}`;
+      })
+      .join('\n\n');
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Analyze query to determine content prioritization strategy
+   */
+  private async analyzeQueryForContentPrioritization(query: string): Promise<any> {
+    const analysisPrompt = `/no_think
+
+TASK: Analyze this query to determine what content should be prioritized when searching documents.
+
+QUERY: "${query}"
+
+Analyze what the user is asking for and determine:
+1. What types of terms should be prioritized (algorithm names, people, concepts, data)?
+2. What content patterns would likely contain the answer (method descriptions, performance comparisons, author information)?
+3. What specific indicators should guide content selection?
+
+RESPONSE FORMAT:
+PRIORITY_TERMS: [types of terms to look for]
+CONTENT_PATTERNS: [what content sections are most likely relevant]  
+SEARCH_INDICATORS: [specific words/patterns that suggest relevant content]
+
+Analyze the query intent:`;
+
+    try {
+      const response = await this.llm(analysisPrompt);
+      return this.parseQueryAnalysis(response);
+    } catch (error) {
+      console.warn('⚠️ Query analysis failed, using basic prioritization');
+      return {
+        priorityTerms: ['methods', 'algorithms', 'techniques'],
+        contentPatterns: ['method', 'algorithm', 'approach'],
+        searchIndicators: ['method', 'algorithm', 'technique', 'approach']
+      };
+    }
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Parse query analysis response
+   */
+  private parseQueryAnalysis(response: string): any {
+    const analysis = {
+      priorityTerms: [],
+      contentPatterns: [],
+      searchIndicators: []
+    };
+
+    const lines = response.split('\n');
+    for (const line of lines) {
+      if (line.toLowerCase().includes('priority_terms:')) {
+        const terms = line.substring(line.indexOf(':') + 1).trim();
+        analysis.priorityTerms = terms.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      } else if (line.toLowerCase().includes('content_patterns:')) {
+        const patterns = line.substring(line.indexOf(':') + 1).trim();
+        analysis.contentPatterns = patterns.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      } else if (line.toLowerCase().includes('search_indicators:')) {
+        const indicators = line.substring(line.indexOf(':') + 1).trim();
+        analysis.searchIndicators = indicators.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      }
+    }
+
+    return analysis;
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Prioritize chunks based on query analysis
+   */
+  private prioritizeChunksForQuery(chunks: any[], queryAnalysis: any): any[] {
+    return chunks.sort((a, b) => {
+      const scoreA = this.calculateChunkRelevanceScore(a, queryAnalysis);
+      const scoreB = this.calculateChunkRelevanceScore(b, queryAnalysis);
+      return scoreB - scoreA; // Higher score first
+    });
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Calculate chunk relevance score based on query analysis
+   */
+  private calculateChunkRelevanceScore(chunk: any, queryAnalysis: any): number {
+    const text = (chunk.text || '').toLowerCase();
+    let score = 0;
+
+    // Score based on search indicators
+    queryAnalysis.searchIndicators?.forEach((indicator: string) => {
+      if (text.includes(indicator)) {
+        score += 2;
+      }
+    });
+
+    // Score based on content patterns
+    queryAnalysis.contentPatterns?.forEach((pattern: string) => {
+      if (text.includes(pattern)) {
+        score += 1;
+      }
+    });
+
+    // Bonus for capitalized terms (likely method/algorithm names)
+    const capitalizedTerms = text.match(/\b[A-Z][A-Z0-9]*\b/g) || [];
+    score += capitalizedTerms.length * 0.5;
+
+    return score;
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Calculate optimal chunk size based on importance
+   */
+  private calculateOptimalChunkSize(chunk: any, queryAnalysis: any): number {
+    const baseSize = 600; // Increased from 400
+    const maxSize = 1200;
+    
+    const relevanceScore = this.calculateChunkRelevanceScore(chunk, queryAnalysis);
+    
+    // Higher relevance chunks get more content preserved
+    const sizeMultiplier = 1 + (relevanceScore * 0.2);
+    return Math.min(Math.floor(baseSize * sizeMultiplier), maxSize);
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Build query-aware extraction prompt
+   */
+  private async buildQueryAwareExtractionPrompt(context: ResearchContext, contentSample: string, improvementGuidance?: string): Promise<string> {
+    return `/no_think
+
+TASK: Extract information from documents to answer the user's specific question.
+
+USER QUERY: "${context.query}"
+
+${improvementGuidance ? `IMPROVEMENT GUIDANCE: ${improvementGuidance}\n` : ''}
+
+DOCUMENT CONTENT:
+${contentSample.substring(0, 3500)}
+
+INSTRUCTIONS:
+Based on the user's query, determine what information they need and extract it from the document content.
+
+QUERY ANALYSIS:
+- What is the user asking for specifically?
+- What type of information would best answer their question?
+- What terms in the document content are most relevant to their query?
+
+EXTRACTION STRATEGY:
+- Focus on finding the most specific and relevant terms
+- Look for proper nouns, technical terms, specific names
+- Prioritize terms that directly relate to what the user is asking about
+- Avoid generic terms when specific ones are available
+
+OUTPUT FORMAT:
+METHODS: [specific method names, algorithms, techniques if relevant to query]
+CONCEPTS: [relevant concepts and ideas if needed for query]  
+PEOPLE: [specific people names if relevant to query]
+DATA_TYPES: [specific data, metrics, datasets if relevant to query]
+
+CRITICAL RULES:
+- Extract only terms that appear in the document content above
+- Focus on what would best help answer the user's specific question
+- Be precise - extract specific names over generic categories
+- Use exact spelling as found in the text
+- If query doesn't need a category, write "none" for that category
+
+Extract the most relevant and specific terms for this query:`;
+  }
 }

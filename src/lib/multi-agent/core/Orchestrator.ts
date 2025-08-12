@@ -349,10 +349,10 @@ export class Orchestrator {
       throw new Error(`Agent ${agentName} not found in registry`);
     }
     
-    // Validate dependencies before rerun
-    const missingDependencies = this.validateAgentDependencies(agentName, context);
-    if (missingDependencies.length > 0) {
-      throw new Error(`Cannot rerun ${agentName}: missing dependencies [${missingDependencies.join(', ')}]`);
+    // For reruns, check if context has the needed data instead of strict agent dependencies
+    const contextValidation = this.validateContextForRerun(agentName, context);
+    if (!contextValidation.isValid) {
+      throw new Error(`Cannot rerun ${agentName}: ${contextValidation.reason}`);
     }
     
     // Restore preserved results if provided
@@ -410,6 +410,62 @@ export class Orchestrator {
     }
     
     return missing;
+  }
+
+  /**
+   * 🎯 NEW: Validate context has required data for agent rerun (smarter than strict dependencies)
+   */
+  private validateContextForRerun(agentName: string, context: ResearchContext): {isValid: boolean, reason: string} {
+    switch (agentName) {
+      case 'DataInspector':
+        // DataInspector needs RAG chunks
+        if (!context.ragResults?.chunks || context.ragResults.chunks.length === 0) {
+          return {isValid: false, reason: 'No RAG chunks available'};
+        }
+        break;
+        
+      case 'PlanningAgent':
+        // PlanningAgent needs DataInspector results (document analysis or document insights)
+        if (!context.documentAnalysis && !context.sharedKnowledge.documentInsights) {
+          return {isValid: false, reason: 'No document analysis available from DataInspector'};
+        }
+        break;
+        
+      case 'PatternGenerator':
+        // PatternGenerator needs either PlanningAgent strategy OR DataInspector insights
+        const hasStrategy = context.sharedKnowledge.extractionStrategies && 
+                           Object.keys(context.sharedKnowledge.extractionStrategies).length > 0;
+        const hasInsights = context.sharedKnowledge.documentInsights && 
+                           Object.keys(context.sharedKnowledge.documentInsights).length > 0;
+        const hasRagChunks = context.ragResults?.chunks && context.ragResults.chunks.length > 0;
+        
+        if (!hasStrategy && !hasInsights && !hasRagChunks) {
+          return {isValid: false, reason: 'No extraction strategy, document insights, or RAG chunks available'};
+        }
+        break;
+        
+      case 'Extractor':
+        // Extractor needs patterns from PatternGenerator
+        if (!context.patterns || context.patterns.length === 0) {
+          return {isValid: false, reason: 'No patterns available from PatternGenerator'};
+        }
+        break;
+        
+      case 'SynthesisCoordinator':
+      case 'Synthesizer':
+        // Synthesis agents need extracted data or RAG chunks
+        if ((!context.extractedData || context.extractedData.raw.length === 0) && 
+            (!context.ragResults?.chunks || context.ragResults.chunks.length === 0)) {
+          return {isValid: false, reason: 'No extracted data or RAG chunks for synthesis'};
+        }
+        break;
+        
+      default:
+        // For unknown agents, allow rerun
+        break;
+    }
+    
+    return {isValid: true, reason: ''};
   }
   
   /**
@@ -1567,6 +1623,21 @@ NEXT_GOAL: [final goal achieved]`;
       const duration = endTime - startTime;
       console.log(`✅ Tool ${normalizedToolName} completed in ${duration}ms`);
       
+      // 🎯 INTELLIGENT QUALITY CONTROL: Use PlanningAgent to assess result quality
+      const qualityAssessment = await this.assessResultQuality(normalizedToolName, context);
+      console.log(`🔍 Quality assessment for ${normalizedToolName}:`, qualityAssessment.status);
+      
+      if (!qualityAssessment.isAcceptable) {
+        console.log(`⚠️ Result quality insufficient: ${qualityAssessment.reason}`);
+        
+        if (qualityAssessment.retryRecommended && this.canRetryAgent(normalizedToolName)) {
+          console.log(`🔄 Attempting intelligent retry for ${normalizedToolName}`);
+          await this.performIntelligentRetry(normalizedToolName, context, qualityAssessment.improvement);
+        } else {
+          console.log(`📋 Continuing with current results, quality will be addressed by downstream agents`);
+        }
+      }
+      
       // 🔥 STORE: Save agent result for future reference
       this.agentResults.set(normalizedToolName, {
         success: true,
@@ -1793,6 +1864,210 @@ NEXT_GOAL: [final goal achieved]`;
   
   // 🗑️ REMOVED: Unused helper methods (getAgentType, extractInsights) 
   // These were part of old pipeline logic that's now replaced by Master LLM Orchestrator
+  
+  /**
+   * 🎯 INTELLIGENT QUALITY CONTROL: Use PlanningAgent to assess result quality
+   */
+  private async assessResultQuality(agentName: string, context: ResearchContext): Promise<{
+    isAcceptable: boolean;
+    status: string;
+    reason: string;
+    retryRecommended: boolean;
+    improvement: string;
+  }> {
+    try {
+      // Don't assess PlanningAgent with itself - that would create recursion
+      if (agentName === 'PlanningAgent') {
+        return {
+          isAcceptable: true,
+          status: 'acceptable',
+          reason: 'PlanningAgent assessment skipped to avoid recursion',
+          retryRecommended: false,
+          improvement: ''
+        };
+      }
+
+      const planningAgent = this.registry.get('PlanningAgent');
+      if (!planningAgent) {
+        return {
+          isAcceptable: true,
+          status: 'acceptable',
+          reason: 'No PlanningAgent available for quality assessment',
+          retryRecommended: false,
+          improvement: ''
+        };
+      }
+
+      // Create a quality assessment prompt for PlanningAgent
+      const assessmentPrompt = this.buildQualityAssessmentPrompt(agentName, context);
+      
+      console.log(`🔍 Asking PlanningAgent to assess ${agentName} results`);
+      const response = await this.llm(assessmentPrompt);
+      
+      return this.parseQualityAssessment(response);
+      
+    } catch (error) {
+      console.error(`❌ Failed to assess quality for ${agentName}:`, error);
+      return {
+        isAcceptable: true,
+        status: 'assessment_failed',
+        reason: 'Quality assessment failed, continuing',
+        retryRecommended: false,
+        improvement: ''
+      };
+    }
+  }
+
+  /**
+   * 🎯 Build quality assessment prompt using pure query intelligence (no hardcoding)
+   */
+  private buildQualityAssessmentPrompt(agentName: string, context: ResearchContext): string {
+    return `/no_think
+
+TASK: Assess whether ${agentName} produced sufficient results to help answer this user query.
+
+USER QUERY: "${context.query}"
+
+CURRENT CONTEXT STATE:
+${this.serializeContextForAssessment(context)}
+
+INSTRUCTIONS:
+You are an intelligent research coordinator. Analyze the user's query and determine what information would be needed to provide a good answer. Then assess whether the current context contains that information.
+
+For the query "${context.query}":
+1. **What does the user need?** What type of answer are they looking for?
+2. **What information is required?** What would you need to provide that answer?
+3. **Is it available?** Does the current context contain sufficient information?
+4. **What's missing?** If insufficient, what specific information is needed?
+
+RESPONSE FORMAT:
+STATUS: [acceptable/insufficient/retry_recommended]
+REASON: Brief explanation of what the user needs and what's available/missing
+IMPROVEMENT: If retry recommended, what specific information should be extracted
+
+Assess based purely on query needs:`;
+  }
+
+  /**
+   * 🎯 Serialize context for query-driven assessment (no hardcoded assumptions)
+   */
+  private serializeContextForAssessment(context: ResearchContext): string {
+    const sections = [];
+    
+    // Include available data without assumptions about what's "good"
+    if (context.documentAnalysis?.documents) {
+      sections.push(`DOCUMENTS ANALYZED: ${context.documentAnalysis.documents.length} documents`);
+    }
+    
+    if (context.sharedKnowledge.documentInsights) {
+      const insights = context.sharedKnowledge.documentInsights;
+      const available = Object.entries(insights)
+        .filter(([, values]) => Array.isArray(values) && values.length > 0)
+        .map(([key, values]) => `${key}: ${(values as string[]).join(', ')}`)
+        .join('\n');
+      if (available) {
+        sections.push(`EXTRACTED TERMS:\n${available}`);
+      }
+    }
+    
+    if (context.patterns && context.patterns.length > 0) {
+      sections.push(`PATTERNS: ${context.patterns.length} extraction patterns generated`);
+    }
+    
+    if (context.extractedData?.raw && context.extractedData.raw.length > 0) {
+      sections.push(`EXTRACTED DATA: ${context.extractedData.raw.length} items extracted`);
+      // Show sample of what was extracted
+      const sample = context.extractedData.raw.slice(0, 3)
+        .map(item => `"${(item.content || '').substring(0, 100)}..."`)
+        .join('\n');
+      sections.push(`SAMPLE EXTRACTIONS:\n${sample}`);
+    }
+    
+    if (context.ragResults?.chunks) {
+      sections.push(`SOURCE CONTENT: ${context.ragResults.chunks.length} document chunks available`);
+    }
+    
+    return sections.join('\n\n');
+  }
+
+  /**
+   * 🎯 Parse quality assessment response from PlanningAgent
+   */
+  private parseQualityAssessment(response: string): {
+    isAcceptable: boolean;
+    status: string;
+    reason: string;
+    retryRecommended: boolean;
+    improvement: string;
+  } {
+    const status = this.extractAssessmentField(response, 'STATUS') || 'acceptable';
+    const reason = this.extractAssessmentField(response, 'REASON') || 'No specific reason provided';
+    const improvement = this.extractAssessmentField(response, 'IMPROVEMENT') || '';
+
+    const isAcceptable = status.toLowerCase().includes('acceptable');
+    const retryRecommended = status.toLowerCase().includes('retry');
+
+    return {
+      isAcceptable,
+      status,
+      reason,
+      retryRecommended,
+      improvement
+    };
+  }
+
+  /**
+   * 🎯 Extract assessment fields from response (flexible parsing)
+   */
+  private extractAssessmentField(response: string, fieldName: string): string {
+    const lines = response.split('\n');
+    for (const line of lines) {
+      if (line.toLowerCase().includes(fieldName.toLowerCase() + ':')) {
+        return line.substring(line.indexOf(':') + 1).trim();
+      }
+    }
+    return '';
+  }
+
+  /**
+   * 🎯 Check if agent can be retried safely
+   */
+  private canRetryAgent(agentName: string): boolean {
+    // Limit retries to prevent infinite loops
+    const retryCount = this.agentRetryCount.get(agentName) || 0;
+    return retryCount < 2;
+  }
+
+  /**
+   * 🎯 Perform intelligent retry with improvement guidance
+   */
+  private async performIntelligentRetry(agentName: string, context: ResearchContext, improvement: string): Promise<void> {
+    // Track retry count
+    const currentRetries = this.agentRetryCount.get(agentName) || 0;
+    this.agentRetryCount.set(agentName, currentRetries + 1);
+
+    console.log(`🔄 Intelligent retry #${currentRetries + 1} for ${agentName}: ${improvement}`);
+
+    // Clear previous results
+    this.calledAgents.delete(agentName);
+    this.agentResults.delete(agentName);
+
+    // Store improvement guidance in context
+    if (!context.sharedKnowledge.agentGuidance) {
+      context.sharedKnowledge.agentGuidance = {};
+    }
+    context.sharedKnowledge.agentGuidance[agentName] = improvement;
+
+    // Re-execute the agent
+    const agent = this.registry.get(agentName);
+    if (agent) {
+      console.log(`🎯 Re-executing ${agentName} with improvement guidance: ${improvement}`);
+      await agent.process(context);
+    }
+  }
+
+  // Track retry counts to prevent infinite loops
+  private agentRetryCount = new Map<string, number>();
   
   // 🗑️ OLD METHODS: No longer needed with Master LLM Orchestrator
 }
