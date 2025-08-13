@@ -15,6 +15,7 @@ import { UnifiedWebSearchService, UnifiedWebSearchContext } from './UnifiedWebSe
 import { createMultiAgentSystem } from './multi-agent';
 import { AgentProgressCallback, AgentProgressTracker } from './multi-agent/interfaces/AgentProgress';
 import { AgentSubStep } from '@/components/DeepResearch/components/ResearchSteps';
+import type { QueryConstraints } from './multi-agent/interfaces/Context';
 
 export interface ResearchConfig {
   maxSteps: number;
@@ -143,9 +144,24 @@ export class ResearchOrchestrator {
               ...doc.metadata
             }
           }));
+
+          // 🎯 Deterministic prefilter by query constraints (no LLM)
+          let sourcesToUse = quickSources;
+          try {
+            const constraints = await this.queryIntelligence.extractQueryConstraints(query);
+            const filtered = this.applyDeterministicPrefilter(quickSources, constraints);
+            if (filtered.length > 0) {
+              console.log(`✅ Prefilter matched ${filtered.length}/${quickSources.length} documents by query constraints`);
+              sourcesToUse = filtered;
+            } else {
+              console.log(`ℹ️ Prefilter found no strict matches; using all candidates (constraints.strictness=${constraints.strictness})`);
+            }
+          } catch (e) {
+            console.warn('⚠️ Prefiltering skipped due to constraint extraction error');
+          }
           
           // Check if Master Orchestrator should handle this ENTIRE request
-          if (this.shouldUseMasterOrchestrator(quickSources)) {
+          if (this.shouldUseMasterOrchestrator(sourcesToUse)) {
             console.log(`🧠 MASTER ORCHESTRATOR: Bypassing traditional pipeline entirely - using intelligent tool orchestration`);
             
             // Create a single Master Orchestrator step
@@ -161,12 +177,12 @@ export class ResearchOrchestrator {
             this.currentSynthesisStep = masterStep;
             
             // Execute Master Orchestrator with initial sources
-            const finalAnswer = await this.executeMasterOrchestrator(query, quickSources, null);
+            const finalAnswer = await this.executeMasterOrchestrator(query, sourcesToUse, null);
             
             this.updateStep(masterStep, {
               status: 'completed',
               duration: Date.now() - masterStep.timestamp,
-              reasoning: `Master Orchestrator processed ${quickSources.length} sources with ${this.currentAgentSubSteps?.length || 0} intelligent tool calls`,
+              reasoning: `Master Orchestrator processed ${sourcesToUse.length} sources with ${this.currentAgentSubSteps?.length || 0} intelligent tool calls`,
               subSteps: this.currentAgentSubSteps || [],
               agentDetails: this.currentAgentSubSteps && this.currentAgentSubSteps.length > 0 ? {
                 orchestratorPlan: `Master LLM Orchestrator with ${this.currentAgentSubSteps.length} intelligent tool calls`,
@@ -180,15 +196,15 @@ export class ResearchOrchestrator {
               query,
               steps,
               finalAnswer,
-              sources: quickSources,
-              confidence: this.calculateOverallConfidence(steps, quickSources),
+              sources: sourcesToUse,
+              confidence: this.calculateOverallConfidence(steps, sourcesToUse),
               processingTime: Date.now() - startTime,
               metadata: {
                 stepsExecuted: steps.length,
                 ragSearches: 1,
                 webSearches: 0,
-                sourcesFound: quickSources.length,
-                avgSimilarity: quickSources.reduce((sum, s) => sum + (s.similarity || 0), 0) / quickSources.length
+                sourcesFound: sourcesToUse.length,
+                avgSimilarity: sourcesToUse.reduce((sum, s) => sum + (s.similarity || 0), 0) / sourcesToUse.length
               },
               debugInfo: {
                 generatedPatterns: this.captureDebugPatterns(),
@@ -1769,6 +1785,48 @@ Answer:`;
       console.error(`❌ Multi-agent rerun failed for ${agentName}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Deterministic prefilter using query constraints (no LLM calls)
+   */
+  private applyDeterministicPrefilter(sources: SourceReference[], constraints: QueryConstraints): SourceReference[] {
+    const domains = (constraints.expectedDomainCandidates || []).map(d => d.toLowerCase());
+    const titleHints = (constraints.expectedTitleHints || []).map(h => h.toLowerCase());
+    const owner = (constraints.expectedOwner || '').toLowerCase();
+    const docType = (constraints.expectedDocType || '').toLowerCase();
+
+    const matches: SourceReference[] = [];
+
+    for (const s of sources) {
+      const filename = (s.metadata as any)?.filename?.toLowerCase?.() || s.source?.toLowerCase?.() || '';
+      const title = (s.title || '').toLowerCase();
+
+      let ok = true;
+
+      if (domains.length > 0) {
+        ok = ok && domains.some(d => filename.includes(d));
+      }
+      if (titleHints.length > 0) {
+        ok = ok && titleHints.some(h => title.includes(h) || filename.includes(h));
+      }
+      if (owner) {
+        ok = ok && (title.includes(owner) || filename.includes(owner));
+      }
+      if (docType) {
+        // Soft hint: if docType is 'blog', prefer titles that look like blog posts
+        if (docType === 'blog') {
+          const looksLikeBlog = /post|blog|worklog|article|guide|how[- ]to|writeup/i.test(title) || /post|blog|worklog|article/i.test(filename);
+          ok = ok && looksLikeBlog;
+        }
+      }
+
+      if (ok) matches.push(s);
+    }
+
+    // For strictness 'must', return matches only; for 'should', allow empty and let ranking handle later
+    if (constraints.strictness === 'must') return matches;
+    return matches;
   }
 }
 
