@@ -35,17 +35,31 @@ Achieve Claude Code–style orchestration with zero hardcoding across any docume
 - Constrained semantic search in RxDB per term (respect constraints, small topK, dedupe, threshold by specificity). Cap additions (≤10), mark as `augmented`.
 - Generate patterns only from selected/augmented terms; no generic fallbacks.
 
-6) DataAnalysisAgent Uses Expectations (0 LLM)
-- Read `intelligentExpectations.expectedAnswerType` for intent; keep context-relevance boosting for main contribution and method-intro phrasing.
+6) Deterministic Performance Pipeline (0 LLM)
+- Intent fallback from query: when LLM expectations are inconclusive, derive `expectedAnswerType='performance_ranking'` if the query contains ranking language (e.g., "top", "best") AND numeric performance units (hours, tokens/s, billions of tokens). This is string/regex based, source-agnostic.
+- Guaranteed numeric/time patterns: always add regex families for durations (hours/minutes), throughput (tokens/s), and table-like rows when `expectedAnswerType='performance_ranking'`.
+- Normalize text before matching: lowercasing + separator collapse to tolerate variants (e.g., "Mongo DB" vs "MongoDB").
+- Flexible term regex builder: converts tokens such as "NextJS" or "MongoDB" into separator/acronym-tolerant regex without hardcoded lists.
 
-7) Orchestrator Budget + Guardrails (save calls)
+7) DataAnalysisAgent Uses Expectations (0 LLM)
+- Read `intelligentExpectations.expectedAnswerType`. If `performance_ranking`, compute a deterministic ranking:
+  - Parse times → hours and throughput → tokens/s from extracted text.
+  - Produce top-3 by min(total time) primarily; if time missing, fall back to max(tokens/s).
+  - Emit structured results with attribution for synthesis.
+
+8) Orchestrator Budget + Guardrails (save calls)
 - Include `queryConstraints` in master prompt; set per-query budget (~5). Skip extra QA when constraints satisfied and extraction coverage is met.
+- Require extraction before synthesis to avoid empty answers; planning remains in control of ordering.
 
-8) Deterministic Post-Filter (0 LLM)
+9) Deterministic Post-Filter (0 LLM)
 - Remove extracted items violating `queryConstraints` (source/domain/title mismatch).
 
-9) Caching
+10) Caching
 - Cache synopses, ranking, augmentation ids for reuse on reruns.
+
+11) UX/Observability (0 LLM)
+- Labeling: display filename/title as primary, LLM `mainEntity` as secondary to avoid confusion (e.g., "Including: <filename> (entity: GPT-2)").
+- Persist verbose agent history across runs in a local ring buffer (and localStorage) with runId/timestamp; expose recent runs in the UI panel.
 
 ## Expected Call Budget
 - 1: Constraints
@@ -66,6 +80,7 @@ Total: 3–5 typical.
 ## Risks & Mitigations
 - Over-strict constraints when metadata sparse → allow one fallback ranking pass.
 - Pattern overfitting → multiple grounded terms + augmentation.
+ - Small models emit malformed JSON → strict JSON-output prompts + resilient parser cleaning already added.
 
 ## Approval
 Proceed with TODO in `todo-012.md` upon approval. No code changes yet.

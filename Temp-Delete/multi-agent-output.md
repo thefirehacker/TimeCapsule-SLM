@@ -1,4 +1,3 @@
-# Ai agent output 
 🤖 Multi-Agent Process Details
 ════════════════════════════════════════
 
@@ -6,84 +5,103 @@
    Type: DataInspector
    Status: completed
    Progress: 100%
-   Duration: 80028ms
+   Duration: 80873ms
    
    📤 Full Output:
    {
      "documentAnalysis": {
        "documentType": "Multi-Document Analysis",
        "structure": [
-         "Blog"
+         "DOCUMENT"
        ],
        "contentAreas": [
          "<think>\nOkay",
-         "let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a Blog",
-         "and the sample content is a post with some technical details.\n\nFirst",
-         "I need to break down the sample content. The sample starts with a user's name",
-         "\"TYLER ROMERO",
-         "\" and the date",
-         "March 8",
-         "2025. Then there are three points listed: simulating a 8x H100 machine",
-         "increasing the learning rate",
-         "and halving the batch size. Also",
-         "there's a mention of improving the learning rate schedule. \n\nNow",
-         "the user wants me to list the specific types of information present based on the content. Let me check each part. The main content areas would be the user's name",
-         "date",
-         "the technical details",
-         "and the actions taken. The sample content includes the user's name",
-         "date",
-         "the three key points with specific numbers",
-         "and the actions. \n\nI should make sure not to add any assumptions. The structure seems to be a blog post with the user's info",
-         "date",
-         "and the three technical points. The sections would be the user's information",
-         "the date",
-         "the technical details",
-         "and the actions. So combining all that",
-         "the answer should be the three main areas listed as separate sections.\n</think>\n\n- User information  \n- Date  \n- Technical details (simulating 8x H100",
-         "learning rate",
-         "batch size)  \n- Actions taken (improving learning rate and schedule)"
+         "let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst",
+         "the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8",
+         "2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next",
+         "they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262",
+         "144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this",
+         "the main sections are the author's post title",
+         "the content areas. The first part is the author's name",
+         "their posts",
+         "and the topics they cover. Then there's the time",
+         "the question about training GPT-2",
+         "and the details about the GPUs and training settings. The main content areas here are the author's name",
+         "their posts",
+         "the topics they cover",
+         "the time",
+         "the question",
+         "and the training details. So the sections would be: author's name",
+         "posts",
+         "topics",
+         "time",
+         "question",
+         "training details. I need to list these as comma-separated",
+         "no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs",
+         "simulating training settings",
+         "learning rate settings.  \n- Time: March 8",
+         "2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate",
+         "batch size",
+         "GPUs",
+         "sequence length)."
        ],
        "queryIntent": "Extract information from 1 relevant documents",
        "extractionStrategy": "Extract from each relevant document separately with proper attribution",
        "expectedOutputFormat": "structured synthesis with proper attribution",
        "documents": [
          {
-           "documentId": "doc_1755067269362_76u38f2cd",
-           "documentName": "doc_1755067269362_76u38f2cd",
-           "documentType": "Blog",
-           "primaryEntity": "Tyler",
+           "documentId": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
+           "documentName": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
+           "documentType": "DOCUMENT",
+           "primaryEntity": "GPT-2",
            "structure": [
-             "blog sections"
+             "document sections"
            ],
            "contentAreas": [
              "<think>\nOkay",
-             "let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a Blog",
-             "and the sample content is a post with some technical details.\n\nFirst",
-             "I need to break down the sample content. The sample starts with a user's name",
-             "\"TYLER ROMERO",
-             "\" and the date",
-             "March 8",
-             "2025. Then there are three points listed: simulating a 8x H100 machine",
-             "increasing the learning rate",
-             "and halving the batch size. Also",
-             "there's a mention of improving the learning rate schedule. \n\nNow",
-             "the user wants me to list the specific types of information present based on the content. Let me check each part. The main content areas would be the user's name",
-             "date",
-             "the technical details",
-             "and the actions taken. The sample content includes the user's name",
-             "date",
-             "the three key points with specific numbers",
-             "and the actions. \n\nI should make sure not to add any assumptions. The structure seems to be a blog post with the user's info",
-             "date",
-             "and the three technical points. The sections would be the user's information",
-             "the date",
-             "the technical details",
-             "and the actions. So combining all that",
-             "the answer should be the three main areas listed as separate sections.\n</think>\n\n- User information  \n- Date  \n- Technical details (simulating 8x H100",
-             "learning rate",
-             "batch size)  \n- Actions taken (improving learning rate and schedule)"
+             "let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst",
+             "the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8",
+             "2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next",
+             "they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262",
+             "144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this",
+             "the main sections are the author's post title",
+             "the content areas. The first part is the author's name",
+             "their posts",
+             "and the topics they cover. Then there's the time",
+             "the question about training GPT-2",
+             "and the details about the GPUs and training settings. The main content areas here are the author's name",
+             "their posts",
+             "the topics they cover",
+             "the time",
+             "the question",
+             "and the training details. So the sections would be: author's name",
+             "posts",
+             "topics",
+             "time",
+             "question",
+             "training details. I need to list these as comma-separated",
+             "no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs",
+             "simulating training settings",
+             "learning rate settings.  \n- Time: March 8",
+             "2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate",
+             "batch size",
+             "GPUs",
+             "sequence length)."
            ],
-           "keyEntities": [],
+           "keyEntities": [
+             {
+               "name": "Tyler Romero",
+               "type": "person",
+               "context": "post author",
+               "isOwner": false
+             },
+             {
+               "name": "None",
+               "type": "None",
+               "context": "None",
+               "isOwner": false
+             }
+           ],
            "role": "reference"
          }
        ],
@@ -92,23 +110,16 @@
      },
      "sharedKnowledge": {
        "methods": [
-         "Nano GPT speedrun"
+         "Tyler Romero"
        ],
        "concepts": [
-         "optimization",
-         "GPU usage",
-         "batch size",
-         "optimizer parameters",
-         "training speed metrics."
+         "speedrun results",
+         "blog posts"
        ],
        "people": [
-         "Tyler Romo"
+         "Tyler Romero"
        ],
-       "data": [
-         "training time",
-         "tokens/second",
-         "validation loss target"
-       ]
+       "data": []
      },
      "filteredDocuments": 6,
      "reasoning": "Document analysis completed"
@@ -120,7 +131,7 @@
    Type: PlanningAgent
    Status: completed
    Progress: 100%
-   Duration: 13120ms
+   Duration: 12616ms
    
    📤 Full Output:
    {
@@ -130,169 +141,43 @@
 
 ───────────────────────────────────
 
-3. PatternGenerator ✅
-   Type: PatternGenerator
+3. QueryPlanner ✅
+   Type: QueryPlanner
    Status: completed
    Progress: 100%
-   Duration: 36591ms
+   Duration: 18330ms
    
    📤 Full Output:
    {
-     "patterns": [
-       {
-         "description": "Blog extraction pattern for Tyler",
-         "examples": [
-           "<think>\nOkay",
-           "let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a Blog",
-           "and the sample content is a post with some technical details.\n\nFirst",
-           "I need to break down the sample content. The sample starts with a user's name",
-           "\"TYLER ROMERO",
-           "\" and the date",
-           "March 8",
-           "2025. Then there are three points listed: simulating a 8x H100 machine",
-           "increasing the learning rate",
-           "and halving the batch size. Also",
-           "there's a mention of improving the learning rate schedule. \n\nNow",
-           "the user wants me to list the specific types of information present based on the content. Let me check each part. The main content areas would be the user's name",
-           "date",
-           "the technical details",
-           "and the actions taken. The sample content includes the user's name",
-           "date",
-           "the three key points with specific numbers",
-           "and the actions. \n\nI should make sure not to add any assumptions. The structure seems to be a blog post with the user's info",
-           "date",
-           "and the three technical points. The sections would be the user's information",
-           "the date",
-           "the technical details",
-           "and the actions. So combining all that",
-           "the answer should be the three main areas listed as separate sections.\n</think>\n\n- User information  \n- Date  \n- Technical details (simulating 8x H100",
-           "learning rate",
-           "batch size)  \n- Actions taken (improving learning rate and schedule)"
-         ],
-         "extractionStrategy": "Extract <think>\nOkay, let's see. The user wants me to analyze the given document type and sample content to figure out its actual structure. The document type is a Blog, and the sample content is a post with some technical details.\n\nFirst, I need to break down the sample content. The sample starts with a user's name, \"TYLER ROMERO, \" and the date, March 8, 2025. Then there are three points listed: simulating a 8x H100 machine, increasing the learning rate, and halving the batch size. Also, there's a mention of improving the learning rate schedule. \n\nNow, the user wants me to list the specific types of information present based on the content. Let me check each part. The main content areas would be the user's name, date, the technical details, and the actions taken. The sample content includes the user's name, date, the three key points with specific numbers, and the actions. \n\nI should make sure not to add any assumptions. The structure seems to be a blog post with the user's info, date, and the three technical points. The sections would be the user's information, the date, the technical details, and the actions. So combining all that, the answer should be the three main areas listed as separate sections.\n</think>\n\n- User information  \n- Date  \n- Technical details (simulating 8x H100, learning rate, batch size)  \n- Actions taken (improving learning rate and schedule) from doc_1755067269362_76u38f2cd",
-         "confidence": 0.9
-       },
-       {
-         "description": "Person pattern for Tyler Romo",
-         "examples": [],
-         "extractionStrategy": "Extract mentions of Tyler Romo and their work",
-         "confidence": 0.9,
-         "regexPattern": "/Tyler Romo[^\\n]*(?:developed|created|proposes|implements)[^\\n]*/gi"
-       },
-       {
-         "description": "Authorship pattern for Tyler Romo",
-         "examples": [],
-         "extractionStrategy": "Extract Tyler Romo as author",
-         "confidence": 0.8,
-         "regexPattern": "/(?:author|by|from)\\s*[^\\n]*Tyler Romo[^\\n]*/gi"
-       },
-       {
-         "description": "Basic Nano GPT speedrun pattern",
-         "examples": [],
-         "extractionStrategy": "Extract Nano GPT speedrun mentions",
-         "confidence": 0.7,
-         "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi"
-       },
-       {
-         "description": "Basic Nano GPT speedrun pattern",
-         "examples": [],
-         "extractionStrategy": "Extract Nano GPT speedrun mentions",
-         "confidence": 0.7,
-         "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi"
-       },
-       {
-         "description": "Basic optimization pattern",
-         "examples": [],
-         "extractionStrategy": "Extract optimization mentions",
-         "confidence": 0.7,
-         "regexPattern": "/optimization[^\\n]{0,80}/gi"
-       },
-       {
-         "description": "Basic GPU usage pattern",
-         "examples": [],
-         "extractionStrategy": "Extract GPU usage mentions",
-         "confidence": 0.7,
-         "regexPattern": "/GPU usage[^\\n]{0,80}/gi"
-       },
-       {
-         "description": "Basic batch size pattern",
-         "examples": [],
-         "extractionStrategy": "Extract batch size mentions",
-         "confidence": 0.7,
-         "regexPattern": "/batch size[^\\n]{0,80}/gi"
-       },
-       {
-         "description": "Basic optimizer parameters pattern",
-         "examples": [],
-         "extractionStrategy": "Extract optimizer parameters mentions",
-         "confidence": 0.7,
-         "regexPattern": "/optimizer parameters[^\\n]{0,80}/gi"
-       }
-     ],
-     "patternCount": 9,
-     "extractionStrategies": {
-       "generatedPatterns": [
-         "/Tyler Romo[^\\n]*(?:developed|created|proposes|implements)[^\\n]*/gi",
-         "/(?:author|by|from)\\s*[^\\n]*Tyler Romo[^\\n]*/gi",
-         "/Nano GPT speedrun[^\\n]{0,100}/gi",
-         "/Nano GPT speedrun[^\\n]{0,100}/gi",
-         "/optimization[^\\n]{0,80}/gi",
-         "/GPU usage[^\\n]{0,80}/gi",
-         "/batch size[^\\n]{0,80}/gi",
-         "/optimizer parameters[^\\n]{0,80}/gi"
-       ],
-       "generationMethod": "planning_agent_strategy",
-       "basedOnExtractionStrategy": true,
-       "timestamp": 1755086977802,
-       "agentSource": "PatternGenerator",
-       "strategyUsed": {
-         "documentType": "Method Paper",
-         "queryIntent": "method_from_paper_contribution",
-         "contentAreas": [],
-         "patternCategories": {
-           "methods": [
-             "Nano GPT speedrun",
-             "Nano GPT speedrun"
-           ],
-           "concepts": [
-             "optimization",
-             "GPU usage",
-             "batch size",
-             "optimizer parameters",
-             "training speed metrics."
-           ],
-           "people": [
-             "Tyler Romo"
-           ],
-           "data": [
-             "training time",
-             "tokens/second",
-             "validation loss target"
-           ]
-         },
-         "extractionTargets": [
-           "content",
-           "methods",
-           "concepts",
-           "people",
-           "data",
-           "primary_focus",
-           "methodpaper",
-           "findspecificmethod",
-           "inferfromcontribution"
-         ]
-       }
-     },
-     "reasoning": "Pattern generation completed"
+     "status": "completed",
+     "reasoning": "QueryPlanner processing completed"
    }
 
 ───────────────────────────────────
 
-4. SynthesisCoordinator ✅
+4. Extractor ✅
+   Type: Extractor
+   Status: completed
+   Progress: 100%
+   Duration: 41281ms
+   
+   📤 Full Output:
+   {
+     "extractedData": {
+       "raw": [],
+       "structured": []
+     },
+     "itemCount": 10,
+     "reasoning": "Data extraction completed"
+   }
+
+───────────────────────────────────
+
+5. SynthesisCoordinator ✅
    Type: SynthesisCoordinator
    Status: completed
    Progress: 100%
-   Duration: 8034ms
+   Duration: 19516ms
    
    📤 Full Output:
    {
@@ -302,231 +187,235 @@
 
 ───────────────────────────────────
 
-5. Extractor ✅
-   Type: Extractor
+6. PatternGenerator ✅
+   Type: PatternGenerator
    Status: completed
    Progress: 100%
-   Duration: 8500ms
+   Duration: 58741ms
    
    📤 Full Output:
    {
-     "extractedData": {
-       "raw": [
-         {
-           "content": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom",
-           "value": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom",
-           "unit": "",
-           "context": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_0_w5j6m3",
-           "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-             "patternDescription": "Basic Nano GPT speedrun pattern",
-             "fullMatch": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom"
-           },
-           "originalContent": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom"
-         },
-         {
-           "content": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe",
-           "value": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe",
-           "unit": "",
-           "context": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_0_w5j6m3",
-           "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-             "patternDescription": "Basic Nano GPT speedrun pattern",
-             "fullMatch": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe"
-           },
-           "originalContent": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe"
-         },
-         {
-           "content": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100",
-           "value": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100",
-           "unit": "",
-           "context": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100 ",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_0_w5j6m3",
-           "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-             "patternDescription": "Basic Nano GPT speedrun pattern",
-             "fullMatch": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100 "
-           },
-           "originalContent": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100"
-         },
-         {
-           "content": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra",
-           "value": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra",
-           "unit": "",
-           "context": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_6_o531qx",
-           "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-             "patternDescription": "Basic Nano GPT speedrun pattern",
-             "fullMatch": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra"
-           },
-           "originalContent": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra"
-         },
-         {
-           "content": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad",
-           "value": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad",
-           "unit": "",
-           "context": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad",
-           "confidence": 0.95,
-           "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_9_rueqt1",
-           "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-           "metadata": {
-             "extractionMethod": "regex_pattern",
-             "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-             "patternDescription": "Basic Nano GPT speedrun pattern",
-             "fullMatch": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad"
-           },
-           "originalContent": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad"
-         }
+     "patterns": [
+       {
+         "description": "DOCUMENT extraction pattern for GPT-2",
+         "examples": [
+           "<think>\nOkay",
+           "let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst",
+           "the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8",
+           "2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next",
+           "they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262",
+           "144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this",
+           "the main sections are the author's post title",
+           "the content areas. The first part is the author's name",
+           "their posts",
+           "and the topics they cover. Then there's the time",
+           "the question about training GPT-2",
+           "and the details about the GPUs and training settings. The main content areas here are the author's name",
+           "their posts",
+           "the topics they cover",
+           "the time",
+           "the question",
+           "and the training details. So the sections would be: author's name",
+           "posts",
+           "topics",
+           "time",
+           "question",
+           "training details. I need to list these as comma-separated",
+           "no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs",
+           "simulating training settings",
+           "learning rate settings.  \n- Time: March 8",
+           "2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate",
+           "batch size",
+           "GPUs",
+           "sequence length)."
+         ],
+         "extractionStrategy": "Extract <think>\nOkay, let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst, the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8, 2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next, they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262, 144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this, the main sections are the author's post title, the content areas. The first part is the author's name, their posts, and the topics they cover. Then there's the time, the question about training GPT-2, and the details about the GPUs and training settings. The main content areas here are the author's name, their posts, the topics they cover, the time, the question, and the training details. So the sections would be: author's name, posts, topics, time, question, training details. I need to list these as comma-separated, no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs, simulating training settings, learning rate settings.  \n- Time: March 8, 2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate, batch size, GPUs, sequence length). from www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
+         "confidence": 0.9
+       },
+       {
+         "description": "LLM-generated speedrun results pattern 1",
+         "examples": [],
+         "extractionStrategy": "Extract speedrun results information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/pattern1/gi"
+       },
+       {
+         "description": "LLM-generated blog posts pattern 1",
+         "examples": [],
+         "extractionStrategy": "Extract blog posts information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/definition_of_blog_posts/gi"
+       },
+       {
+         "description": "LLM-generated blog posts pattern 2",
+         "examples": [],
+         "extractionStrategy": "Extract blog posts information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/usage_of_blog_posts/gi"
+       },
+       {
+         "description": "LLM-generated top pattern 1",
+         "examples": [],
+         "extractionStrategy": "Extract top information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/pattern1/gi"
+       },
+       {
+         "description": "LLM-generated top pattern 2",
+         "examples": [],
+         "extractionStrategy": "Extract top information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/pattern2/gi"
+       },
+       {
+         "description": "LLM-generated speed pattern 1",
+         "examples": [],
+         "extractionStrategy": "Extract speed information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/pattern1/gi"
+       },
+       {
+         "description": "LLM-generated speed pattern 2",
+         "examples": [],
+         "extractionStrategy": "Extract speed information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/speed\\s*(\\d+\\.?\\d*)/g"
+       },
+       {
+         "description": "LLM-generated speed pattern 3",
+         "examples": [],
+         "extractionStrategy": "Extract speed information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/pattern2/gi"
+       },
+       {
+         "description": "LLM-generated speed pattern 4",
+         "examples": [],
+         "extractionStrategy": "Extract speed information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/application\\s*of\\s*speed/gi"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of speedrun results",
+         "confidence": 0.85,
+         "regexPattern": "/(?:speedrun\\s*[-_]?\\s*results)/i"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of blog posts",
+         "confidence": 0.85,
+         "regexPattern": "/(?:blog\\s*[-_]?\\s*posts)/i"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of top",
+         "confidence": 0.85,
+         "regexPattern": "/(?:top)/i"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of speed",
+         "confidence": 0.85,
+         "regexPattern": "/(?:speed)/i"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of run",
+         "confidence": 0.85,
+         "regexPattern": "/(?:run)/i"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of tylers",
+         "confidence": 0.85,
+         "regexPattern": "/(?:tylers)/i"
+       },
+       {
+         "description": "Flexible term variant for concept",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of blog",
+         "confidence": 0.85,
+         "regexPattern": "/(?:blog)/i"
+       },
+       {
+         "description": "Abstract section",
+         "examples": [],
+         "extractionStrategy": "Extract abstract content",
+         "confidence": 0.8,
+         "regexPattern": "/(?:abstract|summary):\\s*([^\\n]{50,300})/gi"
+       },
+       {
+         "description": "Results section",
+         "examples": [],
+         "extractionStrategy": "Extract results and conclusions",
+         "confidence": 0.8,
+         "regexPattern": "/(?:results?|conclusions?):\\s*([^\\n]{30,200})/gi"
+       },
+       {
+         "description": "Performance metrics",
+         "examples": [],
+         "extractionStrategy": "Extract numerical results and metrics",
+         "confidence": 0.9,
+         "regexPattern": "/(?:accuracy|performance|score|metric)\\s*:?\\s*([\\d.]+%?)/gi"
+       }
+     ],
+     "patternCount": 20,
+     "extractionStrategies": {
+       "generatedPatterns": [
+         "/pattern1/gi",
+         "/definition_of_blog_posts/gi",
+         "/usage_of_blog_posts/gi",
+         "/pattern1/gi",
+         "/pattern2/gi",
+         "/pattern1/gi",
+         "/speed\\s*(\\d+\\.?\\d*)/g",
+         "/pattern2/gi",
+         "/application\\s*of\\s*speed/gi",
+         "/(?:speedrun\\s*[-_]?\\s*results)/i",
+         "/(?:blog\\s*[-_]?\\s*posts)/i",
+         "/(?:top)/i",
+         "/(?:speed)/i",
+         "/(?:run)/i",
+         "/(?:tylers)/i",
+         "/(?:blog)/i",
+         "/(?:abstract|summary):\\s*([^\\n]{50,300})/gi",
+         "/(?:results?|conclusions?):\\s*([^\\n]{30,200})/gi",
+         "/(?:accuracy|performance|score|metric)\\s*:?\\s*([\\d.]+%?)/gi"
        ],
-       "structured": [
-         {
-           "bestItem": {
-             "content": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom",
-             "value": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom",
-             "unit": "",
-             "context": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom",
-             "confidence": 0.95,
-             "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_0_w5j6m3",
-             "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-             "metadata": {
-               "extractionMethod": "regex_pattern",
-               "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-               "patternDescription": "Basic Nano GPT speedrun pattern",
-               "fullMatch": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom"
-             },
-             "originalContent": "Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs? March 8, 2025 I’ve seen somesomesom"
-           },
-           "similarItems": [],
-           "confidence": 0.95,
-           "classification": "other",
-           "isCurrent": false,
-           "isHistorical": false
+       "generationMethod": "planning_agent_strategy",
+       "basedOnExtractionStrategy": true,
+       "timestamp": 1755096050925,
+       "agentSource": "PatternGenerator",
+       "strategyUsed": {
+         "documentType": "Research Paper",
+         "queryIntent": "general_information",
+         "contentAreas": [],
+         "patternCategories": {
+           "concepts": [
+             "speedrun results",
+             "blog posts",
+             "top",
+             "speed",
+             "run",
+             "tylers",
+             "blog"
+           ]
          },
-         {
-           "bestItem": {
-             "content": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe",
-             "value": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe",
-             "unit": "",
-             "context": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe",
-             "confidence": 0.95,
-             "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_0_w5j6m3",
-             "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-             "metadata": {
-               "extractionMethod": "regex_pattern",
-               "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-               "patternDescription": "Basic Nano GPT speedrun pattern",
-               "fullMatch": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe"
-             },
-             "originalContent": "Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT speedrunthe Nano GPT spe"
-           },
-           "similarItems": [],
-           "confidence": 0.95,
-           "classification": "current",
-           "isCurrent": true,
-           "isHistorical": false
-         },
-         {
-           "bestItem": {
-             "content": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100",
-             "value": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100",
-             "unit": "",
-             "context": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100 ",
-             "confidence": 0.95,
-             "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_0_w5j6m3",
-             "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-             "metadata": {
-               "extractionMethod": "regex_pattern",
-               "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-               "patternDescription": "Basic Nano GPT speedrun pattern",
-               "fullMatch": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100 "
-             },
-             "originalContent": "Nano GPT speedrun is to train a neural network to 3.28 validation loss on Fine Web as fast as possible on an 8x H100"
-           },
-           "similarItems": [],
-           "confidence": 0.95,
-           "classification": "other",
-           "isCurrent": false,
-           "isHistorical": false
-         },
-         {
-           "bestItem": {
-             "content": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra",
-             "value": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra",
-             "unit": "",
-             "context": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra",
-             "confidence": 0.95,
-             "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_6_o531qx",
-             "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-             "metadata": {
-               "extractionMethod": "regex_pattern",
-               "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-               "patternDescription": "Basic Nano GPT speedrun pattern",
-               "fullMatch": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra"
-             },
-             "originalContent": "Nano GPT speedrun by Jordan et al. It is a variant of SGD with Momentum that applies a postprocessing step to the gra"
-           },
-           "similarItems": [],
-           "confidence": 0.95,
-           "classification": "current",
-           "isCurrent": true,
-           "isHistorical": false
-         },
-         {
-           "bestItem": {
-             "content": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad",
-             "value": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad",
-             "unit": "",
-             "context": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad",
-             "confidence": 0.95,
-             "sourceChunkId": "chunk_doc_1755067269362_76u38f2cd_1755067285822_9_rueqt1",
-             "sourceDocument": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
-             "metadata": {
-               "extractionMethod": "regex_pattern",
-               "regexPattern": "/Nano GPT speedrun[^\\n]{0,100}/gi",
-               "patternDescription": "Basic Nano GPT speedrun pattern",
-               "fullMatch": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad"
-             },
-             "originalContent": "Nano GPT speedrun by @Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad62304977@Grad"
-           },
-           "similarItems": [],
-           "confidence": 0.95,
-           "classification": "other",
-           "isCurrent": false,
-           "isHistorical": false
-         }
-       ]
+         "extractionTargets": [
+           "content",
+           "concepts",
+           "primary_focus"
+         ]
+       }
      },
-     "itemCount": 7,
-     "reasoning": "Data extraction completed"
-   }
-
-───────────────────────────────────
-
-6. ResponseFormatter ✅
-   Type: ResponseFormatter
-   Status: completed
-   Progress: 100%
-   Duration: 7431ms
-   
-   📤 Full Output:
-   {
-     "status": "completed",
-     "reasoning": "ResponseFormatter processing completed"
+     "reasoning": "Pattern generation completed"
    }
 
 ───────────────────────────────────
@@ -535,7 +424,7 @@
    Type: DataAnalyzer
    Status: completed
    Progress: 100%
-   Duration: 28005ms
+   Duration: 1584ms
    
    📤 Full Output:
    {
@@ -547,4 +436,4 @@
 
 Total Agents: 7
 Completed: 7
-Generated: 13/08/2025, 17:43:13
+Generated: 13/08/2025, 20:17:55

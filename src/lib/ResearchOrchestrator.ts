@@ -8,7 +8,7 @@
  * and executes it step by step with full transparency.
  */
 
-import { QueryIntelligenceService, QueryAnalysis } from './QueryIntelligenceService';
+import { QueryIntelligenceService, QueryAnalysis, QueryUtils } from './QueryIntelligenceService';
 import { ResearchStep, SourceReference, ResearchStepUtils } from '@/components/DeepResearch/components/ResearchSteps';
 import { VectorStore, SearchResult } from '@/components/VectorStore/VectorStore';
 import { UnifiedWebSearchService, UnifiedWebSearchContext } from './UnifiedWebSearchService';
@@ -80,6 +80,153 @@ export class ResearchOrchestrator {
   private currentAgentSubSteps: AgentSubStep[] = [];
   private currentSynthesisStep: ResearchStep | null = null;
   private lastMultiAgentContext: any = null;
+  
+  // Simple in-memory cache for synopses and rankings
+  private synopsisCache: Map<string, { synopsis: string; updatedAt: number }> = new Map();
+  private rankingCache: Map<string, { rankedIds: string[]; updatedAt: number }> = new Map();
+
+  private buildDocumentSynopsis(doc: SourceReference, maxSentences: number = 3): string {
+    const title = (doc.title || '').trim();
+    const filename = (doc.metadata as any)?.filename || doc.source || '';
+    const chunkInfo = (doc.metadata as any)?.chunkCount ? `${(doc.metadata as any)?.chunkCount} chunks` : '';
+    const firstPart = doc.excerpt || doc.fullContent || '';
+    const sentences = firstPart
+      .replace(/\s+/g, ' ')
+      .split(/(?<=[.!?])\s+/)
+      .slice(0, maxSentences)
+      .join(' ');
+    return [title || filename, chunkInfo, sentences].filter(Boolean).join(' — ');
+  }
+
+  /**
+   * Fetch full documents for selected sources and sample chunks deterministically
+   * - percentage: fraction of chunks to keep (0-1)
+   * - minKeep: minimum number of chunks per document
+   */
+  private async fetchAndSampleChunks(
+    sources: SourceReference[],
+    percentage: number = 0.3,
+    minKeep: number = 5
+  ): Promise<SourceReference[]> {
+    if (!this.vectorStore) return [];
+
+    const chunkSources: SourceReference[] = [];
+
+    for (const src of sources) {
+      const docId = (src.metadata as any)?.documentId || src.id || '';
+      if (!docId) continue;
+      const doc = await this.vectorStore.getDocument(docId);
+      if (!doc || !doc.chunks || doc.chunks.length === 0) continue;
+
+      const total = doc.chunks.length;
+      const keepCount = Math.max(minKeep, Math.ceil(total * Math.max(0, Math.min(1, percentage))));
+
+      // Evenly spaced sampling across the document
+      const step = Math.max(1, Math.floor(total / keepCount));
+      const indices: number[] = [];
+      for (let i = 0; i < total && indices.length < keepCount; i += step) indices.push(i);
+
+      for (const idx of indices) {
+        const ch = doc.chunks[idx];
+        chunkSources.push({
+          id: ch.id,
+          type: 'chunk',
+          title: doc.title,
+          source: (doc.metadata as any)?.filename || doc.title,
+          similarity: 1.0,
+          excerpt: ch.content.substring(0, 240),
+          fullContent: ch.content,
+          chunkId: ch.id,
+          metadata: {
+            ...doc.metadata,
+            // Preserve only fields known to UI SourceReference metadata
+            filename: doc.metadata?.filename,
+            uploadedAt: doc.metadata?.uploadedAt,
+            description: doc.metadata?.description,
+            // Extra fields are carried in chunk context, not metadata type
+          }
+        });
+      }
+    }
+
+    return chunkSources;
+  }
+
+  private async rankDocumentsWithLLM(query: string, synopses: { id: string; synopsis: string }[]): Promise<string[]> {
+    if (!this.generateContent) {
+      throw new Error('LLM not configured for ranking');
+    }
+    const prompt = `/no_think
+Given the user query, rank the following document synopses from most likely to answer the query to least. Return a JSON array of document IDs in order.
+
+Query: ${JSON.stringify(query)}
+
+Docs:
+${synopses.map(s => `- ${s.id}: ${s.synopsis}`).join('\n')}
+
+Return: ["docId1", "docId2", ...]`;
+    const resp = await this.generateContent(prompt);
+    const json = this.extractJSONArray(resp) || resp;
+    try {
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) return parsed.filter(id => typeof id === 'string');
+      throw new Error('Ranking response is not an array');
+    } catch (e) {
+      throw new Error('Failed to parse ranking response');
+    }
+  }
+
+  private getSynopsisCacheKey(doc: SourceReference, query: string): string {
+    const docId = doc.id || (doc.metadata as any)?.documentId || doc.source || 'unknown';
+    const qh = QueryUtils.hashQuery(query);
+    return `${docId}::${qh}`;
+  }
+
+  private async applySynopsisRanking(query: string, sources: SourceReference[], topK: number = 1): Promise<SourceReference[]> {
+    if (sources.length <= topK) return sources;
+    // Build or reuse synopses
+    const synopses: { id: string; synopsis: string }[] = sources.map(doc => {
+      const key = this.getSynopsisCacheKey(doc, query);
+      let entry = this.synopsisCache.get(key);
+      if (!entry) {
+        entry = { synopsis: this.buildDocumentSynopsis(doc), updatedAt: Date.now() };
+        this.synopsisCache.set(key, entry);
+      }
+      const id = doc.id || (doc.metadata as any)?.documentId || doc.source || 'unknown';
+      return { id, synopsis: entry.synopsis };
+    });
+
+    // Cached ranking
+    const rankingKey = synopses.map(s => s.id).join('|') + '::' + QueryUtils.hashQuery(query);
+    let rankedIds: string[] | null = null;
+    const cachedRanking = this.rankingCache.get(rankingKey);
+    if (cachedRanking && Date.now() - cachedRanking.updatedAt < 10 * 60 * 1000) {
+      rankedIds = cachedRanking.rankedIds;
+    }
+
+    if (!rankedIds) {
+      rankedIds = await this.rankDocumentsWithLLM(query, synopses);
+      this.rankingCache.set(rankingKey, { rankedIds, updatedAt: Date.now() });
+    }
+
+    const idToSource = new Map<string, SourceReference>();
+    sources.forEach(s => {
+      const id = s.id || (s.metadata as any)?.documentId || s.source || 'unknown';
+      idToSource.set(id, s);
+    });
+
+    const selected: SourceReference[] = [];
+    for (const id of rankedIds) {
+      const src = idToSource.get(id);
+      if (src) selected.push(src);
+      if (selected.length >= topK) break;
+    }
+
+    if (selected.length === 0) {
+      throw new Error('Ranking produced no selectable documents');
+    }
+    return selected;
+  }
   
   constructor(
     vectorStore: VectorStore | null,
@@ -156,8 +303,14 @@ export class ResearchOrchestrator {
             } else {
               console.log(`ℹ️ Prefilter found no strict matches; using all candidates (constraints.strictness=${constraints.strictness})`);
             }
+
+            // 🔎 Step 3: Build synopses and do single batched ranking to select the best doc(s)
+            const beforeCount = sourcesToUse.length;
+            // Keep top 2 candidates to preserve recall for DataInspector filtering
+            sourcesToUse = await this.applySynopsisRanking(query, sourcesToUse, 2);
+            console.log(`📑 Synopsis ranking reduced candidates ${beforeCount} → ${sourcesToUse.length}`);
           } catch (e) {
-            console.warn('⚠️ Prefiltering skipped due to constraint extraction error');
+            console.warn('⚠️ Prefiltering/ranking skipped due to constraint extraction or ranking error');
           }
           
           // Check if Master Orchestrator should handle this ENTIRE request
@@ -176,8 +329,12 @@ export class ResearchOrchestrator {
             this.updateStep(masterStep, { status: 'in_progress' });
             this.currentSynthesisStep = masterStep;
             
-            // Execute Master Orchestrator with initial sources
-            const finalAnswer = await this.executeMasterOrchestrator(query, sourcesToUse, null);
+            // Fetch and sample real text chunks for selected documents
+            const sampledChunks = await this.fetchAndSampleChunks(sourcesToUse, 0.3, 5);
+            console.log(`📦 Sampled ${sampledChunks.length} chunks from ${sourcesToUse.length} document(s) for DataInspector`);
+
+            // Execute Master Orchestrator with sampled chunks
+            const finalAnswer = await this.executeMasterOrchestrator(query, sampledChunks, null);
             
             this.updateStep(masterStep, {
               status: 'completed',

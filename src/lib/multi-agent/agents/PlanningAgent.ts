@@ -7,6 +7,7 @@
 
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext } from '../interfaces/Context';
+import { QueryIntelligenceService } from '../../QueryIntelligenceService';
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
 
@@ -65,6 +66,15 @@ export class PlanningAgent extends BaseAgent {
     // Analyze current situation
     const situationAnalysis = this.analyzeSituation(context);
     console.log(`📊 Situation Analysis:`, situationAnalysis);
+
+    // Derive and store query constraints (no LLM if not configured)
+    try {
+      const qi = QueryIntelligenceService.getInstance();
+      const constraints = await qi.extractQueryConstraints(context.query);
+      context.sharedKnowledge.queryConstraints = constraints;
+    } catch (e) {
+      console.warn('⚠️ PlanningAgent: Failed to derive query constraints');
+    }
     
     // 🎯 CRITICAL: Create extraction strategy after DataInspector runs
     if (context.sharedKnowledge.documentInsights) {
@@ -125,7 +135,7 @@ export class PlanningAgent extends BaseAgent {
   }
   
   private async createExecutionPlan(context: ResearchContext, analysis: any): Promise<ExecutionPlan> {
-    const prompt = `Create an intelligent execution plan for this research task:
+    const prompt = `Create an intelligent execution plan for this research task. Output valid minified JSON only. No markdown. No comments.:
 
 QUERY: "${context.query}"
 
@@ -175,7 +185,7 @@ CRITICAL JSON FORMATTING REQUIREMENTS:
 - Ensure all JSON is properly escaped and valid
 - No line breaks within string values
 
-Return as properly formatted JSON:
+Return as strictly valid JSON (single line preferred, escape all quotes inside strings):
 {
   "strategy": "concise strategy under 100 chars",
   "steps": [
@@ -303,14 +313,22 @@ Return as properly formatted JSON:
   }
 
   private parseExecutionPlan(response: string): ExecutionPlan {
+    // Pre-sanitize response to remove markdown fences and stray commentary
+    const pre = response
+      .replace(/```json\s*/gi, '')
+      .replace(/```/g, '')
+      .replace(/\u201c|\u201d|[“”]/g, '"')
+      .replace(/\u2018|\u2019|[‘’]/g, "'")
+      .trim();
+
     // Multiple parsing attempts with increasing resilience
     const parsingAttempts = [
       // Attempt 1: Standard JSON parsing
-      () => parseJsonWithResilience(response),
+      () => parseJsonWithResilience(pre),
       
       // Attempt 2: Extract JSON block if wrapped in markdown
       () => {
-        const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        const jsonMatch = pre.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
         if (jsonMatch) {
           return parseJsonWithResilience(jsonMatch[1]);
         }
@@ -319,16 +337,16 @@ Return as properly formatted JSON:
       
       // Attempt 3: Find first complete JSON object
       () => {
-        const jsonStart = response.indexOf('{');
-        const jsonEnd = response.lastIndexOf('}') + 1;
+        const jsonStart = pre.indexOf('{');
+        const jsonEnd = pre.lastIndexOf('}') + 1;
         if (jsonStart >= 0 && jsonEnd > jsonStart) {
-          return parseJsonWithResilience(response.substring(jsonStart, jsonEnd));
+          return parseJsonWithResilience(pre.substring(jsonStart, jsonEnd));
         }
         throw new Error('No JSON object found');
       },
       
       // Attempt 4: Manual extraction from text
-      () => this.extractPlanFromText(response)
+      () => this.extractPlanFromText(pre)
     ];
     
     for (let i = 0; i < parsingAttempts.length; i++) {
@@ -580,11 +598,13 @@ Return as properly formatted JSON:
     const documentContext = this.analyzeDocumentContext(context);
     console.log(`🧠 Document context analysis:`, documentContext);
 
-    // Parse query intent from user query
-    const queryIntent = this.parseQueryIntent(context.query);
+    // Parse query intent from user query and document insights (content-grounded)
+    const queryIntent = this.deriveQueryIntentFromContext(context);
     
     // 🎯 INTELLIGENT: Set expectations based on document-query relationship
     const intelligentExpectations = this.setIntelligentExpectations(documentContext, context.query);
+    // Store expected answer type for downstream agents
+    (context.sharedKnowledge as any).intelligentExpectations = intelligentExpectations;
     console.log(`🎯 Intelligent expectations:`, intelligentExpectations);
     
     // 🎯 NEW: Assess document-section relevance to query
@@ -626,6 +646,25 @@ Return as properly formatted JSON:
     (context.sharedKnowledge as any).intelligentExpectations = intelligentExpectations;
     
     return strategy;
+  }
+
+  /**
+   * Derive query intent from query text and document insights without hardcoding file-specific rules
+   */
+  private deriveQueryIntentFromContext(context: ResearchContext): string {
+    const q = context.query.toLowerCase();
+    const insights = context.sharedKnowledge.documentInsights || {};
+    const dataSignals = (insights.data || []).map((d: any) => String(d).toLowerCase());
+
+    const hasTiming = dataSignals.some((d: string) => d.includes('time') || d.includes('hour'));
+    const hasThroughput = dataSignals.some((d: string) => d.includes('token') && (d.includes('/s') || d.includes('per second')));
+    const asksForBest = /\b(best|fastest|top|lowest|highest)\b/.test(q);
+    const mentionsSpeed = /\b(speed|throughput|time)\b/.test(q);
+
+    if ((hasTiming || hasThroughput) && (asksForBest || mentionsSpeed)) {
+      return 'performance_ranking';
+    }
+    return this.parseQueryIntent(context.query);
   }
 
   /**
@@ -1271,14 +1310,14 @@ Return as properly formatted JSON:
   /**
    * 🧠 INTELLIGENT: Set expectations based on document-query relationship
    */
-  private setIntelligentExpectations(documentContext: any, _query: string): any {
-    
+  private setIntelligentExpectations(documentContext: any, query: string): any {
+    const expectedType = this.determineExpectedAnswerType(documentContext, query, (this as any).contextDocumentInsights);
     return {
       shouldFindSpecificMethod: documentContext.isMethodPaper,
       shouldFindComparisons: documentContext.isSurveyPaper,
       shouldInferFromContribution: documentContext.isMethodPaper,
-      expectedAnswerType: this.determineExpectedAnswerType(documentContext, _query),
-      contextualReasoning: this.getContextualReasoning(documentContext, _query)
+      expectedAnswerType: expectedType,
+      contextualReasoning: this.getContextualReasoning(documentContext, query)
     };
   }
 
@@ -1372,8 +1411,16 @@ Return as properly formatted JSON:
     return insights?.methods || [];
   }
 
-  private determineExpectedAnswerType(documentContext: any, _query: string): string {
-    // ABSOLUTE ZERO HARDCODING: Pure document type analysis
+  private determineExpectedAnswerType(documentContext: any, query: string, insights?: any): string {
+    // Content-grounded detection for performance ranking
+    const q = (query || '').toLowerCase();
+    const dataSignals = (insights?.data || []).map((d: any) => String(d).toLowerCase());
+    const hasTiming = dataSignals.some((d: string) => d.includes('time') || d.includes('hour'));
+    const hasThroughput = dataSignals.some((d: string) => d.includes('token') && (d.includes('/s') || d.includes('per second')));
+    const asksForBest = /\b(best|fastest|top|lowest|highest)\b/.test(q);
+    if ((hasTiming || hasThroughput) && asksForBest) {
+      return 'performance_ranking';
+    }
     if (documentContext.isMethodPaper) {
       return 'method_from_paper_contribution';
     }

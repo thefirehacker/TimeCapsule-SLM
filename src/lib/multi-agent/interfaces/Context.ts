@@ -148,7 +148,9 @@ export interface ResearchContext {
       reason: string;
       planStatus: string;
       timestamp: number;
+      recommendedNext?: string;
     };
+    agentGuidance?: Record<string, string>;
   };
   
   // Timing and performance

@@ -293,7 +293,7 @@ export class Orchestrator {
       return 'All planned steps completed. Call Synthesizer to generate final answer.';
     }
     
-    return `Next recommended step: Call ${nextStep.agent} - ${nextStep.description}`;
+    return `Next recommended step: Call ${nextStep.agent}`;
   }
 
   /**
@@ -400,8 +400,9 @@ export class Orchestrator {
       'PlanningAgent': ['DataInspector'],
       'PatternGenerator': ['DataInspector', 'PlanningAgent'], 
       'Extractor': ['DataInspector', 'PatternGenerator'],
-      'SynthesisCoordinator': ['DataInspector'], // Can work with raw data
-      'Synthesizer': ['DataInspector'],
+      // Require extraction before synthesis to avoid empty outputs
+      'SynthesisCoordinator': ['Extractor'],
+      'Synthesizer': ['Extractor'],
     };
     
     const requiredDeps = dependencies[agentName] || [];
@@ -515,8 +516,13 @@ export class Orchestrator {
       agentResults: new Map(this.agentResults),
       context: {
         // Add any context state that needs preservation
-        synthesis: { answer: '', confidence: 0 }, // Will be filled by current context
-        sharedKnowledge: {} // Will be filled by current context
+        synthesis: { answer: '', confidence: 0, reasoning: '', structure: 'paragraph' },
+        sharedKnowledge: {
+          documentInsights: {},
+          extractionStrategies: {},
+          discoveredPatterns: {},
+          agentFindings: {}
+        }
       }
     };
   }

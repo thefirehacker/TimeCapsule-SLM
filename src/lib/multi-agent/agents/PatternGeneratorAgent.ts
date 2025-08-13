@@ -7,6 +7,7 @@
 
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext } from '../interfaces/Context';
+import type { VectorStore } from '@/components/VectorStore/VectorStore';
 import { LLMFunction } from '../core/Orchestrator';
 
 export class PatternGeneratorAgent extends BaseAgent {
@@ -15,11 +16,13 @@ export class PatternGeneratorAgent extends BaseAgent {
   
   private llm: LLMFunction;
   private progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback;
+  private vectorStore?: VectorStore;
   
-  constructor(llm: LLMFunction, progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback) {
+  constructor(llm: LLMFunction, progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback, vectorStore?: VectorStore) {
     super();
     this.llm = llm;
     this.progressCallback = progressCallback;
+    this.vectorStore = vectorStore;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
@@ -64,6 +67,15 @@ export class PatternGeneratorAgent extends BaseAgent {
       
       // Use PlanningAgent's strategy to create targeted patterns
       await this.generatePatternsFromStrategy(context, extractionStrategy);
+      
+      // 🎯 If expected answer is performance ranking, add deterministic numeric/time patterns (no LLM)
+      const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
+      if (expectedType === 'performance_ranking') {
+        this.addDeterministicPerformancePatterns(context);
+      }
+
+      // 🔎 Deterministic RxDB augmentation using grounded terms and query constraints (no LLM)
+      await this.applyRxDBAugmentation(context);
       return;
     }
     
@@ -185,7 +197,7 @@ Example for this query: Generate patterns to find project names, person names, r
           context.patterns.push(...fallbackPatternObjects);
           
           console.log(`✅ Applied ${fallbackPatterns.length} fallback patterns`);
-          return; // Continue with fallback patterns instead of failing
+          // Continue with fallback patterns instead of failing
         }
         
         throw new Error(`PatternGenerator failed: LLM must generate proper patterns. Context: ${contentInfo}. NO FALLBACKS allowed.`);
@@ -226,6 +238,123 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
     } catch (error) {
       console.error('❌ Failed to generate regex patterns:', error);
       throw new Error(`PatternGenerator failed: ${error instanceof Error ? error.message : 'Unknown error'}. NO FALLBACKS - LLM must generate proper patterns`);
+    }
+  }
+
+  /**
+   * Add deterministic patterns for performance metrics (time, tokens/s, simple table cues)
+   */
+  private addDeterministicPerformancePatterns(context: ResearchContext) {
+    if (!context.patterns) context.patterns = [];
+    const perfPatterns = [
+      {
+        description: 'Record time (hours) pattern',
+        examples: [],
+        extractionStrategy: 'Extract record time values in hours',
+        confidence: 0.9,
+        regexPattern: /(\d+(?:\.\d+)?)\s*(hours?|hrs?)/gi
+      },
+      {
+        description: 'Throughput tokens per second pattern',
+        examples: [],
+        extractionStrategy: 'Extract tokens per second values',
+        confidence: 0.9,
+        regexPattern: /(\d+(?:\.\d+)?\s*[kKmM]?)\s*(tokens?\/s(?:ec)?|tok\/s|tokens?\s*per\s*second)/gi
+      },
+      {
+        description: 'Table row cue pattern',
+        examples: [],
+        extractionStrategy: 'Capture simple table-like rows for subsequent parsing',
+        confidence: 0.6,
+        regexPattern: /^\s*\d+\s*\|[^|]+\|[^|]+/gmi
+      },
+      {
+        description: 'Labeled Record time pattern',
+        examples: [],
+        extractionStrategy: 'Extract labeled record time fields',
+        confidence: 0.8,
+        regexPattern: /(Record\s*time)\s*[:|]\s*(\d+(?:\.\d+)?\s*(hours?|hrs?))/gi
+      },
+      {
+        description: 'Labeled Tokens/Second pattern',
+        examples: [],
+        extractionStrategy: 'Extract labeled tokens per second fields',
+        confidence: 0.8,
+        regexPattern: /(Tokens\s*\/\s*Second|Tokens\s*per\s*second)\s*[:|]\s*(\d+(?:\.\d+)?\s*[kKmM]?)/gi
+      }
+    ];
+    context.patterns.push(...perfPatterns as any);
+    console.log(`✅ Added deterministic performance patterns: ${perfPatterns.length}`);
+  }
+
+  /**
+   * Deterministic RxDB augmentation: semantic search for grounded terms with constraints
+   */
+  private async applyRxDBAugmentation(context: ResearchContext) {
+    if (!this.vectorStore) return;
+    try {
+      const constraints = context.sharedKnowledge.queryConstraints || {} as any;
+      const domains = (constraints.expectedDomainCandidates || []).map((d: string) => d.toLowerCase());
+      const titleHints = (constraints.expectedTitleHints || []).map((h: string) => h.toLowerCase());
+      const owner = (constraints.expectedOwner || '').toLowerCase();
+
+      // Grounded terms from categories and document insights
+      const strategies = context.sharedKnowledge.extractionStrategies || {};
+      const firstStrategy: any = Object.values(strategies)[0] || {};
+      const cats = firstStrategy.patternCategories || {};
+      const insights = context.sharedKnowledge.documentInsights || {};
+      const terms = new Set<string>([
+        ...(cats.methods || []),
+        ...(cats.concepts || []),
+        ...(cats.people || []),
+        ...(insights.methods || []),
+        ...(insights.concepts || []),
+        ...(insights.people || [])
+      ].filter((t: any) => typeof t === 'string' && t.trim().length > 2).map((t: string) => t.trim()));
+
+      const addedChunkIds = new Set<string>(context.ragResults?.chunks?.map(c => c.id));
+      const augmented: any[] = [];
+      const maxAugment = 10;
+
+      for (const term of Array.from(terms)) {
+        if (augmented.length >= maxAugment) break;
+        const results = await this.vectorStore.searchSimilar(term, 0.3, 5, { documentTypes: ['userdocs'] });
+        for (const r of results) {
+          const filename = (r.document.metadata as any)?.filename?.toLowerCase?.() || '';
+          const title = (r.document.title || '').toLowerCase();
+          const domainOk = domains.length === 0 || domains.some((d: string) => filename.includes(d));
+          const titleOk = titleHints.length === 0 || titleHints.some((h: string) => title.includes(h) || filename.includes(h));
+          const ownerOk = !owner || title.includes(owner) || filename.includes(owner);
+          if (constraints.strictness === 'must' && !(domainOk && titleOk && ownerOk)) continue;
+
+          const chunkId = r.chunk.id;
+          if (addedChunkIds.has(chunkId)) continue;
+          augmented.push({ r, chunkId });
+          addedChunkIds.add(chunkId);
+          if (augmented.length >= maxAugment) break;
+        }
+      }
+
+      if (!context.ragResults) {
+        (context as any).ragResults = { chunks: [], summary: '' };
+      }
+      for (const { r } of augmented) {
+        context.ragResults.chunks.push({
+          id: r.chunk.id,
+          text: r.chunk.content,
+          source: r.document.metadata?.filename || r.document.title,
+          similarity: r.similarity,
+          metadata: r.document.metadata,
+          sourceDocument: r.document.metadata?.filename || r.document.title,
+          sourceType: 'document',
+          documentIndex: 0
+        });
+      }
+      if (augmented.length > 0) {
+        console.log(`✅ RxDB augmentation added ${augmented.length} chunks (capped at ${maxAugment})`);
+      }
+    } catch (e) {
+      console.warn('⚠️ RxDB augmentation failed or skipped:', e);
     }
   }
   
@@ -820,7 +949,7 @@ Generate 3-6 effective patterns:`;
   private async generatePatternsFromStrategy(context: ResearchContext, strategy: any): Promise<void> {
     console.log(`🎯 PatternGenerator: Creating patterns from extraction strategy`);
     
-    const patterns = [];
+    const patterns: Array<{ description: string; examples: any[]; extractionStrategy: string; confidence: number; regexPattern: string }> = [];
     const { patternCategories = {}, queryIntent = '', documentType = '' } = strategy || {};
     
     // 🚨 SAFETY: Ensure patternCategories has all required properties
@@ -867,12 +996,16 @@ Generate 3-6 effective patterns:`;
     if (safeCategories.methods.length > 0) {
       console.log(`🔬 Creating enhanced patterns for ${safeCategories.methods.length} methods`);
       await this.generateMethodPatterns(patterns, safeCategories.methods, queryIntent, context);
+      // Add flexible variants for method tokens (handles spacing/hyphenation)
+      safeCategories.methods.slice(0, 6).forEach((m: string) => this.pushFlexiblePattern(patterns, 'method', m));
     }
 
     // 3. 🎯 ENHANCED: Concept patterns (LLM-generated based on document context)
     if (safeCategories.concepts.length > 0) {
       console.log(`💡 Creating enhanced patterns for ${safeCategories.concepts.length} concepts`);
       await this.generateConceptPatterns(patterns, safeCategories.concepts, queryIntent, context);
+      // Add flexible variants for concept tokens (e.g., MongoDB vs Mongo DB)
+      safeCategories.concepts.slice(0, 8).forEach((c: string) => this.pushFlexiblePattern(patterns, 'concept', c));
     }
 
     // 4. Document-type specific patterns
@@ -1004,7 +1137,7 @@ Generate 3-6 effective patterns:`;
   /**
    * 🎯 NEW: Generate method patterns using LLM with document context
    */
-  private async generateMethodPatterns(patterns: any[], methods: string[], queryIntent: string, context: ResearchContext): Promise<void> {
+  private async generateMethodPatterns(patterns: Array<{ description: string; examples: any[]; extractionStrategy: string; confidence: number; regexPattern: string }>, methods: string[], queryIntent: string, context: ResearchContext): Promise<void> {
     // Sample document content for context
     const sampleContent = this.getSampleContent(context, 3);
     
@@ -1037,9 +1170,9 @@ REGEX_PATTERNS:
 Generate patterns that match the actual document format.`;
 
         const response = await this.llm(prompt);
-        const generatedPatterns = this.extractPatternsFromResponse(response);
+        const generatedPatterns: string[] = this.parseRegexPatternsFromLLM(response);
         
-        generatedPatterns.forEach((pattern, index) => {
+        generatedPatterns.forEach((pattern: string, index: number) => {
           patterns.push({
             description: `LLM-generated ${method} pattern ${index + 1}`,
             examples: [],
@@ -1068,7 +1201,7 @@ Generate patterns that match the actual document format.`;
   /**
    * 🎯 NEW: Generate concept patterns using LLM with document context
    */
-  private async generateConceptPatterns(patterns: any[], concepts: string[], queryIntent: string, context: ResearchContext): Promise<void> {
+  private async generateConceptPatterns(patterns: Array<{ description: string; examples: any[]; extractionStrategy: string; confidence: number; regexPattern: string }>, concepts: string[], queryIntent: string, context: ResearchContext): Promise<void> {
     // Sample document content for context
     const sampleContent = this.getSampleContent(context, 3);
     
@@ -1095,9 +1228,9 @@ REGEX_PATTERNS:
 - /pattern2/gi`;
 
         const response = await this.llm(prompt);
-        const generatedPatterns = this.extractPatternsFromResponse(response);
+        const generatedPatterns: string[] = this.parseRegexPatternsFromLLM(response);
         
-        generatedPatterns.forEach((pattern, index) => {
+        generatedPatterns.forEach((pattern: string, index: number) => {
           patterns.push({
             description: `LLM-generated ${concept} pattern ${index + 1}`,
             examples: [],
@@ -1134,6 +1267,57 @@ REGEX_PATTERNS:
       .slice(0, Math.min(maxChunks, context.ragResults.chunks.length))
       .map((chunk, i) => `SAMPLE ${i + 1}:\n${chunk.text.substring(0, 400)}`)
       .join('\n\n---\n\n');
+  }
+
+  /**
+   * Build a flexible, separator-tolerant, acronym-aware regex from a term
+   * Handles variations like "MongoDB" vs "Mongo DB" or "NextJS" vs "Next.js"
+   * Returns a regex string with flags, e.g., /mongo\s*[-_]?\s*d\.?\s*b\.?/i
+   */
+  private buildFlexibleRegexFromTerm(term: string): string {
+    const cleaned = (term || '').trim();
+    if (!cleaned) return '/.*/i';
+
+    // Split camelCase and non-alphanumeric separators into tokens
+    const spaced = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
+    const rawTokens = spaced.split(/[^A-Za-z0-9]+/).filter(Boolean);
+
+    const tokenToPattern = (token: string): string => {
+      if (!token) return '';
+      const isAcronym = token.toUpperCase() === token && token.length <= 4;
+      if (isAcronym) {
+        // DB -> d\.?\s*b\.?
+        return token
+          .toLowerCase()
+          .split('')
+          .map(ch => `${ch}\\.?\\s*`)
+          .join('')
+          .replace(/\\s*$/,'');
+      }
+      // Escape regex specials in token
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return escaped.toLowerCase();
+    };
+
+    const parts = rawTokens.map(tokenToPattern).filter(Boolean);
+    const joiner = '\\s*[-_]?\\s*';
+    const body = parts.join(joiner);
+    const pattern = `(?:${body})`;
+    return `/${pattern}/i`;
+  }
+
+  /**
+   * Add a simple flexible pattern for a grounded term
+   */
+  private pushFlexiblePattern(patterns: Array<{ description: string; examples: any[]; extractionStrategy: string; confidence: number; regexPattern: string }>, label: string, term: string): void {
+    const regex = this.buildFlexibleRegexFromTerm(term);
+    patterns.push({
+      description: `Flexible term variant for ${label}`,
+      examples: [],
+      extractionStrategy: `Match common spacing/hyphen/casing variants of ${term}`,
+      confidence: 0.85,
+      regexPattern: regex
+    });
   }
 
 

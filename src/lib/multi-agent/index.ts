@@ -77,7 +77,7 @@ export function createMultiAgentSystem(
   registry.register(new QueryPlannerAgent(llm));
   registry.register(new DataInspectorAgent(llm, progressCallback)); // Magic document filtering with progress reporting
   registry.register(new PlanningAgent(llm, availableAgents, progressCallback)); // NEW: Intelligent execution strategy with available agents and progress tracking
-  registry.register(new PatternGeneratorAgent(llm, progressCallback));
+  registry.register(new PatternGeneratorAgent(llm, progressCallback, vectorStore));
   registry.register(new ExtractionAgent(llm));
   
   // Only register WebSearchAgent if web search is enabled

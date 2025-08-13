@@ -61,6 +61,16 @@ export class DataAnalysisAgent extends BaseAgent {
     
     // Step 4: Generate insights
     const insights = this.generateInsights(queryFiltered, categorized);
+
+    // 🎯 If expected answer is performance ranking, compute best by reducer
+    const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
+    if (expectedType === 'performance_ranking') {
+      const ranked = this.computeBestPerformance(queryFiltered);
+      if (ranked) {
+        // Promote best item to structured form with attribution
+        context.extractedData.structured.push({ bestPerformance: ranked });
+      }
+    }
     
     // Store results in new context property
     if (!context.analyzedData) {
@@ -84,6 +94,47 @@ export class DataAnalysisAgent extends BaseAgent {
 ${insights}`);
     
     return context;
+  }
+
+  private parseNumberWithK(value: string): number | null {
+    const v = value.trim().toLowerCase();
+    const m = v.match(/^(\d+(?:\.\d+)?)(\s*[km])?$/i);
+    if (!m) return null;
+    let num = parseFloat(m[1]);
+    const suffix = m[2]?.trim().toLowerCase();
+    if (suffix === 'k') num *= 1_000;
+    if (suffix === 'm') num *= 1_000_000;
+    return num;
+  }
+
+  private computeBestPerformance(items: ExtractedItem[]) {
+    // Find time items (hours) and throughput items (tokens/s)
+    const timeItems = items.filter(it => /\b(hours?|hrs?)\b/i.test(it.content || it.value || ''));
+    const throughputItems = items.filter(it => /(tokens?\/s(?:ec)?|tok\/s|tokens?\s*per\s*second)/i.test((it.content || it.value || '')));
+
+    let bestTime: { item: ExtractedItem; hours: number } | null = null;
+    for (const it of timeItems) {
+      const m = String(it.content || it.value || '').match(/(\d+(?:\.\d+)?)\s*(hours?|hrs?)/i);
+      if (!m) continue;
+      const hours = parseFloat(m[1]);
+      if (!isFinite(hours)) continue;
+      if (!bestTime || hours < bestTime.hours) bestTime = { item: it, hours };
+    }
+
+    let bestThroughput: { item: ExtractedItem; tps: number } | null = null;
+    for (const it of throughputItems) {
+      const m = String(it.content || it.value || '').match(/(\d+(?:\.\d+)?\s*[kKmM]?)[\s]*?(tokens?\/s(?:ec)?|tok\/s|tokens?\s*per\s*second)/i);
+      if (!m) continue;
+      const tpsNum = this.parseNumberWithK(m[1]);
+      if (tpsNum == null) continue;
+      if (!bestThroughput || tpsNum > bestThroughput.tps) bestThroughput = { item: it, tps: tpsNum };
+    }
+
+    if (!bestTime && !bestThroughput) return null;
+    return {
+      bestTime: bestTime ? { value: bestTime.hours, unit: 'hours', source: bestTime.item.sourceDocument, content: bestTime.item.content } : null,
+      bestThroughput: bestThroughput ? { value: bestThroughput.tps, unit: 'tokens/s', source: bestThroughput.item.sourceDocument, content: bestThroughput.item.content } : null
+    };
   }
   
   private cleanAndDeduplicateItems(items: ExtractedItem[]): ExtractedItem[] {
@@ -480,7 +531,7 @@ Reply with just the classifications in order.`;
       const mainContribution = documentContext.mainContribution.toLowerCase();
       
       // Check for main contribution name (e.g., "grpo" from "Group Relative Policy Optimization (GRPO)")
-      const contributionWords = mainContribution.split(/[\s\(\)]+/).filter(word => word.length > 2);
+      const contributionWords = mainContribution.split(/[\s\(\)]+/).filter((w: string) => w.length > 2);
       
       contributionWords.forEach((word: string) => {
         if (combined.includes(word)) {

@@ -52,13 +52,13 @@ export class ExtractionAgent extends BaseAgent {
       console.log(`🎯 Using REGEX MODE: Found ${regexPatterns.length} regex patterns from PatternGenerator`);
       console.log(`📋 Regex patterns: ${regexPatterns.map(p => p.regexPattern).join(', ')}`);
       
-      // Store patterns for UI display and testing
+      // Store patterns for UI display and testing (use strict types)
       context.debugInfo = {
         ...context.debugInfo,
         generatedPatterns: regexPatterns.map(p => ({
-          description: p.description,
-          pattern: p.regexPattern,
-          category: p.category || 'general'
+          description: String(p.description || ''),
+          pattern: String(p.regexPattern || ''),
+          category: 'general'
         }))
       };
       
@@ -805,7 +805,7 @@ Keep it simple and direct.`;
     
     console.log(`📊 Processing ${totalChunks} chunks with ${regexPatterns.length} regex patterns`);
     
-    // Apply each regex pattern to all chunks
+    // Apply each regex pattern to all chunks (also run on a normalized text variant)
     for (const pattern of regexPatterns) {
       const regexString = pattern.regexPattern!;
       console.log(`🔍 Applying pattern: ${regexString}`);
@@ -822,14 +822,23 @@ Keep it simple and direct.`;
         // Apply regex to each chunk
         for (const chunk of context.ragResults.chunks) {
           let match;
-          while ((match = regex.exec(chunk.text)) !== null) {
+          const originalText = chunk.text;
+          // Normalized: lowercase, collapse separators, remove extra punctuation noise
+          const normalizedText = originalText
+            .toLowerCase()
+            .replace(/[\.]/g, '.')
+            .replace(/[_\-]/g, ' ')
+            .replace(/\s+/g, ' ');
+
+          // Search original
+          while ((match = regex.exec(originalText)) !== null) {
             const extractedContent = match[1] || match[0]; // Use capture group or full match
             
             extractedItems.push({
               content: extractedContent.trim(),
               value: extractedContent.trim(),
               unit: '',
-              context: match[0], // Full match for context
+              context: match[0],
               confidence: 0.95, // High confidence for regex matches
               sourceChunkId: chunk.id,
               sourceDocument: chunk.sourceDocument,
@@ -845,6 +854,28 @@ Keep it simple and direct.`;
           }
           
           // Reset regex lastIndex for global patterns
+          regex.lastIndex = 0;
+
+          // Search normalized
+          while ((match = regex.exec(normalizedText)) !== null) {
+            const extractedContent = match[1] || match[0];
+            extractedItems.push({
+              content: extractedContent.trim(),
+              value: extractedContent.trim(),
+              unit: '',
+              context: match[0],
+              confidence: 0.88,
+              sourceChunkId: chunk.id,
+              sourceDocument: chunk.sourceDocument,
+              metadata: {
+                extractionMethod: 'regex_pattern_normalized',
+                regexPattern: regexString,
+                patternDescription: pattern.description,
+                normalized: true
+              }
+            });
+            patternMatches++;
+          }
           regex.lastIndex = 0;
         }
         

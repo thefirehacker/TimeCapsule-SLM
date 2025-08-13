@@ -260,6 +260,9 @@ export function parseJsonWithResilience(text: string): any {
  */
 function cleanJsonText(jsonText: string): string {
   let cleaned = jsonText
+    // Normalize smart quotes to ASCII
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
     // Remove trailing commas before closing brackets/braces
     .replace(/,(\s*[}\]])/g, '$1')
     // Fix unescaped quotes in strings (basic attempt)
@@ -281,6 +284,25 @@ function cleanJsonText(jsonText: string): string {
   // 🚨 CRITICAL FIX: Handle "Expected ',' or ']' after array element" errors  
   // These occur when array elements are missing commas or have malformed objects
   cleaned = fixArrayElementSeparation(cleaned);
+
+  // Convert single-quoted keys and values to double-quoted JSON strings
+  cleaned = cleaned
+    // Keys like 'key': value → "key": value
+    .replace(/'([A-Za-z0-9_]+)'\s*:/g, '"$1":')
+    // Values like: 'text' → "text"
+    .replace(/:\s*'([^']*)'/g, ': "$1"');
+
+  // Quote multi-word unquoted values (that are not numbers, arrays, objects, booleans, or null)
+  // Example: "action": create patterns now → "action": "create patterns now"
+  cleaned = cleaned.replace(/:\s*(?!true\b|false\b|null\b)([A-Za-z][A-Za-z0-9_\-\/.\s]*?)(?=\s*[,}\]])/g, (m, v) => {
+    const val = v.trim();
+    if (!val) return ': ""';
+    // If already quoted or looks like a number/array/object, leave as is
+    if (val.startsWith('"') || val.startsWith("'") || val.startsWith('[') || val.startsWith('{') || /^-?\d+(?:\.\d+)?$/.test(val)) {
+      return `: ${val}`;
+    }
+    return `: "${val.replace(/"/g, '\\"')}"`;
+  });
   
   return cleaned.trim();
 }
