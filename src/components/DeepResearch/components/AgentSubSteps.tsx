@@ -181,7 +181,9 @@ function AgentSubStepCard({
   };
 
   return (
-    <Card className={`border ${bgColor} transition-all duration-200`}>
+    <Card className={`relative border ${bgColor} transition-all duration-200 rounded-xl shadow-sm hover:shadow-md`}>
+      {/* Left color stripe by agent type */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${iconColor.replace('text-', 'bg-')}`} />
       <CardContent className="p-4">
         {/* Agent Header */}
         <div className="flex items-center justify-between mb-3">
@@ -355,11 +357,40 @@ function AgentSubStepCard({
                 {showOutput ? 'Hide Full Output' : 'Show Full Output'}
               </Button>
             </div>
-            <div className={`text-sm text-foreground/80 bg-background/50 p-2 rounded border ${showOutput ? '' : 'text-ellipsis overflow-hidden'}`}>
+            <div className={`text-sm text-foreground/80 bg-background/50 p-2 rounded border ${showOutput ? '' : 'line-clamp-4'}`}>
               {typeof subStep.output === 'string' 
-                ? (showOutput ? subStep.output : subStep.output.substring(0, 200) + (subStep.output.length > 200 ? '...' : ''))
-                : (showOutput ? JSON.stringify(subStep.output, null, 2) : JSON.stringify(subStep.output).substring(0, 200) + '...')
+                ? subStep.output
+                : JSON.stringify(subStep.output, null, showOutput ? 2 : 0)
               }
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setShowOutput(!showOutput)}
+              >
+                {showOutput ? 'Collapse' : 'Expand'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => {
+                  const text = typeof subStep.output === 'string' ? subStep.output : JSON.stringify(subStep.output, null, 2);
+                  navigator.clipboard?.writeText(text);
+                }}
+              >
+                Copy
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setShowThinking(!showThinking)}
+              >
+                {showThinking ? 'Hide Reasoning' : 'Show Reasoning'}
+              </Button>
             </div>
           </div>
         )}

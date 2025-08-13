@@ -15,7 +15,7 @@ export class PatternGeneratorAgent extends BaseAgent {
   readonly description = 'Creates extraction strategies based on data inspection';
   
   private llm: LLMFunction;
-  private progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback;
+  protected progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback;
   private vectorStore?: VectorStore;
   
   constructor(llm: LLMFunction, progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback, vectorStore?: VectorStore) {
@@ -43,11 +43,120 @@ export class PatternGeneratorAgent extends BaseAgent {
     
     // Use LLM to generate extraction strategies
     await this.generateStrategiesWithLLM(context);
+
+    // NEW: Bottom-up induction from document text (zero hardcoding)
+    try {
+      const induced = this.inducePatternsFromDocument(context);
+      if (induced > 0) {
+        this.progressCallback?.onAgentProgress(this.name, 85, `Learned ${induced} measurement families from document`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Induction failed, continuing with existing patterns:', e);
+    }
     
     // Report progress: Completed
     this.progressCallback?.onAgentProgress(this.name, 100, 'Pattern generation completed');
     
     return context;
+  }
+
+  /**
+   * Bottom-up induction of measurement regexes from document text.
+   * Learns decimal style, joiners and adjacent tokens from actual chunk windows.
+   * Adds synthesized regex families directly to context.patterns.
+   */
+  private inducePatternsFromDocument(context: ResearchContext): number {
+    if (!context?.ragResults?.chunks || context.ragResults.chunks.length === 0) return 0;
+    if (!context.patterns) context.patterns = [];
+
+    // 1) Harvest numeric hits and window tokens from sampled chunks
+    const chunks = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
+    const numHitRe = /(\d+[\s.:]\d{1,2}|\d+(?:\.\d+)?)/g; // learns dot or space or colon style
+    type Hit = { num: string; right: string; left: string };
+    const hits: Hit[] = [];
+    for (const ch of chunks) {
+      const text = ch.text || '';
+      let m: RegExpExecArray | null;
+      numHitRe.lastIndex = 0;
+      while ((m = numHitRe.exec(text)) !== null) {
+        const start = m.index;
+        const end = start + m[0].length;
+        const left = text.slice(Math.max(0, start - 32), start);
+        const right = text.slice(end, Math.min(text.length, end + 32));
+        hits.push({ num: m[0], left, right });
+      }
+    }
+    if (hits.length === 0) return 0;
+
+    // 2) Learn decimal style from evidence
+    const dotCount = hits.filter(h => /\d+\.\d+/.test(h.num)).length;
+    const spaceCount = hits.filter(h => /\d+\s\d{1,2}/.test(h.num)).length;
+    const style: 'dot' | 'space' | 'mixed' = dotCount > spaceCount ? 'dot' : spaceCount > dotCount ? 'space' : 'mixed';
+
+    // 3) Build candidate right phrases (unit/joiner tokens as seen)
+    function normPhrase(s: string): string {
+      return s
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[^a-z0-9\/\s]/g, '')
+        .trim();
+    }
+
+    const families = new Map<string, { count: number; samples: string[] }>();
+    for (const h of hits) {
+      const after = normPhrase(h.right.slice(0, 20)); // immediate context after number
+      // take first 1–3 tokens or a token with a joiner like tokens/s or tokens per second
+      const slashMatch = after.match(/^([a-z]+)\s*\/\s*([a-z]+)/);
+      const perMatch = after.match(/^([a-z]+)\s+per\s+([a-z]+)/);
+      let key = '';
+      if (slashMatch) key = `${slashMatch[1]}/${slashMatch[2]}`;
+      else if (perMatch) key = `${perMatch[1]} per ${perMatch[2]}`;
+      else {
+        const single = after.split(' ').filter(Boolean)[0] || '';
+        if (single) key = single; // e.g., hours, mins, tokens
+      }
+      if (!key) continue;
+      const entry = families.get(key) || { count: 0, samples: [] };
+      entry.count += 1;
+      if (entry.samples.length < 3) entry.samples.push(`${h.num} ${key}`);
+      families.set(key, entry);
+    }
+    if (families.size === 0) return 0;
+
+    // 4) Synthesize regex for each family using learned style and observed joiners
+    const synth: { description: string; regexPattern: string }[] = [];
+    const decimalBody = style === 'space' ? '(?:\\d+(?:\\s\\d{1,2})?)' : '(?:\\d+(?:\\.\\d+)?)';
+    families.forEach((info, key) => {
+      const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let body = '';
+      if (key.includes('/')) {
+        const [a, b] = key.split('/');
+        body = `${decimalBody}\\s*${esc(a)}\\s*\\/\\s*${esc(b)}`;
+      } else if (key.includes(' per ')) {
+        const [a, b] = key.split(' per ');
+        body = `${decimalBody}\\s*${esc(a)}\\s*per\\s*${esc(b)}`;
+      } else {
+        body = `${decimalBody}\\s*${esc(key)}`;
+      }
+      const pattern = `(${body})`;
+      synth.push({ description: `Learned family: ${key} (${info.count})`, regexPattern: `/${pattern}/gi` });
+    });
+
+    // 5) Score and keep top families by support
+    const sorted = [...synth].sort((a, b) => (families.get(b.description.replace('Learned family: ', '').split(' (')[0])!.count - families.get(a.description.replace('Learned family: ', '').split(' (')[0])!.count));
+    const top = sorted.slice(0, 12);
+
+    // 6) Append to context.patterns
+    top.forEach(p => context.patterns.push({
+      description: p.description,
+      examples: [],
+      extractionStrategy: 'bottom_up_induction',
+      confidence: 0.92,
+      regexPattern: p.regexPattern
+    }));
+
+    console.log(`✅ Induced ${top.length} measurement families from document (style=${style}, hits=${hits.length})`);
+    return top.length;
   }
   
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {

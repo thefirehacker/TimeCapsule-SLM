@@ -5,7 +5,7 @@
    Type: DataInspector
    Status: completed
    Progress: 100%
-   Duration: 80873ms
+   Duration: 123134ms
    
    📤 Full Output:
    {
@@ -16,34 +16,21 @@
        ],
        "contentAreas": [
          "<think>\nOkay",
-         "let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst",
-         "the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8",
-         "2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next",
-         "they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262",
-         "144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this",
-         "the main sections are the author's post title",
-         "the content areas. The first part is the author's name",
-         "their posts",
-         "and the topics they cover. Then there's the time",
-         "the question about training GPT-2",
-         "and the details about the GPUs and training settings. The main content areas here are the author's name",
-         "their posts",
-         "the topics they cover",
-         "the time",
-         "the question",
-         "and the training details. So the sections would be: author's name",
-         "posts",
-         "topics",
-         "time",
-         "question",
-         "training details. I need to list these as comma-separated",
-         "no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs",
-         "simulating training settings",
-         "learning rate settings.  \n- Time: March 8",
-         "2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate",
-         "batch size",
-         "GPUs",
-         "sequence length)."
+         "let me try to figure out the structure of this document. The user mentioned it's a DOCUMENT type",
+         "and the sample content is given. I need to break down the sample content into its main parts or sections based on the information provided.\n\nLooking at the sample content: Tyler Romero has posted various topics. The first part is \"TYLER ROMERO POSTS Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" followed by dates and some excitement about simulating a 8x H100 machine. Then there's a list of steps: increased learning rate",
+         "halved batch size",
+         "and improved learning rate schedule. \n\nSo",
+         "putting this all together",
+         "the document structure would be categorized into sections. The main topics are the questions about training GPT-2 with their GPUs",
+         "their experience with simulating a 8x H100 machine",
+         "and the technical steps they took to optimize training. Each of these points forms a section. The sample content is divided into three sections: the initial post",
+         "the date and excitement",
+         "and the technical details. So",
+         "listing them as comma-separated would be \"Initial Post",
+         "Simulation Experience",
+         "Training Optimization\".\n</think>\n\nInitial Post",
+         "Simulation Experience",
+         "Training Optimization"
        ],
        "queryIntent": "Extract information from 1 relevant documents",
        "extractionStrategy": "Extract from each relevant document separately with proper attribution",
@@ -53,52 +40,33 @@
            "documentId": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
            "documentName": "www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
            "documentType": "DOCUMENT",
-           "primaryEntity": "GPT-2",
+           "primaryEntity": "TYLER ROMERO",
            "structure": [
              "document sections"
            ],
            "contentAreas": [
              "<think>\nOkay",
-             "let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst",
-             "the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8",
-             "2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next",
-             "they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262",
-             "144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this",
-             "the main sections are the author's post title",
-             "the content areas. The first part is the author's name",
-             "their posts",
-             "and the topics they cover. Then there's the time",
-             "the question about training GPT-2",
-             "and the details about the GPUs and training settings. The main content areas here are the author's name",
-             "their posts",
-             "the topics they cover",
-             "the time",
-             "the question",
-             "and the training details. So the sections would be: author's name",
-             "posts",
-             "topics",
-             "time",
-             "question",
-             "training details. I need to list these as comma-separated",
-             "no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs",
-             "simulating training settings",
-             "learning rate settings.  \n- Time: March 8",
-             "2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate",
-             "batch size",
-             "GPUs",
-             "sequence length)."
+             "let me try to figure out the structure of this document. The user mentioned it's a DOCUMENT type",
+             "and the sample content is given. I need to break down the sample content into its main parts or sections based on the information provided.\n\nLooking at the sample content: Tyler Romero has posted various topics. The first part is \"TYLER ROMERO POSTS Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" followed by dates and some excitement about simulating a 8x H100 machine. Then there's a list of steps: increased learning rate",
+             "halved batch size",
+             "and improved learning rate schedule. \n\nSo",
+             "putting this all together",
+             "the document structure would be categorized into sections. The main topics are the questions about training GPT-2 with their GPUs",
+             "their experience with simulating a 8x H100 machine",
+             "and the technical steps they took to optimize training. Each of these points forms a section. The sample content is divided into three sections: the initial post",
+             "the date and excitement",
+             "and the technical details. So",
+             "listing them as comma-separated would be \"Initial Post",
+             "Simulation Experience",
+             "Training Optimization\".\n</think>\n\nInitial Post",
+             "Simulation Experience",
+             "Training Optimization"
            ],
            "keyEntities": [
              {
                "name": "Tyler Romero",
                "type": "person",
-               "context": "post author",
-               "isOwner": false
-             },
-             {
-               "name": "None",
-               "type": "None",
-               "context": "None",
+               "context": "individual contributor |",
                "isOwner": false
              }
            ],
@@ -110,16 +78,21 @@
      },
      "sharedKnowledge": {
        "methods": [
-         "Tyler Romero"
+         "nano-gpt-speedrun"
        ],
        "concepts": [
-         "speedrun results",
-         "blog posts"
+         "training steps",
+         "tokens",
+         "logit soft-capping"
        ],
        "people": [
-         "Tyler Romero"
+         "tyler romero"
        ],
-       "data": []
+       "data": [
+         "speedruns",
+         "tokens",
+         "training steps"
+       ]
      },
      "filteredDocuments": 6,
      "reasoning": "Document analysis completed"
@@ -131,7 +104,7 @@
    Type: PlanningAgent
    Status: completed
    Progress: 100%
-   Duration: 12616ms
+   Duration: 8727ms
    
    📤 Full Output:
    {
@@ -145,7 +118,7 @@
    Type: QueryPlanner
    Status: completed
    Progress: 100%
-   Duration: 18330ms
+   Duration: 22079ms
    
    📤 Full Output:
    {
@@ -155,159 +128,114 @@
 
 ───────────────────────────────────
 
-4. Extractor ✅
-   Type: Extractor
-   Status: completed
-   Progress: 100%
-   Duration: 41281ms
-   
-   📤 Full Output:
-   {
-     "extractedData": {
-       "raw": [],
-       "structured": []
-     },
-     "itemCount": 10,
-     "reasoning": "Data extraction completed"
-   }
-
-───────────────────────────────────
-
-5. SynthesisCoordinator ✅
-   Type: SynthesisCoordinator
-   Status: completed
-   Progress: 100%
-   Duration: 19516ms
-   
-   📤 Full Output:
-   {
-     "status": "completed",
-     "reasoning": "SynthesisCoordinator processing completed"
-   }
-
-───────────────────────────────────
-
-6. PatternGenerator ✅
+4. PatternGenerator ✅
    Type: PatternGenerator
    Status: completed
    Progress: 100%
-   Duration: 58741ms
+   Duration: 11517ms
    
    📤 Full Output:
    {
      "patterns": [
        {
-         "description": "DOCUMENT extraction pattern for GPT-2",
+         "description": "DOCUMENT extraction pattern for TYLER ROMERO",
          "examples": [
            "<think>\nOkay",
-           "let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst",
-           "the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8",
-           "2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next",
-           "they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262",
-           "144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this",
-           "the main sections are the author's post title",
-           "the content areas. The first part is the author's name",
-           "their posts",
-           "and the topics they cover. Then there's the time",
-           "the question about training GPT-2",
-           "and the details about the GPUs and training settings. The main content areas here are the author's name",
-           "their posts",
-           "the topics they cover",
-           "the time",
-           "the question",
-           "and the training details. So the sections would be: author's name",
-           "posts",
-           "topics",
-           "time",
-           "question",
-           "training details. I need to list these as comma-separated",
-           "no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs",
-           "simulating training settings",
-           "learning rate settings.  \n- Time: March 8",
-           "2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate",
-           "batch size",
-           "GPUs",
-           "sequence length)."
+           "let me try to figure out the structure of this document. The user mentioned it's a DOCUMENT type",
+           "and the sample content is given. I need to break down the sample content into its main parts or sections based on the information provided.\n\nLooking at the sample content: Tyler Romero has posted various topics. The first part is \"TYLER ROMERO POSTS Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" followed by dates and some excitement about simulating a 8x H100 machine. Then there's a list of steps: increased learning rate",
+           "halved batch size",
+           "and improved learning rate schedule. \n\nSo",
+           "putting this all together",
+           "the document structure would be categorized into sections. The main topics are the questions about training GPT-2 with their GPUs",
+           "their experience with simulating a 8x H100 machine",
+           "and the technical steps they took to optimize training. Each of these points forms a section. The sample content is divided into three sections: the initial post",
+           "the date and excitement",
+           "and the technical details. So",
+           "listing them as comma-separated would be \"Initial Post",
+           "Simulation Experience",
+           "Training Optimization\".\n</think>\n\nInitial Post",
+           "Simulation Experience",
+           "Training Optimization"
          ],
-         "extractionStrategy": "Extract <think>\nOkay, let's see. The user provided a document type and some sample content. They want me to analyze the document's structure based on the sample content and list the main sections.\n\nFirst, the document type is DOCUMENT. The sample content is a mix of various topics. Let me break it down. The sample starts with \"TYLER ROMERO POSTS\" and includes entries like \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" and mentions \"March 8, 2025.\" Then there's a mention of simulating an 8x H100 machine with 2x24GB GPUs. Next, they talk about increasing the learning rate to 0.0015 and halving the batch size (total 262, 144). They also mention improving the learning rate schedule as linear war.\n\nLooking at this, the main sections are the author's post title, the content areas. The first part is the author's name, their posts, and the topics they cover. Then there's the time, the question about training GPT-2, and the details about the GPUs and training settings. The main content areas here are the author's name, their posts, the topics they cover, the time, the question, and the training details. So the sections would be: author's name, posts, topics, time, question, training details. I need to list these as comma-separated, no assumptions.\n</think>\n\n- Author's name: Tyler Romero  \n- Posts: \"Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Topics: Training GPT-2 with GPUs, simulating training settings, learning rate settings.  \n- Time: March 8, 2025.  \n- Question: \"How fast can I train GPT-2 on two RTX 4090 GPUs?\"  \n- Details: Training parameters (learning rate, batch size, GPUs, sequence length). from www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
+         "extractionStrategy": "Extract <think>\nOkay, let me try to figure out the structure of this document. The user mentioned it's a DOCUMENT type, and the sample content is given. I need to break down the sample content into its main parts or sections based on the information provided.\n\nLooking at the sample content: Tyler Romero has posted various topics. The first part is \"TYLER ROMERO POSTS Nano GPT Speedrun Living Worklog How fast can I train GPT-2 on two RTX 4090 GPUs?\" followed by dates and some excitement about simulating a 8x H100 machine. Then there's a list of steps: increased learning rate, halved batch size, and improved learning rate schedule. \n\nSo, putting this all together, the document structure would be categorized into sections. The main topics are the questions about training GPT-2 with their GPUs, their experience with simulating a 8x H100 machine, and the technical steps they took to optimize training. Each of these points forms a section. The sample content is divided into three sections: the initial post, the date and excitement, and the technical details. So, listing them as comma-separated would be \"Initial Post, Simulation Experience, Training Optimization\".\n</think>\n\nInitial Post, Simulation Experience, Training Optimization from www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf",
          "confidence": 0.9
        },
        {
-         "description": "LLM-generated speedrun results pattern 1",
+         "description": "LLM-generated nano-gpt-speedrun pattern 1",
          "examples": [],
-         "extractionStrategy": "Extract speedrun results information using document-aware pattern",
-         "confidence": 0.9,
-         "regexPattern": "/pattern1/gi"
+         "extractionStrategy": "Extract nano-gpt-speedrun information using document-aware pattern",
+         "confidence": 0.95,
+         "regexPattern": "/nano-gpt-speedrun/gi"
        },
        {
-         "description": "LLM-generated blog posts pattern 1",
+         "description": "LLM-generated nano-gpt-speedrun pattern 2",
          "examples": [],
-         "extractionStrategy": "Extract blog posts information using document-aware pattern",
-         "confidence": 0.9,
-         "regexPattern": "/definition_of_blog_posts/gi"
+         "extractionStrategy": "Extract nano-gpt-speedrun information using document-aware pattern",
+         "confidence": 0.95,
+         "regexPattern": "/speedrun/gi"
        },
        {
-         "description": "LLM-generated blog posts pattern 2",
+         "description": "LLM-generated nano-gpt-speedrun pattern 3",
          "examples": [],
-         "extractionStrategy": "Extract blog posts information using document-aware pattern",
-         "confidence": 0.9,
-         "regexPattern": "/usage_of_blog_posts/gi"
+         "extractionStrategy": "Extract nano-gpt-speedrun information using document-aware pattern",
+         "confidence": 0.95,
+         "regexPattern": "/nano-gpt-performance/gi"
+       },
+       {
+         "description": "Flexible term variant for method",
+         "examples": [],
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of nano-gpt-speedrun",
+         "confidence": 0.85,
+         "regexPattern": "/(?:nano\\s*[-_]?\\s*gpt\\s*[-_]?\\s*speedrun)/i"
        },
        {
          "description": "LLM-generated top pattern 1",
          "examples": [],
          "extractionStrategy": "Extract top information using document-aware pattern",
          "confidence": 0.9,
-         "regexPattern": "/pattern1/gi"
+         "regexPattern": "/definition/gi"
        },
        {
          "description": "LLM-generated top pattern 2",
          "examples": [],
          "extractionStrategy": "Extract top information using document-aware pattern",
          "confidence": 0.9,
-         "regexPattern": "/pattern2/gi"
+         "regexPattern": "/usage/gi"
        },
        {
          "description": "LLM-generated speed pattern 1",
          "examples": [],
          "extractionStrategy": "Extract speed information using document-aware pattern",
          "confidence": 0.9,
-         "regexPattern": "/pattern1/gi"
+         "regexPattern": "/speed/gi"
        },
        {
          "description": "LLM-generated speed pattern 2",
          "examples": [],
          "extractionStrategy": "Extract speed information using document-aware pattern",
          "confidence": 0.9,
-         "regexPattern": "/speed\\s*(\\d+\\.?\\d*)/g"
+         "regexPattern": "/speed usage/gi"
        },
        {
-         "description": "LLM-generated speed pattern 3",
+         "description": "LLM-generated runs pattern 1",
          "examples": [],
-         "extractionStrategy": "Extract speed information using document-aware pattern",
+         "extractionStrategy": "Extract runs information using document-aware pattern",
          "confidence": 0.9,
-         "regexPattern": "/pattern2/gi"
+         "regexPattern": "//runs/.gi/gi"
        },
        {
-         "description": "LLM-generated speed pattern 4",
+         "description": "LLM-generated tylers pattern 1",
          "examples": [],
-         "extractionStrategy": "Extract speed information using document-aware pattern",
+         "extractionStrategy": "Extract tylers information using document-aware pattern",
          "confidence": 0.9,
-         "regexPattern": "/application\\s*of\\s*speed/gi"
+         "regexPattern": "/tylers.*?/"
        },
        {
-         "description": "Flexible term variant for concept",
+         "description": "LLM-generated tylers pattern 2",
          "examples": [],
-         "extractionStrategy": "Match common spacing/hyphen/casing variants of speedrun results",
-         "confidence": 0.85,
-         "regexPattern": "/(?:speedrun\\s*[-_]?\\s*results)/i"
-       },
-       {
-         "description": "Flexible term variant for concept",
-         "examples": [],
-         "extractionStrategy": "Match common spacing/hyphen/casing variants of blog posts",
-         "confidence": 0.85,
-         "regexPattern": "/(?:blog\\s*[-_]?\\s*posts)/i"
+         "extractionStrategy": "Extract tylers information using document-aware pattern",
+         "confidence": 0.9,
+         "regexPattern": "/tylers.*?/"
        },
        {
          "description": "Flexible term variant for concept",
@@ -326,9 +254,9 @@
        {
          "description": "Flexible term variant for concept",
          "examples": [],
-         "extractionStrategy": "Match common spacing/hyphen/casing variants of run",
+         "extractionStrategy": "Match common spacing/hyphen/casing variants of runs",
          "confidence": 0.85,
-         "regexPattern": "/(?:run)/i"
+         "regexPattern": "/(?:runs)/i"
        },
        {
          "description": "Flexible term variant for concept",
@@ -364,25 +292,109 @@
          "extractionStrategy": "Extract numerical results and metrics",
          "confidence": 0.9,
          "regexPattern": "/(?:accuracy|performance|score|metric)\\s*:?\\s*([\\d.]+%?)/gi"
+       },
+       {
+         "description": "Learned family: gemma (13)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*gemma)/gi"
+       },
+       {
+         "description": "Learned family: grad62304977grad62 (11)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*grad62304977grad62)/gi"
+       },
+       {
+         "description": "Learned family: c32f8b3c32f8b3c32f8b (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*c32f8b3c32f8b3c32f8b)/gi"
+       },
+       {
+         "description": "Learned family: f8b3c32f8b3c32f8b3c3 (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*f8b3c32f8b3c32f8b3c3)/gi"
+       },
+       {
+         "description": "Learned family: b3c32f8b3c32f8b3c32f (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*b3c32f8b3c32f8b3c32f)/gi"
+       },
+       {
+         "description": "Learned family: bb93fb7bb93fb7bb93fb (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*bb93fb7bb93fb7bb93fb)/gi"
+       },
+       {
+         "description": "Learned family: fb7bb93fb7bb93fb7bb9 (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*fb7bb93fb7bb93fb7bb9)/gi"
+       },
+       {
+         "description": "Learned family: dd59944dd59944dd5994 (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*dd59944dd59944dd5994)/gi"
+       },
+       {
+         "description": "Learned family: eab4412eab4412eab441 (10)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*eab4412eab4412eab441)/gi"
+       },
+       {
+         "description": "Learned family: gpt2gpt2gpt2gpt2 (9)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*gpt2gpt2gpt2gpt2)/gi"
+       },
+       {
+         "description": "Learned family: x (6)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*x)/gi"
+       },
+       {
+         "description": "Learned family: hours (5)",
+         "examples": [],
+         "extractionStrategy": "bottom_up_induction",
+         "confidence": 0.92,
+         "regexPattern": "/((?:\\d+(?:\\.\\d+)?)\\s*hours)/gi"
        }
      ],
-     "patternCount": 20,
+     "patternCount": 32,
      "extractionStrategies": {
        "generatedPatterns": [
-         "/pattern1/gi",
-         "/definition_of_blog_posts/gi",
-         "/usage_of_blog_posts/gi",
-         "/pattern1/gi",
-         "/pattern2/gi",
-         "/pattern1/gi",
-         "/speed\\s*(\\d+\\.?\\d*)/g",
-         "/pattern2/gi",
-         "/application\\s*of\\s*speed/gi",
-         "/(?:speedrun\\s*[-_]?\\s*results)/i",
-         "/(?:blog\\s*[-_]?\\s*posts)/i",
+         "/nano-gpt-speedrun/gi",
+         "/speedrun/gi",
+         "/nano-gpt-performance/gi",
+         "/(?:nano\\s*[-_]?\\s*gpt\\s*[-_]?\\s*speedrun)/i",
+         "/definition/gi",
+         "/usage/gi",
+         "/speed/gi",
+         "/speed usage/gi",
+         "//runs/.gi/gi",
+         "/tylers.*?/",
+         "/tylers.*?/",
          "/(?:top)/i",
          "/(?:speed)/i",
-         "/(?:run)/i",
+         "/(?:runs)/i",
          "/(?:tylers)/i",
          "/(?:blog)/i",
          "/(?:abstract|summary):\\s*([^\\n]{50,300})/gi",
@@ -391,7 +403,7 @@
        ],
        "generationMethod": "planning_agent_strategy",
        "basedOnExtractionStrategy": true,
-       "timestamp": 1755096050925,
+       "timestamp": 1755107957755,
        "agentSource": "PatternGenerator",
        "strategyUsed": {
          "documentType": "Research Paper",
@@ -399,17 +411,19 @@
          "contentAreas": [],
          "patternCategories": {
            "concepts": [
-             "speedrun results",
-             "blog posts",
              "top",
              "speed",
-             "run",
+             "runs",
              "tylers",
              "blog"
+           ],
+           "methods": [
+             "nano-gpt-speedrun"
            ]
          },
          "extractionTargets": [
            "content",
+           "methods",
            "concepts",
            "primary_focus"
          ]
@@ -420,11 +434,43 @@
 
 ───────────────────────────────────
 
+5. Extractor ✅
+   Type: Extractor
+   Status: completed
+   Progress: 100%
+   Duration: 7187ms
+   
+   📤 Full Output:
+   {
+     "extractedData": {
+       "raw": [],
+       "structured": []
+     },
+     "itemCount": 6,
+     "reasoning": "Data extraction completed"
+   }
+
+───────────────────────────────────
+
+6. SynthesisCoordinator ✅
+   Type: SynthesisCoordinator
+   Status: completed
+   Progress: 100%
+   Duration: 12870ms
+   
+   📤 Full Output:
+   {
+     "status": "completed",
+     "reasoning": "SynthesisCoordinator processing completed"
+   }
+
+───────────────────────────────────
+
 7. DataAnalyzer ✅
    Type: DataAnalyzer
    Status: completed
    Progress: 100%
-   Duration: 1584ms
+   Duration: 5443ms
    
    📤 Full Output:
    {
@@ -436,4 +482,4 @@
 
 Total Agents: 7
 Completed: 7
-Generated: 13/08/2025, 20:17:55
+Generated: 13/08/2025, 23:32:46

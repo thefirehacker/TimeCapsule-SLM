@@ -13,6 +13,7 @@ import {
 import { ResearchOrchestrator, ResearchResult, ResearchUtils } from "@/lib/ResearchOrchestrator";
 import { queryIntelligenceService } from "@/lib/QueryIntelligenceService";
 import { ResearchStep, useResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
+import { useResearchHistory } from "../hooks/useResearchHistory";
 
 export type ResearchType =
   | "deep-research"
@@ -162,6 +163,9 @@ export function useResearch(
   const [isIntelligentResearching, setIsIntelligentResearching] = useState(false);
   const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
   const researchStepsState = useResearchSteps();
+  const history = useResearchHistory();
+  const historySessionIdRef = React.useRef<string | null>(null);
+  const researchStartTimeRef = React.useRef<number | null>(null);
   
   // Research cancellation control
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -928,6 +932,16 @@ export function useResearch(
   // Step processing deduplication tracker  
   const processedStepIds = React.useRef(new Set<string>());
 
+  const performedStepsPersist = (step: ResearchStep) => {
+    if (!historySessionIdRef.current) return;
+    const existing = history.currentSession?.steps?.find(s => s.id === step.id);
+    if (existing) {
+      history.updateStepInSession(historySessionIdRef.current, step.id, step);
+    } else {
+      history.addStepToSession(historySessionIdRef.current, step);
+    }
+  };
+
   // Intelligent Research Functions
   const performIntelligentResearch = useCallback(async (query: string) => {
     if (!query.trim() || !isAIReady) {
@@ -944,6 +958,10 @@ export function useResearch(
     setThinkingOutput("🧠 Initializing intelligent research system...");
     researchStepsState.clearSteps();
     processedStepIds.current.clear();
+    // Start persisted history session
+    researchStartTimeRef.current = Date.now();
+    const session = history.createSession(query);
+    historySessionIdRef.current = session.id;
 
     // Create abort controller for this research session
     const abortController = new AbortController();
@@ -956,31 +974,39 @@ export function useResearch(
       researchOrchestrator.onStepUpdate = (step: ResearchStep) => {
         console.log(`📋 Step update: ${step.type} - ${step.status} - ID: ${step.id}`);
         
-        // Create unique key for step+status combination to prevent duplicate processing
         const stepKey = `${step.id}_${step.status}`;
-        
-        // Skip if we've already processed this step+status combination
         if (processedStepIds.current.has(stepKey)) {
           console.log(`📋 Skipping duplicate step processing: ${stepKey}`);
           return;
         }
-        
-        // Mark this step+status as processed
         processedStepIds.current.add(stepKey);
-        
-        // Safe step management with current state check
+
         const existingSteps = researchStepsState.steps;
         const existingStepIndex = existingSteps.findIndex(s => s.id === step.id);
-        
         if (existingStepIndex >= 0) {
-          console.log(`📋 Updating existing step: ${step.id}`);
-          researchStepsState.updateStep(step.id, step);
+          // Merge progress history for each substep to avoid losing verbose trail
+          const existing = existingSteps[existingStepIndex];
+          const merged: ResearchStep = { ...existing, ...step } as ResearchStep;
+          if (existing.subSteps || step.subSteps) {
+            const map = new Map<string, any>();
+            (existing.subSteps || []).forEach(s => map.set(s.id, { ...s }));
+            (step.subSteps || []).forEach(su => {
+              const ex = map.get(su.id) || {};
+              const phKey = (e: any) => `${e.timestamp}-${e.stage}-${e.progress}`;
+              const phMap = new Map((ex.progressHistory || []).map((e: any) => [phKey(e), e]));
+              (su.progressHistory || []).forEach((e: any) => phMap.set(phKey(e), e));
+              map.set(su.id, { ...ex, ...su, progressHistory: Array.from(phMap.values()).sort((a: any, b: any) => a.timestamp - b.timestamp) });
+            });
+            merged.subSteps = Array.from(map.values());
+          }
+          researchStepsState.updateStep(step.id, merged);
+          performedStepsPersist(merged);
         } else {
-          console.log(`📋 Adding new step: ${step.id}`);
           researchStepsState.addStep(step);
+          performedStepsPersist(step);
         }
-        
-        // Update thinking output based on current step
+        // Update thinking line
+
         if (step.status === 'in_progress') {
           switch (step.type) {
             case 'analysis':
@@ -999,35 +1025,36 @@ export function useResearch(
         }
       };
 
-      // Check if research was aborted before starting
       if (abortController.signal.aborted) {
         throw new Error('Research was cancelled by user');
       }
 
-      // Execute intelligent research
       const result = await researchOrchestrator.executeResearch(query);
       
       setResearchResult(result);
       setResults(result.finalAnswer);
       setThinkingOutput(`✅ Research completed: ${result.steps.length} steps, ${result.sources.length} sources, ${Math.round(result.confidence * 100)}% confidence`);
-
-      console.log(`✅ Intelligent research completed:`, {
-        steps: result.steps.length,
-        sources: result.sources.length,
-        confidence: result.confidence,
-        processingTime: result.processingTime
-      });
+      if (historySessionIdRef.current) {
+        const duration = researchStartTimeRef.current ? Date.now() - researchStartTimeRef.current : undefined;
+        history.completeSession(historySessionIdRef.current, duration);
+        history.updateSession(historySessionIdRef.current, {
+          resultCount: result.steps.length,
+          metadata: { ...(result as any) } as any,
+        });
+      }
 
     } catch (error) {
       console.error('❌ Intelligent research failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setResults(`Intelligent research failed: ${errorMessage}\n\nPlease check your AI connection and try again.`);
       setThinkingOutput("❌ Research failed. Please try again.");
+      if (historySessionIdRef.current) {
+        history.failSession(historySessionIdRef.current, errorMessage);
+      }
     } finally {
       setIsIntelligentResearching(false);
       setIsGenerating(false);
       setIsStreaming(false);
-      // Clear the abort controller reference
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
@@ -1035,7 +1062,8 @@ export function useResearch(
   }, [
     isAIReady,
     researchOrchestrator,
-    researchStepsState
+    researchStepsState,
+    history
   ]);
 
   const clearResearchSteps = useCallback(() => {

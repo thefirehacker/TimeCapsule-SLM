@@ -910,8 +910,8 @@ Suggest research steps with reasoning for each.`;
               
               // Create and add agent sub-step in real-time
               if (this.currentSynthesisStep) {
-                const agentSubStep = {
-                  id: `${agentName.toLowerCase()}_${Date.now()}`,
+              const agentSubStep = {
+                id: `${agentName}`,
                   agentName,
                   agentType: agentType as 'query_planner' | 'data_inspector' | 'pattern_generator' | 'extraction' | 'synthesis',
                   status: 'in_progress' as const,
@@ -1019,6 +1019,8 @@ Suggest research steps with reasoning for each.`;
               if (this.currentSynthesisStep && this.currentAgentSubSteps) {
                 const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
                 if (agentIndex >= 0) {
+                  const prev = this.currentAgentSubSteps[agentIndex];
+                  const ph = (prev.progressHistory || []).concat([{ timestamp: Date.now(), stage: 'Completed', progress: 100 }]);
                   this.currentAgentSubSteps[agentIndex] = {
                     ...this.currentAgentSubSteps[agentIndex],
                     status: 'completed',
@@ -1026,7 +1028,8 @@ Suggest research steps with reasoning for each.`;
                     endTime: Date.now(),
                     duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
                     stage: 'Completed',
-                    output: output
+                    output: output,
+                    progressHistory: ph
                   };
                   
                   // Update synthesis step with completion
@@ -1049,12 +1052,15 @@ Suggest research steps with reasoning for each.`;
               if (this.currentSynthesisStep && this.currentAgentSubSteps) {
                 const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
                 if (agentIndex >= 0) {
+                  const prev = this.currentAgentSubSteps[agentIndex];
+                  const ph = (prev.progressHistory || []).concat([{ timestamp: Date.now(), stage: 'Error', progress: prev.progress || 0 }]);
                   this.currentAgentSubSteps[agentIndex] = {
                     ...this.currentAgentSubSteps[agentIndex],
                     status: 'failed',
                     error,
                     endTime: Date.now(),
-                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime
+                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
+                    progressHistory: ph
                   };
                   
                   // Update synthesis step with error
@@ -1755,7 +1761,8 @@ Answer:`;
                 endTime: Date.now(),
                 duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
                 stage: 'Completed',
-                output: output
+                output: output,
+                progressHistory: [ ...(this.currentAgentSubSteps[agentIndex].progressHistory || []), { timestamp: Date.now(), stage: 'Completed', progress: 100 } ]
               };
               
               this.updateStep(this.currentSynthesisStep, {
@@ -1776,12 +1783,13 @@ Answer:`;
           if (this.currentSynthesisStep && this.currentAgentSubSteps) {
             const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
             if (agentIndex >= 0) {
-              this.currentAgentSubSteps[agentIndex] = {
+                  this.currentAgentSubSteps[agentIndex] = {
                 ...this.currentAgentSubSteps[agentIndex],
                 status: 'failed',
                 error,
                 endTime: Date.now(),
-                duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime
+                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
+                    progressHistory: [ ...(this.currentAgentSubSteps[agentIndex].progressHistory || []), { timestamp: Date.now(), stage: 'Error', progress: this.currentAgentSubSteps[agentIndex].progress || 0 } ]
               };
               
               this.updateStep(this.currentSynthesisStep, {
@@ -1826,6 +1834,20 @@ Answer:`;
   private calculateFinalConfidence(steps: ResearchStep[]): number {
     const completedSteps = steps.filter(s => s.status === 'completed').length;
     return completedSteps > 0 ? Math.min(completedSteps / steps.length, 1.0) : 0.8;
+  }
+
+  /**
+   * Simple evidence gate: ensure we have numeric evidence before synthesis
+   */
+  private hasMinimalNumericEvidence(context: any): boolean {
+    try {
+      const items = context?.extractedData?.raw || [];
+      if (!Array.isArray(items) || items.length === 0) return false;
+      const numeric = items.filter((it: any) => /(\d[\d\s.:]*\d)?\d/.test(String((it.metadata?.originalContext || it.content || ''))));
+      return numeric.length >= 2;
+    } catch {
+      return false;
+    }
   }
   
   /**

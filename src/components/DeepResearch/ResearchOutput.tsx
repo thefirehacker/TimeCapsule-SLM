@@ -1209,34 +1209,18 @@ export function ResearchOutput({
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* Prominent Deep Research Progress Indicator */}
+      {/* Compact, harmonized research status bar */}
       {(isIntelligentResearching || isGenerating) && (
-        <div className="sticky top-0 z-30 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600 text-white shadow-lg border-b-2 border-white/20">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  <div className="absolute -inset-2 bg-white/20 rounded-full animate-pulse"></div>
-                </div>
-                <div className="flex flex-col">
-                  <div className="text-lg font-semibold">
-                    🧠 Deep Research in Progress
-                  </div>
-                  <div className="text-sm text-white/80">
-                    {isIntelligentResearching 
-                      ? "Multi-agent system analyzing your query across multiple sources..."
-                      : "Generating comprehensive research response..."
-                    }
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-xs bg-white/20 px-3 py-1 rounded-full">
-                  {isIntelligentResearching ? "ANALYZING" : "STREAMING"}
-                </div>
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              </div>
+        <div className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur-sm">
+          <div className="px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex w-2 h-2 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none" />
+              <span className="text-xs font-medium text-muted-foreground">
+                {isIntelligentResearching ? "Analyzing" : "Streaming output"}
+              </span>
+            </div>
+            <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="h-full w-2/3 bg-primary/70 animate-pulse motion-reduce:animate-none" />
             </div>
           </div>
         </div>

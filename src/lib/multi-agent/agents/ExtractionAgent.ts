@@ -804,89 +804,59 @@ Keep it simple and direct.`;
     const totalChunks = context.ragResults.chunks.length;
     
     console.log(`📊 Processing ${totalChunks} chunks with ${regexPatterns.length} regex patterns`);
+    this.progressCallback?.onAgentProgress?.(this.name, 30, `Preparing ${regexPatterns.length} patterns`);
     
-    // Apply each regex pattern to all chunks (also run on a normalized text variant)
-    for (const pattern of regexPatterns) {
-      const regexString = pattern.regexPattern!;
-      console.log(`🔍 Applying pattern: ${regexString}`);
-      
-      try {
-        // Parse regex pattern (handle /pattern/flags format)
-        const regexMatch = regexString.match(/^\/(.+)\/([gimuy]*)$/);
-        const regexBody = regexMatch ? regexMatch[1] : regexString;
-        const regexFlags = regexMatch ? regexMatch[2] : 'gi';
-        
-        const regex = new RegExp(regexBody, regexFlags);
-        let patternMatches = 0;
-        
-        // Apply regex to each chunk
-        for (const chunk of context.ragResults.chunks) {
-          let match;
-          const originalText = chunk.text;
-          // Normalized: lowercase, collapse separators, remove extra punctuation noise
-          const normalizedText = originalText
-            .toLowerCase()
-            .replace(/[\.]/g, '.')
-            .replace(/[_\-]/g, ' ')
-            .replace(/\s+/g, ' ');
-
-          // Search original
-          while ((match = regex.exec(originalText)) !== null) {
-            const extractedContent = match[1] || match[0]; // Use capture group or full match
-            
-            extractedItems.push({
-              content: extractedContent.trim(),
-              value: extractedContent.trim(),
-              unit: '',
-              context: match[0],
-              confidence: 0.95, // High confidence for regex matches
-              sourceChunkId: chunk.id,
-              sourceDocument: chunk.sourceDocument,
+    // Offload regex scanning to a Web Worker to keep UI responsive
+    try {
+      this.progressCallback?.onAgentProgress?.(this.name, 45, 'Spawning extraction worker');
+      const itemsFromWorker: ExtractedItem[] = await new Promise((resolve, reject) => {
+        const worker = new Worker('/workers/regexExtractionWorker.js');
+        const handle = (e: MessageEvent) => {
+          const { type, payload } = (e as any).data || {};
+          if (type === 'progress') {
+            const processed = payload?.processed || 0;
+            const total = payload?.total || 0;
+            const pct = total ? Math.min(85, Math.max(55, Math.round((processed / total) * 80))) : 55;
+            this.progressCallback?.onAgentProgress?.(this.name, pct, 'Scanning chunks', processed, total);
+            } else if (type === 'done') {
+            worker.removeEventListener('message', handle as any);
+            worker.terminate();
+            const rawItems = (payload?.items || []) as ExtractedItem[];
+            // Ensure original vs normalized fields are preserved in metadata
+            const items = rawItems.map((it: any) => ({
+              ...it,
               metadata: {
-                extractionMethod: 'regex_pattern',
-                regexPattern: regexString,
-                patternDescription: pattern.description,
-                fullMatch: match[0]
+                ...it.metadata,
+                originalContext: it.metadata?.originalText || it.context,
+                normalizedContext: it.metadata?.normalizedText
               }
-            });
-            
-            patternMatches++;
+            }));
+            resolve(items);
+          } else if (type === 'error') {
+            worker.removeEventListener('message', handle as any);
+            worker.terminate();
+            reject(new Error(payload?.message || 'regex worker error'));
           }
-          
-          // Reset regex lastIndex for global patterns
-          regex.lastIndex = 0;
-
-          // Search normalized
-          while ((match = regex.exec(normalizedText)) !== null) {
-            const extractedContent = match[1] || match[0];
-            extractedItems.push({
-              content: extractedContent.trim(),
-              value: extractedContent.trim(),
-              unit: '',
-              context: match[0],
-              confidence: 0.88,
-              sourceChunkId: chunk.id,
-              sourceDocument: chunk.sourceDocument,
-              metadata: {
-                extractionMethod: 'regex_pattern_normalized',
-                regexPattern: regexString,
-                patternDescription: pattern.description,
-                normalized: true
-              }
-            });
-            patternMatches++;
+        };
+        worker.addEventListener('message', handle as any);
+        worker.postMessage({
+          type: 'run',
+          payload: {
+            patterns: regexPatterns.map(p => ({ description: p.description, regexPattern: p.regexPattern })),
+            chunks: context.ragResults.chunks.map(ch => ({ id: ch.id, text: ch.text, sourceDocument: ch.sourceDocument })),
+            caps: { maxPatterns: 64, maxMatchesPerChunk: 200, batchSize: 2 }
           }
-          regex.lastIndex = 0;
-        }
-        
-        console.log(`✅ Pattern "${regexString}" found ${patternMatches} matches`);
-        
-      } catch (error) {
-        console.error(`❌ Invalid regex pattern "${regexString}":`, error);
-      }
+        });
+      });
+      extractedItems.push(...itemsFromWorker);
+      this.progressCallback?.onAgentProgress?.(this.name, 90, `Merging ${itemsFromWorker.length} matches`);
+      console.log(`✅ Worker regex extraction completed with ${itemsFromWorker.length} items`);
+    } catch (workerErr) {
+      console.warn('⚠️ Regex worker failed; skipping worker offload:', workerErr);
     }
     
     console.log(`🎯 REGEX extraction complete: ${extractedItems.length} items extracted`);
+    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Extraction complete', extractedItems.length, undefined);
     
     // Update reasoning
     this.batchReasoning.push(`🎯 **REGEX MODE**: Used ${regexPatterns.length} patterns from PatternGenerator`);

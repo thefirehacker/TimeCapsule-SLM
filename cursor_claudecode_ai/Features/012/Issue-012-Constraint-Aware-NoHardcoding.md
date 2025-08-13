@@ -61,6 +61,107 @@ Achieve Claude Code–style orchestration with zero hardcoding across any docume
 - Labeling: display filename/title as primary, LLM `mainEntity` as secondary to avoid confusion (e.g., "Including: <filename> (entity: GPT-2)").
 - Persist verbose agent history across runs in a local ring buffer (and localStorage) with runId/timestamp; expose recent runs in the UI panel.
 
+12) Workerized Regex Extraction (0 LLM)
+- Offload the entire regex extraction loop to a Web Worker to avoid main-thread stalls.
+- Pre-validate and sanitize pattern set before dispatch: remove duplicates, drop trivial literals (<4 chars), cap max patterns (e.g., 64), cap max matches per pattern per chunk (e.g., 200), reject unsafe/catastrophic constructs and overly long patterns (>200 chars).
+- Batch processing: process N chunks × M patterns per batch; stream incremental results and progress to the UI.
+- Compile regexes once in the worker; run on both original and normalized text (lowercased, collapsed separators) to tolerate variants (e.g., “Mongo DB” vs “MongoDB”).
+- UI: throttle console/log output; show per-batch progress and allow cancel.
+
+## UI Harmonization and Multi-Agent Output UX
+
+Goal: Make the research experience visually consistent and information-dense without clutter. No functional logic changes required.
+
+1) Harmonize "Deep Research in Progress" with core UI
+- Replace large hero-style gradient with a compact, integrated status bar.
+- Placement: above `ResearchSteps` within the same card header; sticky within the card only.
+- Style: subtle surface color (muted/primary-50), thin progress indicator, small pulsing dot, status text (Analyzing/Idle/Complete), duration.
+- Accessibility: AA contrast, reduced motion option (disable pulse if prefers-reduced-motion).
+
+2) ResearchSteps header polish
+- Primary title left, compact progress pill (completed/total) right.
+- Linear progress inline with pill, same radius as cards; remove heavy borders.
+- Consistent spacing with other cards; no shadow when fullscreen.
+
+3) Agent card information architecture
+- Compact meta row: status pill, duration, rerun icon, and copy-output icon.
+- Colored left stripe per agent type; rounded corners and gentle hover shadow.
+- Collapse/expand retains state per agent; remember last open state.
+
+4) Verbose Progress History as timeline
+- Timeline rows with dot + connector, short stage label, right-aligned timestamp, percent, and items processed `x/y` where applicable.
+- Latest row highlighted with soft background; preserves history after completion or error.
+- Sticky toggle button; count badge shows number of entries; keyboard accessible.
+
+5) Reasoning / Output sections
+- Monospace toggle; 4-line clamp with “Show more/less”.
+- Unified section titles across agents (Reasoning, Findings, Output, Errors).
+- Copy-to-clipboard for sections; small citation chips where available.
+
+6) Sidebar status
+- Replace hero badge with a minimal connection/status chip (Connected/Analyzing/Idle) and a “Start New” button.
+
+7) Empty/error states
+- Friendly empty state for no matches; concise error banner inside the agent card; keep history visible.
+
+8) Performance guidelines
+- Avoid heavy shadows/filters; prefer CSS transforms for hover.
+- Virtualize long histories if needed; throttle UI updates from workers.
+
+9) Theming
+- Follow existing token scale; support dark mode; avoid hardcoded colors.
+
+## Evidence-Driven Extraction (Zero Hardcoding)
+
+Goal: Learn measurement patterns directly from the document at runtime and gate synthesis on actual evidence. No predefined units, keywords, or filenames.
+
+1) Evidence handoff from DataInspector
+- From sampled chunk text (not LLM reasoning), emit raw numeric hits with ±5 token windows and chunkId.
+- Strip wrapping punctuation; keep original substring and tokens left/right.
+- Store in `sharedKnowledge.documentInsights.measurements` for downstream use.
+
+2) PatternGenerator bottom-up induction
+- Learn from measurements only:
+  - Decimal style (e.g., 7.51 vs 7 51), dominant by frequency
+  - Joiners actually present (e.g., '/', 'per'), discovered from windows
+  - Candidate unit tokens = tokens adjacent to numbers in windows (as-is)
+- Cluster by co-occurrence/structure into "families" and synthesize regex for each family using the learned style/tokens (case/spacing tolerant). No vocab lists.
+- Score families by support, structure consistency, and query–context cosine (bag-of-words on observed windows). Keep the top families and sanitize/dedupe before sending to the worker.
+
+3) Extraction with worker (unchanged infra)
+- Run worker with learned families; keep `originalContext` and `normalizedContext` in metadata.
+- Retain caps and batching for stability.
+
+4) DataAnalysis evidence-triggered ranking
+- Rank only when evidence exists: ≥3 items in one family, or ≥2 in one + ≥1 in another, from the same source.
+- Parse numbers from `originalContext`; tolerate space-as-decimal if learned.
+- Do not filter numeric items purely by query score.
+
+5) Orchestrator evidence gate
+- Block Synthesis until minimal numeric evidence is present; otherwise loop PatternGenerator → Extractor once with learned families only, or return "insufficient evidence" with citations.
+
+6) RxDB augmentation without numeric probes
+- Build probes from context windows around observed numbers; never embed raw numbers.
+
+## Planner-Aligned Orchestration and Rerun Policy (No Hardcoding)
+
+Problem observed: The orchestrator skips agents as duplicates even when Planner intends a new pass (e.g., add patterns and re-extract). Synthesis may run prematurely without numeric evidence, producing relevance-only “top 3” outputs.
+
+Design (evidence- and context-driven, not agent-name driven):
+- Evidence gate before Synthesis
+  - Block Synthesis unless extractedData.raw contains minimal numeric evidence (e.g., ≥2 numeric items). If unmet, route Planner → PatternGenerator → Extractor loop once and report “insufficient evidence” if still empty.
+- Context-aware rerun policy (bounded)
+  - Allow PatternGenerator, Extractor, DataAnalyzer to rerun when inputs changed or quality is insufficient. Track input signatures: patternsHash, chunksHash, measurementsHash.
+  - Replace agent-name duplicate check with “same-agent-same-input” guard; cap total loops (e.g., ≤2 cycles).
+- Planner enforcement
+  - When Planner proposes a next step (e.g., “generate new patterns,” “re-extract”), mark as required. Validation should block Synthesis until required steps complete or evidence threshold met.
+- Quality feedback loop
+  - After each agent, set sharedKnowledge quality flags (e.g., insufficient, retry_recommended). Validation uses these to permit reruns and deny premature synthesis.
+- Iteration budget handling
+  - If no eligible next step exists due to gating, end early with “insufficient evidence” + citations instead of hitting max iterations.
+
+Impact: Planner can drive a new pattern generation + extraction pass when needed; synthesis only occurs with data-backed evidence; no hardcoded file names or unit lists.
+
 ## Expected Call Budget
 - 1: Constraints
 - 1: Batched ranking (skip if obvious single match)
@@ -81,6 +182,7 @@ Total: 3–5 typical.
 - Over-strict constraints when metadata sparse → allow one fallback ranking pass.
 - Pattern overfitting → multiple grounded terms + augmentation.
  - Small models emit malformed JSON → strict JSON-output prompts + resilient parser cleaning already added.
+- Main thread stalls during extraction → move to worker, add batching/caps and pattern sanitization.
 
 ## Approval
 Proceed with TODO in `todo-012.md` upon approval. No code changes yet.

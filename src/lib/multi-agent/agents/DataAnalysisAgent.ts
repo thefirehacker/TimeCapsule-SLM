@@ -34,6 +34,7 @@ export class DataAnalysisAgent extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Cleaning and deduplicating');
     // Initialize if needed
     if (!context.extractedData) {
       context.extractedData = { raw: [], structured: [] };
@@ -50,25 +51,27 @@ export class DataAnalysisAgent extends BaseAgent {
     
     // Step 1: Clean and deduplicate
     const cleaned = this.cleanAndDeduplicateItems(context.extractedData.raw);
+    this.progressCallback?.onAgentProgress?.(this.name, 35, `After cleaning: ${cleaned.length}`);
     console.log(`🧹 After cleaning: ${cleaned.length} items remain`);
     
     // Step 2: 🎯 NEW - Apply query-relevance filtering
     const queryFiltered = this.filterByQueryRelevance(cleaned, context);
+    this.progressCallback?.onAgentProgress?.(this.name, 55, `After relevance filter: ${queryFiltered.length}`);
     console.log(`🎯 After query filtering: ${queryFiltered.length} items remain (${cleaned.length - queryFiltered.length} irrelevant items removed)`);
     
     // Step 3: Group and categorize the filtered items
     const categorized = await this.groupAndCategorize(queryFiltered, context.query);
+    this.progressCallback?.onAgentProgress?.(this.name, 75, `Categorized: ${categorized.length}`);
     
     // Step 4: Generate insights
     const insights = this.generateInsights(queryFiltered, categorized);
 
-    // 🎯 If expected answer is performance ranking, compute best by reducer
-    const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
-    if (expectedType === 'performance_ranking') {
+    // 🎯 Evidence-triggered ranking (zero hardcoding)
+    const familyEvidence = this.countMeasurementFamilies(queryFiltered);
+    if (familyEvidence.total >= 3 && (familyEvidence.maxFamily >= 3 || (familyEvidence.maxFamily >= 2 && familyEvidence.total >= 3))) {
       const ranked = this.computeBestPerformance(queryFiltered);
       if (ranked) {
-        // Promote best item to structured form with attribution
-        context.extractedData.structured.push({ bestPerformance: ranked });
+        context.extractedData.structured.push({ bestPerformance: ranked, evidence: familyEvidence });
       }
     }
     
@@ -92,8 +95,29 @@ export class DataAnalysisAgent extends BaseAgent {
 - Categories found: ${categorized.length}
 - Query-irrelevant items removed: ${cleaned.length - queryFiltered.length}
 ${insights}`);
+    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Analysis complete', queryFiltered.length, undefined);
     
     return context;
+  }
+
+  private countMeasurementFamilies(items: ExtractedItem[]): { total: number; maxFamily: number } {
+    const key = (it: ExtractedItem) => {
+      const text = String((it as any).metadata?.originalContext || it.content || '').toLowerCase();
+      if (text.includes(' per ')) return text.split(' per ')[1].split(/\W/)[0] + '_per';
+      const slash = text.match(/\b([a-z]+)\s*\/\s*([a-z]+)\b/);
+      if (slash) return `${slash[1]}_${slash[2]}`;
+      const unit = text.split(/\s+/)[1] || '';
+      return unit;
+    };
+    const counts = new Map<string, number>();
+    for (const it of items) {
+      const fam = key(it);
+      if (!fam) continue;
+      counts.set(fam, (counts.get(fam) || 0) + 1);
+    }
+    let maxFamily = 0; counts.forEach(v => { if (v > maxFamily) maxFamily = v; });
+    let total = 0; counts.forEach(v => total += v);
+    return { total, maxFamily };
   }
 
   private parseNumberWithK(value: string): number | null {
@@ -114,7 +138,10 @@ ${insights}`);
 
     let bestTime: { item: ExtractedItem; hours: number } | null = null;
     for (const it of timeItems) {
-      const m = String(it.content || it.value || '').match(/(\d+(?:\.\d+)?)\s*(hours?|hrs?)/i);
+      // Accept 7.51 or 7 51 as decimal; prefer original text if present
+      const original = String((it as any).metadata?.originalContext || it.content || it.value || '');
+      const fixed = original.replace(/(\d+)\s+(\d{2})\b/, '$1.$2');
+      const m = fixed.match(/(\d+(?:\.\d+)?)\s*(hours?|hrs?)/i);
       if (!m) continue;
       const hours = parseFloat(m[1]);
       if (!isFinite(hours)) continue;
@@ -269,6 +296,9 @@ Reply with just the classifications in order.`;
       console.log(`📋 Categories: methods(${planningStrategy.patternCategories?.methods?.length || 0}), concepts(${planningStrategy.patternCategories?.concepts?.length || 0}), people(${planningStrategy.patternCategories?.people?.length || 0})`);
     }
 
+    const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
+    const isPerf = expectedType === 'performance_ranking';
+
     const relevantItems = items.filter(item => {
       const relevanceScore = this.calculateItemRelevance(item, queryKeyTerms, queryIntent, documentRelevance, planningStrategy, context);
       
@@ -279,7 +309,11 @@ Reply with just the classifications in order.`;
         console.log(`✅ Keeping relevant item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
       }
 
-      return relevanceScore >= 0.3; // Dynamic threshold based on query relevance
+      // Keep numeric/time items more aggressively when performance intent
+      if (isPerf && /(hours?|hrs?|tokens?\/s|tokens?\s*per\s*second)/i.test(item.content || item.value || '')) {
+        return relevanceScore >= 0.15;
+      }
+      return relevanceScore >= 0.3; // Default threshold
     });
 
     console.log(`🎯 Query filtering complete: ${relevantItems.length}/${items.length} items kept`);

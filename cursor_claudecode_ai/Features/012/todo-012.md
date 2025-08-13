@@ -57,6 +57,50 @@ No code changes until approved. This plan is source-agnostic and works for any d
 - Filename/title-first labels; show LLM `mainEntity` as secondary
 - Persist verbose agent history (ring buffer + localStorage) with runId/timestamp
 
+11) Workerized Regex Extraction (stability)
+- Move extraction loop to a Web Worker; compile regexes once in worker
+- Pre-validate pattern set (dedupe, drop trivials <4 chars, cap 64 patterns, reject >200 chars or unsafe constructs)
+- Batch execution and progress streaming; cap matches per pattern per chunk (e.g., 200)
+- Run on original + normalized text; throttle logs; allow cancel
+
+12) UI/UX — Harmonize banner and improve multi-agent output
+- Replace hero gradient banner with a compact, integrated status bar in the `ResearchSteps` header
+- Unify header progress pill + inline progress; remove heavy borders/shadows
+- Agent cards: add compact meta row (status pill, duration, rerun, copy) and left color stripe per agent type
+- Verbose history: timeline layout with latest highlight, sticky toggle, right-aligned timestamps, counts
+- Reasoning/Output: monospace toggle, clamp + expand, consistent titles, copy buttons
+- Sidebar: minimal status chip + “Start New” button; drop duplicate big banner
+- Implement with CSS/TSX only (no logic changes) and preserve existing data bindings
+
+13) Extraction quality after workerization — regression fix (no hardcoding)
+- Worker must return both original and normalized matches; include fields: `originalText`, `normalizedText`, `fullMatch`, `pattern`, `description`, `sourceChunkId`, `sourceDocument`
+- Pattern sanitization in worker: drop placeholders (e.g., `/pattern\d+/`), reject malformed flags like `/(i)ig`, cap long bodies (>200 chars), and dedupe
+- ExtractionAgent: consume worker results; parse numerics strictly from `originalText`; store `originalContext` in `metadata`
+- Deterministic performance pipeline: when ranking intent is inferred, always inject duration/throughput/table regex families; allow space-separated decimals (e.g., `7 51` → `7.51`)
+- DataAnalysisAgent: boost numeric/time items when `expectedAnswerType='performance_ranking'`; never filter those below threshold; tolerant decimal parsing
+- RxDB augmentation: avoid embedding raw numbers; anchor around row labels (e.g., preceding/succeeding tokens) or skip augmentation for purely-numeric probes
+
+14) Evidence-Driven Extraction (zero hardcoding)
+- DataInspector: emit `documentInsights.measurements` from real chunk text (numeric hits with ±5-token windows, chunkId; strip brackets/punctuation)
+- PatternGenerator: bottom-up induction from measurements → learn decimal style, joiners, adjacent tokens → cluster into learned families → synthesize regex → score (support, consistency, query-window cosine) → sanitize/dedupe → emit
+- ExtractionAgent: use learned families as-is (worker already preserves originalContext/normalizedContext)
+- DataAnalysisAgent: rank only when evidence threshold met (≥3 in one family or ≥2+1 across families from same source); parse using learned decimal style; do not drop numeric items by query score alone
+- ResearchOrchestrator: add minimal evidence gate before Synthesis; if unmet, loop PatternGenerator→Extractor once with learned families or return “insufficient evidence” with citations
+
+15) Semantic Search Improvements (MiniLM-friendly, zero hardcoding)
+- Build probes from learned numeric windows (mask digits; use observed joiners/tokens); never query raw numbers
+- Multi-probe per family (masked phrase, left/right window phrases, joiner phrase); topK 10–20; threshold schedule 0.35→0.30→0.25 when empty
+- Hybrid retrieval: run BM25/keyword in parallel and fuse (RRF); dedupe by docId/chunkId; cap 10–12 augmented chunks
+- Rerank retrieved chunks by overlap with the family’s learned window tokens (bag-of-words cosine)
+- Constraint-aware gating on augmented chunks using existing owner/title/domain constraints
+
+16) Planner-Aligned Orchestration & Rerun Policy
+- Evidence gate: block Synthesis until minimal numeric evidence exists (≥2 items). If unmet, route Planner → PatternGenerator → Extractor loop once; else return “insufficient evidence.”
+- Context-aware reruns: permit PatternGenerator/Extractor/DataAnalyzer reruns when input signatures change (patternsHash/chunksHash/measurementsHash) or quality=insufficient; cap at ≤2 cycles.
+- Replace agent-name duplicate check with same-agent-same-input guard.
+- Planner enforcement: when Planner proposes required next steps, validation must defer Synthesis until they complete.
+- Early-stop on no-eligible-next-step to avoid max-iteration churn.
+
 ## Simple Checklist
 - Completed
   - [x] Architecture/design docs approved
@@ -75,3 +119,11 @@ No code changes until approved. This plan is source-agnostic and works for any d
   - [ ] Deterministic post-filter
   - [ ] Caching layer (synopsis/ranking/augmentation)
   - [ ] UX: filename-first labels + entity secondary; persist agent history across runs
+  - [ ] Workerized regex extraction with pattern sanitization and batching
+  - [ ] Evidence-Driven Extraction (DataInspector emit → PatternGenerator induction → Evidence gate)
+  - [ ] Semantic Search Improvements (learned-window probes, hybrid, rerank)
+  - [ ] Planner-Aligned Orchestration & Rerun Policy (evidence gate, context-aware reruns)
+
+- In Progress
+  - [ ] Evidence-Driven Extraction — PatternGenerator bottom-up induction (implemented); DataAnalysis evidence-triggered ranking (implemented); Synthesis evidence-gate helper (added); DataInspector measurements emit (pending)
+  - [ ] Semantic Search Improvements — design captured (probes from learned windows, hybrid, rerank); implementation pending

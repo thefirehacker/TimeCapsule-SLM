@@ -22,6 +22,7 @@ export class SynthesisCoordinator extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Collecting inputs');
     // Use extracted data directly if no cleaned analysis available
     const extractedData = context.extractedData?.raw || [];
     const analysisData = context.analyzedData?.cleaned || [];
@@ -31,19 +32,22 @@ export class SynthesisCoordinator extends BaseAgent {
     
     if (dataToUse.length === 0) {
       this.setReasoning('No data available for synthesis - both extraction and analysis are empty');
+      this.progressCallback?.onAgentProgress?.(this.name, 100, 'No data for synthesis');
       return context;
     }
     
     console.log(`🎯 SynthesisCoordinator: Using ${analysisData.length > 0 ? 'analyzed' : 'extracted'} data (${dataToUse.length} items)`);
+    this.progressCallback?.onAgentProgress?.(this.name, 30, `Ranking ${dataToUse.length} items`);
     
     const itemCount = dataToUse.length;
     const sectionCount = Object.keys(context.reportSections || {}).length;
-    const hasCitations = context.citations?.sources?.length > 0;
+    const hasCitations = !!(context.citations && Array.isArray(context.citations.sources) && context.citations.sources.length > 0);
     
     console.log(`🎯 SynthesisCoordinator: Assembling final report from ${sectionCount} sections`);
     
     // Combine all components into final report  
     const finalReport = await this.assembleReport(context, dataToUse);
+    this.progressCallback?.onAgentProgress?.(this.name, 70, 'Assembling report');
     
     // Clean and validate
     const cleanedReport = this.cleanFinalAnswer(finalReport);
@@ -51,6 +55,7 @@ export class SynthesisCoordinator extends BaseAgent {
     // Store final answer
     context.synthesis.answer = cleanedReport;
     context.synthesis.confidence = this.calculateConfidence(context);
+    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Synthesis complete');
     
     // Update reasoning
     this.setReasoning(`✅ Synthesis Coordination Complete:
@@ -69,8 +74,8 @@ export class SynthesisCoordinator extends BaseAgent {
     const citations = context.citations || {};
     
     // If we have complete sections, just combine them
-    if (sections.executive && sections.findings) {
-      return this.combineExistingSections(sections, summary, citations);
+    if ((sections as any).executive && (sections as any).findings) {
+      return this.combineExistingSections(sections as any, summary as any, citations as any);
     }
     
     // 🎯 NEW: Generate query-focused report with context awareness
@@ -280,21 +285,21 @@ export class SynthesisCoordinator extends BaseAgent {
     }
     
     // Add main sections
-    if (sections.executive) {
-      parts.push(`## Key Information\n\n${sections.executive}\n`);
+    if ((sections as any).executive) {
+      parts.push(`## Key Information\n\n${(sections as any).executive}\n`);
     }
     
-    if (sections.findings) {
-      parts.push(`## Detailed Findings\n\n${sections.findings}\n`);
+    if ((sections as any).findings) {
+      parts.push(`## Detailed Findings\n\n${(sections as any).findings}\n`);
     }
     
-    if (sections.details) {
-      parts.push(`## Additional Details\n\n${sections.details}\n`);
+    if ((sections as any).details) {
+      parts.push(`## Additional Details\n\n${(sections as any).details}\n`);
     }
     
     // Add citations
-    if (citations.sources?.length > 0) {
-      parts.push(`## Sources\n\n${citations.sources.map(s => `- ${s}`).join('\n')}`);
+    if (Array.isArray((citations as any).sources) && (citations as any).sources.length > 0) {
+      parts.push(`## Sources\n\n${(citations as any).sources.map((s: string) => `- ${s}`).join('\n')}`);
     }
     
     return parts.join('\n');

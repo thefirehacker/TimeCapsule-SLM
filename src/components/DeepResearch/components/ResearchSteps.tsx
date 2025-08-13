@@ -161,6 +161,10 @@ export function ResearchSteps({
 }: ResearchStepsProps) {
   const completedSteps = steps.filter(step => step.status === 'completed').length;
   const totalSteps = steps.length;
+  const hasInProgress = steps.some(step => step.status === 'in_progress');
+  const allCompleted = totalSteps > 0 && steps.every(step => step.status === 'completed');
+  const statusLabel = hasInProgress ? 'Analyzing' : allCompleted ? 'Complete' : 'Idle';
+  const dotClass = hasInProgress ? 'bg-emerald-500' : allCompleted ? 'bg-blue-500' : 'bg-muted-foreground';
   
   if (steps.length === 0) {
     return null;
@@ -168,14 +172,19 @@ export function ResearchSteps({
   
   return (
     <Card className={`research-steps h-full flex flex-col ${className} ${fullScreenMode ? 'border-0 shadow-none bg-transparent' : ''}`}>
-      <CardHeader className={`${fullScreenMode ? 'pb-6 pt-2' : 'pb-3'} flex-shrink-0`}>
+      <CardHeader className={`${fullScreenMode ? 'pb-6 pt-2' : 'pb-3'} flex-shrink-0 bg-gradient-to-r from-indigo-50 to-white border-b` }>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-blue-500" />
             <h3 className="text-sm font-medium">Research Process</h3>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted/50">
+              <span className={`inline-flex w-1.5 h-1.5 rounded-full ${dotClass} ${hasInProgress ? 'animate-pulse' : ''}`} />
+              {statusLabel}
+            </span>
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <span className="inline-flex w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {completedSteps}/{totalSteps} steps
             </Badge>
             {totalSteps > 0 && (
@@ -539,9 +548,37 @@ export function useResearchSteps() {
   }, []);
   
   const updateStep = React.useCallback((stepId: string, updates: Partial<ResearchStep>) => {
-    setSteps(prev => prev.map(step => 
-      step.id === stepId ? { ...step, ...updates } : step
-    ));
+    setSteps(prev => prev.map(step => {
+      if (step.id !== stepId) return step;
+
+      const merged: ResearchStep = { ...step, ...updates } as ResearchStep;
+
+      // Deep-merge subSteps and progressHistory so verbose output is not lost
+      if (step.subSteps || updates.subSteps) {
+        const existingMap = new Map<string, any>();
+        (step.subSteps || []).forEach(s => existingMap.set(s.id, { ...s }));
+        (updates.subSteps || []).forEach(su => {
+          const ex = existingMap.get(su.id) || {};
+          // merge progress history
+          const existingPH = ex.progressHistory || [];
+          const updatePH = su.progressHistory || [];
+          const phKey = (e: any) => `${e.timestamp}-${e.stage}-${e.progress}`;
+          const phMap = new Map(existingPH.map((e: any) => [phKey(e), e]));
+          updatePH.forEach((e: any) => phMap.set(phKey(e), e));
+          const mergedPH = Array.from(phMap.values()).sort((a: any, b: any) => a.timestamp - b.timestamp);
+
+          existingMap.set(su.id, {
+            ...ex,
+            ...su,
+            progressHistory: mergedPH,
+          });
+        });
+        // carry over untouched existing substeps
+        merged.subSteps = Array.from(existingMap.values());
+      }
+
+      return merged;
+    }));
   }, []);
   
   const clearSteps = React.useCallback(() => {

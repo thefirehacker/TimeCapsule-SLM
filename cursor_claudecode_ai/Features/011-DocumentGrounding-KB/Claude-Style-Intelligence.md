@@ -1,3 +1,26 @@
+## Deterministic Performance Pipeline (Small‑LLM Friendly)
+
+This flow removes brittle behaviors and keeps zero hardcoding while matching “Claude Code” style outcomes.
+
+- Query constraints: derive `expectedOwner`, `expectedDomainCandidates`, `expectedTitleHints`, `expectedDocType`, `strictness`, `keyEntities` once and store in `sharedKnowledge.queryConstraints`.
+- Prefilter + synopsis ranking: filter by metadata if constraints exist; then do a single batched ranking across brief synopses to pick top K (keeps recall).
+- Deterministic performance intent: if the query contains ranking language (top/best/fastest) and numeric units (hours, tokens/s, B tokens), set `expectedAnswerType='performance_ranking'` when LLM expectations are inconclusive.
+- Guaranteed patterns: always add numeric/time/table regex families for `performance_ranking` (hours/min/throughput, simple table rows). No keyword lists or filename rules.
+- Normalized matching: regex runs on original and normalized text (lowercased, separators collapsed) so “MongoDB” ≈ “Mongo DB”, “NextJS” ≈ “Next.js”.
+- Flexible term regex: build separator/acronym‑tolerant regex per token (e.g., `mongo\s*[-_]?\s*d\.?\s*b\.?`).
+- Deterministic reducer: compute top‑3 by min(total hours) primarily, else max(tokens/s), emit structured results with attribution.
+- Post‑filter: if constraints specify owner/domain/title, drop extracted items whose source metadata violates them.
+
+## UX and Observability
+
+- Labels: show filename/title first; display LLM `mainEntity` as a secondary tag to avoid confusion (e.g., “Including: file.pdf (entity: GPT‑2)”).
+- Agent history: persist the last N runs (ring buffer + localStorage) with runId/timestamp; expose in a collapsible “Recent runs” panel so verbose history doesn’t disappear after each run.
+
+## Guardrails
+
+- Synthesis requires extraction output. Planning still decides order; the guardrail only prevents empty answers.
+- Parser hardening: strict JSON‑output prompts and resilient cleaning for small models.
+
 # Claude-Style Intelligence Implementation Plan
 
 ## Current Architecture Analysis

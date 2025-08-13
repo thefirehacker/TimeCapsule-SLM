@@ -6,6 +6,7 @@
  */
 
 import { ResearchContext } from './Context';
+import type { AgentProgressCallback } from './AgentProgress';
 
 export interface Agent {
   /**
@@ -43,6 +44,7 @@ export abstract class BaseAgent implements Agent {
   abstract readonly description: string;
   
   protected reasoning: string = '';
+  protected progressCallback?: AgentProgressCallback; // allow agents to emit progress
   
   async shouldActivate(context: ResearchContext): Promise<boolean> {
     // By default, let orchestrator decide

@@ -10,6 +10,7 @@ import { ResearchContext } from '../interfaces/Context';
 import { QueryIntelligenceService } from '../../QueryIntelligenceService';
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import type { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export interface ExecutionPlan {
   strategy: string;
@@ -48,9 +49,8 @@ export class PlanningAgent extends BaseAgent {
   
   private llm: LLMFunction;
   private availableAgents: string[];
-  private progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback;
   
-  constructor(llm: LLMFunction, availableAgents?: string[], progressCallback?: import('../interfaces/AgentProgress').AgentProgressCallback) {
+  constructor(llm: LLMFunction, availableAgents?: string[], progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
     this.availableAgents = availableAgents || ['DataInspector', 'PatternGenerator', 'Extractor', 'Synthesizer'];
