@@ -185,8 +185,8 @@ ${chunk.content}`;
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         className={cn(
-          "max-w-5xl max-h-[90vh] flex flex-col",
-          isFullscreen && "max-w-[95vw] max-h-[95vh]",
+          "w-[85vw] max-w-[85vw] max-h-[90vh] flex flex-col overflow-hidden",
+          isFullscreen && "w-[95vw] max-w-[95vw] max-h-[95vh]",
           className
         )}
       >
@@ -338,9 +338,9 @@ ${chunk.content}`;
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px]">
+                    <ScrollArea className="h-[60vh]">
                       <div className="prose prose-sm max-w-none">
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                           {chunk.content}
                         </div>
                       </div>
@@ -603,7 +603,7 @@ ${chunk.content}`;
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px]">
+                    <ScrollArea className="h-[60vh]">
                       <div className="space-y-4">
                         {/* Show surrounding text from document */}
                         {document && (

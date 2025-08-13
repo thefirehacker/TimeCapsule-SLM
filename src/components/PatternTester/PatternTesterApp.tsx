@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { ChunkViewerModal } from "../shared/ChunkViewerModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,12 +95,59 @@ export function PatternTesterComponent() {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [chunkIdSearch, setChunkIdSearch] = useState<string>("");
   const [chunkViewData, setChunkViewData] = useState<any>(null);
+  const [isChunkModalOpen, setIsChunkModalOpen] = useState(false);
   const [similarityQuery, setSimilarityQuery] = useState<string>("");
   const [similarityResults, setSimilarityResults] = useState<any[]>([]);
   const [isSimilarityLoading, setIsSimilarityLoading] = useState(false);
   const [showAllMatches, setShowAllMatches] = useState<{
     [key: number]: boolean;
   }>({});
+
+  // Prepare data for ChunkViewerModal
+  const modalChunk = useMemo(() => {
+    if (!chunkViewData?.chunk) return null;
+    const ch = chunkViewData.chunk;
+    return {
+      id: ch.id,
+      content: ch.content || ch.text || "",
+      startIndex: typeof ch.startIndex === "number" ? ch.startIndex : 0,
+      endIndex:
+        typeof ch.endIndex === "number"
+          ? ch.endIndex
+          : (ch.content || ch.text || "").length,
+      metadata: ch.metadata || {},
+    } as any;
+  }, [chunkViewData]);
+
+  const modalDocument = useMemo(() => {
+    if (!chunkViewData?.document) return null;
+    const d = chunkViewData.document;
+    const md = d.metadata || {};
+    const filename = md.filename || d.filename || d.title || "document.txt";
+    const filetype = md.filetype || d.filetype || "text/plain";
+    const uploadedAt =
+      md.uploadedAt || d.uploadedAt || new Date().toISOString();
+    const source = md.source || d.source || "unknown";
+    const filesize = md.filesize || d.filesize || d.content?.length || 0;
+    return {
+      id: d.id || "unknown",
+      title: d.title || filename,
+      content: d.content || "",
+      metadata: {
+        filename,
+        filesize,
+        filetype,
+        uploadedAt,
+        source,
+        url: md.url,
+        domain: md.domain,
+        documentType: md.documentType,
+        description: md.description,
+      },
+      chunks: [],
+      vectors: [],
+    } as any;
+  }, [chunkViewData]);
 
   // Ollama integration state
   const {
@@ -405,6 +453,33 @@ export function PatternTesterComponent() {
     }
 
     try {
+      // Try client-side lookup first via VectorStore (IndexedDB)
+      if (vectorStore && vectorStoreInitialized) {
+        try {
+          const docs = await vectorStore.getAllDocuments();
+          let foundChunk: any = null;
+          let parentDoc: any = null;
+          for (const d of docs) {
+            const ch = (d.chunks || []).find((c: any) => c.id === idToSearch);
+            if (ch) {
+              foundChunk = ch;
+              parentDoc = d;
+              break;
+            }
+          }
+          if (foundChunk && parentDoc) {
+            setChunkViewData({ chunk: foundChunk, document: parentDoc });
+            if (chunkId) setChunkIdSearch(chunkId);
+            setIsChunkModalOpen(true);
+            toast.success("Chunk loaded successfully");
+            return;
+          }
+        } catch (e) {
+          // Fallback to API if local lookup fails
+          console.warn("Local chunk lookup failed, falling back to API", e);
+        }
+      }
+
       const response = await fetch(
         `/api/chunks/${encodeURIComponent(idToSearch)}`
       );
@@ -414,6 +489,7 @@ export function PatternTesterComponent() {
         if (chunkId) {
           setChunkIdSearch(chunkId);
         }
+        setIsChunkModalOpen(true);
         toast.success("Chunk loaded successfully");
       } else {
         const error = await response.json();
@@ -1371,6 +1447,14 @@ Performance: /\\d+(\\.\\d+)?%?\\s*(improvement|accuracy|score)/gi`}
             </Card>
           </div>
         </div>
+
+        {/* Full Chunk Viewer Modal */}
+        <ChunkViewerModal
+          isOpen={isChunkModalOpen}
+          onClose={() => setIsChunkModalOpen(false)}
+          chunk={modalChunk}
+          document={modalDocument}
+        />
 
         {/* Ollama Connection Modal */}
         <OllamaConnectionModal
