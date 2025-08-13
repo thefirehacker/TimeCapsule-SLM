@@ -2,23 +2,40 @@ import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
 import { updateCheckoutUserInfo } from "@/lib/razorpay/dynamodb-payments";
 
+// Validate Razorpay credentials
+const validateRazorpayCredentials = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    throw new Error(
+      "Razorpay credentials are not configured. Please check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables."
+    );
+  }
+
+  return { keyId, keySecret };
+};
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-
-  let plan_id = "";
-
-  if (body.country === "IN") {
-    plan_id = "plan_PTydgsGdsdc3GB";
-  } else {
-    plan_id = "plan_PWKfQOxaPQglWK";
-  }
-
   try {
+    // Validate credentials first
+    validateRazorpayCredentials();
+
+    const body = await request.json();
+
+    let plan_id = "";
+
+    if (body.country === "IN") {
+      plan_id = "plan_PTydgsGdsdc3GB";
+    } else {
+      plan_id = "plan_PWKfQOxaPQglWK";
+    }
+
     const subscription = await razorpay.subscriptions.create({
       plan_id: plan_id,
       total_count: 12,
@@ -66,10 +83,39 @@ export async function POST(request: NextRequest) {
       { subscriptionId: subscription.id },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating subscription:", error);
+
+    // Provide more specific error messages
+    if (error.message?.includes("credentials are not configured")) {
+      return NextResponse.json(
+        {
+          error: "Payment service configuration error",
+          details: error.message,
+          code: "CONFIG_ERROR",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (error.statusCode === 401) {
+      return NextResponse.json(
+        {
+          error: "Payment service authentication failed",
+          details:
+            "Invalid Razorpay API credentials. Please check your key_id and key_secret.",
+          code: "AUTH_ERROR",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to create subscription" },
+      {
+        error: "Failed to create subscription",
+        details: error.message || "Unknown error occurred",
+        code: "SUBSCRIPTION_ERROR",
+      },
       { status: 500 }
     );
   }
