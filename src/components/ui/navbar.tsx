@@ -13,7 +13,7 @@ const menuItems = [
   { name: "Home", href: "/" },
   { name: "About Us", href: "https://www.bubblspace.com/about-aiedx" },
   { name: "DeepResearch", href: "/deep-research" },
-  { name: "Regex + Regex Test", href: "/pattern-tester" },
+  { name: "Rag", href: "/rag" },
   { name: "AI-Frames", href: "/ai-frames" },
   { name: "contact", href: "/contact" },
 ];
