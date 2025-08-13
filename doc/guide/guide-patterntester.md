@@ -2,238 +2,291 @@
 
 ## Overview
 
-The Pattern Tester is a debugging tool that tests regex patterns directly against document chunks stored in IndexedDB/RxDB - exactly how the deep research multi-agent system works. This tool helps identify why specific patterns (like GRPO extraction) might be failing by testing them against the same data structure used in production.
+The Pattern Tester is a debugging tool that tests regex patterns directly against document chunks stored in IndexedDB/RxDB - exactly how the deep research multi-agent system works. This tool helps identify why specific patterns (like GRPO extraction) might be failing by testing them against the actual data structure used in production.
 
-## Key Difference from Before
+## Requirements Summary
 
-**Old approach**: Load data into a textarea, test patterns against text
-**New approach**: Select documents, test patterns directly against RxDB chunks (matching production behavior)
+### Core Purpose
+Debug regex pattern extraction by testing patterns against actual VectorStore/RxDB chunks, matching the exact execution logic of the multi-agent research system.
 
-## Accessing the Pattern Tester
-
-Navigate to: `/pattern-tester` in your application
+### Key Capabilities
+1. **Direct RxDB Testing** - No intermediate data loading, tests run directly on database chunks
+2. **Pattern Validation** - Test patterns copied from deep research output to verify extraction
+3. **Chunk Inspection** - View any chunk by ID to understand data structure
+4. **Similarity Search** - Find related chunks using semantic search
+5. **Production Parity** - Uses identical regex execution as `ExtractionAgent`
 
 ## Interface Overview
 
-The Pattern Tester interface has been redesigned to match the actual deep research flow:
+### Top Tools Row
+- **Chunk Viewer** (left): Enter chunk ID to view full content and document info
+- **Similarity Search** (right): Search for similar chunks across all documents
 
-### Left Panel - Input Section
-- **Regex Patterns**: Enter patterns copied from deep research output
-- **Document Selection**: Choose which documents to test against
-- **Execute Button**: Run patterns directly on selected documents
+### Main Interface
+- **Left Panel**: Pattern input and document selection
+- **Right Panel**: Test results with detailed match information
 
-### Right Panel - Results Section
-- **Summary**: Overview of matches found
-- **Pattern Results**: Detailed results showing actual matches with context
-- **Export CSV**: Download comprehensive results for analysis
-
-## Step-by-Step Usage Guide
+## Step-by-Step Usage
 
 ### 1. Select Documents to Test
 
-The Pattern Tester now works like the actual ExtractionAgent - it tests patterns directly against document chunks in RxDB:
+Documents load automatically from RxDB when the page opens:
 
-1. **Documents automatically load** from RxDB when page opens
-2. **Select documents** using checkboxes:
-   - Click individual documents to toggle selection
-   - Use "Select All" to test against all documents
-   - Use "Clear" to deselect all
-3. **View document info**:
-   - Document name and type
-   - Number of chunks per document
-   - Selection count shown at bottom
+1. **View available documents** - Shows name, type, and chunk count
+2. **Select documents** using checkboxes
+3. **Use bulk actions**: "Select All" or "Clear" buttons
+4. **Monitor selection**: Counter shows "X of Y documents selected"
 
-**No manual data loading needed!** The system fetches chunks directly from RxDB when you execute the test.
+**No manual loading required** - The system fetches chunks when you execute the test.
 
 ### 2. Enter Regex Patterns
 
-Copy patterns from the deep research output or create your own:
+Copy patterns from deep research output or create new ones:
 
-**Format Options:**
-
+**Supported Formats:**
 ```
-Simple pattern:
-/Group Relative Policy Optimization \(GRPO\)[^\n]{0,100}/gi
+# Simple pattern
+/GRPO/gi
 
-With description:
+# With description
 GRPO Pattern: /Group Relative Policy Optimization \(GRPO\)[^\n]{0,100}/gi
 
-Multiple patterns (one per line):
+# Multiple patterns (one per line)
 /GRPO/gi
 /\b[A-Z]{2,}\b.*method/gi
 /\d+(\.\d+)?%?\s*(improvement|accuracy|score)/gi
 ```
 
-**Important**: The Pattern Tester uses the same regex parsing as ExtractionAgent.ts:
+**Pattern Parsing** (matches ExtractionAgent.ts):
 - Patterns in `/pattern/flags` format are parsed exactly
 - Patterns without slashes get `gi` flags by default
-- Regex is applied to each chunk independently
+- Each pattern is tested against every chunk independently
 
 ### 3. Execute Pattern Test
 
 1. Click **"Execute Pattern Test"**
-2. The system:
+2. System automatically:
    - Fetches chunks for selected documents from RxDB
-   - Applies each pattern to every chunk (same as ExtractionAgent.ts lines 823-849)
-   - Extracts matches with context
-   - Shows results organized by pattern
+   - Applies each pattern to every chunk
+   - Extracts matches with surrounding context
+   - Calculates confidence scores
 
 ### 4. Analyze Results
 
-**Summary Section:**
-- **Total Matches**: Number of successful extractions across all patterns
+#### Summary Statistics
+- **Total Matches**: All successful extractions
 - **Patterns**: Number of patterns tested
 - **Documents**: Number of documents with matches
 
-**Pattern Results:**
+#### Per-Pattern Results
 Each pattern shows:
 - **Description and regex code**
-- **Number of matches found**
+- **Match count badge**
 - **For each match**:
-  - Document source
-  - Chunk ID
+  - Document source name
+  - Chunk ID (click to copy, includes View button)
   - Extracted content (match[1] or match[0])
-  - Context (50 chars before/after)
-  - Confidence score (always 0.95 for regex matches)
+  - Context (50 chars before/after match)
+  - Confidence score (95% for regex matches)
+  - Document ID for reference
+- **"Show All X Matches"** button for patterns with >3 matches
 
-### 5. Export Results
+#### Match Interactions
+- **Copy Chunk ID**: Click the chunk badge
+- **View Full Chunk**: Click "View" button
+- **Inspect in Chunk Viewer**: ID is auto-populated
 
-Click **"Export CSV"** to download results with:
-- Pattern used
+### 5. Use Chunk Viewer
+
+View any chunk's complete content:
+
+1. **Enter chunk ID** (or click View from a match)
+2. **Click search button** or press Enter
+3. **View displays**:
+   - Chunk ID
+   - Document title and filename
+   - Full chunk content in monospace font
+   - Scrollable for long content
+
+### 6. Use Similarity Search
+
+Find related chunks semantically:
+
+1. **Enter search query**
+2. **Click search** or press Enter
+3. **Results show**:
+   - Document title
+   - Similarity percentage
+   - Chunk ID
+   - Content preview (first 200 chars)
+   - "View Full Chunk" link
+
+### 7. Export Results
+
+Click **"Export CSV"** to download comprehensive results:
+
+**CSV Columns:**
+- Pattern
 - Description
-- Match content
-- Source document
+- Match Content
+- Source
 - Document ID
 - Chunk ID
-- Full context
-- Confidence score
+- Full Context
+- Confidence
+- Chunk Start Index (placeholder)
+- Chunk End Index (placeholder)
 
 ## Testing GRPO Extraction
 
-### Why GRPO Extraction Might Fail
+### Recommended Test Patterns
 
-The Pattern Tester helps debug issues like:
-
-1. **Pattern syntax errors**: Incorrect escaping or flags
-2. **Content not in chunks**: GRPO text might be split across chunks
-3. **Case sensitivity**: Pattern might need `i` flag
-4. **Context length**: Pattern might be too restrictive
-
-### Recommended GRPO Test Patterns
+Start simple and add complexity:
 
 ```
-# Basic tests (start here)
+# Level 1: Basic presence
 /GRPO/gi
 /Group Relative Policy Optimization/gi
 
-# With parentheses (need escaping)
+# Level 2: With acronym
 /Group Relative Policy Optimization \(GRPO\)/gi
 
-# With context
+# Level 3: With context
 /Group Relative Policy Optimization \(GRPO\)[^\n]{0,100}/gi
 
-# Method detection
+# Level 4: Method detection
 /GRPO.*(?:method|algorithm|approach)/gi
 
-# Performance claims
+# Level 5: Performance claims
 /GRPO.*(?:outperforms|superior|better)/gi
 ```
 
 ### Debugging Process
 
-1. **Start simple**: Test `/GRPO/gi` first
-2. **If no matches**: 
-   - Verify document selection
-   - Check if GRPO content exists in selected documents
-   - Try fallback documents if RxDB isn't working
-3. **If matches found with simple pattern but not complex**:
-   - Gradually add complexity
+1. **Verify document selection** - Ensure GRPO document is selected
+2. **Start with `/GRPO/gi`** - Confirms basic presence
+3. **If no matches**:
+   - Check document is in VectorStore
+   - Try similarity search for "GRPO"
+   - Verify chunks aren't empty
+4. **If simple works but complex fails**:
    - Check escaping (especially parentheses)
-   - Adjust context length `{0,100}` as needed
+   - Adjust context length `{0,100}`
+   - Test pattern components separately
 
-## How It Matches Production
+## Technical Details
 
-The Pattern Tester now exactly matches how ExtractionAgent works:
+### How It Matches Production
+
+The Pattern Tester uses identical logic to `ExtractionAgent.extractUsingRegexPatterns()`:
 
 ```javascript
-// ExtractionAgent.ts line 814-818
+// Pattern parsing (line 814-818)
 const regexMatch = regexStr.match(/^\/(.+)\/([gimuy]*)$/);
 const regexBody = regexMatch ? regexMatch[1] : regexStr;
 const regexFlags = regexMatch ? regexMatch[2] : 'gi';
 const regex = new RegExp(regexBody, regexFlags);
 
-// ExtractionAgent.ts line 823-849
+// Chunk processing (line 823-849)
 for (const chunk of chunks) {
   while ((match = regex.exec(chunk.text)) !== null) {
-    // Extract and store matches
+    const extractedContent = match[1] || match[0];
+    // Extract with context...
   }
   regex.lastIndex = 0; // Reset for global patterns
 }
 ```
 
-The Pattern Tester uses identical logic, ensuring test results match production behavior.
+### API Integration
 
-## API Integration
-
-### Document List API
+#### Document List
 `GET /api/documents/list`
-- Returns available documents with metadata
-- Used to populate document selector
+- Returns array of documents with metadata
+- No fallback data - direct VectorStore connection
 
-### Chunks API
+#### Chunk Loading
 `GET /api/documents/chunks?documentIds=id1,id2`
-- Fetches chunks for specified document IDs
-- Filters chunks to selected documents
-- Returns same structure as used by ExtractionAgent
+- Filters chunks by document IDs
+- Returns chunk text, IDs, and metadata
 
-## Fallback Data
+#### Chunk Viewer
+`GET /api/chunks/[id]`
+- Returns specific chunk with full content
+- Includes associated document information
 
-When RxDB/VectorStore is unavailable, the system provides fallback GRPO content:
-- 3 GRPO paper chunks with real GRPO content
-- 1 sample document chunk for testing
-- Allows pattern testing even without database access
+#### Similarity Search
+`POST /api/search/similarity`
+- Body: `{ query: string, limit: number }`
+- Returns chunks sorted by similarity score
+
+### VectorStore Connection
+
+- **No fallback data** - Direct RxDB connection only
+- **Initialization**: APIs create new VectorStore instance and connect
+- **Error handling**: Returns empty arrays or error messages if connection fails
+- **Real data only**: Tests against actual indexed documents
 
 ## Best Practices
 
-1. **Test patterns incrementally**: Start simple, add complexity gradually
-2. **Use document selection**: Test against specific documents to isolate issues
-3. **Check chunk boundaries**: Content might be split across chunks
-4. **Match production patterns**: Copy exact patterns from deep research output
-5. **Export for analysis**: Use CSV export to analyze patterns across many matches
-6. **Verify with context**: Check the context field to understand what's being matched
+1. **Test incrementally** - Start simple, add complexity gradually
+2. **Use document selection** - Test specific documents to isolate issues
+3. **Copy working patterns** - Use patterns that work in Pattern Tester in production
+4. **Check chunk boundaries** - Content might span multiple chunks
+5. **Export for analysis** - CSV helps identify patterns in large result sets
+6. **Verify with Chunk Viewer** - Inspect actual chunk content when patterns fail
 
-## Common Issues and Solutions
+## Common Issues
 
-### "No matches found" for known content
+### "No documents found"
+- Check VectorStore initialization in main app
+- Verify documents are properly indexed
+- Check browser console for RxDB errors
 
-**Solution**: 
-- Verify document is selected
-- Start with simplest possible pattern
-- Check if content spans multiple chunks
-- Try without flags first: `GRPO` instead of `/GRPO/gi`
+### "Pattern finds 0 matches"
+1. Verify document selection
+2. Test simplest pattern first: `text` not `/text/gi`
+3. Use Similarity Search to verify content exists
+4. Check if content spans chunk boundaries
 
-### Pattern works in Pattern Tester but not in deep research
+### "VectorStore initialization failed"
+- Not using fallback data anymore
+- Check IndexedDB in browser DevTools
+- Verify no blocking browser extensions
+- Try incognito mode to rule out storage issues
 
-**Solution**:
-- Ensure PatternGenerator is creating patterns with `regexPattern` property
-- Check that patterns are being passed correctly to ExtractionAgent
-- Verify document filtering in deep research matches your test
+### Pattern works here but not in production
+- Ensure PatternGenerator creates patterns with `regexPattern` property
+- Verify document filtering matches between environments
+- Check that production uses same document selection
 
-### RxDB not loading
+## Performance Considerations
 
-**Solution**:
-- Fallback data will be used automatically
-- Check browser console for VectorStore initialization errors
-- Try refreshing the page
-- Verify IndexedDB is not blocked by browser settings
+- **Chunk processing**: Large documents take time
+- **Pattern complexity**: Complex regex increases processing time
+- **No cross-chunk matching**: Each chunk processed independently
+- **Browser limitations**: Very large result sets may slow UI
 
-## Performance Notes
+## Workflow Integration
 
-- Testing is done in browser, so large documents may take time
-- Patterns are applied sequentially for accurate debugging
-- Each chunk is processed independently (no cross-chunk matching)
-- Global regex flags are reset between chunks to ensure all matches are found
+### From Deep Research to Pattern Tester
+
+1. **Run deep research** query
+2. **Check research output** for generated patterns
+3. **Copy patterns** from debug info
+4. **Open Pattern Tester** (`/pattern-tester`)
+5. **Select same documents** used in research
+6. **Paste and test** patterns
+7. **Debug failures** using Chunk Viewer
+8. **Export results** for detailed analysis
+
+### From Pattern Tester to Production
+
+1. **Validate patterns** in Pattern Tester
+2. **Note which patterns work**
+3. **Update PatternGenerator** if needed
+4. **Test in deep research** with same query
+5. **Verify extraction** matches Pattern Tester results
 
 ---
 
-This redesigned Pattern Tester provides accurate testing that matches exactly how the deep research multi-agent system extracts data, making it an effective debugging tool for pattern extraction issues.
+This tool provides accurate testing that exactly matches how the deep research multi-agent system extracts data, making it an essential debugging tool for pattern extraction issues.
