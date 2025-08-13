@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,6 +82,14 @@ export function PatternTesterComponent() {
   const [patterns, setPatterns] = useState<string>("");
   const [results, setResults] = useState<ExtractedData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [progressInfo, setProgressInfo] = useState<{
+    patternIndex: number;
+    patternsTotal: number;
+    patternMatches: number;
+    totalMatches: number;
+  } | null>(null);
+  const [resultsSearch, setResultsSearch] = useState<string>("");
+  const workerRef = useRef<Worker | null>(null);
   const [availableDocs, setAvailableDocs] = useState<Document[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [chunkIdSearch, setChunkIdSearch] = useState<string>("");
@@ -250,6 +258,12 @@ export function PatternTesterComponent() {
     }
 
     setIsLoading(true);
+    setProgressInfo({
+      patternIndex: 0,
+      patternsTotal: 0,
+      patternMatches: 0,
+      totalMatches: 0,
+    });
 
     try {
       // Prefer VectorStore chunks when available
@@ -291,116 +305,84 @@ export function PatternTesterComponent() {
         `📋 Testing ${patternList.length} patterns against ${chunks.length} chunks`
       );
 
-      const patternResults: PatternResult[] = [];
-      let totalMatches = 0;
-      const documentsCovered = new Set<string>();
+      // Offload regex processing to Web Worker
+      const docNameMap: Record<string, string> = Object.fromEntries(
+        availableDocs.map((d) => [d.id, d.name])
+      );
 
-      // Process each pattern (matching ExtractionAgent logic)
-      for (const [index, patternStr] of patternList.entries()) {
-        console.log(`🔍 Processing pattern ${index + 1}:`, patternStr);
+      // Reduce payload to necessary fields
+      const workerChunks = chunks.map((c) => ({
+        id: c.id,
+        text: c.text,
+        content: c.content,
+        source: c.source,
+        documentId: c.documentId,
+      }));
+
+      // Clean up any existing worker
+      if (workerRef.current) {
         try {
-          // Extract description if present
-          let description = `Pattern ${index + 1}`;
-          let regexStr = patternStr;
-
-          if (patternStr.includes(":")) {
-            const parts = patternStr.split(":");
-            if (parts.length >= 2) {
-              description = parts[0].trim();
-              regexStr = parts.slice(1).join(":").trim();
-            }
-          }
-
-          // Parse regex pattern (matching ExtractionAgent.ts line 814-818)
-          const regexMatch = regexStr.match(/^\/(.+)\/([gimuy]*)$/);
-          const regexBody = regexMatch ? regexMatch[1] : regexStr;
-          const regexFlags = regexMatch ? regexMatch[2] : "gi";
-
-          const regex = new RegExp(regexBody, regexFlags);
-          console.log(
-            `📝 Testing pattern: "${regexBody}" with flags "${regexFlags}"`
-          );
-
-          const matches: any[] = [];
-          let patternMatches = 0;
-
-          // Apply regex to each chunk (matching ExtractionAgent.ts line 823-849)
-          for (const chunk of chunks) {
-            const chunkText = chunk.text || chunk.content;
-            let match;
-
-            while ((match = regex.exec(chunkText)) !== null) {
-              const extractedContent = match[1] || match[0];
-
-              // Get context around the match
-              const startIdx = Math.max(0, match.index! - 50);
-              const endIdx = Math.min(
-                chunkText.length,
-                match.index! + match[0].length + 50
-              );
-              const context = chunkText.substring(startIdx, endIdx);
-
-              matches.push({
-                content: extractedContent.trim(),
-                source:
-                  chunk.source ||
-                  availableDocs.find((d) => d.id === chunk.documentId)?.name ||
-                  "Unknown",
-                chunkId: chunk.id,
-                documentId: chunk.documentId,
-                confidence: 0.95,
-                context: `...${context}...`,
-              });
-
-              documentsCovered.add(chunk.documentId);
-              patternMatches++;
-            }
-
-            // Reset regex lastIndex for global patterns
-            regex.lastIndex = 0;
-          }
-
-          console.log(
-            `✅ Pattern "${regexStr}" found ${patternMatches} matches`
-          );
-
-          patternResults.push({
-            pattern: regexStr,
-            description,
-            matches,
-          });
-
-          totalMatches += matches.length;
-        } catch (error) {
-          console.error(`Error processing pattern "${patternStr}":`, error);
-          patternResults.push({
-            pattern: patternStr,
-            description: `Invalid Pattern ${index + 1}`,
-            matches: [],
-          });
-        }
+          workerRef.current.terminate();
+        } catch {}
+        workerRef.current = null;
       }
 
-      // Get document names for covered documents
-      const coveredDocNames = Array.from(documentsCovered).map((docId) => {
-        const doc = availableDocs.find((d) => d.id === docId);
-        return doc?.name || docId;
+      const worker = new Worker("/workers/patternWorker.js");
+      workerRef.current = worker;
+
+      const workerPromise = new Promise<void>((resolve, reject) => {
+        worker.onmessage = (ev: MessageEvent<any>) => {
+          const { type, data, error } = ev.data || {};
+          if (type === "progress") {
+            setProgressInfo(data);
+          } else if (type === "result") {
+            const documentsCoveredIds: string[] = data.documentsCovered || [];
+            const coveredDocNames = documentsCoveredIds.map(
+              (id) => docNameMap[id] || id
+            );
+
+            const finalResults: ExtractedData = {
+              patterns: data.patterns || [],
+              totalMatches: data.totalMatches || 0,
+              documentsCovered: coveredDocNames,
+            };
+            setResults(finalResults);
+
+            toast.success(
+              `Pattern Test Complete: Found ${finalResults.totalMatches} matches across ${coveredDocNames.length} documents`
+            );
+
+            resolve();
+          } else if (type === "error") {
+            reject(new Error(error || "Worker error"));
+          }
+        };
+
+        worker.onerror = (err) => {
+          reject(new Error(err.message));
+        };
+
+        worker.postMessage({
+          type: "run",
+          patterns: patternList,
+          chunks: workerChunks,
+          docNameMap,
+        });
       });
 
-      setResults({
-        patterns: patternResults,
-        totalMatches,
-        documentsCovered: coveredDocNames,
-      });
-
-      toast.success(
-        `Pattern Test Complete: Found ${totalMatches} matches across ${documentsCovered.size} documents`
-      );
+      await workerPromise;
     } catch (error) {
       console.error("Error executing pattern test:", error);
       toast.error("Test Failed: An error occurred while testing patterns.");
     } finally {
       setIsLoading(false);
+      setProgressInfo(null);
+      if (workerRef.current) {
+        try {
+          workerRef.current.terminate();
+        } catch {}
+        workerRef.current = null;
+      }
     }
   };
 
@@ -1003,8 +985,19 @@ User prompt: ${promptText}`;
                     }
                     className="ml-auto"
                   >
-                    <Play className="h-4 w-4 mr-2" />
-                    Run
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {progressInfo
+                          ? `Running ${progressInfo.patternIndex}/${progressInfo.patternsTotal}...`
+                          : "Running..."}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Run
+                      </>
+                    )}
                   </Button>
                   <Button
                     variant="outline"
@@ -1113,25 +1106,47 @@ Performance: /\\d+(\\.\\d+)?%?\\s*(improvement|accuracy|score)/gi`}
               className="w-full"
               size="lg"
             >
-              <Play className="h-5 w-5 mr-2" />
-              {isLoading ? "Testing Patterns..." : "Execute Pattern Test"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  {progressInfo
+                    ? `Testing (${progressInfo.patternIndex}/${progressInfo.patternsTotal})...`
+                    : "Testing Patterns..."}
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Execute Pattern Test
+                </>
+              )}
             </Button>
           </div>
 
           {/* Results Section */}
           <div>
             <Card className="h-full">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <CardTitle>🔍 Test Results</CardTitle>
                 {results && (
-                  <Button
-                    variant="outline"
-                    onClick={exportToCSV}
-                    className="ml-auto"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </Button>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <div className="relative">
+                      <Input
+                        placeholder="Search results..."
+                        value={resultsSearch}
+                        onChange={(e) => setResultsSearch(e.target.value)}
+                        className="pr-8"
+                      />
+                      <Search className="h-4 w-4 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={exportToCSV}
+                      className=""
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent>
@@ -1167,130 +1182,167 @@ Performance: /\\d+(\\.\\d+)?%?\\s*(improvement|accuracy|score)/gi`}
                             </div>
                           </div>
                         </div>
+                        {resultsSearch && (
+                          <div className="text-xs text-blue-800 mt-2">
+                            Filtering by "{resultsSearch}" — showing matches
+                            that include this text
+                          </div>
+                        )}
                       </div>
 
                       {/* Pattern Results */}
-                      {results.patterns.map((patternResult, index) => (
-                        <div key={index} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h4 className="font-semibold">
-                                {patternResult.description}
-                              </h4>
-                              <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                {patternResult.pattern}
-                              </code>
+                      {(() => {
+                        const q = resultsSearch.toLowerCase().trim();
+                        const filtered = q
+                          ? results.patterns
+                              .map((pr) => ({
+                                ...pr,
+                                matches: pr.matches.filter((m) =>
+                                  [
+                                    pr.description,
+                                    pr.pattern,
+                                    m.content,
+                                    m.context,
+                                    m.source,
+                                    m.chunkId,
+                                    availableDocs.find(
+                                      (d) => d.id === m.documentId
+                                    )?.name || "",
+                                  ]
+                                    .join("\n")
+                                    .toLowerCase()
+                                    .includes(q)
+                                ),
+                              }))
+                              .filter((pr) => pr.matches.length > 0)
+                          : results.patterns;
+                        return filtered.map((patternResult, index) => (
+                          <div key={index} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h4 className="font-semibold">
+                                  {patternResult.description}
+                                </h4>
+                                <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                  {patternResult.pattern}
+                                </code>
+                              </div>
+                              <Badge
+                                variant={
+                                  patternResult.matches.length > 0
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {patternResult.matches.length} matches
+                              </Badge>
                             </div>
-                            <Badge
-                              variant={
-                                patternResult.matches.length > 0
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {patternResult.matches.length} matches
-                            </Badge>
-                          </div>
 
-                          {patternResult.matches.length > 0 ? (
-                            <div className="space-y-2 mt-3">
-                              {(showAllMatches[index]
-                                ? patternResult.matches
-                                : patternResult.matches.slice(0, 3)
-                              ).map((match, matchIndex) => (
-                                <div
-                                  key={matchIndex}
-                                  className="bg-green-50 p-3 rounded text-sm"
-                                >
-                                  <div className="flex justify-between items-start mb-2">
-                                    <div className="font-medium text-green-800">
-                                      📄 {match.source}
+                            {patternResult.matches.length > 0 ? (
+                              <div className="space-y-2 mt-3">
+                                {(showAllMatches[index]
+                                  ? patternResult.matches
+                                  : patternResult.matches.slice(0, 3)
+                                ).map((match, matchIndex) => (
+                                  <div
+                                    key={matchIndex}
+                                    className="bg-green-50 p-3 rounded text-sm"
+                                  >
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="font-medium text-green-800">
+                                        📄 {match.source}
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-xs cursor-pointer hover:bg-gray-300"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(
+                                              match.chunkId
+                                            );
+                                            toast.success("Chunk ID copied");
+                                          }}
+                                        >
+                                          Chunk: {match.chunkId.substring(0, 8)}
+                                          ...
+                                        </Badge>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs"
+                                          onClick={() =>
+                                            viewChunkById(match.chunkId)
+                                          }
+                                        >
+                                          <Eye className="h-3 w-3 mr-1" />
+                                          View
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-xs cursor-pointer hover:bg-gray-300"
-                                        onClick={() => {
-                                          navigator.clipboard.writeText(
-                                            match.chunkId
-                                          );
-                                          toast.success("Chunk ID copied");
-                                        }}
-                                      >
-                                        Chunk: {match.chunkId.substring(0, 8)}
+                                    <div className="bg-white p-2 rounded border border-green-200 mb-2">
+                                      <div className="font-semibold text-green-900 mb-1">
+                                        Match:
+                                      </div>
+                                      <code className="text-gray-800 break-words">
+                                        {match.content}
+                                      </code>
+                                    </div>
+                                    <div className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded">
+                                      <strong>Context:</strong>{" "}
+                                      <span className="text-gray-700">
+                                        {renderHighlightedContext(
+                                          match.context,
+                                          patternResult.pattern
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2 text-xs">
+                                      <div className="text-green-600">
+                                        Confidence:{" "}
+                                        {Math.round(match.confidence * 100)}%
+                                      </div>
+                                      <div className="text-gray-500">
+                                        Doc:{" "}
+                                        {availableDocs.find(
+                                          (d) => d.id === match.documentId
+                                        )?.name ||
+                                          match.documentId.substring(0, 8)}
                                         ...
-                                      </Badge>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs"
-                                        onClick={() =>
-                                          viewChunkById(match.chunkId)
-                                        }
-                                      >
-                                        <Eye className="h-3 w-3 mr-1" />
-                                        View
-                                      </Button>
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="bg-white p-2 rounded border border-green-200 mb-2">
-                                    <div className="font-semibold text-green-900 mb-1">
-                                      Match:
-                                    </div>
-                                    <code className="text-gray-800 break-words">
-                                      {match.content}
-                                    </code>
-                                  </div>
-                                  <div className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded">
-                                    <strong>Context:</strong>{" "}
-                                    <span className="text-gray-700">
-                                      {renderHighlightedContext(
-                                        match.context,
-                                        patternResult.pattern
-                                      )}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between items-center mt-2 text-xs">
-                                    <div className="text-green-600">
-                                      Confidence:{" "}
-                                      {Math.round(match.confidence * 100)}%
-                                    </div>
-                                    <div className="text-gray-500">
-                                      Doc:{" "}
-                                      {availableDocs.find(
-                                        (d) => d.id === match.documentId
-                                      )?.name ||
-                                        match.documentId.substring(0, 8)}
-                                      ...
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              {patternResult.matches.length > 3 && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    setShowAllMatches((prev) => ({
-                                      ...prev,
-                                      [index]: !prev[index],
-                                    }))
-                                  }
-                                  className="w-full mt-2"
-                                >
-                                  {showAllMatches[index]
-                                    ? "Show Less"
-                                    : `Show All ${patternResult.matches.length} Matches`}
-                                </Button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-gray-500 text-sm mt-2">
-                              No matches found for this pattern
-                            </div>
-                          )}
+                                ))}
+                                {patternResult.matches.length > 3 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      setShowAllMatches((prev) => ({
+                                        ...prev,
+                                        [index]: !prev[index],
+                                      }))
+                                    }
+                                    className="w-full mt-2"
+                                  >
+                                    {showAllMatches[index]
+                                      ? "Show Less"
+                                      : `Show All ${patternResult.matches.length} Matches`}
+                                  </Button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-gray-500 text-sm mt-2">
+                                No matches found for this pattern
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                      {resultsSearch && (
+                        <div className="text-xs text-gray-500">
+                          End of filtered results
                         </div>
-                      ))}
+                      )}
                     </div>
                   </ScrollArea>
                 )}
