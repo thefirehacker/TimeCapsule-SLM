@@ -3,20 +3,9 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, LogIn, LogOut, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSession, signIn, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import { Separator } from "./separator";
 import SignInButton from "./sign-in";
 
@@ -24,7 +13,7 @@ const menuItems = [
   { name: "Home", href: "/" },
   { name: "About Us", href: "https://www.bubblspace.com/about-aiedx" },
   { name: "DeepResearch", href: "/deep-research" },
-  { name: "Pattern Tester", href: "/pattern-tester" },
+  { name: "Regex + Regex Test", href: "/pattern-tester" },
   { name: "AI-Frames", href: "/ai-frames" },
   { name: "contact", href: "/contact" },
 ];
