@@ -24,6 +24,7 @@ const menuItems = [
   { name: "Home", href: "/" },
   { name: "About Us", href: "https://www.bubblspace.com/about-aiedx" },
   { name: "DeepResearch", href: "/deep-research" },
+  { name: "Pattern Tester", href: "/pattern-tester" },
   { name: "AI-Frames", href: "/ai-frames" },
   { name: "contact", href: "/contact" },
 ];

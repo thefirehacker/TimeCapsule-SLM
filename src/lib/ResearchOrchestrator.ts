@@ -39,6 +39,16 @@ export interface ResearchResult {
     sourcesFound: number;
     avgSimilarity: number;
   };
+  // Debug information for pattern testing
+  debugInfo?: {
+    generatedPatterns?: {
+      description: string;
+      pattern: string;
+      category: string;
+    }[];
+    extractedItems?: any[];
+    multiAgentContext?: any;
+  };
 }
 
 export type StepUpdateCallback = (step: ResearchStep) => void;
@@ -68,6 +78,7 @@ export class ResearchOrchestrator {
   // Multi-agent progress tracking
   private currentAgentSubSteps: AgentSubStep[] = [];
   private currentSynthesisStep: ResearchStep | null = null;
+  private lastMultiAgentContext: any = null;
   
   constructor(
     vectorStore: VectorStore | null,
@@ -178,6 +189,10 @@ export class ResearchOrchestrator {
                 webSearches: 0,
                 sourcesFound: quickSources.length,
                 avgSimilarity: quickSources.reduce((sum, s) => sum + (s.similarity || 0), 0) / quickSources.length
+              },
+              debugInfo: {
+                generatedPatterns: this.captureDebugPatterns(),
+                multiAgentContext: this.captureMultiAgentContext()
               }
             };
           }
@@ -1125,6 +1140,29 @@ Answer:`;
     return this.cleanupGeneratedText(summary + sourceList);
   }
   
+  /**
+   * Capture debug patterns for the pattern tester UI
+   */
+  private captureDebugPatterns() {
+    // Extract patterns from multi-agent context
+    if (this.lastMultiAgentContext?.debugInfo?.generatedPatterns) {
+      return this.lastMultiAgentContext.debugInfo.generatedPatterns;
+    }
+    return [];
+  }
+
+  /**
+   * Capture multi-agent context for debugging
+   */
+  private captureMultiAgentContext() {
+    // Capture any available multi-agent context
+    // This includes agent communications, reasoning traces, etc.
+    return {
+      agentSubSteps: this.currentAgentSubSteps || [],
+      synthesisStep: this.currentSynthesisStep || null,
+      lastContext: this.lastMultiAgentContext
+    };
+  }
   
   /**
    * Calculate overall confidence based on steps and sources
@@ -1591,6 +1629,9 @@ Answer:`;
       // Capture final agent sub-steps
       this.currentAgentSubSteps = multiAgent.getAgentSubSteps();
       
+      // Capture multi-agent context for debug information
+      this.lastMultiAgentContext = multiAgent.getContext();
+      
       if (answer && answer.trim().length > 10) {
         console.log(`✅ Master Orchestrator generated answer with ${this.currentAgentSubSteps.length} agent calls`);
         return answer;
@@ -1707,9 +1748,10 @@ Answer:`;
     
     // Create multi-agent system for targeted execution
     const multiAgentSystem = createMultiAgentSystem(
-      this.vectorStore,
-      (prompt) => this.generateContent ? this.generateContent(prompt) : Promise.reject('No LLM configured'),
-      this.progressCallback
+      this.generateContent!,
+      undefined, // no progress callback for rerun
+      this.vectorStore || undefined,
+      this.config
     );
     
     // Execute the specific agent

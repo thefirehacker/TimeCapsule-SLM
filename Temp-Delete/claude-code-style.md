@@ -1,61 +1,50 @@
-You're absolutely right! I keep assuming functionalities based on names instead of
-  looking at actual code. Let me examine what actually exists:
+# DataAnalyzer Context Sync Investigation
 
-⏺ Search(pattern: "QueryPlanner")
-  ⎿  Found 7 files (ctrl+r to expand)
+## 🔍 **ROOT CAUSE: DataAnalyzer Missing PlanningAgent Context**
 
-✻ Thinking…
+### **Current Issue:**
+DataAnalyzer filters out GRPO content (30% relevance) even though:
+- DataInspector extracts GRPO ✅ 
+- PlanningAgent identifies mainContribution: GRPO ✅
+- PatternGenerator creates GRPO patterns ✅
+- **DataAnalyzer ignores all upstream context** ❌
 
-  Now let me look at what QueryPlanner actually does:
+### **Missing Sync Points:**
 
-⏺ Read(src/lib/multi-agent/agents/QueryPlannerAgent.ts)
-  ⎿  Read 68 lines (ctrl+r to expand)
+#### **1. Hardcoded Query Analysis (Same as old PlanningAgent)**
+```typescript
+// DataAnalyzer Line 384-390 - HARDCODED!
+if (q.includes('best') || q.includes('top')) return 'performance_ranking';
+if (q.includes('method') || q.includes('approach')) return 'methodology';
+```
+**Problem**: We fixed this in PlanningAgent but DataAnalyzer still has it!
 
-✻ Thinking…
+#### **2. Missing Document Context**
+DataAnalyzer should receive:
+- `documentContext.mainContribution = "Group Relative Policy Optimization (GRPO)"`  
+- `documentContext.isMethodPaper = true`
+- `intelligentExpectations.shouldInferFromContribution = true`
 
-  Now let me also look at what DataInspector actually does when it processes 0 documents:
+**Currently**: DataAnalyzer has none of this context!
 
-⏺ Read(src/lib/multi-agent/agents/DataInspectorAgent.ts)
-  ⎿  Read 50 lines (ctrl+r to expand)
+#### **3. Wrong Relevance Logic**
+**Query**: "what is the best RL method"
+**GRPO Content**: "introduce Group Relative Policy Optimization (GRPO)"
 
-✻ Thinking…
+**Current Scoring**:
+- Content relevance: 0 (no word "method")
+- Intent relevance: 0 (no performance/benchmark terms)
+- **Result**: 30% → filtered out!
 
-  Now I see the real issue! Looking at the actual code:
+**Should Score High Because**:
+- mainContribution = GRPO → highly relevant
+- Method paper + "best method" query = extract main method
+- GRPO introduction = the answer!
 
-  1. QueryPlanner - Just generates query variations (synonyms, phrasings) - it's NOT a 
-  query analyzer that understands intent/domain/requirements
-  2. DataInspector - Lines 33-36 show: if 0 chunks, it just sets reasoning to "No chunks 
-  to analyze" and returns! It does NOTHING when there are no documents.
+### **Fix Strategy:**
+1. **Remove hardcoded patterns** from DataAnalyzer
+2. **Sync with PlanningAgent context** - use documentContext and intelligentExpectations  
+3. **Content-aware relevance** - GRPO = main contribution = max relevance
+4. **Zero hardcoding** - work with any document/query type
 
-  The user is absolutely right:
-  - I was assuming DataInspector could do "pure magic" to find out about docs
-  - I was assuming QueryPlanner does query analysis when it just does query expansion
-  - I keep introducing semantic search when the goal is pure regex
-  - DataInspector literally exits early when there are 0 chunks
-
-  Let me think about what the user is suggesting:
-
-  1. Semantic search won't make sense - true, if we want pure regex RAG
-  2. There is already query analyzer - QueryPlanner exists but only does expansions, not 
-  analysis
-  3. DataInspection to find out about docs - but current DataInspector does nothing with 
-  0 docs
-  4. Planning agent create strategy and replan if goal not met - this makes sense
-
-  The user wants me to think about the ACTUAL capabilities, not assume them.
-
-  Looking at the logs again: "DataInspector: Analyzing 0 sources" and it just exits. So 
-  there's no "pure magic" happening.
-
-  So what's the real solution?
-
-  1. No semantic search - pure regex approach
-  2. Use existing agents properly - understand what they actually do
-  3. DataInspector needs enhancement - to work with 0 documents and figure out what docs 
-  to look for
-  4. Planning agent - creates strategy and replans
-
-  The user is pushing me to think harder about the actual implementations rather than 
-  wishful thinking about what agents "should" do.
-
-✽ Stewing… (47s · ↓ 2.2k tokens · esc to interrupt)
+## Expected Result: GRPO content scores 95%+ relevance ✅

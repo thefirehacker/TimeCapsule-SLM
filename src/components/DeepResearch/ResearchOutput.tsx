@@ -1102,6 +1102,42 @@ export function ResearchOutput({
                         {message.content}
                       </ReactMarkdown>
                     )}
+                    
+                    {/* Debug Patterns Display */}
+                    {researchResult?.debugInfo?.generatedPatterns && researchResult.debugInfo.generatedPatterns.length > 0 && (
+                      <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            🧪 Generated Regex Patterns ({researchResult.debugInfo.generatedPatterns.length})
+                          </h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigator.clipboard.writeText(
+                              researchResult.debugInfo?.generatedPatterns?.map(p => p.pattern).join('\n') || ''
+                            )}
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy All
+                          </Button>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {researchResult.debugInfo.generatedPatterns.map((pattern, idx) => (
+                            <div key={idx} className="bg-white dark:bg-gray-900 p-2 rounded text-xs">
+                              <div className="font-medium text-blue-600 dark:text-blue-400">
+                                {pattern.description}
+                              </div>
+                              <code className="text-gray-600 dark:text-gray-400 break-all">
+                                {pattern.pattern}
+                              </code>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          💡 Copy these patterns to test in the <a href="/pattern-tester" className="underline text-blue-500">Pattern Tester</a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

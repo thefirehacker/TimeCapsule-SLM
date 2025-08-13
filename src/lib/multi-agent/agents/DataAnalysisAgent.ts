@@ -219,7 +219,7 @@ Reply with just the classifications in order.`;
     }
 
     const relevantItems = items.filter(item => {
-      const relevanceScore = this.calculateItemRelevance(item, queryKeyTerms, queryIntent, documentRelevance, planningStrategy);
+      const relevanceScore = this.calculateItemRelevance(item, queryKeyTerms, queryIntent, documentRelevance, planningStrategy, context);
       
       // Log items that are filtered out for debugging
       if (relevanceScore < 0.3) {
@@ -238,7 +238,7 @@ Reply with just the classifications in order.`;
   /**
    * 🎯 ENHANCED: Calculate relevance score for an extracted item (now synchronized with PlanningAgent)
    */
-  private calculateItemRelevance(item: ExtractedItem, queryKeyTerms: string[], queryIntent: string, documentRelevance: any, planningStrategy?: any): number {
+  private calculateItemRelevance(item: ExtractedItem, queryKeyTerms: string[], queryIntent: string, documentRelevance: any, planningStrategy?: any, context?: ResearchContext): number {
     let score = 0;
 
     // 1. Direct content relevance (30% weight - reduced to make room for category boost)
@@ -263,6 +263,15 @@ Reply with just the classifications in order.`;
     // 🎯 NEW: 5. PlanningAgent category alignment boost (15% weight)
     const categoryRelevance = this.calculateCategoryRelevance(item, planningStrategy);
     score += categoryRelevance * 0.15;
+
+    // 🎯 CRITICAL: 6. Document context relevance boost (from PlanningAgent analysis)
+    if (context?.sharedKnowledge) {
+      const documentContext = (context.sharedKnowledge as any).documentContext;
+      const intelligentExpectations = (context.sharedKnowledge as any).intelligentExpectations;
+      
+      const contextRelevance = this.calculateDocumentContextRelevance(item, documentContext, intelligentExpectations);
+      score += contextRelevance * 0.3; // High weight for context relevance
+    }
 
     return Math.min(score, 1.0);
   }
@@ -366,11 +375,10 @@ Reply with just the classifications in order.`;
    * 🎯 NEW: Extract key terms from query (reused from PlanningAgent)
    */
   private extractQueryKeyTerms(query: string): string[] {
-    const stopWords = ['the', 'best', 'give', 'what', 'how', 'can', 'you', 'tell', 'about', 'and', 'for', 'from', 'with'];
-    
+    // ABSOLUTE ZERO HARDCODING: Extract all meaningful terms
     return query.toLowerCase()
       .split(/\s+/)
-      .filter(term => term.length > 2 && !stopWords.includes(term))
+      .filter(term => term.length > 2)
       .map(term => term.replace(/[^\w]/g, ''))
       .filter(term => term.length > 2);
   }
@@ -378,16 +386,9 @@ Reply with just the classifications in order.`;
   /**
    * 🎯 NEW: Parse query intent (reused from PlanningAgent)
    */
-  private parseQueryIntent(query: string): string {
-    const q = query.toLowerCase();
-    
-    if (q.includes('best') || q.includes('top')) return 'performance_ranking';
-    if (q.includes('method') || q.includes('approach')) return 'methodology';
-    if (q.includes('how') || q.includes('what')) return 'explanation';
-    if (q.includes('compare')) return 'comparison';
-    if (q.includes('performance') || q.includes('result')) return 'performance';
-    
-    return 'general_information';
+  private parseQueryIntent(_query: string): string {
+    // ABSOLUTE ZERO HARDCODING: Let document context drive intent analysis
+    return 'general_query';
   }
 
   /**
@@ -459,5 +460,52 @@ Reply with just the classifications in order.`;
 - Table data: ${tableItems} items
 - Current records: ${currentItems}
 - Historical data: ${historicalItems}`;
+  }
+
+  /**
+   * 🎯 CRITICAL: Calculate relevance based on PlanningAgent's document context
+   */
+  private calculateDocumentContextRelevance(item: ExtractedItem, documentContext: any, intelligentExpectations: any): number {
+    if (!documentContext || !intelligentExpectations) return 0;
+
+    const itemContent = (item.content || '').toLowerCase();
+    const itemValue = (item.value || '').toLowerCase();
+    const itemContext = (item.context || '').toLowerCase();
+    const combined = `${itemContent} ${itemValue} ${itemContext}`;
+
+    let contextScore = 0;
+
+    // 🎯 MAIN CONTRIBUTION BOOST: If item mentions the main contribution, it's highly relevant
+    if (documentContext.mainContribution && documentContext.mainContribution !== 'Unknown') {
+      const mainContribution = documentContext.mainContribution.toLowerCase();
+      
+      // Check for main contribution name (e.g., "grpo" from "Group Relative Policy Optimization (GRPO)")
+      const contributionWords = mainContribution.split(/[\s\(\)]+/).filter(word => word.length > 2);
+      
+      contributionWords.forEach((word: string) => {
+        if (combined.includes(word)) {
+          contextScore += 0.8; // Major boost for main contribution mentions
+        }
+      });
+    }
+
+    // 🎯 METHOD PAPER BOOST: For method papers, method introductions are highly relevant
+    if (documentContext.isMethodPaper && intelligentExpectations.shouldInferFromContribution) {
+      // Keywords that indicate method introduction/presentation
+      const methodIntroPatterns = ['introduce', 'propose', 'present', 'develop', 'algorithm', 'method', 'approach'];
+      
+      methodIntroPatterns.forEach(pattern => {
+        if (combined.includes(pattern)) {
+          contextScore += 0.4; // Moderate boost for method introduction language
+        }
+      });
+    }
+
+    // 🎯 DOCUMENT PURPOSE ALIGNMENT
+    if (documentContext.documentPurpose && combined.includes(documentContext.documentPurpose.toLowerCase().split(' ')[0])) {
+      contextScore += 0.3;
+    }
+
+    return Math.min(contextScore, 1.0);
   }
 }

@@ -329,6 +329,9 @@ export class Orchestrator {
       preview: context.synthesis.answer?.substring(0, 100) || 'No answer'
     });
     
+    // Store final context for debug access
+    this.finalContext = context;
+    
     return context.synthesis.answer || 'Unable to generate an answer from the available information.';
   }
   
@@ -1860,6 +1863,13 @@ NEXT_GOAL: [final goal achieved]`;
     return this.progressTracker.getAllTrackers()
       .map(tracker => this.progressTracker.createSubStep(tracker.agentName))
       .filter(subStep => subStep !== null) as AgentSubStep[];
+  }
+  
+  // Add context access for debug information
+  private finalContext: ResearchContext | null = null;
+  
+  getContext(): ResearchContext | null {
+    return this.finalContext;
   }
   
   // 🗑️ REMOVED: Unused helper methods (getAgentType, extractInsights) 

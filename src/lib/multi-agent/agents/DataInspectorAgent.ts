@@ -1275,7 +1275,7 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
       console.log(`🔍 Content sample for technical extraction (${contentSample.length} chars):`, contentSample.substring(0, 200) + '...');
 
       // 🎯 Check for improvement guidance from Master Orchestrator
-      const improvementGuidance = context.sharedKnowledge.agentGuidance?.DataInspector;
+      const improvementGuidance = (context.sharedKnowledge as any).agentGuidance?.DataInspector;
       
       // 🎯 INTELLIGENT: Create query-aware prompt
       const prompt = await this.buildQueryAwareExtractionPrompt(context, contentSample, improvementGuidance);
@@ -1389,13 +1389,18 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
     const queryAnalysis = await this.analyzeQueryForContentPrioritization(context.query);
     
     return documentGroups
-      .slice(0, 2) // Focus on fewer docs but better content selection
       .map((group, i) => {
+        // 🎯 CRITICAL FIX: Use 30% sampling or minimum 5 chunks as designed
+        const totalChunks = group.chunks.length;
+        const chunksToSample = totalChunks <= 5 ? totalChunks : Math.max(5, Math.ceil(totalChunks * 0.3));
+        
+        console.log(`📊 Document ${i + 1}: Sampling ${chunksToSample} of ${totalChunks} chunks (${Math.round(chunksToSample/totalChunks * 100)}%)`);
+        
         // Intelligently select chunks based on query analysis
         const prioritizedChunks = this.prioritizeChunksForQuery(group.chunks, queryAnalysis);
         
-        // Use more content per chunk but be strategic about it
-        const chunks = prioritizedChunks.slice(0, 6)
+        // Take the calculated number of chunks (30% or minimum 5)
+        const chunks = prioritizedChunks.slice(0, chunksToSample)
           .map((chunk: any) => {
             // Adaptive chunk size - preserve more content for important chunks
             const chunkSize = this.calculateOptimalChunkSize(chunk, queryAnalysis);
@@ -1403,7 +1408,8 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
           })
           .join('\n\n');
           
-        return `--- DOCUMENT ${i + 1}: ${group.documentId} ---\n${chunks}`;
+        const docName = group.documentId || group.source || `Document ${i + 1}`;
+        return `--- DOCUMENT ${i + 1}: ${docName} ---\n${chunks}`;
       })
       .join('\n\n');
   }
@@ -1457,13 +1463,13 @@ Analyze the query intent:`;
     for (const line of lines) {
       if (line.toLowerCase().includes('priority_terms:')) {
         const terms = line.substring(line.indexOf(':') + 1).trim();
-        analysis.priorityTerms = terms.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+        (analysis as any).priorityTerms = terms.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
       } else if (line.toLowerCase().includes('content_patterns:')) {
         const patterns = line.substring(line.indexOf(':') + 1).trim();
-        analysis.contentPatterns = patterns.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+        (analysis as any).contentPatterns = patterns.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
       } else if (line.toLowerCase().includes('search_indicators:')) {
         const indicators = line.substring(line.indexOf(':') + 1).trim();
-        analysis.searchIndicators = indicators.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+        (analysis as any).searchIndicators = indicators.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
       }
     }
 
@@ -1536,7 +1542,7 @@ USER QUERY: "${context.query}"
 ${improvementGuidance ? `IMPROVEMENT GUIDANCE: ${improvementGuidance}\n` : ''}
 
 DOCUMENT CONTENT:
-${contentSample.substring(0, 3500)}
+${contentSample.substring(0, 8000)}
 
 INSTRUCTIONS:
 Based on the user's query, determine what information they need and extract it from the document content.
@@ -1551,6 +1557,13 @@ EXTRACTION STRATEGY:
 - Look for proper nouns, technical terms, specific names
 - Prioritize terms that directly relate to what the user is asking about
 - Avoid generic terms when specific ones are available
+
+🧠 INTELLIGENT DOCUMENT ANALYSIS:
+If this appears to be a research paper introducing a new method:
+- What is the MAIN METHOD or ALGORITHM being introduced?
+- What is the paper's PRIMARY CONTRIBUTION?
+- What method name appears in the title or is central to the paper?
+- For queries about "best method", what method does this paper present as their solution?
 
 OUTPUT FORMAT:
 METHODS: [specific method names, algorithms, techniques if relevant to query]

@@ -52,6 +52,16 @@ export class ExtractionAgent extends BaseAgent {
       console.log(`🎯 Using REGEX MODE: Found ${regexPatterns.length} regex patterns from PatternGenerator`);
       console.log(`📋 Regex patterns: ${regexPatterns.map(p => p.regexPattern).join(', ')}`);
       
+      // Store patterns for UI display and testing
+      context.debugInfo = {
+        ...context.debugInfo,
+        generatedPatterns: regexPatterns.map(p => ({
+          description: p.description,
+          pattern: p.regexPattern,
+          category: p.category || 'general'
+        }))
+      };
+      
       // Use regex-based extraction
       const regexResults = await this.extractUsingRegexPatterns(context);
       extractedItems.push(...regexResults);

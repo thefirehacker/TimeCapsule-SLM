@@ -172,6 +172,15 @@ export interface ResearchContext {
     executive: string;
     keyFindings: string[];
   };
+  
+  // Debug information for testing and development
+  debugInfo?: {
+    generatedPatterns?: {
+      description: string;
+      pattern: string;
+      category: string;
+    }[];
+  };
 }
 
 export interface AgentMessage {
