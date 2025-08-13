@@ -86,13 +86,15 @@ export function KnowledgeBaseManager({
   description = "Organized view of your documents by category. Search and manage your knowledge base content.",
 }: KnowledgeBaseManagerProps) {
   const [activeTab, setActiveTab] = useState(tabConfigs[0]?.id || "");
-  const [expandedDocuments, setExpandedDocuments] = useState<Set<string>>(new Set());
+  const [expandedDocuments, setExpandedDocuments] = useState<Set<string>>(
+    new Set()
+  );
 
   // Helper function to group documents by tab configuration
   const getGroupedDocuments = () => {
     const grouped: Record<string, Document[]> = {};
-    
-    tabConfigs.forEach(config => {
+
+    tabConfigs.forEach((config) => {
       grouped[config.id] = documents.filter(config.filter);
     });
 
@@ -103,8 +105,8 @@ export function KnowledgeBaseManager({
   const getDocumentCategoryCounts = () => {
     const grouped = getGroupedDocuments();
     const counts: Record<string, number> = {};
-    
-    tabConfigs.forEach(config => {
+
+    tabConfigs.forEach((config) => {
       counts[config.id] = grouped[config.id]?.length || 0;
     });
 
@@ -167,11 +169,15 @@ export function KnowledgeBaseManager({
             </div>
             <div>
               <span className="text-muted-foreground">Total Chunks:</span>
-              <span className="font-medium ml-1">{documentStatus.totalChunks}</span>
+              <span className="font-medium ml-1">
+                {documentStatus.totalChunks}
+              </span>
             </div>
             <div>
               <span className="text-muted-foreground">Total Vectors:</span>
-              <span className="font-medium ml-1">{documentStatus.totalVectors}</span>
+              <span className="font-medium ml-1">
+                {documentStatus.totalVectors}
+              </span>
             </div>
           </div>
 
@@ -198,7 +204,11 @@ export function KnowledgeBaseManager({
       </div>
 
       {/* Tabbed Document Interface */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 flex flex-col"
+      >
         {/* Tab Navigation */}
         <TabsList className="w-full flex justify-start gap-1 mb-4 h-auto p-1 bg-muted rounded-lg">
           {tabConfigs.map((config) => {
@@ -210,7 +220,9 @@ export function KnowledgeBaseManager({
                 className="flex items-center gap-2 flex-1 min-w-0 justify-center px-3 py-2"
               >
                 <IconComponent className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{config.label} ({documentCounts[config.id]})</span>
+                <span className="truncate">
+                  {config.label} ({documentCounts[config.id]})
+                </span>
               </TabsTrigger>
             );
           })}
@@ -220,7 +232,11 @@ export function KnowledgeBaseManager({
         {tabConfigs.map((config) => {
           const docs = groupedDocuments[config.id] || [];
           return (
-            <TabsContent key={config.id} value={config.id} className="flex-1 mt-0">
+            <TabsContent
+              key={config.id}
+              value={config.id}
+              className="flex-1 mt-0"
+            >
               <ScrollArea className="h-[55vh]">
                 <div className="space-y-3">
                   {isUploading && config.id === tabConfigs[0]?.id && (
@@ -232,7 +248,7 @@ export function KnowledgeBaseManager({
                       </p>
                     </div>
                   )}
-                  
+
                   {docs.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -257,15 +273,24 @@ export function KnowledgeBaseManager({
                                 <div className="text-sm text-muted-foreground flex items-center gap-4">
                                   <span>{doc.metadata.filetype}</span>
                                   <span>•</span>
-                                  <span>{formatFileSize(doc.metadata.filesize)}</span>
+                                  <span>
+                                    {formatFileSize(doc.metadata.filesize)}
+                                  </span>
                                   <span>•</span>
                                   <span>{doc.chunks?.length || 0} chunks</span>
                                   <span>•</span>
-                                  <span>{doc.vectors?.length || 0} vectors</span>
+                                  <span>
+                                    {doc.vectors?.length || 0} vectors
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {new Date(doc.metadata.uploadedAt).toLocaleDateString()}
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {new Date(
+                                      doc.metadata.uploadedAt
+                                    ).toLocaleDateString()}
                                   </Badge>
                                   <Badge variant="outline" className="text-xs">
                                     {doc.metadata.source}
@@ -276,7 +301,9 @@ export function KnowledgeBaseManager({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => toggleDocumentExpansion(doc.id)}
+                                  onClick={() =>
+                                    toggleDocumentExpansion(doc.id)
+                                  }
                                   className="text-muted-foreground hover:text-foreground"
                                 >
                                   {expandedDocuments.has(doc.id) ? (
@@ -289,11 +316,50 @@ export function KnowledgeBaseManager({
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => {
-                                    const blob = new Blob([doc.content], { type: "text/plain" });
+                                    const hasChunks =
+                                      doc.chunks && doc.chunks.length > 0;
+                                    const safeTitle = (
+                                      doc.title || "document"
+                                    ).replace(/[^\w\-]+/g, "_");
+                                    const header =
+                                      `Document: ${doc.title}\n` +
+                                      `Filename: ${doc.metadata.filename}\n` +
+                                      `Type: ${doc.metadata.filetype}\n` +
+                                      `Size: ${formatFileSize(doc.metadata.filesize)}\n` +
+                                      `Uploaded: ${new Date(doc.metadata.uploadedAt).toLocaleString()}\n` +
+                                      `Source: ${doc.metadata.source}\n` +
+                                      `Total Chunks: ${doc.chunks?.length || 0}\n\n`;
+                                    let exportText = header;
+                                    if (hasChunks) {
+                                      exportText +=
+                                        "=== CHUNKS (detailed) ===\n";
+                                      const chunks = [
+                                        ...(doc.chunks as any[]),
+                                      ].sort(
+                                        (a, b) => a.startIndex - b.startIndex
+                                      );
+                                      chunks.forEach((chunk, index) => {
+                                        exportText +=
+                                          `\n--- Chunk ${index + 1} ---\n` +
+                                          `ID: ${chunk.id}\n` +
+                                          `Position: ${chunk.startIndex}-${chunk.endIndex}\n` +
+                                          `Length: ${chunk.content.length} characters\n\n` +
+                                          `${chunk.content}\n`;
+                                      });
+                                    } else {
+                                      exportText +=
+                                        "=== FULL CONTENT ===\n\n" +
+                                        doc.content;
+                                    }
+                                    const blob = new Blob([exportText], {
+                                      type: "text/plain",
+                                    });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = doc.title || "document.txt";
+                                    a.download = hasChunks
+                                      ? `${safeTitle}-chunks.txt`
+                                      : `${safeTitle}.txt`;
                                     a.click();
                                     URL.revokeObjectURL(url);
                                   }}
@@ -316,7 +382,9 @@ export function KnowledgeBaseManager({
                             {expandedDocuments.has(doc.id) && (
                               <div className="border-t pt-3 space-y-3">
                                 <div className="bg-muted/30 rounded-lg p-3">
-                                  <div className="text-sm font-medium mb-2">Document Preview</div>
+                                  <div className="text-sm font-medium mb-2">
+                                    Document Preview
+                                  </div>
                                   <div className="text-sm text-muted-foreground max-h-32 overflow-y-auto">
                                     {doc.content.length > 500
                                       ? `${doc.content.substring(0, 500)}...`
@@ -332,34 +400,43 @@ export function KnowledgeBaseManager({
                                         <Hash className="w-3 h-3" />
                                         Document Chunks ({doc.chunks.length})
                                       </h4>
-                                      <Badge variant="outline" className="text-xs">
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
                                         {doc.vectors?.length || 0} embeddings
                                       </Badge>
                                     </div>
                                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                                      {doc.chunks.slice(0, 3).map((chunk, index) => (
-                                        <div
-                                          key={chunk.id}
-                                          className="border border-border rounded p-2 bg-background"
-                                        >
-                                          <div className="flex items-center justify-between mb-1">
-                                            <Badge variant="secondary" className="text-xs">
-                                              Chunk {index + 1}
-                                            </Badge>
-                                            <span className="text-xs text-muted-foreground">
-                                              {chunk.content.length} chars
-                                            </span>
+                                      {doc.chunks
+                                        .slice(0, 3)
+                                        .map((chunk, index) => (
+                                          <div
+                                            key={chunk.id}
+                                            className="border border-border rounded p-2 bg-background"
+                                          >
+                                            <div className="flex items-center justify-between mb-1">
+                                              <Badge
+                                                variant="secondary"
+                                                className="text-xs"
+                                              >
+                                                Chunk {index + 1}
+                                              </Badge>
+                                              <span className="text-xs text-muted-foreground">
+                                                {chunk.content.length} chars
+                                              </span>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground line-clamp-2">
+                                              {chunk.content.length > 200
+                                                ? `${chunk.content.substring(0, 200)}...`
+                                                : chunk.content}
+                                            </div>
                                           </div>
-                                          <div className="text-xs text-muted-foreground line-clamp-2">
-                                            {chunk.content.length > 200
-                                              ? `${chunk.content.substring(0, 200)}...`
-                                              : chunk.content}
-                                          </div>
-                                        </div>
-                                      ))}
+                                        ))}
                                       {doc.chunks.length > 3 && (
                                         <div className="text-center text-xs text-muted-foreground py-2">
-                                          ... and {doc.chunks.length - 3} more chunks
+                                          ... and {doc.chunks.length - 3} more
+                                          chunks
                                         </div>
                                       )}
                                     </div>
