@@ -96,6 +96,7 @@ export function PatternTesterComponent() {
   const [chunkViewData, setChunkViewData] = useState<any>(null);
   const [similarityQuery, setSimilarityQuery] = useState<string>("");
   const [similarityResults, setSimilarityResults] = useState<any[]>([]);
+  const [isSimilarityLoading, setIsSimilarityLoading] = useState(false);
   const [showAllMatches, setShowAllMatches] = useState<{
     [key: number]: boolean;
   }>({});
@@ -431,24 +432,35 @@ export function PatternTesterComponent() {
       return;
     }
 
+    setIsSimilarityLoading(true);
     try {
-      const response = await fetch("/api/search/similarity", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: similarityQuery, limit: 10 }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSimilarityResults(data.results);
-        toast.success(`Found ${data.count} similar chunks`);
-      } else {
-        toast.error("Similarity search failed");
-        setSimilarityResults([]);
+      if (!vectorStore || !vectorStoreInitialized) {
+        toast.error("Knowledge Base not initialized yet");
+        setIsSimilarityLoading(false);
+        return;
       }
-    } catch (error) {
+
+      // Run semantic similarity search via VectorStore (Xenova embeddings)
+      const rawResults = await vectorStore.searchSimilar(
+        similarityQuery,
+        0.3,
+        20
+      );
+
+      // Filter by selected documents if any selection exists
+      const filteredResults = rawResults.filter((r: any) =>
+        selectedDocs.includes(r.document.id)
+      );
+
+      setSimilarityResults(filteredResults);
+      toast.success(`Found ${filteredResults.length} similar chunks`);
+    } catch (error: any) {
       console.error("Error performing similarity search:", error);
-      toast.error("Failed to perform similarity search");
+      const message = error?.message || "Failed to perform similarity search";
+      toast.error(message);
+      setSimilarityResults([]);
+    } finally {
+      setIsSimilarityLoading(false);
     }
   };
 
@@ -866,8 +878,16 @@ User prompt: ${promptText}`;
                     e.key === "Enter" && performSimilaritySearch()
                   }
                 />
-                <Button onClick={performSimilaritySearch} variant="outline">
-                  <Search className="h-4 w-4" />
+                <Button
+                  onClick={performSimilaritySearch}
+                  variant="outline"
+                  disabled={isSimilarityLoading}
+                >
+                  {isSimilarityLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
               {similarityResults.length > 0 && (
@@ -883,21 +903,22 @@ User prompt: ${promptText}`;
                             {result.document?.title || "Unknown"}
                           </div>
                           <Badge variant="secondary">
-                            {Math.round(result.chunk.similarity * 100)}% match
+                            {Math.round((result.similarity || 0) * 100)}% match
                           </Badge>
                         </div>
                         <div className="text-xs text-gray-600 mb-1">
-                          Chunk ID: {result.chunk.id}
+                          Chunk ID: {result.chunk?.id}
                         </div>
                         <div className="text-xs bg-white p-2 rounded border">
-                          {result.chunk.content.substring(0, 200)}...
+                          {result.chunk?.content?.substring(0, 200)}...
                         </div>
                         <Button
                           variant="link"
                           size="sm"
                           className="mt-2 p-0 h-auto"
                           onClick={() => {
-                            setChunkIdSearch(result.chunk.id);
+                            if (result.chunk?.id)
+                              setChunkIdSearch(result.chunk.id);
                             viewChunkById();
                           }}
                         >
