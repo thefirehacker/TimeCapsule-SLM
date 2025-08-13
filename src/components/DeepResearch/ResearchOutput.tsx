@@ -102,6 +102,12 @@ interface ResearchOutputProps {
   researchSteps?: ResearchStep[];
   expandedSteps?: Set<string>;
   onStepClick?: (step: ResearchStep) => void;
+  
+  // Agent Rerun Integration
+  onRerunAgent?: (agentName: string) => Promise<void>;
+  
+  // Research Control Integration
+  onStopResearch?: () => void;
 }
 
 // Thinking output component
@@ -615,6 +621,12 @@ export function ResearchOutput({
   researchSteps = [],
   expandedSteps = new Set(),
   onStepClick,
+  
+  // Agent Rerun Integration
+  onRerunAgent,
+  
+  // Research Control Integration
+  onStopResearch,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -951,6 +963,7 @@ export function ResearchOutput({
                     steps={message.researchSteps || researchSteps}
                     isActive={isCurrentMessage && isStreaming}
                     className="mb-6"
+                    onRerunAgent={onRerunAgent}
                   />
                 )}
 
@@ -1160,6 +1173,39 @@ export function ResearchOutput({
 
   return (
     <div className="h-full flex flex-col relative">
+      {/* Prominent Deep Research Progress Indicator */}
+      {(isIntelligentResearching || isGenerating) && (
+        <div className="sticky top-0 z-30 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600 text-white shadow-lg border-b-2 border-white/20">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <div className="absolute -inset-2 bg-white/20 rounded-full animate-pulse"></div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="text-lg font-semibold">
+                    🧠 Deep Research in Progress
+                  </div>
+                  <div className="text-sm text-white/80">
+                    {isIntelligentResearching 
+                      ? "Multi-agent system analyzing your query across multiple sources..."
+                      : "Generating comprehensive research response..."
+                    }
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs bg-white/20 px-3 py-1 rounded-full">
+                  {isIntelligentResearching ? "ANALYZING" : "STREAMING"}
+                </div>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Chat Messages Area */}
       <div className="flex-1 relative overflow-hidden">
         <div

@@ -169,14 +169,26 @@ Based on this analysis, create an intelligent execution plan:
 
 5. **CONFIDENCE LEVEL**: How confident are you this plan will succeed? (0.1-1.0)
 
-Return as JSON:
+CRITICAL JSON FORMATTING REQUIREMENTS:
+- Keep all text descriptions under 100 characters
+- Use only basic punctuation (no quotes, colons, or special characters in text values)
+- Ensure all JSON is properly escaped and valid
+- No line breaks within string values
+
+Return as properly formatted JSON:
 {
-  "strategy": "brief strategy description",
+  "strategy": "concise strategy under 100 chars",
   "steps": [
-    {"agent": "AgentName", "action": "what to do", "reasoning": "why needed", "expectedOutput": "what we get", "priority": "high|medium|low"}
+    {
+      "agent": "AgentName", 
+      "action": "brief action under 80 chars", 
+      "reasoning": "short reason under 60 chars", 
+      "expectedOutput": "expected result under 60 chars", 
+      "priority": "high"
+    }
   ],
-  "fallbackOptions": ["option1", "option2"],
-  "expectedDataSources": ["local documents", "web search", "general knowledge"],
+  "fallbackOptions": ["option1 under 50 chars", "option2 under 50 chars"],
+  "expectedDataSources": ["source1", "source2"],
   "confidenceLevel": 0.8
 }`;
 
@@ -569,8 +581,11 @@ Return as JSON:
     // Parse query intent from user query
     const queryIntent = this.parseQueryIntent(context.query);
     
-    // Extract pattern categories from DataInspector's comprehensive analysis
-    const patternCategories = this.extractPatternCategories(documentAnalysis, context);
+    // 🎯 NEW: Assess document-section relevance to query
+    const documentRelevance = this.assessDocumentSectionRelevance(documentAnalysis, context);
+    
+    // Extract pattern categories with query-aware filtering
+    const patternCategories = this.extractQueryAwarePatternCategories(documentAnalysis, context, documentRelevance);
     
     const strategy: ExtractionStrategy = {
       documentType: documentAnalysis.documentType || 'Generic Document',
@@ -585,11 +600,14 @@ Return as JSON:
       queryIntent: strategy.queryIntent,
       contentAreas: strategy.contentAreas.length,
       patternCategories: Object.keys(strategy.patternCategories).length,
-      extractionTargets: strategy.extractionTargets.length
+      extractionTargets: strategy.extractionTargets.length,
+      documentRelevanceScores: Object.keys(documentRelevance).length
     });
 
-    // Store strategy in shared knowledge for PatternGenerator to use
-    context.sharedKnowledge.extractionStrategy = strategy;
+    // Store strategy AND document relevance in shared knowledge
+    context.sharedKnowledge.extractionStrategies = context.sharedKnowledge.extractionStrategies || {};
+    context.sharedKnowledge.extractionStrategies[strategy.documentType] = strategy;
+    context.sharedKnowledge.documentSectionRelevance = documentRelevance;
     
     return strategy;
   }
@@ -601,7 +619,8 @@ Return as JSON:
     console.log(`🔍 PlanningAgent: Assessing pattern quality`);
     
     const patterns = context.patterns || [];
-    const strategy = context.sharedKnowledge.extractionStrategy;
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const strategy = Object.values(strategies)[0]; // Get first strategy
     
     if (patterns.length === 0) {
       console.warn(`❌ Pattern quality: insufficient - no patterns generated`);
@@ -620,16 +639,19 @@ Return as JSON:
     let totalCategories = 0;
     
     // Check coverage of pattern categories from extraction strategy
-    Object.entries(strategy.patternCategories).forEach(([category, terms]) => {
-      if (terms.length > 0) {
-        totalCategories++;
-        const hasTerms = terms.some(term => 
-          patternStrings.includes(term.toLowerCase()) || 
-          patternStrings.includes(term.toLowerCase().replace(/\s+/g, ''))
-        );
-        if (hasTerms) categoryMatches++;
-      }
-    });
+    if (strategy && strategy.patternCategories) {
+      Object.entries(strategy.patternCategories).forEach(([, terms]) => {
+        const termArray = Array.isArray(terms) ? terms : [];
+        if (termArray.length > 0) {
+          totalCategories++;
+          const hasTerms = termArray.some((term: any) => 
+            patternStrings.includes(String(term).toLowerCase()) || 
+            patternStrings.includes(String(term).toLowerCase().replace(/\s+/g, ''))
+          );
+          if (hasTerms) categoryMatches++;
+        }
+      });
+    }
 
     // Check query alignment
     const queryTerms = context.query.toLowerCase().split(/\s+/);
@@ -672,7 +694,8 @@ Return as JSON:
     console.log(`🔍 PlanningAgent: Assessing extraction success`);
     
     const extractedData = context.extractedData?.raw || [];
-    const strategy = context.sharedKnowledge.extractionStrategy;
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const strategy = Object.values(strategies)[0]; // Get first strategy
     
     if (extractedData.length === 0) {
       console.warn(`❌ Extraction failed: no data extracted`);
@@ -681,7 +704,7 @@ Return as JSON:
 
     // Check if extracted data contains query-relevant information
     const queryTerms = context.query.toLowerCase().split(/\s+/);
-    const extractedText = extractedData.map(item => item.text || '').join(' ').toLowerCase();
+    const extractedText = extractedData.map(item => item.content || '').join(' ').toLowerCase();
     
     const queryRelevance = queryTerms.filter(term => 
       term.length > 3 && extractedText.includes(term)
@@ -733,7 +756,8 @@ Return as JSON:
     console.log(`🔄 PlanningAgent: Re-engaging PatternGenerator with refined strategy`);
     
     // Create refined extraction strategy
-    const currentStrategy = context.sharedKnowledge.extractionStrategy;
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const currentStrategy = Object.values(strategies)[0] as any; // Get first strategy
     const refinedStrategy = this.refineExtractionStrategy(currentStrategy, context);
     
     console.log(`🎯 Refined extraction strategy:`, {
@@ -742,7 +766,8 @@ Return as JSON:
     });
     
     // Update strategy in shared knowledge
-    context.sharedKnowledge.extractionStrategy = refinedStrategy;
+    context.sharedKnowledge.extractionStrategies = context.sharedKnowledge.extractionStrategies || {};
+    context.sharedKnowledge.extractionStrategies[refinedStrategy.documentType] = refinedStrategy;
     
     // Re-run PatternGenerator with refined strategy
     console.log(`🔄 Re-running PatternGenerator with refined strategy...`);
@@ -793,28 +818,140 @@ Return as JSON:
     return 'general_information';
   }
 
-  private extractPatternCategories(documentInsights: any, context: ResearchContext): any {
-    // Extract from DataInspector's comprehensive analysis
+  /**
+   * 🎯 NEW: Assess relevance of document sections to query
+   */
+  private assessDocumentSectionRelevance(documentAnalysis: any, context: ResearchContext): { [documentId: string]: { score: number, relevantSections: string[] } } {
+    console.log(`🎯 PlanningAgent: Assessing document-section relevance to query: "${context.query}"`);
+    
+    const relevanceScores: { [documentId: string]: { score: number, relevantSections: string[] } } = {};
+    
+    if (!documentAnalysis.documents) {
+      return relevanceScores;
+    }
+
+    // Extract key query terms (dynamically, no hardcoding)
+    const queryTerms = this.extractQueryKeyTerms(context.query);
+    console.log(`🔍 Query key terms:`, queryTerms);
+
+    // Assess each document's relevance to query
+    documentAnalysis.documents.forEach((doc: any) => {
+      const docId = doc.documentId;
+      let documentScore = 0;
+      const relevantSections: string[] = [];
+
+      // Check primary entity relevance
+      if (doc.primaryEntity) {
+        const entityRelevance = this.calculateSemanticSimilarity(
+          queryTerms, 
+          doc.primaryEntity.toLowerCase().split(/\s+/)
+        );
+        documentScore += entityRelevance * 0.4;
+        if (entityRelevance > 0.3) {
+          relevantSections.push('primary_entity');
+        }
+      }
+
+      // Check content areas relevance
+      if (doc.contentAreas && Array.isArray(doc.contentAreas)) {
+        doc.contentAreas.forEach((area: any, index: number) => {
+          const areaText = typeof area === 'string' ? area : JSON.stringify(area);
+          const areaTerms = areaText.toLowerCase().split(/\s+/);
+          const areaRelevance = this.calculateSemanticSimilarity(queryTerms, areaTerms);
+          
+          if (areaRelevance > 0.2) {
+            documentScore += areaRelevance * 0.1;
+            relevantSections.push(`content_area_${index}`);
+          }
+        });
+      }
+
+      // Check document type relevance to query intent
+      const typeRelevance = this.assessTypeRelevance(doc.documentType, context.query);
+      documentScore += typeRelevance * 0.2;
+
+      relevanceScores[docId] = {
+        score: Math.min(documentScore, 1.0),
+        relevantSections: relevantSections
+      };
+
+      console.log(`📊 Document "${doc.documentName}" relevance: ${Math.round(documentScore * 100)}% (sections: ${relevantSections.length})`);
+    });
+
+    return relevanceScores;
+  }
+
+  /**
+   * 🎯 NEW: Extract query-aware pattern categories (no hardcoding)
+   */
+  private extractQueryAwarePatternCategories(documentInsights: any, context: ResearchContext, documentRelevance: any): any {
+    console.log(`🎯 PlanningAgent: Extracting query-aware pattern categories`);
+    
+    // Start with basic categories
     const categories = {
-      people: documentInsights.people || [],
-      roles: [], // Could be extracted from people context
-      designations: [], // Could be extracted from people context  
-      concepts: documentInsights.concepts || [],
-      methods: documentInsights.methods || [],
+      people: [],
+      roles: [],
+      designations: [],
+      concepts: [],
+      methods: [],
       data: []
     };
 
-    // Add query-specific terms to relevant categories
-    const queryTerms = context.query.toLowerCase().split(/\s+/);
-    queryTerms.forEach(term => {
-      if (term.length > 3 && !['best', 'method', 'approach', 'what', 'how'].includes(term)) {
-        if (!categories.concepts.includes(term)) {
-          categories.concepts.push(term);
+    // Extract query intent and focus areas
+    const queryIntent = this.parseQueryIntent(context.query);
+    const queryKeyTerms = this.extractQueryKeyTerms(context.query);
+    
+    // Dynamically determine which categories are relevant to the query
+    const relevantCategories = this.determineRelevantCategories(context.query, queryIntent);
+    console.log(`🎯 Query-relevant categories:`, relevantCategories);
+
+    // Only process categories that are relevant to the query
+    if (relevantCategories.includes('methods') && documentInsights.methods) {
+      categories.methods = documentInsights.methods.filter((method: string) =>
+        this.isTermQueryRelevant(method, queryKeyTerms, queryIntent)
+      );
+    }
+
+    if (relevantCategories.includes('concepts') && documentInsights.concepts) {
+      categories.concepts = documentInsights.concepts.filter((concept: string) =>
+        this.isTermQueryRelevant(concept, queryKeyTerms, queryIntent)
+      );
+    }
+
+    if (relevantCategories.includes('people') && documentInsights.people) {
+      categories.people = documentInsights.people.filter((person: string) =>
+        this.isTermQueryRelevant(person, queryKeyTerms, queryIntent)
+      );
+    }
+
+    // Add query-derived terms to relevant categories only
+    queryKeyTerms.forEach(term => {
+      if (term.length > 2) {
+        const targetCategory = this.categorizeQueryTerm(term, queryIntent);
+        if (targetCategory && categories[targetCategory] && !categories[targetCategory].includes(term)) {
+          categories[targetCategory].push(term);
         }
       }
     });
 
-    return categories;
+    // Filter out empty categories to focus pattern generation
+    const filteredCategories = {};
+    Object.entries(categories).forEach(([key, value]) => {
+      if (Array.isArray(value) && value.length > 0) {
+        filteredCategories[key] = value;
+      }
+    });
+
+    console.log(`✅ Query-aware pattern categories:`, Object.keys(filteredCategories).map(key => 
+      `${key}: ${filteredCategories[key].length}`
+    ).join(', '));
+
+    return filteredCategories;
+  }
+
+  private extractPatternCategories(documentInsights: any, context: ResearchContext): any {
+    // Legacy method - redirect to query-aware version
+    return this.extractQueryAwarePatternCategories(documentInsights, context, {});
   }
 
   private determineExtractionTargets(documentType: string, queryIntent: string): string[] {
@@ -883,5 +1020,187 @@ Return as JSON:
       .split(/\s+/)
       .filter(term => term.length > 3 && !['best', 'method', 'what', 'how', 'give', 'explanation'].includes(term))
       .slice(0, 5);
+  }
+
+  /**
+   * 🎯 NEW: Extract key terms from query dynamically (no hardcoding)
+   */
+  private extractQueryKeyTerms(query: string): string[] {
+    const stopWords = ['the', 'best', 'give', 'what', 'how', 'can', 'you', 'tell', 'about', 'and', 'for', 'from', 'with'];
+    
+    return query.toLowerCase()
+      .split(/\s+/)
+      .filter(term => term.length > 2 && !stopWords.includes(term))
+      .map(term => term.replace(/[^\w]/g, ''))
+      .filter(term => term.length > 2);
+  }
+
+  /**
+   * 🎯 NEW: Calculate semantic similarity between two sets of terms
+   */
+  private calculateSemanticSimilarity(queryTerms: string[], contentTerms: string[]): number {
+    if (queryTerms.length === 0 || contentTerms.length === 0) return 0;
+
+    let matches = 0;
+    let partialMatches = 0;
+
+    queryTerms.forEach(queryTerm => {
+      contentTerms.forEach(contentTerm => {
+        // Exact match
+        if (queryTerm === contentTerm) {
+          matches += 1;
+        }
+        // Partial match (substring or similar)
+        else if (queryTerm.length > 3 && (
+          contentTerm.includes(queryTerm) || 
+          queryTerm.includes(contentTerm) ||
+          this.calculateLevenshteinSimilarity(queryTerm, contentTerm) > 0.7
+        )) {
+          partialMatches += 0.5;
+        }
+      });
+    });
+
+    return (matches + partialMatches) / queryTerms.length;
+  }
+
+  /**
+   * 🎯 NEW: Calculate string similarity using Levenshtein distance
+   */
+  private calculateLevenshteinSimilarity(str1: string, str2: string): number {
+    const maxLen = Math.max(str1.length, str2.length);
+    if (maxLen === 0) return 1;
+    
+    const distance = this.levenshteinDistance(str1, str2);
+    return 1 - (distance / maxLen);
+  }
+
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + indicator
+        );
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  }
+
+  /**
+   * 🎯 NEW: Assess document type relevance to query
+   */
+  private assessTypeRelevance(documentType: string, query: string): number {
+    const queryLower = query.toLowerCase();
+    const typeLower = documentType.toLowerCase();
+
+    // Check if query mentions document type concepts
+    if (queryLower.includes('paper') && typeLower.includes('paper')) return 0.8;
+    if (queryLower.includes('research') && typeLower.includes('research')) return 0.8;
+    if (queryLower.includes('engineering') && typeLower.includes('engineering')) return 0.8;
+    if (queryLower.includes('technical') && typeLower.includes('technical')) return 0.8;
+
+    // Default relevance based on document type value
+    if (typeLower.includes('research') || typeLower.includes('paper')) return 0.6;
+    if (typeLower.includes('technical') || typeLower.includes('report')) return 0.5;
+    
+    return 0.3; // Base relevance for any document
+  }
+
+  /**
+   * 🎯 NEW: Determine which pattern categories are relevant to query
+   */
+  private determineRelevantCategories(query: string, queryIntent: string): string[] {
+    const categories: string[] = [];
+    const queryLower = query.toLowerCase();
+
+    // Dynamically determine relevant categories based on query content
+    if (queryLower.includes('method') || queryLower.includes('approach') || queryLower.includes('algorithm') || queryLower.includes('technique')) {
+      categories.push('methods');
+    }
+    
+    if (queryLower.includes('concept') || queryLower.includes('idea') || queryLower.includes('theory') || queryIntent.includes('explanation')) {
+      categories.push('concepts');
+    }
+    
+    if (queryLower.includes('who') || queryLower.includes('author') || queryLower.includes('researcher') || queryLower.includes('person')) {
+      categories.push('people');
+    }
+    
+    if (queryLower.includes('data') || queryLower.includes('result') || queryLower.includes('performance') || queryLower.includes('metric')) {
+      categories.push('data');
+    }
+
+    // If no specific categories identified, include methods and concepts as defaults for analytical queries
+    if (categories.length === 0 && (queryIntent.includes('performance') || queryIntent.includes('methodology') || queryIntent.includes('general'))) {
+      categories.push('methods', 'concepts');
+    }
+
+    return categories;
+  }
+
+  /**
+   * 🎯 NEW: Check if a term is relevant to the query context
+   */
+  private isTermQueryRelevant(term: string, queryKeyTerms: string[], queryIntent: string): boolean {
+    if (!term || term.length < 2) return false;
+
+    const termLower = term.toLowerCase();
+    
+    // Direct keyword match
+    if (queryKeyTerms.some(queryTerm => 
+      termLower.includes(queryTerm) || queryTerm.includes(termLower) ||
+      this.calculateLevenshteinSimilarity(termLower, queryTerm) > 0.8
+    )) {
+      return true;
+    }
+
+    // Intent-based relevance
+    if (queryIntent.includes('performance') && (termLower.includes('performance') || termLower.includes('result') || termLower.includes('score'))) {
+      return true;
+    }
+    
+    if (queryIntent.includes('methodology') && (termLower.includes('method') || termLower.includes('approach') || termLower.includes('algorithm'))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 🎯 NEW: Categorize a query term into appropriate pattern category
+   */
+  private categorizeQueryTerm(term: string, queryIntent: string): string {
+    const termLower = term.toLowerCase();
+
+    // Method-related terms
+    if (termLower.includes('method') || termLower.includes('algorithm') || termLower.includes('approach') || termLower.includes('technique')) {
+      return 'methods';
+    }
+
+    // Concept-related terms
+    if (termLower.includes('learning') || termLower.includes('model') || termLower.includes('system') || termLower.includes('framework')) {
+      return 'concepts';
+    }
+
+    // Data-related terms
+    if (termLower.includes('performance') || termLower.includes('result') || termLower.includes('metric') || termLower.includes('score')) {
+      return 'data';
+    }
+
+    // Default categorization based on query intent
+    if (queryIntent.includes('methodology') || queryIntent.includes('performance_ranking')) {
+      return 'methods';
+    }
+
+    return 'concepts'; // Default fallback
   }
 }

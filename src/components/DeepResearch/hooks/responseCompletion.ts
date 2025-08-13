@@ -308,11 +308,26 @@ function fixArrayElementSeparation(jsonText: string): string {
     // Pattern: incomplete object followed by complete one
     fixed = fixed.replace(/\{\s*"([^"]*)":\s*"([^"]*)"([^,}]*)\s*\}/g, '{"$1": "$2"}');
     
-    // Fix 5: Fix position-specific errors around array elements
+    // Fix 5: Handle truncated strings at specific positions (line 8 column 97, etc)
+    // Pattern: "text that ends abruptly without closing quote
+    fixed = fixed.replace(/:\s*"([^"]*[a-zA-Z])\.\.\./g, ': "$1"');
+    fixed = fixed.replace(/:\s*"([^"]*)\s*$/gm, ': "$1"');
+    
+    // Fix 6: Fix position-specific errors around array elements
     // Handle malformed strings that break array parsing
     fixed = fixed.replace(/": "([^"]*)"([^",}\]]*)"([^",}\]]*)",/g, '": "$1\\"$2\\"$3",');
     
-    // Fix 6: Remove duplicate commas that might have been introduced
+    // Fix 7: Handle incomplete JSON at end of response (common LLM cutoff)
+    // Pattern: {...incomplete object without closing brace
+    if (fixed.includes('{') && !fixed.includes('}')) {
+      const openBraces = (fixed.match(/\{/g) || []).length;
+      const closeBraces = (fixed.match(/\}/g) || []).length;
+      if (openBraces > closeBraces) {
+        fixed += '}'.repeat(openBraces - closeBraces);
+      }
+    }
+    
+    // Fix 8: Remove duplicate commas that might have been introduced
     fixed = fixed.replace(/,+/g, ',');
     fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
     

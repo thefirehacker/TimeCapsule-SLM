@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   VectorStore,
   SearchResult,
@@ -130,6 +130,8 @@ export interface UseResearchReturn {
   handleStepClick: (step: ResearchStep) => void;
   clearResearchSteps: () => void;
   rerunSynthesis: () => Promise<void>;
+  rerunSpecificAgent: (agentName: string) => Promise<void>;
+  stopResearch: () => void;
 }
 
 export function useResearch(
@@ -160,6 +162,9 @@ export function useResearch(
   const [isIntelligentResearching, setIsIntelligentResearching] = useState(false);
   const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
   const researchStepsState = useResearchSteps();
+  
+  // Research cancellation control
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Use the robust Ollama connection hook
   const {
@@ -940,6 +945,10 @@ export function useResearch(
     researchStepsState.clearSteps();
     processedStepIds.current.clear();
 
+    // Create abort controller for this research session
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       console.log(`🔬 Starting intelligent research for: "${query}"`);
 
@@ -990,6 +999,11 @@ export function useResearch(
         }
       };
 
+      // Check if research was aborted before starting
+      if (abortController.signal.aborted) {
+        throw new Error('Research was cancelled by user');
+      }
+
       // Execute intelligent research
       const result = await researchOrchestrator.executeResearch(query);
       
@@ -1013,6 +1027,10 @@ export function useResearch(
       setIsIntelligentResearching(false);
       setIsGenerating(false);
       setIsStreaming(false);
+      // Clear the abort controller reference
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   }, [
     isAIReady,
@@ -1068,6 +1086,84 @@ export function useResearch(
     }
   }, [prompt, isAIReady, researchOrchestrator]);
 
+  // Rerun specific agent function - targeted agent execution with context preservation
+  const rerunSpecificAgent = useCallback(async (agentName: string) => {
+    // Debug validation values
+    console.log(`🔍 Rerun ${agentName} validation:`, {
+      prompt: prompt,
+      promptTrimmed: prompt.trim(),
+      promptLength: prompt.length,
+      isAIReady: isAIReady,
+      hasResearchResult: !!researchResult,
+      researchQuery: researchResult?.query
+    });
+    
+    // Try to use original query from researchResult if current prompt is empty
+    const queryToUse = prompt.trim() || researchResult?.query || '';
+    
+    if (!queryToUse || !isAIReady) {
+      console.warn(`⚠️ Cannot rerun ${agentName}: missing query or AI not ready`, {
+        queryToUse,
+        isAIReady,
+        promptAvailable: !!prompt.trim(),
+        researchQueryAvailable: !!researchResult?.query
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    setIsStreaming(true);
+    setThinkingOutput(`🔄 Rerunning ${agentName}...`);
+
+    try {
+      console.log(`🔄 Rerunning specific agent: ${agentName} for query:`, queryToUse);
+      
+      // Use the new rerunSpecificAgent method on researchOrchestrator
+      const result = await researchOrchestrator.rerunSpecificAgent(agentName, researchResult, queryToUse);
+      
+      if (result && result.finalAnswer) {
+        setResearchResult(result);
+        setResults(result.finalAnswer);
+        setThinkingOutput(`✅ ${agentName} rerun completed: ${Math.round(result.confidence * 100)}% confidence`);
+        
+        console.log(`✅ ${agentName} rerun successful:`, {
+          confidence: result.confidence,
+          answerLength: result.finalAnswer.length
+        });
+      } else {
+        throw new Error(`${agentName} rerun returned no result`);
+      }
+
+    } catch (error) {
+      console.error(`❌ ${agentName} rerun failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setResults(`${agentName} rerun failed: ${errorMessage}\n\nPlease check the logs and try again.`);
+      setThinkingOutput(`❌ ${agentName} rerun failed. Check console for details.`);
+    } finally {
+      setIsGenerating(false);
+      setIsStreaming(false);
+    }
+  }, [prompt, isAIReady, researchOrchestrator, researchResult]);
+
+  // Stop research function - cancels ongoing research
+  const stopResearch = useCallback(() => {
+    console.log("🛑 Stopping research...");
+    
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Reset states
+    setIsGenerating(false);
+    setIsStreaming(false);
+    setIsIntelligentResearching(false);
+    setThinkingOutput("Research stopped by user");
+    
+    console.log("✅ Research stopped successfully");
+  }, []);
+
   return {
     prompt,
     setPrompt,
@@ -1109,6 +1205,8 @@ export function useResearch(
     handleStepClick: researchStepsState.handleStepClick,
     clearResearchSteps,
     rerunSynthesis,
+    rerunSpecificAgent,
+    stopResearch,
   };
 }
 

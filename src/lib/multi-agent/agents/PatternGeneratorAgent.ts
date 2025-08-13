@@ -50,13 +50,16 @@ export class PatternGeneratorAgent extends BaseAgent {
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {
     console.log(`🧠 PatternGenerator: Generating dynamic patterns via LLM analysis`);
     
-    // 🎯 CRITICAL: Check for PlanningAgent's extraction strategy first
-    const extractionStrategy = (context.sharedKnowledge as any).extractionStrategy;
+    // 🎯 CRITICAL FIX: Check for PlanningAgent's extraction strategies (plural, with key)
+    const strategies = context.sharedKnowledge.extractionStrategies || {};
+    const extractionStrategy = Object.values(strategies)[0]; // Get first available strategy
+    
     if (extractionStrategy) {
       console.log(`✅ Using PlanningAgent extraction strategy:`, {
         documentType: extractionStrategy.documentType,
         queryIntent: extractionStrategy.queryIntent,
-        patternCategories: Object.keys(extractionStrategy.patternCategories).length
+        patternCategories: Object.keys(extractionStrategy.patternCategories || {}).length,
+        availableStrategies: Object.keys(strategies).length
       });
       
       // Use PlanningAgent's strategy to create targeted patterns
@@ -818,14 +821,29 @@ Generate 3-6 effective patterns:`;
     console.log(`🎯 PatternGenerator: Creating patterns from extraction strategy`);
     
     const patterns = [];
-    const { patternCategories, queryIntent, documentType } = strategy;
+    const { patternCategories = {}, queryIntent = '', documentType = '' } = strategy || {};
+    
+    // 🚨 SAFETY: Ensure patternCategories has all required properties
+    const safeCategories = {
+      people: patternCategories.people || [],
+      methods: patternCategories.methods || [],
+      concepts: patternCategories.concepts || [],
+      data: patternCategories.data || []
+    };
+    
+    console.log(`🔍 Safe categories initialized:`, {
+      people: safeCategories.people.length,
+      methods: safeCategories.methods.length,
+      concepts: safeCategories.concepts.length,
+      data: safeCategories.data.length
+    });
     
     // Generate patterns for each category dynamically
     
     // 1. People patterns (no hardcoding - from DataInspector analysis)
-    if (patternCategories.people.length > 0) {
-      console.log(`👥 Creating patterns for ${patternCategories.people.length} people`);
-      patternCategories.people.forEach((person: string) => {
+    if (safeCategories.people.length > 0) {
+      console.log(`👥 Creating patterns for ${safeCategories.people.length} people`);
+      safeCategories.people.forEach((person: string) => {
         patterns.push({
           description: `Person pattern for ${person}`,
           examples: [],
@@ -845,43 +863,16 @@ Generate 3-6 effective patterns:`;
       });
     }
 
-    // 2. Method patterns (query-aligned)
-    if (patternCategories.methods.length > 0 && (queryIntent.includes('methodology') || queryIntent.includes('performance'))) {
-      console.log(`🔬 Creating patterns for ${patternCategories.methods.length} methods`);
-      patternCategories.methods.forEach((method: string) => {
-        patterns.push({
-          description: `Method pattern for ${method}`,
-          examples: [],
-          extractionStrategy: `Extract ${method} methodology and details`,
-          confidence: 0.9,
-          regexPattern: `/${method}[^\\n]*(?:algorithm|approach|method|technique)[^\\n]*/gi`
-        });
-        
-        // Performance-focused patterns for "best" queries
-        if (queryIntent.includes('performance')) {
-          patterns.push({
-            description: `Performance pattern for ${method}`,
-            examples: [],
-            extractionStrategy: `Extract ${method} performance and results`,
-            confidence: 0.9,
-            regexPattern: `/(?:${method}[^\\n]*(?:performance|accuracy|results?|metrics?|benchmark)[^\\n]*|(?:performance|accuracy|results?|metrics?|benchmark)[^\\n]*${method}[^\\n]*)/gi`
-          });
-        }
-      });
+    // 2. 🎯 ENHANCED: Method patterns (query-aligned with LLM-generated context-aware patterns)
+    if (safeCategories.methods.length > 0) {
+      console.log(`🔬 Creating enhanced patterns for ${safeCategories.methods.length} methods`);
+      await this.generateMethodPatterns(patterns, safeCategories.methods, queryIntent, context);
     }
 
-    // 3. Concept patterns (technical terms and domain concepts)
-    if (patternCategories.concepts.length > 0) {
-      console.log(`💡 Creating patterns for ${patternCategories.concepts.length} concepts`);
-      patternCategories.concepts.forEach((concept: string) => {
-        patterns.push({
-          description: `Concept pattern for ${concept}`,
-          examples: [],
-          extractionStrategy: `Extract information about ${concept}`,
-          confidence: 0.8,
-          regexPattern: `/${concept}[^\\n]*(?:is|are|involves|includes|means|refers)[^\\n]*/gi`
-        });
-      });
+    // 3. 🎯 ENHANCED: Concept patterns (LLM-generated based on document context)
+    if (safeCategories.concepts.length > 0) {
+      console.log(`💡 Creating enhanced patterns for ${safeCategories.concepts.length} concepts`);
+      await this.generateConceptPatterns(patterns, safeCategories.concepts, queryIntent, context);
     }
 
     // 4. Document-type specific patterns
@@ -960,9 +951,9 @@ Generate 3-6 effective patterns:`;
 📊 **Document Type**: ${documentType}
 
 🧠 **PlanningAgent Strategy Applied**:
-- **People Patterns**: ${patternCategories.people.length} patterns for people mentioned in documents
-- **Method Patterns**: ${patternCategories.methods.length} patterns for techniques and algorithms  
-- **Concept Patterns**: ${patternCategories.concepts.length} patterns for domain concepts
+- **People Patterns**: ${safeCategories.people.length} patterns for people mentioned in documents
+- **Method Patterns**: ${safeCategories.methods.length} patterns for techniques and algorithms  
+- **Concept Patterns**: ${safeCategories.concepts.length} patterns for domain concepts
 - **Document-Specific**: Additional patterns for ${documentType} structure
 
 ✅ **Generated Patterns**: ${patterns.length} targeted patterns aligned with query intent and document analysis
@@ -1009,6 +1000,141 @@ Generate 3-6 effective patterns:`;
   // 🚨 REMOVED: generateIntelligentFallbackPatterns - NO FALLBACKS ALLOWED
   // User feedback: "you also added stupid fallbacks to Patterngen"
   // System must use pure LLM intelligence or fail gracefully
+
+  /**
+   * 🎯 NEW: Generate method patterns using LLM with document context
+   */
+  private async generateMethodPatterns(patterns: any[], methods: string[], queryIntent: string, context: ResearchContext): Promise<void> {
+    // Sample document content for context
+    const sampleContent = this.getSampleContent(context, 3);
+    
+    for (const method of methods.slice(0, 5)) { // Limit to prevent token overflow
+      try {
+        const prompt = `/no_think
+
+TASK: Create targeted regex patterns to extract information about the method "${method}".
+
+QUERY CONTEXT: "${context.query}"
+QUERY INTENT: ${queryIntent}
+
+DOCUMENT SAMPLE:
+${sampleContent.substring(0, 800)}
+
+INSTRUCTIONS:
+Analyze the actual document content above and create 2-3 specific regex patterns that would capture:
+1. Direct mentions of "${method}"
+2. Performance/results related to "${method}" (if query is about performance)
+3. Implementation details or descriptions of "${method}"
+
+Base patterns on the ACTUAL text structure you see above, not generic assumptions.
+
+OUTPUT FORMAT:
+REGEX_PATTERNS:
+- /pattern1/gi
+- /pattern2/gi
+- /pattern3/gi
+
+Generate patterns that match the actual document format.`;
+
+        const response = await this.llm(prompt);
+        const generatedPatterns = this.extractPatternsFromResponse(response);
+        
+        generatedPatterns.forEach((pattern, index) => {
+          patterns.push({
+            description: `LLM-generated ${method} pattern ${index + 1}`,
+            examples: [],
+            extractionStrategy: `Extract ${method} information using document-aware pattern`,
+            confidence: 0.95,
+            regexPattern: pattern
+          });
+        });
+        
+        console.log(`✅ Generated ${generatedPatterns.length} LLM-based patterns for "${method}"`);
+        
+      } catch (error) {
+        console.warn(`⚠️ Failed to generate LLM patterns for "${method}", using basic pattern`);
+        // Basic fallback only if LLM fails
+        patterns.push({
+          description: `Basic ${method} pattern`,
+          examples: [],
+          extractionStrategy: `Extract ${method} mentions`,
+          confidence: 0.7,
+          regexPattern: `/${method}[^\\n]{0,100}/gi`
+        });
+      }
+    }
+  }
+
+  /**
+   * 🎯 NEW: Generate concept patterns using LLM with document context
+   */
+  private async generateConceptPatterns(patterns: any[], concepts: string[], queryIntent: string, context: ResearchContext): Promise<void> {
+    // Sample document content for context
+    const sampleContent = this.getSampleContent(context, 3);
+    
+    for (const concept of concepts.slice(0, 4)) { // Limit to prevent token overflow
+      try {
+        const prompt = `/no_think
+
+TASK: Create targeted regex patterns to extract information about the concept "${concept}".
+
+QUERY CONTEXT: "${context.query}"
+DOCUMENT SAMPLE:
+${sampleContent.substring(0, 600)}
+
+INSTRUCTIONS:
+Create 2 regex patterns that capture:
+1. Definitions or explanations of "${concept}"
+2. Usage or applications of "${concept}"
+
+Base on actual document structure above.
+
+OUTPUT FORMAT:
+REGEX_PATTERNS:
+- /pattern1/gi
+- /pattern2/gi`;
+
+        const response = await this.llm(prompt);
+        const generatedPatterns = this.extractPatternsFromResponse(response);
+        
+        generatedPatterns.forEach((pattern, index) => {
+          patterns.push({
+            description: `LLM-generated ${concept} pattern ${index + 1}`,
+            examples: [],
+            extractionStrategy: `Extract ${concept} information using document-aware pattern`,
+            confidence: 0.9,
+            regexPattern: pattern
+          });
+        });
+        
+        console.log(`✅ Generated ${generatedPatterns.length} LLM-based patterns for "${concept}"`);
+        
+      } catch (error) {
+        console.warn(`⚠️ Failed to generate LLM patterns for "${concept}", using basic pattern`);
+        patterns.push({
+          description: `Basic ${concept} pattern`,
+          examples: [],
+          extractionStrategy: `Extract ${concept} mentions`,
+          confidence: 0.7,
+          regexPattern: `/${concept}[^\\n]{0,80}/gi`
+        });
+      }
+    }
+  }
+
+  /**
+   * 🎯 NEW: Get sample content from document chunks
+   */
+  private getSampleContent(context: ResearchContext, maxChunks: number): string {
+    if (!context.ragResults?.chunks || context.ragResults.chunks.length === 0) {
+      return 'No document content available';
+    }
+    
+    return context.ragResults.chunks
+      .slice(0, Math.min(maxChunks, context.ragResults.chunks.length))
+      .map((chunk, i) => `SAMPLE ${i + 1}:\n${chunk.text.substring(0, 400)}`)
+      .join('\n\n---\n\n');
+  }
 
 
 }

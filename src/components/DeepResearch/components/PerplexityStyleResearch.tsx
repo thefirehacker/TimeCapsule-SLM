@@ -106,12 +106,14 @@ interface PerplexityStyleResearchProps {
   steps: ResearchStep[];
   isActive?: boolean;
   className?: string;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
 interface StepCardProps {
   step: ResearchStep;
   stepNumber: number;
   isLast: boolean;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
 const StepIcons = {
@@ -203,7 +205,7 @@ function SourcesSection({ sources }: { sources: SourceReference[] }) {
   );
 }
 
-function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
+function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; onRerunAgent?: (agentName: string) => Promise<void> }) {
   const [showThinking, setShowThinking] = useState(false);
   const [showProgressHistory, setShowProgressHistory] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
@@ -254,6 +256,31 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
                 {subStep.duration < 1000 ? `${subStep.duration}ms` : `${(subStep.duration / 1000).toFixed(1)}s`}
               </Badge>
             )}
+            {/* Rerun Button - Show for completed/failed agents */}
+            {onRerunAgent && (subStep.status === 'completed' || subStep.status === 'failed') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRerunAgent(subStep.agentName)}
+                className="h-5 w-5 p-0 hover:bg-primary/10 ml-1"
+                title={`Rerun ${subStep.agentName}`}
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </Button>
+            )}
           </div>
           
           {subStep.stage && (
@@ -269,24 +296,31 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
         </div>
       </div>
 
-      {/* Progress Bar */}
-      {subStep.progress !== undefined && subStep.status === 'in_progress' && (
+      {/* Progress Bar - Show for in_progress, or completed with final progress */}
+      {subStep.progress !== undefined && (subStep.status === 'in_progress' || subStep.status === 'completed') && (
         <div className="mb-2">
-          <Progress value={subStep.progress} className="h-1" />
+          <Progress 
+            value={subStep.status === 'completed' ? 100 : subStep.progress} 
+            className={`h-1 ${subStep.status === 'completed' ? 'opacity-75' : ''}`} 
+          />
         </div>
       )}
 
-      {/* Progress History - Show cumulative progress steps */}
-      {subStep.progressHistory && subStep.progressHistory.length > 1 && (
+      {/* Progress History - Always show if available, even after completion */}
+      {subStep.progressHistory && subStep.progressHistory.length > 0 && (
         <div className="mt-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowProgressHistory(!showProgressHistory)}
-            className="h-6 px-2 text-xs text-green-600 hover:text-green-800 font-medium"
+            className={`h-6 px-2 text-xs font-medium ${
+              subStep.status === 'completed' 
+                ? 'text-green-700 hover:text-green-900' 
+                : 'text-green-600 hover:text-green-800'
+            }`}
           >
             <Clock className="w-3 h-3 mr-1" />
-            📊 Progress History ({subStep.progressHistory.length} steps)
+            📊 {subStep.status === 'completed' ? 'Completed Steps' : 'Progress History'} ({subStep.progressHistory.length} steps)
             {showProgressHistory ? <ChevronDown className="w-3 h-3 ml-1" /> : <ChevronRight className="w-3 h-3 ml-1" />}
           </Button>
           
@@ -307,7 +341,15 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
                       <div className="flex-1">
                         <div className={`font-medium ${isLatest ? 'text-green-800' : 'text-gray-700'}`}>
                           {entry.stage}
-                          {isLatest && <span className="ml-2 text-xs bg-green-200 text-green-800 px-1 rounded">CURRENT</span>}
+                          {isLatest && (
+                            <span className={`ml-2 text-xs px-1 rounded ${
+                              subStep.status === 'completed' 
+                                ? 'bg-green-200 text-green-800' 
+                                : 'bg-blue-200 text-blue-800'
+                            }`}>
+                              {subStep.status === 'completed' ? 'COMPLETED' : 'CURRENT'}
+                            </span>
+                          )}
                         </div>
                         {entry.itemsProcessed !== undefined && (
                           <div className="text-xs text-gray-500">
@@ -431,7 +473,7 @@ function AgentSubStepInline({ subStep }: { subStep: AgentSubStep }) {
   );
 }
 
-function StepCard({ step, stepNumber, isLast }: StepCardProps) {
+function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const IconComponent = StepIcons[step.type] || Search;
 
@@ -542,7 +584,7 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
                   </h4>
                   <div className="space-y-3 pl-4 border-l-2 border-blue-200">
                     {step.subSteps.map((subStep, subIdx) => (
-                      <AgentSubStepInline key={`${subStep.id}-${subIdx}`} subStep={subStep} />
+                      <AgentSubStepInline key={`${subStep.id}-${subIdx}`} subStep={subStep} onRerunAgent={onRerunAgent} />
                     ))}
                   </div>
                 </div>
@@ -574,7 +616,7 @@ function StepCard({ step, stepNumber, isLast }: StepCardProps) {
   );
 }
 
-export function PerplexityStyleResearch({ steps, isActive = false, className = "" }: PerplexityStyleResearchProps) {
+export function PerplexityStyleResearch({ steps, isActive = false, className = "", onRerunAgent }: PerplexityStyleResearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrollTimeRef = useRef<number>(0);
 
@@ -655,6 +697,7 @@ export function PerplexityStyleResearch({ steps, isActive = false, className = "
             step={step}
             stepNumber={index + 1}
             isLast={index === steps.length - 1}
+            onRerunAgent={onRerunAgent}
           />
         ))}
       </div>
