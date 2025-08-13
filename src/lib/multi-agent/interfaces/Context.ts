@@ -64,6 +64,15 @@ export interface DocumentRelationship {
   description: string; // How they relate (e.g., "Person A's methods for Person B to learn")
 }
 
+export interface QueryConstraints {
+  expectedOwner?: string;
+  expectedDomainCandidates?: string[];
+  expectedTitleHints?: string[];
+  expectedDocType?: string; // e.g., 'blog', 'paper', 'docs'
+  strictness: 'must' | 'should';
+  keyEntities: string[];
+}
+
 export interface Pattern {
   description: string;
   examples: string[];
@@ -131,6 +140,7 @@ export interface ResearchContext {
     extractionStrategies: Record<string, any>; // PatternGenerator strategies
     discoveredPatterns: Record<string, any>; // Patterns discovered during processing
     agentFindings: Record<string, any>; // Key findings from each agent
+    queryConstraints?: QueryConstraints; // Dynamic constraints derived from the user query
     executionPlan?: any; // PlanningAgent execution plan
     documentSectionRelevance?: Record<string, { score: number, relevantSections: string[] }>; // PlanningAgent document relevance scores
     lastSkippedAgent?: { // Track skipped agents for progression guidance

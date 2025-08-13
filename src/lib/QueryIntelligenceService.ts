@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 /**
  * Query Intelligence Service
  * 
@@ -27,6 +28,14 @@ export interface QueryAnalysis {
   method: 'rule-based' | 'llm-assisted' | 'hybrid';
 }
 
+export interface QueryConstraints {
+  expectedOwner?: string;
+  expectedDomainCandidates?: string[];
+  expectedTitleHints?: string[];
+  expectedDocType?: string; // e.g., 'blog', 'paper', 'docs'
+  strictness: 'must' | 'should';
+  keyEntities: string[];
+}
 
 /**
  * Default search parameters when LLM-based analysis is used
@@ -44,6 +53,7 @@ const DEFAULT_SEARCH_PARAMS = {
 export class QueryIntelligenceService {
   private static instance: QueryIntelligenceService;
   private llmGenerateContent?: (prompt: string) => Promise<string>;
+  private constraintsCache: Map<string, QueryConstraints> = new Map();
   
   private constructor() {}
   
@@ -61,6 +71,81 @@ export class QueryIntelligenceService {
     this.llmGenerateContent = generateContent;
   }
   
+  /**
+   * Extract dynamic query constraints once (no hardcoding), with caching.
+   */
+  async extractQueryConstraints(query: string): Promise<QueryConstraints> {
+    const key = QueryUtils.hashQuery(query);
+    const cached = this.constraintsCache.get(key);
+    if (cached) return cached;
+
+    // Lightweight heuristic prefill (no hardcoding):
+    const lower = query.toLowerCase();
+    const hints: string[] = [];
+    const keyEntities: string[] = [];
+    const isBlog = /blog/.test(lower);
+
+    // Simple named-entity-ish tokens (capitalized words as potential owners/entities)
+    query.split(/[^A-Za-z0-9]+/).forEach(tok => {
+      if (tok && /^[A-Z][a-zA-Z]+$/.test(tok)) keyEntities.push(tok);
+    });
+
+    // If query contains a hostname-looking token, treat as domain candidate
+    const domainMatches = query.match(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi) || [];
+
+    // If user says "from X" or "in X", capture following token as hint
+    const fromHint = (query.match(/\bfrom\s+([^,.!?]+)/i) || [])[1];
+    if (fromHint) hints.push(fromHint.trim());
+
+    // Default strictness: must when explicit source cue present, else should
+    const hasSourceCue = /from\s+|in\s+|on\s+|by\s+/i.test(query);
+
+    let constraints: QueryConstraints = {
+      expectedOwner: undefined,
+      expectedDomainCandidates: domainMatches.map(d => d.toLowerCase()),
+      expectedTitleHints: hints,
+      expectedDocType: isBlog ? 'blog' : undefined,
+      strictness: hasSourceCue ? 'must' : 'should',
+      keyEntities: [...new Set(keyEntities)].slice(0, 5)
+    };
+
+    // If LLM is available, refine constraints in one call (small prompt)
+    if (this.llmGenerateContent) {
+      try {
+        const prompt = `/no_think
+Task: Derive source constraints from the user query without hardcoding.
+Query: "${query}"
+Respond as JSON with fields: expectedOwner (string|optional), expectedDomainCandidates (string[]), expectedTitleHints (string[]), expectedDocType (string|optional), strictness ("must"|"should"), keyEntities (string[]).`;
+        const resp = await this.llmGenerateContent(prompt);
+        const parsed = this.safeParseConstraints(resp);
+        if (parsed) {
+          constraints = {
+            expectedOwner: parsed.expectedOwner || constraints.expectedOwner,
+            expectedDomainCandidates: parsed.expectedDomainCandidates?.length ? parsed.expectedDomainCandidates.map((d: string) => d.toLowerCase()) : constraints.expectedDomainCandidates,
+            expectedTitleHints: parsed.expectedTitleHints?.length ? parsed.expectedTitleHints : constraints.expectedTitleHints,
+            expectedDocType: parsed.expectedDocType || constraints.expectedDocType,
+            strictness: parsed.strictness === 'must' ? 'must' : constraints.strictness,
+            keyEntities: Array.isArray(parsed.keyEntities) && parsed.keyEntities.length ? parsed.keyEntities.slice(0, 8) : constraints.keyEntities
+          };
+        }
+      } catch (e) {
+        console.warn('⚠️ Constraint LLM refinement failed, using heuristic constraints');
+      }
+    }
+
+    this.constraintsCache.set(key, constraints);
+    return constraints;
+  }
+
+  private safeParseConstraints(text: string): any | null {
+    try {
+      if (text.trim().startsWith('{')) return JSON.parse(text);
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) return JSON.parse(m[0]);
+    } catch {}
+    return null;
+  }
+
   /**
    * Main entry point: Analyze query and generate expansion
    */
@@ -454,6 +539,9 @@ export const queryIntelligenceService = QueryIntelligenceService.getInstance();
  * Utility functions for query processing
  */
 export class QueryUtils {
+  static hashQuery(query: string): string {
+    return crypto.createHash('sha1').update(query.normalize()).digest('hex');
+  }
   /**
    * Calculate relevance score between original query and expanded query
    */
@@ -470,22 +558,14 @@ export class QueryUtils {
     return commonWords.length / Math.max(originalWords.length, expandedWords.length);
   }
   
-  /**
-   * Suggest query improvements based on common patterns
-   */
   static suggestQueryImprovements(query: string): string[] {
     const suggestions: string[] = [];
-    
-    // Suggest more specific terms for vague queries
     if (/best|good|better/.test(query.toLowerCase())) {
       suggestions.push('Try specifying what criteria make something "best" (fastest, most accurate, etc.)');
     }
-    
-    // Suggest context for ambiguous terms
     if (query.split(' ').length < 3) {
       suggestions.push('Consider adding more context to help find relevant information');
     }
-    
     return suggestions;
   }
 }
