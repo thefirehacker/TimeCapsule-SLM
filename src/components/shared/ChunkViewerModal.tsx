@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,7 +47,7 @@ interface ChunkData {
     page?: number;
     confidence?: number;
     keywords?: string[];
-    sentiment?: 'positive' | 'negative' | 'neutral';
+    sentiment?: "positive" | "negative" | "neutral";
     language?: string;
     readability?: number;
   };
@@ -88,7 +94,7 @@ export function ChunkViewerModal({
   allChunks = [],
   onNavigateChunk,
   onSimilarChunks,
-  className
+  className,
 }: ChunkViewerModalProps) {
   const [activeTab, setActiveTab] = useState("content");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -96,18 +102,24 @@ export function ChunkViewerModal({
   // Find current chunk index and navigation info
   const chunkInfo = useMemo(() => {
     if (!chunk || !allChunks.length) {
-      return { currentIndex: -1, totalChunks: 0, prevChunk: null, nextChunk: null };
+      return {
+        currentIndex: -1,
+        totalChunks: 0,
+        prevChunk: null,
+        nextChunk: null,
+      };
     }
 
-    const currentIndex = allChunks.findIndex(c => c.id === chunk.id);
+    const currentIndex = allChunks.findIndex((c) => c.id === chunk.id);
     const prevChunk = currentIndex > 0 ? allChunks[currentIndex - 1] : null;
-    const nextChunk = currentIndex < allChunks.length - 1 ? allChunks[currentIndex + 1] : null;
+    const nextChunk =
+      currentIndex < allChunks.length - 1 ? allChunks[currentIndex + 1] : null;
 
     return {
       currentIndex,
       totalChunks: allChunks.length,
       prevChunk,
-      nextChunk
+      nextChunk,
     };
   }, [chunk, allChunks]);
 
@@ -118,14 +130,14 @@ export function ChunkViewerModal({
     const words = chunk.content.trim().split(/\s+/).length;
     const sentences = chunk.content.split(/[.!?]+/).length - 1;
     const characters = chunk.content.length;
-    const charactersNoSpaces = chunk.content.replace(/\s/g, '').length;
+    const charactersNoSpaces = chunk.content.replace(/\s/g, "").length;
 
     return {
       words,
       sentences,
       characters,
       charactersNoSpaces,
-      readingTime: Math.ceil(words / 250) // Average reading speed
+      readingTime: Math.ceil(words / 250), // Average reading speed
     };
   }, [chunk]);
 
@@ -144,7 +156,7 @@ export function ChunkViewerModal({
       await navigator.clipboard.writeText(text);
       // Could add toast notification here
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error("Failed to copy text: ", err);
     }
   };
 
@@ -163,7 +175,7 @@ ${chunk.content}`;
 
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = window.document.createElement("a");
     a.href = url;
     a.download = `chunk-${chunk.id.substring(0, 8)}.txt`;
     a.click();
@@ -183,7 +195,7 @@ ${chunk.content}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
+      <DialogContent
         className={cn(
           "w-[85vw] max-w-[85vw] max-h-[90vh] flex flex-col overflow-hidden",
           isFullscreen && "w-[95vw] max-w-[95vw] max-h-[95vh]",
@@ -207,7 +219,9 @@ ${chunk.content}`;
                 <FileText className="w-4 h-4" />
                 <span className="truncate">{document.title}</span>
                 <span>•</span>
-                <span>Position: {chunk.startIndex}-{chunk.endIndex}</span>
+                <span>
+                  Position: {chunk.startIndex}-{chunk.endIndex}
+                </span>
                 <span>•</span>
                 <span>{chunk.content.length} chars</span>
               </div>
@@ -234,7 +248,7 @@ ${chunk.content}`;
                   </Button>
                 </div>
               )}
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -253,7 +267,11 @@ ${chunk.content}`;
 
         {/* Modal Content */}
         <div className="flex-1 min-h-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex flex-col h-full"
+          >
             {/* Tab Navigation */}
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="content" className="flex items-center gap-2">
@@ -264,7 +282,10 @@ ${chunk.content}`;
                 <Database className="w-4 h-4" />
                 Metadata
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <TabsTrigger
+                value="analytics"
+                className="flex items-center gap-2"
+              >
                 <BarChart3 className="w-4 h-4" />
                 Analytics
               </TabsTrigger>
@@ -312,7 +333,9 @@ ${chunk.content}`;
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(document.metadata.url, '_blank')}
+                      onClick={() =>
+                        window.open(document.metadata.url, "_blank")
+                      }
                       className="flex items-center gap-2"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -327,12 +350,17 @@ ${chunk.content}`;
                     <CardTitle className="text-base flex items-center justify-between">
                       <span>Chunk Content</span>
                       {chunk.metadata?.confidence && (
-                        <Badge 
-                          variant={chunk.metadata.confidence > 0.8 ? "default" : "secondary"}
+                        <Badge
+                          variant={
+                            chunk.metadata.confidence > 0.8
+                              ? "default"
+                              : "secondary"
+                          }
                           className="flex items-center gap-1"
                         >
                           <CheckCircle className="w-3 h-3" />
-                          {Math.round(chunk.metadata.confidence * 100)}% confidence
+                          {Math.round(chunk.metadata.confidence * 100)}%
+                          confidence
                         </Badge>
                       )}
                     </CardTitle>
@@ -365,52 +393,71 @@ ${chunk.content}`;
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <span className="font-medium">Chunk ID:</span>
-                        <p className="text-muted-foreground font-mono truncate">{chunk.id}</p>
+                        <p className="text-muted-foreground font-mono truncate">
+                          {chunk.id}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Position:</span>
-                        <p className="text-muted-foreground">{chunk.startIndex} - {chunk.endIndex}</p>
+                        <p className="text-muted-foreground">
+                          {chunk.startIndex} - {chunk.endIndex}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Length:</span>
-                        <p className="text-muted-foreground">{chunk.content.length} characters</p>
+                        <p className="text-muted-foreground">
+                          {chunk.content.length} characters
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Words:</span>
-                        <p className="text-muted-foreground">{chunkStats?.words}</p>
+                        <p className="text-muted-foreground">
+                          {chunkStats?.words}
+                        </p>
                       </div>
                       {chunk.metadata?.section && (
                         <div className="col-span-2">
                           <span className="font-medium">Section:</span>
-                          <p className="text-muted-foreground">{chunk.metadata.section}</p>
+                          <p className="text-muted-foreground">
+                            {chunk.metadata.section}
+                          </p>
                         </div>
                       )}
                       {chunk.metadata?.page && (
                         <div>
                           <span className="font-medium">Page:</span>
-                          <p className="text-muted-foreground">{chunk.metadata.page}</p>
+                          <p className="text-muted-foreground">
+                            {chunk.metadata.page}
+                          </p>
                         </div>
                       )}
                       {chunk.metadata?.language && (
                         <div>
                           <span className="font-medium">Language:</span>
-                          <p className="text-muted-foreground">{chunk.metadata.language}</p>
+                          <p className="text-muted-foreground">
+                            {chunk.metadata.language}
+                          </p>
                         </div>
                       )}
                     </div>
-                    
-                    {chunk.metadata?.keywords && chunk.metadata.keywords.length > 0 && (
-                      <div>
-                        <span className="font-medium text-sm">Keywords:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {chunk.metadata.keywords.map((keyword, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {keyword}
-                            </Badge>
-                          ))}
+
+                    {chunk.metadata?.keywords &&
+                      chunk.metadata.keywords.length > 0 && (
+                        <div>
+                          <span className="font-medium text-sm">Keywords:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {chunk.metadata.keywords.map((keyword, index) => (
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </CardContent>
                 </Card>
 
@@ -426,38 +473,50 @@ ${chunk.content}`;
                     <div className="grid grid-cols-1 gap-3 text-sm">
                       <div>
                         <span className="font-medium">Title:</span>
-                        <p className="text-muted-foreground truncate">{document.title}</p>
+                        <p className="text-muted-foreground truncate">
+                          {document.title}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Filename:</span>
-                        <p className="text-muted-foreground truncate">{document.metadata.filename}</p>
+                        <p className="text-muted-foreground truncate">
+                          {document.metadata.filename}
+                        </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <span className="font-medium">Type:</span>
-                          <p className="text-muted-foreground">{document.metadata.filetype}</p>
+                          <p className="text-muted-foreground">
+                            {document.metadata.filetype}
+                          </p>
                         </div>
                         <div>
                           <span className="font-medium">Size:</span>
-                          <p className="text-muted-foreground">{formatFileSize(document.metadata.filesize)}</p>
+                          <p className="text-muted-foreground">
+                            {formatFileSize(document.metadata.filesize)}
+                          </p>
                         </div>
                       </div>
                       <div>
                         <span className="font-medium">Source:</span>
-                        <p className="text-muted-foreground">{document.metadata.source}</p>
+                        <p className="text-muted-foreground">
+                          {document.metadata.source}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Uploaded:</span>
                         <p className="text-muted-foreground">
-                          {new Date(document.metadata.uploadedAt).toLocaleString()}
+                          {new Date(
+                            document.metadata.uploadedAt
+                          ).toLocaleString()}
                         </p>
                       </div>
                       {document.metadata.url && (
                         <div>
                           <span className="font-medium">URL:</span>
-                          <a 
-                            href={document.metadata.url} 
-                            target="_blank" 
+                          <a
+                            href={document.metadata.url}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline truncate block"
                           >
@@ -468,7 +527,9 @@ ${chunk.content}`;
                       {document.metadata.description && (
                         <div>
                           <span className="font-medium">Description:</span>
-                          <p className="text-muted-foreground text-xs">{document.metadata.description}</p>
+                          <p className="text-muted-foreground text-xs">
+                            {document.metadata.description}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -492,32 +553,51 @@ ${chunk.content}`;
                     {chunkStats && (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-center p-3 bg-muted/30 rounded-lg">
-                          <p className="text-2xl font-bold text-primary">{chunkStats.words}</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {chunkStats.words}
+                          </p>
                           <p className="text-sm text-muted-foreground">Words</p>
                         </div>
                         <div className="text-center p-3 bg-muted/30 rounded-lg">
-                          <p className="text-2xl font-bold text-primary">{chunkStats.sentences}</p>
-                          <p className="text-sm text-muted-foreground">Sentences</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {chunkStats.sentences}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Sentences
+                          </p>
                         </div>
                         <div className="text-center p-3 bg-muted/30 rounded-lg">
-                          <p className="text-2xl font-bold text-primary">{chunkStats.characters}</p>
-                          <p className="text-sm text-muted-foreground">Characters</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {chunkStats.characters}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Characters
+                          </p>
                         </div>
                         <div className="text-center p-3 bg-muted/30 rounded-lg">
-                          <p className="text-2xl font-bold text-primary">{chunkStats.readingTime}m</p>
-                          <p className="text-sm text-muted-foreground">Read Time</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {chunkStats.readingTime}m
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Read Time
+                          </p>
                         </div>
                       </div>
                     )}
 
                     {chunk.metadata?.sentiment && (
                       <div>
-                        <span className="font-medium text-sm">Sentiment Analysis:</span>
+                        <span className="font-medium text-sm">
+                          Sentiment Analysis:
+                        </span>
                         <div className="mt-2">
-                          <Badge 
+                          <Badge
                             variant={
-                              chunk.metadata.sentiment === 'positive' ? 'default' :
-                              chunk.metadata.sentiment === 'negative' ? 'destructive' : 'secondary'
+                              chunk.metadata.sentiment === "positive"
+                                ? "default"
+                                : chunk.metadata.sentiment === "negative"
+                                  ? "destructive"
+                                  : "secondary"
                             }
                             className="capitalize"
                           >
@@ -529,13 +609,17 @@ ${chunk.content}`;
 
                     {chunk.metadata?.readability && (
                       <div>
-                        <span className="font-medium text-sm">Readability Score:</span>
+                        <span className="font-medium text-sm">
+                          Readability Score:
+                        </span>
                         <div className="mt-2">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-muted rounded-full h-2">
-                              <div 
+                              <div
                                 className="bg-primary h-2 rounded-full transition-all"
-                                style={{ width: `${chunk.metadata.readability * 100}%` }}
+                                style={{
+                                  width: `${chunk.metadata.readability * 100}%`,
+                                }}
                               />
                             </div>
                             <span className="text-sm font-medium">
@@ -557,19 +641,28 @@ ${chunk.content}`;
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {document.vectors?.find(v => v.chunkId === chunk.id) ? (
+                    {document.vectors?.find((v) => v.chunkId === chunk.id) ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-sm font-medium">Embedding Available</span>
+                          <span className="text-sm font-medium">
+                            Embedding Available
+                          </span>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <p>Vector dimensions: {document.vectors.find(v => v.chunkId === chunk.id)?.embedding.length || 0}</p>
+                          <p>
+                            Vector dimensions:{" "}
+                            {document.vectors.find(
+                              (v) => v.chunkId === chunk.id
+                            )?.embedding.length || 0}
+                          </p>
                           <p>Embedding status: Ready for semantic search</p>
                         </div>
                         <div className="p-3 bg-muted/30 rounded-lg">
                           <p className="text-xs text-muted-foreground">
-                            This chunk has been processed for semantic similarity search and can be used in vector-based queries.
+                            This chunk has been processed for semantic
+                            similarity search and can be used in vector-based
+                            queries.
                           </p>
                         </div>
                       </div>
@@ -577,11 +670,14 @@ ${chunk.content}`;
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm font-medium">Embedding Pending</span>
+                          <span className="text-sm font-medium">
+                            Embedding Pending
+                          </span>
                         </div>
                         <div className="p-3 bg-muted/30 rounded-lg">
                           <p className="text-xs text-muted-foreground">
-                            This chunk is queued for vector embedding processing.
+                            This chunk is queued for vector embedding
+                            processing.
                           </p>
                         </div>
                       </div>
@@ -611,13 +707,15 @@ ${chunk.content}`;
                             {/* Before context */}
                             {chunk.startIndex > 0 && (
                               <div>
-                                <Badge variant="outline" className="mb-2">Before</Badge>
+                                <Badge variant="outline" className="mb-2">
+                                  Before
+                                </Badge>
                                 <div className="p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground">
                                   {document.content.substring(
                                     Math.max(0, chunk.startIndex - 200),
                                     chunk.startIndex
                                   )}
-                                  {chunk.startIndex > 200 && '...'}
+                                  {chunk.startIndex > 200 && "..."}
                                 </div>
                               </div>
                             )}
@@ -633,13 +731,19 @@ ${chunk.content}`;
                             {/* After context */}
                             {chunk.endIndex < document.content.length && (
                               <div>
-                                <Badge variant="outline" className="mb-2">After</Badge>
+                                <Badge variant="outline" className="mb-2">
+                                  After
+                                </Badge>
                                 <div className="p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground">
                                   {document.content.substring(
                                     chunk.endIndex,
-                                    Math.min(document.content.length, chunk.endIndex + 200)
+                                    Math.min(
+                                      document.content.length,
+                                      chunk.endIndex + 200
+                                    )
                                   )}
-                                  {chunk.endIndex + 200 < document.content.length && '...'}
+                                  {chunk.endIndex + 200 <
+                                    document.content.length && "..."}
                                 </div>
                               </div>
                             )}
