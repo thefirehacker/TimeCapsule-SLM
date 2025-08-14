@@ -424,26 +424,35 @@ export class Orchestrator {
   }
 
   /**
-   * 🎯 NEW: Validate context has required data for agent rerun (smarter than strict dependencies)
+   * 🎯 INTELLIGENT RERUN: Validate and auto-restore missing dependencies for agent reruns
    */
   private validateContextForRerun(agentName: string, context: ResearchContext): {isValid: boolean, reason: string} {
+    console.log(`🔍 Validating rerun for ${agentName}...`);
+    
     switch (agentName) {
       case 'DataInspector':
-        // DataInspector needs RAG chunks
+        // DataInspector needs RAG chunks - always available from search
         if (!context.ragResults?.chunks || context.ragResults.chunks.length === 0) {
           return {isValid: false, reason: 'No RAG chunks available'};
         }
         break;
         
       case 'PlanningAgent':
-        // PlanningAgent needs DataInspector results (document analysis or document insights)
+        // PlanningAgent needs DataInspector results - auto-restore if missing
         if (!context.documentAnalysis && !context.sharedKnowledge.documentInsights) {
-          return {isValid: false, reason: 'No document analysis available from DataInspector'};
+          const dataInspectorResult = this.agentResults.get('DataInspector');
+          if (dataInspectorResult?.documentAnalysis) {
+            console.log(`🔄 Auto-restoring document analysis for PlanningAgent rerun`);
+            context.documentAnalysis = dataInspectorResult.documentAnalysis;
+            context.sharedKnowledge.documentInsights = dataInspectorResult.documentInsights;
+          } else {
+            return {isValid: false, reason: 'No document analysis available from DataInspector'};
+          }
         }
         break;
         
       case 'PatternGenerator':
-        // PatternGenerator needs either PlanningAgent strategy OR DataInspector insights
+        // PatternGenerator needs DataInspector insights - auto-restore if missing
         const hasStrategy = context.sharedKnowledge.extractionStrategies && 
                            Object.keys(context.sharedKnowledge.extractionStrategies).length > 0;
         const hasInsights = context.sharedKnowledge.documentInsights && 
@@ -451,23 +460,55 @@ export class Orchestrator {
         const hasRagChunks = context.ragResults?.chunks && context.ragResults.chunks.length > 0;
         
         if (!hasStrategy && !hasInsights && !hasRagChunks) {
-          return {isValid: false, reason: 'No extraction strategy, document insights, or RAG chunks available'};
+          // Try to restore from previous results
+          const dataInspectorResult = this.agentResults.get('DataInspector');
+          if (dataInspectorResult?.documentInsights) {
+            console.log(`🔄 Auto-restoring document insights for PatternGenerator rerun`);
+            context.sharedKnowledge.documentInsights = dataInspectorResult.documentInsights;
+          } else {
+            return {isValid: false, reason: 'No extraction strategy, document insights, or RAG chunks available'};
+          }
         }
         break;
         
       case 'Extractor':
-        // Extractor needs patterns from PatternGenerator
+        // Extractor needs patterns from PatternGenerator - auto-restore if missing
         if (!context.patterns || context.patterns.length === 0) {
-          return {isValid: false, reason: 'No patterns available from PatternGenerator'};
+          const patternGenResult = this.agentResults.get('PatternGenerator');
+          if (patternGenResult?.patterns) {
+            console.log(`🔄 Auto-restoring ${patternGenResult.patterns.length} patterns for Extractor rerun`);
+            context.patterns = patternGenResult.patterns;
+          } else {
+            return {isValid: false, reason: 'No patterns available from PatternGenerator'};
+          }
         }
         break;
         
       case 'SynthesisCoordinator':
       case 'Synthesizer':
-        // Synthesis agents need extracted data or RAG chunks
+        // Synthesis agents need extracted data - auto-restore if missing
         if ((!context.extractedData || context.extractedData.raw.length === 0) && 
             (!context.ragResults?.chunks || context.ragResults.chunks.length === 0)) {
-          return {isValid: false, reason: 'No extracted data or RAG chunks for synthesis'};
+          const extractorResult = this.agentResults.get('Extractor');
+          if (extractorResult?.extractedData) {
+            console.log(`🔄 Auto-restoring ${extractorResult.extractedData.raw.length} extracted items for synthesis rerun`);
+            context.extractedData = extractorResult.extractedData;
+          } else {
+            return {isValid: false, reason: 'No extracted data or RAG chunks for synthesis'};
+          }
+        }
+        break;
+        
+      case 'DataAnalyzer':
+        // DataAnalyzer needs extracted data - auto-restore if missing
+        if (!context.extractedData || context.extractedData.raw.length === 0) {
+          const extractorResult = this.agentResults.get('Extractor');
+          if (extractorResult?.extractedData) {
+            console.log(`🔄 Auto-restoring ${extractorResult.extractedData.raw.length} extracted items for DataAnalyzer rerun`);
+            context.extractedData = extractorResult.extractedData;
+          } else {
+            return {isValid: false, reason: 'No extracted data available'};
+          }
         }
         break;
         
@@ -1291,17 +1332,23 @@ NEXT_GOAL: [final goal achieved]`;
         break;
         
       case 'SynthesisCoordinator':
-        // SynthesisCoordinator needs analyzed data from DataAnalyzer
+        // 🎯 CRITICAL: SynthesisCoordinator MUST have DataAnalyzer for evidence-driven filtering
         console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking analyzed data`);
         const hasAnalyzedData = context.analyzedData?.cleaned && context.analyzedData.cleaned.length > 0;
         console.log(`📊 Has analyzed data: ${hasAnalyzedData}`);
         
-        if (!hasAnalyzedData && !this.calledAgents.has('DataAnalyzer')) {
+        // 🔥 FORCE DataAnalyzer to run when we have extracted data - prevents fabrication
+        const hasExtractedDataForAnalysis = context.extractedData?.raw && context.extractedData.raw.length > 0;
+        if (hasExtractedDataForAnalysis && !this.calledAgents.has('DataAnalyzer')) {
+          console.log(`🚨 FORCE DataAnalyzer: Found ${context.extractedData.raw.length} extracted items - preventing fabrication`);
           // Find DataAnalyzer in prerequisites
           const analyzerStep = uncompletedPrerequisites.find(step => 
             this.normalizeToolName(step.agent) === 'DataAnalyzer'
           );
-          if (analyzerStep) critical.push(analyzerStep);
+          if (analyzerStep) {
+            critical.push(analyzerStep);
+            console.log(`✅ DataAnalyzer marked as CRITICAL prerequisite for SynthesisCoordinator`);
+          }
         }
         break;
         
@@ -1894,7 +1941,9 @@ NEXT_GOAL: [final goal achieved]`;
       'synthesiscoordinator': 'SynthesisCoordinator',
       'synthesis_coordinator': 'SynthesisCoordinator',
       'CALL_SYNTHESIS_COORDINATOR': 'SynthesisCoordinator',
-      'CALL SynthesisCoordinator': 'SynthesisCoordinator'
+      'CALL SynthesisCoordinator': 'SynthesisCoordinator',
+      'SYNthesisCoordinator': 'SynthesisCoordinator', // Fix LLM typo with Y instead of I
+      'SYNTHESISCOORDINATOR': 'SynthesisCoordinator'
     };
     
     // Return mapped name or original if no mapping found

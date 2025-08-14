@@ -564,8 +564,14 @@ STEP 3: Query Relevance Analysis
 USER_QUERY: "${query}"
 Using the comprehensive analysis above, determine if this document contains information that helps answer the query.
 
-RELEVANT: [YES if any extracted topics/methods/concepts relate to the query, NO if completely unrelated]
-REASON: [explain specifically what content relates to the query and why]
+Think critically about connections:
+- Does the document discuss the same entities, people, or subjects mentioned in the query?
+- Could the document's content answer the query through direct information or related context?
+- Consider semantic relationships - different words can refer to the same concepts
+- Look for broader contextual relevance beyond exact keyword matches
+
+RELEVANT: [YES if the document connects to the query through content, entities, or context. NO only if completely unrelated]
+REASON: [explain specifically what connects this document to the query, considering both direct and contextual relevance]
 
 Respond in exact format:
 TYPE: [document type]
@@ -884,18 +890,20 @@ Return just the role: source, target, or reference`;
   }
   
   private extractListSection(text: string, sectionName: string): string[] {
-    // 🔍 NATURAL LANGUAGE PARSING: Handle thinking-style responses
-    // First, remove <think> tags if present to get the actual analysis
-    const cleanText = text.replace(/<\/?think>/g, '');
+    // 🔍 MODEL-AGNOSTIC PARSING: Handle both thinking and non-thinking models
+    // Remove <think> tags if present (thinking models) or handle direct responses (non-thinking models)
+    const cleanText = text.replace(/<\/?think>/gi, '').trim();
     
-    // Try multiple patterns to find the section content
+    // Try multiple patterns to find the section content - robust for different model response styles
     const patterns = [
       // Standard format: **SECTION**: content
       new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\*]+)`, 'i'),
       // Natural format: For SECTION: content  
       new RegExp(`For ${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
       // Natural format: SECTION: content
-      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i')
+      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
+      // Non-thinking model format: Direct section content
+      new RegExp(`${sectionName}[:\\s]*([^\\n]+(?:\\n[^\\n]+)*)`, 'i')
     ];
     
     let content = '';

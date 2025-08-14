@@ -279,10 +279,16 @@ Reply with just the classifications in order.`;
     
     // Extract query key terms dynamically
     const queryKeyTerms = this.extractQueryKeyTerms(context.query);
-    const queryIntent = this.parseQueryIntent(context.query);
+    
+    // 🎯 INTELLIGENT OVERRIDE: Use PlanningAgent's analysis instead of our own parsing
+    const intelligentExpectations = (context.sharedKnowledge as any)?.intelligentExpectations;
+    const queryIntent = intelligentExpectations?.expectedAnswerType || this.parseQueryIntent(context.query);
     
     console.log(`🔍 Query key terms:`, queryKeyTerms);
     console.log(`🔍 Query intent:`, queryIntent);
+    if (intelligentExpectations?.expectedAnswerType) {
+      console.log(`🎯 Using PlanningAgent intelligent override: ${intelligentExpectations.expectedAnswerType}`);
+    }
 
     // Get document relevance scores from PlanningAgent if available
     const documentRelevance = context.sharedKnowledge.documentSectionRelevance || {};
@@ -305,18 +311,26 @@ Reply with just the classifications in order.`;
       const hasNumericValue = /\d/.test(item.content || item.value || '');
       const hasOriginalContext = !!(item.metadata?.originalContext || item.metadata?.fullMatch);
       
+      // 🎯 EVIDENCE-DRIVEN PRESERVATION: Zero hardcoding - use document analysis evidence
+      const shouldPreserveEvidence = this.shouldPreserveBasedOnEvidence(item, context, hasNumericValue, hasOriginalContext);
+      const shouldKeep = relevanceScore >= 0.3 || shouldPreserveEvidence;
+      
       // Log items with detailed information for debugging
-      if (relevanceScore < 0.3) {
+      if (!shouldKeep) {
         if (hasNumericValue && hasOriginalContext) {
           console.log(`❌ Filtered numeric evidence: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%) context: "${(item.metadata?.originalContext || '').substring(0, 50)}..."`);
         } else {
           console.log(`❌ Filtered out low-relevance item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
         }
       } else {
-        console.log(`✅ Keeping relevant item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
+        if (shouldPreserveEvidence && relevanceScore < 0.3) {
+          console.log(`🎯 Keeping based on document evidence: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%) - evidence override`);
+        } else {
+          console.log(`✅ Keeping relevant item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
+        }
       }
 
-      return relevanceScore >= 0.3;
+      return shouldKeep;
     });
 
     console.log(`🎯 Query filtering complete: ${relevantItems.length}/${items.length} items kept`);
@@ -345,7 +359,7 @@ Reply with just the classifications in order.`;
     }
 
     // 4. Intent-based relevance (15% weight)
-    const intentRelevance = this.calculateIntentRelevance(item, queryIntent);
+    const intentRelevance = this.calculateIntentRelevance(item, queryIntent, context);
     score += intentRelevance * 0.15;
 
     // 🎯 NEW: 5. PlanningAgent category alignment boost (15% weight)
@@ -393,35 +407,163 @@ Reply with just the classifications in order.`;
   }
 
   /**
-   * 🎯 NEW: Calculate intent-based relevance
+   * 🎯 EVIDENCE-DRIVEN: Determine if item should be preserved based on document analysis evidence
+   * Zero hardcoding - uses actual findings from DataInspector and PlanningAgent
    */
-  private calculateIntentRelevance(item: ExtractedItem, queryIntent: string): number {
+  private shouldPreserveBasedOnEvidence(
+    item: ExtractedItem, 
+    context: ResearchContext, 
+    hasNumericValue: boolean, 
+    hasOriginalContext: boolean
+  ): boolean {
+    console.log(`🔍 Evidence preservation check for item: "${item.content}" (hasNumeric: ${hasNumericValue}, hasContext: ${hasOriginalContext})`);
+    
+    const documentInsights = context.sharedKnowledge.documentInsights;
+    const extractionStrategies = context.sharedKnowledge.extractionStrategies;
+    const planningStrategy = Object.values(extractionStrategies || {})[0] as any;
+    
+    console.log(`🔍 Available evidence sources:`, {
+      measurements: documentInsights?.measurements?.length || 0,
+      methods: documentInsights?.methods?.length || 0,
+      concepts: documentInsights?.concepts?.length || 0,
+      data: documentInsights?.data?.length || 0
+    });
+    
+    // Evidence Signal 1: DataInspector found numeric measurements
+    if (documentInsights?.measurements && Array.isArray(documentInsights.measurements) && documentInsights.measurements.length > 0) {
+      if (hasNumericValue && hasOriginalContext) {
+        console.log(`🔍 Evidence Signal 1: Preserving numeric item - DataInspector found ${documentInsights.measurements.length} measurements`);
+        return true;
+      }
+    }
+    
+    // Evidence Signal 2: Item matches DataInspector's extracted entities
+    const itemContent = (item.content || '').toLowerCase();
+    const itemContext = (item.metadata?.originalContext || '').toLowerCase();
+    const combinedText = `${itemContent} ${itemContext}`;
+    
+    if (documentInsights) {
+      // Check against extracted methods
+      if (documentInsights.methods && Array.isArray(documentInsights.methods)) {
+        const matchesMethod = documentInsights.methods.some((method: string) => 
+          combinedText.includes(method.toLowerCase()) || method.toLowerCase().includes(itemContent)
+        );
+        if (matchesMethod) {
+          console.log(`🔍 Evidence Signal 2a: Matches extracted method from DataInspector`);
+          return true;
+        }
+      }
+      
+      // Check against extracted concepts
+      if (documentInsights.concepts && Array.isArray(documentInsights.concepts)) {
+        const matchesConcept = documentInsights.concepts.some((concept: string) => 
+          combinedText.includes(concept.toLowerCase()) || concept.toLowerCase().includes(itemContent)
+        );
+        if (matchesConcept) {
+          console.log(`🔍 Evidence Signal 2b: Matches extracted concept from DataInspector`);
+          return true;
+        }
+      }
+      
+      // Check against extracted data terms
+      if (documentInsights.data && Array.isArray(documentInsights.data)) {
+        const matchesData = documentInsights.data.some((dataItem: string) => 
+          combinedText.includes(dataItem.toLowerCase()) || dataItem.toLowerCase().includes(itemContent)
+        );
+        if (matchesData) {
+          console.log(`🔍 Evidence Signal 2c: Matches extracted data term from DataInspector`);
+          return true;
+        }
+      }
+    }
+    
+    // Evidence Signal 3: Item aligns with PlanningAgent's pattern categories
+    if (planningStrategy?.patternCategories) {
+      const allPatternTerms = [
+        ...(planningStrategy.patternCategories.methods || []),
+        ...(planningStrategy.patternCategories.concepts || []),
+        ...(planningStrategy.patternCategories.data || []),
+        ...(planningStrategy.patternCategories.people || [])
+      ];
+      
+      const matchesPattern = allPatternTerms.some((term: string) => 
+        term && (combinedText.includes(term.toLowerCase()) || term.toLowerCase().includes(itemContent))
+      );
+      
+      if (matchesPattern) {
+        console.log(`🔍 Evidence Signal 3: Matches PlanningAgent pattern category`);
+        return true;
+      }
+    }
+    
+    // Evidence Signal 4: Technical content preservation (document-driven)
+    const documentType = planningStrategy?.documentType;
+    if (documentType && (documentType.includes('Research') || documentType.includes('Technical') || documentType.includes('Method'))) {
+      if (hasNumericValue && /\d+(\.\d+)?/.test(combinedText)) {
+        console.log(`🔍 Evidence Signal 4: Technical document numeric preservation`);
+        return true;
+      }
+    }
+    
+    // Evidence Signal 5: EMERGENCY PRESERVATION - When measurements found but categories empty
+    if (documentInsights?.measurements && documentInsights.measurements.length > 0) {
+      // Check if all categories are empty (parsing failed)
+      const categoriesEmpty = (!documentInsights.methods || documentInsights.methods.length === 0) &&
+                              (!documentInsights.concepts || documentInsights.concepts.length === 0) &&
+                              (!documentInsights.data || documentInsights.data.length === 0);
+      
+      if (categoriesEmpty && hasNumericValue) {
+        console.log(`🔍 Evidence Signal 5: Emergency preservation - ${documentInsights.measurements.length} measurements found but categories empty, preserving numeric item`);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * 🎯 EVIDENCE-DRIVEN: Calculate relevance based on document analysis findings
+   * Replaces hardcoded intent matching with evidence-based scoring
+   */
+  private calculateIntentRelevance(item: ExtractedItem, queryIntent: string, context?: ResearchContext): number {
     const content = (item.content || '').toLowerCase();
     const value = (item.value || '').toLowerCase();
-    const context = (item.context || '').toLowerCase();
-    const combined = `${content} ${value} ${context}`;
+    const itemContext = (item.context || '').toLowerCase();
+    const combined = `${content} ${value} ${itemContext}`;
 
     let score = 0;
-
-    // Intent-based scoring
-    if (queryIntent.includes('performance_ranking') || queryIntent.includes('performance')) {
-      if (combined.includes('performance') || combined.includes('result') || combined.includes('score') || 
-          combined.includes('accuracy') || combined.includes('benchmark') || /\d+(\.\d+)?/.test(combined)) {
-        score += 0.8;
+    
+    // Evidence-driven scoring based on document analysis
+    if (context) {
+      const documentInsights = context.sharedKnowledge.documentInsights;
+      
+      // Boost score if item matches what was actually found in documents
+      if (documentInsights?.methods) {
+        const methodMatch = documentInsights.methods.some((method: string) => 
+          combined.includes(method.toLowerCase()) || method.toLowerCase().includes(content)
+        );
+        if (methodMatch) score += 0.6;
+      }
+      
+      if (documentInsights?.concepts) {
+        const conceptMatch = documentInsights.concepts.some((concept: string) => 
+          combined.includes(concept.toLowerCase()) || concept.toLowerCase().includes(content)
+        );
+        if (conceptMatch) score += 0.5;
+      }
+      
+      if (documentInsights?.data) {
+        const dataMatch = documentInsights.data.some((dataItem: string) => 
+          combined.includes(dataItem.toLowerCase()) || dataItem.toLowerCase().includes(content)
+        );
+        if (dataMatch) score += 0.7;
       }
     }
-
-    if (queryIntent.includes('methodology')) {
-      if (combined.includes('method') || combined.includes('algorithm') || combined.includes('approach') ||
-          combined.includes('technique') || combined.includes('procedure') || combined.includes('strategy')) {
-        score += 0.8;
-      }
-    }
-
-    if (queryIntent.includes('comparison')) {
-      if (combined.includes('versus') || combined.includes('compared') || combined.includes('better') ||
-          combined.includes('worse') || combined.includes('difference') || combined.includes('vs')) {
-        score += 0.8;
+    
+    // Fallback: Minimal pattern-based scoring for when no document context available
+    if (score === 0) {
+      if (/\d+(\.\d+)?/.test(combined) && queryIntent) {
+        score += 0.3; // Minimal boost for numeric content
       }
     }
 

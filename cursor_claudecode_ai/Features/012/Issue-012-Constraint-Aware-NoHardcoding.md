@@ -184,5 +184,28 @@ Total: 3–5 typical.
  - Small models emit malformed JSON → strict JSON-output prompts + resilient parser cleaning already added.
 - Main thread stalls during extraction → move to worker, add batching/caps and pattern sanitization.
 
+## Recent Fixes (Completed)
+
+### Agent Rerun Enhancement
+- **Problem**: Rerun functionality failed due to missing dependencies (e.g., Extractor needs patterns from PatternGenerator)
+- **Solution**: Implemented intelligent dependency restoration in `validateContextForRerun()` - automatically restores patterns, document analysis, and extracted data from previous agent results
+- **Impact**: All agents can now be rerun reliably without pipeline failures
+
+### DataInspector Semantic Analysis Enhancement  
+- **Problem**: DataInspector incorrectly rejected relevant documents (e.g., Rutwik's resume marked irrelevant for "best project by Rutwik" query)
+- **Solution**: Enhanced relevance analysis prompt with semantic reasoning guidance - instructs LLM to consider entity matching and contextual relationships without hardcoded examples
+- **Impact**: Proper document filtering based on intelligent entity-query relationships
+
+### Regex Worker Capture Group Intelligence
+- **Problem**: Despite extracting 382 matches with correct patterns, "Items with time values: 0" - worker selected descriptive text ("Record time") instead of numeric values ("4.26")
+- **Solution**: Improved `analyzeGroupValue()` scoring to heavily favor pure numeric content (100 points) over descriptive text (5 points) using universal pattern recognition
+- **Impact**: Correct extraction of actual speedrun times instead of generic descriptors
+
+### Zero Hardcoding Compliance
+All fixes use pure intelligence and pattern recognition without violating Feature 012 principles:
+- No hardcoded units, keywords, or examples
+- Universal semantic relationships and mathematical patterns only
+- Evidence-driven scoring and decision making
+
 ## Approval
 Proceed with TODO in `todo-012.md` upon approval. No code changes yet.

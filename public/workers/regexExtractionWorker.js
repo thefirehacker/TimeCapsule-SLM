@@ -52,7 +52,8 @@ self.onmessage = async (event) => {
           let m;
            while ((m = re.exec(chunk.text)) !== null) {
             const originalFull = (m[0] || '').toString();
-            const captured = (m[1] || originalFull).toString();
+            // Intelligently select the best capture group - prefer numeric values
+            const captured = selectBestCaptureGroup(m, originalFull);
             results.push(toItem(captured.trim(), originalFull, chunk, src, description, false));
             matches++;
             if (matches >= caps.maxMatchesPerChunk) break;
@@ -67,7 +68,8 @@ self.onmessage = async (event) => {
 
           while ((m = re.exec(norm)) !== null) {
             const normalizedFull = (m[0] || '').toString();
-            const normalizedCaptured = (m[1] || normalizedFull).toString();
+            // Intelligently select the best capture group - prefer numeric values
+            const normalizedCaptured = selectBestCaptureGroup(m, normalizedFull);
             results.push(toItem(normalizedCaptured.trim(), normalizedFull, chunk, src, description, true));
             matches++;
             if (matches >= caps.maxMatchesPerChunk) break;
@@ -87,6 +89,81 @@ self.onmessage = async (event) => {
 };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/**
+ * Intelligently select the best capture group from regex match
+ * Uses pure pattern analysis without hardcoded assumptions
+ */
+function selectBestCaptureGroup(match, fullMatch) {
+  if (!match || match.length <= 1) {
+    return fullMatch;
+  }
+  
+  // Analyze all capture groups using evidence-driven scoring
+  let bestGroup = fullMatch;
+  let bestScore = -1;
+  
+  for (let i = 1; i < match.length; i++) {
+    const group = (match[i] || '').toString().trim();
+    if (!group) continue;
+    
+    const score = analyzeGroupValue(group);
+    if (score > bestScore) {
+      bestScore = score;
+      bestGroup = group;
+    }
+  }
+  
+  return bestGroup;
+}
+
+/**
+ * Analyze capture group value using universal patterns
+ * No hardcoded units or descriptors - pure data analysis
+ */
+function analyzeGroupValue(value) {
+  let score = 0;
+  
+  // Evidence 1: Pure numeric content gets highest priority
+  if (/^\d+(\.\d+)?$/.test(value)) {
+    score += 100;
+  }
+  
+  // Evidence 2: Numeric content with minimal additional characters
+  if (/^\d+(\.\d+)?\s*\w+$/.test(value)) {
+    score += 90;
+  }
+  
+  // Evidence 3: Contains numeric data
+  const hasNumbers = /\d/.test(value);
+  if (hasNumbers && score < 50) {
+    score += 50;
+    
+    // Bonus: Starts with numeric content
+    if (/^\d/.test(value)) {
+      score += 30;
+    }
+    
+    // Bonus: Contains decimal precision
+    if (/\d+\.\d+/.test(value)) {
+      score += 20;
+    }
+  }
+  
+  // Evidence 4: Length analysis - concise values preferred
+  if (value.length <= 10) {
+    score += 15;
+  } else if (value.length > 30) {
+    score -= 20;
+  }
+  
+  // Evidence 5: Pure alphabetic content gets base score
+  if (/^[a-zA-Z\s]+$/.test(value) && !hasNumbers) {
+    score += 5;
+  }
+  
+  return score;
+}
 
 function sanitizePatterns(patterns) {
   const seen = new Set();
