@@ -297,23 +297,26 @@ Reply with just the classifications in order.`;
     }
 
     const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
-    const isPerf = expectedType === 'performance_ranking';
 
     const relevantItems = items.filter(item => {
       const relevanceScore = this.calculateItemRelevance(item, queryKeyTerms, queryIntent, documentRelevance, planningStrategy, context);
       
-      // Log items that are filtered out for debugging
+      // Check if item has numeric content that might be evidence
+      const hasNumericValue = /\d/.test(item.content || item.value || '');
+      const hasOriginalContext = !!(item.metadata?.originalContext || item.metadata?.fullMatch);
+      
+      // Log items with detailed information for debugging
       if (relevanceScore < 0.3) {
-        console.log(`❌ Filtered out low-relevance item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
+        if (hasNumericValue && hasOriginalContext) {
+          console.log(`❌ Filtered numeric evidence: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%) context: "${(item.metadata?.originalContext || '').substring(0, 50)}..."`);
+        } else {
+          console.log(`❌ Filtered out low-relevance item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
+        }
       } else {
         console.log(`✅ Keeping relevant item: "${item.content}" (score: ${Math.round(relevanceScore * 100)}%)`);
       }
 
-      // Keep numeric/time items more aggressively when performance intent
-      if (isPerf && /(hours?|hrs?|tokens?\/s|tokens?\s*per\s*second)/i.test(item.content || item.value || '')) {
-        return relevanceScore >= 0.15;
-      }
-      return relevanceScore >= 0.3; // Default threshold
+      return relevanceScore >= 0.3;
     });
 
     console.log(`🎯 Query filtering complete: ${relevantItems.length}/${items.length} items kept`);

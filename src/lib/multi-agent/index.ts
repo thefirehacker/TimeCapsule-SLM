@@ -95,6 +95,6 @@ export function createMultiAgentSystem(
   registry.register(new SynthesisAgent(llm));
   registry.register(new ResponseFormatterAgent(llm, progressCallback)); // Ensure direct question answering with good formatting
   
-  // Create and return orchestrator with progress callback and config
-  return new Orchestrator(registry, messageBus, llm, progressCallback, config);
+  // Create and return orchestrator with progress callback, config, and vectorStore
+  return new Orchestrator(registry, messageBus, llm, progressCallback, config, vectorStore);
 }

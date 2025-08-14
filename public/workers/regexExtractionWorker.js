@@ -106,10 +106,25 @@ function sanitizePatterns(patterns) {
 }
 
 function toItem(value, fullMatch, chunk, src, description, normalized) {
+  // Try to extract numeric value and unit from the match
+  let extractedValue = value;
+  let extractedUnit = '';
+  
+  // Pattern to extract number and unit (e.g., "4.26 hours", "216k tokens/s")
+  const valueUnitMatch = value.match(/^([\d.,]+[kKmMbB]?)\s*(.*)$/);
+  if (valueUnitMatch) {
+    extractedValue = valueUnitMatch[1];
+    extractedUnit = valueUnitMatch[2] || '';
+  }
+  
+  // Store original context for better evidence preservation
+  const originalContext = normalized ? undefined : fullMatch;
+  const normalizedContext = normalized ? fullMatch : undefined;
+  
   return {
     content: value,
-    value: value,
-    unit: '',
+    value: extractedValue,
+    unit: extractedUnit,
     context: fullMatch,
     confidence: normalized ? 0.88 : 0.95,
     sourceChunkId: chunk.id,
@@ -119,8 +134,10 @@ function toItem(value, fullMatch, chunk, src, description, normalized) {
       regexPattern: src,
       patternDescription: description,
       normalized: !!normalized,
-      originalText: normalized ? undefined : fullMatch,
-      normalizedText: normalized ? fullMatch : undefined
+      originalText: originalContext,
+      normalizedText: normalizedContext,
+      originalContext: originalContext || normalizedContext,
+      fullMatch: fullMatch
     }
   };
 }

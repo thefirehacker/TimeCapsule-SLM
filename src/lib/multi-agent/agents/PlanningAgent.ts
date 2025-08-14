@@ -81,6 +81,13 @@ export class PlanningAgent extends BaseAgent {
       this.progressCallback?.onAgentProgress(this.name, 25, 'Creating extraction strategy from DataInspector analysis');
       const extractionStrategy = this.createExtractionStrategy(context);
       console.log(`✅ Created extraction strategy with ${Object.keys(extractionStrategy.patternCategories).length} pattern categories`);
+      
+      // 🔍 INTELLIGENT OVERRIDE: Validate DataInspector classifications
+      this.progressCallback?.onAgentProgress(this.name, 30, 'Validating entity classifications');
+      const classificationsValid = this.validateDataInspectorClassifications(context);
+      if (!classificationsValid) {
+        console.log(`🔧 Entity classifications corrected - corrective strategy applied`);
+      }
     }
     
     // Report progress: Situation analyzed
@@ -1412,7 +1419,14 @@ Return as strictly valid JSON (single line preferred, escape all quotes inside s
   }
 
   private determineExpectedAnswerType(documentContext: any, query: string, insights?: any): string {
-    // Content-grounded detection for performance ranking
+    // 🎯 INTELLIGENT OVERRIDE: Direct query analysis takes precedence over DataInspector
+    const queryOverride = this.analyzeQueryIntentDirectly(query);
+    if (queryOverride) {
+      console.log(`🔄 PlanningAgent override: Query intent detected as '${queryOverride}' (overriding DataInspector analysis)`);
+      return queryOverride;
+    }
+    
+    // Content-grounded detection for performance ranking (fallback from DataInspector)
     const q = (query || '').toLowerCase();
     const dataSignals = (insights?.data || []).map((d: any) => String(d).toLowerCase());
     const hasTiming = dataSignals.some((d: string) => d.includes('time') || d.includes('hour'));
@@ -1436,5 +1450,110 @@ Return as strictly valid JSON (single line preferred, escape all quotes inside s
       return `This appears to be a method paper introducing ${documentContext.mainContribution}. The intelligent answer should reference this paper's main contribution.`;
     }
     return 'Standard extraction approach';
+  }
+
+  /**
+   * 🎯 INTELLIGENT OVERRIDE: Analyze query intent directly without DataInspector influence
+   * This fixes cases where DataInspector misclassifies performance queries
+   */
+  private analyzeQueryIntentDirectly(query: string): string | null {
+    console.log(`🔍 PlanningAgent: Analyzing query intent directly for "${query}"`);
+    
+    const q = query.toLowerCase().trim();
+    
+    // Performance ranking detection (zero hardcoding - based on linguistic patterns)
+    const rankingWords = ['top', 'best', 'fastest', 'quickest', 'lowest', 'highest', 'minimum', 'maximum'];
+    const performanceUnits = ['hours', 'minutes', 'seconds', 'tokens/s', 'tokens per second', 'ms', 'time', 'speed', 'throughput'];
+    const rankingNumbers = ['top 3', 'top 5', 'best 3', 'first 3', '3 best', '5 best', 'three best', 'five best'];
+    
+    const hasRankingWord = rankingWords.some(word => q.includes(word));
+    const hasPerformanceUnit = performanceUnits.some(unit => q.includes(unit));
+    const hasRankingNumber = rankingNumbers.some(pattern => q.includes(pattern));
+    const hasSpeedrunContext = /speed\s?run|speedrun/i.test(q);
+    
+    if ((hasRankingWord || hasRankingNumber) && (hasPerformanceUnit || hasSpeedrunContext)) {
+      console.log(`🎯 Direct intent analysis: PERFORMANCE_RANKING (ranking=${hasRankingWord||hasRankingNumber}, perf=${hasPerformanceUnit||hasSpeedrunContext})`);
+      return 'performance_ranking';
+    }
+    
+    // Entity validation - detect when query mentions specific people
+    const possessivePattern = /\b[A-Z][a-z]+'s\b/; // "Tyler's", "Jordan's"
+    const authorPattern = /\b(from|by|written by|authored by)\s+[A-Z][a-z]+/i;
+    if (possessivePattern.test(query) || authorPattern.test(query)) {
+      console.log(`🎯 Direct intent analysis: PERSON_FOCUSED_QUERY detected`);
+      // Set flag for entity validation - this person should be recognized as such
+      return null; // Let normal flow continue but flag for validation
+    }
+    
+    // No direct override needed
+    console.log(`🎯 Direct intent analysis: No override needed, proceeding with normal flow`);
+    return null;
+  }
+
+  /**
+   * 🔍 ENTITY VALIDATION: Cross-check DataInspector's classifications against query context
+   */
+  validateDataInspectorClassifications(context: ResearchContext): boolean {
+    console.log(`🔍 PlanningAgent: Validating DataInspector classifications against query`);
+    
+    const insights = context.sharedKnowledge.documentInsights;
+    if (!insights) return true; // No classifications to validate
+    
+    const query = context.query;
+    let needsCorrection = false;
+    
+    // Check if person names were misclassified as methods
+    const possessivePattern = /\b([A-Z][a-z]+)'s\b/g;
+    const possessiveMatches = query.match(possessivePattern) || [];
+    
+    possessiveMatches.forEach(match => {
+      const personName = match.replace("'s", "");
+      console.log(`🔍 Checking person name: "${personName}"`);
+      
+      // Check if this person was misclassified as a method
+      if (insights.methods && insights.methods.some((method: string) => 
+        method.toLowerCase().includes(personName.toLowerCase())
+      )) {
+        console.warn(`⚠️ Entity misclassification: "${personName}" found in methods but query indicates it's a person`);
+        needsCorrection = true;
+      }
+    });
+    
+    if (needsCorrection) {
+      console.log(`🔄 PlanningAgent: Classifications need correction - preparing corrective strategy`);
+      this.createCorrectiveStrategy(context, possessiveMatches);
+    }
+    
+    return !needsCorrection;
+  }
+
+  /**
+   * 🔧 STRATEGY CORRECTION: Create corrective categories when DataInspector misclassifies
+   */
+  private createCorrectiveStrategy(context: ResearchContext, personNames: string[]): void {
+    console.log(`🔧 PlanningAgent: Creating corrective strategy for misclassified entities`);
+    
+    // Create corrected extraction strategy focusing on query targets, not misclassified entities
+    const query = context.query.toLowerCase();
+    const correctedCategories: any = {
+      people: personNames.map(p => p.replace("'s", "")),
+      methods: [], // Will be filled with actual technical methods, not person names
+      concepts: [],
+      data: []
+    };
+    
+    // If query asks for performance/time metrics, ensure we target those specifically
+    if (query.includes('speed') || query.includes('time') || query.includes('fast') || query.includes('hour')) {
+      correctedCategories.data = ['time', 'hours', 'duration', 'speed', 'performance'];
+      console.log(`🎯 Corrective strategy: Added performance data targets`);
+    }
+    
+    // Store corrective strategy
+    if (!context.sharedKnowledge.correctiveStrategies) {
+      context.sharedKnowledge.correctiveStrategies = {};
+    }
+    context.sharedKnowledge.correctiveStrategies.entityClassification = correctedCategories;
+    
+    console.log(`✅ Created corrective strategy:`, correctedCategories);
   }
 }

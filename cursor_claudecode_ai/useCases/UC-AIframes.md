@@ -42,7 +42,7 @@ AI Frames is a revolutionary feature in TimeCapsuleSLM that transforms tradition
 
 ## Innovative Use Cases for Development
 
-### <� Education & Training
+### <� Education & Training
 
 #### 1. **Adaptive Course Platform**
 ```typescript
@@ -122,7 +122,7 @@ Professional development platforms with:
 - Embedded code examples
 - AI suggestions for next steps
 
-### =� Business & Professional
+### =� Business & Professional
 
 #### 6. **Employee Onboarding Journeys**
 ```typescript
@@ -160,7 +160,7 @@ Professional development platforms with:
 - Competitive analysis branches
 - Best practice video libraries
 
-### <� Creative & Media
+### <� Creative & Media
 
 #### 9. **Interactive Storytelling Platform**
 ```typescript
@@ -191,7 +191,7 @@ Professional development platforms with:
 - AI-generated exercises
 - Performance feedback loops
 
-### <� Healthcare & Wellness
+### <� Healthcare & Wellness
 
 #### 11. **Medical Training Scenarios**
 - Patient diagnosis simulations
@@ -205,7 +205,8 @@ Professional development platforms with:
 - Mood-based content adaptation
 - Progress tracking
 
-### < Special Use Cases
+### <
+ Special Use Cases
 
 #### 13. **Language Learning Networks**
 ```typescript
@@ -408,3 +409,86 @@ The platform's unique combination of AI intelligence, visual representation, and
 ---
 
 *This document is based on analysis of the TimeCapsuleSLM codebase and represents the current and potential future state of AI Frames.*
+
+## Novel Use Cases (New)
+
+### 1. Research Tutor Frames (bridged with Deep Research)
+- A guided, frame-by-frame tutoring experience where each node pulls cited evidence from Deep Research and turns it into teachable mini-lessons, checks for understanding, and branches on misconceptions.
+- Why now: We already have evidence-first extraction and synthesis in progress; AI Frames can render it as learning flows with self-checks.
+
+### 2. Code Walkthrough Labs
+- Each frame presents a real code snippet (from a repo or TimeCapsule), a targeted task, and an in-browser test. Branches form based on which tests fail. AI hints reference exact lines with citations.
+- Integration points: `VectorStore` for code chunk retrieval; analytics events on test pass/fail per frame.
+
+### 3. Incident Postmortem Playbooks
+- For SRE/DevOps: interactive postmortems where each step shows logs, metrics, and “what-if” branches (e.g., rollback, scale-out, circuit-breaker). Learners replay incidents and see outcomes.
+- Attach artifacts: log excerpts, graphs, config diffs.
+
+### 4. Clinical Pathway Navigator
+- Evidence-backed clinical decision trees for education: each branch cites source guidelines and journal snippets; learners see contraindications and reasoning at each step.
+- Works offline with ONNX models; syncs case analytics when online.
+
+### 5. Sales Engineer Deal Rooms
+- Product deep-dive maps for SEs: objection frames, demo branches, competitor maps, ROI calculators; capture which paths correlate with wins.
+- Analytics: frame sequences → conversion signals.
+
+### 6. Enterprise Knowledge Radar
+- Auto-generated learning maps from a knowledge base: cluster topics, create frames per cluster, and let users traverse latest internal docs with “what changed” highlights.
+- Uses semantic probes + BM25 hybrid retrieval to keep frames grounded.
+
+### 7. Manufacturing Troubleshooting Trees
+- Visual diagnostic flows for machines: telemetry shots + stepwise checks; branching on sensor readings; embed short videos for fixes.
+- Offline-first is a strong differentiator on factory floors.
+
+### 8. Policy Simulation Studio
+- Public policy scenarios as branching frames with data sources and outcome models; learners choose interventions and see projected effects with transparent assumptions and citations.
+
+## Product Suggestions and Next Steps (New)
+
+### A. Make Frames Evidence-First
+- Add a lightweight “Citations” slot to each frame (array of source refs). When frames are generated from Deep Research outputs, pass citations into nodes so learners can verify claims.
+- Provide a “Show Evidence” toggle per frame to reveal exact snippets used.
+
+### B. Authoring Flow: Templates + Wizard
+- Templates: Course, Troubleshooter, Research Tutor, Code Lab, Onboarding Journey.
+- Wizard guides: pick a template → define goals → import content (PDFs/URLs/Repo) → auto-seed frames from content → refine branching → publish.
+
+### C. Hybrid Retrieval for Frame Seeding
+- Use “learned-window” probes (mask digits; keep observed joiners) + BM25 fusion (RRF) to seed candidate snippets for frames. This improves accuracy with MiniLM-L6-v2 embeddings.
+
+### D. Analytics You Can Act On
+- Per-frame metrics: dwell time, completion rate, evidence opens, assessment score deltas.
+- Cohort flow: common branch paths; drop-off frames; auto-suggest “gap” frames.
+
+### E. Offline-First Intelligence
+- Ship key models via ONNX (MiniLM embeddings; small QA ranker). Cache frame graphs and cited snippets; sync deltas when online.
+
+### F. Collab & Review
+- Frame comments with inline anchors; suggestion mode; versioned snapshots.
+- “Publish for Review” flow that generates a shareable learning path with anonymized analytics.
+
+## Technical Deepening (New)
+
+### 1) Frame Seeding Pipeline
+- Input: selected docs/URLs/TimeCapsules → chunk → retrieve with hybrid probes → cluster by topic → propose frames with title + evidence snippet + suggested quiz (optional).
+- Author edits and confirms; system preserves citations and context windows for each frame.
+
+### 2) Interop with Deep Research
+- A “Generate Frames” action takes a Deep Research answer + citations and builds a minimal learning path (Findings → Methods → Practice). Each node includes a link back to the source chunk.
+- Reverse path: From a frame, “Deep Dive” opens Deep Research scoped to that frame’s sources.
+
+### 3) Attachments Roadmap
+- Quick wins: code snippet blocks with runnable sandboxes; dataset viewers for small CSV/JSON; log viewers with syntax highlighting.
+- Next: pluggable “lab adapters” (e.g., Python kernel, web sandbox) per frame type.
+
+## KPIs to Track (New)
+- Learning outcomes: pre/post assessment deltas per path.
+- Path efficiency: median frames-to-mastery; branch churn.
+- Evidence engagement: citation open rate; time on evidence.
+- Author velocity: time to publish; % frames auto-seeded.
+
+## Immediate Development Priorities (New)
+- Frame citations and evidence toggle.
+- Seeding pipeline with hybrid retrieval and learned-window probes.
+- Templates + authoring wizard.
+- Minimal analytics dashboard.

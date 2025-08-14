@@ -28,12 +28,17 @@ export class Orchestrator {
   private agentResults: Map<string, any> = new Map();
   private lastAgentCalled: string | null = null;
   
+  // Context-aware rerun tracking with input signatures
+  private agentInputSignatures: Map<string, string> = new Map();
+  private agentRerunCount: Map<string, number> = new Map();
+  
   constructor(
     registry: AgentRegistry,
     messageBus: MessageBus,
     llm: LLMFunction,
     progressCallback?: AgentProgressCallback,
-    config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean }
+    config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean },
+    vectorStore?: import('@/components/VectorStore/VectorStore').VectorStore
   ) {
     this.registry = registry;
     this.messageBus = messageBus;
@@ -41,9 +46,11 @@ export class Orchestrator {
     this.progressCallback = progressCallback;
     this.progressTracker = new AgentProgressTracker(progressCallback);
     this.config = config;
+    this.vectorStore = vectorStore;
   }
   
   private config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean };
+  private vectorStore?: import('@/components/VectorStore/VectorStore').VectorStore;
   
   /**
    * 🎯 Get next step from execution plan with comprehensive pipeline view
@@ -1526,6 +1533,38 @@ NEXT_GOAL: [final goal achieved]`;
     // 🚨 FIX: Normalize tool name case (LLM returns "EXTRACTOR", registry has "Extractor")
     const normalizedToolName = this.normalizeToolName(toolName);
     
+    // Evidence gate: Block synthesis if no numeric evidence for performance queries
+    if (normalizedToolName === 'SynthesisCoordinator' || normalizedToolName === 'Synthesizer') {
+      if (this.shouldBlockSynthesisForEvidence(context)) {
+        console.log('⚠️ Blocking synthesis: Insufficient numeric evidence for performance query');
+        
+        // Try one loop of PatternGenerator → Extractor if not already done
+        if (!this.calledAgents.has('PatternGenerator') || !this.calledAgents.has('Extractor')) {
+          console.log('🔄 Attempting evidence generation loop: PatternGenerator → Extractor');
+          
+          if (!this.calledAgents.has('PatternGenerator')) {
+            await this.executeToolCall('PatternGenerator', context);
+          }
+          if (!this.calledAgents.has('Extractor')) {
+            await this.executeToolCall('Extractor', context);
+          }
+          
+          // Check evidence again after extraction
+          if (!this.hasMinimalNumericEvidence(context)) {
+            console.log('❌ Still no numeric evidence after extraction attempt');
+            context.synthesis.answer = 'Insufficient numeric evidence found in the documents to answer this performance-related query. The documents may not contain the specific measurements requested.';
+            context.synthesis.confidence = 0.3;
+            return;
+          }
+        } else {
+          // Already tried extraction, give up
+          context.synthesis.answer = 'Unable to extract sufficient numeric evidence from the documents to answer this performance query. Please verify the documents contain the relevant measurements.';
+          context.synthesis.confidence = 0.2;
+          return;
+        }
+      }
+    }
+    
     // 🧠 PLAN-AWARE SEQUENCING VALIDATION - Replaces hardcoded rules with intelligent validation
     const validation = this.validateAgentExecution(normalizedToolName, context);
     if (!validation.allowed) {
@@ -1545,10 +1584,27 @@ NEXT_GOAL: [final goal achieved]`;
       throw new Error(`Tool ${toolName} (normalized: ${normalizedToolName}) not found in registry. Available: ${this.registry.listAgents().map(a => a.name).join(', ')}`);
     }
     
-    // 🔥 INTELLIGENT DUPLICATE PREVENTION: Allow Synthesizer re-execution if previously called with no data
+    // Context-aware rerun policy with input signatures
+    const currentInputSignature = this.computeInputSignature(normalizedToolName, context);
+    const previousSignature = this.agentInputSignatures.get(normalizedToolName);
+    const rerunCount = this.agentRerunCount.get(normalizedToolName) || 0;
+    
     if (this.calledAgents.has(normalizedToolName)) {
-      if (normalizedToolName === 'Synthesizer') {
-        // Check if Synthesizer was called before with no data and now data is available
+      // Check if inputs have changed or quality is insufficient
+      const inputsChanged = previousSignature !== currentInputSignature;
+      const qualityInsufficient = this.isQualityInsufficient(normalizedToolName, context);
+      const canRerun = rerunCount < 2; // Max 2 reruns per agent
+      
+      if ((inputsChanged || qualityInsufficient) && canRerun) {
+        console.log(`🔄 RE-RUNNING ${normalizedToolName}: ${inputsChanged ? 'Inputs changed' : 'Quality insufficient'}`);
+        console.log(`📊 Previous signature: ${previousSignature?.substring(0, 20)}...`);
+        console.log(`📊 Current signature: ${currentInputSignature.substring(0, 20)}...`);
+        console.log(`📊 Rerun count: ${rerunCount + 1}/2`);
+        
+        // Update rerun count
+        this.agentRerunCount.set(normalizedToolName, rerunCount + 1);
+      } else if (normalizedToolName === 'Synthesizer') {
+        // Legacy Synthesizer special case for backward compatibility
         const hasExtractedData = this.hasExtractedData(context);
         const synthesisAnswer = context.synthesis?.answer || '';
         const wasCalledWithNoData = synthesisAnswer.trim() === '' || synthesisAnswer.includes('No relevant information found');
@@ -1559,7 +1615,7 @@ NEXT_GOAL: [final goal achieved]`;
           // Remove from called agents to allow re-execution
           this.calledAgents.delete(normalizedToolName);
         } else {
-          console.warn(`⚠️ Agent ${normalizedToolName} already called with data, skipping to prevent redundant processing`);
+          console.warn(`⚠️ Agent ${normalizedToolName} already called with same inputs, skipping`);
           
           // 🔧 FIX: Log progression guidance for Master LLM to see in next iteration
           const planStatus = this.getExecutionPlanStatus(context);
@@ -1570,14 +1626,14 @@ NEXT_GOAL: [final goal achieved]`;
           // Store guidance in context for persistence
           context.sharedKnowledge.lastSkippedAgent = {
             agent: normalizedToolName,
-            reason: 'Already executed with data',
+            reason: 'Already executed with same inputs',
             planStatus: planStatus,
             timestamp: Date.now()
           };
           return;
         }
       } else {
-        console.warn(`⚠️ Agent ${normalizedToolName} already called, skipping to prevent redundant processing`);
+        console.warn(`⚠️ Agent ${normalizedToolName} already called with same inputs (or max reruns reached), skipping`);
         
         // 🔧 ENHANCED: Provide clear next-step guidance when agent is skipped
         const planStatus = this.getExecutionPlanStatus(context);
@@ -1653,6 +1709,15 @@ NEXT_GOAL: [final goal achieved]`;
         duration: duration,
         timestamp: endTime
       });
+      
+      // 🎯 CRITICAL: After DataInspector identifies relevant documents, fetch ALL chunks
+      // DataInspector only gets samples for efficiency, but downstream agents need complete data
+      if (normalizedToolName === 'DataInspector' && context.documentAnalysis?.documents) {
+        await this.expandToFullDocumentChunks(context);
+      }
+      
+      // Store input signature for context-aware reruns
+      this.agentInputSignatures.set(normalizedToolName, currentInputSignature);
       
       // 🚨 FIX: Mark agent as completed with result and capture actual output
       const agentOutput = this.extractAgentOutput(context, normalizedToolName);
@@ -1854,6 +1919,124 @@ NEXT_GOAL: [final goal achieved]`;
     const extractorFindings = context.sharedKnowledge?.agentFindings?.Extractor;
     if (extractorFindings && extractorFindings.extractedData && extractorFindings.extractedData.length > 0) {
       return true;
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check if we have minimal numeric evidence for synthesis
+   */
+  private hasMinimalNumericEvidence(context: ResearchContext): boolean {
+    try {
+      const items = context?.extractedData?.raw || [];
+      if (!Array.isArray(items) || items.length === 0) return false;
+      
+      // Check for numeric content in original context or content
+      const numericItems = items.filter((item: any) => {
+        const text = String(item.metadata?.originalContext || item.content || '');
+        return /(\d[\d\s.:]*\d)?\d/.test(text);
+      });
+      
+      return numericItems.length >= 2;
+    } catch {
+      return false;
+    }
+  }
+  
+  /**
+   * Determine if synthesis should be blocked due to lack of evidence
+   */
+  private shouldBlockSynthesisForEvidence(context: ResearchContext): boolean {
+    // Check if query suggests performance/ranking
+    const query = context.query?.toLowerCase() || '';
+    const isPerformanceQuery = (
+      /\b(best|top|fastest|slowest|performance|speed|benchmark|compare|ranking)\b/.test(query) &&
+      /\b(hours?|minutes?|seconds?|tokens?\/s|throughput|time)\b/.test(query)
+    );
+    
+    if (!isPerformanceQuery) {
+      return false; // Not a performance query, don't block
+    }
+    
+    // Check for numeric evidence
+    return !this.hasMinimalNumericEvidence(context);
+  }
+  
+  /**
+   * Compute input signature for an agent based on relevant context
+   */
+  private computeInputSignature(agentName: string, context: ResearchContext): string {
+    const parts: string[] = [];
+    
+    // Common inputs for all agents
+    parts.push(`query:${context.query}`);
+    parts.push(`chunks:${context.ragResults.chunks.length}`);
+    
+    // Agent-specific inputs
+    switch (agentName) {
+      case 'PatternGenerator':
+        const measurements = context.sharedKnowledge?.documentInsights?.measurements || [];
+        parts.push(`measurements:${measurements.length}`);
+        parts.push(`measurementsHash:${this.hashArray(measurements)}`);
+        break;
+        
+      case 'Extractor':
+        const patterns = context.patterns || [];
+        parts.push(`patterns:${patterns.length}`);
+        parts.push(`patternsHash:${this.hashArray(patterns.map(p => p.regexPattern || p.description))}`);
+        break;
+        
+      case 'DataAnalyzer':
+      case 'SynthesisCoordinator':
+      case 'Synthesizer':
+        const extractedData = context.extractedData?.raw || [];
+        parts.push(`extracted:${extractedData.length}`);
+        parts.push(`extractedHash:${this.hashArray(extractedData)}`);
+        break;
+    }
+    
+    return parts.join('|');
+  }
+  
+  /**
+   * Simple hash function for arrays
+   */
+  private hashArray(arr: any[]): string {
+    if (!arr || arr.length === 0) return 'empty';
+    const str = JSON.stringify(arr);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(16);
+  }
+  
+  /**
+   * Check if agent output quality is insufficient
+   */
+  private isQualityInsufficient(agentName: string, context: ResearchContext): boolean {
+    // Check for quality flags in shared knowledge
+    const qualityFlag = context.sharedKnowledge?.qualityFlags?.[agentName];
+    if (qualityFlag === 'insufficient' || qualityFlag === 'retry_recommended') {
+      return true;
+    }
+    
+    // Agent-specific quality checks
+    switch (agentName) {
+      case 'Extractor':
+        // Insufficient if no data extracted
+        return !context.extractedData?.raw || context.extractedData.raw.length === 0;
+        
+      case 'PatternGenerator':
+        // Insufficient if no patterns generated
+        return !context.patterns || context.patterns.length === 0;
+        
+      case 'DataAnalyzer':
+        // Insufficient if no cleaned data
+        return !context.analyzedData?.cleaned || context.analyzedData.cleaned.length === 0;
     }
     
     return false;
@@ -2084,6 +2267,58 @@ Assess based purely on query needs:`;
 
   // Track retry counts to prevent infinite loops
   private agentRetryCount = new Map<string, number>();
+  
+  /**
+   * 🎯 CRITICAL: After DataInspector approves documents, fetch ALL chunks from those documents
+   * DataInspector only needs samples to determine relevance, but downstream agents need complete data
+   */
+  private async expandToFullDocumentChunks(context: ResearchContext): Promise<void> {
+    if (!context.documentAnalysis?.documents || !this.vectorStore) {
+      return;
+    }
+    
+    console.log(`🔍 DataInspector approved ${context.documentAnalysis.documents.length} documents - fetching ALL chunks`);
+    
+    try {
+      const approvedDocumentIds = new Set(
+        context.documentAnalysis.documents.map(doc => doc.documentId)
+      );
+      
+      // Get all chunks from vector store
+      const allChunks = await this.vectorStore.getAllChunks(['userdocs']);
+      
+      // Filter to only chunks from approved documents
+      const approvedChunks = allChunks.filter(chunk => {
+        const chunkDocId = chunk.source || chunk.metadata?.filename || '';
+        return Array.from(approvedDocumentIds).some(docId => 
+          chunkDocId.includes(docId) || docId.includes(chunkDocId)
+        );
+      });
+      
+      if (approvedChunks.length > context.ragResults.chunks.length) {
+        console.log(`📦 Expanded chunks: ${context.ragResults.chunks.length} → ${approvedChunks.length} (${approvedChunks.length - context.ragResults.chunks.length} additional chunks for approved documents)`);
+        
+        // Replace sampled chunks with ALL chunks from approved documents
+        context.ragResults.chunks = approvedChunks.map(chunk => ({
+          id: chunk.id,
+          text: chunk.text,
+          source: chunk.source,
+          similarity: chunk.similarity || 0.8, // Default similarity for non-search results
+          metadata: chunk.metadata,
+          sourceDocument: chunk.source,
+          sourceType: 'rag' as const
+        }));
+        
+        context.ragResults.summary = `Expanded to ${approvedChunks.length} chunks from ${approvedDocumentIds.size} approved documents`;
+      } else {
+        console.log(`✅ No expansion needed: already have ${context.ragResults.chunks.length} chunks`);
+      }
+      
+    } catch (error) {
+      console.warn(`⚠️ Failed to expand chunks:`, error);
+      // Continue with existing chunks if expansion fails
+    }
+  }
   
   // 🗑️ OLD METHODS: No longer needed with Master LLM Orchestrator
 }

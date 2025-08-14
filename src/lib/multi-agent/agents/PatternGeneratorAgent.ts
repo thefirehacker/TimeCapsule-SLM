@@ -66,26 +66,47 @@ export class PatternGeneratorAgent extends BaseAgent {
    * Adds synthesized regex families directly to context.patterns.
    */
   private inducePatternsFromDocument(context: ResearchContext): number {
-    if (!context?.ragResults?.chunks || context.ragResults.chunks.length === 0) return 0;
     if (!context.patterns) context.patterns = [];
 
-    // 1) Harvest numeric hits and window tokens from sampled chunks
-    const chunks = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
-    const numHitRe = /(\d+[\s.:]\d{1,2}|\d+(?:\.\d+)?)/g; // learns dot or space or colon style
+    // First try to use measurements from DataInspector if available
+    const measurements = context.sharedKnowledge?.documentInsights?.measurements as Array<{
+      value: string;
+      leftContext: string;
+      rightContext: string;
+      chunkId: string;
+      sourceDocument?: string;
+    }> | undefined;
     type Hit = { num: string; right: string; left: string };
-    const hits: Hit[] = [];
-    for (const ch of chunks) {
-      const text = ch.text || '';
-      let m: RegExpExecArray | null;
-      numHitRe.lastIndex = 0;
-      while ((m = numHitRe.exec(text)) !== null) {
-        const start = m.index;
-        const end = start + m[0].length;
-        const left = text.slice(Math.max(0, start - 32), start);
-        const right = text.slice(end, Math.min(text.length, end + 32));
-        hits.push({ num: m[0], left, right });
+    let hits: Hit[] = [];
+    
+    if (measurements && measurements.length > 0) {
+      // Use measurements from DataInspector (preferred path)
+      console.log(`🎯 PatternGenerator: Using ${measurements.length} measurements from DataInspector`);
+      hits = measurements.map(m => ({
+        num: m.value,
+        left: m.leftContext,
+        right: m.rightContext
+      }));
+    } else {
+      // Fallback: harvest from chunks directly if DataInspector didn't run
+      if (!context?.ragResults?.chunks || context.ragResults.chunks.length === 0) return 0;
+      
+      const chunks = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
+      const numHitRe = /(\d+[\s.:]\d{1,2}|\d+(?:\.\d+)?)/g;
+      for (const ch of chunks) {
+        const text = ch.text || '';
+        let m: RegExpExecArray | null;
+        numHitRe.lastIndex = 0;
+        while ((m = numHitRe.exec(text)) !== null) {
+          const start = m.index;
+          const end = start + m[0].length;
+          const left = text.slice(Math.max(0, start - 32), start);
+          const right = text.slice(end, Math.min(text.length, end + 32));
+          hits.push({ num: m[0], left, right });
+        }
       }
     }
+    
     if (hits.length === 0) return 0;
 
     // 2) Learn decimal style from evidence

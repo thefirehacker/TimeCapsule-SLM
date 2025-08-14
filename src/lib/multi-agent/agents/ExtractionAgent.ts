@@ -708,10 +708,14 @@ Focus on completeness - capture every relevant data point.`;
         // Current records are always unique
         key = `current_${item.value}_${item.unit}`.toLowerCase();
       } else {
-        // For other items, use more specific deduplication
-        // Include more of the content to avoid over-deduplication
-        const contentKey = item.content.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 50);
-        key = `${contentKey}_${item.value}_${item.unit}`.toLowerCase();
+        // Use full content and context for better deduplication
+        // This preserves evidence while avoiding exact duplicates
+        const fullContent = (item.content || '').toLowerCase().trim();
+        const context = (item.context || '').toLowerCase().trim();
+        const sourceChunk = item.sourceChunkId || '';
+        
+        // Include source and context to distinguish similar values from different contexts
+        key = `${fullContent}_${context}_${sourceChunk}`.substring(0, 200);
       }
       
       const existing = seen.get(key);

@@ -17,7 +17,7 @@ export class DataInspectorAgent extends BaseAgent {
   readonly description = 'Analyzes RAG chunks to understand data structure and quality';
   
   private llm: LLMFunction;
-  private progressCallback?: AgentProgressCallback;
+  protected progressCallback?: AgentProgressCallback;
   
   constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
@@ -71,10 +71,87 @@ export class DataInspectorAgent extends BaseAgent {
       return context;
     }
     
+    // Extract numeric measurements from chunk text before LLM analysis
+    this.extractMeasurementsFromChunks(context);
+    
     // Use LLM to understand the data
     await this.inspectWithLLM(context);
     
     return context;
+  }
+  
+  /**
+   * Extract numeric measurements from chunk text (not LLM reasoning)
+   * Stores raw numeric hits with context windows in sharedKnowledge
+   */
+  private extractMeasurementsFromChunks(context: ResearchContext): void {
+    if (!context.sharedKnowledge) {
+      context.sharedKnowledge = {
+        documentInsights: {},
+        extractionStrategies: {},
+        discoveredPatterns: {},
+        agentFindings: {}
+      };
+    }
+    if (!context.sharedKnowledge.documentInsights) {
+      context.sharedKnowledge.documentInsights = {};
+    }
+    
+    const measurements: Array<{
+      value: string;
+      leftContext: string;
+      rightContext: string;
+      chunkId: string;
+      sourceDocument?: string;
+    }> = [];
+    
+    // Process up to 8 chunks for measurement extraction
+    const chunksToProcess = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
+    
+    // Broad pattern to capture any numeric values - let PatternGenerator decide what's relevant
+    const numericPattern = /(\d+(?:[.:]\d+)?(?:\s+\d{1,2})?|\d+)/g;
+    
+    for (const chunk of chunksToProcess) {
+      const text = chunk.text || '';
+      let match: RegExpExecArray | null;
+      
+      // Reset regex state
+      numericPattern.lastIndex = 0;
+      
+      while ((match = numericPattern.exec(text)) !== null) {
+        const startIdx = match.index;
+        const endIdx = startIdx + match[0].length;
+        
+        // Get larger context windows (approximately 50 chars each side for better pattern learning)
+        const leftStart = Math.max(0, startIdx - 50);
+        const rightEnd = Math.min(text.length, endIdx + 50);
+        
+        const leftContext = text.slice(leftStart, startIdx).trim();
+        const rightContext = text.slice(endIdx, rightEnd).trim();
+        
+        // Strip wrapping punctuation from the value
+        const cleanValue = match[0].replace(/^[^\d]+|[^\d]+$/g, '');
+        
+        // Store all measurements - let pattern learning decide relevance
+        measurements.push({
+          value: cleanValue,
+          leftContext: leftContext.replace(/[[\](){}]/g, ''), // Strip brackets
+          rightContext: rightContext.replace(/[[\](){}]/g, ''),
+          chunkId: chunk.id,
+          sourceDocument: chunk.sourceDocument || chunk.source
+        });
+      }
+    }
+    
+    // Store measurements in sharedKnowledge for downstream agents
+    context.sharedKnowledge.documentInsights.measurements = measurements;
+    
+    console.log(`📊 DataInspector: Extracted ${measurements.length} numeric measurements from document text`);
+    if (measurements.length > 0) {
+      console.log(`📊 Sample measurements:`, measurements.slice(0, 3).map(m => 
+        `"${m.value}" (${m.leftContext}...${m.rightContext})`
+      ));
+    }
   }
   
   private async inspectWithLLM(context: ResearchContext): Promise<void> {
@@ -168,11 +245,11 @@ CRITICAL RULES:
       const response = await this.llm(prompt);
       console.log(`🤖 Multi-document analysis:`, response.substring(0, 300));
       
-      // Update context with multi-document insights
-      await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
+      // Update context with multi-document insights and get relevant documents
+      const relevantDocuments = await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
       
-      // 🎯 INTELLIGENT: Extract query-relevant terms based on Master Orchestrator guidance
-      await this.extractQueryRelevantTerms(context, documentGroups);
+      // 🎯 CRITICAL FIX: Extract query-relevant terms ONLY from relevant documents
+      await this.extractQueryRelevantTerms(context, relevantDocuments);
       
       // Store full response for thinking extraction
       this.setReasoning(response);
@@ -229,6 +306,10 @@ Provide specific, actionable insights that will guide intelligent extraction and
       // Update context with insights
       this.updateContextFromInspection(context, response);
       
+      // 🎯 CRITICAL FIX: Extract query-relevant terms even for single document
+      // Pass the single document group as an array for consistency
+      await this.extractQueryRelevantTerms(context, [documentGroup]);
+      
       // Store full response for thinking extraction
       this.setReasoning(response);
       
@@ -280,7 +361,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
     }
   }
   
-  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<void> {
+  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<any[]> {
     try {
       const documentAnalysis = await this.parseMultiDocumentAnalysis(response, documentGroups, context);
       context.documentAnalysis = documentAnalysis;
@@ -338,6 +419,9 @@ Provide specific, actionable insights that will guide intelligent extraction and
       } else {
         console.log(`✅ DOCUMENT ANALYSIS: All ${documentGroups.length} documents deemed relevant - no filtering applied`);
       }
+      
+      // 🎯 Return relevant document groups for technical term extraction
+      return documentAnalysis.relevantDocumentGroups || [];
       
     } catch (error) {
       console.error('❌ Error parsing multi-document analysis:', error);
@@ -427,7 +511,8 @@ Provide specific, actionable insights that will guide intelligent extraction and
       expectedOutputFormat: 'structured synthesis with proper attribution',
       documents: documents,
       relationships: relationships,
-      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination'
+      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination',
+      relevantDocumentGroups: relevantDocuments  // 🎯 Add relevant document groups for technical extraction
     };
   }
 
@@ -1267,7 +1352,8 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
    */
   private async extractQueryRelevantTerms(context: ResearchContext, documentGroups: any[]): Promise<void> {
     try {
-      console.log(`🔬 DataInspector: Extracting query-relevant terms from ${documentGroups.length} documents for: "${context.query}"`);
+      const docType = documentGroups.length > 1 ? 'RELEVANT documents' : 'document';
+      console.log(`🔬 DataInspector: Extracting query-relevant terms from ${documentGroups.length} ${docType} for: "${context.query}"`);
       
       // 🎯 INTELLIGENT: Build query-aware content sample  
       const contentSample = await this.buildQueryAwareContentSample(context, documentGroups);

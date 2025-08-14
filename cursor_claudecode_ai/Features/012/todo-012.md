@@ -95,11 +95,23 @@ No code changes until approved. This plan is source-agnostic and works for any d
 - Constraint-aware gating on augmented chunks using existing owner/title/domain constraints
 
 16) Planner-Aligned Orchestration & Rerun Policy
-- Evidence gate: block Synthesis until minimal numeric evidence exists (≥2 items). If unmet, route Planner → PatternGenerator → Extractor loop once; else return “insufficient evidence.”
+- Evidence gate: block Synthesis until minimal numeric evidence exists (≥2 items). If unmet, route Planner → PatternGenerator → Extractor loop once; else return "insufficient evidence."
 - Context-aware reruns: permit PatternGenerator/Extractor/DataAnalyzer reruns when input signatures change (patternsHash/chunksHash/measurementsHash) or quality=insufficient; cap at ≤2 cycles.
 - Replace agent-name duplicate check with same-agent-same-input guard.
 - Planner enforcement: when Planner proposes required next steps, validation must defer Synthesis until they complete.
 - Early-stop on no-eligible-next-step to avoid max-iteration churn.
+
+17) PlanningAgent Intelligent Override System (zero hardcoding)
+- Query intent override: detect performance queries ("top N", "best", "fastest") + units ("hours", "tokens/s") → force `expectedAnswerType='performance_ranking'` regardless of DataInspector analysis
+- Entity validation: cross-check DataInspector's "main contribution" against query context; recognize when extracted "methods" are actually people names
+- Strategy correction: when DataInspector misclassifies (e.g., "Keller Jordan" as method instead of person), create corrective categories focusing on actual query targets (time metrics, not names)
+- Document type override: intelligent re-classification when DataInspector analysis conflicts with query evidence (blog vs research paper detection)
+
+18) Chunk Expansion for Downstream Agents (zero hardcoding) 
+- Post-DataInspector expansion: after document approval, fetch ALL chunks from approved documents for downstream processing
+- Sampling efficiency: keep DataInspector's 30% sampling for fast relevance decisions, but provide complete data to PatternGenerator/Extractor
+- Dynamic chunk retrieval: expand from approved document IDs using vectorStore.getAllChunks() with document filtering
+- Backward compatibility: fallback to sampled chunks if expansion fails
 
 ## Simple Checklist
 - Completed
@@ -109,9 +121,11 @@ No code changes until approved. This plan is source-agnostic and works for any d
   - [x] Implement synopsis builder and batched ranking
   - [x] Restore deterministic chunk sampling (≥30% or ≥5) before orchestration
   - [x] Orchestrator guardrail: synthesis requires extraction output
+  - [x] Chunk Expansion for Downstream Agents (Orchestrator.expandToFullDocumentChunks implemented)
 
 - Not Started
   - [x] Align PlanningAgent strategy with context/expectations
+  - [x] PlanningAgent Intelligent Override System (query intent override, entity validation, strategy correction)
   - [ ] Add PatternGenerator RxDB augmentation (capped, constrained)
   - [ ] Deterministic performance pipeline (intent fallback, guaranteed numeric patterns, normalized matching)
   - [ ] Deterministic top-3 reducer in DataAnalysisAgent
@@ -127,3 +141,8 @@ No code changes until approved. This plan is source-agnostic and works for any d
 - In Progress
   - [ ] Evidence-Driven Extraction — PatternGenerator bottom-up induction (implemented); DataAnalysis evidence-triggered ranking (implemented); Synthesis evidence-gate helper (added); DataInspector measurements emit (pending)
   - [ ] Semantic Search Improvements — design captured (probes from learned windows, hybrid, rerank); implementation pending
+
+## Recent Updates (Zero Hardcoding)
+- **Chunk Expansion**: After DataInspector identifies relevant documents, system now fetches ALL chunks from approved documents for downstream agents (PatternGenerator, Extractor) while keeping DataInspector's efficient sampling for relevance decisions
+- **PlanningAgent Override Framework**: Designed intelligent override system where PlanningAgent can correct DataInspector misclassifications (e.g., "Keller Jordan" as method → person) and ensure proper query intent classification (performance ranking vs general info)
+- **Evidence-Driven Pattern Focus**: System now prioritizes numeric measurement patterns over generic text patterns when evidence supports performance queries
