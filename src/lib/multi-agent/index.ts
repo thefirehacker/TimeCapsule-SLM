@@ -19,7 +19,8 @@ import { WebSearchAgent } from './agents/WebSearchAgent';
 import { SynthesisAgent } from './agents/SynthesisAgent';
 import { ResponseFormatterAgent } from './agents/ResponseFormatterAgent';
 // New multi-synthesis agents
-import { DataAnalysisAgent } from './agents/DataAnalysisAgent';
+// BYPASSED: DataAnalysisAgent temporarily disabled due to catastrophic filtering bug
+// import { DataAnalysisAgent } from './agents/DataAnalysisAgent';
 import { SynthesisCoordinator } from './agents/SynthesisCoordinator';
 
 // Core exports
@@ -53,7 +54,8 @@ export { ExtractionAgent } from './agents/ExtractionAgent';
 export { WebSearchAgent } from './agents/WebSearchAgent';
 export { SynthesisAgent } from './agents/SynthesisAgent';
 export { ResponseFormatterAgent } from './agents/ResponseFormatterAgent';
-export { DataAnalysisAgent } from './agents/DataAnalysisAgent';
+// BYPASSED: DataAnalysisAgent temporarily disabled
+// export { DataAnalysisAgent } from './agents/DataAnalysisAgent';
 export { SynthesisCoordinator } from './agents/SynthesisCoordinator';
 
 // Factory function
@@ -67,34 +69,40 @@ export function createMultiAgentSystem(
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
   
-  // Build list of available agents based on configuration
-  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'DataAnalyzer', 'SynthesisCoordinator', 'ResponseFormatter'];
+  // Build list of available agents based on configuration - DataAnalyzer bypassed
+  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'SynthesisCoordinator', 'ResponseFormatter'];
   if (config?.enableWebSearch !== false) {
-    availableAgents.splice(4, 0, 'WebSearchAgent'); // Insert WebSearchAgent before DataAnalyzer
+    availableAgents.splice(4, 0, 'WebSearchAgent'); // Insert WebSearchAgent before SynthesisCoordinator
   }
   
   // Register all agents in new intelligent architecture order
-  registry.register(new QueryPlannerAgent(llm));
+  registry.register(new QueryPlannerAgent(llm, progressCallback));
   registry.register(new DataInspectorAgent(llm, progressCallback)); // Magic document filtering with progress reporting
   registry.register(new PlanningAgent(llm, availableAgents, progressCallback)); // NEW: Intelligent execution strategy with available agents and progress tracking
-  registry.register(new PatternGeneratorAgent(llm, progressCallback));
-  registry.register(new ExtractionAgent(llm));
+  registry.register(new PatternGeneratorAgent(llm, progressCallback, vectorStore));
+  registry.register(new ExtractionAgent(llm, progressCallback));
   
   // Only register WebSearchAgent if web search is enabled
   if (config?.enableWebSearch !== false) { // Default to enabled unless explicitly disabled
-    registry.register(new WebSearchAgent(llm, vectorStore, config)); // Knowledge base expansion with config
-  } else {
-    console.log('🌐 WebSearchAgent disabled by configuration');
+    registry.register(new WebSearchAgent(llm, vectorStore, config, progressCallback)); // Knowledge base expansion with config
   }
+  // Disable configuration logging to prevent spam
+  // console.log('🌐 WebSearchAgent disabled by configuration');
   
-  // Register new multi-synthesis agents
-  registry.register(new DataAnalysisAgent(llm)); // Clean and categorize data
-  registry.register(new SynthesisCoordinator(llm)); // Coordinate synthesis pipeline
+  // Register new multi-synthesis agents - DataAnalysisAgent bypassed
+  // BYPASSED: DataAnalysisAgent due to catastrophic filtering bug that removes all relevant data
+  // registry.register(new DataAnalysisAgent(llm)); // Clean and categorize data
+  registry.register(new SynthesisCoordinator(llm, progressCallback)); // Coordinate synthesis pipeline (works with raw extracted data)
   
   // Keep original SynthesisAgent as fallback for now
-  registry.register(new SynthesisAgent(llm));
+  registry.register(new SynthesisAgent(llm, progressCallback));
   registry.register(new ResponseFormatterAgent(llm, progressCallback)); // Ensure direct question answering with good formatting
   
-  // Create and return orchestrator with progress callback and config
-  return new Orchestrator(registry, messageBus, llm, progressCallback, config);
+  // Create orchestrator with progress callback, config, and vectorStore
+  const orchestrator = new Orchestrator(registry, messageBus, llm, progressCallback, config, vectorStore);
+  
+  // Note: Progress proxy will be initialized when setProgressCallback() is called
+  // This prevents duplicate proxy creation and spam
+  
+  return orchestrator;
 }

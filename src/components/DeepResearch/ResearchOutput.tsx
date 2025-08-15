@@ -102,6 +102,12 @@ interface ResearchOutputProps {
   researchSteps?: ResearchStep[];
   expandedSteps?: Set<string>;
   onStepClick?: (step: ResearchStep) => void;
+  
+  // Agent Rerun Integration
+  onRerunAgent?: (agentName: string) => Promise<void>;
+  
+  // Research Control Integration
+  onStopResearch?: () => void;
 }
 
 // Thinking output component
@@ -615,6 +621,12 @@ export function ResearchOutput({
   researchSteps = [],
   expandedSteps = new Set(),
   onStepClick,
+  
+  // Agent Rerun Integration
+  onRerunAgent,
+  
+  // Research Control Integration
+  onStopResearch,
 }: ResearchOutputProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -951,6 +963,7 @@ export function ResearchOutput({
                     steps={message.researchSteps || researchSteps}
                     isActive={isCurrentMessage && isStreaming}
                     className="mb-6"
+                    onRerunAgent={onRerunAgent}
                   />
                 )}
 
@@ -1089,6 +1102,42 @@ export function ResearchOutput({
                         {message.content}
                       </ReactMarkdown>
                     )}
+                    
+                    {/* Debug Patterns Display */}
+                    {researchResult?.debugInfo?.generatedPatterns && researchResult.debugInfo.generatedPatterns.length > 0 && (
+                      <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            🧪 Generated Regex Patterns ({researchResult.debugInfo.generatedPatterns.length})
+                          </h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigator.clipboard.writeText(
+                              researchResult.debugInfo?.generatedPatterns?.map(p => p.pattern).join('\n') || ''
+                            )}
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy All
+                          </Button>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {researchResult.debugInfo.generatedPatterns.map((pattern, idx) => (
+                            <div key={idx} className="bg-white dark:bg-gray-900 p-2 rounded text-xs">
+                              <div className="font-medium text-blue-600 dark:text-blue-400">
+                                {pattern.description}
+                              </div>
+                              <code className="text-gray-600 dark:text-gray-400 break-all">
+                                {pattern.pattern}
+                              </code>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          💡 Copy these patterns to test in the <a href="/pattern-tester" className="underline text-blue-500">Pattern Tester</a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1160,6 +1209,23 @@ export function ResearchOutput({
 
   return (
     <div className="h-full flex flex-col relative">
+      {/* Compact, harmonized research status bar */}
+      {(isIntelligentResearching || isGenerating) && (
+        <div className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur-sm">
+          <div className="px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex w-2 h-2 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none" />
+              <span className="text-xs font-medium text-muted-foreground">
+                {isIntelligentResearching ? "Analyzing" : "Streaming output"}
+              </span>
+            </div>
+            <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="h-full w-2/3 bg-primary/70 animate-pulse motion-reduce:animate-none" />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Chat Messages Area */}
       <div className="flex-1 relative overflow-hidden">
         <div

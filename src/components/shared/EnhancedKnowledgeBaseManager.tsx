@@ -135,15 +135,23 @@ export function EnhancedKnowledgeBaseManager({
   description = "Advanced document management with grouping, deduplication, and bulk operations.",
   showDuplicates = true,
   enableBulkActions = true,
-  className
+  className,
 }: EnhancedKnowledgeBaseManagerProps) {
   const [activeTab, setActiveTab] = useState(tabConfigs[0]?.id || "");
-  const [expandedDocuments, setExpandedDocuments] = useState<Set<string>>(new Set());
-  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [expandedDocuments, setExpandedDocuments] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(
+    new Set()
+  );
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<'date' | 'name' | 'size' | 'type'>('date');
+  const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "type">(
+    "date"
+  );
   const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false);
-  const [groupBy, setGroupBy] = useState<'none' | 'domain' | 'type' | 'date'>('none');
+  const [groupBy, setGroupBy] = useState<"none" | "domain" | "type" | "date">(
+    "none"
+  );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   // Enhanced duplicate detection
@@ -153,15 +161,17 @@ export function EnhancedKnowledgeBaseManager({
       const seen = new Set<string>();
       const duplicates = new Set<string>();
 
-      docs.forEach(doc => {
+      docs.forEach((doc) => {
         // Create a signature based on title, content length, and type
         const signature = `${doc.title.toLowerCase().trim()}_${doc.content.length}_${doc.metadata.filetype}`;
-        
+
         if (seen.has(signature)) {
           // Mark both original and current as duplicates
           if (!duplicateMap[signature]) {
-            const original = docs.find(d => 
-              `${d.title.toLowerCase().trim()}_${d.content.length}_${d.metadata.filetype}` === signature
+            const original = docs.find(
+              (d) =>
+                `${d.title.toLowerCase().trim()}_${d.content.length}_${d.metadata.filetype}` ===
+                signature
             );
             if (original) {
               duplicateMap[signature] = [original];
@@ -181,34 +191,38 @@ export function EnhancedKnowledgeBaseManager({
 
   // Smart document grouping
   const getSmartGroups = (docs: Document[]) => {
-    if (groupBy === 'none') return { 'All Documents': docs };
+    if (groupBy === "none") return { "All Documents": docs };
 
     const groups: Record<string, Document[]> = {};
-    
-    docs.forEach(doc => {
-      let groupKey = 'Other';
-      
+
+    docs.forEach((doc) => {
+      let groupKey = "Other";
+
       switch (groupBy) {
-        case 'domain':
+        case "domain":
           if (doc.metadata.url) {
             try {
               groupKey = new URL(doc.metadata.url).hostname;
             } catch {
-              groupKey = doc.metadata.domain || 'Unknown Domain';
+              groupKey = doc.metadata.domain || "Unknown Domain";
             }
           } else {
-            groupKey = 'Local Documents';
+            groupKey = "Local Documents";
           }
           break;
-        case 'type':
-          groupKey = doc.metadata.documentType || doc.metadata.source || 'Unknown';
+        case "type":
+          groupKey =
+            doc.metadata.documentType || doc.metadata.source || "Unknown";
           break;
-        case 'date':
+        case "date":
           const date = new Date(doc.metadata.uploadedAt);
-          groupKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          groupKey = date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+          });
           break;
       }
-      
+
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push(doc);
     });
@@ -219,81 +233,97 @@ export function EnhancedKnowledgeBaseManager({
   // Enhanced document filtering and grouping
   const getProcessedDocuments = useMemo(() => {
     const grouped: Record<string, any> = {};
-    
-    tabConfigs.forEach(config => {
+
+    tabConfigs.forEach((config) => {
       let docs = documents.filter(config.filter);
-      
+
       // Apply search filter
       if (searchTerm) {
-        docs = docs.filter(doc =>
-          doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.metadata.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.metadata.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        docs = docs.filter(
+          (doc) =>
+            doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doc.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doc.metadata.filename
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            doc.metadata.description
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase())
         );
       }
-      
+
       // Apply duplicate filter
       if (showOnlyDuplicates) {
         const { duplicates } = detectDuplicates(docs);
-        docs = docs.filter(doc => duplicates.has(doc.id));
+        docs = docs.filter((doc) => duplicates.has(doc.id));
       }
-      
+
       // Apply sorting
       docs = docs.sort((a, b) => {
         switch (sortBy) {
-          case 'date':
-            return new Date(b.metadata.uploadedAt).getTime() - new Date(a.metadata.uploadedAt).getTime();
-          case 'name':
+          case "date":
+            return (
+              new Date(b.metadata.uploadedAt).getTime() -
+              new Date(a.metadata.uploadedAt).getTime()
+            );
+          case "name":
             return a.title.localeCompare(b.title);
-          case 'size':
+          case "size":
             return b.metadata.filesize - a.metadata.filesize;
-          case 'type':
+          case "type":
             return a.metadata.filetype.localeCompare(b.metadata.filetype);
           default:
             return 0;
         }
       });
-      
+
       // Apply grouping
       const smartGroups = getSmartGroups(docs);
-      
+
       // Calculate duplicates for this tab
       const { duplicates, duplicateMap } = detectDuplicates(docs);
-      
+
       grouped[config.id] = {
         documents: docs,
         groups: smartGroups,
         duplicateInfo: { duplicates, duplicateMap },
         counts: {
           total: docs.length,
-          duplicates: duplicates.size
-        }
+          duplicates: duplicates.size,
+        },
       };
     });
 
     return grouped;
-  }, [documents, tabConfigs, searchTerm, showOnlyDuplicates, sortBy, groupBy, detectDuplicates]);
+  }, [
+    documents,
+    tabConfigs,
+    searchTerm,
+    showOnlyDuplicates,
+    sortBy,
+    groupBy,
+    detectDuplicates,
+  ]);
 
   // Get duplicate info for a specific document
   const getDuplicateInfo = (doc: Document, tabData: any): DuplicateInfo => {
     const signature = `${doc.title.toLowerCase().trim()}_${doc.content.length}_${doc.metadata.filetype}`;
     const duplicateGroup = tabData.duplicateInfo.duplicateMap[signature];
-    
+
     if (duplicateGroup && duplicateGroup.length > 1) {
       return {
         isDuplicate: true,
         count: duplicateGroup.length,
-        group: duplicateGroup
+        group: duplicateGroup,
       };
     }
-    
+
     return { isDuplicate: false, count: 1, group: [doc] };
   };
 
   // Bulk selection handlers
   const toggleDocumentSelection = (docId: string) => {
-    setSelectedDocuments(prev => {
+    setSelectedDocuments((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(docId)) {
         newSet.delete(docId);
@@ -305,7 +335,7 @@ export function EnhancedKnowledgeBaseManager({
   };
 
   const selectAllDocuments = (docs: Document[]) => {
-    const allIds = docs.map(doc => doc.id);
+    const allIds = docs.map((doc) => doc.id);
     setSelectedDocuments(new Set(allIds));
   };
 
@@ -314,7 +344,7 @@ export function EnhancedKnowledgeBaseManager({
   };
 
   const toggleGroupExpansion = (groupKey: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(groupKey)) {
         newSet.delete(groupKey);
@@ -327,7 +357,7 @@ export function EnhancedKnowledgeBaseManager({
 
   // Document expansion handler
   const toggleDocumentExpansion = (docId: string) => {
-    setExpandedDocuments(prev => {
+    setExpandedDocuments((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(docId)) {
         newSet.delete(docId);
@@ -352,9 +382,9 @@ export function EnhancedKnowledgeBaseManager({
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
+
+    if (diffDays === 1) return "Today";
+    if (diffDays === 2) return "Yesterday";
     if (diffDays <= 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
@@ -362,7 +392,7 @@ export function EnhancedKnowledgeBaseManager({
   const getSourceIcon = (doc: Document) => {
     if (doc.metadata.url) return Globe;
     if (doc.metadata.isGenerated) return Bot;
-    if (doc.metadata.source === 'upload') return FileText;
+    if (doc.metadata.source === "upload") return FileText;
     return FileText;
   };
 
@@ -372,13 +402,18 @@ export function EnhancedKnowledgeBaseManager({
   const renderDocumentCard = (doc: Document, tabData: any) => {
     const duplicateInfo = getDuplicateInfo(doc, tabData);
     const SourceIcon = getSourceIcon(doc);
-    
+
     return (
-      <Card key={doc.id} className={cn(
-        "border-border transition-all",
-        selectedDocuments.has(doc.id) && "ring-2 ring-primary",
-        duplicateInfo.isDuplicate && showDuplicates && "border-yellow-300 bg-yellow-50/50"
-      )}>
+      <Card
+        key={doc.id}
+        className={cn(
+          "border-border transition-all",
+          selectedDocuments.has(doc.id) && "ring-2 ring-primary",
+          duplicateInfo.isDuplicate &&
+            showDuplicates &&
+            "border-yellow-300 bg-yellow-50/50"
+        )}
+      >
         <CardContent className="p-4">
           <div className="space-y-3">
             {/* Document Header */}
@@ -392,7 +427,7 @@ export function EnhancedKnowledgeBaseManager({
                     className="mt-1"
                   />
                 )}
-                
+
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-center gap-2">
                     <SourceIcon className="w-4 h-4 text-muted-foreground" />
@@ -410,7 +445,7 @@ export function EnhancedKnowledgeBaseManager({
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <span>{doc.metadata.filetype}</span>
                     <span>•</span>
@@ -429,7 +464,7 @@ export function EnhancedKnowledgeBaseManager({
                       {doc.metadata.description}
                     </p>
                   )}
-                  
+
                   {doc.metadata.searchQuery && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Search className="w-3 h-3" />
@@ -448,34 +483,79 @@ export function EnhancedKnowledgeBaseManager({
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
                       <MoreVertical className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {
-                      const blob = new Blob([doc.content], { type: "text/plain" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = doc.title || "document.txt";
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const hasChunks = doc.chunks && doc.chunks.length > 0;
+                        const safeTitle = (doc.title || "document").replace(
+                          /[^\w\-]+/g,
+                          "_"
+                        );
+                        const header =
+                          `Document: ${doc.title}\n` +
+                          `Filename: ${doc.metadata.filename}\n` +
+                          `Type: ${doc.metadata.filetype}\n` +
+                          `Size: ${formatFileSize(doc.metadata.filesize)}\n` +
+                          `Uploaded: ${new Date(doc.metadata.uploadedAt).toLocaleString()}\n` +
+                          `Source: ${doc.metadata.source}\n` +
+                          `Total Chunks: ${doc.chunks?.length || 0}\n\n`;
+                        let exportText = header;
+                        if (hasChunks) {
+                          exportText += "=== CHUNKS (detailed) ===\n";
+                          const chunks = [...(doc.chunks as any[])].sort(
+                            (a, b) => a.startIndex - b.startIndex
+                          );
+                          chunks.forEach((chunk, index) => {
+                            exportText +=
+                              `\n--- Chunk ${index + 1} ---\n` +
+                              `ID: ${chunk.id}\n` +
+                              `Position: ${chunk.startIndex}-${chunk.endIndex}\n` +
+                              `Length: ${chunk.content.length} characters\n\n` +
+                              `${chunk.content}\n`;
+                          });
+                        } else {
+                          exportText +=
+                            "=== FULL CONTENT ===\n\n" + doc.content;
+                        }
+                        const blob = new Blob([exportText], {
+                          type: "text/plain",
+                        });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = hasChunks
+                          ? `${safeTitle}-chunks.txt`
+                          : `${safeTitle}.txt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Download
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={async () => {
-                      await navigator.clipboard.writeText(doc.content);
-                    }}>
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(doc.content);
+                      }}
+                    >
                       <Copy className="w-4 h-4 mr-2" />
                       Copy Content
                     </DropdownMenuItem>
                     {doc.metadata.url && (
-                      <DropdownMenuItem onClick={() => window.open(doc.metadata.url, '_blank')}>
+                      <DropdownMenuItem
+                        onClick={() => window.open(doc.metadata.url, "_blank")}
+                      >
                         <Globe className="w-4 h-4 mr-2" />
                         Open Source
                       </DropdownMenuItem>
@@ -498,7 +578,9 @@ export function EnhancedKnowledgeBaseManager({
               <div className="border-t pt-3 space-y-3">
                 {/* Content Preview */}
                 <div className="bg-muted/30 rounded-lg p-3">
-                  <div className="text-sm font-medium mb-2">Content Preview</div>
+                  <div className="text-sm font-medium mb-2">
+                    Content Preview
+                  </div>
                   <div className="text-sm text-muted-foreground max-h-32 overflow-y-auto">
                     {doc.content.length > 500
                       ? `${doc.content.substring(0, 500)}...`
@@ -568,7 +650,9 @@ export function EnhancedKnowledgeBaseManager({
                 {title}
               </CardTitle>
               {description && (
-                <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {description}
+                </p>
               )}
             </div>
           </div>
@@ -590,7 +674,9 @@ export function EnhancedKnowledgeBaseManager({
                 <Hash className="w-4 h-4 text-blue-500" />
               </div>
               <div>
-                <p className="text-lg font-semibold">{documentStatus.totalChunks}</p>
+                <p className="text-lg font-semibold">
+                  {documentStatus.totalChunks}
+                </p>
                 <p className="text-xs text-muted-foreground">Total Chunks</p>
               </div>
             </div>
@@ -599,7 +685,9 @@ export function EnhancedKnowledgeBaseManager({
                 <HardDrive className="w-4 h-4 text-green-500" />
               </div>
               <div>
-                <p className="text-lg font-semibold">{formatFileSize(documentStatus.totalSize)}</p>
+                <p className="text-lg font-semibold">
+                  {formatFileSize(documentStatus.totalSize)}
+                </p>
                 <p className="text-xs text-muted-foreground">Total Size</p>
               </div>
             </div>
@@ -609,7 +697,10 @@ export function EnhancedKnowledgeBaseManager({
               </div>
               <div>
                 <p className="text-lg font-semibold">
-                  {Object.values(getProcessedDocuments).reduce((acc, tab: any) => acc + tab.counts.duplicates, 0)}
+                  {Object.values(getProcessedDocuments).reduce(
+                    (acc, tab: any) => acc + tab.counts.duplicates,
+                    0
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">Duplicates</p>
               </div>
@@ -627,7 +718,7 @@ export function EnhancedKnowledgeBaseManager({
                 className="pl-10"
               />
             </div>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -636,19 +727,19 @@ export function EnhancedKnowledgeBaseManager({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setSortBy('date')}>
+                <DropdownMenuItem onClick={() => setSortBy("date")}>
                   <Calendar className="w-4 h-4 mr-2" />
                   Date
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('name')}>
+                <DropdownMenuItem onClick={() => setSortBy("name")}>
                   <FileText className="w-4 h-4 mr-2" />
                   Name
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('size')}>
+                <DropdownMenuItem onClick={() => setSortBy("size")}>
                   <HardDrive className="w-4 h-4 mr-2" />
                   Size
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('type')}>
+                <DropdownMenuItem onClick={() => setSortBy("type")}>
                   <Package className="w-4 h-4 mr-2" />
                   Type
                 </DropdownMenuItem>
@@ -663,18 +754,18 @@ export function EnhancedKnowledgeBaseManager({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setGroupBy('none')}>
+                <DropdownMenuItem onClick={() => setGroupBy("none")}>
                   None
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setGroupBy('domain')}>
+                <DropdownMenuItem onClick={() => setGroupBy("domain")}>
                   <Globe className="w-4 h-4 mr-2" />
                   Domain
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setGroupBy('type')}>
+                <DropdownMenuItem onClick={() => setGroupBy("type")}>
                   <Package className="w-4 h-4 mr-2" />
                   Type
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setGroupBy('date')}>
+                <DropdownMenuItem onClick={() => setGroupBy("date")}>
                   <Calendar className="w-4 h-4 mr-2" />
                   Date
                 </DropdownMenuItem>
@@ -720,7 +811,8 @@ export function EnhancedKnowledgeBaseManager({
                 <div className="flex items-center gap-2">
                   <CheckSquare className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">
-                    {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
+                    {selectedDocuments.size} document
+                    {selectedDocuments.size > 1 ? "s" : ""} selected
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -750,11 +842,7 @@ export function EnhancedKnowledgeBaseManager({
                       Merge Selected
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={clearSelection}
-                  >
+                  <Button size="sm" variant="ghost" onClick={clearSelection}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
@@ -765,7 +853,11 @@ export function EnhancedKnowledgeBaseManager({
       </Card>
 
       {/* Enhanced Tabbed Interface */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 flex flex-col"
+      >
         <TabsList className={`grid w-full grid-cols-${tabConfigs.length} mb-4`}>
           {tabConfigs.map((config) => {
             const IconComponent = config.icon;
@@ -792,9 +884,13 @@ export function EnhancedKnowledgeBaseManager({
         {tabConfigs.map((config) => {
           const tabData = getProcessedDocuments[config.id];
           const groups = tabData?.groups || {};
-          
+
           return (
-            <TabsContent key={config.id} value={config.id} className="flex-1 mt-0">
+            <TabsContent
+              key={config.id}
+              value={config.id}
+              className="flex-1 mt-0"
+            >
               <ScrollArea className="h-[60vh]">
                 <div className="space-y-4">
                   {isUploading && config.id === tabConfigs[0]?.id && (
@@ -808,61 +904,72 @@ export function EnhancedKnowledgeBaseManager({
                       </CardContent>
                     </Card>
                   )}
-                  
+
                   {Object.keys(groups).length === 0 ? (
                     <Card>
                       <CardContent className="flex flex-col items-center justify-center py-12">
                         <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p className="font-medium">No {config.label.toLowerCase()} found</p>
+                        <p className="font-medium">
+                          No {config.label.toLowerCase()} found
+                        </p>
                         <p className="text-sm text-muted-foreground text-center">
-                          {searchTerm ? 
-                            `No documents match "${searchTerm}"` :
-                            showOnlyDuplicates ?
-                              "No duplicate documents found" :
-                              `Upload files to add ${config.label.toLowerCase()}`
-                          }
+                          {searchTerm
+                            ? `No documents match "${searchTerm}"`
+                            : showOnlyDuplicates
+                              ? "No duplicate documents found"
+                              : `Upload files to add ${config.label.toLowerCase()}`}
                         </p>
                       </CardContent>
                     </Card>
                   ) : (
                     Object.entries(groups).map(([groupKey, groupDocs]) => (
                       <div key={groupKey}>
-                        {groupBy !== 'none' && (
+                        {groupBy !== "none" && (
                           <div className="mb-3">
                             <Button
                               variant="ghost"
                               onClick={() => toggleGroupExpansion(groupKey)}
                               className="flex items-center gap-2 p-2 h-auto font-medium"
                             >
-                              <ChevronDown className={cn(
-                                "w-4 h-4 transition-transform",
-                                !expandedGroups.has(groupKey) && "-rotate-90"
-                              )} />
+                              <ChevronDown
+                                className={cn(
+                                  "w-4 h-4 transition-transform",
+                                  !expandedGroups.has(groupKey) && "-rotate-90"
+                                )}
+                              />
                               <span>{groupKey}</span>
                               <Badge variant="secondary" className="ml-auto">
                                 {groupDocs.length}
                               </Badge>
                             </Button>
-                            {groupBy !== 'none' && !expandedGroups.has(groupKey) && (
-                              <Separator className="mt-2" />
-                            )}
+                            {groupBy !== "none" &&
+                              !expandedGroups.has(groupKey) && (
+                                <Separator className="mt-2" />
+                              )}
                           </div>
                         )}
-                        
-                        {(groupBy === 'none' || expandedGroups.has(groupKey)) && (
+
+                        {(groupBy === "none" ||
+                          expandedGroups.has(groupKey)) && (
                           <div className="space-y-3 mb-6">
-                            {enableBulkActions && groupBy !== 'none' && groupDocs.length > 1 && (
-                              <div className="flex items-center gap-2 pl-6">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => selectAllDocuments(groupDocs)}
-                                >
-                                  Select All in Group
-                                </Button>
-                              </div>
+                            {enableBulkActions &&
+                              groupBy !== "none" &&
+                              groupDocs.length > 1 && (
+                                <div className="flex items-center gap-2 pl-6">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      selectAllDocuments(groupDocs)
+                                    }
+                                  >
+                                    Select All in Group
+                                  </Button>
+                                </div>
+                              )}
+                            {groupDocs.map((doc: Document) =>
+                              renderDocumentCard(doc, tabData)
                             )}
-                            {groupDocs.map((doc: Document) => renderDocumentCard(doc, tabData))}
                           </div>
                         )}
                       </div>

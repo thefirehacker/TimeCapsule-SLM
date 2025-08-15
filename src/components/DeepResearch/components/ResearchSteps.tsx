@@ -122,8 +122,10 @@ export interface SourceReference {
   similarity?: number;
   relevance?: number;
   excerpt: string;
+  snippet?: string; // Alternative to excerpt for Master Orchestrator compatibility
   chunkId?: string;
   url?: string;
+  sourceType?: 'document' | 'web' | 'chunk'; // For DataInspector compatibility
   // Enhanced for multi-agent system: full chunk content from RxDB
   fullContent?: string; // Complete chunk content for multi-agent processing
   metadata?: {
@@ -145,6 +147,7 @@ interface ResearchStepsProps {
   expandedSteps: Set<string>;
   className?: string;
   fullScreenMode?: boolean;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
 /**
@@ -155,10 +158,15 @@ export function ResearchSteps({
   onStepClick, 
   expandedSteps, 
   className = "",
-  fullScreenMode = false
+  fullScreenMode = false,
+  onRerunAgent
 }: ResearchStepsProps) {
   const completedSteps = steps.filter(step => step.status === 'completed').length;
   const totalSteps = steps.length;
+  const hasInProgress = steps.some(step => step.status === 'in_progress');
+  const allCompleted = totalSteps > 0 && steps.every(step => step.status === 'completed');
+  const statusLabel = hasInProgress ? 'Analyzing' : allCompleted ? 'Complete' : 'Idle';
+  const dotClass = hasInProgress ? 'bg-emerald-500' : allCompleted ? 'bg-blue-500' : 'bg-muted-foreground';
   
   if (steps.length === 0) {
     return null;
@@ -166,14 +174,19 @@ export function ResearchSteps({
   
   return (
     <Card className={`research-steps h-full flex flex-col ${className} ${fullScreenMode ? 'border-0 shadow-none bg-transparent' : ''}`}>
-      <CardHeader className={`${fullScreenMode ? 'pb-6 pt-2' : 'pb-3'} flex-shrink-0`}>
+      <CardHeader className={`${fullScreenMode ? 'pb-6 pt-2' : 'pb-3'} flex-shrink-0 bg-gradient-to-r from-indigo-50 to-white border-b` }>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-blue-500" />
             <h3 className="text-sm font-medium">Research Process</h3>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted/50">
+              <span className={`inline-flex w-1.5 h-1.5 rounded-full ${dotClass} ${hasInProgress ? 'animate-pulse' : ''}`} />
+              {statusLabel}
+            </span>
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <span className="inline-flex w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {completedSteps}/{totalSteps} steps
             </Badge>
             {totalSteps > 0 && (
@@ -201,6 +214,7 @@ export function ResearchSteps({
                   index={index}
                   isExpanded={expandedSteps.has(step.id)}
                   onToggle={() => onStepClick(step)}
+                  onRerunAgent={onRerunAgent}
                 />
               ))}
           </div>
@@ -218,9 +232,10 @@ interface StepCardProps {
   index: number;
   isExpanded: boolean;
   onToggle: () => void;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
-function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) {
+function ResearchStepCard({ step, index, isExpanded, onToggle, onRerunAgent }: StepCardProps) {
   const getStepIcon = (type: string, status: string) => {
     const iconProps = { className: "w-4 h-4" };
     
@@ -287,7 +302,12 @@ function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) 
       'border-gray-200'
     }`}>
       <CardHeader 
-        className="pb-2 cursor-pointer hover:bg-gray-50/50 transition-colors"
+        className={`pb-2 cursor-pointer transition-colors ${
+          step.status === 'completed' ? 'hover:bg-green-50/50' :
+          step.status === 'failed' ? 'hover:bg-red-50/50' :
+          step.status === 'in_progress' ? 'hover:bg-blue-50/50' :
+          'hover:bg-gray-50/50'
+        }`}
         onClick={onToggle}
       >
         <div className="flex items-center justify-between">
@@ -328,7 +348,7 @@ function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) 
       
       {isExpanded && (
         <CardContent className="pt-0 pb-3">
-          <ResearchStepDetails step={step} />
+          <ResearchStepDetails step={step} onRerunAgent={onRerunAgent} />
         </CardContent>
       )}
     </Card>
@@ -340,9 +360,10 @@ function ResearchStepCard({ step, index, isExpanded, onToggle }: StepCardProps) 
  */
 interface StepDetailsProps {
   step: ResearchStep;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
-function ResearchStepDetails({ step }: StepDetailsProps) {
+function ResearchStepDetails({ step, onRerunAgent }: StepDetailsProps) {
   return (
     <div className="space-y-3 text-sm">
       {/* Reasoning */}
@@ -418,8 +439,9 @@ function ResearchStepDetails({ step }: StepDetailsProps) {
         <div className="border-t border-border/50 pt-3 mt-3">
           <AgentSubSteps 
             subSteps={step.subSteps}
-            isExpanded={false}
+            isExpanded={step.status === 'completed' || step.status === 'failed'}
             className="bg-background/50 rounded-lg p-3"
+            onRerunAgent={onRerunAgent}
           />
         </div>
       )}
@@ -528,9 +550,37 @@ export function useResearchSteps() {
   }, []);
   
   const updateStep = React.useCallback((stepId: string, updates: Partial<ResearchStep>) => {
-    setSteps(prev => prev.map(step => 
-      step.id === stepId ? { ...step, ...updates } : step
-    ));
+    setSteps(prev => prev.map(step => {
+      if (step.id !== stepId) return step;
+
+      const merged: ResearchStep = { ...step, ...updates } as ResearchStep;
+
+      // Deep-merge subSteps and progressHistory so verbose output is not lost
+      if (step.subSteps || updates.subSteps) {
+        const existingMap = new Map<string, any>();
+        (step.subSteps || []).forEach(s => existingMap.set(s.id, { ...s }));
+        (updates.subSteps || []).forEach(su => {
+          const ex = existingMap.get(su.id) || {};
+          // merge progress history
+          const existingPH = ex.progressHistory || [];
+          const updatePH = su.progressHistory || [];
+          const phKey = (e: any) => `${e.timestamp}-${e.stage}-${e.progress}`;
+          const phMap = new Map(existingPH.map((e: any) => [phKey(e), e]));
+          updatePH.forEach((e: any) => phMap.set(phKey(e), e));
+          const mergedPH = Array.from(phMap.values()).sort((a: any, b: any) => a.timestamp - b.timestamp);
+
+          existingMap.set(su.id, {
+            ...ex,
+            ...su,
+            progressHistory: mergedPH,
+          });
+        });
+        // carry over untouched existing substeps
+        merged.subSteps = Array.from(existingMap.values());
+      }
+
+      return merged;
+    }));
   }, []);
   
   const clearSteps = React.useCallback(() => {

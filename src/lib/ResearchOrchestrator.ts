@@ -8,13 +8,14 @@
  * and executes it step by step with full transparency.
  */
 
-import { QueryIntelligenceService, QueryAnalysis } from './QueryIntelligenceService';
+import { QueryIntelligenceService, QueryAnalysis, QueryUtils } from './QueryIntelligenceService';
 import { ResearchStep, SourceReference, ResearchStepUtils } from '@/components/DeepResearch/components/ResearchSteps';
 import { VectorStore, SearchResult } from '@/components/VectorStore/VectorStore';
 import { UnifiedWebSearchService, UnifiedWebSearchContext } from './UnifiedWebSearchService';
 import { createMultiAgentSystem } from './multi-agent';
 import { AgentProgressCallback, AgentProgressTracker } from './multi-agent/interfaces/AgentProgress';
 import { AgentSubStep } from '@/components/DeepResearch/components/ResearchSteps';
+import type { QueryConstraints } from './multi-agent/interfaces/Context';
 
 export interface ResearchConfig {
   maxSteps: number;
@@ -38,6 +39,16 @@ export interface ResearchResult {
     webSearches: number;
     sourcesFound: number;
     avgSimilarity: number;
+  };
+  // Debug information for pattern testing
+  debugInfo?: {
+    generatedPatterns?: {
+      description: string;
+      pattern: string;
+      category: string;
+    }[];
+    extractedItems?: any[];
+    multiAgentContext?: any;
   };
 }
 
@@ -68,6 +79,154 @@ export class ResearchOrchestrator {
   // Multi-agent progress tracking
   private currentAgentSubSteps: AgentSubStep[] = [];
   private currentSynthesisStep: ResearchStep | null = null;
+  private lastMultiAgentContext: any = null;
+  
+  // Simple in-memory cache for synopses and rankings
+  private synopsisCache: Map<string, { synopsis: string; updatedAt: number }> = new Map();
+  private rankingCache: Map<string, { rankedIds: string[]; updatedAt: number }> = new Map();
+
+  private buildDocumentSynopsis(doc: SourceReference, maxSentences: number = 3): string {
+    const title = (doc.title || '').trim();
+    const filename = (doc.metadata as any)?.filename || doc.source || '';
+    const chunkInfo = (doc.metadata as any)?.chunkCount ? `${(doc.metadata as any)?.chunkCount} chunks` : '';
+    const firstPart = doc.excerpt || doc.fullContent || '';
+    const sentences = firstPart
+      .replace(/\s+/g, ' ')
+      .split(/(?<=[.!?])\s+/)
+      .slice(0, maxSentences)
+      .join(' ');
+    return [title || filename, chunkInfo, sentences].filter(Boolean).join(' — ');
+  }
+
+  /**
+   * Fetch full documents for selected sources and sample chunks deterministically
+   * - percentage: fraction of chunks to keep (0-1)
+   * - minKeep: minimum number of chunks per document
+   */
+  private async fetchAndSampleChunks(
+    sources: SourceReference[],
+    percentage: number = 0.3,
+    minKeep: number = 5
+  ): Promise<SourceReference[]> {
+    if (!this.vectorStore) return [];
+
+    const chunkSources: SourceReference[] = [];
+
+    for (const src of sources) {
+      const docId = (src.metadata as any)?.documentId || src.id || '';
+      if (!docId) continue;
+      const doc = await this.vectorStore.getDocument(docId);
+      if (!doc || !doc.chunks || doc.chunks.length === 0) continue;
+
+      const total = doc.chunks.length;
+      const keepCount = Math.max(minKeep, Math.ceil(total * Math.max(0, Math.min(1, percentage))));
+
+      // Evenly spaced sampling across the document
+      const step = Math.max(1, Math.floor(total / keepCount));
+      const indices: number[] = [];
+      for (let i = 0; i < total && indices.length < keepCount; i += step) indices.push(i);
+
+      for (const idx of indices) {
+        const ch = doc.chunks[idx];
+        chunkSources.push({
+          id: ch.id,
+          type: 'chunk',
+          title: doc.title,
+          source: (doc.metadata as any)?.filename || doc.title,
+          similarity: 1.0,
+          excerpt: ch.content.substring(0, 240),
+          fullContent: ch.content,
+          chunkId: ch.id,
+          metadata: {
+            ...doc.metadata,
+            // Preserve only fields known to UI SourceReference metadata
+            filename: doc.metadata?.filename,
+            uploadedAt: doc.metadata?.uploadedAt,
+            description: doc.metadata?.description,
+            // Extra fields are carried in chunk context, not metadata type
+          }
+        });
+      }
+    }
+
+    return chunkSources;
+  }
+
+  private async rankDocumentsWithLLM(query: string, synopses: { id: string; synopsis: string }[]): Promise<string[]> {
+    if (!this.generateContent) {
+      throw new Error('LLM not configured for ranking');
+    }
+    const prompt = `/no_think
+Given the user query, rank the following document synopses from most likely to answer the query to least. Return a JSON array of document IDs in order.
+
+Query: ${JSON.stringify(query)}
+
+Docs:
+${synopses.map(s => `- ${s.id}: ${s.synopsis}`).join('\n')}
+
+Return: ["docId1", "docId2", ...]`;
+    const resp = await this.generateContent(prompt);
+    const json = this.extractJSONArray(resp) || resp;
+    try {
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) return parsed.filter(id => typeof id === 'string');
+      throw new Error('Ranking response is not an array');
+    } catch (e) {
+      throw new Error('Failed to parse ranking response');
+    }
+  }
+
+  private getSynopsisCacheKey(doc: SourceReference, query: string): string {
+    const docId = doc.id || (doc.metadata as any)?.documentId || doc.source || 'unknown';
+    const qh = QueryUtils.hashQuery(query);
+    return `${docId}::${qh}`;
+  }
+
+  private async applySynopsisRanking(query: string, sources: SourceReference[], topK: number = 1): Promise<SourceReference[]> {
+    if (sources.length <= topK) return sources;
+    // Build or reuse synopses
+    const synopses: { id: string; synopsis: string }[] = sources.map(doc => {
+      const key = this.getSynopsisCacheKey(doc, query);
+      let entry = this.synopsisCache.get(key);
+      if (!entry) {
+        entry = { synopsis: this.buildDocumentSynopsis(doc), updatedAt: Date.now() };
+        this.synopsisCache.set(key, entry);
+      }
+      const id = doc.id || (doc.metadata as any)?.documentId || doc.source || 'unknown';
+      return { id, synopsis: entry.synopsis };
+    });
+
+    // Cached ranking
+    const rankingKey = synopses.map(s => s.id).join('|') + '::' + QueryUtils.hashQuery(query);
+    let rankedIds: string[] | null = null;
+    const cachedRanking = this.rankingCache.get(rankingKey);
+    if (cachedRanking && Date.now() - cachedRanking.updatedAt < 10 * 60 * 1000) {
+      rankedIds = cachedRanking.rankedIds;
+    }
+
+    if (!rankedIds) {
+      rankedIds = await this.rankDocumentsWithLLM(query, synopses);
+      this.rankingCache.set(rankingKey, { rankedIds, updatedAt: Date.now() });
+    }
+
+    const idToSource = new Map<string, SourceReference>();
+    sources.forEach(s => {
+      const id = s.id || (s.metadata as any)?.documentId || s.source || 'unknown';
+      idToSource.set(id, s);
+    });
+
+    const selected: SourceReference[] = [];
+    for (const id of rankedIds) {
+      const src = idToSource.get(id);
+      if (src) selected.push(src);
+      if (selected.length >= topK) break;
+    }
+
+    if (selected.length === 0) {
+      throw new Error('Ranking produced no selectable documents');
+    }
+    return selected;
+  }
   
   constructor(
     vectorStore: VectorStore | null,
@@ -132,9 +291,30 @@ export class ResearchOrchestrator {
               ...doc.metadata
             }
           }));
+
+          // 🎯 Deterministic prefilter by query constraints (no LLM)
+          let sourcesToUse = quickSources;
+          try {
+            const constraints = await this.queryIntelligence.extractQueryConstraints(query);
+            const filtered = this.applyDeterministicPrefilter(quickSources, constraints);
+            if (filtered.length > 0) {
+              console.log(`✅ Prefilter matched ${filtered.length}/${quickSources.length} documents by query constraints`);
+              sourcesToUse = filtered;
+            } else {
+              console.log(`ℹ️ Prefilter found no strict matches; using all candidates (constraints.strictness=${constraints.strictness})`);
+            }
+
+            // 🔎 Step 3: Build synopses and do single batched ranking to select the best doc(s)
+            const beforeCount = sourcesToUse.length;
+            // Keep top 2 candidates to preserve recall for DataInspector filtering
+            sourcesToUse = await this.applySynopsisRanking(query, sourcesToUse, 2);
+            console.log(`📑 Synopsis ranking reduced candidates ${beforeCount} → ${sourcesToUse.length}`);
+          } catch (e) {
+            console.warn('⚠️ Prefiltering/ranking skipped due to constraint extraction or ranking error');
+          }
           
           // Check if Master Orchestrator should handle this ENTIRE request
-          if (this.shouldUseMasterOrchestrator(quickSources)) {
+          if (this.shouldUseMasterOrchestrator(sourcesToUse)) {
             console.log(`🧠 MASTER ORCHESTRATOR: Bypassing traditional pipeline entirely - using intelligent tool orchestration`);
             
             // Create a single Master Orchestrator step
@@ -149,13 +329,17 @@ export class ResearchOrchestrator {
             this.updateStep(masterStep, { status: 'in_progress' });
             this.currentSynthesisStep = masterStep;
             
-            // Execute Master Orchestrator with initial sources
-            const finalAnswer = await this.executeMasterOrchestrator(query, quickSources, null);
+            // Fetch and sample real text chunks for selected documents
+            const sampledChunks = await this.fetchAndSampleChunks(sourcesToUse, 0.3, 5);
+            console.log(`📦 Sampled ${sampledChunks.length} chunks from ${sourcesToUse.length} document(s) for DataInspector`);
+
+            // Execute Master Orchestrator with sampled chunks
+            const finalAnswer = await this.executeMasterOrchestrator(query, sampledChunks, null);
             
             this.updateStep(masterStep, {
               status: 'completed',
               duration: Date.now() - masterStep.timestamp,
-              reasoning: `Master Orchestrator processed ${quickSources.length} sources with ${this.currentAgentSubSteps?.length || 0} intelligent tool calls`,
+              reasoning: `Master Orchestrator processed ${sourcesToUse.length} sources with ${this.currentAgentSubSteps?.length || 0} intelligent tool calls`,
               subSteps: this.currentAgentSubSteps || [],
               agentDetails: this.currentAgentSubSteps && this.currentAgentSubSteps.length > 0 ? {
                 orchestratorPlan: `Master LLM Orchestrator with ${this.currentAgentSubSteps.length} intelligent tool calls`,
@@ -169,15 +353,19 @@ export class ResearchOrchestrator {
               query,
               steps,
               finalAnswer,
-              sources: quickSources,
-              confidence: this.calculateOverallConfidence(steps, quickSources),
+              sources: sourcesToUse,
+              confidence: this.calculateOverallConfidence(steps, sourcesToUse),
               processingTime: Date.now() - startTime,
               metadata: {
                 stepsExecuted: steps.length,
                 ragSearches: 1,
                 webSearches: 0,
-                sourcesFound: quickSources.length,
-                avgSimilarity: quickSources.reduce((sum, s) => sum + (s.similarity || 0), 0) / quickSources.length
+                sourcesFound: sourcesToUse.length,
+                avgSimilarity: sourcesToUse.reduce((sum, s) => sum + (s.similarity || 0), 0) / sourcesToUse.length
+              },
+              debugInfo: {
+                generatedPatterns: this.captureDebugPatterns(),
+                multiAgentContext: this.captureMultiAgentContext()
               }
             };
           }
@@ -722,8 +910,8 @@ Suggest research steps with reasoning for each.`;
               
               // Create and add agent sub-step in real-time
               if (this.currentSynthesisStep) {
-                const agentSubStep = {
-                  id: `${agentName.toLowerCase()}_${Date.now()}`,
+              const agentSubStep = {
+                id: `${agentName}`,
                   agentName,
                   agentType: agentType as 'query_planner' | 'data_inspector' | 'pattern_generator' | 'extraction' | 'synthesis',
                   status: 'in_progress' as const,
@@ -831,6 +1019,8 @@ Suggest research steps with reasoning for each.`;
               if (this.currentSynthesisStep && this.currentAgentSubSteps) {
                 const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
                 if (agentIndex >= 0) {
+                  const prev = this.currentAgentSubSteps[agentIndex];
+                  const ph = (prev.progressHistory || []).concat([{ timestamp: Date.now(), stage: 'Completed', progress: 100 }]);
                   this.currentAgentSubSteps[agentIndex] = {
                     ...this.currentAgentSubSteps[agentIndex],
                     status: 'completed',
@@ -838,7 +1028,8 @@ Suggest research steps with reasoning for each.`;
                     endTime: Date.now(),
                     duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
                     stage: 'Completed',
-                    output: output
+                    output: output,
+                    progressHistory: ph
                   };
                   
                   // Update synthesis step with completion
@@ -861,12 +1052,15 @@ Suggest research steps with reasoning for each.`;
               if (this.currentSynthesisStep && this.currentAgentSubSteps) {
                 const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
                 if (agentIndex >= 0) {
+                  const prev = this.currentAgentSubSteps[agentIndex];
+                  const ph = (prev.progressHistory || []).concat([{ timestamp: Date.now(), stage: 'Error', progress: prev.progress || 0 }]);
                   this.currentAgentSubSteps[agentIndex] = {
                     ...this.currentAgentSubSteps[agentIndex],
                     status: 'failed',
                     error,
                     endTime: Date.now(),
-                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime
+                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
+                    progressHistory: ph
                   };
                   
                   // Update synthesis step with error
@@ -1125,6 +1319,29 @@ Answer:`;
     return this.cleanupGeneratedText(summary + sourceList);
   }
   
+  /**
+   * Capture debug patterns for the pattern tester UI
+   */
+  private captureDebugPatterns() {
+    // Extract patterns from multi-agent context
+    if (this.lastMultiAgentContext?.debugInfo?.generatedPatterns) {
+      return this.lastMultiAgentContext.debugInfo.generatedPatterns;
+    }
+    return [];
+  }
+
+  /**
+   * Capture multi-agent context for debugging
+   */
+  private captureMultiAgentContext() {
+    // Capture any available multi-agent context
+    // This includes agent communications, reasoning traces, etc.
+    return {
+      agentSubSteps: this.currentAgentSubSteps || [],
+      synthesisStep: this.currentSynthesisStep || null,
+      lastContext: this.lastMultiAgentContext
+    };
+  }
   
   /**
    * Calculate overall confidence based on steps and sources
@@ -1544,7 +1761,8 @@ Answer:`;
                 endTime: Date.now(),
                 duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
                 stage: 'Completed',
-                output: output
+                output: output,
+                progressHistory: [ ...(this.currentAgentSubSteps[agentIndex].progressHistory || []), { timestamp: Date.now(), stage: 'Completed', progress: 100 } ]
               };
               
               this.updateStep(this.currentSynthesisStep, {
@@ -1565,12 +1783,13 @@ Answer:`;
           if (this.currentSynthesisStep && this.currentAgentSubSteps) {
             const agentIndex = this.currentAgentSubSteps.findIndex(s => s.agentName === agentName);
             if (agentIndex >= 0) {
-              this.currentAgentSubSteps[agentIndex] = {
+                  this.currentAgentSubSteps[agentIndex] = {
                 ...this.currentAgentSubSteps[agentIndex],
                 status: 'failed',
                 error,
                 endTime: Date.now(),
-                duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime
+                    duration: Date.now() - this.currentAgentSubSteps[agentIndex].startTime,
+                    progressHistory: [ ...(this.currentAgentSubSteps[agentIndex].progressHistory || []), { timestamp: Date.now(), stage: 'Error', progress: this.currentAgentSubSteps[agentIndex].progress || 0 } ]
               };
               
               this.updateStep(this.currentSynthesisStep, {
@@ -1590,6 +1809,9 @@ Answer:`;
       
       // Capture final agent sub-steps
       this.currentAgentSubSteps = multiAgent.getAgentSubSteps();
+      
+      // Capture multi-agent context for debug information
+      this.lastMultiAgentContext = multiAgent.getContext();
       
       if (answer && answer.trim().length > 10) {
         console.log(`✅ Master Orchestrator generated answer with ${this.currentAgentSubSteps.length} agent calls`);
@@ -1613,6 +1835,20 @@ Answer:`;
     const completedSteps = steps.filter(s => s.status === 'completed').length;
     return completedSteps > 0 ? Math.min(completedSteps / steps.length, 1.0) : 0.8;
   }
+
+  /**
+   * Simple evidence gate: ensure we have numeric evidence before synthesis
+   */
+  private hasMinimalNumericEvidence(context: any): boolean {
+    try {
+      const items = context?.extractedData?.raw || [];
+      if (!Array.isArray(items) || items.length === 0) return false;
+      const numeric = items.filter((it: any) => /(\d[\d\s.:]*\d)?\d/.test(String((it.metadata?.originalContext || it.content || ''))));
+      return numeric.length >= 2;
+    } catch {
+      return false;
+    }
+  }
   
   /**
    * Update step and notify callback
@@ -1622,6 +1858,154 @@ Answer:`;
     if (this.onStepUpdate) {
       this.onStepUpdate(step);
     }
+  }
+  
+  /**
+   * 🔄 RERUN SPECIFIC AGENT - Execute individual agent with context preservation
+   * This enables targeted agent rerun without restarting the entire pipeline
+   */
+  async rerunSpecificAgent(
+    agentName: string, 
+    context: any, // Will be ResearchContext when available 
+    query: string
+  ): Promise<ResearchResult> {
+    console.log(`🔄 ResearchOrchestrator: Rerunning specific agent: ${agentName}`);
+    
+    const startTime = Date.now();
+    const steps: ResearchStep[] = [];
+    const sources: SourceReference[] = [];
+    
+    try {
+      // For agent rerun, we always use Master Orchestrator since we're working with existing research context
+      console.log(`🔄 Agent rerun: Using Master Orchestrator architecture for ${agentName}`);
+      
+      // Create a rerun step for tracking
+      const rerunStep = {
+        id: this.generateUniqueStepId('agent_rerun'),
+        type: 'synthesis' as const,
+        status: 'in_progress' as const,
+        timestamp: Date.now(),
+        reasoning: `Rerunning agent: ${agentName}`
+      };
+      steps.push(rerunStep);
+      this.updateStep(rerunStep, { status: 'in_progress' });
+      this.currentSynthesisStep = rerunStep;
+      
+      // Execute the specific agent using Master Orchestrator
+      const finalAnswer = await this.executeSpecificAgentRerun(agentName, context, query);
+      
+      this.updateStep(rerunStep, {
+        status: 'completed',
+        duration: Date.now() - rerunStep.timestamp,
+        reasoning: `Successfully reran ${agentName}`,
+        subSteps: this.currentAgentSubSteps || [],
+        agentDetails: this.currentAgentSubSteps && this.currentAgentSubSteps.length > 0 ? {
+          orchestratorPlan: `Agent rerun: ${agentName}`,
+          agentPipeline: [agentName],
+          totalAgents: 1,
+          completedAgents: 1
+        } : undefined
+      });
+      
+      return {
+        query,
+        steps,
+        finalAnswer,
+        sources, // Will be populated by the agent
+        confidence: this.calculateOverallConfidence(steps, sources),
+        processingTime: Date.now() - startTime,
+        metadata: {
+          stepsExecuted: 1,
+          ragSearches: 0,
+          webSearches: 0,
+          sourcesFound: sources.length,
+          avgSimilarity: sources.length > 0 
+            ? sources.reduce((sum, s) => sum + (s.similarity || 0), 0) / sources.length
+            : 0
+        }
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to rerun agent ${agentName}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 🎯 EXECUTE SPECIFIC AGENT RERUN - Use Master Orchestrator for targeted execution
+   */
+  private async executeSpecificAgentRerun(
+    agentName: string, 
+    context: any, 
+    query: string
+  ): Promise<string> {
+    console.log(`🎯 Executing specific agent rerun: ${agentName}`);
+    
+    // Create multi-agent system for targeted execution
+    const multiAgentSystem = createMultiAgentSystem(
+      this.generateContent!,
+      undefined, // no progress callback for rerun
+      this.vectorStore || undefined,
+      this.config
+    );
+    
+    // Execute the specific agent
+    try {
+      // Restore context and execute targeted agent
+      const result = await multiAgentSystem.rerunAgent(agentName, context);
+      
+      // Extract the final answer from the result
+      if (result && result.synthesis && result.synthesis.answer) {
+        return result.synthesis.answer;
+      } else {
+        return `Agent ${agentName} completed but no synthesis available`;
+      }
+    } catch (error) {
+      console.error(`❌ Multi-agent rerun failed for ${agentName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deterministic prefilter using query constraints (no LLM calls)
+   */
+  private applyDeterministicPrefilter(sources: SourceReference[], constraints: QueryConstraints): SourceReference[] {
+    const domains = (constraints.expectedDomainCandidates || []).map(d => d.toLowerCase());
+    const titleHints = (constraints.expectedTitleHints || []).map(h => h.toLowerCase());
+    const owner = (constraints.expectedOwner || '').toLowerCase();
+    const docType = (constraints.expectedDocType || '').toLowerCase();
+
+    const matches: SourceReference[] = [];
+
+    for (const s of sources) {
+      const filename = (s.metadata as any)?.filename?.toLowerCase?.() || s.source?.toLowerCase?.() || '';
+      const title = (s.title || '').toLowerCase();
+
+      let ok = true;
+
+      if (domains.length > 0) {
+        ok = ok && domains.some(d => filename.includes(d));
+      }
+      if (titleHints.length > 0) {
+        ok = ok && titleHints.some(h => title.includes(h) || filename.includes(h));
+      }
+      if (owner) {
+        ok = ok && (title.includes(owner) || filename.includes(owner));
+      }
+      if (docType) {
+        // Soft hint: if docType is 'blog', prefer titles that look like blog posts
+        if (docType === 'blog') {
+          const looksLikeBlog = /post|blog|worklog|article|guide|how[- ]to|writeup/i.test(title) || /post|blog|worklog|article/i.test(filename);
+          ok = ok && looksLikeBlog;
+        }
+      }
+
+      if (ok) matches.push(s);
+    }
+
+    // For strictness 'must', return matches only; for 'should', allow empty and let ranking handle later
+    if (constraints.strictness === 'must') return matches;
+    return matches;
   }
 }
 

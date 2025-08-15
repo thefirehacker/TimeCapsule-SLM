@@ -38,6 +38,8 @@ export interface AgentTracker {
   itemsProcessed?: number;
   totalItems?: number;
   output?: any; // 🔥 FIX: Store actual agent output for UI display
+  // Persist progress history centrally so UI can't lose it on replacement
+  progressHistory?: Array<{ timestamp: number; stage: string; progress: number; itemsProcessed?: number; totalItems?: number; message?: string }>;
 }
 
 export class AgentProgressTracker {
@@ -66,6 +68,7 @@ export class AgentProgressTracker {
       },
       retryCount: 0,
       progress: 0,
+      progressHistory: []
     };
 
     this.trackers.set(agentName, tracker);
@@ -85,6 +88,9 @@ export class AgentProgressTracker {
       tracker.stage = stage;
       tracker.itemsProcessed = itemsProcessed;
       tracker.totalItems = totalItems;
+      // Append to centralized history
+      const entry = { timestamp: Date.now(), stage: stage || 'Processing', progress, itemsProcessed, totalItems };
+      (tracker.progressHistory ||= []).push(entry);
       
       this.callback?.onAgentProgress(agentName, progress, stage, itemsProcessed, totalItems);
     }
@@ -114,6 +120,9 @@ export class AgentProgressTracker {
         Object.assign(tracker.metrics, additionalMetrics);
       }
 
+      // Final snapshot
+      (tracker.progressHistory ||= []).push({ timestamp: Date.now(), stage: 'Completed', progress: 100 });
+
       this.callback?.onAgentComplete(agentName, output, tracker.metrics);
     }
   }
@@ -123,6 +132,7 @@ export class AgentProgressTracker {
     if (tracker) {
       tracker.error = error;
       tracker.retryCount += 1;
+      (tracker.progressHistory ||= []).push({ timestamp: Date.now(), stage: 'Error', progress: tracker.progress || 0 });
       this.callback?.onAgentError(agentName, error, tracker.retryCount);
     }
   }
@@ -140,7 +150,7 @@ export class AgentProgressTracker {
     if (!tracker) return null;
 
     return {
-      id: `agent_${agentName}_${tracker.startTime}`,
+      id: `${agentName}`,
       agentName: tracker.agentName,
       agentType: tracker.agentType as any,
       status: tracker.error ? 'failed' : 
@@ -156,6 +166,7 @@ export class AgentProgressTracker {
       stage: tracker.stage,
       itemsProcessed: tracker.itemsProcessed,
       totalItems: tracker.totalItems,
+      progressHistory: tracker.progressHistory || [],
       error: tracker.error,
       retryCount: tracker.retryCount,
       metrics: tracker.metrics,

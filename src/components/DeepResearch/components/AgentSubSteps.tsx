@@ -35,6 +35,7 @@ interface AgentSubStepsProps {
   subSteps: AgentSubStep[];
   isExpanded?: boolean;
   className?: string;
+  onRerunAgent?: (agentName: string) => Promise<void>;
 }
 
 interface ThinkingToggleProps {
@@ -145,10 +146,17 @@ function ThinkingSection({ thinking, agentName, isExpanded, onToggle }: Thinking
   );
 }
 
-function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
+function AgentSubStepCard({ 
+  subStep, 
+  onRerunAgent 
+}: { 
+  subStep: AgentSubStep;
+  onRerunAgent?: (agentName: string) => Promise<void>;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  const [showProgressHistory, setShowProgressHistory] = useState(false);
 
   const IconComponent = AgentIcons[subStep.agentType];
   const iconColor = AgentColors[subStep.agentType];
@@ -173,7 +181,9 @@ function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
   };
 
   return (
-    <Card className={`border ${bgColor} transition-all duration-200`}>
+    <Card className={`relative border ${bgColor} transition-all duration-200 rounded-xl shadow-sm hover:shadow-md`}>
+      {/* Left color stripe by agent type */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${iconColor.replace('text-', 'bg-')}`} />
       <CardContent className="p-4">
         {/* Agent Header */}
         <div className="flex items-center justify-between mb-3">
@@ -193,18 +203,46 @@ function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
                 {formatDuration(subStep.duration)}
               </Badge>
             )}
+            {/* Rerun Button - Show for completed/failed agents */}
+            {onRerunAgent && (subStep.status === 'completed' || subStep.status === 'failed') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRerunAgent(subStep.agentName)}
+                className="h-6 w-6 p-0 hover:bg-primary/10"
+                title={`Rerun ${subStep.agentName}`}
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </Button>
+            )}
             {getStatusIcon()}
           </div>
         </div>
 
-        {/* Progress Bar */}
-        {subStep.progress !== undefined && subStep.status === 'in_progress' && (
+        {/* Progress Bar - Show for in_progress, or completed with final progress */}
+        {subStep.progress !== undefined && (subStep.status === 'in_progress' || subStep.status === 'completed') && (
           <div className="mb-3">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Progress</span>
-              <span>{subStep.progress}%</span>
+              <span>Progress {subStep.status === 'completed' ? '(Completed)' : ''}</span>
+              <span>{subStep.status === 'completed' ? 100 : subStep.progress}%</span>
             </div>
-            <Progress value={subStep.progress} className="h-2" />
+            <Progress 
+              value={subStep.status === 'completed' ? 100 : subStep.progress} 
+              className={`h-2 ${subStep.status === 'completed' ? 'opacity-75' : ''}`} 
+            />
           </div>
         )}
 
@@ -216,6 +254,74 @@ function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
               <div>
                 Items: {subStep.itemsProcessed}
                 {subStep.totalItems ? ` / ${subStep.totalItems}` : ''}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Progress History - Always show if available, even after completion */}
+        {subStep.progressHistory && subStep.progressHistory.length > 0 && (
+          <div className="mb-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowProgressHistory(!showProgressHistory)}
+              className={`h-5 px-2 text-xs hover:bg-primary/5 ${
+                subStep.status === 'completed' 
+                  ? 'text-green-600 hover:text-green-800' 
+                  : 'text-blue-600 hover:text-blue-800'
+              }`}
+            >
+              <Clock className="w-3 h-3 mr-1" />
+              {subStep.status === 'completed' ? 'Completed Steps' : 'Progress History'} ({subStep.progressHistory.length})
+              {showProgressHistory ? <ChevronDown className="w-3 h-3 ml-1" /> : <ChevronRight className="w-3 h-3 ml-1" />}
+            </Button>
+            
+            {showProgressHistory && (
+              <div className="mt-2 p-2 bg-muted/30 rounded-md border border-border/50">
+                <div className="space-y-1 max-h-24 overflow-y-auto text-xs">
+                  {subStep.progressHistory.map((entry, idx) => {
+                    const isLatest = idx === subStep.progressHistory!.length - 1;
+                    const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`flex items-center justify-between p-1.5 rounded text-xs ${
+                          isLatest ? 'bg-primary/10 border border-primary/20' : 'bg-background/50'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium truncate ${isLatest ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {entry.stage}
+                            {isLatest && (
+                              <span className={`ml-1 text-xs px-1 rounded ${
+                                subStep.status === 'completed' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {subStep.status === 'completed' ? 'DONE' : 'NOW'}
+                              </span>
+                            )}
+                          </div>
+                          {entry.itemsProcessed !== undefined && (
+                            <div className="text-xs text-muted-foreground">
+                              ({entry.itemsProcessed}{entry.totalItems ? `/${entry.totalItems}` : ''} items)
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right ml-2 flex-shrink-0">
+                          <div className={`font-medium ${isLatest ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {entry.progress}%
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            {timestamp}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -251,11 +357,40 @@ function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
                 {showOutput ? 'Hide Full Output' : 'Show Full Output'}
               </Button>
             </div>
-            <div className={`text-sm text-foreground/80 bg-background/50 p-2 rounded border ${showOutput ? '' : 'text-ellipsis overflow-hidden'}`}>
+            <div className={`text-sm text-foreground/80 bg-background/50 p-2 rounded border ${showOutput ? '' : 'line-clamp-4'}`}>
               {typeof subStep.output === 'string' 
-                ? (showOutput ? subStep.output : subStep.output.substring(0, 200) + (subStep.output.length > 200 ? '...' : ''))
-                : (showOutput ? JSON.stringify(subStep.output, null, 2) : JSON.stringify(subStep.output).substring(0, 200) + '...')
+                ? subStep.output
+                : JSON.stringify(subStep.output, null, showOutput ? 2 : 0)
               }
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setShowOutput(!showOutput)}
+              >
+                {showOutput ? 'Collapse' : 'Expand'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => {
+                  const text = typeof subStep.output === 'string' ? subStep.output : JSON.stringify(subStep.output, null, 2);
+                  navigator.clipboard?.writeText(text);
+                }}
+              >
+                Copy
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setShowThinking(!showThinking)}
+              >
+                {showThinking ? 'Hide Reasoning' : 'Show Reasoning'}
+              </Button>
             </div>
           </div>
         )}
@@ -285,7 +420,8 @@ function AgentSubStepCard({ subStep }: { subStep: AgentSubStep }) {
 export function AgentSubSteps({ 
   subSteps, 
   isExpanded = false, 
-  className = "" 
+  className = "",
+  onRerunAgent
 }: AgentSubStepsProps) {
   const [expandedView, setExpandedView] = useState(isExpanded);
 
@@ -333,7 +469,7 @@ export function AgentSubSteps({
       <div className="space-y-3">
         {subSteps.map((subStep, index) => (
           <div key={subStep.id}>
-            <AgentSubStepCard subStep={subStep} />
+            <AgentSubStepCard subStep={subStep} onRerunAgent={onRerunAgent} />
             {index < subSteps.length - 1 && (
               <div className="flex justify-center my-2">
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />

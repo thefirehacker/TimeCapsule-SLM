@@ -9,6 +9,7 @@ import { Agent } from '../interfaces/Agent';
 
 export class AgentRegistry {
   private agents: Map<string, Agent> = new Map();
+  private loggedAgents: Set<string> = new Set();
   
   /**
    * Register an agent
@@ -18,7 +19,9 @@ export class AgentRegistry {
       console.warn(`⚠️ Agent ${agent.name} already registered, overwriting`);
     }
     this.agents.set(agent.name, agent);
-    console.log(`📝 Registered agent: ${agent.name} - ${agent.description}`);
+    
+    // Disable registration logging completely to prevent spam
+    // console.log(`📝 Registered agent: ${agent.name} - ${agent.description}`);
   }
   
   /**

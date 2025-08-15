@@ -466,6 +466,10 @@ export function DeepResearchComponent() {
               researchSteps={research.researchSteps}
               expandedSteps={research.expandedSteps}
               onStepClick={research.handleStepClick}
+              // Agent Rerun Integration
+              onRerunAgent={research.rerunSpecificAgent}
+              // Research Control Integration
+              onStopResearch={research.stopResearch}
             />
           </div>
         </div>

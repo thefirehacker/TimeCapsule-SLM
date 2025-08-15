@@ -17,7 +17,7 @@ export class DataInspectorAgent extends BaseAgent {
   readonly description = 'Analyzes RAG chunks to understand data structure and quality';
   
   private llm: LLMFunction;
-  private progressCallback?: AgentProgressCallback;
+  protected progressCallback?: AgentProgressCallback;
   
   constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
@@ -55,12 +55,20 @@ export class DataInspectorAgent extends BaseAgent {
       console.log(`🔎 DataInspector: Received document metadata - performing multi-document sampling and analysis`);
       this.progressCallback?.onAgentProgress?.(this.name, 10, 'Starting multi-document analysis', 0, undefined);
       await this.performDocumentMetadataAnalysis(context);
+      
+      // Report completion
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        documentAnalysis: context.documentAnalysis,
+        filteredChunks: context.ragResults.chunks.length
+      });
+      
       return context;
     }
     
     // Count web sources vs RAG chunks for regular chunk analysis
     const webSources = context.ragResults.chunks.filter(chunk => 
-      chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
+      (chunk.metadata?.source && chunk.metadata.source.startsWith('http')) || 
+      (chunk.id && chunk.id.startsWith('web_'))
     ).length;
     const ragChunks = context.ragResults.chunks.length - webSources;
     
@@ -68,13 +76,104 @@ export class DataInspectorAgent extends BaseAgent {
     
     if (context.ragResults.chunks.length === 0) {
       this.setReasoning('No chunks to analyze');
+      
+      // Report completion with no data
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'No chunks to analyze',
+        chunksAnalyzed: 0
+      });
+      
       return context;
     }
+    
+    // Extract numeric measurements from chunk text before LLM analysis
+    this.extractMeasurementsFromChunks(context);
     
     // Use LLM to understand the data
     await this.inspectWithLLM(context);
     
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      documentAnalysis: context.documentAnalysis,
+      chunksAnalyzed: context.ragResults.chunks.length,
+      measurements: context.sharedKnowledge.documentInsights?.data?.length || 0
+    });
+    
     return context;
+  }
+  
+  /**
+   * Extract numeric measurements from chunk text (not LLM reasoning)
+   * Stores raw numeric hits with context windows in sharedKnowledge
+   */
+  private extractMeasurementsFromChunks(context: ResearchContext): void {
+    if (!context.sharedKnowledge) {
+      context.sharedKnowledge = {
+        documentInsights: {},
+        extractionStrategies: {},
+        discoveredPatterns: {},
+        agentFindings: {}
+      };
+    }
+    if (!context.sharedKnowledge.documentInsights) {
+      context.sharedKnowledge.documentInsights = {};
+    }
+    
+    const measurements: Array<{
+      value: string;
+      leftContext: string;
+      rightContext: string;
+      chunkId: string;
+      sourceDocument?: string;
+    }> = [];
+    
+    // Process up to 8 chunks for measurement extraction
+    const chunksToProcess = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
+    
+    // Broad pattern to capture any numeric values - let PatternGenerator decide what's relevant
+    const numericPattern = /(\d+(?:[.:]\d+)?(?:\s+\d{1,2})?|\d+)/g;
+    
+    for (const chunk of chunksToProcess) {
+      const text = chunk.text || '';
+      let match: RegExpExecArray | null;
+      
+      // Reset regex state
+      numericPattern.lastIndex = 0;
+      
+      while ((match = numericPattern.exec(text)) !== null) {
+        const startIdx = match.index;
+        const endIdx = startIdx + match[0].length;
+        
+        // Get larger context windows (approximately 50 chars each side for better pattern learning)
+        const leftStart = Math.max(0, startIdx - 50);
+        const rightEnd = Math.min(text.length, endIdx + 50);
+        
+        const leftContext = text.slice(leftStart, startIdx).trim();
+        const rightContext = text.slice(endIdx, rightEnd).trim();
+        
+        // Strip wrapping punctuation from the value
+        const cleanValue = match[0].replace(/^[^\d]+|[^\d]+$/g, '');
+        
+        // Store all measurements - let pattern learning decide relevance
+        measurements.push({
+          value: cleanValue,
+          leftContext: leftContext.replace(/[[\](){}]/g, ''), // Strip brackets
+          rightContext: rightContext.replace(/[[\](){}]/g, ''),
+          chunkId: chunk.id,
+          sourceDocument: chunk.sourceDocument || chunk.source
+        });
+      }
+    }
+    
+    // Store measurements in sharedKnowledge for downstream agents
+    context.sharedKnowledge.documentInsights.measurements = measurements;
+    
+    console.log(`📊 DataInspector: Extracted ${measurements.length} numeric measurements from document text`);
+    if (measurements.length > 0) {
+      console.log(`📊 Sample measurements:`, measurements.slice(0, 3).map(m => 
+        `"${m.value}" (${m.leftContext}...${m.rightContext})`
+      ));
+    }
   }
   
   private async inspectWithLLM(context: ResearchContext): Promise<void> {
@@ -168,8 +267,11 @@ CRITICAL RULES:
       const response = await this.llm(prompt);
       console.log(`🤖 Multi-document analysis:`, response.substring(0, 300));
       
-      // Update context with multi-document insights
-      await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
+      // Update context with multi-document insights and get relevant documents
+      const relevantDocuments = await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
+      
+      // 🎯 CRITICAL FIX: Extract query-relevant terms ONLY from relevant documents
+      await this.extractQueryRelevantTerms(context, relevantDocuments);
       
       // Store full response for thinking extraction
       this.setReasoning(response);
@@ -226,6 +328,10 @@ Provide specific, actionable insights that will guide intelligent extraction and
       // Update context with insights
       this.updateContextFromInspection(context, response);
       
+      // 🎯 CRITICAL FIX: Extract query-relevant terms even for single document
+      // Pass the single document group as an array for consistency
+      await this.extractQueryRelevantTerms(context, [documentGroup]);
+      
       // Store full response for thinking extraction
       this.setReasoning(response);
       
@@ -277,7 +383,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
     }
   }
   
-  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<void> {
+  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<any[]> {
     try {
       const documentAnalysis = await this.parseMultiDocumentAnalysis(response, documentGroups, context);
       context.documentAnalysis = documentAnalysis;
@@ -335,6 +441,9 @@ Provide specific, actionable insights that will guide intelligent extraction and
       } else {
         console.log(`✅ DOCUMENT ANALYSIS: All ${documentGroups.length} documents deemed relevant - no filtering applied`);
       }
+      
+      // 🎯 Return relevant document groups for technical term extraction
+      return documentAnalysis.relevantDocumentGroups || [];
       
     } catch (error) {
       console.error('❌ Error parsing multi-document analysis:', error);
@@ -424,7 +533,8 @@ Provide specific, actionable insights that will guide intelligent extraction and
       expectedOutputFormat: 'structured synthesis with proper attribution',
       documents: documents,
       relationships: relationships,
-      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination'
+      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination',
+      relevantDocumentGroups: relevantDocuments  // 🎯 Add relevant document groups for technical extraction
     };
   }
 
@@ -472,12 +582,42 @@ STEP 2: Document Classification
 TYPE: [what kind of document this is]
 MAIN_ENTITY: [primary person/organization/subject this document is about]
 
-STEP 3: Query Relevance Analysis
+STEP 3: Semantic Entity-Query Alignment Analysis
 USER_QUERY: "${query}"
-Using the comprehensive analysis above, determine if this document contains information that helps answer the query.
 
-RELEVANT: [YES if any extracted topics/methods/concepts relate to the query, NO if completely unrelated]
-REASON: [explain specifically what content relates to the query and why]
+🔍 CRITICAL: Analyze semantic alignment between document entities and query focus.
+
+SEMANTIC RELEVANCE RULES:
+1. **Entity Ownership Analysis**: If query asks about "X's work/projects/research", the document MUST be authored by or primarily about person X
+2. **Attribution Matching**: A document about Person A's work is NOT relevant to queries about Person B's work, even if they work on similar topics
+3. **Contextual Authority**: Consider who created, authored, or owns the content described in the document
+4. **Subject vs Author Distinction**: A document ABOUT a topic is different from a document BY someone about that topic
+
+QUERY FOCUS ANALYSIS:
+- Extract the main subject/person the query is asking about
+- Identify if the query is asking for someone's specific work/contributions
+- Determine if query needs content BY a person vs ABOUT a topic
+
+DOCUMENT OWNERSHIP ANALYSIS:
+- Who is the primary author/creator of this document's content?
+- Who does this document's work/research/projects belong to?
+- What entities have ownership/attribution in this document?
+
+CRITICAL ENTITY-QUERY ALIGNMENT:
+Step 3: Zero-Hardcoding Semantic Validation
+- Extract PRIMARY PERSON/ENTITY from query pattern analysis: "${query}"
+- Extract PRIMARY PERSON/ENTITY this document belongs to or is authored by
+- OWNERSHIP RULE: Documents about Entity A are NEVER relevant for queries about Entity B
+- PATTERN RECOGNITION: Look for possessive patterns ("X's work", "from Y's blog", "by Z") to identify query entity
+- DOCUMENT ENTITY: Identify who this document belongs to through authorship, name analysis, and content attribution
+
+ENTITY OWNERSHIP VERIFICATION:
+- Query targets entity: [extract entity from query using pattern recognition]
+- Document belongs to entity: [extract document owner through content analysis]  
+- Semantic match: [YES only if same entity, NO if different entities regardless of topic overlap]
+
+RELEVANT: [YES only if entity ownership matches AND content aligns. NO for entity ownership mismatch]
+REASON: [explain entity ownership analysis first: who query asks for vs who document is about, then content relevance]
 
 Respond in exact format:
 TYPE: [document type]
@@ -796,18 +936,20 @@ Return just the role: source, target, or reference`;
   }
   
   private extractListSection(text: string, sectionName: string): string[] {
-    // 🔍 NATURAL LANGUAGE PARSING: Handle thinking-style responses
-    // First, remove <think> tags if present to get the actual analysis
-    const cleanText = text.replace(/<\/?think>/g, '');
+    // 🔍 MODEL-AGNOSTIC PARSING: Handle both thinking and non-thinking models
+    // Remove <think> tags if present (thinking models) or handle direct responses (non-thinking models)
+    const cleanText = text.replace(/<\/?think>/gi, '').trim();
     
-    // Try multiple patterns to find the section content
+    // Try multiple patterns to find the section content - robust for different model response styles
     const patterns = [
       // Standard format: **SECTION**: content
       new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\*]+)`, 'i'),
       // Natural format: For SECTION: content  
       new RegExp(`For ${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
       // Natural format: SECTION: content
-      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i')
+      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
+      // Non-thinking model format: Direct section content
+      new RegExp(`${sectionName}[:\\s]*([^\\n]+(?:\\n[^\\n]+)*)`, 'i')
     ];
     
     let content = '';
@@ -1258,4 +1400,326 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
   
   // 🚨 REMOVED: Legacy hardcoded JSON processing
   // Universal Intelligence approach now uses natural language prompts with LLM-based discovery
+
+  /**
+   * 🎯 INTELLIGENT: Extract query-relevant terms using query analysis (no hardcoding)
+   */
+  private async extractQueryRelevantTerms(context: ResearchContext, documentGroups: any[]): Promise<void> {
+    try {
+      const docType = documentGroups.length > 1 ? 'RELEVANT documents' : 'document';
+      console.log(`🔬 DataInspector: Extracting query-relevant terms from ${documentGroups.length} ${docType} for: "${context.query}"`);
+      
+      // 🎯 INTELLIGENT: Build query-aware content sample  
+      const contentSample = await this.buildQueryAwareContentSample(context, documentGroups);
+
+      console.log(`🔍 Content sample for technical extraction (${contentSample.length} chars):`, contentSample.substring(0, 200) + '...');
+
+      // 🎯 Check for improvement guidance from Master Orchestrator
+      const improvementGuidance = (context.sharedKnowledge as any).agentGuidance?.DataInspector;
+      
+      // 🎯 INTELLIGENT: Create query-aware prompt
+      const prompt = await this.buildQueryAwareExtractionPrompt(context, contentSample, improvementGuidance);
+
+      const response = await this.llm(prompt);
+      console.log(`🎯 Technical terms LLM response:`, response);
+      
+      // Parse the response and store in shared knowledge
+      const documentInsights = this.parseQueryRelevantTermsResponse(response);
+      console.log(`🔍 Parsed technical terms:`, documentInsights);
+      
+      // Store in shared knowledge for PlanningAgent to access
+      if (!context.sharedKnowledge.documentInsights) {
+        context.sharedKnowledge.documentInsights = {};
+      }
+      
+      // Merge with existing insights
+      Object.assign(context.sharedKnowledge.documentInsights, documentInsights);
+      
+      console.log(`✅ Document insights stored in context.sharedKnowledge:`, {
+        methods: documentInsights.methods?.length || 0,
+        concepts: documentInsights.concepts?.length || 0,
+        people: documentInsights.people?.length || 0,
+        data: documentInsights.data?.length || 0
+      });
+      
+      // Detailed logging for debugging
+      if (documentInsights.methods && documentInsights.methods.length > 0) {
+        console.log(`📋 Extracted methods:`, documentInsights.methods);
+      } else {
+        console.warn(`⚠️ No methods extracted from document content`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to extract query-relevant terms:', error);
+      // Don't fail the whole process - just set empty insights
+      context.sharedKnowledge.documentInsights = {
+        methods: [],
+        concepts: [],
+        people: [],
+        data: []
+      };
+    }
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Parse query-relevant terms response from LLM
+   */
+  private parseQueryRelevantTermsResponse(response: string): any {
+    const insights = {
+      methods: [] as string[],
+      concepts: [] as string[],
+      people: [] as string[],
+      data: [] as string[]
+    };
+
+    try {
+      const lines = response.split('\n');
+      
+      for (const line of lines) {
+        const trimmed = line.trim().toLowerCase();
+        
+        if (trimmed.startsWith('methods:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing methods line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.methods = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+            console.log(`✅ Parsed methods:`, insights.methods);
+          }
+        } else if (trimmed.startsWith('concepts:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing concepts line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.concepts = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+          }
+        } else if (trimmed.startsWith('people:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing people line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.people = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+          }
+        } else if (trimmed.startsWith('data_types:') || trimmed.startsWith('data:')) {
+          const terms = line.substring(line.indexOf(':') + 1).trim();
+          console.log(`🔍 Parsing data line: "${terms}"`);
+          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+            insights.data = terms.split(',')
+              .map(t => t.trim())
+              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to parse technical terms response, using defaults');
+    }
+
+    return insights;
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Build query-aware content sample prioritizing relevant content
+   */
+  private async buildQueryAwareContentSample(context: ResearchContext, documentGroups: any[]): Promise<string> {
+    // First, analyze query to understand what to prioritize
+    const queryAnalysis = await this.analyzeQueryForContentPrioritization(context.query);
+    
+    return documentGroups
+      .map((group, i) => {
+        // 🎯 CRITICAL FIX: Use 30% sampling or minimum 5 chunks as designed
+        const totalChunks = group.chunks.length;
+        const chunksToSample = totalChunks <= 5 ? totalChunks : Math.max(5, Math.ceil(totalChunks * 0.3));
+        
+        console.log(`📊 Document ${i + 1}: Sampling ${chunksToSample} of ${totalChunks} chunks (${Math.round(chunksToSample/totalChunks * 100)}%)`);
+        
+        // Intelligently select chunks based on query analysis
+        const prioritizedChunks = this.prioritizeChunksForQuery(group.chunks, queryAnalysis);
+        
+        // Take the calculated number of chunks (30% or minimum 5)
+        const chunks = prioritizedChunks.slice(0, chunksToSample)
+          .map((chunk: any) => {
+            // Adaptive chunk size - preserve more content for important chunks
+            const chunkSize = this.calculateOptimalChunkSize(chunk, queryAnalysis);
+            return chunk.text.substring(0, chunkSize);
+          })
+          .join('\n\n');
+          
+        const docName = group.documentId || group.source || `Document ${i + 1}`;
+        return `--- DOCUMENT ${i + 1}: ${docName} ---\n${chunks}`;
+      })
+      .join('\n\n');
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Analyze query to determine content prioritization strategy
+   */
+  private async analyzeQueryForContentPrioritization(query: string): Promise<any> {
+    const analysisPrompt = `/no_think
+
+TASK: Analyze this query to determine what content should be prioritized when searching documents.
+
+QUERY: "${query}"
+
+Analyze what the user is asking for and determine:
+1. What types of terms should be prioritized (algorithm names, people, concepts, data)?
+2. What content patterns would likely contain the answer (method descriptions, performance comparisons, author information)?
+3. What specific indicators should guide content selection?
+
+RESPONSE FORMAT:
+PRIORITY_TERMS: [types of terms to look for]
+CONTENT_PATTERNS: [what content sections are most likely relevant]  
+SEARCH_INDICATORS: [specific words/patterns that suggest relevant content]
+
+Analyze the query intent:`;
+
+    try {
+      const response = await this.llm(analysisPrompt);
+      return this.parseQueryAnalysis(response);
+    } catch (error) {
+      console.warn('⚠️ Query analysis failed, using basic prioritization');
+      return {
+        priorityTerms: ['methods', 'algorithms', 'techniques'],
+        contentPatterns: ['method', 'algorithm', 'approach'],
+        searchIndicators: ['method', 'algorithm', 'technique', 'approach']
+      };
+    }
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Parse query analysis response
+   */
+  private parseQueryAnalysis(response: string): any {
+    const analysis = {
+      priorityTerms: [],
+      contentPatterns: [],
+      searchIndicators: []
+    };
+
+    const lines = response.split('\n');
+    for (const line of lines) {
+      if (line.toLowerCase().includes('priority_terms:')) {
+        const terms = line.substring(line.indexOf(':') + 1).trim();
+        (analysis as any).priorityTerms = terms.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      } else if (line.toLowerCase().includes('content_patterns:')) {
+        const patterns = line.substring(line.indexOf(':') + 1).trim();
+        (analysis as any).contentPatterns = patterns.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      } else if (line.toLowerCase().includes('search_indicators:')) {
+        const indicators = line.substring(line.indexOf(':') + 1).trim();
+        (analysis as any).searchIndicators = indicators.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      }
+    }
+
+    return analysis;
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Prioritize chunks based on query analysis
+   */
+  private prioritizeChunksForQuery(chunks: any[], queryAnalysis: any): any[] {
+    return chunks.sort((a, b) => {
+      const scoreA = this.calculateChunkRelevanceScore(a, queryAnalysis);
+      const scoreB = this.calculateChunkRelevanceScore(b, queryAnalysis);
+      return scoreB - scoreA; // Higher score first
+    });
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Calculate chunk relevance score based on query analysis
+   */
+  private calculateChunkRelevanceScore(chunk: any, queryAnalysis: any): number {
+    const text = (chunk.text || '').toLowerCase();
+    let score = 0;
+
+    // Score based on search indicators
+    queryAnalysis.searchIndicators?.forEach((indicator: string) => {
+      if (text.includes(indicator)) {
+        score += 2;
+      }
+    });
+
+    // Score based on content patterns
+    queryAnalysis.contentPatterns?.forEach((pattern: string) => {
+      if (text.includes(pattern)) {
+        score += 1;
+      }
+    });
+
+    // Bonus for capitalized terms (likely method/algorithm names)
+    const capitalizedTerms = text.match(/\b[A-Z][A-Z0-9]*\b/g) || [];
+    score += capitalizedTerms.length * 0.5;
+
+    return score;
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Calculate optimal chunk size based on importance
+   */
+  private calculateOptimalChunkSize(chunk: any, queryAnalysis: any): number {
+    const baseSize = 600; // Increased from 400
+    const maxSize = 1200;
+    
+    const relevanceScore = this.calculateChunkRelevanceScore(chunk, queryAnalysis);
+    
+    // Higher relevance chunks get more content preserved
+    const sizeMultiplier = 1 + (relevanceScore * 0.2);
+    return Math.min(Math.floor(baseSize * sizeMultiplier), maxSize);
+  }
+
+  /**
+   * 🎯 INTELLIGENT: Build query-aware extraction prompt
+   */
+  private async buildQueryAwareExtractionPrompt(context: ResearchContext, contentSample: string, improvementGuidance?: string): Promise<string> {
+    return `/no_think
+
+TASK: Extract information from documents to answer the user's specific question.
+
+USER QUERY: "${context.query}"
+
+${improvementGuidance ? `IMPROVEMENT GUIDANCE: ${improvementGuidance}\n` : ''}
+
+DOCUMENT CONTENT:
+${contentSample.substring(0, 8000)}
+
+INSTRUCTIONS:
+Based on the user's query, determine what information they need and extract it from the document content.
+
+QUERY ANALYSIS:
+- What is the user asking for specifically?
+- What type of information would best answer their question?
+- What terms in the document content are most relevant to their query?
+
+EXTRACTION STRATEGY:
+- Focus on finding the most specific and relevant terms
+- Look for proper nouns, technical terms, specific names
+- Prioritize terms that directly relate to what the user is asking about
+- Avoid generic terms when specific ones are available
+
+🧠 INTELLIGENT DOCUMENT ANALYSIS:
+If this appears to be a research paper introducing a new method:
+- What is the MAIN METHOD or ALGORITHM being introduced?
+- What is the paper's PRIMARY CONTRIBUTION?
+- What method name appears in the title or is central to the paper?
+- For queries about "best method", what method does this paper present as their solution?
+
+OUTPUT FORMAT:
+METHODS: [specific method names, algorithms, techniques if relevant to query]
+CONCEPTS: [relevant concepts and ideas if needed for query]  
+PEOPLE: [specific people names if relevant to query]
+DATA_TYPES: [specific data, metrics, datasets if relevant to query]
+
+CRITICAL RULES:
+- Extract only terms that appear in the document content above
+- Focus on what would best help answer the user's specific question
+- Be precise - extract specific names over generic categories
+- Use exact spelling as found in the text
+- Extract entities that exist in the document AND relate to the query
+- Source attribution: if document is from source X, then data in document belongs to X
+- Always extract relevant terms from each category if they appear in the content
+
+Extract the most relevant and specific terms for this query:`;
+  }
 }

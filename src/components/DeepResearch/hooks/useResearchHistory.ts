@@ -57,7 +57,8 @@ export interface UseResearchHistoryReturn {
 }
 
 const STORAGE_KEY = "deep_research_history";
-const MAX_SESSIONS = 50; // Limit stored sessions to prevent localStorage bloat
+const MAX_SESSIONS = 10; // Reduced from 50 - prevent localStorage bloat
+const MAX_STORAGE_SIZE = 4 * 1024 * 1024; // 4MB limit (localStorage is ~5-10MB typically)
 
 export function useResearchHistory(): UseResearchHistoryReturn {
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
@@ -93,14 +94,88 @@ export function useResearchHistory(): UseResearchHistoryReturn {
     loadSessions();
   }, []);
 
-  // Save sessions to localStorage whenever sessions change
+  // Save sessions to localStorage with intelligent quota management
   const saveSessions = useCallback((updatedSessions: ResearchSession[]) => {
     try {
-      // Limit the number of stored sessions
-      const sessionsToStore = updatedSessions.slice(0, MAX_SESSIONS);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionsToStore));
+      let sessionsToStore = updatedSessions.slice(0, MAX_SESSIONS);
+      let dataString = JSON.stringify(sessionsToStore);
+      
+      // If data exceeds size limit, progressively reduce sessions and compress data
+      if (dataString.length > MAX_STORAGE_SIZE) {
+        console.log(`📦 Storage optimization: Data size ${(dataString.length / 1024 / 1024).toFixed(2)}MB exceeds ${(MAX_STORAGE_SIZE / 1024 / 1024).toFixed(2)}MB limit`);
+        
+        // Step 1: Reduce number of sessions
+        for (let maxSessions = MAX_SESSIONS - 1; maxSessions > 0 && dataString.length > MAX_STORAGE_SIZE; maxSessions--) {
+          sessionsToStore = updatedSessions.slice(0, maxSessions);
+          dataString = JSON.stringify(sessionsToStore);
+          console.log(`📦 Reduced to ${maxSessions} sessions, size: ${(dataString.length / 1024 / 1024).toFixed(2)}MB`);
+        }
+        
+        // Step 2: If still too large, compress session data by removing verbose content
+        if (dataString.length > MAX_STORAGE_SIZE) {
+          console.log(`📦 Compressing session data to fit storage limits`);
+          sessionsToStore = sessionsToStore.map(session => ({
+            ...session,
+            steps: session.steps.map(step => ({
+              ...step,
+              // Truncate large content but keep essential info
+              reasoning: step.reasoning ? step.reasoning.substring(0, 500) + (step.reasoning.length > 500 ? '...[truncated]' : '') : step.reasoning,
+              output: step.output ? step.output.substring(0, 1000) + (step.output.length > 1000 ? '...[truncated]' : '') : step.output,
+            }))
+          }));
+          dataString = JSON.stringify(sessionsToStore);
+          console.log(`📦 Compressed data size: ${(dataString.length / 1024 / 1024).toFixed(2)}MB`);
+        }
+        
+        // Step 3: Last resort - keep only essential session metadata
+        if (dataString.length > MAX_STORAGE_SIZE) {
+          console.warn(`📦 Emergency compression: Keeping only session metadata`);
+          sessionsToStore = sessionsToStore.map(session => ({
+            id: session.id,
+            query: session.query,
+            timestamp: session.timestamp,
+            status: session.status,
+            duration: session.duration,
+            resultCount: session.resultCount,
+            steps: [] // Remove all steps to save space
+          }));
+          dataString = JSON.stringify(sessionsToStore);
+        }
+      }
+      
+      localStorage.setItem(STORAGE_KEY, dataString);
+      console.log(`✅ Saved ${sessionsToStore.length} research sessions (${(dataString.length / 1024).toFixed(1)}KB)`);
+      
     } catch (error) {
-      console.error("Failed to save research history:", error);
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        console.error("💾 LocalStorage quota exceeded, attempting emergency cleanup...");
+        
+        // Emergency cleanup: Keep only the most recent session
+        try {
+          const emergencySessions = updatedSessions.slice(0, 1).map(session => ({
+            id: session.id,
+            query: session.query,
+            timestamp: session.timestamp,
+            status: session.status,
+            duration: session.duration,
+            resultCount: session.resultCount,
+            steps: []
+          }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(emergencySessions));
+          console.log(`🚨 Emergency save: Kept only 1 session with minimal data`);
+        } catch (emergencyError) {
+          console.error("💥 Emergency save failed:", emergencyError);
+          // Clear storage completely as last resort
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            console.log(`🗑️ Cleared storage completely due to persistent quota issues`);
+          } catch (clearError) {
+            console.error("💥 Failed to clear storage:", clearError);
+          }
+        }
+      } else {
+        console.error("Failed to save research history:", error);
+      }
     }
   }, []);
 

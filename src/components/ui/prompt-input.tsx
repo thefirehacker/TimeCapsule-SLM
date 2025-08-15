@@ -116,6 +116,7 @@ interface PromptBoxProps {
   placeholder?: string;
   className?: string;
   compact?: boolean;
+  onStopResearch?: () => void;
   // RAG Integration
   enableRAG?: boolean;
   onRAGSearch?: (query: string) => Promise<RAGContext | null>;
@@ -325,6 +326,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       disabled = false,
       placeholder = "What would you like to research? Ask anything...",
       compact = false,
+      onStopResearch,
       enableRAG = false,
       onRAGSearch,
       onRAGToggle,
@@ -999,29 +1001,39 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          type="submit"
+                          type={isGenerating ? "button" : "submit"}
+                          onClick={isGenerating ? onStopResearch : undefined}
                           disabled={
-                            !hasValue ||
-                            isGenerating ||
+                            (!hasValue && !isGenerating) ||
                             disabled ||
                             isRAGSearching ||
                             isWebSearching
                           }
                           className={cn(
-                            "flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
-                            compact ? "h-8 w-8 p-0" : "h-9 px-4"
+                            "flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none hover:bg-primary/90 disabled:opacity-50",
+                            compact ? "h-8 w-8 p-0" : "h-9 px-4",
+                            isGenerating 
+                              ? "bg-red-500 text-white hover:bg-red-600" 
+                              : "bg-primary text-primary-foreground"
                           )}
                         >
-                          {isGenerating || isRAGSearching || isWebSearching ? (
+                          {isGenerating ? (
+                            <>
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect x="6" y="6" width="12" height="12" rx="2" strokeWidth="2"/>
+                              </svg>
+                              {!compact && (
+                                <span className="ml-2">Stop Research</span>
+                              )}
+                            </>
+                          ) : isRAGSearching || isWebSearching ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
                               {!compact && (
                                 <span className="ml-2">
                                   {isRAGSearching
                                     ? "Searching..."
-                                    : isWebSearching
-                                      ? "Web searching..."
-                                      : "Streaming..."}
+                                    : "Web searching..."}
                                 </span>
                               )}
                             </>
@@ -1042,7 +1054,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                             : isWebSearching
                               ? "Searching web for context..."
                               : isGenerating
-                                ? "Research streaming in progress..."
+                                ? "Stop ongoing research"
                                 : "Generate Research"}
                         </p>
                       </TooltipContent>

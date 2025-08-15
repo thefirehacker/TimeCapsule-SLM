@@ -37,6 +37,7 @@ export interface DocumentAnalysis {
   documents?: SingleDocumentAnalysis[]; // Analysis for each document separately
   relationships?: DocumentRelationship[]; // How documents relate to each other
   crossDocumentStrategy?: string; // How to combine information across documents
+  relevantDocumentGroups?: any[]; // 🎯 Document groups that passed relevance filtering
 }
 
 export interface SingleDocumentAnalysis {
@@ -62,6 +63,15 @@ export interface DocumentRelationship {
   sourceDoc: string;
   targetDoc: string;
   description: string; // How they relate (e.g., "Person A's methods for Person B to learn")
+}
+
+export interface QueryConstraints {
+  expectedOwner?: string;
+  expectedDomainCandidates?: string[];
+  expectedTitleHints?: string[];
+  expectedDocType?: string; // e.g., 'blog', 'paper', 'docs'
+  strictness: 'must' | 'should';
+  keyEntities: string[];
 }
 
 export interface Pattern {
@@ -131,7 +141,19 @@ export interface ResearchContext {
     extractionStrategies: Record<string, any>; // PatternGenerator strategies
     discoveredPatterns: Record<string, any>; // Patterns discovered during processing
     agentFindings: Record<string, any>; // Key findings from each agent
+    queryConstraints?: QueryConstraints; // Dynamic constraints derived from the user query
     executionPlan?: any; // PlanningAgent execution plan
+    documentSectionRelevance?: Record<string, { score: number, relevantSections: string[] }>; // PlanningAgent document relevance scores
+    correctiveStrategies?: Record<string, any>; // PlanningAgent corrective strategies when DataInspector misclassifies
+    lastSkippedAgent?: { // Track skipped agents for progression guidance
+      agent: string;
+      reason: string;
+      planStatus: string;
+      timestamp: number;
+      recommendedNext?: string;
+    };
+    agentGuidance?: Record<string, string>;
+    qualityFlags?: Record<string, string>; // Quality assessment flags per agent
   };
   
   // Timing and performance
@@ -164,6 +186,15 @@ export interface ResearchContext {
   summary?: {
     executive: string;
     keyFindings: string[];
+  };
+  
+  // Debug information for testing and development
+  debugInfo?: {
+    generatedPatterns?: {
+      description: string;
+      pattern: string;
+      category: string;
+    }[];
   };
 }
 

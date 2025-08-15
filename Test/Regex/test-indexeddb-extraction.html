@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB Pattern Extraction Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .results { margin-top: 20px; }
+        .pattern-result { 
+            border: 1px solid #ddd; 
+            margin: 10px 0; 
+            padding: 15px; 
+            background: #f9f9f9; 
+        }
+        .pattern-result.has-matches { 
+            border-color: #4CAF50; 
+            background: #f0f8f0; 
+        }
+        .pattern-title { 
+            font-weight: bold; 
+            color: #333; 
+            margin-bottom: 10px;
+        }
+        .matches { 
+            background: #fff; 
+            padding: 10px; 
+            border-left: 3px solid #4CAF50; 
+            margin: 10px 0;
+        }
+        .match-item { 
+            margin: 5px 0; 
+            padding: 5px; 
+            background: #f5f5f5; 
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .no-matches { color: #999; font-style: italic; }
+        .summary { 
+            background: #e3f2fd; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0;
+        }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px;
+        }
+        button:hover { background: #45a049; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IndexedDB Pattern Extraction Test</h1>
+        <p>This will test the regex patterns against documents stored in your browser's IndexedDB.</p>
+        
+        <button onclick="runTest()">Extract Patterns from IndexedDB</button>
+        <button onclick="downloadCSV()" id="downloadBtn" style="display:none;">Download CSV Results</button>
+        
+        <div id="status" class="loading" style="display:none;">Testing patterns...</div>
+        
+        <div id="summary" class="summary" style="display:none;"></div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // Embed the pattern extractor directly
+        class BrowserPatternExtractor {
+            constructor() {
+                this.patterns = [
+                    // Person patterns with actions
+                    { pattern: /Zhihong Shao[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Zhihong Shao" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Zhihong Shao[^\n]*/gi, description: "Authorship pattern for Zhihong Shao" },
+                    { pattern: /Peiyi Wang[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Peiyi Wang" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Peiyi Wang[^\n]*/gi, description: "Authorship pattern for Peiyi Wang" },
+                    { pattern: /Qihao Zhu[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Qihao Zhu" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Qihao Zhu[^\n]*/gi, description: "Authorship pattern for Qihao Zhu" },
+                    { pattern: /Ruoxin Xu[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Ruoxin Xu" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Ruoxin Xu[^\n]*/gi, description: "Authorship pattern for Ruoxin Xu" },
+                    { pattern: /Junxiao Song[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Junxiao Song" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Junxiao Song[^\n]*/gi, description: "Authorship pattern for Junxiao Song" },
+                    { pattern: /Xiao Bi[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Xiao Bi" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Xiao Bi[^\n]*/gi, description: "Authorship pattern for Xiao Bi" },
+                    { pattern: /Haowei Zhang[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Haowei Zhang" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Haowei Zhang[^\n]*/gi, description: "Authorship pattern for Haowei Zhang" },
+                    { pattern: /Mingchuan Zhang[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Mingchuan Zhang" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Mingchuan Zhang[^\n]*/gi, description: "Authorship pattern for Mingchuan Zhang" },
+                    { pattern: /Y\.\s*K\.\s*Li[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Y. K. Li" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Y\.\s*K\.\s*Li[^\n]*/gi, description: "Authorship pattern for Y. K. Li" },
+                    { pattern: /Y\.\s*Wu[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Y. Wu" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Y\.\s*Wu[^\n]*/gi, description: "Authorship pattern for Y. Wu" },
+                    { pattern: /Daya Guo[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Daya Guo" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Daya Guo[^\n]*/gi, description: "Authorship pattern for Daya Guo" },
+                    { pattern: /Toby Simonds[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Toby Simonds" },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Toby Simonds[^\n]*/gi, description: "Authorship pattern for Toby Simonds" },
+                    { pattern: /Tufa Labs\.[^\n]*(?:developed|created|proposes|implements)[^\n]*/gi, description: "Person pattern for Tufa Labs." },
+                    { pattern: /(?:author|by|from)\s*[^\n]*Tufa Labs\.[^\n]*/gi, description: "Authorship pattern for Tufa Labs." },
+
+                    // Method/Concept patterns (most successful from logs)
+                    { pattern: /Group Relative Policy Optimization \(GRPO\)[^\n]{0,100}/gi, description: "GRPO method pattern" },
+                    { pattern: /language models[^\n]{0,100}/gi, description: "Language models concept (long)" },
+                    { pattern: /Reinforcement Learning[^\n]{0,100}/gi, description: "Reinforcement Learning concept (long)" },
+                    { pattern: /Chain-of-Thought[^\n]{0,100}/gi, description: "Chain-of-Thought concept" },
+                    { pattern: /Program-of-Thought[^\n]{0,100}/gi, description: "Program-of-Thought concept" },
+                    { pattern: /language models[^\n]{0,80}/gi, description: "Language models concept (short)" },
+                    { pattern: /reinforcement learning[^\n]{0,80}/gi, description: "Reinforcement learning concept (short)" },
+                    { pattern: /mathematical reasoning[^\n]{0,80}/gi, description: "Mathematical reasoning concept" },
+                    { pattern: /instruction tuning[^\n]{0,80}/gi, description: "Instruction tuning concept" },
+
+                    // Additional useful patterns
+                    { pattern: /\b(?:proposed|introduces|presents|develops|implements|creates)\s+[A-Z][^\n]{10,80}/gi, description: "Method introduction pattern" },
+                    { pattern: /\b(?:algorithm|method|approach|technique|framework)\s+[A-Z][^\n]{5,60}/gi, description: "Technical method pattern" },
+                    { pattern: /\b(?:performance|accuracy|results?|evaluation)\s+[^\n]{5,80}/gi, description: "Performance results pattern" },
+                    { pattern: /\b(?:dataset|corpus|benchmark)\s+[A-Z][^\n]{5,60}/gi, description: "Dataset mention pattern" },
+                    { pattern: /\b(?:model|architecture|network)\s+[A-Z][^\n]{5,60}/gi, description: "Model architecture pattern" }
+                ];
+                this.results = [];
+            }
+
+            async getDocumentsFromIndexedDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('deepresearch_vectorstore');
+                    
+                    request.onerror = () => reject(request.error);
+                    
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        
+                        if (!db.objectStoreNames.contains('documents')) {
+                            console.warn('⚠️ Documents object store not found');
+                            resolve([]);
+                            return;
+                        }
+
+                        const transaction = db.transaction(['documents'], 'readonly');
+                        const store = transaction.objectStore('documents');
+                        const getAllRequest = store.getAll();
+
+                        getAllRequest.onerror = () => reject(getAllRequest.error);
+                        
+                        getAllRequest.onsuccess = () => {
+                            const documents = getAllRequest.result || [];
+                            console.log(`📄 Found ${documents.length} documents in IndexedDB`);
+                            resolve(documents);
+                        };
+                    };
+                });
+            }
+
+            testDocument(doc) {
+                const documentResults = [];
+                const fullContent = doc.content;
+                const chunkContents = doc.chunks?.map(chunk => chunk.content).join('\n') || '';
+                const testContent = fullContent + '\n' + chunkContents;
+
+                console.log(`📄 Testing patterns against document: ${doc.title}`);
+
+                for (const {pattern, description} of this.patterns) {
+                    const matches = testContent.match(pattern) || [];
+                    const result = {
+                        pattern: pattern.source,
+                        description,
+                        matches: matches.map(match => match.trim()),
+                        matchCount: matches.length,
+                        sourceDocument: doc.title,
+                        documentId: doc.id
+                    };
+
+                    documentResults.push(result);
+                    
+                    if (matches.length > 0) {
+                        console.log(`✅ Pattern "${description}" found ${matches.length} matches in ${doc.title}`);
+                        matches.slice(0, 3).forEach((match, idx) => {
+                            console.log(`   ${idx + 1}: ${match.substring(0, 100)}...`);
+                        });
+                    }
+                }
+
+                return documentResults;
+            }
+
+            async extractFromIndexedDB() {
+                try {
+                    const documents = await this.getDocumentsFromIndexedDB();
+                    
+                    if (documents.length === 0) {
+                        console.warn('⚠️ No documents found in IndexedDB');
+                        return;
+                    }
+
+                    console.log(`📁 Processing ${documents.length} documents from IndexedDB`);
+
+                    for (const doc of documents) {
+                        const docResults = this.testDocument(doc);
+                        this.results.push(...docResults);
+                    }
+
+                    console.log(`✅ Pattern extraction completed. Total results: ${this.results.length}`);
+                    
+                } catch (error) {
+                    console.error('❌ Error extracting from IndexedDB:', error);
+                    throw error;
+                }
+            }
+
+            getResults() {
+                return this.results;
+            }
+
+            getSummary() {
+                const totalMatches = this.results.reduce((sum, r) => sum + r.matchCount, 0);
+                const successfulPatterns = this.results.filter(r => r.matchCount > 0);
+                const documentsProcessed = new Set(this.results.map(r => r.documentId)).size;
+                
+                const topPatterns = successfulPatterns
+                    .sort((a, b) => b.matchCount - a.matchCount)
+                    .slice(0, 10)
+                    .map(result => ({
+                        description: result.description,
+                        matches: result.matchCount
+                    }));
+
+                return {
+                    totalResults: this.results.length,
+                    totalMatches,
+                    successfulPatterns: successfulPatterns.length,
+                    documentsProcessed,
+                    topPatterns
+                };
+            }
+        }
+
+        let extractor = null;
+        let extractionResults = [];
+
+        async function runTest() {
+            const statusEl = document.getElementById('status');
+            const resultsEl = document.getElementById('results');
+            const summaryEl = document.getElementById('summary');
+            
+            statusEl.style.display = 'block';
+            resultsEl.innerHTML = '';
+            summaryEl.style.display = 'none';
+            
+            try {
+                extractor = new BrowserPatternExtractor();
+                await extractor.extractFromIndexedDB();
+                
+                const results = extractor.getResults();
+                const summary = extractor.getSummary();
+                
+                extractionResults = results;
+                
+                // Display summary
+                summaryEl.innerHTML = `
+                    <h3>📊 Extraction Summary</h3>
+                    <p><strong>Documents processed:</strong> ${summary.documentsProcessed}</p>
+                    <p><strong>Total patterns tested:</strong> ${summary.totalResults / summary.documentsProcessed || 0}</p>
+                    <p><strong>Successful patterns:</strong> ${summary.successfulPatterns}/${summary.totalResults / summary.documentsProcessed || 0}</p>
+                    <p><strong>Total matches found:</strong> ${summary.totalMatches}</p>
+                `;
+                summaryEl.style.display = 'block';
+                
+                // Display results
+                const patternGroups = {};
+                results.forEach(result => {
+                    if (!patternGroups[result.description]) {
+                        patternGroups[result.description] = [];
+                    }
+                    patternGroups[result.description].push(result);
+                });
+                
+                Object.entries(patternGroups).forEach(([description, patternResults]) => {
+                    const totalMatches = patternResults.reduce((sum, r) => sum + r.matchCount, 0);
+                    const hasMatches = totalMatches > 0;
+                    
+                    const patternDiv = document.createElement('div');
+                    patternDiv.className = `pattern-result ${hasMatches ? 'has-matches' : ''}`;
+                    
+                    let matchesHtml = '';
+                    if (hasMatches) {
+                        const allMatches = patternResults.flatMap(r => 
+                            r.matches.map(match => ({
+                                match: match,
+                                document: r.sourceDocument
+                            }))
+                        );
+                        
+                        matchesHtml = `
+                            <div class="matches">
+                                <strong>${totalMatches} matches found:</strong>
+                                ${allMatches.slice(0, 5).map(({match, document}) => 
+                                    `<div class="match-item">
+                                        <strong>From:</strong> ${document}<br>
+                                        <strong>Match:</strong> ${match.length > 200 ? match.substring(0, 200) + '...' : match}
+                                    </div>`
+                                ).join('')}
+                                ${allMatches.length > 5 ? `<div class="match-item">... and ${allMatches.length - 5} more matches</div>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        matchesHtml = '<div class="no-matches">No matches found</div>';
+                    }
+                    
+                    patternDiv.innerHTML = `
+                        <div class="pattern-title">${description} (${totalMatches} matches)</div>
+                        <div><strong>Pattern:</strong> <code>${patternResults[0].pattern}</code></div>
+                        ${matchesHtml}
+                    `;
+                    
+                    resultsEl.appendChild(patternDiv);
+                });
+                
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+                statusEl.style.display = 'none';
+                
+            } catch (error) {
+                statusEl.innerHTML = `❌ Error: ${error.message}`;
+                statusEl.style.color = 'red';
+                console.error('Test failed:', error);
+            }
+        }
+
+        function downloadCSV() {
+            if (!extractionResults.length) return;
+            
+            const csvRows = extractionResults.map(result => ({
+                Pattern: `"${result.pattern.replace(/"/g, '""')}"`,
+                Description: `"${result.description}"`,
+                MatchCount: result.matchCount,
+                Matches: `"${result.matches.slice(0, 3).join(' | ').replace(/"/g, '""')}"`,
+                SourceDocument: result.sourceDocument || 'Unknown',
+                DocumentId: result.documentId || 'Unknown',
+                Timestamp: new Date().toISOString()
+            }));
+
+            const headers = ['Pattern', 'Description', 'MatchCount', 'Matches', 'SourceDocument', 'DocumentId', 'Timestamp'];
+            const csvContent = [
+                headers.join(','),
+                ...csvRows.map(row => Object.values(row).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'indexeddb_pattern_extraction_results.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Auto-run test when page loads if IndexedDB is available
+        window.addEventListener('load', () => {
+            if (window.indexedDB) {
+                console.log('IndexedDB available. Ready to test patterns.');
+            } else {
+                document.getElementById('status').innerHTML = '❌ IndexedDB not available in this browser';
+                document.getElementById('status').style.display = 'block';
+                document.getElementById('status').style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>

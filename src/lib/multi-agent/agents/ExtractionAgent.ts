@@ -9,27 +9,40 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ExtractedItem, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { generateWithCompletion, sanitizeResponse, parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class ExtractionAgent extends BaseAgent {
   readonly name = 'Extractor';
   readonly description = 'Executes extraction using generated patterns';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   private batchReasoning: string[] = [];
   private extractionSummary: string = '';
   private llmResponses: string[] = [];
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`⛏️ Extractor: Processing ${context.ragResults.chunks.length} chunks`);
     
+    // Report start of processing
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Initializing extraction process', 0, undefined);
+    
     if (context.patterns.length === 0) {
       console.warn('⚠️ No extraction patterns available');
       this.setReasoning('No extraction patterns to work with');
+      
+      // Report completion with no patterns
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'No extraction patterns available',
+        extractedItems: 0
+      });
+      
       return context;
     }
     
@@ -51,6 +64,16 @@ export class ExtractionAgent extends BaseAgent {
     if (regexPatterns.length > 0) {
       console.log(`🎯 Using REGEX MODE: Found ${regexPatterns.length} regex patterns from PatternGenerator`);
       console.log(`📋 Regex patterns: ${regexPatterns.map(p => p.regexPattern).join(', ')}`);
+      
+      // Store patterns for UI display and testing (use strict types)
+      context.debugInfo = {
+        ...context.debugInfo,
+        generatedPatterns: regexPatterns.map(p => ({
+          description: String(p.description || ''),
+          pattern: String(p.regexPattern || ''),
+          category: 'general'
+        }))
+      };
       
       // Use regex-based extraction
       const regexResults = await this.extractUsingRegexPatterns(context);
@@ -119,6 +142,13 @@ export class ExtractionAgent extends BaseAgent {
     this.setReasoning(finalReasoning);
     
     console.log(`✅ Extraction complete: ${uniqueItems.length} items found`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      extractedItems: uniqueItems.length,
+      patternsUsed: context.patterns.length,
+      chunksProcessed: totalChunks
+    });
     
     return context;
   }
@@ -698,10 +728,14 @@ Focus on completeness - capture every relevant data point.`;
         // Current records are always unique
         key = `current_${item.value}_${item.unit}`.toLowerCase();
       } else {
-        // For other items, use more specific deduplication
-        // Include more of the content to avoid over-deduplication
-        const contentKey = item.content.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 50);
-        key = `${contentKey}_${item.value}_${item.unit}`.toLowerCase();
+        // Use full content and context for better deduplication
+        // This preserves evidence while avoiding exact duplicates
+        const fullContent = (item.content || '').toLowerCase().trim();
+        const context = (item.context || '').toLowerCase().trim();
+        const sourceChunk = item.sourceChunkId || '';
+        
+        // Include source and context to distinguish similar values from different contexts
+        key = `${fullContent}_${context}_${sourceChunk}`.substring(0, 200);
       }
       
       const existing = seen.get(key);
@@ -794,58 +828,59 @@ Keep it simple and direct.`;
     const totalChunks = context.ragResults.chunks.length;
     
     console.log(`📊 Processing ${totalChunks} chunks with ${regexPatterns.length} regex patterns`);
+    this.progressCallback?.onAgentProgress?.(this.name, 30, `Preparing ${regexPatterns.length} patterns`);
     
-    // Apply each regex pattern to all chunks
-    for (const pattern of regexPatterns) {
-      const regexString = pattern.regexPattern!;
-      console.log(`🔍 Applying pattern: ${regexString}`);
-      
-      try {
-        // Parse regex pattern (handle /pattern/flags format)
-        const regexMatch = regexString.match(/^\/(.+)\/([gimuy]*)$/);
-        const regexBody = regexMatch ? regexMatch[1] : regexString;
-        const regexFlags = regexMatch ? regexMatch[2] : 'gi';
-        
-        const regex = new RegExp(regexBody, regexFlags);
-        let patternMatches = 0;
-        
-        // Apply regex to each chunk
-        for (const chunk of context.ragResults.chunks) {
-          let match;
-          while ((match = regex.exec(chunk.text)) !== null) {
-            const extractedContent = match[1] || match[0]; // Use capture group or full match
-            
-            extractedItems.push({
-              content: extractedContent.trim(),
-              value: extractedContent.trim(),
-              unit: '',
-              context: match[0], // Full match for context
-              confidence: 0.95, // High confidence for regex matches
-              sourceChunkId: chunk.id,
-              sourceDocument: chunk.sourceDocument,
+    // Offload regex scanning to a Web Worker to keep UI responsive
+    try {
+      this.progressCallback?.onAgentProgress?.(this.name, 45, 'Spawning extraction worker');
+      const itemsFromWorker: ExtractedItem[] = await new Promise((resolve, reject) => {
+        const worker = new Worker('/workers/regexExtractionWorker.js');
+        const handle = (e: MessageEvent) => {
+          const { type, payload } = (e as any).data || {};
+          if (type === 'progress') {
+            const processed = payload?.processed || 0;
+            const total = payload?.total || 0;
+            const pct = total ? Math.min(85, Math.max(55, Math.round((processed / total) * 80))) : 55;
+            this.progressCallback?.onAgentProgress?.(this.name, pct, 'Scanning chunks', processed, total);
+            } else if (type === 'done') {
+            worker.removeEventListener('message', handle as any);
+            worker.terminate();
+            const rawItems = (payload?.items || []) as ExtractedItem[];
+            // Ensure original vs normalized fields are preserved in metadata
+            const items = rawItems.map((it: any) => ({
+              ...it,
               metadata: {
-                extractionMethod: 'regex_pattern',
-                regexPattern: regexString,
-                patternDescription: pattern.description,
-                fullMatch: match[0]
+                ...it.metadata,
+                originalContext: it.metadata?.originalText || it.context,
+                normalizedContext: it.metadata?.normalizedText
               }
-            });
-            
-            patternMatches++;
+            }));
+            resolve(items);
+          } else if (type === 'error') {
+            worker.removeEventListener('message', handle as any);
+            worker.terminate();
+            reject(new Error(payload?.message || 'regex worker error'));
           }
-          
-          // Reset regex lastIndex for global patterns
-          regex.lastIndex = 0;
-        }
-        
-        console.log(`✅ Pattern "${regexString}" found ${patternMatches} matches`);
-        
-      } catch (error) {
-        console.error(`❌ Invalid regex pattern "${regexString}":`, error);
-      }
+        };
+        worker.addEventListener('message', handle as any);
+        worker.postMessage({
+          type: 'run',
+          payload: {
+            patterns: regexPatterns.map(p => ({ description: p.description, regexPattern: p.regexPattern })),
+            chunks: context.ragResults.chunks.map(ch => ({ id: ch.id, text: ch.text, sourceDocument: ch.sourceDocument })),
+            caps: { maxPatterns: 64, maxMatchesPerChunk: 200, batchSize: 2 }
+          }
+        });
+      });
+      extractedItems.push(...itemsFromWorker);
+      this.progressCallback?.onAgentProgress?.(this.name, 90, `Merging ${itemsFromWorker.length} matches`);
+      console.log(`✅ Worker regex extraction completed with ${itemsFromWorker.length} items`);
+    } catch (workerErr) {
+      console.warn('⚠️ Regex worker failed; skipping worker offload:', workerErr);
     }
     
     console.log(`🎯 REGEX extraction complete: ${extractedItems.length} items extracted`);
+    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Extraction complete', extractedItems.length, undefined);
     
     // Update reasoning
     this.batchReasoning.push(`🎯 **REGEX MODE**: Used ${regexPatterns.length} patterns from PatternGenerator`);

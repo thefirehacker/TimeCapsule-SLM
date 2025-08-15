@@ -803,7 +803,7 @@ export class VectorStore {
         console.log('🔍 DEBUG: No userdocs found, checking all documents...');
         const allDocs = await this.documentsCollection.documents.find().exec();
         console.log(`🔍 DEBUG: Total documents in database: ${allDocs.length}`);
-        allDocs.forEach((doc, i) => {
+        allDocs.forEach((doc: any, i: number) => {
           const docData = doc.toJSON();
           console.log(`🔍 DEBUG Doc ${i+1}: documentType="${docData.metadata?.documentType}", source="${docData.metadata?.source}", title="${docData.title}"`);
         });
@@ -1179,6 +1179,11 @@ export class VectorStore {
       for (const doc of documents) {
         if (doc.chunks && doc.chunks.length > 0) {
           for (const chunk of doc.chunks) {
+            // DEBUG: Check raw chunk content (reduced logging)
+            if (!chunk.content || chunk.content.length === 0) {
+              console.warn(`⚠️ Empty chunk content in ${doc.title}: ${chunk.id}`);
+            }
+            
             allChunks.push({
               ...chunk,
               text: chunk.content,  // ChunkSelector expects 'text' field
