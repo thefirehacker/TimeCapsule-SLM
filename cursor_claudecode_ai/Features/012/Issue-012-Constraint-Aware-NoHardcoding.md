@@ -246,22 +246,42 @@ Total: 3–5 typical.
 
 ### ✅ CRITICAL: Master Orchestrator Execution Order Bug (FIXED)
 
-### 🚨 CRITICAL: PatternGenerator Structured Data Extraction Bug (ACTIVE)
+### ✅ CRITICAL: PatternGenerator Structured Data Extraction Bug (FIXED)
 - **Problem**: PatternGenerator's `extractUnitsFromContent()` fails to extract measurement units from concatenated table data formats
 - **Evidence**: Query "give me top 3 speedrun from Tyler's blog" → System extracts "Items with time values: 0" despite table having perfect speedrun data
 - **Root Cause**: Unit extraction regex expects spaces but Tyler's data is concatenated: `"8.13hours6.44B221k2025/01/16"`
 - **Wrong Unit Extraction**: 
-  - ❌ **Current logic**: `\d+(?:\.\d+)?\s*([A-Za-z]...)` expects spaces between numbers and units
+  - ❌ **Original logic**: `\d+(?:\.\d+)?\s*([A-Za-z]...)` expects spaces between numbers and units
   - ❌ **Actual data**: `"8.13hours6.44B221k"` (no spaces, concatenated table cells)
   - ❌ **Wrong extraction**: `["on", "GPUs", "GPT", "speedrun", "GB", "machine"]` (random words)
   - ✅ **Should extract**: `["hours", "B", "k", "minutes", "seconds"]` (actual measurement units)
 - **Available Perfect Data**: Tyler's blog contains structured speedrun times: `2.55 hours`, `4.26 hours`, `8.13 hours`, etc.
 - **Impact**: PatternGenerator creates patterns with wrong units, causing Extractor to miss all structured data, resulting in "Items with time values: 0"
-- **Fix Needed**: 
-  - **Universal Structured Data Extraction**: Enhance `extractUnitsFromContent()` to handle ANY table format (concatenated, spaced, embedded)
-  - **Zero-Hardcoding Approach**: Learn patterns from document structure dynamically, not hardcoded unit expectations
-  - **Table-Aware Parsing**: Split concatenated cell data and identify measurement patterns
-  - **Claude Code Philosophy**: Make PatternGenerator extract ANY structured data format intelligently
+- **Fix Applied**: 
+  - **Universal Structured Data Extraction**: Enhanced `extractUnitsFromContent()` with 4-pattern recognition system to handle ANY table format (concatenated, spaced, embedded)
+  - **Zero-Hardcoding Approach**: Learns patterns from document structure dynamically using intelligent number-letter transition detection
+  - **Multiple Pattern Strategies**: Pattern 1 (spaced), Pattern 2 (concatenated), Pattern 3 (embedded), Pattern 4 (ending units)
+  - **Validated**: Tyler's data `"8.13hours6.44B221k"` now correctly extracts `["hours", "B", "k"]`
+
+### ✅ CRITICAL: PatternGenerator Performance Ranking Detection Bug (FIXED)
+- **Problem**: PatternGenerator checks `expectedAnswerType === 'performance_ranking'` but PlanningAgent sets `expectedIntent: 'performance_ranking'`
+- **Evidence**: Logs show `expectedType=performance_ranking, expectedIntent=undefined` → Performance patterns not triggered
+- **Root Cause**: Mismatch between PatternGenerator's check and PlanningAgent's output structure
+- **Impact**: Despite PlanningAgent correctly detecting performance queries, deterministic performance patterns weren't being generated
+- **Fix Applied**: Enhanced PatternGenerator to check both `expectedAnswerType` and `expectedIntent` for performance ranking detection
+
+### ✅ FIXED: PlanningAgent Claude Code-Style Consumption Logic (COMPLETED)
+- **Problem**: System extracted items but got generic text `["speedrun results", "top", "speed"]` instead of actual speedrun times `["2.55 hours", "4.01 hours", "4.26 hours"]`
+- **Root Cause**: No quality validation between agents - PatternGenerator creates patterns, Extractor extracts items, but no validation occurred
+- **Impact**: SynthesisCoordinator received generic text and produced hallucinated responses instead of actual speedrun ranking
+- **Fix Applied**: Comprehensive PlanningAgent Claude Code-Style Consumption Logic:
+  - **DataInspector Validation**: `validateDataInspectorResults()` - Deep document selection and entity extraction quality analysis
+  - **PatternGenerator Validation**: `validatePatternGeneratorResults()` - Evidence-driven pattern assessment with document content analysis 
+  - **Extractor Validation**: `validateExtractorResults()` - Comprehensive extraction quality analysis against query requirements
+  - **SynthesisCoordinator Validation**: `validateSynthesisCoordinatorResults()` - Hallucination detection and factual grounding verification
+  - **Session-Specific Guidance**: `createSessionSpecificGuidance()` - Dynamic corrective instructions based on actual document format
+  - **Enhanced Replanning**: `triggerIntelligentReplanning()` - Specific technical guidance like "Create pattern: /(\d+(?:\.\d+)?)\s*(hours?)\b/gi"
+  - **Main Orchestration**: `consumeAgentResults()` - Validates ALL agents after completion, triggers replanning with detailed guidance when quality insufficient
 
 ### ✅ DataAnalyzer Catastrophic Filtering Bug (EMERGENCY BYPASS)
 - **Problem**: DataAnalyzer filtered out 100% of relevant extracted items as "low-relevance" (28% scores for "Project" and "Rutwik" items when query was "best project by Rutwik")

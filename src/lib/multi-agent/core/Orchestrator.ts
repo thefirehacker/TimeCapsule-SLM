@@ -2246,10 +2246,34 @@ NEXT_GOAL: [final goal achieved]`;
         };
       }
 
-      // Create a quality assessment prompt for PlanningAgent
-      const assessmentPrompt = this.buildQualityAssessmentPrompt(agentName, context);
+      // 🎯 CLAUDE CODE-STYLE CONSUMPTION LOGIC: Use dedicated validation methods
+      console.log(`🔍 PlanningAgent consuming and validating ${agentName} results using Claude Code-style logic`);
+      const consumptionResult = await (planningAgent as any).consumeAgentResults(context, agentName);
       
-      console.log(`🔍 Asking PlanningAgent to assess ${agentName} results`);
+      if (consumptionResult.replanRequired) {
+        return {
+          isAcceptable: false,
+          status: 'replan_required',
+          reason: 'PlanningAgent identified quality issues requiring replanning',
+          retryRecommended: true,
+          improvement: 'Use corrective guidance from replanning requests'
+        };
+      }
+
+      // If no specific consumption logic, fall back to existing assessment
+      if (consumptionResult.shouldContinue) {
+        return {
+          isAcceptable: true,
+          status: 'acceptable',
+          reason: 'Results validated by PlanningAgent consumption logic',
+          retryRecommended: false,
+          improvement: ''
+        };
+      }
+
+      // Fallback to existing LLM-based assessment for other agents
+      const assessmentPrompt = this.buildQualityAssessmentPrompt(agentName, context);
+      console.log(`🔍 Using LLM-based assessment for ${agentName} (no specific consumption logic)`);
       const response = await this.llm(assessmentPrompt);
       
       return this.parseQualityAssessment(response);
@@ -2409,16 +2433,41 @@ Assess based purely on query needs:`;
     this.calledAgents.delete(agentName);
     this.agentResults.delete(agentName);
 
-    // Store improvement guidance in context
-    if (!context.sharedKnowledge.agentGuidance) {
-      context.sharedKnowledge.agentGuidance = {};
+    // 🎯 CLAUDE CODE-STYLE: Use PlanningAgent's corrective guidance if available
+    const correctiveGuidance = (context.sharedKnowledge as any)?.correctiveGuidance;
+    const replanningRequests = (context.sharedKnowledge as any)?.replanningRequests;
+    
+    if (correctiveGuidance && correctiveGuidance.target === agentName) {
+      console.log(`🎯 Using PlanningAgent corrective guidance: ${correctiveGuidance.guidance}`);
+      
+      // Store specific corrective guidance
+      if (!context.sharedKnowledge.agentGuidance) {
+        context.sharedKnowledge.agentGuidance = {};
+      }
+      context.sharedKnowledge.agentGuidance[agentName] = correctiveGuidance.guidance;
+      
+      // Set priority flag for agent to use
+      (context.sharedKnowledge as any).currentPriority = correctiveGuidance.priority;
+      
+    } else {
+      // Store generic improvement guidance
+      if (!context.sharedKnowledge.agentGuidance) {
+        context.sharedKnowledge.agentGuidance = {};
+      }
+      context.sharedKnowledge.agentGuidance[agentName] = improvement;
     }
-    context.sharedKnowledge.agentGuidance[agentName] = improvement;
+
+    // Log replanning context if available
+    if (replanningRequests && replanningRequests.length > 0) {
+      const latestRequest = replanningRequests[replanningRequests.length - 1];
+      console.log(`🔄 Replanning context: ${latestRequest.action} - ${latestRequest.reason}`);
+    }
 
     // Re-execute the agent
     const agent = this.registry.get(agentName);
     if (agent) {
-      console.log(`🎯 Re-executing ${agentName} with improvement guidance: ${improvement}`);
+      const guidanceToUse = correctiveGuidance ? correctiveGuidance.guidance : improvement;
+      console.log(`🎯 Re-executing ${agentName} with intelligent guidance: ${guidanceToUse}`);
       await agent.process(context);
     }
   }
