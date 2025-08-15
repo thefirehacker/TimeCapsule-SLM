@@ -127,6 +127,10 @@ export class DataInspectorAgent extends BaseAgent {
       sourceDocument?: string;
     }> = [];
     
+    // 🎯 ZERO-HARDCODING: Analyze query to understand document source requirements
+    const sourceRequired = this.extractSourceRequirement(context.query);
+    console.log(`🔍 Query source analysis:`, { query: context.query, sourceRequired });
+    
     // Process up to 8 chunks for measurement extraction
     const chunksToProcess = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
     
@@ -135,6 +139,19 @@ export class DataInspectorAgent extends BaseAgent {
     
     for (const chunk of chunksToProcess) {
       const text = chunk.text || '';
+      
+      // 🎯 ZERO-HARDCODING: Filter by document source if query specifies one
+      if (sourceRequired.sourceRequired && sourceRequired.sourceName) {
+        const chunkSource = (chunk.sourceDocument || chunk.source || '').toLowerCase();
+        const querySource = sourceRequired.sourceName.toLowerCase();
+        
+        // Check if chunk is from the requested source using semantic matching
+        if (!this.isFromRequestedSource(chunkSource, querySource, text)) {
+          console.log(`🔍 Skipping chunk from ${chunkSource} - query requests ${querySource}`);
+          continue;
+        }
+      }
+      
       let match: RegExpExecArray | null;
       
       // Reset regex state
@@ -166,7 +183,20 @@ export class DataInspectorAgent extends BaseAgent {
     }
     
     // Store measurements in sharedKnowledge for downstream agents
+    console.log(`🔍 DEBUG: About to store ${measurements.length} measurements in shared context`);
+    console.log(`🔍 DEBUG: Context structure:`, {
+      hasSharedKnowledge: !!context.sharedKnowledge,
+      hasDocumentInsights: !!context.sharedKnowledge?.documentInsights,
+      existingMeasurements: context.sharedKnowledge?.documentInsights?.measurements?.length || 0
+    });
+    
     context.sharedKnowledge.documentInsights.measurements = measurements;
+    
+    // Verify storage worked
+    console.log(`🔍 DEBUG: After storage:`, {
+      storedCount: context.sharedKnowledge.documentInsights.measurements?.length || 0,
+      sampleStored: context.sharedKnowledge.documentInsights.measurements?.slice(0, 2) || []
+    });
     
     console.log(`📊 DataInspector: Extracted ${measurements.length} numeric measurements from document text`);
     if (measurements.length > 0) {
@@ -700,6 +730,9 @@ REASON: [detailed reasoning based on extracted content]`;
     if (thinkMatch) {
       cleanResponse = thinkMatch[1]; // Content after </think>
     }
+
+    // 🚨 CRITICAL FIX: Clean markdown formatting that breaks parsing
+    cleanResponse = this.cleanMarkdownFormatting(cleanResponse);
     
     // 🔥 ENHANCED: Try with original key first, then with typo-corrected variations
     const keysToTry = [key]; // Start with original key
@@ -724,19 +757,26 @@ REASON: [detailed reasoning based on extracted content]`;
         new RegExp(`${keyVariation}:\\s*(.+?)(?:\\n|$)`, 'i'),           // "TYPE: Document"
         new RegExp(`${keyVariation}\\s*[:=]\\s*(.+?)(?:\\n|$)`, 'i'),   // "TYPE: Document" or "TYPE = Document"  
         new RegExp(`\\b${keyVariation}\\b[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i'), // More flexible matching
+        new RegExp(`\\*\\*${keyVariation}\\*\\*[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i'), // Markdown bold headers
+        new RegExp(`${keyVariation}\\s*\\*\\*[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i'), // Mixed markdown
       ];
       
       for (const pattern of patterns) {
         const match = cleanResponse.match(pattern);
         if (match && match[1].trim()) {
+          let value = match[1].trim();
+          // Clean any remaining markdown from the extracted value
+          value = this.cleanMarkdownFormatting(value);
+          
           // Log successful typo correction for debugging
           if (keyVariation !== key) {
-            console.log(`🔧 DataInspector: Fixed typo "${keyVariation}" → "${key}" for value: "${match[1].trim()}"`);
+            console.log(`🔧 DataInspector: Fixed typo "${keyVariation}" → "${key}" for value: "${value}"`);
           }
-          return match[1].trim();
+          return value;
         }
       }
     }
+
     
     // 🔥 FALLBACK: For REASON specifically, try to extract from <think> content
     if (key === 'REASON') {
@@ -753,6 +793,30 @@ REASON: [detailed reasoning based on extracted content]`;
     console.warn(`⚠️ DataInspector failed to extract ${key} from response: "${response.substring(0, 200)}..."`);
     return '';
   }
+
+  /**
+   * 🚨 CRITICAL FIX: Clean markdown formatting that breaks text parsing
+   */
+  private cleanMarkdownFormatting(text: string): string {
+    return text
+      // Remove bold markdown
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      // Remove italic markdown
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/_(.*?)_/g, '$1')
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`([^`]*)`/g, '$1')
+      // Remove headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove strikethrough
+      .replace(/~~(.*?)~~/g, '$1')
+      // Remove extra whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
 
   /**
    * 🧠 INTELLIGENT ENTITY DISCOVERY: No hardcoded patterns
@@ -1721,5 +1785,69 @@ CRITICAL RULES:
 - Always extract relevant terms from each category if they appear in the content
 
 Extract the most relevant and specific terms for this query:`;
+  }
+
+  /**
+   * 🎯 ZERO-HARDCODING: Check if chunk is from requested source using semantic matching
+   */
+  private isFromRequestedSource(chunkSource: string, querySource: string, chunkText: string): boolean {
+    // Direct source name matching
+    if (chunkSource.includes(querySource)) {
+      return true;
+    }
+    
+    // Content-based matching - look for the source name in the chunk text
+    const queryWords = querySource.split(/\s+/);
+    const textLower = chunkText.toLowerCase();
+    
+    // Check if the main source identifier appears in content
+    for (const word of queryWords) {
+      if (word.length > 2 && textLower.includes(word.toLowerCase())) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * 🎯 ZERO-HARDCODING: Extract document source requirements from query
+   * Understands queries like "from Tyler's blog", "in X's work", etc.
+   */
+  private extractSourceRequirement(query: string): { sourceRequired: boolean; sourceName?: string; sourceType?: string } {
+    // Pattern recognition for source specification (no hardcoding)
+    const fromPattern = /\bfrom\s+([^'s]+(?:'s)?\s+\w+)/i;
+    const possessivePattern = /\b([a-z]+)'s\s+(blog|work|post|article|paper|site)/i;
+    const inPattern = /\bin\s+([^'s]+(?:'s)?\s+\w+)/i;
+    
+    let sourceName = undefined;
+    let sourceType = undefined;
+    
+    // Check for "from X's Y" pattern
+    const fromMatch = fromPattern.exec(query);
+    if (fromMatch) {
+      sourceName = fromMatch[1].trim();
+      sourceType = 'from_source';
+    }
+    
+    // Check for "X's Y" pattern  
+    const possessiveMatch = possessivePattern.exec(query);
+    if (possessiveMatch) {
+      sourceName = possessiveMatch[1];
+      sourceType = possessiveMatch[2];
+    }
+    
+    // Check for "in X's Y" pattern
+    const inMatch = inPattern.exec(query);
+    if (inMatch) {
+      sourceName = inMatch[1].trim();
+      sourceType = 'in_source';
+    }
+    
+    return {
+      sourceRequired: !!(sourceName),
+      sourceName,
+      sourceType
+    };
   }
 }

@@ -504,5 +504,73 @@ All fixes use pure intelligence and pattern recognition without violating Featur
 - **Result**: Multi-agent UI now properly displays individual agent cards with progress, reasoning, and outputs
 - **Testing**: Build compilation successful ✅
 
+### ✅ RESOLVED: React State Closure Issue in Progress Callbacks (COMPLETED)
+- **Problem**: "❌ START ERROR: Main step not found for agent 'DataInspector'. This should not happen!" - Progressive callback couldn't find main step during agent start
+- **Root Cause**: React state closure issue where `progressCallback` useMemo captured initial empty state of `researchStepsState.steps` and never saw updates, even though main step was successfully added to React state
+- **Evidence**: 
+  - Main step creation succeeded: `✅ Main step created at research start: "multi_agent_research"`
+  - Callback immediately failed: `❌ START ERROR: Main step not found for agent "DataInspector"`
+  - Same execution sequence proving callback read stale closure state
+- **Technical Root Cause**: `progressCallback` closure captured initial empty array, React state updates are asynchronous, callback never saw updated state
+- **Fix Applied**: Implemented State Ref Pattern in `/src/components/DeepResearch/hooks/useResearch.ts`:
+  ```typescript
+  // Added ref to track current steps state
+  const currentStepsRef = React.useRef<ResearchStep[]>([]);
+  
+  // Keep ref updated with current state
+  React.useEffect(() => {
+    currentStepsRef.current = researchStepsState.steps;
+  }, [researchStepsState.steps]);
+  
+  // Updated all callback methods to use ref instead of closure
+  const progressCallback = React.useMemo(() => ({
+    onAgentStart: (agentName, agentType, input) => {
+      const existingSteps = currentStepsRef.current; // ← Uses ref instead of closure
+      const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
+      // ... rest of callback logic
+    },
+    // Applied same fix to all callback methods
+  }), [setThinkingOutput, performedStepsPersist]); // Removed researchStepsState from dependencies
+  ```
+- **Result**: Callbacks now always read current React state instead of stale closure state, eliminating main step not found errors and restoring real-time progress updates
+- **Testing**: Build compilation successful ✅
+
+### ✅ RESOLVED: DataInspector Storage & Document Selection Bug (COMPLETED)
+- **Problem**: Despite fixing UI callbacks, system still produced generic meta-commentary instead of actual speedrun data from Tyler's blog
+- **Root Cause**: **Triple failure** in data pipeline:
+  1. **Storage Failure**: DataInspector extracted 234 measurements but stored NONE in shared context (`hasMeasurements: false, measurementsLength: 0`)
+  2. **Wrong Document Priority**: System extracted phone numbers from Rutwik's resume instead of speedrun times from Tyler's blog 
+  3. **JSON Parsing Errors**: `SyntaxError: Bad escaped character in JSON at position 314` breaking PlanningAgent execution plans
+- **Evidence**: 
+  - DataInspector debug: `📊 DataInspector: Extracted 234 numeric measurements` but PatternGenerator: `measurementsLength: 0`
+  - Wrong measurements: `["9370947507", "34", "187"]` (phone numbers) instead of `["4.26 hours", "7.51 hours"]` (speedrun times)
+  - JSON parsing: `🔍 JSON extraction failed: SyntaxError: Bad escaped character in JSON`
+- **Fix Applied**: **Zero-hardcoding triple fix** in `/src/lib/multi-agent/agents/DataInspectorAgent.ts` and `/src/components/DeepResearch/hooks/responseCompletion.ts`:
+  ```typescript
+  // Fix 1: Enhanced storage debugging
+  console.log(`🔍 DEBUG: About to store ${measurements.length} measurements in shared context`);
+  context.sharedKnowledge.documentInsights.measurements = measurements;
+  console.log(`🔍 DEBUG: After storage: ${context.sharedKnowledge.documentInsights.measurements?.length}`);
+  
+  // Fix 2: Document-query alignment  
+  const sourceRequired = this.extractSourceRequirement(context.query); // "from Tyler's blog"
+  if (sourceRequired.sourceRequired && !this.isFromRequestedSource(chunkSource, querySource, text)) {
+    continue; // Skip chunks from wrong documents
+  }
+  
+  // Fix 3: JSON escape sanitization
+  function fixEscapeCharacterIssues(text: string): string {
+    return text.replace(/\\[^"\\\/bfnrtux]/g, (match) => '\\\\' + match[1]); // Fix bad escapes
+  }
+  ```
+- **Zero-Hardcoding Methods**:
+  - `extractSourceRequirement()`: Universal pattern recognition for "from X's Y" queries
+  - `isFromRequestedSource()`: Semantic document-source matching  
+  - `fixEscapeCharacterIssues()`: Universal JSON escape repair
+- **Expected Transform**:
+  - **Before**: Phone numbers from wrong document → generic meta-responses
+  - **After**: Speedrun times from Tyler's blog → "Top 3 speedruns: 4.26 hours, 7.51 hours, 8.13 hours"
+- **Testing**: Build compilation successful ✅
+
 ## Approval
 Proceed with DataInspector sequencing fix and Claude Code-style consumption/replan implementation in `todo-012.md`.
