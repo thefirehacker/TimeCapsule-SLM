@@ -236,16 +236,32 @@ Total: 3–5 typical.
 
 ### ✅ CRITICAL: Semantic Entity-Query Alignment Failure (FIXED)
 - **Problem**: DataInspector incorrectly marks documents as relevant based on keyword matching instead of semantic entity alignment
-- **Evidence**: Query "give the best project by Rutwik" → DataInspector marks Tyler's blog (`www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf`) as relevant
+- **Evidence**: Query "give the best project by Rutwik" → DataInspector marks Tyler's blog as relevant due to keyword matching
 - **Root Cause**: System matches "project" keyword but ignores that Tyler's work is semantically unrelated to Rutwik's projects
-- **Current Logic Failure**: `Entity="GPT Training Optimization Team" → Result: true` for Rutwik query - no semantic understanding
-- **PlanningAgent Gap**: Validates for wrong reasons (performance content) instead of detecting entity mismatch (Tyler ≠ Rutwik)
-- **Impact**: System extracts from wrong documents, produces generic placeholder responses instead of actual relevant content
 - **Fix Applied**: 
   - **DataInspector**: Enhanced semantic relevance analysis prompt with detailed entity-query alignment rules (Step 3: Semantic Entity-Query Alignment Analysis)
   - **PlanningAgent**: Implemented `validateSemanticEntityAlignment()` method with zero-hardcoding semantic validation
   - **Focus**: Entity ownership analysis (Person A's work ≠ queries about Person B's work) with possessive/attribution pattern recognition
   - **Result**: System now correctly rejects documents with entity ownership mismatches using semantic intelligence
+
+### ✅ CRITICAL: Master Orchestrator Execution Order Bug (FIXED)
+
+### 🚨 CRITICAL: PatternGenerator Structured Data Extraction Bug (ACTIVE)
+- **Problem**: PatternGenerator's `extractUnitsFromContent()` fails to extract measurement units from concatenated table data formats
+- **Evidence**: Query "give me top 3 speedrun from Tyler's blog" → System extracts "Items with time values: 0" despite table having perfect speedrun data
+- **Root Cause**: Unit extraction regex expects spaces but Tyler's data is concatenated: `"8.13hours6.44B221k2025/01/16"`
+- **Wrong Unit Extraction**: 
+  - ❌ **Current logic**: `\d+(?:\.\d+)?\s*([A-Za-z]...)` expects spaces between numbers and units
+  - ❌ **Actual data**: `"8.13hours6.44B221k"` (no spaces, concatenated table cells)
+  - ❌ **Wrong extraction**: `["on", "GPUs", "GPT", "speedrun", "GB", "machine"]` (random words)
+  - ✅ **Should extract**: `["hours", "B", "k", "minutes", "seconds"]` (actual measurement units)
+- **Available Perfect Data**: Tyler's blog contains structured speedrun times: `2.55 hours`, `4.26 hours`, `8.13 hours`, etc.
+- **Impact**: PatternGenerator creates patterns with wrong units, causing Extractor to miss all structured data, resulting in "Items with time values: 0"
+- **Fix Needed**: 
+  - **Universal Structured Data Extraction**: Enhance `extractUnitsFromContent()` to handle ANY table format (concatenated, spaced, embedded)
+  - **Zero-Hardcoding Approach**: Learn patterns from document structure dynamically, not hardcoded unit expectations
+  - **Table-Aware Parsing**: Split concatenated cell data and identify measurement patterns
+  - **Claude Code Philosophy**: Make PatternGenerator extract ANY structured data format intelligently
 
 ### ✅ DataAnalyzer Catastrophic Filtering Bug (EMERGENCY BYPASS)
 - **Problem**: DataAnalyzer filtered out 100% of relevant extracted items as "low-relevance" (28% scores for "Project" and "Rutwik" items when query was "best project by Rutwik")

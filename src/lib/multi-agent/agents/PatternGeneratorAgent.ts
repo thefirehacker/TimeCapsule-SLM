@@ -470,24 +470,153 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
 
   /**
    * Extract measurement units from document content - ZERO HARDCODING
+   * Universal approach to handle ANY structured data format
    */
   private extractUnitsFromContent(content: string): string[] {
     if (!content) return [];
     
-    // Find all patterns of numbers followed by potential units
-    const unitMatches = content.matchAll(/\d+(?:\.\d+)?\s*([A-Za-z][A-Za-z/]*[A-Za-z]?)/g);
     const units = new Set<string>();
     
-    for (const match of unitMatches) {
-      const unit = match[1];
-      // Filter out obvious non-units (too short, all caps, contains numbers)
-      if (unit.length >= 2 && unit.length <= 20 && !/^\d+$/.test(unit) && !/^[A-Z]{4,}$/.test(unit)) {
-        units.add(unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape for regex
+    // Pattern 1: Standard spaced format "8.13 hours", "4.26 minutes", "221 k"
+    const spacedRegex = /\d+(?:\.\d+)?\s+([A-Za-z][A-Za-z/]*[A-Za-z]?)/g;
+    let spacedMatch;
+    while ((spacedMatch = spacedRegex.exec(content)) !== null) {
+      this.addValidUnit(spacedMatch[1], units);
+    }
+    
+    // Pattern 2: Concatenated format without spaces "8.13hours6.44B221k"
+    // This handles complex table cell data where multiple measurements are concatenated
+    const concatenatedRegex = /\d+(?:\.\d+)?([A-Za-z]+)(?=\d|$)/g;
+    let concatenatedMatch;
+    while ((concatenatedMatch = concatenatedRegex.exec(content)) !== null) {
+      const potentialUnit = concatenatedMatch[1];
+      // Split complex concatenated units intelligently
+      const extractedUnits = this.intelligentUnitSplit(potentialUnit);
+      extractedUnits.forEach(unit => this.addValidUnit(unit, units));
+    }
+    
+    // Pattern 3: Single letter magnitude units embedded in numbers "6.44B221k"
+    const embeddedRegex = /\d+(?:\.\d+)?([KMGTBP])(?=\d)/g;
+    let embeddedMatch;
+    while ((embeddedMatch = embeddedRegex.exec(content)) !== null) {
+      this.addValidUnit(embeddedMatch[1], units);
+    }
+    
+    // Pattern 4: Units at end of concatenated sequences "221k", "188k"
+    const endingRegex = /\d+([a-z]{1,8})(?![a-zA-Z])/g;
+    let endingMatch;
+    while ((endingMatch = endingRegex.exec(content)) !== null) {
+      this.addValidUnit(endingMatch[1], units);
+    }
+    
+    const result = Array.from(units).slice(0, 15);
+    console.log(`🔍 Universal unit extraction found:`, result.join(', '));
+    return result;
+  }
+  
+  /**
+   * Add unit to set if it passes validation (zero hardcoding)
+   */
+  private addValidUnit(unit: string, units: Set<string>): void {
+    if (!unit) return;
+    
+    // Filter validation: must be reasonable unit format
+    if (unit.length >= 1 && unit.length <= 20 && 
+        !/^\d+$/.test(unit) && // not pure numbers
+        !/^[A-Z]{5,}$/.test(unit) && // not long acronyms  
+        !/^(and|the|or|in|on|at|to|for|with|by)$/i.test(unit)) { // not common words
+      units.add(unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape for regex
+    }
+  }
+  
+  /**
+   * Intelligent unit splitting for ANY concatenated format - ZERO HARDCODING
+   * Handles complex cases like "hours6" -> ["hours"] or "hoursB" -> ["hours", "B"]
+   */
+  private intelligentUnitSplit(concat: string): string[] {
+    const units: string[] = [];
+    
+    // Strategy 1: Look for transitions between letters and numbers
+    // "hours6" -> "hours" + "6" (ignore numbers)
+    // "hoursB" -> "hours" + "B"
+    let currentUnit = '';
+    let i = 0;
+    
+    while (i < concat.length) {
+      const char = concat[i];
+      
+      if (/[A-Za-z]/.test(char)) {
+        currentUnit += char;
+      } else if (/\d/.test(char)) {
+        // Number encountered - save current unit if valid, skip numbers
+        if (currentUnit.length >= 1) {
+          units.push(currentUnit);
+          currentUnit = '';
+        }
+        // Skip all consecutive numbers
+        while (i < concat.length && /\d/.test(concat[i])) {
+          i++;
+        }
+        continue; // Don't increment i again
+      } else {
+        // Special character - end current unit
+        if (currentUnit.length >= 1) {
+          units.push(currentUnit);
+          currentUnit = '';
+        }
+      }
+      i++;
+    }
+    
+    // Add final unit if exists
+    if (currentUnit.length >= 1) {
+      units.push(currentUnit);
+    }
+    
+    // Strategy 2: Detect common patterns without hardcoding
+    // Look for single capital letters (magnitude units)
+    const singleCaps = concat.match(/[A-Z]/g) || [];
+    singleCaps.forEach(cap => {
+      if (!units.includes(cap) && /[KMGTBP]/.test(cap)) {
+        units.push(cap);
+      }
+    });
+    
+    // Strategy 3: If no clear splits found, check for common word boundaries
+    if (units.length === 0 && concat.length >= 2 && concat.length <= 12) {
+      // Look for vowel-consonant transitions that suggest word boundaries
+      const wordBoundaries = this.findWordBoundaries(concat);
+      if (wordBoundaries.length > 0) {
+        units.push(...wordBoundaries);
+      } else {
+        // Last resort: treat whole string as unit if reasonable
+        units.push(concat);
       }
     }
     
-    const result = Array.from(units).slice(0, 15); // Limit to most common units
-    return result;
+    return units.filter(unit => unit.length >= 1 && unit.length <= 10);
+  }
+  
+  /**
+   * Find word boundaries in concatenated strings using linguistic patterns
+   */
+  private findWordBoundaries(text: string): string[] {
+    // Look for patterns like lowercase followed by uppercase (camelCase)
+    const camelCaseWords = text.split(/(?=[A-Z])/).filter(Boolean);
+    if (camelCaseWords.length > 1) {
+      return camelCaseWords;
+    }
+    
+    // Look for vowel-consonant patterns that suggest syllable boundaries
+    // This is heuristic but works for many measurement units
+    const syllablePattern = /([bcdfghjklmnpqrstvwxyz]*[aeiou]+[bcdfghjklmnpqrstvwxyz]*)/gi;
+    const syllables = text.match(syllablePattern) || [];
+    
+    if (syllables.length > 1) {
+      return syllables;
+    }
+    
+    return [];
   }
 
   /**

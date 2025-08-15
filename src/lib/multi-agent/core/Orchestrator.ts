@@ -710,10 +710,11 @@ ${this.buildDynamicToolsList(availableData)}
 🎯 INTELLIGENT ORCHESTRATION GUIDANCE:
 1. **START WITH DataInspector** if not called yet - Analyzes and filters documents (${availableData.dataInspectorCompleted ? 'DONE ✅' : 'REQUIRED ❌'})
 2. **THEN PlanningAgent** if DataInspector done - Creates execution strategy (${availableData.planningAgentCompleted ? 'DONE ✅' : availableData.dataInspectorCompleted ? 'RECOMMENDED' : 'NOT YET'})
-3. **🔥 CRITICAL: FOLLOW EXECUTION PLAN** if available - The plan is validated and prevents sequencing errors
-4. **PLAN-AWARE DECISIONS** - Your decisions are validated against the execution plan automatically
-5. **TRUST THE PLAN** - The PlanningAgent created an intelligent sequence - follow it exactly
-6. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
+3. **🔥 CRITICAL DEPENDENCY: PatternGenerator BEFORE Extractor** - Extractor requires patterns to function effectively (${availableData.patternGeneratorCompleted ? 'PATTERNS READY ✅' : 'PATTERNS NEEDED ❌'})
+4. **🔥 CRITICAL: FOLLOW EXECUTION PLAN** if available - The plan is validated and prevents sequencing errors
+5. **PLAN-AWARE DECISIONS** - Your decisions are validated against the execution plan automatically
+6. **TRUST THE PLAN** - The PlanningAgent created an intelligent sequence - follow it exactly
+7. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
 
 📊 CURRENT DATA AVAILABLE:
 - Documents: ${availableData.chunksSelected ? `${context.ragResults.chunks.length} chunks available` : 'No documents available'}
@@ -746,6 +747,7 @@ IMPORTANT: Don't give up! Either search for data or explain what's needed.` : `
 📊 AVAILABLE DATA & NEXT STEPS:
 ${!availableData.dataInspectorCompleted ? '🔥 **REQUIRED**: DataInspector must analyze documents first' : ''}
 ${availableData.dataInspectorCompleted && !availableData.planningAgentCompleted ? '📋 **RECOMMENDED**: PlanningAgent to create intelligent execution strategy' : ''}
+${!availableData.patternGeneratorCompleted && availableData.patternsGenerated === 0 ? '⚠️ **DEPENDENCY WARNING**: PatternGenerator must run before Extractor (no extraction patterns available)' : ''}
 ${availableData.planningAgentCompleted ? `
 🎯 **EXECUTION PLAN ACTIVE**: Plan-aware validation is ENABLED
 ${this.getNextPlannedStep(context, availableData)}
@@ -1213,11 +1215,24 @@ NEXT_GOAL: [final goal achieved]`;
     }
     
     if (toolName === 'Extractor') {
-      // Extractor is essential for data extraction - allow even if not planned
-      console.log(`⚡ Extractor is essential for data extraction - allowing intelligent addition`);
+      // 🔥 CRITICAL DEPENDENCY: Extractor requires patterns from PatternGenerator
+      const hasPatterns = context.sharedKnowledge?.extractionPatterns && 
+                         context.sharedKnowledge.extractionPatterns.length > 0;
+      const patternGeneratorCalled = this.calledAgents.has('PatternGenerator');
+      
+      if (!patternGeneratorCalled && !hasPatterns) {
+        console.log(`❌ Extractor blocked: PatternGenerator must run first to create extraction patterns`);
+        return { 
+          allowed: false, 
+          reason: 'Extractor requires patterns from PatternGenerator to function effectively',
+          suggestion: 'Call PatternGenerator first to generate extraction patterns'
+        };
+      }
+      
+      console.log(`⚡ Extractor validation passed - patterns available (PatternGenerator: ${patternGeneratorCalled}, patterns: ${hasPatterns ? context.sharedKnowledge?.extractionPatterns?.length : 0})`);
       return { 
         allowed: true, 
-        reason: 'Extractor is essential for data extraction - intelligent addition to plan' 
+        reason: 'Extractor has required patterns available for data extraction' 
       };
     }
     
@@ -1292,6 +1307,26 @@ NEXT_GOAL: [final goal achieved]`;
     
     // Define critical dependencies for each agent
     switch (toolName) {
+      case 'Extractor':
+        // 🔥 CRITICAL DEPENDENCY: Extractor requires patterns from PatternGenerator
+        console.log(`🎯 Validating Extractor prerequisites - checking for extraction patterns`);
+        const hasPatterns = context.sharedKnowledge?.extractionPatterns && 
+                           context.sharedKnowledge.extractionPatterns.length > 0;
+        const patternGeneratorCalled = this.calledAgents.has('PatternGenerator');
+        console.log(`📊 PatternGenerator called: ${patternGeneratorCalled}, patterns available: ${hasPatterns ? context.sharedKnowledge?.extractionPatterns?.length : 0}`);
+        
+        if (!patternGeneratorCalled && !hasPatterns) {
+          // Find PatternGenerator in prerequisites
+          const patternStep = uncompletedPrerequisites.find(step => 
+            this.normalizeToolName(step.agent) === 'PatternGenerator'
+          );
+          if (patternStep) {
+            console.log(`❌ Extractor blocked: PatternGenerator must run first`);
+            critical.push(patternStep);
+          }
+        }
+        break;
+        
       // BYPASSED: DataAnalyzer case removed - agent disabled due to filtering bug
       // case 'DataAnalyzer':
         // DataAnalyzer needs extracted data from Extractor

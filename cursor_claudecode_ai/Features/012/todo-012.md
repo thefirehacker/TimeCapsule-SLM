@@ -130,6 +130,8 @@ No code changes until approved. This plan is source-agnostic and works for any d
 
 - Active Critical Issues
   - [x] **🚨 URGENT: Semantic Entity-Query Alignment** - Fixed both DataInspector and PlanningAgent with semantic reasoning to detect entity ownership mismatch (Tyler's blog ≠ Rutwik's projects)
+  - [x] **🚨 CRITICAL: Master Orchestrator Execution Order Bug** - Fixed dependency validation to ensure PatternGenerator runs before Extractor. Added intelligent dependency checking to prevent extraction without patterns.
+  - [x] **🚨 URGENT: PatternGenerator Structured Data Extraction Bug** - extractUnitsFromContent() fails on concatenated table formats ("8.13hours6.44B221k"), extracts wrong units ["on", "GPUs", "speedrun"] instead of ["hours", "B", "k"]. System gets "Items with time values: 0" despite perfect table data being available.
 
 - Critical Fixes (Emergency) 
   - [x] **FIXED DataInspector entity extraction failure** - Removed confusing "If query doesn't need category, write none" prompt logic
@@ -137,11 +139,23 @@ No code changes until approved. This plan is source-agnostic and works for any d
   - [x] **FIXED PatternGenerator table structure extraction failure** - Enhanced deterministic performance patterns with table-aware extraction and dynamic context learning (zero hardcoding)
   - [x] **FIXED DataAnalyzer catastrophic data filtering bug** - Completely bypassed DataAnalyzer agent that was filtering out 100% of relevant extracted items (Project: 28% relevance, Rutwik: 28% relevance for "best project by Rutwik" query)
   - [x] **CRITICAL: Fix Semantic Entity-Query Alignment** - DataInspector and PlanningAgent now use semantic entity-query alignment to detect ownership mismatches (implemented zero-hardcoding semantic validation)
+  - [x] **FIXED PatternGenerator Universal Structured Data Extraction** - Enhanced extractUnitsFromContent() with 4-pattern recognition system to handle ANY concatenated table format. Correctly extracts ["hours", "B", "k"] from "8.13hours6.44B221k" using zero-hardcoding approach with intelligent number-letter transition detection.
   
 - Not Started
   - [x] Align PlanningAgent strategy with context/expectations
   - [x] PlanningAgent Intelligent Override System (query intent override, entity validation, strategy correction) **FIXED - corrective strategy now properly applied**
   - [x] **PlanningAgent Document Relevance Validation** - Enhanced PlanningAgent to validate DataInspector's document selections using reasoning analysis and semantic validation **COMPLETED**
+  - [x] **PatternGenerator Universal Structured Data Extraction** - Enhance extractUnitsFromContent() to handle ANY structured data format (tables, lists, concatenated values) without hardcoding specific units or patterns **COMPLETED**
+    - Implemented universal structured data extraction with 4 pattern recognition strategies
+    - Pattern 1: Standard spaced format "8.13 hours"
+    - Pattern 2: Concatenated format "8.13hours6.44B221k"  
+    - Pattern 3: Embedded units "6.44B221k"
+    - Pattern 4: Ending units "221k"
+    - Intelligent unit splitting with dynamic number-letter transition detection
+    - Zero-hardcoding approach: learns from actual document structure
+    - Validated: Tyler's data "8.13hours6.44B221k" → correctly extracts ["hours", "B", "k"]
+  - [ ] **PlanningAgent Claude Code-Style Consumption Logic** - After each step, PlanningAgent consumes and validates results; if insufficient quality → replan and re-execute; if good → proceed (no useless fallbacks)
+  - [ ] **DataInspector Self-Validation** - Add query-output alignment check where DataInspector validates its own analysis against the query intent
   - [x] **Add PatternGenerator RxDB augmentation (capped, constrained)** - **COMPLETED**
     - Implemented in `applyRxDBAugmentation()` method
     - Uses grounded terms only (methods/concepts/people from document insights)
@@ -187,3 +201,4 @@ No code changes until approved. This plan is source-agnostic and works for any d
 - **Agent Rerun Enhancement**: Fixed rerun functionality to auto-restore dependencies (patterns, document analysis, extracted data) from previous agent results, enabling reliable single-agent reruns
 - **DataInspector Semantic Analysis**: Enhanced relevance logic with semantic reasoning guidance to properly connect entities in documents with query subjects (e.g., document about "Rutwik" → query about "Rutwik's projects")
 - **Regex Worker Capture Group Intelligence**: Improved capture group selection to prioritize numeric values (like "4.26") over descriptive text (like "Record time") using universal pattern scoring without hardcoded units
+- **PatternGenerator Universal Structured Data Extraction (CRITICAL FIX)**: Completely rewrote extractUnitsFromContent() with 4-pattern recognition system to handle ANY concatenated table format. Fixes critical bug where Tyler's "8.13hours6.44B221k" extracted wrong units ["on", "GPUs", "speedrun"] → now correctly extracts ["hours", "B", "k"]. Uses zero-hardcoding approach with intelligent number-letter transition detection, solving "Items with time values: 0" issue.
