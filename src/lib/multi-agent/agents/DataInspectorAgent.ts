@@ -55,12 +55,20 @@ export class DataInspectorAgent extends BaseAgent {
       console.log(`🔎 DataInspector: Received document metadata - performing multi-document sampling and analysis`);
       this.progressCallback?.onAgentProgress?.(this.name, 10, 'Starting multi-document analysis', 0, undefined);
       await this.performDocumentMetadataAnalysis(context);
+      
+      // Report completion
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        documentAnalysis: context.documentAnalysis,
+        filteredChunks: context.ragResults.chunks.length
+      });
+      
       return context;
     }
     
     // Count web sources vs RAG chunks for regular chunk analysis
     const webSources = context.ragResults.chunks.filter(chunk => 
-      chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
+      (chunk.metadata?.source && chunk.metadata.source.startsWith('http')) || 
+      (chunk.id && chunk.id.startsWith('web_'))
     ).length;
     const ragChunks = context.ragResults.chunks.length - webSources;
     
@@ -68,6 +76,13 @@ export class DataInspectorAgent extends BaseAgent {
     
     if (context.ragResults.chunks.length === 0) {
       this.setReasoning('No chunks to analyze');
+      
+      // Report completion with no data
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'No chunks to analyze',
+        chunksAnalyzed: 0
+      });
+      
       return context;
     }
     
@@ -76,6 +91,13 @@ export class DataInspectorAgent extends BaseAgent {
     
     // Use LLM to understand the data
     await this.inspectWithLLM(context);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      documentAnalysis: context.documentAnalysis,
+      chunksAnalyzed: context.ragResults.chunks.length,
+      measurements: context.sharedKnowledge.documentInsights?.data?.length || 0
+    });
     
     return context;
   }
@@ -581,13 +603,21 @@ DOCUMENT OWNERSHIP ANALYSIS:
 - Who does this document's work/research/projects belong to?
 - What entities have ownership/attribution in this document?
 
-SEMANTIC ALIGNMENT CHECK:
-- Does the document's ownership/authorship match the query's focus entity?
-- If query asks for "Rutwik's projects", is this document actually about Rutwik's work?
-- If query asks for "Tyler's blog", is this document authored by Tyler?
+CRITICAL ENTITY-QUERY ALIGNMENT:
+Step 3: Zero-Hardcoding Semantic Validation
+- Extract PRIMARY PERSON/ENTITY from query pattern analysis: "${query}"
+- Extract PRIMARY PERSON/ENTITY this document belongs to or is authored by
+- OWNERSHIP RULE: Documents about Entity A are NEVER relevant for queries about Entity B
+- PATTERN RECOGNITION: Look for possessive patterns ("X's work", "from Y's blog", "by Z") to identify query entity
+- DOCUMENT ENTITY: Identify who this document belongs to through authorship, name analysis, and content attribution
 
-RELEVANT: [YES only if document entities semantically align with query focus. NO if entity mismatch even with topic overlap]
-REASON: [explain the semantic relationship between document ownership/entities and query focus, emphasizing alignment or mismatch]
+ENTITY OWNERSHIP VERIFICATION:
+- Query targets entity: [extract entity from query using pattern recognition]
+- Document belongs to entity: [extract document owner through content analysis]  
+- Semantic match: [YES only if same entity, NO if different entities regardless of topic overlap]
+
+RELEVANT: [YES only if entity ownership matches AND content aligns. NO for entity ownership mismatch]
+REASON: [explain entity ownership analysis first: who query asks for vs who document is about, then content relevance]
 
 Respond in exact format:
 TYPE: [document type]

@@ -9,16 +9,19 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class SynthesisCoordinator extends BaseAgent {
   readonly name = 'SynthesisCoordinator';
   readonly description = 'Orchestrates synthesis agents and assembles final report';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
@@ -80,6 +83,14 @@ export class SynthesisCoordinator extends BaseAgent {
 - Citations included: ${hasCitations ? 'Yes' : 'No'}
 - Final report: ${cleanedReport.length} characters
 - Confidence: ${(context.synthesis.confidence * 100).toFixed(1)}%`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      finalResponse: context.synthesis?.finalResponse || '',
+      dataItemsUsed: itemCount,
+      reportLength: cleanedReport.length,
+      confidence: context.synthesis?.confidence || 0
+    });
     
     return context;
   }

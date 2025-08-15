@@ -57,6 +57,13 @@ export class PatternGeneratorAgent extends BaseAgent {
     // Report progress: Completed
     this.progressCallback?.onAgentProgress(this.name, 100, 'Pattern generation completed');
     
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      patternsGenerated: context.patterns.length,
+      documentChunks: context.ragResults?.chunks?.length || 0,
+      patternTypes: context.patterns.map(p => (p as any).type || 'regex')
+    });
+    
     return context;
   }
 
@@ -219,7 +226,7 @@ export class PatternGeneratorAgent extends BaseAgent {
       console.log(`🎯 PatternGenerator: Using corrective guidance: ${guidance}`);
       
       // Adjust strategy based on priority
-      if (currentPriority === 'time_patterns' || currentPriority === 'structured_time_data') {
+      if (currentPriority === 'time_patterns' || currentPriority === 'structured_time_data' || currentPriority === 'measurement_extraction') {
         console.log(`⏰ Priority override: Focusing on time measurement patterns`);
         await this.generateTimeSpecificPatterns(context, guidance);
         return;
@@ -1887,6 +1894,7 @@ REGEX_PATTERNS:
     context.patterns.push(...timePatterns as any);
     console.log(`✅ Added ${timePatterns.length} time-specific patterns based on corrective guidance`);
   }
+
 
   /**
    * Generate structured data patterns when PlanningAgent requests structured focus

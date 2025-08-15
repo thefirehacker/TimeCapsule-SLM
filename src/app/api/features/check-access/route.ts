@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import {
   featureAccessManager,
   FeatureType,
+  FEATURE_LIMITS,
 } from "@/lib/feature-access/FeatureAccessManager";
 
 export async function POST(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const { feature } = await request.json();
 
-    if (!feature || !Object.values(FeatureType).includes(feature)) {
+    if (!feature || !Object.keys(FEATURE_LIMITS).includes(feature)) {
       return NextResponse.json(
         { error: "Invalid feature specified" },
         { status: 400 }

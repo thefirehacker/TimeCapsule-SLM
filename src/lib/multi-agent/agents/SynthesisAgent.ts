@@ -9,20 +9,26 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { generateWithCompletion, sanitizeResponse } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class SynthesisAgent extends BaseAgent {
   readonly name = 'Synthesizer';
   readonly description = 'Consolidates extracted data into a coherent answer';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   private classificationLLMResponse: string = '';
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
+    // Report start of processing
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Initializing synthesis process', 0, undefined);
+    
     // Clear previous classification response
     this.classificationLLMResponse = '';
     
@@ -86,12 +92,26 @@ Total chunks: ${chunkCount}`);
         context.synthesis.answer = '';
         this.setReasoning('Cannot synthesize - Extractor must run first to extract data from documents');
         console.warn('⚠️ Synthesizer called before Extractor - no data to synthesize');
+        
+        // Report completion (no extractor)
+        this.progressCallback?.onAgentComplete?.(this.name, {
+          message: 'Cannot synthesize - Extractor must run first',
+          answer: ''
+        });
+        
         return context;
       }
       
       // Extractor ran but found nothing - use evidence-based reporting
       context.synthesis.answer = this.formatNoResultsReport(context);
       this.setReasoning('Insufficient extracted data - no specific information found matching query criteria');
+      
+      // Report completion (no results)
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'Insufficient extracted data',
+        answer: context.synthesis.answer
+      });
+      
       return context;
     }
     
@@ -156,6 +176,13 @@ ${synthesisResult.reasoning || 'Used adaptive synthesis approach'}
     this.setReasoning(finalReasoning);
     
     console.log(`✅ Synthesis complete: ${synthesisResult.answer.length} characters`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      answer: synthesisResult.answer,
+      extractedItemsUsed: extractedData.length,
+      confidence: synthesisResult.confidence
+    });
     
     return context;
   }

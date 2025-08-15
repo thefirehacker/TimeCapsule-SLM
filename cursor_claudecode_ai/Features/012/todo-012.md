@@ -127,11 +127,19 @@ No code changes until approved. This plan is source-agnostic and works for any d
   - [x] **RxDB Augmentation** - Constraint-aware semantic search with grounded terms
   - [x] **Data Loss Prevention** - Enhanced SynthesisCoordinator with flexible data access methods
   - [x] **Loop Prevention** - Emergency completion detection to prevent infinite agent calls
+  - [x] **UI Multi-Agent Display Fix** - Fixed progressCallback in useResearch.ts to create single main research step with agent subSteps instead of separate steps for each agent, enabling rich multi-agent UI display
+  - [x] **Step Title Detection Enhancement** - Enhanced PerplexityStyleResearch.tsx to detect agent names from step.id (agent_datainspector_timestamp) for proper step titles like "Analyzing Documents" instead of generic "Analyzing Query"
+  - [x] **Multi-Agent Progress Integration** - Restructured progress callbacks to populate subSteps with complete agent data including thinking, progress history, metrics, and output for verbose multi-agent process display
 
-- Active Critical Issues
+- Completed Critical Issues
   - [x] **🚨 URGENT: Semantic Entity-Query Alignment** - Fixed both DataInspector and PlanningAgent with semantic reasoning to detect entity ownership mismatch (Tyler's blog ≠ Rutwik's projects)
   - [x] **🚨 CRITICAL: Master Orchestrator Execution Order Bug** - Fixed dependency validation to ensure PatternGenerator runs before Extractor. Added intelligent dependency checking to prevent extraction without patterns.
   - [x] **🚨 URGENT: PatternGenerator Structured Data Extraction Bug** - extractUnitsFromContent() fails on concatenated table formats ("8.13hours6.44B221k"), extracts wrong units ["on", "GPUs", "speedrun"] instead of ["hours", "B", "k"]. System gets "Items with time values: 0" despite perfect table data being available.
+  - [x] **🚨 CRITICAL: PlanningAgent → PatternGenerator Priority Routing Bug** - PlanningAgent correctly detects "Query requires numeric data for ranking but DataInspector found no measurements" and sends corrective guidance, but PatternGenerator never receives time_patterns priority to trigger generateTimeSpecificPatterns(). Results in generic patterns `/run time/g` instead of time-specific patterns `/([0-9]+\.[0-9]+)\s*(hours?)/gi`, causing extraction of "run time" instead of "2.55 hours". **FIXED**: Priority string mismatch resolved (session_time_patterns → time_patterns) and currentPriority properly set in shared context.
+  - [x] **🚨 CRITICAL: Master LLM Orchestrator Premature Completion** - After ResearchOrchestrator removal, Master LLM completes after only DataInspector runs, skipping PatternGenerator→Extractor→SynthesisCoordinator pipeline. UI shows only DataInspector instead of full multi-agent sequence. **FIXED**: Added performance query detection and mandatory pipeline enforcement for ranking queries.
+  - [x] **🚨 NEW: DataInspector Sequencing Violation** - validateAgentExecution throws error when any agent other than DataInspector is called first, breaking orchestration flow. **FIXED**: Changed to warning + automatic redirect to DataInspector when needed.
+  - [x] **🚨 CRITICAL: Missing Claude Code-Style Consumption/Replan Logic** - PlanningAgent has consumeAgentResults() method but Orchestrator never calls it after agent execution. **FIXED**: Implemented full consumption/replan loop after each agent execution with specific guidance generation and retry tracking.
+  - [x] **🚨 LLM Typo Handling** - LLM outputs "DATAINSPICTOR" (missing 'e') causing normalization failures. **FIXED**: Added comprehensive typo handling for common misspellings.
 
 - Critical Fixes (Emergency) 
   - [x] **FIXED DataInspector entity extraction failure** - Removed confusing "If query doesn't need category, write none" prompt logic
@@ -154,6 +162,11 @@ No code changes until approved. This plan is source-agnostic and works for any d
     - Intelligent unit splitting with dynamic number-letter transition detection
     - Zero-hardcoding approach: learns from actual document structure
     - Validated: Tyler's data "8.13hours6.44B221k" → correctly extracts ["hours", "B", "k"]
+  - [x] **✅ FIXED: Orchestrator Infinite Loop Bug** - Orchestrator changes broke agent execution flow causing infinite loops and "Master LLM reached maximum iterations (15)". System stuck calling SynthesisCoordinator repeatedly instead of progressing through pipeline.
+    - **Evidence**: Logs show Master LLM iteration 15, agent status shows completed agents but keeps calling them
+    - **Root Cause**: Race condition fixes broke normal agent progression, duplicate execution prevention too aggressive
+    - **Impact**: System generates "No answer" due to infinite loop, complete system failure
+    - **Fix Applied**: Removed execution locks (`executingAgents`) while preserving retry logic; enhanced completion detection to prevent infinite loops
   - [ ] **PlanningAgent Claude Code-Style Consumption Logic** - After each step, PlanningAgent consumes and validates results; if insufficient quality → replan and re-execute; if good → proceed (no useless fallbacks)
   - [ ] **DataInspector Self-Validation** - Add query-output alignment check where DataInspector validates its own analysis against the query intent
   - [x] **Add PatternGenerator RxDB augmentation (capped, constrained)** - **COMPLETED**
@@ -191,14 +204,41 @@ No code changes until approved. This plan is source-agnostic and works for any d
     - Budget control would be optimization, not critical functionality
     - Current system is robust without artificial limits
 
-## Recent Updates (Zero Hardcoding)
-- **PatternGenerator Claude Code-Style Comprehensive Analysis (TOP PRIORITY)**: Replaced hardcoded fallback with Claude Code philosophy - comprehensive analysis of ALL chunks using DataInspector's proven measurement extraction logic. Combines bootstrap sample + complete dataset analysis for content-grounded pattern discovery.
-- **DataAnalyzer Bypass (EMERGENCY FIX)**: Completely removed DataAnalyzer from system due to catastrophic filtering bug that destroyed 100% of relevant extracted data. System now routes: Extractor → SynthesisCoordinator directly, preserving actual project details instead of producing generic placeholder output.
-- **Pattern Generation Zero-Hardcoding**: Fixed PatternGenerator to learn measurement units dynamically from document content instead of hardcoded "hours|minutes". Only activates performance patterns when query indicates ranking intent AND document contains numeric evidence.
-- **Chunk Expansion**: After DataInspector identifies relevant documents, system now fetches ALL chunks from approved documents for downstream agents (PatternGenerator, Extractor) while keeping DataInspector's efficient sampling for relevance decisions
-- **PlanningAgent Override Framework**: Designed intelligent override system where PlanningAgent can correct DataInspector misclassifications (e.g., "Keller Jordan" as method → person) and ensure proper query intent classification (performance ranking vs general info)
-- **Evidence-Driven Pattern Focus**: System now prioritizes numeric measurement patterns over generic text patterns when evidence supports performance queries
-- **Agent Rerun Enhancement**: Fixed rerun functionality to auto-restore dependencies (patterns, document analysis, extracted data) from previous agent results, enabling reliable single-agent reruns
-- **DataInspector Semantic Analysis**: Enhanced relevance logic with semantic reasoning guidance to properly connect entities in documents with query subjects (e.g., document about "Rutwik" → query about "Rutwik's projects")
-- **Regex Worker Capture Group Intelligence**: Improved capture group selection to prioritize numeric values (like "4.26") over descriptive text (like "Record time") using universal pattern scoring without hardcoded units
-- **PatternGenerator Universal Structured Data Extraction (CRITICAL FIX)**: Completely rewrote extractUnitsFromContent() with 4-pattern recognition system to handle ANY concatenated table format. Fixes critical bug where Tyler's "8.13hours6.44B221k" extracted wrong units ["on", "GPUs", "speedrun"] → now correctly extracts ["hours", "B", "k"]. Uses zero-hardcoding approach with intelligent number-letter transition detection, solving "Items with time values: 0" issue.
+## Current Critical Analysis: PatternGenerator Priority Routing Bug
+
+### **Evidence from "give top 3 speedrun from Tyler's blog" Query**
+- **PlanningAgent Detection**: ✅ Correctly identifies "Query requires numeric data for ranking but DataInspector found no measurements"
+- **Corrective Guidance**: ✅ Creates guidance "Enhance document analysis to extract numeric measurements like 'hours', 'minutes'"
+- **Priority Setting**: ❌ Never sets `currentPriority = 'time_patterns'` for PatternGenerator
+- **Pattern Generation**: ❌ Uses generic LLM patterns (`/Keller Jordan/g`, `/run time/g`) instead of time-specific patterns
+- **Expected Patterns**: Should use `/([0-9]+\.[0-9]+)\s*(hours?|hrs?)/gi` to capture "2.55 hours"
+- **Extraction Result**: Gets "run time" (generic) instead of "2.55 hours" (actual data)
+- **Synthesis Impact**: SynthesisCoordinator receives incomplete data, produces generic meta-commentary
+
+### **Root Cause Analysis**
+1. **System Has All Components**: PatternGenerator.generateTimeSpecificPatterns() exists and has correct regex patterns
+2. **Detection Works**: PlanningAgent correctly identifies the need for numeric measurements  
+3. **Routing Broken**: Priority/guidance doesn't reach PatternGenerator to trigger time-specific pattern generation
+4. **Zero Hardcoding Solution**: Fix PlanningAgent → PatternGenerator communication, don't hardcode query detection
+
+### **Impact Assessment**
+- **Functional**: System produces generic responses instead of extracting actual speedrun data
+- **User Experience**: Poor output quality despite having correct source data
+- **Architecture**: Breaks the consumption/validation loop that was core to ResearchOrchestrator → Master Orchestrator migration
+
+## Recent Updates (Zero Hardcoding) - COMPLETED
+- **PatternGenerator Claude Code-Style Comprehensive Analysis (COMPLETED)**: Replaced hardcoded fallback with Claude Code philosophy - comprehensive analysis of ALL chunks using DataInspector's proven measurement extraction logic. Combines bootstrap sample + complete dataset analysis for content-grounded pattern discovery.
+- **DataAnalyzer Bypass (COMPLETED)**: Completely removed DataAnalyzer from system due to catastrophic filtering bug that destroyed 100% of relevant extracted data. System now routes: Extractor → SynthesisCoordinator directly, preserving actual project details instead of producing generic placeholder output.
+- **Pattern Generation Zero-Hardcoding (COMPLETED)**: Fixed PatternGenerator to learn measurement units dynamically from document content instead of hardcoded "hours|minutes". Only activates performance patterns when query indicates ranking intent AND document contains numeric evidence.
+- **Chunk Expansion (COMPLETED)**: After DataInspector identifies relevant documents, system now fetches ALL chunks from approved documents for downstream agents (PatternGenerator, Extractor) while keeping DataInspector's efficient sampling for relevance decisions
+- **PlanningAgent Override Framework (COMPLETED)**: Designed intelligent override system where PlanningAgent can correct DataInspector misclassifications (e.g., "Keller Jordan" as method → person) and ensure proper query intent classification (performance ranking vs general info)
+- **Evidence-Driven Pattern Focus (COMPLETED)**: System now prioritizes numeric measurement patterns over generic text patterns when evidence supports performance queries
+- **Agent Rerun Enhancement (COMPLETED)**: Fixed rerun functionality to auto-restore dependencies (patterns, document analysis, extracted data) from previous agent results, enabling reliable single-agent reruns
+- **DataInspector Semantic Analysis (COMPLETED)**: Enhanced relevance logic with semantic reasoning guidance to properly connect entities in documents with query subjects (e.g., document about "Rutwik" → query about "Rutwik's projects")
+- **Regex Worker Capture Group Intelligence (COMPLETED)**: Improved capture group selection to prioritize numeric values (like "4.26") over descriptive text (like "Record time") using universal pattern scoring without hardcoded units
+- **PatternGenerator Universal Structured Data Extraction (COMPLETED)**: Completely rewrote extractUnitsFromContent() with 4-pattern recognition system to handle ANY concatenated table format. Fixes critical bug where Tyler's "8.13hours6.44B221k" extracted wrong units ["on", "GPUs", "speedrun"] → now correctly extracts ["hours", "B", "k"]. Uses zero-hardcoding approach with intelligent number-letter transition detection, solving "Items with time values: 0" issue.
+- **PlanningAgent → PatternGenerator Priority Routing Fix (COMPLETED)**: Fixed critical string mismatch where PlanningAgent set `priority: 'session_time_patterns'` but PatternGenerator checked for `'time_patterns'`. Now properly sets `currentPriority` in shared context and PatternGenerator correctly triggers time-specific pattern generation for queries like "give me top 3 speedrun from Tyler's blog".
+- **Master LLM Orchestrator Premature Completion Issue (COMPLETED)**: After ResearchOrchestrator removal, Master LLM completes after only DataInspector runs, skipping the full agent pipeline. This breaks multi-agent UI display and prevents extraction of time measurements needed for ranking queries. **FIX APPLIED**: Added performance query detection and mandatory pipeline enforcement in validateCompletionConditions() method.
+- **Claude Code-Style Consumption/Replan Architecture (COMPLETED)**: PlanningAgent has consumeAgentResults() method but Orchestrator never calls it. True Claude Code style requires: Agent execution → PlanningAgent consumes results → Analyzes quality → Generates specific corrective guidance → Triggers replan with targeted instructions → Re-executes agent with better patterns. **FIXED**: Implemented full consumption/replan loop in executeToolCall() with retry tracking (max 2 retries per agent).
+- **DataInspector Sequencing Fix (COMPLETED)**: validateAgentExecution() was throwing hard error when any agent except DataInspector was called first. **FIXED**: Changed to warning + automatic redirect pattern - if DataInspector not called, orchestrator automatically calls it first then continues with requested agent.
+- **LLM Typo Resilience (COMPLETED)**: LLM outputs variations like "DATAINSPICTOR" causing tool normalization failures. **FIXED**: Added comprehensive typo handling in normalizeToolName() for common misspellings and variations.

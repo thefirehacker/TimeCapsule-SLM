@@ -11,6 +11,7 @@ import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
 import { getFirecrawlService } from '../../FirecrawlService';
 import { VectorStore } from '../../../components/VectorStore/VectorStore';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export interface WebSearchStrategy {
   searchQueries: string[];
@@ -25,24 +26,36 @@ export class WebSearchAgent extends BaseAgent {
   readonly description = 'Expands knowledge base using intelligent web search when local data is insufficient';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   private firecrawlService = getFirecrawlService();
   private vectorStore: VectorStore | null;
   private config?: { enableWebSearch?: boolean };
   
-  constructor(llm: LLMFunction, vectorStore?: VectorStore, config?: { enableWebSearch?: boolean }) {
+  constructor(llm: LLMFunction, vectorStore?: VectorStore, config?: { enableWebSearch?: boolean }, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
     this.vectorStore = vectorStore || null;
     this.config = config;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`🌐 WebSearchAgent: Expanding knowledge base for "${context.query}"`);
     
+    // Report start of processing
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Analyzing knowledge gaps', 0, undefined);
+    
     // 🚨 CRITICAL: Check if web search is disabled by configuration
     if (this.config?.enableWebSearch === false) {
       console.log(`⏭️ WebSearchAgent disabled by configuration - skipping web search`);
       this.setReasoning('Web search disabled by user configuration');
+      
+      // Report completion (disabled)
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'Web search disabled by configuration',
+        webResultsAdded: 0
+      });
+      
       return context;
     }
     
@@ -51,6 +64,13 @@ export class WebSearchAgent extends BaseAgent {
     if (!searchNeeded.needed) {
       console.log(`⏭️ Web search not needed: ${searchNeeded.reason}`);
       this.setReasoning(`Web search skipped: ${searchNeeded.reason}`);
+      
+      // Report completion (not needed)
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: `Web search skipped: ${searchNeeded.reason}`,
+        webResultsAdded: 0
+      });
+      
       return context;
     }
     
@@ -87,6 +107,14 @@ export class WebSearchAgent extends BaseAgent {
     this.setReasoning(`Web search executed: ${searchStrategy.searchQueries.length} queries → ${webResults.length} additional sources found`);
     
     console.log(`✅ Web search completed: ${webResults.length} new sources added`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      webResultsAdded: webResults.length,
+      queriesExecuted: searchStrategy.searchQueries.length,
+      searchStrategy: searchStrategy.reasoning
+    });
+    
     return context;
   }
   

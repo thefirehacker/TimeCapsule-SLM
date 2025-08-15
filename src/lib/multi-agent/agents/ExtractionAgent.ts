@@ -9,27 +9,40 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ExtractedItem, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { generateWithCompletion, sanitizeResponse, parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class ExtractionAgent extends BaseAgent {
   readonly name = 'Extractor';
   readonly description = 'Executes extraction using generated patterns';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   private batchReasoning: string[] = [];
   private extractionSummary: string = '';
   private llmResponses: string[] = [];
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`⛏️ Extractor: Processing ${context.ragResults.chunks.length} chunks`);
     
+    // Report start of processing
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Initializing extraction process', 0, undefined);
+    
     if (context.patterns.length === 0) {
       console.warn('⚠️ No extraction patterns available');
       this.setReasoning('No extraction patterns to work with');
+      
+      // Report completion with no patterns
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'No extraction patterns available',
+        extractedItems: 0
+      });
+      
       return context;
     }
     
@@ -129,6 +142,13 @@ export class ExtractionAgent extends BaseAgent {
     this.setReasoning(finalReasoning);
     
     console.log(`✅ Extraction complete: ${uniqueItems.length} items found`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      extractedItems: uniqueItems.length,
+      patternsUsed: context.patterns.length,
+      chunksProcessed: totalChunks
+    });
     
     return context;
   }

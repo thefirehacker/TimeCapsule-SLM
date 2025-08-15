@@ -614,7 +614,7 @@ Return as strictly valid JSON:
     console.log(`🧠 Document context analysis:`, documentContext);
 
     // Parse query intent from user query and document insights (content-grounded)
-    const queryIntent = this.deriveQueryIntentFromContext(context);
+    // const queryIntent = this.deriveQueryIntentFromContext(context); // Unused in this context
     
     // 🎯 INTELLIGENT: Set expectations based on document-query relationship
     const intelligentExpectations = this.setIntelligentExpectations(documentContext, context.query);
@@ -666,6 +666,7 @@ Return as strictly valid JSON:
   /**
    * Derive query intent from query text and document insights without hardcoding file-specific rules
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private deriveQueryIntentFromContext(context: ResearchContext): string {
     const q = context.query.toLowerCase();
     const insights = context.sharedKnowledge.documentInsights || {};
@@ -1012,10 +1013,10 @@ Return as strictly valid JSON:
     return filteredCategories;
   }
 
-  private extractPatternCategories(documentInsights: any, context: ResearchContext): any {
-    // Legacy method - redirect to query-aware version
-    return this.extractQueryAwarePatternCategories(documentInsights, context, {});
-  }
+  // Legacy method - redirect to query-aware version  
+  // private extractPatternCategories(documentInsights: any, context: ResearchContext): any {
+  //   return this.extractQueryAwarePatternCategories(documentInsights, context, {});
+  // }
 
   private determineExtractionTargets(
     documentContext: any,
@@ -1342,7 +1343,7 @@ Return as strictly valid JSON:
   private extractContextAwarePatternCategories(
     documentAnalysis: any, 
     context: ResearchContext, 
-    documentRelevance: any,
+    _documentRelevance: any,
     documentContext: any,
     intelligentExpectations: any
   ): any {
@@ -1361,7 +1362,7 @@ Return as strictly valid JSON:
     }
     
     // Fall back to original logic for other cases
-    return this.extractQueryAwarePatternCategories(documentAnalysis, context, documentRelevance);
+    return this.extractQueryAwarePatternCategories(documentAnalysis, context, _documentRelevance);
   }
 
   // Helper methods for document analysis
@@ -1743,7 +1744,7 @@ Return as strictly valid JSON:
     const documentEntity = doc.primaryEntity || doc.mainEntity || 'unknown';
     const documentName = doc.documentName || 'unknown';
     
-    // Check for possessive patterns in query (e.g., "Rutwik's projects", "Tyler's work")
+    // Check for possessive patterns in query 
     const possessiveMatch = query.match(/(\w+)'s\s+(\w+)/i);
     if (possessiveMatch) {
       const expectedOwner = possessiveMatch[1].toLowerCase();
@@ -1849,30 +1850,57 @@ Return as strictly valid JSON:
       };
     }
 
-    // Deep analysis: Check document relevance to query
+    // 🔍 ZERO-HARDCODING SEMANTIC ENTITY-QUERY ALIGNMENT VALIDATION
     const queryLower = context.query.toLowerCase();
-    const hasPersonQuery = /\b([A-Z][a-z]+)'s\b/.test(context.query); // "Tyler's blog"
-    const hasPossessiveQuery = hasPersonQuery;
     
-    if (hasPossessiveQuery) {
-      const personMatch = context.query.match(/\b([A-Z][a-z]+)'s\b/);
-      const expectedPerson = personMatch ? personMatch[1] : null;
-      
-      if (expectedPerson) {
-        // Check if DataInspector selected documents about the right person
-        const documentsAboutPerson = documentAnalysis.documents?.some((doc: any) => 
-          doc.documentName?.toLowerCase().includes(expectedPerson.toLowerCase()) ||
-          doc.primaryEntity?.toLowerCase().includes(expectedPerson.toLowerCase())
-        );
+    // Dynamic pattern recognition for entity ownership queries
+    const possessivePatterns = [
+      /\b([A-Z][a-z]+)'s\s+(.+)/, // "Tyler's blog", "John's work"  
+      /from\s+([A-Z][a-z]+)'s\s+(.+)/, // "from Tyler's blog"
+      /by\s+([A-Z][a-z]+)\b/, // "by Tyler"
+      /([A-Z][a-z]+)'s\s+(blog|work|project|research)/, // specific ownership patterns
+    ];
+    
+    let queryEntity = null;
+    let queryContext = null;
+    
+    for (const pattern of possessivePatterns) {
+      const match = context.query.match(pattern);
+      if (match) {
+        queryEntity = match[1];
+        queryContext = match[2] || 'content';
+        break;
+      }
+    }
+    
+    if (queryEntity) {
+      // Validate that DataInspector selected documents semantically aligned with query entity
+      const hasEntityMismatch = documentAnalysis.documents?.some((doc: any) => {
+        // Check document content and analysis for entity ownership
+        const docText = doc.documentName || '';
+        const docEntity = doc.primaryEntity || '';
+        const docReasoning = doc.reasoning || '';
         
-        if (!documentsAboutPerson) {
-          return {
-            isValid: false,
-            replanAction: 'correct_document_selection',
-            reason: `Query asks for "${expectedPerson}'s" content but DataInspector selected documents not about ${expectedPerson}`,
-            specificGuidance: `Focus document selection on sources authored by or primarily about "${expectedPerson}". Reject documents about other people or entities.`
-          };
+        // Entity ownership mismatch detection (zero-hardcoding)
+        const docMentionsOtherEntity = /\b([A-Z][a-z]+)(?:'s|s'|,|\s)/g.exec(docText + ' ' + docEntity + ' ' + docReasoning);
+        const docEntityName = docMentionsOtherEntity ? docMentionsOtherEntity[1] : null;
+        
+        // If document is about a different person than query asks for
+        if (docEntityName && docEntityName !== queryEntity && docEntityName.length > 2) {
+          console.log(`🚨 ENTITY MISMATCH: Query asks for "${queryEntity}" but document is about "${docEntityName}"`);
+          return true; // Found mismatch
         }
+        
+        return false;
+      });
+      
+      if (hasEntityMismatch) {
+        return {
+          isValid: false,
+          replanAction: 'correct_semantic_alignment',
+          reason: `Semantic entity-query mismatch detected: Query asks for "${queryEntity}'s ${queryContext}" but DataInspector included documents about different entities`,
+          specificGuidance: `Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "${queryEntity}". Reject all documents about other people/entities regardless of topic overlap.`
+        };
       }
     }
 
@@ -1889,7 +1917,7 @@ Return as strictly valid JSON:
           isValid: false,
           replanAction: 'enhance_numeric_extraction', 
           reason: `Query "${context.query}" requires numeric data for ranking but DataInspector found no measurements`,
-          specificGuidance: 'Enhance document analysis to extract numeric measurements like "2.55 hours", "4.26 minutes", performance metrics, and quantifiable data from structured content like tables'
+          specificGuidance: 'Enhance document analysis to extract numeric measurements like "hours", "minutes", performance metrics, and quantifiable data from structured content like tables'
         };
       }
     }
@@ -1899,7 +1927,7 @@ Return as strictly valid JSON:
                                    (!documentInsights.concepts || documentInsights.concepts.length === 0) &&
                                    (!documentInsights.people || documentInsights.people.length === 0);
     
-    if (hasEmptyClassifications && documentAnalysis.documents?.length > 0) {
+    if (hasEmptyClassifications && documentAnalysis?.documents && documentAnalysis.documents.length > 0) {
       return {
         isValid: false,
         replanAction: 'improve_entity_extraction',
@@ -2059,7 +2087,7 @@ Return as strictly valid JSON:
           isValid: false,
           replanAction: 'extract_actual_measurements',
           reason: `Speedrun query needs time measurements but extracted generic text: ["${genericSample}"]`,
-          specificGuidance: 'Document likely contains actual speedrun times like "2.55 hours", "4.01 hours". Create patterns that extract these specific time values rather than generic keywords. Pattern should be: /(\\d+(?:\\.\\d+)?)\\s*(hours?|minutes?)\\b/gi'
+          specificGuidance: 'Document likely contains actual speedrun times like "hours", "minutes". Create patterns that extract these specific time values rather than generic keywords. Pattern should be: /(\\d+(?:\\.\\d+)?)\\s*(hours?|minutes?)\\b/gi'
         };
       }
       
@@ -2073,7 +2101,7 @@ Return as strictly valid JSON:
           isValid: false,
           replanAction: 'improve_time_extraction',
           reason: `Found numeric data ["${numericSample}"] but missing time units for speedrun ranking`,
-          specificGuidance: 'Numeric data exists but lacks time context. Check if document has concatenated formats like "2.55hours" or separated "2.55 hours". Adjust patterns to capture both number and time unit together.'
+          specificGuidance: 'Numeric data exists but lacks time context. Check if document has concatenated formats like "18.55hours" or separated "18.55 hours". Adjust patterns to capture both number and time unit together.'
         };
       }
       
@@ -2217,7 +2245,7 @@ Return as strictly valid JSON:
           isValid: false,
           replanAction: 'use_extracted_measurements',
           reason: 'Extracted data contains time measurements but synthesis does not reference them',
-          specificGuidance: 'Use actual extracted time measurements in synthesis. If extracted data contains "2.55 hours", "4.01 hours" etc., these should be prominently featured in the final answer.'
+          specificGuidance: 'Use actual extracted time measurements in synthesis. If extracted data contains "18.55 hours", "5.01 hours" etc., these should be prominently featured in the final answer.'
         };
       }
     }
@@ -2266,6 +2294,8 @@ Return as strictly valid JSON:
     // Set specific guidance based on replan action with session context
     const correctiveGuidance = this.createSessionSpecificGuidance(validationResult, context);
     (context.sharedKnowledge as any).correctiveGuidance = correctiveGuidance;
+    // 🎯 CRITICAL FIX: Set currentPriority for PatternGenerator routing
+    (context.sharedKnowledge as any).currentPriority = correctiveGuidance.priority;
 
     console.log(`✅ Replanning request created with session-specific guidance:`, correctiveGuidance);
   }
@@ -2281,12 +2311,12 @@ Return as strictly valid JSON:
       case 'create_time_specific_patterns':
         // Extract actual time format from document
         const timeMatch = sampleContent.match(/\d+(?:\.\d+)?\s*(hours?|minutes?|seconds?)/i);
-        const timeFormat = timeMatch ? timeMatch[0] : '2.55 hours';
+        const timeFormat = timeMatch ? timeMatch[0] : '18.55 hours';
         
         return {
           target: 'PatternGenerator',
           guidance: `Document contains time format "${timeFormat}". Create specific pattern: /(\\d+(?:\\.\\d+)?)\\s*(hours?|minutes?|seconds?)\\b/gi. Also handle concatenated formats if present.`,
-          priority: 'session_time_patterns',
+          priority: 'time_patterns',
           sessionContext: {
             documentTimeFormat: timeFormat,
             requiresConcatenatedPattern: sampleContent.includes('hours') && !sampleContent.match(/\d+\s+hours?/)
@@ -2312,6 +2342,35 @@ Return as strictly valid JSON:
           sessionContext: {
             issueType: 'regex_corruption',
             commonFix: 'Replace template literals with string concatenation'
+          }
+        };
+        
+      case 'enhance_numeric_extraction':
+        // Extract actual time patterns from document content - NO HARDCODING
+        const timePatterns = [];
+        const timeMatches = sampleContent.match(/\d+(?:\.\d+)?\s*(?:hours?|minutes?|seconds?)/gi);
+        if (timeMatches) {
+          timePatterns.push(...timeMatches.slice(0, 3)); // Use actual found patterns
+        }
+        
+        // Build dynamic guidance based on document content
+        let dynamicGuidance = validationResult.specificGuidance;
+        if (!dynamicGuidance) {
+          if (timePatterns.length > 0) {
+            dynamicGuidance = `Focus on extracting numeric measurements with units like those found in document: ${timePatterns.map(p => `"${p}"`).join(', ')}. Look for structured data containing performance metrics and quantifiable data.`;
+          } else {
+            dynamicGuidance = 'Focus on extracting numeric measurements with units rather than isolated numbers. Look for patterns like "X.X hours", "X minutes", performance metrics, and quantifiable data from structured content.';
+          }
+        }
+        
+        return {
+          target: 'DataInspector',
+          guidance: dynamicGuidance,
+          priority: 'numeric_measurement_extraction',
+          sessionContext: {
+            queryRequires: 'numeric_data_for_ranking',
+            foundTimePatterns: timePatterns,
+            documentHasStructuredData: sampleContent.includes('hours') || sampleContent.includes('minutes')
           }
         };
         

@@ -22,6 +22,7 @@ export class Orchestrator {
   private llm: LLMFunction;
   private progressTracker: AgentProgressTracker;
   private progressCallback?: AgentProgressCallback;
+  private progressProxyInitialized: boolean = false;
   
   // 🔥 CRITICAL FIX: Agent state tracking to prevent redundant calls
   private calledAgents: Set<string> = new Set();
@@ -31,6 +32,9 @@ export class Orchestrator {
   // Context-aware rerun tracking with input signatures
   private agentInputSignatures: Map<string, string> = new Map();
   private agentRerunCount: Map<string, number> = new Map();
+  
+  // 🔄 Retry tracking  
+  private retryingAgents: Set<string> = new Set();
   
   constructor(
     registry: AgentRegistry,
@@ -47,6 +51,8 @@ export class Orchestrator {
     this.progressTracker = new AgentProgressTracker(progressCallback);
     this.config = config;
     this.vectorStore = vectorStore;
+    
+    // Note: createProgressProxy() will be called from index.ts after all agents are registered
   }
   
   private config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean };
@@ -307,24 +313,120 @@ export class Orchestrator {
   setProgressCallback(callback: AgentProgressCallback) {
     this.progressCallback = callback;
     this.progressTracker.setCallback(callback);
+    // Only create proxy if not already initialized to prevent spam
+    if (!this.progressProxyInitialized) {
+      this.createProgressProxy();
+    }
+  }
+  
+  /**
+   * 🔥 FIX: Create proxy progress callback that routes calls through progressTracker
+   * This ensures progress history is properly accumulated for real-time display
+   */
+  public createProgressProxy() {
+    // Prevent multiple proxy creations
+    if (this.progressProxyInitialized) {
+      console.log(`⚠️ Progress proxy already initialized, skipping creation`);
+      return;
+    }
+    
+    console.log(`🔥 Creating progress proxy to route agent progress through progressTracker...`);
+    
+    // Create a proxy callback that intercepts agent progress calls
+    const proxyCallback: AgentProgressCallback = {
+      onAgentStart: (agentName: string, agentType: string, input: any) => {
+        console.log(`🚀 Progress Proxy: ${agentName} started`);
+        // Forward to UI callback immediately (ResearchOrchestrator pattern)
+        this.progressCallback?.onAgentStart?.(agentName, agentType, input);
+      },
+      onAgentProgress: (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number) => {
+        console.log(`📊 Progress Proxy: ${agentName} - ${progress}% ${stage ? `(${stage})` : ''}`);
+        
+        // 🎯 CRITICAL: Route through progressTracker to build progress history
+        this.progressTracker.updateProgress(agentName, progress, stage, itemsProcessed, totalItems);
+        
+        // 🔥 IMMEDIATE UI UPDATE: Forward to original callback for real-time display (ResearchOrchestrator pattern)
+        if (this.progressCallback?.onAgentProgress) {
+          console.log(`🔥 Progress Proxy: Forwarding to UI callback - ${agentName} ${progress}% ${stage || ''}`);
+          this.progressCallback.onAgentProgress(agentName, progress, stage, itemsProcessed, totalItems);
+        } else {
+          console.warn(`⚠️ Progress Proxy: No UI callback available for ${agentName} progress update`);
+        }
+      },
+      onAgentThinking: (agentName: string, thinking: any) => {
+        console.log(`🤔 Progress Proxy: ${agentName} thinking`);
+        this.progressTracker.setThinking(agentName, thinking);
+        this.progressCallback?.onAgentThinking?.(agentName, thinking);
+      },
+      onAgentComplete: (agentName: string, output: any, metrics?: any) => {
+        console.log(`✅ Progress Proxy: ${agentName} completed`);
+        // Forward to UI callback immediately (ResearchOrchestrator pattern)
+        this.progressCallback?.onAgentComplete?.(agentName, output, metrics);
+      },
+      onAgentError: (agentName: string, error: string, retryCount?: number) => {
+        console.log(`❌ Progress Proxy: ${agentName} error - ${error}`);
+        this.progressTracker.errorAgent(agentName, error);
+        this.progressCallback?.onAgentError?.(agentName, error, retryCount);
+      }
+    };
+    
+    // Update all registered agents with the proxy callback
+    this.updateAgentsWithProgressProxy(proxyCallback);
+    this.progressProxyInitialized = true;
+    console.log(`🔥 Progress proxy created and ${this.registry.getAllAgents().length} agents updated`);
+  }
+  
+  /**
+   * Update all agents to use the progress proxy callback
+   */
+  private updateAgentsWithProgressProxy(proxyCallback: AgentProgressCallback) {
+    const allAgents = this.registry.getAllAgents();
+    let updatedCount = 0;
+    
+    for (const agent of allAgents) {
+      // Check if agent has progressCallback property and update it
+      if (agent && typeof agent === 'object' && 'progressCallback' in agent) {
+        (agent as any).progressCallback = proxyCallback;
+        updatedCount++;
+      }
+    }
+    
+    console.log(`🔥 Progress proxy update complete: ${updatedCount}/${allAgents.length} agents updated`);
   }
   
   /**
    * 🧠 MASTER LLM ORCHESTRATOR - Intelligent Tool-Call System
    * Replaces rigid pipeline with Claude Code style intelligent decisions
    */
-  async research(query: string, ragResults: SourceReference[]): Promise<string> {
+  async research(query: string, ragResults?: SourceReference[]): Promise<string> {
     console.log(`🧠 Master LLM Orchestrator starting for: "${query}"`);
     
     // 🔥 RESET: Clear agent state for new research session
     this.calledAgents.clear();
     this.agentResults.clear();
     this.lastAgentCalled = null;
+    this.retryingAgents.clear();
+    this.agentInputSignatures.clear();
+    this.agentRerunCount.clear();
+    this.agentRetryCount.clear();
+    this.progressTracker.clear();
+    
+    // 🆕 INTEGRATED DOCUMENT DISCOVERY: Handle document fetching internally if no results provided
+    let finalRagResults = ragResults;
+    if (!finalRagResults && this.vectorStore) {
+      console.log(`🎯 Master Orchestrator: Discovering documents for query "${query}"`);
+      finalRagResults = await this.discoverAndSampleDocuments(query);
+    }
+    
+    if (!finalRagResults || finalRagResults.length === 0) {
+      throw new Error('No documents found for analysis');
+    }
     
     // Initialize context
-    const context = createInitialContext(query, ragResults);
+    const context = createInitialContext(query, finalRagResults);
     
     // 🚀 MASTER LLM ORCHESTRATION: Intelligent tool-call decisions
+    // DataInspector will be called as a proper agent to perform intelligent analysis
     await this.masterLLMOrchestration(context);
     
     // Return final answer
@@ -338,6 +440,103 @@ export class Orchestrator {
     this.finalContext = context;
     
     return context.synthesis.answer || 'Unable to generate an answer from the available information.';
+  }
+
+  /**
+   * 🆕 INTEGRATED DOCUMENT DISCOVERY: Move document fetching logic from ResearchOrchestrator
+   */
+  private async discoverAndSampleDocuments(query: string): Promise<SourceReference[]> {
+    if (!this.vectorStore) {
+      throw new Error('VectorStore not available for document discovery');
+    }
+
+    console.log(`🔍 Discovering documents for query: "${query}"`);
+    
+    // Get user documents metadata (same as ResearchOrchestrator did)
+    const documentMetadata = await this.vectorStore.getDocumentMetadata(['userdocs']);
+    console.log(`📚 Found ${documentMetadata.length} user documents`);
+    
+    if (documentMetadata.length === 0) {
+      throw new Error('No user documents found');
+    }
+
+    // Convert metadata to SourceReference format for DataInspector
+    const documentReferences = documentMetadata.map(doc => ({
+      id: doc.id || `doc_${Date.now()}`,
+      type: 'document' as const,
+      title: doc.title,
+      url: doc.url || '',
+      excerpt: `Document metadata: ${doc.title} - ${doc.chunkCount} chunks available`,
+      snippet: `Document metadata: ${doc.title} - ${doc.chunkCount} chunks available`,
+      text: `Document metadata: ${doc.title} - ${doc.chunkCount} chunks available`, // For DataInspector compatibility
+      similarity: 1.0,
+      source: doc.source || 'userdocs',
+      sourceType: 'document' as const, // Mark as document metadata for DataInspector
+      metadata: {
+        documentId: doc.id,
+        documentType: doc.documentType || 'userdocs',
+        chunkCount: doc.chunkCount,
+        filename: doc.title,
+        ...doc.metadata
+      }
+    }));
+    
+    console.log(`✅ Master Orchestrator: Prepared ${documentReferences.length} document metadata for DataInspector analysis`);
+    return documentReferences;
+  }
+
+  /**
+   * Sample chunks from documents (moved from ResearchOrchestrator)
+   */
+  private async sampleChunksFromDocuments(sources: SourceReference[], sampleRatio = 0.3, minChunks = 5): Promise<SourceReference[]> {
+    const sampledChunks: SourceReference[] = [];
+
+    for (const source of sources) {
+      const documentId = source.metadata?.documentId;
+      if (!documentId || !this.vectorStore) continue;
+
+      try {
+        // Get all chunks for this document
+        const allChunks = await this.vectorStore.getAllChunks(['userdocs']);
+        const documentChunks = allChunks.filter(chunk => chunk.metadata?.documentId === documentId);
+        
+        // Sample chunks (take percentage or minimum, whichever is larger)
+        const targetCount = Math.max(Math.ceil(documentChunks.length * sampleRatio), minChunks);
+        const sampled = documentChunks.slice(0, targetCount);
+
+        // Convert chunks to SourceReference format
+        for (const chunk of sampled) {
+          // DEBUG: Check chunk structure (reduced logging)
+          if (chunk.text || chunk.content) {
+            console.log(`🔍 Found content in ${source.title}: ${(chunk.text || chunk.content || '').substring(0, 50)}...`);
+          }
+          
+          const extractedText = chunk.text || chunk.content || chunk.excerpt || chunk.snippet || '';
+          
+          sampledChunks.push({
+            id: chunk.id || `chunk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            title: source.title,
+            url: source.url,
+            snippet: extractedText,
+            similarity: 1.0,
+            source: source.source,
+            metadata: {
+              ...source.metadata,
+              chunkId: chunk.id,
+              chunkIndex: chunk.metadata?.chunkIndex,
+              originalText: extractedText,
+              source: source.source
+            }
+          });
+        }
+
+        console.log(`📄 Sampled ${sampled.length}/${documentChunks.length} chunks from ${source.title}`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to sample chunks from ${source.title}:`, error);
+      }
+    }
+
+    return sampledChunks;
   }
   
   /**
@@ -716,6 +915,17 @@ ${this.buildDynamicToolsList(availableData)}
 6. **TRUST THE PLAN** - The PlanningAgent created an intelligent sequence - follow it exactly
 7. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
 
+🚨 **SPECIAL RULE FOR PERFORMANCE/RANKING QUERIES**:
+${this.isPerformanceQuery(context.query) ? `
+⭐ **PERFORMANCE RANKING QUERY DETECTED**: "${context.query}"
+📊 **MANDATORY FULL PIPELINE**: DataInspector → PlanningAgent → PatternGenerator → Extractor → SynthesisCoordinator
+🎯 **COMPLETION BLOCKED** until all 5 agents are called - this ensures proper time measurement extraction and ranking
+⚠️ **DO NOT COMPLETE EARLY** - Performance queries need the complete extraction pipeline to work correctly
+📈 **Current Progress**: DataInspector(${availableData.dataInspectorCompleted ? '✅' : '❌'}) → PlanningAgent(${availableData.planningAgentCompleted ? '✅' : '❌'}) → PatternGenerator(${availableData.patternGeneratorCompleted ? '✅' : '❌'}) → Extractor(${availableData.extractorCompleted ? '✅' : '❌'}) → SynthesisCoordinator(${availableData.synthesizerCompleted ? '✅' : '❌'})
+` : `
+📝 **REGULAR QUERY**: Standard agent pipeline applies - completion allowed after synthesis
+`}
+
 📊 CURRENT DATA AVAILABLE:
 - Documents: ${availableData.chunksSelected ? `${context.ragResults.chunks.length} chunks available` : 'No documents available'}
 - Document Analysis: ${availableData.hasDocumentAnalysis ? 'Available from DataInspector' : 'Not available'}
@@ -807,6 +1017,58 @@ NEXT_GOAL: [final goal achieved]`;
       };
     }
     
+    // 🚨 NEW RULE 1.5: Detect performance ranking queries that need full pipeline
+    const queryLower = context.query.toLowerCase();
+    const isPerformanceQuery = queryLower.includes('top') || queryLower.includes('best') || 
+                              queryLower.includes('speedrun') || queryLower.includes('ranking') ||
+                              queryLower.includes('fastest') || queryLower.includes('compare');
+    
+    if (isPerformanceQuery) {
+      console.log(`🎯 PERFORMANCE RANKING QUERY DETECTED: "${context.query}"`);
+      console.log(`📊 Full pipeline required: DataInspector → PlanningAgent → PatternGenerator → Extractor → SynthesisCoordinator`);
+      
+      // For performance queries, require the core extraction pipeline
+      if (!this.calledAgents.has('PlanningAgent')) {
+        return {
+          allowed: false,
+          reason: 'Performance ranking query requires PlanningAgent for intelligent strategy',
+          nextAgent: 'PlanningAgent'
+        };
+      }
+      
+      if (!this.calledAgents.has('PatternGenerator')) {
+        return {
+          allowed: false,
+          reason: 'Performance ranking query requires PatternGenerator for measurement patterns',
+          nextAgent: 'PatternGenerator'
+        };
+      }
+      
+      if (!this.calledAgents.has('Extractor')) {
+        return {
+          allowed: false,
+          reason: 'Performance ranking query requires Extractor for data extraction',
+          nextAgent: 'Extractor'
+        };
+      }
+      
+      if (!this.calledAgents.has('SynthesisCoordinator') && !this.calledAgents.has('Synthesizer')) {
+        return {
+          allowed: false,
+          reason: 'Performance ranking query requires SynthesisCoordinator for ranking results',
+          nextAgent: 'SynthesisCoordinator'
+        };
+      }
+      
+      // Additional validation: Check if we have extracted data for ranking
+      const hasExtractedData = context.extractedData?.raw?.length > 0;
+      if (!hasExtractedData && this.calledAgents.has('Extractor')) {
+        console.log(`⚠️ EXTRACTION FAILED: Extractor called but no data extracted - allowing completion to prevent infinite loop`);
+      }
+      
+      console.log(`✅ PERFORMANCE QUERY PIPELINE COMPLETE: All required agents called for ranking query`);
+    }
+    
     // RULE 2: If we have an execution plan, follow it
     if (executionPlan && executionPlan.steps && executionPlan.steps.length > 0) {
       // Check if all planned steps are completed
@@ -850,6 +1112,13 @@ NEXT_GOAL: [final goal achieved]`;
           return {
             allowed: true,
             reason: `Synthesis completed - answer available (${context.synthesis.answer.length} chars)`
+          };
+        } else {
+          // 🔥 CRITICAL FIX: If synthesis ran but no answer, still allow completion to prevent infinite loop
+          console.log(`⚠️ COMPLETION FORCED: SynthesisCoordinator ran but no answer - preventing infinite loop`);
+          return {
+            allowed: true,
+            reason: 'SynthesisCoordinator completed but no answer - preventing infinite loop'
           };
         }
       }
@@ -980,17 +1249,31 @@ NEXT_GOAL: [final goal achieved]`;
   }
 
   /**
+   * Get comprehensive agent status (completed, retrying, executing, or not called)
+   */
+  private getAgentStatus(agentName: string): string {
+    if (this.calledAgents.has(agentName)) {
+      return 'completed';
+    } else if (this.retryingAgents.has(agentName)) {
+      return 'retrying';
+    } else {
+      return 'not_called';
+    }
+  }
+
+  /**
    * 📊 Analyze current context state for Master LLM decisions
    * 🔥 CRITICAL FIX: Include agent call history to prevent redundant calls
    */
   private analyzeCurrentState(context: ResearchContext): any {
+    // Enhanced agent status including execution state
     const agentStatus = {
-      DataInspector: this.calledAgents.has('DataInspector'),
-      PlanningAgent: this.calledAgents.has('PlanningAgent'),
-      PatternGenerator: this.calledAgents.has('PatternGenerator'), 
-      Extractor: this.calledAgents.has('Extractor'),
-      WebSearchAgent: this.calledAgents.has('WebSearchAgent'),
-      Synthesizer: this.calledAgents.has('Synthesizer')
+      DataInspector: this.getAgentStatus('DataInspector'),
+      PlanningAgent: this.getAgentStatus('PlanningAgent'),
+      PatternGenerator: this.getAgentStatus('PatternGenerator'), 
+      Extractor: this.getAgentStatus('Extractor'),
+      WebSearchAgent: this.getAgentStatus('WebSearchAgent'),
+      Synthesizer: this.getAgentStatus('Synthesizer')
     };
     
     return {
@@ -1169,9 +1452,17 @@ NEXT_GOAL: [final goal achieved]`;
     const normalizedToolName = this.normalizeToolName(toolName);
     const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
     const calledAgents = Array.from(this.calledAgents);
+    const retryingAgents = Array.from(this.retryingAgents);
+    
+    // Build comprehensive agent status for Master LLM visibility
+    const agentStatusParts = [];
+    if (calledAgents.length > 0) agentStatusParts.push(`✅ Completed: [${calledAgents.join(', ')}]`);
+    if (retryingAgents.length > 0) agentStatusParts.push(`🔄 Retrying: [${retryingAgents.join(', ')}]`);
+    
+    const agentStatus = agentStatusParts.length > 0 ? agentStatusParts.join(' | ') : 'No agents called yet';
     
     console.log(`🔍 PLAN-GUIDED VALIDATION: ${normalizedToolName}`);
-    console.log(`📋 Current agents called: [${calledAgents.join(', ')}]`);
+    console.log(`📋 Agent Status: ${agentStatus}`);
     console.log(`💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps`);
     
     // RULE 1: Always allow DataInspector (must be first)
@@ -1215,24 +1506,26 @@ NEXT_GOAL: [final goal achieved]`;
     }
     
     if (toolName === 'Extractor') {
-      // 🔥 CRITICAL DEPENDENCY: Extractor requires patterns from PatternGenerator
-      const hasPatterns = context.sharedKnowledge?.extractionPatterns && 
-                         context.sharedKnowledge.extractionPatterns.length > 0;
+      // 🔥 CRITICAL DEPENDENCY: Extractor requires regex patterns from PatternGenerator
+      const hasRegexPatterns = context.patterns && 
+                               context.patterns.some(p => p.regexPattern && p.regexPattern.length > 0);
       const patternGeneratorCalled = this.calledAgents.has('PatternGenerator');
       
-      if (!patternGeneratorCalled && !hasPatterns) {
-        console.log(`❌ Extractor blocked: PatternGenerator must run first to create extraction patterns`);
+      console.log(`🔍 Extractor dependency check: PatternGenerator called: ${patternGeneratorCalled}, regex patterns: ${hasRegexPatterns ? context.patterns?.filter(p => p.regexPattern).length : 0}`);
+      
+      if (!patternGeneratorCalled) {
+        console.log(`❌ Extractor blocked: PatternGenerator must be called first`);
         return { 
           allowed: false, 
-          reason: 'Extractor requires patterns from PatternGenerator to function effectively',
+          reason: 'PatternGenerator must run before Extractor to create extraction patterns',
           suggestion: 'Call PatternGenerator first to generate extraction patterns'
         };
       }
       
-      console.log(`⚡ Extractor validation passed - patterns available (PatternGenerator: ${patternGeneratorCalled}, patterns: ${hasPatterns ? context.sharedKnowledge?.extractionPatterns?.length : 0})`);
+      console.log(`⚡ Extractor validation passed - PatternGenerator was called`);
       return { 
         allowed: true, 
-        reason: 'Extractor has required patterns available for data extraction' 
+        reason: 'PatternGenerator called - Extractor can proceed' 
       };
     }
     
@@ -1309,13 +1602,11 @@ NEXT_GOAL: [final goal achieved]`;
     switch (toolName) {
       case 'Extractor':
         // 🔥 CRITICAL DEPENDENCY: Extractor requires patterns from PatternGenerator
-        console.log(`🎯 Validating Extractor prerequisites - checking for extraction patterns`);
-        const hasPatterns = context.sharedKnowledge?.extractionPatterns && 
-                           context.sharedKnowledge.extractionPatterns.length > 0;
+        console.log(`🎯 Validating Extractor prerequisites - checking PatternGenerator dependency`);
         const patternGeneratorCalled = this.calledAgents.has('PatternGenerator');
-        console.log(`📊 PatternGenerator called: ${patternGeneratorCalled}, patterns available: ${hasPatterns ? context.sharedKnowledge?.extractionPatterns?.length : 0}`);
+        console.log(`📊 PatternGenerator called: ${patternGeneratorCalled}`);
         
-        if (!patternGeneratorCalled && !hasPatterns) {
+        if (!patternGeneratorCalled) {
           // Find PatternGenerator in prerequisites
           const patternStep = uncompletedPrerequisites.find(step => 
             this.normalizeToolName(step.agent) === 'PatternGenerator'
@@ -1608,11 +1899,22 @@ NEXT_GOAL: [final goal achieved]`;
     // 🧠 PLAN-AWARE SEQUENCING VALIDATION - Replaces hardcoded rules with intelligent validation
     const validation = this.validateAgentExecution(normalizedToolName, context);
     if (!validation.allowed) {
-      console.error(`❌ PLAN-AWARE SEQUENCING VIOLATION: ${validation.reason}`);
+      console.warn(`⚠️ PLAN-AWARE SEQUENCING WARNING: ${validation.reason}`);
       if (validation.suggestion) {
-        console.error(`💡 Suggestion: ${validation.suggestion}`);
+        console.warn(`💡 Suggestion: ${validation.suggestion}`);
       }
-      throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
+      
+      // 🔧 FIX: For DataInspector requirement, guide instead of throwing error
+      if (validation.reason.includes('DataInspector must be called first')) {
+        console.log(`🔄 Redirecting to DataInspector first as required by pipeline`);
+        // Execute DataInspector first, then the requested agent
+        await this.executeToolCall('DataInspector', context);
+        // Now continue with the originally requested agent
+        console.log(`✅ DataInspector completed, now executing ${normalizedToolName}`);
+      } else {
+        // For other validation failures, still throw error
+        throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
+      }
     }
     
     console.log(`✅ Agent execution validated: ${validation.reason}`);
@@ -1628,6 +1930,16 @@ NEXT_GOAL: [final goal achieved]`;
     const currentInputSignature = this.computeInputSignature(normalizedToolName, context);
     const previousSignature = this.agentInputSignatures.get(normalizedToolName);
     const rerunCount = this.agentRerunCount.get(normalizedToolName) || 0;
+    
+    // Check for retrying agents (keep this check but not executing agents)
+    if (this.retryingAgents.has(normalizedToolName)) {
+      console.log(`⚠️ Agent ${normalizedToolName} is currently retrying, blocking duplicate call`);
+      return { 
+        allowed: false, 
+        reason: `${normalizedToolName} is currently retrying with corrective guidance`, 
+        suggestion: 'Wait for retry to complete' 
+      };
+    }
     
     if (this.calledAgents.has(normalizedToolName)) {
       // Check if inputs have changed or quality is insufficient
@@ -1715,7 +2027,7 @@ NEXT_GOAL: [final goal achieved]`;
     const startTime = Date.now();
     
     try {
-      // 🔥 TRACK: Mark agent as called BEFORE execution
+      // Mark as called (execution lock removed to fix infinite loop bug)
       this.calledAgents.add(normalizedToolName);
       this.lastAgentCalled = normalizedToolName;
       
@@ -1737,6 +2049,7 @@ NEXT_GOAL: [final goal achieved]`;
         
         if (qualityAssessment.retryRecommended && this.canRetryAgent(normalizedToolName)) {
           console.log(`🔄 Attempting intelligent retry for ${normalizedToolName}`);
+          // Don't remove from calledAgents here - let performIntelligentRetry handle state atomically
           await this.performIntelligentRetry(normalizedToolName, context, qualityAssessment.improvement);
         } else {
           console.log(`📋 Continuing with current results, quality will be addressed by downstream agents`);
@@ -1765,6 +2078,65 @@ NEXT_GOAL: [final goal achieved]`;
         result: 'success',
         output: agentOutput 
       });
+      
+      // 🎯 CLAUDE CODE-STYLE CONSUMPTION/REPLAN LOGIC
+      // After each agent completes, have PlanningAgent consume and validate results
+      if (this.registry.has('PlanningAgent') && normalizedToolName !== 'PlanningAgent' && normalizedToolName !== 'SynthesisCoordinator') {
+        console.log(`🔍 PlanningAgent consuming ${normalizedToolName} results for quality analysis...`);
+        
+        try {
+          const planningAgent = this.registry.get('PlanningAgent') as any;
+          if (planningAgent && typeof planningAgent.consumeAgentResults === 'function') {
+            const consumption = await planningAgent.consumeAgentResults(normalizedToolName, context);
+            
+            if (consumption && consumption.shouldContinue === false && consumption.replanRequired) {
+              console.log(`🔄 REPLANNING TRIGGERED: ${consumption.reason || 'Quality insufficient'}`);
+              console.log(`📝 Specific Guidance: ${consumption.guidance}`);
+              
+              // Store replanning guidance in context for the agent to use
+              if (!context.sharedKnowledge.replanningGuidance) {
+                context.sharedKnowledge.replanningGuidance = {};
+              }
+              context.sharedKnowledge.replanningGuidance[normalizedToolName] = {
+                guidance: consumption.guidance,
+                reason: consumption.reason || 'Quality validation failed',
+                timestamp: Date.now()
+              };
+              
+              // Track retry attempt to prevent infinite loops
+              const retryKey = consumption.targetAgent || normalizedToolName;
+              const retryCount = this.agentRetryCount.get(retryKey) || 0;
+              if (retryCount < 2) { // Max 2 retries per agent
+                this.agentRetryCount.set(retryKey, retryCount + 1);
+                
+                // Determine which agent needs to rerun based on consumption analysis
+                const agentToRerun = consumption.targetAgent || normalizedToolName;
+                console.log(`🔁 Re-executing ${agentToRerun} with corrective guidance (attempt ${retryCount + 1}/2)`);
+                
+                // Clear the agent from called list to allow re-execution
+                this.calledAgents.delete(agentToRerun);
+                this.agentResults.delete(agentToRerun);
+                
+                // Mark as retrying to prevent duplicate calls
+                this.retryingAgents.add(agentToRerun);
+                
+                // Re-execute the agent with guidance
+                await this.executeToolCall(agentToRerun, context);
+                
+                // Clear retry flag
+                this.retryingAgents.delete(agentToRerun);
+              } else {
+                console.warn(`⚠️ Max retries reached for ${retryKey}, continuing with current results`);
+              }
+            } else if (consumption && consumption.shouldContinue) {
+              console.log(`✅ ${normalizedToolName} results validated by PlanningAgent - quality acceptable`);
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ PlanningAgent consumption failed:`, error);
+          // Continue anyway - consumption is for quality improvement, not critical path
+        }
+      }
       
     } catch (error) {
       console.error(`❌ Tool ${normalizedToolName} failed:`, error);
@@ -1891,6 +2263,12 @@ NEXT_GOAL: [final goal achieved]`;
       'websearchagent': 'WebSearchAgent',
       'synthesizer': 'Synthesizer',
       'queryplanner': 'QueryPlanner',
+      // 🚨 TYPO HANDLING: Common LLM typos
+      'datainspictor': 'DataInspector',  // Missing 'e' typo
+      'DATAINSPICTOR': 'DataInspector',  // Missing 'e' typo uppercase
+      'DataInspictor': 'DataInspector',  // Missing 'e' typo mixed case
+      'datainspecter': 'DataInspector',  // Wrong ending typo
+      'DATAINSPECTER': 'DataInspector',  // Wrong ending typo uppercase
       // 🚨 SNAKE_CASE variations (LLM converts camelCase to snake_case)
       'DATA_INSPECTOR': 'DataInspector',
       'PLANNING_AGENT': 'PlanningAgent',
@@ -1909,6 +2287,9 @@ NEXT_GOAL: [final goal achieved]`;
       'CALL_PATTERNGENERATOR': 'PatternGenerator',
       'CALL_WEBSEARCHAGENT': 'WebSearchAgent',
       'CALL_QUERYPLANNER': 'QueryPlanner',
+      // 🚨 CALL_ with typos
+      'CALL_DATAINSPICTOR': 'DataInspector',  // Missing 'e' typo with CALL_
+      'CALL_DATAINSPECTER': 'DataInspector',  // Wrong ending typo with CALL_
       // 🚨 CALL with space variations (LLM generates "CALL ToolName" format)
       'CALL DataInspector': 'DataInspector',
       'CALL PlanningAgent': 'PlanningAgent',
@@ -1916,6 +2297,10 @@ NEXT_GOAL: [final goal achieved]`;
       'CALL Extractor': 'Extractor',
       'CALL WebSearchAgent': 'WebSearchAgent',
       'CALL Synthesizer': 'Synthesizer',
+      // 🚨 CALL with space + typos
+      'CALL DataInspictor': 'DataInspector',  // Missing 'e' typo
+      'CALL DATAINSPICTOR': 'DataInspector',  // Missing 'e' typo uppercase
+      'CALL DataInspecter': 'DataInspector',  // Wrong ending typo
       'CALL QueryPlanner': 'QueryPlanner',
       // 🚨 LLM Hallucination fixes
       'DATAINSPIRATOR': 'DataInspector', // Common LLM typo/hallucination
@@ -1925,6 +2310,7 @@ NEXT_GOAL: [final goal achieved]`;
       'PLANNING': 'PlanningAgent',
       'GENERATOR': 'PatternGenerator',
       'EXTRACT': 'Extractor',
+      'EXTRACTION': 'Extractor',
       'WEBSEARCH': 'WebSearchAgent',
       'SEARCH': 'WebSearchAgent',
       'SYNTHESIS': 'Synthesizer',
@@ -2210,6 +2596,16 @@ NEXT_GOAL: [final goal achieved]`;
     return this.finalContext;
   }
   
+  /**
+   * 🎯 Helper method to detect performance ranking queries
+   */
+  private isPerformanceQuery(query: string): boolean {
+    const queryLower = query.toLowerCase();
+    return queryLower.includes('top') || queryLower.includes('best') || 
+           queryLower.includes('speedrun') || queryLower.includes('ranking') ||
+           queryLower.includes('fastest') || queryLower.includes('compare');
+  }
+  
   // 🗑️ REMOVED: Unused helper methods (getAgentType, extractInsights) 
   // These were part of old pipeline logic that's now replaced by Master LLM Orchestrator
   
@@ -2423,52 +2819,93 @@ Assess based purely on query needs:`;
    * 🎯 Perform intelligent retry with improvement guidance
    */
   private async performIntelligentRetry(agentName: string, context: ResearchContext, improvement: string): Promise<void> {
+    // Prevent concurrent retries
+    if (this.retryingAgents.has(agentName)) {
+      console.log(`⚠️ Agent ${agentName} is already retrying, skipping duplicate retry`);
+      return;
+    }
+    
     // Track retry count
     const currentRetries = this.agentRetryCount.get(agentName) || 0;
     this.agentRetryCount.set(agentName, currentRetries + 1);
+    
+    // Mark as retrying
+    this.retryingAgents.add(agentName);
 
     console.log(`🔄 Intelligent retry #${currentRetries + 1} for ${agentName}: ${improvement}`);
 
-    // Clear previous results
-    this.calledAgents.delete(agentName);
-    this.agentResults.delete(agentName);
+    try {
+      // Clear previous results
+      this.agentResults.delete(agentName);
 
-    // 🎯 CLAUDE CODE-STYLE: Use PlanningAgent's corrective guidance if available
-    const correctiveGuidance = (context.sharedKnowledge as any)?.correctiveGuidance;
-    const replanningRequests = (context.sharedKnowledge as any)?.replanningRequests;
-    
-    if (correctiveGuidance && correctiveGuidance.target === agentName) {
-      console.log(`🎯 Using PlanningAgent corrective guidance: ${correctiveGuidance.guidance}`);
+      // 🎯 CLAUDE CODE-STYLE: Use PlanningAgent's corrective guidance if available
+      const correctiveGuidance = (context.sharedKnowledge as any)?.correctiveGuidance;
+      const replanningRequests = (context.sharedKnowledge as any)?.replanningRequests;
       
-      // Store specific corrective guidance
-      if (!context.sharedKnowledge.agentGuidance) {
-        context.sharedKnowledge.agentGuidance = {};
+      if (correctiveGuidance && correctiveGuidance.target === agentName) {
+        console.log(`🎯 Using PlanningAgent corrective guidance: ${correctiveGuidance.guidance}`);
+        
+        // Store specific corrective guidance
+        if (!context.sharedKnowledge.agentGuidance) {
+          context.sharedKnowledge.agentGuidance = {};
+        }
+        context.sharedKnowledge.agentGuidance[agentName] = correctiveGuidance.guidance;
+        
+        // Set priority flag for agent to use
+        (context.sharedKnowledge as any).currentPriority = correctiveGuidance.priority;
+        
+      } else {
+        // Store generic improvement guidance
+        if (!context.sharedKnowledge.agentGuidance) {
+          context.sharedKnowledge.agentGuidance = {};
+        }
+        context.sharedKnowledge.agentGuidance[agentName] = improvement;
       }
-      context.sharedKnowledge.agentGuidance[agentName] = correctiveGuidance.guidance;
-      
-      // Set priority flag for agent to use
-      (context.sharedKnowledge as any).currentPriority = correctiveGuidance.priority;
-      
-    } else {
-      // Store generic improvement guidance
-      if (!context.sharedKnowledge.agentGuidance) {
-        context.sharedKnowledge.agentGuidance = {};
+
+      // Log replanning context if available
+      if (replanningRequests && replanningRequests.length > 0) {
+        const latestRequest = replanningRequests[replanningRequests.length - 1];
+        console.log(`🔄 Replanning context: ${latestRequest.action} - ${latestRequest.reason}`);
+        console.log(`🎯 Specific corrective guidance: ${latestRequest.specificGuidance || 'Generic improvement'}`);
       }
-      context.sharedKnowledge.agentGuidance[agentName] = improvement;
-    }
 
-    // Log replanning context if available
-    if (replanningRequests && replanningRequests.length > 0) {
-      const latestRequest = replanningRequests[replanningRequests.length - 1];
-      console.log(`🔄 Replanning context: ${latestRequest.action} - ${latestRequest.reason}`);
-    }
-
-    // Re-execute the agent
-    const agent = this.registry.get(agentName);
-    if (agent) {
-      const guidanceToUse = correctiveGuidance ? correctiveGuidance.guidance : improvement;
-      console.log(`🎯 Re-executing ${agentName} with intelligent guidance: ${guidanceToUse}`);
-      await agent.process(context);
+      // Update progress tracker to show retry status
+      const retryStage = `Retrying with corrective guidance (attempt #${currentRetries + 1})`;
+      this.progressTracker.updateProgress(agentName, 5, retryStage, 0, undefined);
+      
+      // Update tracker retry count
+      const tracker = this.progressTracker.getTracker(agentName);
+      if (tracker) {
+        tracker.retryCount = currentRetries + 1;
+      }
+      
+      // 🔒 ATOMIC STATE MANAGEMENT: Clear state and re-execute atomically
+      // Clear previous results and remove from called agents
+      this.agentResults.delete(agentName);
+      this.calledAgents.delete(agentName);
+      
+      // Execute agent directly to avoid recursive orchestration
+      const agent = this.registry.get(agentName);
+      if (agent) {
+        console.log(`🎯 Executing ${agentName} retry with applied corrective guidance`);
+        
+        // Track progress start
+        this.progressTracker.startAgent(agentName, agentName, context);
+        
+        // Execute with corrective guidance
+        await agent.process(context);
+        
+        // Mark as successfully completed
+        this.calledAgents.add(agentName);
+        
+        console.log(`✅ Agent ${agentName} retry completed successfully with corrective guidance`);
+      } else {
+        throw new Error(`Agent ${agentName} not found in registry`);
+      }
+      
+    } finally {
+      // Always clear retry flag
+      this.retryingAgents.delete(agentName);
     }
   }
 

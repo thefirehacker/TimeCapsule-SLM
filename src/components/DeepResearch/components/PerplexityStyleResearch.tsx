@@ -487,12 +487,31 @@ function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
   };
 
   const getStepTitle = () => {
+    // Try to determine agent from step ID first, then subSteps for more specific titles
+    const hasPatternGenerator = step.id.includes('patterngenerator') || step.subSteps?.some(sub => sub.agentName?.includes('PatternGenerator'));
+    const hasExtractor = step.id.includes('extractor') || step.subSteps?.some(sub => sub.agentName?.includes('Extractor'));
+    const hasPlanning = step.id.includes('planningagent') || step.subSteps?.some(sub => sub.agentName?.includes('PlanningAgent'));
+    const hasDataInspector = step.id.includes('datainspector') || step.subSteps?.some(sub => sub.agentName?.includes('DataInspector'));
+    const hasSynthesis = step.id.includes('synthesis') || step.subSteps?.some(sub => sub.agentName?.includes('Synthesis'));
+    const hasResponseFormatter = step.id.includes('responseformatter') || step.subSteps?.some(sub => sub.agentName?.includes('ResponseFormatter'));
+    
     switch (step.type) {
-      case 'analysis': return 'Analyzing Query';
-      case 'rag_search': return 'Searching Knowledge Base';
+      case 'analysis': 
+        if (hasDataInspector) return 'Analyzing Documents';
+        if (hasPatternGenerator) return 'Generating Extraction Patterns';
+        if (hasExtractor) return 'Extracting Information';
+        if (hasPlanning) return 'Planning Execution Strategy';
+        return 'Analyzing Query';
+      case 'rag_search': 
+        return 'Searching Knowledge Base';
       case 'web_search': return 'Searching Web';
-      case 'synthesis': return 'Synthesizing Information';
-      case 'verification': return 'Verifying Results';
+      case 'synthesis': 
+        if (hasSynthesis) return 'Synthesizing Information';
+        return 'Synthesizing Information';
+      case 'verification': 
+        if (hasResponseFormatter) return 'Formatting Response';
+        if (hasPlanning) return 'Validating Results';
+        return 'Verifying Results';
       default: return 'Processing';
     }
   };
