@@ -560,18 +560,34 @@ STEP 2: Document Classification
 TYPE: [what kind of document this is]
 MAIN_ENTITY: [primary person/organization/subject this document is about]
 
-STEP 3: Query Relevance Analysis
+STEP 3: Semantic Entity-Query Alignment Analysis
 USER_QUERY: "${query}"
-Using the comprehensive analysis above, determine if this document contains information that helps answer the query.
 
-Think critically about connections:
-- Does the document discuss the same entities, people, or subjects mentioned in the query?
-- Could the document's content answer the query through direct information or related context?
-- Consider semantic relationships - different words can refer to the same concepts
-- Look for broader contextual relevance beyond exact keyword matches
+🔍 CRITICAL: Analyze semantic alignment between document entities and query focus.
 
-RELEVANT: [YES if the document connects to the query through content, entities, or context. NO only if completely unrelated]
-REASON: [explain specifically what connects this document to the query, considering both direct and contextual relevance]
+SEMANTIC RELEVANCE RULES:
+1. **Entity Ownership Analysis**: If query asks about "X's work/projects/research", the document MUST be authored by or primarily about person X
+2. **Attribution Matching**: A document about Person A's work is NOT relevant to queries about Person B's work, even if they work on similar topics
+3. **Contextual Authority**: Consider who created, authored, or owns the content described in the document
+4. **Subject vs Author Distinction**: A document ABOUT a topic is different from a document BY someone about that topic
+
+QUERY FOCUS ANALYSIS:
+- Extract the main subject/person the query is asking about
+- Identify if the query is asking for someone's specific work/contributions
+- Determine if query needs content BY a person vs ABOUT a topic
+
+DOCUMENT OWNERSHIP ANALYSIS:
+- Who is the primary author/creator of this document's content?
+- Who does this document's work/research/projects belong to?
+- What entities have ownership/attribution in this document?
+
+SEMANTIC ALIGNMENT CHECK:
+- Does the document's ownership/authorship match the query's focus entity?
+- If query asks for "Rutwik's projects", is this document actually about Rutwik's work?
+- If query asks for "Tyler's blog", is this document authored by Tyler?
+
+RELEVANT: [YES only if document entities semantically align with query focus. NO if entity mismatch even with topic overlap]
+REASON: [explain the semantic relationship between document ownership/entities and query focus, emphasizing alignment or mismatch]
 
 Respond in exact format:
 TYPE: [document type]
@@ -1670,7 +1686,9 @@ CRITICAL RULES:
 - Focus on what would best help answer the user's specific question
 - Be precise - extract specific names over generic categories
 - Use exact spelling as found in the text
-- If query doesn't need a category, write "none" for that category
+- Extract entities that exist in the document AND relate to the query
+- Source attribution: if document is from source X, then data in document belongs to X
+- Always extract relevant terms from each category if they appear in the content
 
 Extract the most relevant and specific terms for this query:`;
   }

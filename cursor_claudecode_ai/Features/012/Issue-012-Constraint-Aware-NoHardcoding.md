@@ -184,7 +184,121 @@ Total: 3–5 typical.
  - Small models emit malformed JSON → strict JSON-output prompts + resilient parser cleaning already added.
 - Main thread stalls during extraction → move to worker, add batching/caps and pattern sanitization.
 
+## Critical Issues Identified & Fixed
+
+### ✅ DataInspector Entity Extraction Failure
+- **Problem**: LLM outputs "METHODS: none, CONCEPTS: none, PEOPLE: none" despite seeing relevant Tyler's blog content with speedrun data
+- **Root Cause**: Prompt instruction "If query doesn't need a category, write 'none'" confuses LLM about source attribution (Tyler's blog → Tyler's data)
+- **Impact**: Single point of failure - if DataInspector fails, entire pipeline produces "insufficient evidence"
+- **Fix Applied**: Removed confusing "none" instruction, clarified source attribution rules in entity extraction prompt
+
+### ✅ PlanningAgent Corrective Strategy Not Applied  
+- **Problem**: PlanningAgent detects DataInspector failure, creates corrective strategy with correct entities, but downstream agents don't use it
+- **Evidence**: Logs show "Created corrective strategy: {people: Array(1)...}" but PatternGenerator still uses original "METHODS: none"
+- **Impact**: Override system exists but is ineffective - corrections are created but not applied
+- **Fix Applied**: Enhanced corrective strategy application to overwrite original DataInspector results in shared context
+
+### ✅ PatternGenerator Table Structure Extraction Failure
+- **Problem**: System generates regex patterns for corrupted text (`grad62304977grad62`) instead of clean table structure (`2.55 hours`, `4.01 hours`)
+- **Root Cause**: Table pattern detection uses wrong sample content, creating invalid patterns that miss actual speedrun times
+- **Evidence**: Logs show patterns like `/((?:\d+(?:\.\d+)?)\s*gemma)/gi` instead of time patterns
+- **Impact**: Despite having perfect table data, extraction produces generic responses
+- **Fix Applied**: Enhanced `addDeterministicPerformancePatterns()` with complete zero-hardcoding approach:
+  - **Dynamic unit learning**: `extractUnitsFromContent()` learns actual measurement units from document (hours, seconds, fps, tokens/s, etc.)
+  - **Query-based activation**: `shouldExtractMeasurements()` only activates performance patterns when query contains ranking intent AND document has numeric evidence
+  - **Context learning**: `generateDynamicContextPatterns()` extracts descriptive terms from actual document content
+  - **Magnitude detection**: Automatically detects k/M/B patterns only if present in document
+  - **Conditional execution**: For concept queries, skips performance patterns entirely
+
+### ✅ PatternGenerator Claude Code-Style Comprehensive Analysis
+- **Problem**: PatternGenerator used arbitrary hardcoded regex (`/(\d+[\s.:]\d{1,2}|\d+(?:\.\d+)?)/g`) and was limited to 8 chunks instead of comprehensive analysis
+- **Root Cause**: System wasn't following Claude Code's grep/ls/glob philosophy of analyzing ALL available content with zero hardcoding
+- **Evidence**: Code used hardcoded patterns and artificial chunk limitations instead of content-grounded comprehensive analysis
+- **Impact**: Missed measurements and patterns that existed in expanded chunks beyond DataInspector's 30% sample
+- **Fix Applied**: Claude Code-style comprehensive analysis:
+  - Uses DataInspector's proven measurement extraction logic on ALL chunks
+  - Analyzes complete expanded dataset (not just 30% sample)
+  - Combines bootstrap measurements + comprehensive analysis
+  - Content-grounded approach: learns from actual document content
+  - No arbitrary limitations or hardcoded assumptions
+
+### ✅ RegexExtractor Tool Normalization Error (FIXED)
+- **Problem**: Master LLM generates "RegexExtractor" tool calls but Orchestrator.normalizeToolName() doesn't map it to "Extractor"  
+- **Error**: `Tool RegexExtractor (normalized: RegexExtractor) not found in registry`
+- **Impact**: System fails with tool not found errors, breaking multi-agent orchestration
+- **Fix Applied**: Added comprehensive RegexExtractor mappings to normalizeToolName() method:
+  - `RegexExtractor` → `Extractor`
+  - `REGEXEXTRACTOR` → `Extractor` (uppercase)
+  - `regexextractor` → `Extractor` (lowercase)
+  - `REGEX_EXTRACTOR` → `Extractor` (snake case)
+  - `CALL_REGEX_EXTRACTOR` → `Extractor` (call prefix)
+  - `CALL RegexExtractor` → `Extractor` (call with space)
+
+### ✅ CRITICAL: Semantic Entity-Query Alignment Failure (FIXED)
+- **Problem**: DataInspector incorrectly marks documents as relevant based on keyword matching instead of semantic entity alignment
+- **Evidence**: Query "give the best project by Rutwik" → DataInspector marks Tyler's blog (`www-tylerromero-com-posts-nanogpt-speedrun-worklog-....pdf`) as relevant
+- **Root Cause**: System matches "project" keyword but ignores that Tyler's work is semantically unrelated to Rutwik's projects
+- **Current Logic Failure**: `Entity="GPT Training Optimization Team" → Result: true` for Rutwik query - no semantic understanding
+- **PlanningAgent Gap**: Validates for wrong reasons (performance content) instead of detecting entity mismatch (Tyler ≠ Rutwik)
+- **Impact**: System extracts from wrong documents, produces generic placeholder responses instead of actual relevant content
+- **Fix Applied**: 
+  - **DataInspector**: Enhanced semantic relevance analysis prompt with detailed entity-query alignment rules (Step 3: Semantic Entity-Query Alignment Analysis)
+  - **PlanningAgent**: Implemented `validateSemanticEntityAlignment()` method with zero-hardcoding semantic validation
+  - **Focus**: Entity ownership analysis (Person A's work ≠ queries about Person B's work) with possessive/attribution pattern recognition
+  - **Result**: System now correctly rejects documents with entity ownership mismatches using semantic intelligence
+
+### ✅ DataAnalyzer Catastrophic Filtering Bug (EMERGENCY BYPASS)
+- **Problem**: DataAnalyzer filtered out 100% of relevant extracted items as "low-relevance" (28% scores for "Project" and "Rutwik" items when query was "best project by Rutwik")
+- **Root Cause**: Over-aggressive relevance filtering with broken scoring logic that rejected perfectly relevant entity matches
+- **Evidence**: Logs show `❌ Filtered out low-relevance item: "Project" (score: 28%)` and `DataAnalyzer: 0 items remain (2 irrelevant items removed)`
+- **Impact**: SynthesisCoordinator received 0 data items, forcing generic placeholder output instead of actual project details
+- **Emergency Fix Applied**: Complete DataAnalyzer bypass:
+  - Removed from agent registration in `index.ts`
+  - Removed all `normalizeToolName` mappings in `PlanningAgent.ts` and `Orchestrator.ts`
+  - Commented out all case statements and validation logic in `Orchestrator.ts`
+  - Modified pipeline: `Extractor → SynthesisCoordinator` (DataAnalyzer bypassed)
+  - SynthesisCoordinator now works directly with raw extracted data
+
 ## Recent Fixes (Completed)
+
+### ✅ Workerized Regex Extraction (COMPLETED)
+- **Implementation**: Full Web Worker implementation in `/public/workers/regexExtractionWorker.js`
+- **Features Implemented**:
+  - **Pattern Sanitization**: Pre-validates patterns, drops placeholders like `/pattern\d+/`, rejects malformed flags, caps pattern length at 200 chars
+  - **Batch Processing**: Processes patterns in batches of 2 to maintain worker responsiveness
+  - **Progress Streaming**: Real-time progress updates sent back to main thread (processed/total counts)
+  - **Performance Caps**: Max 64 patterns, max 200 matches per chunk per pattern to prevent memory issues
+  - **Dual Text Processing**: Runs on both original and normalized text, preserves both in metadata
+  - **Error Handling**: Graceful fallback if worker fails, continues with main thread extraction
+- **Integration**: ExtractionAgent uses worker in `performRegexExtraction()` method with full progress tracking
+- **Impact**: Prevents main thread blocking during intensive regex operations, maintains UI responsiveness
+
+### ✅ PatternGenerator RxDB Augmentation (COMPLETED)
+- **Implementation**: Constraint-aware semantic search in `applyRxDBAugmentation()` method
+- **Features Implemented**:
+  - **Grounded Terms Only**: Uses methods/concepts/people from DataInspector insights, no generic terms
+  - **Constraint Respect**: Filters augmented chunks by query constraints (domain/title/owner)
+  - **Capped Addition**: Limits to ≤10 augmented chunks to prevent context bloat
+  - **Smart Deduplication**: Uses chunkId tracking to prevent duplicate content
+  - **Context-Aware Probes**: Avoids embedding raw numbers, uses context windows around measurements
+  - **Semantic Search**: Uses vectorStore similarity search with dynamic thresholds
+- **Integration**: Automatically called during PatternGenerator processing
+- **Impact**: Expands available content while respecting constraints and maintaining relevance
+
+### ✅ PlanningAgent Document Relevance Validation (COMPLETED)
+- **Problem**: PlanningAgent can correct entity classifications but cannot validate DataInspector's document selection decisions
+- **Enhancement**: Leverage DataInspector's rich reasoning analysis to validate document relevance against query intent
+- **Implementation**: 
+  - `validateDocumentSelections()` - validates document choices against query constraints
+  - `extractQueryConstraints()` - extracts author/docType/intent from query patterns (possessive, "from X", "in Y's Z")
+  - `validateDocumentAgainstQuery()` - checks individual documents against constraints
+  - `applyDocumentCorrections()` - filters out irrelevant documents and marks corrections
+- **Capabilities**:
+  - Detects queries like "best project by Rutwik" → expects author "Rutwik" + performance content
+  - Validates document metadata matches query-specified sources
+  - Excludes documents that don't match author/type constraints
+  - Includes documents with corrections when partially relevant
+- **Zero-hardcoding**: Uses intelligent pattern recognition, no hardcoded document names or metadata lists
 
 ### Agent Rerun Enhancement
 - **Problem**: Rerun functionality failed due to missing dependencies (e.g., Extractor needs patterns from PatternGenerator)

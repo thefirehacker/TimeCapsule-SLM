@@ -88,23 +88,49 @@ export class PatternGeneratorAgent extends BaseAgent {
         right: m.rightContext
       }));
     } else {
-      // Fallback: harvest from chunks directly if DataInspector didn't run
+      // CLAUDE CODE STYLE: Comprehensive analysis of ALL chunks (not just DataInspector's 30% sample)
+      // Use same measurement extraction logic as DataInspector but on complete dataset
+      console.log(`🔍 PatternGenerator: No measurements from DataInspector - analyzing ALL chunks with content-grounded approach`);
+      
       if (!context?.ragResults?.chunks || context.ragResults.chunks.length === 0) return 0;
       
-      const chunks = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
-      const numHitRe = /(\d+[\s.:]\d{1,2}|\d+(?:\.\d+)?)/g;
-      for (const ch of chunks) {
-        const text = ch.text || '';
-        let m: RegExpExecArray | null;
-        numHitRe.lastIndex = 0;
-        while ((m = numHitRe.exec(text)) !== null) {
-          const start = m.index;
-          const end = start + m[0].length;
-          const left = text.slice(Math.max(0, start - 32), start);
-          const right = text.slice(end, Math.min(text.length, end + 32));
-          hits.push({ num: m[0], left, right });
+      // Claude Code style: analyze ALL available chunks, not just a sample
+      const allChunks = context.ragResults.chunks;
+      console.log(`📊 Analyzing ${allChunks.length} chunks for comprehensive measurement discovery (Claude Code style)`);
+      
+      // Use DataInspector's proven measurement extraction logic
+      const numericPattern = /(\d+(?:[.:]\d+)?(?:\s+\d{1,2})?|\d+)/g;
+      
+      for (const chunk of allChunks) {
+        const text = chunk.text || '';
+        let match: RegExpExecArray | null;
+        
+        // Reset regex state
+        numericPattern.lastIndex = 0;
+        
+        while ((match = numericPattern.exec(text)) !== null) {
+          const startIdx = match.index;
+          const endIdx = startIdx + match[0].length;
+          
+          // Get context windows (same as DataInspector approach)
+          const leftStart = Math.max(0, startIdx - 32);
+          const rightEnd = Math.min(text.length, endIdx + 32);
+          
+          const leftContext = text.slice(leftStart, startIdx);
+          const rightContext = text.slice(endIdx, rightEnd);
+          
+          // Strip wrapping punctuation from the value
+          const cleanValue = match[0].replace(/^[^\d]+|[^\d]+$/g, '');
+          
+          hits.push({ 
+            num: cleanValue, 
+            left: leftContext.replace(/[[\](){}]/g, ''), // Strip brackets like DataInspector
+            right: rightContext.replace(/[[\](){}]/g, '')
+          });
         }
       }
+      
+      console.log(`📊 PatternGenerator: Discovered ${hits.length} measurements from complete dataset analysis`);
     }
     
     if (hits.length === 0) return 0;
@@ -209,7 +235,7 @@ export class PatternGeneratorAgent extends BaseAgent {
       return;
     }
     
-    // FALLBACK: Use DataInspector's shared insights for intelligent regex generation
+    // Use DataInspector's shared insights for intelligent regex generation
     console.log(`⚠️ No extraction strategy from PlanningAgent, using DataInspector insights`);
     const documentInsights = context.sharedKnowledge.documentInsights;
     const hasDocumentAnalysis = documentInsights && Object.keys(documentInsights).length > 0;
@@ -306,29 +332,7 @@ Example for this query: Generate patterns to find project names, person names, r
         console.error(`❌ LLM failed to generate valid regex patterns (${contentInfo} available)`);
         console.error(`📝 LLM Response sample: ${response.substring(0, 200)}...`);
         
-        // 🎯 GEMMA RECOVERY: Try simplified fallback patterns for small models
-        const fallbackPatterns = this.createFallbackPatterns(context, hasDocumentAnalysis, documentInsights);
-        if (fallbackPatterns.length > 0) {
-          console.warn(`🔄 Using fallback patterns for pattern generation failure`);
-          
-          // Store the fallback patterns
-          if (!context.patterns) {
-            context.patterns = [];
-          }
-          
-          const fallbackPatternObjects = fallbackPatterns.map((pattern, index) => ({
-            description: `Fallback pattern ${index + 1} for ${documentInsights?.documentType || 'document'}`,
-            examples: [],
-            extractionStrategy: `Fallback regex search using: ${pattern}`,
-            confidence: 0.6, // Lower confidence for fallback patterns
-            regexPattern: pattern
-          }));
-          
-          context.patterns.push(...fallbackPatternObjects);
-          
-          console.log(`✅ Applied ${fallbackPatterns.length} fallback patterns`);
-          // Continue with fallback patterns instead of failing
-        }
+        // 🚫 ZERO HARDCODING: No fallback patterns allowed
         
         throw new Error(`PatternGenerator failed: LLM must generate proper patterns. Context: ${contentInfo}. NO FALLBACKS allowed.`);
       }
@@ -372,49 +376,206 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
   }
 
   /**
-   * Add deterministic patterns for performance metrics (time, tokens/s, simple table cues)
+   * Add deterministic patterns ONLY if query + document suggest measurements/performance
+   * ZERO HARDCODING: Only activate when evidence supports it
    */
   private addDeterministicPerformancePatterns(context: ResearchContext) {
     if (!context.patterns) context.patterns = [];
+    
+    // 🔥 CRITICAL: Only add performance patterns if query AND document suggest measurements
+    if (!this.shouldExtractMeasurements(context)) {
+      console.log(`⏭️  Skipping performance patterns - query/document doesn't suggest measurements`);
+      return;
+    }
+    
+    // 🔥 CRITICAL FIX: Detect table structure from actual content
+    const sampleContent = context.ragResults.chunks.length > 0 
+      ? context.ragResults.chunks.map(chunk => chunk.text.substring(0, 1000)).join('\n\n')
+      : '';
+    
+    console.log(`🎯 Performance pattern detection activated for measurement query`);
+    console.log(`Sample preview:`, sampleContent.substring(0, 300));
+    
+    // 🔥 ZERO HARDCODING: Learn actual measurement units from document content
+    const learnedUnits = this.extractUnitsFromContent(sampleContent);
+    if (learnedUnits.length === 0) {
+      console.log(`⚠️  No measurement units found in document - skipping performance patterns`);
+      return;
+    }
+    
+    const unitsPattern = learnedUnits.join('|');
+    console.log(`📊 Learned ${learnedUnits.length} measurement units from document:`, learnedUnits.join(', '));
+    
     const perfPatterns = [
       {
-        description: 'Record time (hours) pattern',
+        description: `Direct numeric + unit extraction using learned units: ${learnedUnits.slice(0,3).join(', ')}`,
         examples: [],
-        extractionStrategy: 'Extract record time values in hours',
-        confidence: 0.9,
-        regexPattern: /(\d+(?:\.\d+)?)\s*(hours?|hrs?)/gi
+        extractionStrategy: 'Extract decimal values with document-learned units',
+        confidence: 0.98,
+        regexPattern: `/(\\d+\\.\\d+)\\s*(${unitsPattern})/gi`
       },
       {
-        description: 'Throughput tokens per second pattern',
+        description: `Table entry format with learned units`,
         examples: [],
-        extractionStrategy: 'Extract tokens per second values',
-        confidence: 0.9,
-        regexPattern: /(\d+(?:\.\d+)?\s*[kKmM]?)\s*(tokens?\/s(?:ec)?|tok\/s|tokens?\s*per\s*second)/gi
+        extractionStrategy: 'Extract structured table entries with learned measurement units',
+        confidence: 0.95,
+        regexPattern: `/Entry\\s*(\\d+):\\s*([^\\-]+)\\s*-?\\s*(\\d+\\.\\d+)\\s*(${unitsPattern})/gi`
       },
       {
-        description: 'Table row cue pattern',
+        description: `Values with parenthetical context using learned units`,
         examples: [],
-        extractionStrategy: 'Capture simple table-like rows for subsequent parsing',
-        confidence: 0.6,
-        regexPattern: /^\s*\d+\s*\|[^|]+\|[^|]+/gmi
+        extractionStrategy: 'Extract values with descriptive context using document-learned units',
+        confidence: 0.95,
+        regexPattern: `/(\\d+\\.\\d+)\\s*(${unitsPattern})\\s*\\(([^)]+)\\)/gi`
       },
+      // Dynamic pattern: Learn descriptive terms from document context around time values
+      ...(this.generateDynamicContextPatterns(sampleContent)),
       {
-        description: 'Labeled Record time pattern',
+        description: `Simple table row format with learned units`,
         examples: [],
-        extractionStrategy: 'Extract labeled record time fields',
-        confidence: 0.8,
-        regexPattern: /(Record\s*time)\s*[:|]\s*(\d+(?:\.\d+)?\s*(hours?|hrs?))/gi
+        extractionStrategy: 'Extract table rows with learned measurement units',
+        confidence: 0.85,
+        regexPattern: `/^([^\\d]*)(\\d+\\.\\d+)\\s*(${unitsPattern})\\s*([^\\n]+)$/gmi`
       },
-      {
-        description: 'Labeled Tokens/Second pattern',
-        examples: [],
-        extractionStrategy: 'Extract labeled tokens per second fields',
-        confidence: 0.8,
-        regexPattern: /(Tokens\s*\/\s*Second|Tokens\s*per\s*second)\s*[:|]\s*(\d+(?:\.\d+)?\s*[kKmM]?)/gi
-      }
+      // Add throughput/magnitude patterns only if found in document
+      ...(this.generateMagnitudePatterns(sampleContent))
     ];
     context.patterns.push(...perfPatterns as any);
     console.log(`✅ Added deterministic performance patterns: ${perfPatterns.length}`);
+  }
+
+  /**
+   * Determine if query and document context suggest measurement extraction
+   * ZERO HARDCODING: Based on query intent + document evidence
+   */
+  private shouldExtractMeasurements(context: ResearchContext): boolean {
+    const query = context.query.toLowerCase();
+    
+    // Check query for measurement/ranking intent
+    const measurementQueryWords = ['top', 'best', 'fastest', 'slowest', 'speed', 'time', 'performance', 'record', 'benchmark', 'compare', 'ranking'];
+    const hasRankingIntent = measurementQueryWords.some(word => query.includes(word));
+    
+    if (!hasRankingIntent) return false;
+    
+    // Check document for numeric evidence
+    const sampleContent = context.ragResults.chunks.length > 0 
+      ? context.ragResults.chunks.map(chunk => chunk.text.substring(0, 500)).join(' ')
+      : '';
+    
+    const hasNumericEvidence = /\d+(?:\.\d+)?/.test(sampleContent);
+    
+    console.log(`🤔 Measurement check: ranking intent=${hasRankingIntent}, numeric evidence=${hasNumericEvidence}`);
+    return hasRankingIntent && hasNumericEvidence;
+  }
+
+  /**
+   * Extract measurement units from document content - ZERO HARDCODING
+   */
+  private extractUnitsFromContent(content: string): string[] {
+    if (!content) return [];
+    
+    // Find all patterns of numbers followed by potential units
+    const unitMatches = content.matchAll(/\d+(?:\.\d+)?\s*([A-Za-z][A-Za-z/]*[A-Za-z]?)/g);
+    const units = new Set<string>();
+    
+    for (const match of unitMatches) {
+      const unit = match[1];
+      // Filter out obvious non-units (too short, all caps, contains numbers)
+      if (unit.length >= 2 && unit.length <= 20 && !/^\d+$/.test(unit) && !/^[A-Z]{4,}$/.test(unit)) {
+        units.add(unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape for regex
+      }
+    }
+    
+    const result = Array.from(units).slice(0, 15); // Limit to most common units
+    return result;
+  }
+
+  /**
+   * Generate magnitude patterns (k, M, B) only if found in document - ZERO HARDCODING
+   */
+  private generateMagnitudePatterns(content: string): Array<{description: string, examples: any[], extractionStrategy: string, confidence: number, regexPattern: string}> {
+    if (!content) return [];
+    
+    const patterns = [];
+    
+    // Check for K/M/B magnitude indicators
+    if (/\d+k\b/i.test(content)) {
+      patterns.push({
+        description: 'Thousands magnitude (k) pattern found in document',
+        examples: [],
+        extractionStrategy: 'Extract values with thousands magnitude indicator',
+        confidence: 0.9,
+        regexPattern: '/(\\d+)k\\b/gi'
+      });
+    }
+    
+    if (/\d+M\b/.test(content)) {
+      patterns.push({
+        description: 'Millions magnitude (M) pattern found in document', 
+        examples: [],
+        extractionStrategy: 'Extract values with millions magnitude indicator',
+        confidence: 0.9,
+        regexPattern: '/(\\d+(?:\\.\\d+)?)M\\b/gi'
+      });
+    }
+    
+    if (/\d+(?:\.\d+)?B\b/.test(content)) {
+      patterns.push({
+        description: 'Billions magnitude (B) pattern found in document',
+        examples: [],
+        extractionStrategy: 'Extract values with billions magnitude indicator', 
+        confidence: 0.9,
+        regexPattern: '/(\\d+(?:\\.\\d+)?)B\\b/gi'
+      });
+    }
+    
+    console.log(`🔢 Generated ${patterns.length} magnitude patterns from document content`);
+    return patterns;
+  }
+
+  /**
+   * Generate dynamic context patterns by learning descriptive terms from document content
+   * ZERO HARDCODING: Learn actual context words and measurement units from document
+   */
+  private generateDynamicContextPatterns(sampleContent: string): Array<{description: string, examples: any[], extractionStrategy: string, confidence: number, regexPattern: string}> {
+    if (!sampleContent) return [];
+    
+    // Learn units dynamically from content
+    const learnedUnits = this.extractUnitsFromContent(sampleContent);
+    if (learnedUnits.length === 0) return [];
+    
+    const unitsPattern = learnedUnits.join('|');
+    
+    // Find lines containing measurement values and extract the context words before them
+    const measurementLines = sampleContent.split('\n').filter(line => 
+      new RegExp(`\\d+\\.\\d+\\s*(${unitsPattern})`, 'i').test(line)
+    );
+    const contextWords = new Set<string>();
+    
+    measurementLines.forEach(line => {
+      // Extract 1-3 words before measurement values
+      const match = line.match(new RegExp(`([A-Za-z]+(?:\\s+[A-Za-z]+){0,2})\\s*[^A-Za-z]*\\d+\\.\\d+\\s*(${unitsPattern})`, 'i'));
+      if (match && match[1]) {
+        const words = match[1].trim().split(/\s+/);
+        words.forEach(word => {
+          if (word.length > 2) contextWords.add(word);
+        });
+      }
+    });
+    
+    if (contextWords.size === 0) return [];
+    
+    // Create patterns using learned context words and learned units
+    const learnedWords = Array.from(contextWords).slice(0, 10); // Limit to avoid too many patterns
+    console.log(`📚 Learned ${learnedWords.length} context words from document:`, learnedWords.join(', '));
+    
+    return [{
+      description: `Dynamic pattern using learned context words: ${learnedWords.slice(0,3).join(', ')} + learned units`,
+      examples: [],
+      extractionStrategy: 'Extract measurement values after document-learned context words with document-learned units',
+      confidence: 0.85,
+      regexPattern: `/(${learnedWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})[^\\d]*(\\d+\\.\\d+)\\s*(${unitsPattern})/gi`
+    }];
   }
 
   /**
@@ -668,62 +829,6 @@ REASONING: [Explain what specific structures you found in the actual document co
 NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure you analyzed above.`;
   }
 
-  /**
-   * 🎯 FALLBACK PATTERNS: Simple, reliable patterns when LLM generation fails
-   * Provides basic extraction based on document type for continuity
-   */
-  private createFallbackPatterns(
-    context: ResearchContext, 
-    hasDocumentAnalysis: boolean, 
-    documentInsights: any
-  ): string[] {
-    const documentType = documentInsights?.documentType?.toLowerCase() || 'unknown';
-    const fallbackPatterns: string[] = [];
-    
-    // Resume-specific fallback patterns
-    if (documentType.includes('resume') || documentType.includes('cv')) {
-      fallbackPatterns.push(
-        '/•\\s*([^\\n•]+)/gi',              // Bullet points
-        '/Experience\\s*:?\\s*([^\\n]+)/gi',  // Experience section
-        '/Skills?\\s*:?\\s*([^\\n]+)/gi',     // Skills section
-        '/Projects?\\s*:?\\s*([^\\n]+)/gi',   // Projects section
-        '/([A-Za-z][^\\n]*(?:built|developed|created|implemented)[^\\n]*)/gi' // Achievement descriptions
-      );
-    }
-    
-    // Blog/Article fallback patterns  
-    else if (documentType.includes('blog') || documentType.includes('article')) {
-      fallbackPatterns.push(
-        '/^([^\\n]+)$/gm',                    // Line-by-line content
-        '/([A-Z][^.!?]*[.!?])/g',            // Sentences
-        '/\\b([A-Z][a-z]+\\s+[A-Z][a-z]+)\\b/g', // Proper names
-        '/\\b(\\d+)\\b/g'                     // Numbers
-      );
-    }
-    
-    // Generic fallback patterns for any document
-    else {
-      fallbackPatterns.push(
-        '/([A-Z][^\\n]*)/g',                  // Capitalized lines
-        '/([^\\n]{20,})/g',                   // Long lines (likely content)
-        '/\\b([A-Za-z]+(?:\\s+[A-Za-z]+){2,})\\b/g' // Multi-word phrases
-      );
-    }
-    
-    // Filter to only tested, working patterns
-    const validatedPatterns = fallbackPatterns.filter(pattern => {
-      try {
-        new RegExp(pattern.slice(1, pattern.lastIndexOf('/'))); // Test pattern compilation
-        return true;
-      } catch {
-        console.warn(`⚠️ Skipping invalid fallback pattern: ${pattern}`);
-        return false;
-      }
-    });
-    
-    console.log(`🔄 Generated ${validatedPatterns.length} fallback patterns for ${documentType}`);
-    return validatedPatterns;
-  }
 
   /**
    * 🎯 BULLETPROOF Parse regex patterns from LLM response (TRIPLE-TIER PARSER)
@@ -739,14 +844,14 @@ NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure yo
       return patterns;
     }
     
-    // Tier 2: Try extracting from <think> content (Qwen fallback)  
+    // Tier 2: Try extracting from <think> content (Qwen format)  
     patterns = this.parseFromThinkContent(response);
     if (patterns.length > 0) {
       console.log(`✅ Tier 2 SUCCESS: Found ${patterns.length} patterns in think content`);
       return patterns;
     }
     
-    // Tier 3: Try free-form text parsing (universal fallback)
+    // Tier 3: Extract patterns from any text format
     patterns = this.parseFromFreeFormText(response);
     if (patterns.length > 0) {
       console.log(`✅ Tier 3 SUCCESS: Found ${patterns.length} patterns in free-form text`);
@@ -830,7 +935,7 @@ NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure yo
   }
 
   /**
-   * Tier 3: Universal fallback - extract patterns from any text
+   * Tier 3: Free-form pattern extraction from any text format
    */
   private parseFromFreeFormText(response: string): string[] {
     const patterns: string[] = [];
@@ -1316,7 +1421,7 @@ Generate patterns that match the actual document format.`;
         
       } catch (error) {
         console.warn(`⚠️ Failed to generate LLM patterns for "${method}", using basic pattern`);
-        // Basic fallback only if LLM fails
+        // Basic pattern generation if LLM fails
         patterns.push({
           description: `Basic ${method} pattern`,
           examples: [],

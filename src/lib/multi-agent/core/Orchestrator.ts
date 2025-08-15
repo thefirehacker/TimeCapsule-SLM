@@ -130,11 +130,11 @@ export class Orchestrator {
       // Data is ready but synthesis hasn't started
       return `
 🚨 **SYNTHESIS READY**: Data has been extracted and processed. Time to synthesize the final answer!
-- DataAnalyzer: ${dataAnalyzerCompleted ? 'COMPLETE ✅' : 'Available but optional'}
+- DataAnalyzer: BYPASSED ⚠️ (Agent disabled due to filtering bug)
 - Extracted Data: ${hasExtractedData ? 'READY ✅' : 'Not available'}
-- Analyzed Data: ${hasAnalyzedData ? 'READY ✅' : 'Not available'}
+- Raw Data Pipeline: Direct extraction → synthesis (DataAnalyzer skipped)
 
-**RECOMMENDED NEXT STEP**: Call SynthesisCoordinator to orchestrate final synthesis
+**RECOMMENDED NEXT STEP**: Call SynthesisCoordinator to work with raw extracted data
 **ALTERNATIVE**: Call ResponseFormatter if synthesis coordination not needed
 `;
     }
@@ -186,12 +186,10 @@ export class Orchestrator {
       phases.push('⏳ Phase 3: Extraction - WAITING');
     }
     
-    // Phase 4: Data Processing
-    const dataAnalyzerCompleted = availableData.agentsCalled.includes('DataAnalyzer');
-    if (dataAnalyzerCompleted) {
-      phases.push('✅ Phase 4: Data Processing (DataAnalyzer) - COMPLETE');
-    } else if (availableData.extractorCompleted) {
-      phases.push('→ Phase 4: Data Processing (DataAnalyzer) - READY');
+    // Phase 4: Data Processing (BYPASSED)
+    const dataAnalyzerCompleted = false; // DataAnalyzer permanently disabled
+    if (availableData.extractorCompleted) {
+      phases.push('⚠️ Phase 4: Data Processing - BYPASSED (DataAnalyzer disabled due to filtering bug)');
     } else {
       phases.push('⏳ Phase 4: Data Processing - WAITING');
     }
@@ -499,18 +497,19 @@ export class Orchestrator {
         }
         break;
         
-      case 'DataAnalyzer':
+      // BYPASSED: DataAnalyzer case removed - agent disabled due to filtering bug
+      // case 'DataAnalyzer':
         // DataAnalyzer needs extracted data - auto-restore if missing
-        if (!context.extractedData || context.extractedData.raw.length === 0) {
-          const extractorResult = this.agentResults.get('Extractor');
-          if (extractorResult?.extractedData) {
-            console.log(`🔄 Auto-restoring ${extractorResult.extractedData.raw.length} extracted items for DataAnalyzer rerun`);
-            context.extractedData = extractorResult.extractedData;
-          } else {
-            return {isValid: false, reason: 'No extracted data available'};
-          }
-        }
-        break;
+        // if (!context.extractedData || context.extractedData.raw.length === 0) {
+          // const extractorResult = this.agentResults.get('Extractor');
+          // if (extractorResult?.extractedData) {
+            // console.log(`🔄 Auto-restoring ${extractorResult.extractedData.raw.length} extracted items for DataAnalyzer rerun`);
+            // context.extractedData = extractorResult.extractedData;
+          // } else {
+            // return {isValid: false, reason: 'No extracted data available'};
+          // }
+        // }
+        // break;
         
       default:
         // For unknown agents, allow rerun
@@ -692,7 +691,7 @@ CURRENT SITUATION:
 - Execution Plan: ${this.getExecutionPlanStatus(context)}
 - Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
 - Data Extracted: ${availableData.extractorCompleted ? 'COMPLETED ✅ - Extractor already called' : 'NOT DONE ❌ - need Extractor'}
-- Data Analyzed: ${availableData.dataAnalyzerCompleted ? 'COMPLETED ✅ - DataAnalyzer already called' : 'NOT DONE ❌ - need DataAnalyzer'}
+- Data Analyzed: BYPASSED ⚠️ - DataAnalyzer disabled (filtering bug), using raw extracted data
 - Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need synthesis'}${context.sharedKnowledge.lastSkippedAgent ? `
 
 ⚠️ IMPORTANT - LAST AGENT WAS SKIPPED:
@@ -822,75 +821,52 @@ NEXT_GOAL: [final goal achieved]`;
         };
       }
       
-      // 🔥 CRITICAL FIX: Check if Synthesizer has generated meaningful answer
+      // 🔥 CRITICAL FIX: Check if synthesis has been attempted and has results
       const synthesizerCalled = this.calledAgents.has('Synthesizer');
       const coordinatorCalled = this.calledAgents.has('SynthesisCoordinator');
       const synthesisCompleted = synthesizerCalled || coordinatorCalled;
       
-      const hasValidAnswer = context.synthesis?.answer && 
-                            context.synthesis.answer.length > 50 && 
-                            !context.synthesis.answer.includes('No relevant information found');
+      // 🔧 ENHANCED: Check for extracted data availability 
+      const hasExtractedData = context.extractedData?.raw?.length > 0;
+      const extractorCalled = this.calledAgents.has('Extractor');
       
-      console.log(`🔍 COMPLETION CHECK: Synthesizer: ${synthesizerCalled}, Coordinator: ${coordinatorCalled}, Valid answer: ${hasValidAnswer}`);
-      console.log(`📝 Answer preview: "${context.synthesis?.answer?.substring(0, 100) || 'No answer'}..."`);
+      console.log(`🔍 COMPLETION CHECK:`, {
+        synthesizerCalled,
+        coordinatorCalled, 
+        extractorCalled,
+        hasExtractedData,
+        extractedItemCount: context.extractedData?.raw?.length || 0,
+        answerLength: context.synthesis?.answer?.length || 0
+      });
       
-      // If synthesis completed successfully (either approach), allow completion
-      if (synthesisCompleted && hasValidAnswer) {
-        console.log(`✅ COMPLETION ALLOWED: Synthesizer generated meaningful answer (${context.synthesis.answer.length} chars)`);
+      // 🚨 EMERGENCY FIX: If synthesis was attempted but answer is still terrible, allow completion 
+      // to prevent infinite loops - better to show bad answer than infinite loop
+      if (synthesisCompleted) {
+        const answerExists = context.synthesis?.answer && context.synthesis.answer.length > 0;
+        if (answerExists) {
+          console.log(`✅ COMPLETION ALLOWED: Synthesis attempted and produced answer (${context.synthesis.answer.length} chars) - preventing infinite loop`);
+          return {
+            allowed: true,
+            reason: `Synthesis completed - answer available (${context.synthesis.answer.length} chars)`
+          };
+        }
+      }
+      
+      // If we have extracted data and synthesis not called yet, try synthesis first
+      if (hasExtractedData && !synthesisCompleted) {
+        console.log(`🔄 SYNTHESIS NEEDED: Have ${context.extractedData.raw.length} extracted items but no synthesis yet`);
         return {
-          allowed: true,
-          reason: `Execution plan completed with valid synthesis: ${executionPlan.strategy}`
+          allowed: false,
+          reason: `Have extracted data (${context.extractedData.raw.length} items) - need synthesis`,
+          nextAgent: 'SynthesisCoordinator'
         };
       }
       
-      // If no meaningful answer yet, check fallback options
-      if (!hasValidAnswer) {
-        const fallback = executionPlan.fallbackOptions?.[0];
-        if (fallback === 'web-search-expansion' && !this.calledAgents.has('WebSearchAgent')) {
-          return {
-            allowed: false,
-            reason: 'No answer found - trying web search fallback',
-            nextAgent: 'WebSearchAgent'
-          };
-        }
-        
-        // Try synthesis pipeline if not called yet
-        if (!synthesisCompleted) {
-          // Prefer new multi-agent approach
-          if (!this.calledAgents.has('DataAnalyzer')) {
-            return {
-              allowed: false,
-              reason: 'Need to analyze extracted data before synthesis',
-              nextAgent: 'DataAnalyzer'
-            };
-          }
-          if (!coordinatorCalled) {
-            return {
-              allowed: false,
-              reason: 'Need to coordinate synthesis of available information',
-              nextAgent: 'SynthesisCoordinator'
-            };
-          }
-          // Fallback to old Synthesizer if needed
-          return {
-            allowed: false,
-            reason: 'Need to synthesize available information',
-            nextAgent: 'Synthesizer'
-          };
-        }
-        
-        // Synthesizer called but failed - don't retry infinitely
-        console.warn(`⚠️ FORCED COMPLETION: Synthesizer called but produced insufficient result`);
-        return {
-          allowed: true,
-          reason: 'Forced completion - Synthesizer attempted but produced limited results'
-        };
-      }
-      
-      // Execution plan complete with result
+      // 🚨 FALLBACK: If all else fails, allow completion to prevent infinite loops
+      console.log(`⚠️ EMERGENCY COMPLETION: All synthesis attempts completed - preventing infinite loop`);
       return {
         allowed: true,
-        reason: `Execution plan completed: ${executionPlan.strategy} (${calledAgents.length} agents used)`
+        reason: 'All synthesis attempts completed - preventing infinite loop'
       };
     }
     
@@ -979,11 +955,11 @@ NEXT_GOAL: [final goal achieved]`;
       'PatternGenerator': 'Creates content-aware patterns for data extraction',
       'Extractor': 'Extracts data using patterns or LLM analysis',
       'WebSearchAgent': 'Expands knowledge base when local data insufficient',
-      // New multi-synthesis agents
-      'DataAnalyzer': '🆕 Cleans and categorizes extracted data (use AFTER Extractor, BEFORE synthesis)',
-      'SynthesisCoordinator': '🆕 Assembles final report from analyzed data (use INSTEAD of Synthesizer)',
+      // New multi-synthesis agents (DataAnalyzer bypassed due to filtering bug)
+      // 'DataAnalyzer': 'DISABLED - Agent removed due to catastrophic filtering bug',
+      'SynthesisCoordinator': '🆕 Assembles final report from raw extracted data (DataAnalyzer bypassed)',
       // Old synthesis agent (deprecated but kept for fallback)
-      'Synthesizer': '⚠️ LEGACY - Use DataAnalyzer→SynthesisCoordinator instead',
+      'Synthesizer': '⚠️ LEGACY - Use SynthesisCoordinator directly (DataAnalyzer bypassed)',
       'ResponseFormatter': 'Ensures responses directly answer questions with clear formatting'
     };
 
@@ -1316,39 +1292,32 @@ NEXT_GOAL: [final goal achieved]`;
     
     // Define critical dependencies for each agent
     switch (toolName) {
-      case 'DataAnalyzer':
+      // BYPASSED: DataAnalyzer case removed - agent disabled due to filtering bug
+      // case 'DataAnalyzer':
         // DataAnalyzer needs extracted data from Extractor
-        console.log(`🎯 Validating DataAnalyzer prerequisites - checking extracted data`);
-        const hasExtractedForAnalysis = this.hasExtractedData(context);
-        console.log(`📊 Has extracted data: ${hasExtractedForAnalysis}`);
+        // console.log(`🎯 Validating DataAnalyzer prerequisites - checking extracted data`);
+        // const hasExtractedForAnalysis = this.hasExtractedData(context);
+        // console.log(`📊 Has extracted data: ${hasExtractedForAnalysis}`);
         
-        if (!hasExtractedForAnalysis && !this.calledAgents.has('Extractor')) {
+        // if (!hasExtractedForAnalysis && !this.calledAgents.has('Extractor')) {
           // Find Extractor in prerequisites
-          const extractorStep = uncompletedPrerequisites.find(step => 
-            this.normalizeToolName(step.agent) === 'Extractor'
-          );
-          if (extractorStep) critical.push(extractorStep);
-        }
-        break;
+          // const extractorStep = uncompletedPrerequisites.find(step => 
+            // this.normalizeToolName(step.agent) === 'Extractor'
+          // );
+          // if (extractorStep) critical.push(extractorStep);
+        // }
+        // break;
         
       case 'SynthesisCoordinator':
-        // 🎯 CRITICAL: SynthesisCoordinator MUST have DataAnalyzer for evidence-driven filtering
-        console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking analyzed data`);
-        const hasAnalyzedData = context.analyzedData?.cleaned && context.analyzedData.cleaned.length > 0;
-        console.log(`📊 Has analyzed data: ${hasAnalyzedData}`);
+        // 🎯 BYPASSED: DataAnalyzer temporarily disabled due to catastrophic data filtering bug
+        console.log(`🎯 Validating SynthesisCoordinator prerequisites - DataAnalyzer bypassed`);
+        const hasExtractedDataForSynthesis = context.extractedData?.raw && context.extractedData.raw.length > 0;
+        console.log(`📊 Has extracted data: ${hasExtractedDataForSynthesis}`);
         
-        // 🔥 FORCE DataAnalyzer to run when we have extracted data - prevents fabrication
-        const hasExtractedDataForAnalysis = context.extractedData?.raw && context.extractedData.raw.length > 0;
-        if (hasExtractedDataForAnalysis && !this.calledAgents.has('DataAnalyzer')) {
-          console.log(`🚨 FORCE DataAnalyzer: Found ${context.extractedData.raw.length} extracted items - preventing fabrication`);
-          // Find DataAnalyzer in prerequisites
-          const analyzerStep = uncompletedPrerequisites.find(step => 
-            this.normalizeToolName(step.agent) === 'DataAnalyzer'
-          );
-          if (analyzerStep) {
-            critical.push(analyzerStep);
-            console.log(`✅ DataAnalyzer marked as CRITICAL prerequisite for SynthesisCoordinator`);
-          }
+        // ⚠️ TEMPORARY FIX: Skip DataAnalyzer to prevent data destruction
+        // DataAnalyzer was filtering out 100% of relevant extracted items
+        if (hasExtractedDataForSynthesis) {
+          console.log(`✅ SynthesisCoordinator will work directly with ${context.extractedData.raw.length} extracted items (DataAnalyzer bypassed)`);
         }
         break;
         
@@ -1508,40 +1477,29 @@ NEXT_GOAL: [final goal achieved]`;
       return { allowed: true, reason: 'Extractor can work with LLM analysis or patterns' };
     }
     
-    // Synthesizer: LEGACY - Guide towards new synthesis pipeline
+    // Synthesizer: LEGACY - Guide towards new synthesis pipeline (DataAnalyzer bypassed)
     if (toolName === 'Synthesizer') {
-      // Check if new synthesis agents are available
-      const hasDataAnalyzer = this.registry.get('DataAnalyzer') !== null;
+      // Check if SynthesisCoordinator is available (DataAnalyzer bypassed)
       const hasSynthesisCoordinator = this.registry.get('SynthesisCoordinator') !== null;
       
-      // If new agents exist, guide towards using them
-      if (hasDataAnalyzer && hasSynthesisCoordinator) {
-        // Check if DataAnalyzer was already called
-        if (calledAgents.includes('DataAnalyzer')) {
-          // DataAnalyzer done, should use SynthesisCoordinator
-          if (!calledAgents.includes('SynthesisCoordinator')) {
-            return {
-              allowed: false,
-              reason: 'Use SynthesisCoordinator instead of Synthesizer for final report assembly',
-              suggestion: 'Call SynthesisCoordinator to assemble the final report from analyzed data'
-            };
-          }
-        } else {
-          // DataAnalyzer not called yet
+      // Guide towards using SynthesisCoordinator directly
+      if (hasSynthesisCoordinator) {
+        // Check if SynthesisCoordinator was already called
+        if (!calledAgents.includes('SynthesisCoordinator')) {
           const hasExtractedData = this.hasExtractedData(context);
           if (hasExtractedData) {
-            // Have data but haven't analyzed it
+            // Have data, go directly to SynthesisCoordinator (DataAnalyzer bypassed)
             return {
               allowed: false,
-              reason: 'Use new synthesis pipeline: DataAnalyzer → SynthesisCoordinator',
-              suggestion: 'Call DataAnalyzer first to clean and categorize extracted data'
+              reason: 'Use SynthesisCoordinator directly with raw extracted data (DataAnalyzer bypassed)',
+              suggestion: 'Call SynthesisCoordinator to assemble final report from raw extracted data'
             };
           } else if (!calledAgents.includes('Extractor')) {
             // No data extracted yet
             return {
               allowed: false,
               reason: 'No extracted data available for synthesis',
-              suggestion: 'Call Extractor first, then DataAnalyzer → SynthesisCoordinator'
+              suggestion: 'Call Extractor first, then SynthesisCoordinator directly (DataAnalyzer bypassed)'
             };
           }
         }
@@ -1878,6 +1836,18 @@ NEXT_GOAL: [final goal achieved]`;
       'pattern-extractor': 'Extractor',
       'pattern_extractor': 'Extractor',
       'PATTERN_EXTRACTOR': 'Extractor',
+      'DataExtractor': 'Extractor',     // LLM confusion - "DataExtractor" → "Extractor"
+      'DATAEXTRACTOR': 'Extractor',     // Uppercase version
+      'dataextractor': 'Extractor',     // Lowercase version
+      'DATA_EXTRACTOR': 'Extractor',    // Snake case version
+      'CALL_DATA_EXTRACTOR': 'Extractor', // Call prefix version
+      'CALL DataExtractor': 'Extractor',  // Call with space version
+      'RegexExtractor': 'Extractor',    // LLM confusion - "RegexExtractor" → "Extractor" 
+      'REGEXEXTRACTOR': 'Extractor',    // Uppercase version
+      'regexextractor': 'Extractor',    // Lowercase version
+      'REGEX_EXTRACTOR': 'Extractor',   // Snake case version
+      'CALL_REGEX_EXTRACTOR': 'Extractor', // Call prefix version
+      'CALL RegexExtractor': 'Extractor',  // Call with space version
       // Lowercase versions
       'datainspector': 'DataInspector',
       'planningagent': 'PlanningAgent',
@@ -1926,15 +1896,15 @@ NEXT_GOAL: [final goal achieved]`;
       'SYNESTHESIZER': 'Synthesizer', // LLM misspelling "Synthesizer" as "SYNESTHESIZER"
       'QUERYPLANNER': 'QueryPlanner',
       
-      // New multi-synthesis agents
-      'DATAANALYZER': 'DataAnalyzer',
-      'DATAANALYSISAGENT': 'DataAnalyzer',
-      'DATA_ANALYZER': 'DataAnalyzer',
-      'DATA_ANALYSIS_AGENT': 'DataAnalyzer',
-      'dataanalyzer': 'DataAnalyzer',
-      'data_analyzer': 'DataAnalyzer',
-      'CALL_DATA_ANALYZER': 'DataAnalyzer',
-      'CALL DataAnalyzer': 'DataAnalyzer',
+      // BYPASSED: DataAnalyzer mappings removed - agent disabled due to filtering bug
+      // 'DATAANALYZER': 'DataAnalyzer',
+      // 'DATAANALYSISAGENT': 'DataAnalyzer',
+      // 'DATA_ANALYZER': 'DataAnalyzer',
+      // 'DATA_ANALYSIS_AGENT': 'DataAnalyzer',
+      // 'dataanalyzer': 'DataAnalyzer',
+      // 'data_analyzer': 'DataAnalyzer',
+      // 'CALL_DATA_ANALYZER': 'DataAnalyzer',
+      // 'CALL DataAnalyzer': 'DataAnalyzer',
       
       'SYNTHESISCOORDINATOR': 'SynthesisCoordinator',
       'SYNTHESIS_COORDINATOR': 'SynthesisCoordinator',
@@ -1946,8 +1916,102 @@ NEXT_GOAL: [final goal achieved]`;
       'SYNTHESISCOORDINATOR': 'SynthesisCoordinator'
     };
     
-    // Return mapped name or original if no mapping found
-    return toolNameMap[toolName] || toolName;
+    // First try exact mapping
+    if (toolNameMap[toolName]) {
+      return toolNameMap[toolName];
+    }
+    
+    // 🔥 EMERGENCY FIX: Intelligent wildcard pattern matching for unmapped variations
+    return this.intelligentToolNameFallback(toolName);
+  }
+
+  /**
+   * 🚨 EMERGENCY: Intelligent fallback for unmapped tool name variations
+   */
+  private intelligentToolNameFallback(toolName: string): string {
+    const lowercaseName = toolName.toLowerCase();
+    const registeredAgents = this.registry.listAgents().map(a => a.name);
+    
+    console.log(`🔧 Attempting intelligent fallback for: "${toolName}"`);
+    
+    // Pattern 1: *Extractor variations → Extractor  
+    if (lowercaseName.includes('extractor')) {
+      console.log(`🎯 Mapping ${toolName} → Extractor (contains 'extractor')`);
+      return 'Extractor';
+    }
+    
+    // Pattern 2: *Generator variations → PatternGenerator
+    if (lowercaseName.includes('generator') && lowercaseName.includes('pattern')) {
+      console.log(`🎯 Mapping ${toolName} → PatternGenerator (contains 'pattern' + 'generator')`);
+      return 'PatternGenerator';
+    }
+    if (lowercaseName.includes('generator')) {
+      console.log(`🎯 Mapping ${toolName} → PatternGenerator (contains 'generator')`);
+      return 'PatternGenerator';
+    }
+    
+    // Pattern 3: *Inspector/*Analyzer variations → DataInspector
+    if (lowercaseName.includes('inspector') || lowercaseName.includes('analyzer')) {
+      console.log(`🎯 Mapping ${toolName} → DataInspector (contains 'inspector' or 'analyzer')`);
+      return 'DataInspector';
+    }
+    
+    // Pattern 4: *Synthesizer/*Coordinator variations → SynthesisCoordinator
+    if (lowercaseName.includes('synthesis') || lowercaseName.includes('coordinator')) {
+      console.log(`🎯 Mapping ${toolName} → SynthesisCoordinator (contains 'synthesis' or 'coordinator')`);
+      return 'SynthesisCoordinator';
+    }
+    
+    // Pattern 5: *Planner/*Planning variations → PlanningAgent  
+    if (lowercaseName.includes('planner') || lowercaseName.includes('planning')) {
+      console.log(`🎯 Mapping ${toolName} → PlanningAgent (contains 'planner' or 'planning')`);
+      return 'PlanningAgent';
+    }
+    
+    // Pattern 6: Agent suffix removal - try without "Agent" suffix
+    if (lowercaseName.endsWith('agent')) {
+      const withoutAgent = toolName.slice(0, -5); // Remove "Agent"
+      for (const agent of registeredAgents) {
+        if (agent.toLowerCase().includes(withoutAgent.toLowerCase())) {
+          console.log(`🎯 Mapping ${toolName} → ${agent} (removed 'Agent' suffix)`);
+          return agent;
+        }
+      }
+    }
+    
+    // Pattern 7: Semantic similarity matching
+    for (const agent of registeredAgents) {
+      if (this.isSemanticallyEquivalent(lowercaseName, agent.toLowerCase())) {
+        console.log(`🎯 Mapping ${toolName} → ${agent} (semantic similarity)`);
+        return agent;
+      }
+    }
+    
+    // Pattern 8: Last resort - find best partial match
+    for (const agent of registeredAgents) {
+      const agentLower = agent.toLowerCase();
+      if (lowercaseName.includes(agentLower) || agentLower.includes(lowercaseName)) {
+        console.log(`🎯 Mapping ${toolName} → ${agent} (partial match)`);
+        return agent;
+      }
+    }
+    
+    console.error(`❌ CRITICAL: No fallback found for tool name: "${toolName}"`);
+    console.error(`📋 Available tools: ${registeredAgents.join(', ')}`);
+    return toolName; // Return original if no fallback found
+  }
+  
+  /**
+   * Check semantic equivalence between tool names
+   */
+  private isSemanticallyEquivalent(name1: string, name2: string): boolean {
+    // Remove common prefixes/suffixes
+    const clean1 = name1.replace(/^(data|pattern|synthesis|web)/, '').replace(/(agent|tool|coordinator)$/, '');
+    const clean2 = name2.replace(/^(data|pattern|synthesis|web)/, '').replace(/(agent|tool|coordinator)$/, '');
+    
+    return clean1 === clean2 || 
+           Math.abs(clean1.length - clean2.length) <= 2 && 
+           (clean1.includes(clean2) || clean2.includes(clean1));
   }
   
   /**
@@ -2036,7 +2100,7 @@ NEXT_GOAL: [final goal achieved]`;
         parts.push(`patternsHash:${this.hashArray(patterns.map(p => p.regexPattern || p.description))}`);
         break;
         
-      case 'DataAnalyzer':
+      // BYPASSED: DataAnalyzer case removed - agent disabled
       case 'SynthesisCoordinator':
       case 'Synthesizer':
         const extractedData = context.extractedData?.raw || [];
@@ -2083,9 +2147,10 @@ NEXT_GOAL: [final goal achieved]`;
         // Insufficient if no patterns generated
         return !context.patterns || context.patterns.length === 0;
         
-      case 'DataAnalyzer':
+      // BYPASSED: DataAnalyzer case removed - agent disabled
+      // case 'DataAnalyzer':
         // Insufficient if no cleaned data
-        return !context.analyzedData?.cleaned || context.analyzedData.cleaned.length === 0;
+        // return !context.analyzedData?.cleaned || context.analyzedData.cleaned.length === 0;
     }
     
     return false;
@@ -2191,7 +2256,7 @@ For the query "${context.query}":
 RESPONSE FORMAT:
 STATUS: [acceptable/insufficient/retry_recommended]
 REASON: Brief explanation of what the user needs and what's available/missing
-IMPROVEMENT: If retry recommended, what specific information should be extracted
+IMPROVEMENT: If retry_recommended, specific guidance on what to look for or how to improve the analysis
 
 Assess based purely on query needs:`;
   }
@@ -2214,21 +2279,30 @@ Assess based purely on query needs:`;
         .map(([key, values]) => `${key}: ${(values as string[]).join(', ')}`)
         .join('\n');
       if (available) {
-        sections.push(`EXTRACTED TERMS:\n${available}`);
+        sections.push(`DOCUMENT INSIGHTS:\n${available}`);
       }
     }
     
+    // 🔧 CRITICAL FIX: Include actual extracted data in quality assessment
+    if (context.extractedData?.raw && context.extractedData.raw.length > 0) {
+      const extractedCount = context.extractedData.raw.length;
+      const sampleData = context.extractedData.raw.slice(0, 3).map((item, i) => {
+        const content = item.content || item.text || item.match || JSON.stringify(item).substring(0, 100);
+        return `${i+1}. ${content.substring(0, 100)}`;
+      }).join('\n');
+      
+      sections.push(`EXTRACTED DATA: ${extractedCount} items extracted\nSample items:\n${sampleData}`);
+    }
+    
+    // Include patterns if available
     if (context.patterns && context.patterns.length > 0) {
       sections.push(`PATTERNS: ${context.patterns.length} extraction patterns generated`);
     }
     
-    if (context.extractedData?.raw && context.extractedData.raw.length > 0) {
-      sections.push(`EXTRACTED DATA: ${context.extractedData.raw.length} items extracted`);
-      // Show sample of what was extracted
-      const sample = context.extractedData.raw.slice(0, 3)
-        .map(item => `"${(item.content || '').substring(0, 100)}..."`)
-        .join('\n');
-      sections.push(`SAMPLE EXTRACTIONS:\n${sample}`);
+    // Include measurement data if available  
+    if (context.sharedKnowledge.documentInsights?.measurements) {
+      const measurementCount = context.sharedKnowledge.documentInsights.measurements.length;
+      sections.push(`MEASUREMENTS: ${measurementCount} numeric measurements found in documents`);
     }
     
     if (context.ragResults?.chunks) {

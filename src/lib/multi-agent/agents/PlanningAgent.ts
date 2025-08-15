@@ -88,6 +88,13 @@ export class PlanningAgent extends BaseAgent {
       if (!classificationsValid) {
         console.log(`🔧 Entity classifications corrected - corrective strategy applied`);
       }
+      
+      // 🔍 DOCUMENT RELEVANCE VALIDATION: Validate DataInspector document selections  
+      this.progressCallback?.onAgentProgress(this.name, 35, 'Validating document relevance');
+      const documentSelectionsValid = this.validateDocumentSelections(context);
+      if (!documentSelectionsValid) {
+        console.log(`🔧 Document selections corrected - relevance override applied`);
+      }
     }
     
     // Report progress: Situation analyzed
@@ -187,24 +194,25 @@ Based on this analysis, create an intelligent execution plan:
 5. **CONFIDENCE LEVEL**: How confident are you this plan will succeed? (0.1-1.0)
 
 CRITICAL JSON FORMATTING REQUIREMENTS:
-- Keep all text descriptions under 100 characters
-- Use only basic punctuation (no quotes, colons, or special characters in text values)
+- Provide clear, meaningful descriptions (no arbitrary length limits)
+- Strategy should explain the overall approach comprehensively
+- Each step must use actual agent names from the available list
+- Include at least 3 concrete steps for any non-trivial query
 - Ensure all JSON is properly escaped and valid
-- No line breaks within string values
 
-Return as strictly valid JSON (single line preferred, escape all quotes inside strings):
+Return as strictly valid JSON:
 {
-  "strategy": "concise strategy under 100 chars",
+  "strategy": "Clear multi-step approach to answer the query",
   "steps": [
     {
-      "agent": "AgentName", 
-      "action": "brief action under 80 chars", 
-      "reasoning": "short reason under 60 chars", 
-      "expectedOutput": "expected result under 60 chars", 
+      "agent": "ActualAgentName", 
+      "action": "Specific action this agent will perform", 
+      "reasoning": "Why this step is necessary", 
+      "expectedOutput": "What data or result this produces", 
       "priority": "high"
     }
   ],
-  "fallbackOptions": ["option1 under 50 chars", "option2 under 50 chars"],
+  "fallbackOptions": ["Alternative approach if data insufficient", "Backup strategy if primary fails"],
   "expectedDataSources": ["source1", "source2"],
   "confidenceLevel": 0.8
 }`;
@@ -303,13 +311,13 @@ Return as strictly valid JSON (single line preferred, escape all quotes inside s
       'planningagent': 'PlanningAgent',
       'planning': 'PlanningAgent',
       'planner': 'PlanningAgent',
-      // Fix LLM typo: DataAnalzyzer -> DataAnalyzer
-      'dataanalzyzer': 'DataAnalyzer',
-      'data-analzyzer': 'DataAnalyzer',
-      'data_analzyzer': 'DataAnalyzer',
-      'dataanalyzer': 'DataAnalyzer',
-      'data-analyzer': 'DataAnalyzer',
-      'data_analyzer': 'DataAnalyzer',
+      // BYPASSED: DataAnalyzer mappings removed - agent disabled due to filtering bug
+      // 'dataanalzyzer': 'DataAnalyzer',
+      // 'data-analzyzer': 'DataAnalyzer', 
+      // 'data_analzyzer': 'DataAnalyzer',
+      // 'dataanalyzer': 'DataAnalyzer',
+      // 'data-analyzer': 'DataAnalyzer',
+      // 'data_analyzer': 'DataAnalyzer',
       'synthesiscoordinator': 'SynthesisCoordinator',
       'synthesis-coordinator': 'SynthesisCoordinator',
       'synthesis_coordinator': 'SynthesisCoordinator'
@@ -1554,6 +1562,267 @@ Return as strictly valid JSON (single line preferred, escape all quotes inside s
     }
     context.sharedKnowledge.correctiveStrategies.entityClassification = correctedCategories;
     
+    // Apply corrective strategy by overwriting original DataInspector results
+    if (context.sharedKnowledge.documentInsights) {
+      context.sharedKnowledge.documentInsights.methods = correctedCategories.methods || [];
+      context.sharedKnowledge.documentInsights.concepts = correctedCategories.concepts || [];
+      context.sharedKnowledge.documentInsights.people = correctedCategories.people || [];
+      context.sharedKnowledge.documentInsights.data = correctedCategories.data || [];
+      console.log(`🔧 Applied corrective strategy: overwrote original DataInspector results`);
+    }
+    
     console.log(`✅ Created corrective strategy:`, correctedCategories);
+  }
+
+  /**
+   * 🔍 DOCUMENT RELEVANCE VALIDATION: Validate DataInspector's document selections using reasoning analysis
+   */
+  validateDocumentSelections(context: ResearchContext): boolean {
+    console.log(`🔍 PlanningAgent: Validating DataInspector document selections against query`);
+    
+    const documentAnalysis = context.documentAnalysis;
+    if (!documentAnalysis?.documents || documentAnalysis.documents.length === 0) {
+      console.log(`⚠️ No documents to validate`);
+      return true;
+    }
+    
+    const query = context.query.toLowerCase();
+    let needsCorrection = false;
+    const correctedDocuments: any[] = [];
+    
+    // Extract query constraints for validation
+    const queryConstraints = this.extractQueryConstraints(query);
+    console.log(`🎯 Query constraints for validation:`, queryConstraints);
+    
+    documentAnalysis.documents.forEach((doc: any, index: number) => {
+      console.log(`\n🔍 Validating document ${index + 1}: "${doc.documentName}"`);
+      console.log(`📊 Document analysis - Type: ${doc.documentType}, Primary: ${doc.primaryEntity}`);
+      
+      // Validate against query constraints
+      const validationResult = this.validateDocumentAgainstQuery(doc, query, queryConstraints);
+      
+      if (validationResult.isValid) {
+        console.log(`✅ Document ${index + 1} validation passed: ${validationResult.reason}`);
+        correctedDocuments.push(doc);
+      } else {
+        console.warn(`❌ Document ${index + 1} validation failed: ${validationResult.reason}`);
+        needsCorrection = true;
+        
+        // Only include if it has some relevance but needs adjustment
+        if (validationResult.includeWithCorrection) {
+          console.log(`🔧 Including document ${index + 1} with corrective strategy`);
+          correctedDocuments.push({
+            ...doc,
+            correctionApplied: true,
+            correctionReason: validationResult.reason
+          });
+        }
+      }
+    });
+    
+    // Apply corrections if needed
+    if (needsCorrection) {
+      console.log(`🔄 PlanningAgent: Document selections need correction`);
+      this.applyDocumentCorrections(context, correctedDocuments);
+    }
+    
+    return !needsCorrection;
+  }
+
+  /**
+   * Extract query constraints for document validation (zero hardcoding)
+   */
+  private extractQueryConstraints(query: string): any {
+    const constraints: any = {};
+    
+    // Extract source specifications (possessive patterns, "from X", "in Y's Z")
+    const possessivePattern = /\b([A-Z][a-z]+)'s\s+([a-z]+)/g;
+    const fromPattern = /\bfrom\s+([A-Z][a-z]+)'s\s+([a-z]+)/g;
+    const inPattern = /\bin\s+([A-Z][a-z]+)'s\s+([a-z]+)/g;
+    
+    let match;
+    while ((match = possessivePattern.exec(query)) !== null) {
+      constraints.expectedAuthor = match[1];
+      constraints.expectedDocType = match[2];
+      console.log(`🎯 Extracted constraint - Author: ${match[1]}, DocType: ${match[2]}`);
+    }
+    
+    // Reset regex state and check other patterns
+    possessivePattern.lastIndex = 0;
+    while ((match = fromPattern.exec(query)) !== null) {
+      constraints.expectedAuthor = match[1];
+      constraints.expectedDocType = match[2];
+    }
+    
+    fromPattern.lastIndex = 0;
+    while ((match = inPattern.exec(query)) !== null) {
+      constraints.expectedAuthor = match[1];
+      constraints.expectedDocType = match[2];
+    }
+    
+    // Extract performance intent
+    if (query.includes('best') || query.includes('top') || query.includes('fastest')) {
+      constraints.expectedIntent = 'performance_ranking';
+    }
+    
+    return constraints;
+  }
+
+  /**
+   * Validate individual document against query constraints with semantic intelligence
+   */
+  private validateDocumentAgainstQuery(doc: any, query: string, constraints: any): any {
+    // 🔍 SEMANTIC ENTITY ALIGNMENT: Use intelligent validation instead of hardcoded patterns
+    const semanticAlignment = this.validateSemanticEntityAlignment(doc, query);
+    if (!semanticAlignment.isValid) {
+      return {
+        isValid: false,
+        reason: semanticAlignment.reason,
+        includeWithCorrection: false
+      };
+    }
+    
+    // Legacy constraint checks (still useful but secondary to semantic alignment)
+    if (constraints.expectedAuthor) {
+      const authorInDoc = doc.primaryEntity?.toLowerCase().includes(constraints.expectedAuthor.toLowerCase()) ||
+                         doc.documentName?.toLowerCase().includes(constraints.expectedAuthor.toLowerCase());
+      
+      if (!authorInDoc) {
+        return {
+          isValid: false,
+          reason: `Document doesn't match expected author "${constraints.expectedAuthor}"`,
+          includeWithCorrection: false
+        };
+      }
+    }
+    
+    // Check document type constraint
+    if (constraints.expectedDocType) {
+      const typeMatch = doc.documentType?.toLowerCase().includes(constraints.expectedDocType) ||
+                       doc.documentName?.toLowerCase().includes(constraints.expectedDocType);
+      
+      if (!typeMatch) {
+        return {
+          isValid: false,
+          reason: `Document type "${doc.documentType}" doesn't match expected "${constraints.expectedDocType}"`,
+          includeWithCorrection: constraints.expectedAuthor ? true : false // Include if author matches
+        };
+      }
+    }
+    
+    // Validate performance intent alignment
+    if (constraints.expectedIntent === 'performance_ranking') {
+      const hasPerformanceContent = doc.contentAreas?.some((area: string) => 
+        area.toLowerCase().includes('performance') || 
+        area.toLowerCase().includes('time') || 
+        area.toLowerCase().includes('speed')
+      );
+      
+      if (!hasPerformanceContent) {
+        return {
+          isValid: false,
+          reason: `Document lacks performance content for performance ranking query`,
+          includeWithCorrection: true // Include with note that performance extraction may be limited
+        };
+      }
+    }
+    
+    return {
+      isValid: true,
+      reason: `Document meets all query constraints`
+    };
+  }
+
+  /**
+   * Validate semantic entity alignment between document and query (zero hardcoding)
+   */
+  private validateSemanticEntityAlignment(doc: any, query: string): { isValid: boolean; reason: string } {
+    // 🔍 SEMANTIC ENTITY ALIGNMENT: Focus on entity ownership and attribution
+    
+    // Extract main entities from document
+    const documentEntity = doc.primaryEntity || doc.mainEntity || 'unknown';
+    const documentName = doc.documentName || 'unknown';
+    
+    // Check for possessive patterns in query (e.g., "Rutwik's projects", "Tyler's work")
+    const possessiveMatch = query.match(/(\w+)'s\s+(\w+)/i);
+    if (possessiveMatch) {
+      const expectedOwner = possessiveMatch[1].toLowerCase();
+      const queryTopic = possessiveMatch[2].toLowerCase();
+      
+      // Check if document entity matches expected owner
+      const entityMatch = documentEntity.toLowerCase().includes(expectedOwner) ||
+                         documentName.toLowerCase().includes(expectedOwner);
+      
+      if (!entityMatch) {
+        return {
+          isValid: false,
+          reason: `Document about "${documentEntity}" is not relevant for query about "${expectedOwner}'s ${queryTopic}". Entity ownership mismatch.`
+        };
+      }
+    }
+    
+    // Check for "by [Author]" patterns in query
+    const byAuthorMatch = query.match(/by\s+(\w+)/i);
+    if (byAuthorMatch) {
+      const expectedAuthor = byAuthorMatch[1].toLowerCase();
+      
+      // Check if document is authored by or primarily about the expected person
+      const authorMatch = documentEntity.toLowerCase().includes(expectedAuthor) ||
+                         documentName.toLowerCase().includes(expectedAuthor);
+      
+      if (!authorMatch) {
+        return {
+          isValid: false,
+          reason: `Document about "${documentEntity}" is not authored by or about "${expectedAuthor}". Attribution mismatch.`
+        };
+      }
+    }
+    
+    // Check for "from [Source]" patterns in query
+    const fromSourceMatch = query.match(/from\s+(\w+)/i);
+    if (fromSourceMatch) {
+      const expectedSource = fromSourceMatch[1].toLowerCase();
+      
+      // Check if document comes from expected source
+      const sourceMatch = documentEntity.toLowerCase().includes(expectedSource) ||
+                         documentName.toLowerCase().includes(expectedSource);
+      
+      if (!sourceMatch) {
+        return {
+          isValid: false,
+          reason: `Document from "${documentEntity}" does not match expected source "${expectedSource}". Source mismatch.`
+        };
+      }
+    }
+    
+    return {
+      isValid: true,
+      reason: `Document entity "${documentEntity}" semantically aligns with query focus`
+    };
+  }
+
+  /**
+   * Apply document corrections to context
+   */
+  private applyDocumentCorrections(context: ResearchContext, correctedDocuments: any[]): void {
+    console.log(`🔧 Applying document corrections: ${correctedDocuments.length} documents retained`);
+    
+    // Update document analysis with corrected document list
+    if (context.documentAnalysis) {
+      context.documentAnalysis.documents = correctedDocuments;
+      
+      // Store correction info for downstream agents
+      if (!context.sharedKnowledge.correctiveStrategies) {
+        context.sharedKnowledge.correctiveStrategies = {};
+      }
+      
+      context.sharedKnowledge.correctiveStrategies.documentSelection = {
+        originalCount: context.documentAnalysis.documents.length,
+        correctedCount: correctedDocuments.length,
+        correctionsApplied: correctedDocuments.filter(d => d.correctionApplied).length
+      };
+      
+      console.log(`✅ Document corrections applied: ${correctedDocuments.length} documents validated`);
+    }
   }
 }

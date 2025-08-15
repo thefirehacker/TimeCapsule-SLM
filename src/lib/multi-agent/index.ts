@@ -19,7 +19,8 @@ import { WebSearchAgent } from './agents/WebSearchAgent';
 import { SynthesisAgent } from './agents/SynthesisAgent';
 import { ResponseFormatterAgent } from './agents/ResponseFormatterAgent';
 // New multi-synthesis agents
-import { DataAnalysisAgent } from './agents/DataAnalysisAgent';
+// BYPASSED: DataAnalysisAgent temporarily disabled due to catastrophic filtering bug
+// import { DataAnalysisAgent } from './agents/DataAnalysisAgent';
 import { SynthesisCoordinator } from './agents/SynthesisCoordinator';
 
 // Core exports
@@ -53,7 +54,8 @@ export { ExtractionAgent } from './agents/ExtractionAgent';
 export { WebSearchAgent } from './agents/WebSearchAgent';
 export { SynthesisAgent } from './agents/SynthesisAgent';
 export { ResponseFormatterAgent } from './agents/ResponseFormatterAgent';
-export { DataAnalysisAgent } from './agents/DataAnalysisAgent';
+// BYPASSED: DataAnalysisAgent temporarily disabled
+// export { DataAnalysisAgent } from './agents/DataAnalysisAgent';
 export { SynthesisCoordinator } from './agents/SynthesisCoordinator';
 
 // Factory function
@@ -67,10 +69,10 @@ export function createMultiAgentSystem(
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
   
-  // Build list of available agents based on configuration
-  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'DataAnalyzer', 'SynthesisCoordinator', 'ResponseFormatter'];
+  // Build list of available agents based on configuration - DataAnalyzer bypassed
+  const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'SynthesisCoordinator', 'ResponseFormatter'];
   if (config?.enableWebSearch !== false) {
-    availableAgents.splice(4, 0, 'WebSearchAgent'); // Insert WebSearchAgent before DataAnalyzer
+    availableAgents.splice(4, 0, 'WebSearchAgent'); // Insert WebSearchAgent before SynthesisCoordinator
   }
   
   // Register all agents in new intelligent architecture order
@@ -87,9 +89,10 @@ export function createMultiAgentSystem(
     console.log('🌐 WebSearchAgent disabled by configuration');
   }
   
-  // Register new multi-synthesis agents
-  registry.register(new DataAnalysisAgent(llm)); // Clean and categorize data
-  registry.register(new SynthesisCoordinator(llm)); // Coordinate synthesis pipeline
+  // Register new multi-synthesis agents - DataAnalysisAgent bypassed
+  // BYPASSED: DataAnalysisAgent due to catastrophic filtering bug that removes all relevant data
+  // registry.register(new DataAnalysisAgent(llm)); // Clean and categorize data
+  registry.register(new SynthesisCoordinator(llm)); // Coordinate synthesis pipeline (works with raw extracted data)
   
   // Keep original SynthesisAgent as fallback for now
   registry.register(new SynthesisAgent(llm));
