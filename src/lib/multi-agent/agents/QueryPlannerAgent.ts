@@ -9,16 +9,19 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { parseJsonWithResilience } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class QueryPlannerAgent extends BaseAgent {
   readonly name = 'QueryPlanner';
   readonly description = 'Expands queries based on intent and domain understanding';
   
   private llm: LLMFunction;
+  protected progressCallback?: AgentProgressCallback;
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {

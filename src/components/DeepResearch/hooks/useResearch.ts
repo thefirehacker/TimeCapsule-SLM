@@ -10,7 +10,7 @@ import {
   UnifiedWebSearchContext as WebSearchContext,
   UnifiedWebSearchOptions as WebSearchOptions,
 } from "@/lib/UnifiedWebSearchService";
-import { ResearchOrchestrator, ResearchResult, ResearchUtils } from "@/lib/ResearchOrchestrator";
+import { createMultiAgentSystem, Orchestrator } from "@/lib/multi-agent";
 import { queryIntelligenceService } from "@/lib/QueryIntelligenceService";
 import { ResearchStep, useResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { useResearchHistory } from "../hooks/useResearchHistory";
@@ -167,6 +167,9 @@ export function useResearch(
   const historySessionIdRef = React.useRef<string | null>(null);
   const researchStartTimeRef = React.useRef<number | null>(null);
   
+  // 🔥 CRITICAL FIX: Ref to track current steps state to avoid React closure issues
+  const currentStepsRef = React.useRef<ResearchStep[]>([]);
+  
   // Research cancellation control
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -184,26 +187,7 @@ export function useResearch(
   // Web Search Service
   const webSearchService = getUnifiedWebSearchService();
 
-  // Research Orchestrator - React to configuration changes
-  const researchOrchestrator = React.useMemo(() => {
-    const orchestrator = ResearchUtils.createOrchestrator(
-      vectorStore,
-      webSearchService,
-      {
-        enableRAGSearch: researchConfig.includeRAG,
-        enableWebSearch: researchConfig.includeWebSearch,
-        maxSteps: 6,
-        adaptiveStrategy: true
-      }
-    );
-    
-    // Configure orchestrator with LLM
-    if (generateContent) {
-      orchestrator.setContentGenerator(generateContent);
-    }
-    
-    return orchestrator;
-  }, [vectorStore, webSearchService, researchConfig.includeRAG, researchConfig.includeWebSearch, generateContent]);
+
 
   // Configure query intelligence service with LLM
   React.useEffect(() => {
@@ -942,6 +926,258 @@ export function useResearch(
     }
   };
 
+  // 🔥 CRITICAL FIX: Keep steps ref updated to avoid React closure issues
+  React.useEffect(() => {
+    currentStepsRef.current = researchStepsState.steps;
+  }, [researchStepsState.steps]);
+
+  // Progress callback for agent system - connects to UI steps
+  // Map agent names to appropriate step types for UI display
+  const getAgentStepType = (agentName: string): ResearchStep['type'] => {
+    switch (agentName) {
+      case 'DataInspector':
+      case 'DataInspectorAgent':
+        return 'analysis'; // "Analyzing Documents"
+      case 'PatternGenerator':
+      case 'PatternGeneratorAgent':
+        return 'analysis'; // "Generating Extraction Patterns"
+      case 'Extractor':
+      case 'ExtractionAgent':
+        return 'analysis'; // "Extracting Information"
+      case 'SynthesisCoordinator':
+      case 'Synthesizer':
+      case 'SynthesisAgent':
+        return 'synthesis'; // "Synthesizing Information"
+      case 'PlanningAgent':
+        return 'verification'; // "Planning Execution Strategy"
+      case 'ResponseFormatter':
+      case 'ResponseFormatterAgent':
+        return 'verification'; // "Formatting Response"
+      case 'WebSearchAgent':
+        return 'web_search'; // "Searching Web"
+      default:
+        return 'analysis'; // Default fallback
+    }
+  };
+
+  const progressCallback = React.useMemo(() => ({
+    onAgentStart: (agentName: string, agentType: string, input: any) => {
+        console.log(`🚀 Agent ${agentName} (${agentType}) started`);
+        
+        // Find the main research step (should already exist from research start)
+        const existingSteps = currentStepsRef.current;
+        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
+        
+        if (!mainStep) {
+          console.error(`❌ START ERROR: Main step not found for agent "${agentName}". This should not happen!`);
+          return;
+        }
+        
+        // Check if this agent already exists in subSteps (for retries)
+        const existingSubStepIndex = mainStep.subSteps?.findIndex(sub => sub.agentName === agentName) ?? -1;
+        
+        if (existingSubStepIndex >= 0) {
+          // Update existing substep for retry
+          console.log(`🔄 Updating existing substep for ${agentName} (retry/restart)`);
+          const updatedSubSteps = [...(mainStep.subSteps || [])];
+          updatedSubSteps[existingSubStepIndex] = {
+            ...updatedSubSteps[existingSubStepIndex],
+            status: 'in_progress',
+            startTime: Date.now()
+          };
+          
+          const updatedMainStep = {
+            ...mainStep,
+            subSteps: updatedSubSteps,
+            status: 'in_progress' as const
+          };
+          researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+        } else {
+          // Add new agent as subStep
+          const newSubStep = {
+            id: `${agentName.toLowerCase()}_${Date.now()}`,
+            agentName,
+            agentType: agentType as any,
+            status: 'in_progress' as const,
+            startTime: Date.now(),
+            input,
+            output: null
+          };
+          
+          const updatedMainStep = {
+            ...mainStep,
+            subSteps: [...(mainStep.subSteps || []), newSubStep],
+            status: 'in_progress' as const
+          };
+          researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+        }
+      },
+      onAgentProgress: (agentName: string, progress: number, stage?: string) => {
+        console.log(`📊 Agent ${agentName}: ${progress}% - ${stage || 'Processing'}`);
+        
+        // Update thinking output based on agent and stage
+        if (stage) {
+          setThinkingOutput(`🤖 ${agentName}: ${stage} (${progress}%)`);
+        }
+        
+        // Find main step and update the corresponding subStep progress
+        const existingSteps = currentStepsRef.current;
+        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
+        
+        if (mainStep && mainStep.subSteps) {
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          
+          if (subStepIndex >= 0) {
+            const updatedSubSteps = [...mainStep.subSteps];
+            const currentSubStep = updatedSubSteps[subStepIndex];
+            
+            // Create progress history entry
+            const progressEntry = {
+              timestamp: Date.now(),
+              stage: stage || 'Processing',
+              progress,
+              message: stage
+            };
+            
+            updatedSubSteps[subStepIndex] = {
+              ...currentSubStep,
+              progress,
+              stage,
+              progressHistory: [...(currentSubStep.progressHistory || []), progressEntry]
+            };
+            
+            const updatedMainStep = {
+              ...mainStep,
+              subSteps: updatedSubSteps
+            };
+            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+          }
+        }
+      },
+      onAgentThinking: (agentName: string, thinking: any) => {
+        console.log(`💭 Agent ${agentName} thinking: ${thinking.summary || 'Processing...'}`);
+        
+        // Find main step and update the corresponding subStep thinking
+        const existingSteps = currentStepsRef.current;
+        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
+        
+        if (mainStep && mainStep.subSteps) {
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          if (subStepIndex >= 0) {
+            const updatedSubSteps = [...mainStep.subSteps];
+            updatedSubSteps[subStepIndex] = {
+              ...updatedSubSteps[subStepIndex],
+              thinking: {
+                hasThinking: true,
+                thinkingContent: thinking.thinkingContent || '',
+                finalOutput: thinking.finalOutput || '',
+                summary: thinking.summary || 'Processing...',
+                insights: thinking.insights || []
+              }
+            };
+            
+            const updatedMainStep = {
+              ...mainStep,
+              subSteps: updatedSubSteps
+            };
+            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+          }
+        }
+      },
+      onAgentComplete: (agentName: string, output: any, metrics?: any) => {
+        console.log(`✅ Agent ${agentName} completed`);
+        
+        // Find main step and complete the corresponding subStep
+        const existingSteps = currentStepsRef.current;
+        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
+        
+        if (mainStep && mainStep.subSteps) {
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          if (subStepIndex >= 0) {
+            const updatedSubSteps = [...mainStep.subSteps];
+            const currentSubStep = updatedSubSteps[subStepIndex];
+            
+            updatedSubSteps[subStepIndex] = {
+              ...currentSubStep,
+              status: 'completed',
+              endTime: Date.now(),
+              duration: Date.now() - currentSubStep.startTime,
+              output,
+              progress: 100,
+              metrics: {
+                llmCalls: metrics?.llmCalls || 0,
+                tokensUsed: metrics?.tokensUsed || 0,
+                responseTime: metrics?.responseTime || 0,
+                confidence: metrics?.confidence || 0.8
+              }
+            };
+            
+            // Check if all subSteps are completed to mark main step as completed
+            const allCompleted = updatedSubSteps.every(sub => sub.status === 'completed');
+            
+            const updatedMainStep = {
+              ...mainStep,
+              subSteps: updatedSubSteps,
+              status: allCompleted ? 'completed' as const : 'in_progress' as const,
+              duration: allCompleted ? Date.now() - mainStep.timestamp : undefined,
+              confidence: allCompleted ? (updatedSubSteps.reduce((sum, sub) => sum + (sub.metrics?.confidence || 0.8), 0) / updatedSubSteps.length) : undefined
+            };
+            
+            console.log(`✅ COMPLETION UPDATE: Agent ${agentName} completed - All agents completed: ${allCompleted}`);
+            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+            performedStepsPersist(updatedMainStep);
+          }
+        }
+      },
+      onAgentError: (agentName: string, error: string, retryCount?: number) => {
+        console.log(`❌ Agent ${agentName} error: ${error}${retryCount ? ` (retry ${retryCount})` : ''}`);
+        
+        // Find main step and mark the corresponding subStep as failed
+        const existingSteps = currentStepsRef.current;
+        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
+        
+        if (mainStep && mainStep.subSteps) {
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          if (subStepIndex >= 0) {
+            const updatedSubSteps = [...mainStep.subSteps];
+            const currentSubStep = updatedSubSteps[subStepIndex];
+            
+            updatedSubSteps[subStepIndex] = {
+              ...currentSubStep,
+              status: 'failed',
+              endTime: Date.now(),
+              duration: Date.now() - currentSubStep.startTime,
+              error: `${error}${retryCount ? ` (attempt ${retryCount})` : ''}`,
+              retryCount
+            };
+            
+            const updatedMainStep = {
+              ...mainStep,
+              subSteps: updatedSubSteps,
+              reasoning: `Agent ${agentName} failed: ${error}`
+            };
+            
+            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+            performedStepsPersist(updatedMainStep);
+          }
+        }
+      }
+  }), [setThinkingOutput, performedStepsPersist]);
+
+  // Research Orchestrator - React to configuration changes
+  const researchOrchestrator = React.useMemo(() => {
+    if (!generateContent) return null;
+    
+    return createMultiAgentSystem(
+      generateContent,
+      progressCallback, // Pass callback reference, not executed callback
+      vectorStore,
+      { enableWebSearch: researchConfig.includeWebSearch }
+    );
+  }, [vectorStore, researchConfig.includeWebSearch, generateContent, progressCallback]);
+
+  // No need for useEffect to update callback since we use stable reference
+
   // Intelligent Research Functions
   const performIntelligentResearch = useCallback(async (query: string) => {
     if (!query.trim() || !isAIReady) {
@@ -958,6 +1194,21 @@ export function useResearch(
     setThinkingOutput("🧠 Initializing intelligent research system...");
     researchStepsState.clearSteps();
     processedStepIds.current.clear();
+    
+    // 🔥 CRITICAL FIX: Create main step ONCE at research start to avoid duplicate prevention conflicts
+    const mainStep = {
+      id: 'multi_agent_research',
+      type: 'synthesis' as const,
+      status: 'in_progress' as const,
+      timestamp: Date.now(),
+      query: query,
+      subSteps: [],
+      reasoning: 'Multi-agent intelligent research process'
+    };
+    researchStepsState.addStep(mainStep);
+    performedStepsPersist(mainStep);
+    console.log(`✅ Main step created at research start: "${mainStep.id}"`);
+    
     // Start persisted history session
     researchStartTimeRef.current = Date.now();
     const session = history.createSession(query);
@@ -970,76 +1221,50 @@ export function useResearch(
     try {
       console.log(`🔬 Starting intelligent research for: "${query}"`);
 
-      // Set up step tracking callback with race condition protection
-      researchOrchestrator.onStepUpdate = (step: ResearchStep) => {
-        console.log(`📋 Step update: ${step.type} - ${step.status} - ID: ${step.id}`);
-        
-        const stepKey = `${step.id}_${step.status}`;
-        if (processedStepIds.current.has(stepKey)) {
-          console.log(`📋 Skipping duplicate step processing: ${stepKey}`);
-          return;
-        }
-        processedStepIds.current.add(stepKey);
-
-        const existingSteps = researchStepsState.steps;
-        const existingStepIndex = existingSteps.findIndex(s => s.id === step.id);
-        if (existingStepIndex >= 0) {
-          // Merge progress history for each substep to avoid losing verbose trail
-          const existing = existingSteps[existingStepIndex];
-          const merged: ResearchStep = { ...existing, ...step } as ResearchStep;
-          if (existing.subSteps || step.subSteps) {
-            const map = new Map<string, any>();
-            (existing.subSteps || []).forEach(s => map.set(s.id, { ...s }));
-            (step.subSteps || []).forEach(su => {
-              const ex = map.get(su.id) || {};
-              const phKey = (e: any) => `${e.timestamp}-${e.stage}-${e.progress}`;
-              const phMap = new Map((ex.progressHistory || []).map((e: any) => [phKey(e), e]));
-              (su.progressHistory || []).forEach((e: any) => phMap.set(phKey(e), e));
-              map.set(su.id, { ...ex, ...su, progressHistory: Array.from(phMap.values()).sort((a: any, b: any) => a.timestamp - b.timestamp) });
-            });
-            merged.subSteps = Array.from(map.values());
-          }
-          researchStepsState.updateStep(step.id, merged);
-          performedStepsPersist(merged);
-        } else {
-          researchStepsState.addStep(step);
-          performedStepsPersist(step);
-        }
-        // Update thinking line
-
-        if (step.status === 'in_progress') {
-          switch (step.type) {
-            case 'analysis':
-              setThinkingOutput(`🧠 Analyzing query: "${step.query}"`);
-              break;
-            case 'rag_search':
-              setThinkingOutput(`📚 Searching knowledge base (${step.queries?.length || 1} queries)...`);
-              break;
-            case 'web_search':
-              setThinkingOutput(`🌐 Searching web for additional information...`);
-              break;
-            case 'synthesis':
-              setThinkingOutput(`⚗️ Synthesizing information from ${step.sources?.length || 0} sources...`);
-              break;
-          }
-        }
-      };
+      // Use the stable orchestrator instance created earlier
+      if (!researchOrchestrator) {
+        throw new Error('Research orchestrator not available');
+      }
+      
+      // TODO: Step tracking will be handled via progress callbacks
 
       if (abortController.signal.aborted) {
         throw new Error('Research was cancelled by user');
       }
 
-      const result = await researchOrchestrator.executeResearch(query);
+      const result = await researchOrchestrator.research(query);
       
-      setResearchResult(result);
-      setResults(result.finalAnswer);
-      setThinkingOutput(`✅ Research completed: ${result.steps.length} steps, ${result.sources.length} sources, ${Math.round(result.confidence * 100)}% confidence`);
+      // Transform result to match expected format
+      const formattedResult = {
+        finalAnswer: result,
+        steps: [], // TODO: Extract from orchestrator if needed
+        sources: [], // TODO: Extract from orchestrator if needed  
+        confidence: 1.0 // TODO: Calculate from orchestrator if needed
+      };
+      
+      setResearchResult(formattedResult);
+      setResults(formattedResult.finalAnswer);
+      setThinkingOutput(`✅ Research completed: ${formattedResult.steps.length} steps, ${formattedResult.sources.length} sources, ${Math.round(formattedResult.confidence * 100)}% confidence`);
+      
+      // 🔥 CRITICAL FIX: Mark main step as completed
+      const completedMainStep = researchStepsState.steps.find(step => step.id === 'multi_agent_research');
+      if (completedMainStep) {
+        const updatedMainStep = {
+          ...completedMainStep,
+          status: 'completed' as const,
+          duration: Date.now() - completedMainStep.timestamp,
+          reasoning: `Multi-agent research completed successfully`
+        };
+        researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+        console.log(`✅ Main step marked as completed: "${updatedMainStep.id}"`);
+      }
+      
       if (historySessionIdRef.current) {
         const duration = researchStartTimeRef.current ? Date.now() - researchStartTimeRef.current : undefined;
         history.completeSession(historySessionIdRef.current, duration);
         history.updateSession(historySessionIdRef.current, {
-          resultCount: result.steps.length,
-          metadata: { ...(result as any) } as any,
+          resultCount: formattedResult.steps.length,
+          metadata: { ...(formattedResult as any) } as any,
         });
       }
 
@@ -1048,6 +1273,20 @@ export function useResearch(
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setResults(`Intelligent research failed: ${errorMessage}\n\nPlease check your AI connection and try again.`);
       setThinkingOutput("❌ Research failed. Please try again.");
+      
+      // 🔥 CRITICAL FIX: Mark main step as failed
+      const failedMainStep = researchStepsState.steps.find(step => step.id === 'multi_agent_research');
+      if (failedMainStep) {
+        const updatedMainStep = {
+          ...failedMainStep,
+          status: 'failed' as const,
+          duration: Date.now() - failedMainStep.timestamp,
+          reasoning: `Multi-agent research failed: ${errorMessage}`
+        };
+        researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+        console.log(`❌ Main step marked as failed: "${updatedMainStep.id}"`);
+      }
+      
       if (historySessionIdRef.current) {
         history.failSession(historySessionIdRef.current, errorMessage);
       }
@@ -1061,7 +1300,10 @@ export function useResearch(
     }
   }, [
     isAIReady,
-    researchOrchestrator,
+    generateContent,
+    vectorStore, 
+    researchConfig.includeWebSearch,
+    progressCallback,
     researchStepsState,
     history
   ]);

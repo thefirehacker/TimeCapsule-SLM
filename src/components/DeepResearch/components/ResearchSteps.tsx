@@ -122,8 +122,10 @@ export interface SourceReference {
   similarity?: number;
   relevance?: number;
   excerpt: string;
+  snippet?: string; // Alternative to excerpt for Master Orchestrator compatibility
   chunkId?: string;
   url?: string;
+  sourceType?: 'document' | 'web' | 'chunk'; // For DataInspector compatibility
   // Enhanced for multi-agent system: full chunk content from RxDB
   fullContent?: string; // Complete chunk content for multi-agent processing
   metadata?: {

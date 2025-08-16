@@ -37,6 +37,7 @@ export interface DocumentAnalysis {
   documents?: SingleDocumentAnalysis[]; // Analysis for each document separately
   relationships?: DocumentRelationship[]; // How documents relate to each other
   crossDocumentStrategy?: string; // How to combine information across documents
+  relevantDocumentGroups?: any[]; // 🎯 Document groups that passed relevance filtering
 }
 
 export interface SingleDocumentAnalysis {
@@ -143,6 +144,7 @@ export interface ResearchContext {
     queryConstraints?: QueryConstraints; // Dynamic constraints derived from the user query
     executionPlan?: any; // PlanningAgent execution plan
     documentSectionRelevance?: Record<string, { score: number, relevantSections: string[] }>; // PlanningAgent document relevance scores
+    correctiveStrategies?: Record<string, any>; // PlanningAgent corrective strategies when DataInspector misclassifies
     lastSkippedAgent?: { // Track skipped agents for progression guidance
       agent: string;
       reason: string;
@@ -151,6 +153,7 @@ export interface ResearchContext {
       recommendedNext?: string;
     };
     agentGuidance?: Record<string, string>;
+    qualityFlags?: Record<string, string>; // Quality assessment flags per agent
   };
   
   // Timing and performance

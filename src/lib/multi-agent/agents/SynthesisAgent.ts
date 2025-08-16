@@ -9,20 +9,26 @@ import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext, ChunkData, DocumentAnalysis } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
 import { generateWithCompletion, sanitizeResponse } from '../../../components/DeepResearch/hooks/responseCompletion';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class SynthesisAgent extends BaseAgent {
   readonly name = 'Synthesizer';
   readonly description = 'Consolidates extracted data into a coherent answer';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   private classificationLLMResponse: string = '';
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
+    // Report start of processing
+    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Initializing synthesis process', 0, undefined);
+    
     // Clear previous classification response
     this.classificationLLMResponse = '';
     
@@ -84,14 +90,28 @@ Total chunks: ${chunkCount}`);
       if (!extractorCalled) {
         // Extractor hasn't run yet - tell orchestrator to run it first
         context.synthesis.answer = '';
-        this.setReasoning('⚠️ Cannot synthesize - Extractor must run first to extract data from documents');
+        this.setReasoning('Cannot synthesize - Extractor must run first to extract data from documents');
         console.warn('⚠️ Synthesizer called before Extractor - no data to synthesize');
+        
+        // Report completion (no extractor)
+        this.progressCallback?.onAgentComplete?.(this.name, {
+          message: 'Cannot synthesize - Extractor must run first',
+          answer: ''
+        });
+        
         return context;
       }
       
-      // Extractor ran but found nothing
+      // Extractor ran but found nothing - use evidence-based reporting
       context.synthesis.answer = this.formatNoResultsReport(context);
-      this.setReasoning('No extracted data to synthesize - generating empty results report');
+      this.setReasoning('Insufficient extracted data - no specific information found matching query criteria');
+      
+      // Report completion (no results)
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'Insufficient extracted data',
+        answer: context.synthesis.answer
+      });
+      
       return context;
     }
     
@@ -156,6 +176,13 @@ ${synthesisResult.reasoning || 'Used adaptive synthesis approach'}
     this.setReasoning(finalReasoning);
     
     console.log(`✅ Synthesis complete: ${synthesisResult.answer.length} characters`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      answer: synthesisResult.answer,
+      extractedItemsUsed: extractedData.length,
+      confidence: synthesisResult.confidence
+    });
     
     return context;
   }
@@ -246,8 +273,7 @@ Focus on understanding the document context to make this distinction.`;
       return sanitizedResponse;
     } catch (error) {
       console.error('❌ Failed to generate report:', error);
-      // Fallback to basic formatting
-      return this.formatBasicReport(context, groupedItems);
+      throw new Error(`Synthesis failed - insufficient evidence from available data: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -284,13 +310,7 @@ Focus on understanding the document context to make this distinction.`;
       };
     } catch (error) {
       console.error('❌ Failed to generate report with reasoning:', error);
-      
-      // Fallback to basic formatting
-      const fallbackAnswer = this.formatBasicReport(context, groupedItems);
-      return {
-        answer: fallbackAnswer,
-        reasoning: `Fallback synthesis used due to LLM error: ${error instanceof Error ? error.message : String(error)}`
-      };
+      throw new Error(`Synthesis failed - cannot generate response without sufficient extracted data: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -439,9 +459,16 @@ Generate a comprehensive answer that correctly combines information from multipl
   }
 
   private async createUniversalSynthesisPrompt(context: ResearchContext, groupedItems: any[]): Promise<string> {
-    // 🚨 UNIVERSAL INTELLIGENCE: No hardcoded output format assumptions
+    // 🚨 ZERO-HARDCODING: Pure data-driven synthesis using actual extracted insights
     const documentAnalysis = context.documentAnalysis;
     const query = context.query;
+    
+    // Extract actual insights from DataInspectorAgent
+    const insights = context.sharedKnowledge?.documentInsights || {};
+    const methods = insights.methods || [];
+    const concepts = insights.concepts || [];
+    const people = insights.people || [];
+    const dataTypes = insights.data || [];
     
     // Prepare extracted data with source context
     const extractedData = groupedItems.slice(0, 15).map((group, i) => {
@@ -453,51 +480,27 @@ Generate a comprehensive answer that correctly combines information from multipl
     // Prepare multi-agent context summary
     const agentContext = this.buildAgentContextSummary(context);
     
-    if (!documentAnalysis) {
-      return `Create a comprehensive, structured analysis based on multi-agent research findings:
-
-QUERY: ${query}
-
-MULTI-AGENT RESEARCH SUMMARY:
-${agentContext}
-
-EXTRACTED DATA (from ${groupedItems.length} data points):
-${extractedData}
-
-REQUIREMENTS FOR STRUCTURED OUTPUT:
-1. Provide a detailed, well-organized response with clear sections
-2. Use headings, bullet points, and hierarchical structure
-3. Include specific details from ALL extracted data points  
-4. Ensure substantial depth (minimum 400 words) reflecting multi-agent analysis
-5. Reference specific findings and provide context
-
-FORMAT TEMPLATE:
-## Analysis Overview
-[Brief summary of findings]
-
-## Key Information
-[Main data points and insights]
-
-## Detailed Breakdown
-[Comprehensive analysis of extracted data]
-
-## Summary & Insights
-[Conclusions and key takeaways]
-
-Generate a thorough, professional response that demonstrates the comprehensive multi-agent research performed.`;
+    // Build structured insights section
+    const structuredInsights = this.buildStructuredInsights(methods, concepts, people, dataTypes);
+    
+    if (!documentAnalysis || !structuredInsights) {
+      throw new Error('Insufficient extracted data - cannot synthesize without structured insights from DataInspectorAgent');
     }
     
     // Get LLM-generated synthesis approach
     const synthesisApproach = await this.generateSynthesisApproach(query, documentAnalysis);
     
-    return `Create a comprehensive, well-structured analysis that reflects the full scope of multi-agent research work:
+    return `Create a comprehensive answer using ONLY the specific extracted entities and data below. NEVER use generic terms or placeholders.
 
 QUERY: ${query}
+
+STRUCTURED ENTITIES EXTRACTED:
+${structuredInsights}
 
 MULTI-AGENT RESEARCH SUMMARY:
 ${agentContext}
 
-EXTRACTED DATA (from ${groupedItems.length} patterns across multiple documents):
+EXTRACTED DATA POINTS (from ${groupedItems.length} specific findings):
 ${extractedData}
 
 SYNTHESIS APPROACH:
@@ -508,37 +511,46 @@ DOCUMENT ANALYSIS:
 - Content Areas: ${documentAnalysis.contentAreas.join(', ')}
 - Expected Format: ${documentAnalysis.expectedOutputFormat}
 
-REQUIREMENTS FOR DETAILED OUTPUT:
-1. Create a structured response with clear sections and headings
-2. Use bullet points, numbered lists, and hierarchical organization
-3. Include specific details from ALL extracted data points and agent findings
-4. Reference the multi-agent research process and acknowledge each agent's contribution
-5. Provide comprehensive analysis that reflects the depth of multi-agent processing
-6. Ensure the response is substantial (minimum 500 words) and professional
-7. Reference specific findings and context from the source material
-8. Structure the answer to match the query type and user intent
-9. Demonstrate the thoroughness of the research by citing agent analysis results
+CRITICAL REQUIREMENTS:
+1. Base response SOLELY on the specific extracted entities above (methods, concepts, people, data types)
+2. Use actual names, projects, and specifics from the extracted data - NEVER generic terms like "Project X"
+3. Reference specific extracted entities: ${methods.join(', ')}, ${concepts.join(', ')}, ${people.join(', ')}, ${dataTypes.join(', ')}
+4. Create structured response with clear sections using the actual data
+5. Every claim must be grounded in the extracted findings listed above
+6. If insufficient specific data exists, state "Insufficient evidence found" with source citations
 
-FORMAT TEMPLATE:
-## Executive Summary
-[2-3 sentence overview of key findings from multi-agent analysis]
+ANTI-PLACEHOLDER RULES:
+- NEVER use: "Project X", "Person A", "Method B", generic examples
+- ALWAYS use: Actual extracted names, projects, methods, concepts from the data
+- IF no specific data available for a section, state "No specific evidence found for [topic]"
 
-## Research Methodology
-[Brief overview of multi-agent research process and data sources]
+Generate response using only the concrete, specific extracted data provided above.`;
+  }
 
-## Detailed Analysis  
-[Comprehensive breakdown using ALL extracted data points]
-
-## Key Findings
-[Bullet points highlighting main insights with source references]
-
-## Supporting Evidence
-[Additional context, specifics, and agent analysis results]
-
-## Conclusion & Recommendations
-[Summary, insights, and actionable recommendations based on comprehensive research]
-
-Generate a thorough, professional response that showcases the comprehensive multi-agent analysis performed.`;
+  private buildStructuredInsights(methods: string[], concepts: string[], people: string[], dataTypes: string[]): string | null {
+    const sections: string[] = [];
+    
+    if (methods && methods.length > 0) {
+      sections.push(`METHODS: ${methods.join(', ')}`);
+    }
+    
+    if (concepts && concepts.length > 0) {
+      sections.push(`CONCEPTS: ${concepts.join(', ')}`);
+    }
+    
+    if (people && people.length > 0) {
+      sections.push(`PEOPLE: ${people.join(', ')}`);
+    }
+    
+    if (dataTypes && dataTypes.length > 0) {
+      sections.push(`DATA_TYPES: ${dataTypes.join(', ')}`);
+    }
+    
+    if (sections.length === 0) {
+      return null; // No structured insights available
+    }
+    
+    return sections.join('\n');
   }
   
   private async generateSynthesisApproach(query: string, documentAnalysis: DocumentAnalysis): Promise<string> {
@@ -713,30 +725,6 @@ Return detailed synthesis instructions that emphasize thoroughness and professio
     return analysis;
   }
   
-  /**
-   * Format a basic report when LLM fails
-   */
-  private formatBasicReport(context: ResearchContext, groupedItems: any[]): string {
-    const items = groupedItems.slice(0, 8).map((group, i) => {
-      const item = group.bestItem;
-      return `${i + 1}. **${item.content}**${item.value ? ` - ${item.value} ${item.unit || ''}` : ''}`;
-    }).join('\n');
-    
-    return `## Analysis Summary
-
-**Query**: "${context.query}"
-**Data Points Found**: ${groupedItems.length} relevant items
-
-## Key Findings
-
-${items}
-
-## Research Context
-
-Based on comprehensive multi-agent analysis, the system processed multiple data sources and extracted ${groupedItems.length} relevant information points. Each finding has been validated and ranked by relevance to your query.
-
-${groupedItems.length > 8 ? `\n**Note**: Showing top 8 results. Additional ${groupedItems.length - 8} items were also identified and analyzed.` : ''}`;
-  }
   
   
   /**
@@ -1071,31 +1059,21 @@ ${groupedItems.length > 8 ? `\n**Note**: Showing top 8 results. Additional ${gro
   }
   
   /**
-   * Format report when no results are found
+   * Generate evidence-based insufficient data report (no templates)
    */
   private formatNoResultsReport(context: ResearchContext): string {
-    return `## 🔍 Research Report
-
-**Query**: "${context.query}"
-**Status**: No relevant information found
-
-### Summary
-No relevant information was found in the available documents that matches your query.
-
-### Suggestions
-1. Try using different keywords or phrases
-2. Broaden your search criteria
-3. Verify that the documents contain the expected information
-4. Check spelling and terminology
-
-### Search Details
-- Documents searched: ${new Set(context.ragResults?.chunks?.map(c => c.source) || []).size}
-- Text chunks analyzed: ${context.ragResults?.chunks?.length || 0}
-- Query type: ${context.understanding?.queryType || 'general'}
-
----
-
-*Research completed at ${new Date().toISOString()}*`;
+    const sourceCount = new Set(context.ragResults?.chunks?.map(c => c.source) || []).size;
+    const chunkCount = context.ragResults?.chunks?.length || 0;
+    
+    // Get actual sources for citation
+    const sources = Array.from(new Set(context.ragResults?.chunks?.map(c => c.source) || [])).slice(0, 3);
+    const sourceCitations = sources.length > 0 
+      ? `\n\nSources searched: ${sources.join(', ')}${sourceCount > 3 ? ` and ${sourceCount - 3} others` : ''}` 
+      : '';
+    
+    return `Insufficient evidence found to answer: "${context.query}"
+    
+Searched ${sourceCount} documents (${chunkCount} text segments) but no specific information matched the query criteria.${sourceCitations}`;
   }
 
   

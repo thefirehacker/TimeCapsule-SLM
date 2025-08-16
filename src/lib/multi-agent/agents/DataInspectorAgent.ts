@@ -17,7 +17,7 @@ export class DataInspectorAgent extends BaseAgent {
   readonly description = 'Analyzes RAG chunks to understand data structure and quality';
   
   private llm: LLMFunction;
-  private progressCallback?: AgentProgressCallback;
+  protected progressCallback?: AgentProgressCallback;
   
   constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
@@ -55,12 +55,20 @@ export class DataInspectorAgent extends BaseAgent {
       console.log(`🔎 DataInspector: Received document metadata - performing multi-document sampling and analysis`);
       this.progressCallback?.onAgentProgress?.(this.name, 10, 'Starting multi-document analysis', 0, undefined);
       await this.performDocumentMetadataAnalysis(context);
+      
+      // Report completion
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        documentAnalysis: context.documentAnalysis,
+        filteredChunks: context.ragResults.chunks.length
+      });
+      
       return context;
     }
     
     // Count web sources vs RAG chunks for regular chunk analysis
     const webSources = context.ragResults.chunks.filter(chunk => 
-      chunk.metadata?.source?.startsWith('http') || chunk.id.startsWith('web_')
+      (chunk.metadata?.source && chunk.metadata.source.startsWith('http')) || 
+      (chunk.id && chunk.id.startsWith('web_'))
     ).length;
     const ragChunks = context.ragResults.chunks.length - webSources;
     
@@ -68,13 +76,104 @@ export class DataInspectorAgent extends BaseAgent {
     
     if (context.ragResults.chunks.length === 0) {
       this.setReasoning('No chunks to analyze');
+      
+      // Report completion with no data
+      this.progressCallback?.onAgentComplete?.(this.name, {
+        message: 'No chunks to analyze',
+        chunksAnalyzed: 0
+      });
+      
       return context;
     }
+    
+    // Extract numeric measurements from chunk text before LLM analysis
+    this.extractMeasurementsFromChunks(context);
     
     // Use LLM to understand the data
     await this.inspectWithLLM(context);
     
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      documentAnalysis: context.documentAnalysis,
+      chunksAnalyzed: context.ragResults.chunks.length,
+      measurements: context.sharedKnowledge.documentInsights?.data?.length || 0
+    });
+    
     return context;
+  }
+  
+  /**
+   * Extract numeric measurements from chunk text (not LLM reasoning)
+   * Stores raw numeric hits with context windows in sharedKnowledge
+   */
+  private extractMeasurementsFromChunks(context: ResearchContext): void {
+    if (!context.sharedKnowledge) {
+      context.sharedKnowledge = {
+        documentInsights: {},
+        extractionStrategies: {},
+        discoveredPatterns: {},
+        agentFindings: {}
+      };
+    }
+    if (!context.sharedKnowledge.documentInsights) {
+      context.sharedKnowledge.documentInsights = {};
+    }
+    
+    const measurements: Array<{
+      value: string;
+      leftContext: string;
+      rightContext: string;
+      chunkId: string;
+      sourceDocument?: string;
+    }> = [];
+    
+    // Process up to 8 chunks for measurement extraction
+    const chunksToProcess = context.ragResults.chunks.slice(0, Math.min(8, context.ragResults.chunks.length));
+    
+    // Broad pattern to capture any numeric values - let PatternGenerator decide what's relevant
+    const numericPattern = /(\d+(?:[.:]\d+)?(?:\s+\d{1,2})?|\d+)/g;
+    
+    for (const chunk of chunksToProcess) {
+      const text = chunk.text || '';
+      let match: RegExpExecArray | null;
+      
+      // Reset regex state
+      numericPattern.lastIndex = 0;
+      
+      while ((match = numericPattern.exec(text)) !== null) {
+        const startIdx = match.index;
+        const endIdx = startIdx + match[0].length;
+        
+        // Get larger context windows (approximately 50 chars each side for better pattern learning)
+        const leftStart = Math.max(0, startIdx - 50);
+        const rightEnd = Math.min(text.length, endIdx + 50);
+        
+        const leftContext = text.slice(leftStart, startIdx).trim();
+        const rightContext = text.slice(endIdx, rightEnd).trim();
+        
+        // Strip wrapping punctuation from the value
+        const cleanValue = match[0].replace(/^[^\d]+|[^\d]+$/g, '');
+        
+        // Store all measurements - let pattern learning decide relevance
+        measurements.push({
+          value: cleanValue,
+          leftContext: leftContext.replace(/[[\](){}]/g, ''), // Strip brackets
+          rightContext: rightContext.replace(/[[\](){}]/g, ''),
+          chunkId: chunk.id,
+          sourceDocument: chunk.sourceDocument || chunk.source
+        });
+      }
+    }
+    
+    // Store measurements in sharedKnowledge for downstream agents
+    context.sharedKnowledge.documentInsights.measurements = measurements;
+    
+    console.log(`📊 DataInspector: Extracted ${measurements.length} numeric measurements from document text`);
+    if (measurements.length > 0) {
+      console.log(`📊 Sample measurements:`, measurements.slice(0, 3).map(m => 
+        `"${m.value}" (${m.leftContext}...${m.rightContext})`
+      ));
+    }
   }
   
   private async inspectWithLLM(context: ResearchContext): Promise<void> {
@@ -168,11 +267,11 @@ CRITICAL RULES:
       const response = await this.llm(prompt);
       console.log(`🤖 Multi-document analysis:`, response.substring(0, 300));
       
-      // Update context with multi-document insights
-      await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
+      // Update context with multi-document insights and get relevant documents
+      const relevantDocuments = await this.updateContextFromMultiDocumentInspection(context, response, documentGroups);
       
-      // 🎯 INTELLIGENT: Extract query-relevant terms based on Master Orchestrator guidance
-      await this.extractQueryRelevantTerms(context, documentGroups);
+      // 🎯 CRITICAL FIX: Extract query-relevant terms ONLY from relevant documents
+      await this.extractQueryRelevantTerms(context, relevantDocuments);
       
       // Store full response for thinking extraction
       this.setReasoning(response);
@@ -229,6 +328,10 @@ Provide specific, actionable insights that will guide intelligent extraction and
       // Update context with insights
       this.updateContextFromInspection(context, response);
       
+      // 🎯 CRITICAL FIX: Extract query-relevant terms even for single document
+      // Pass the single document group as an array for consistency
+      await this.extractQueryRelevantTerms(context, [documentGroup]);
+      
       // Store full response for thinking extraction
       this.setReasoning(response);
       
@@ -280,7 +383,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
     }
   }
   
-  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<void> {
+  private async updateContextFromMultiDocumentInspection(context: ResearchContext, response: string, documentGroups: any[]): Promise<any[]> {
     try {
       const documentAnalysis = await this.parseMultiDocumentAnalysis(response, documentGroups, context);
       context.documentAnalysis = documentAnalysis;
@@ -338,6 +441,9 @@ Provide specific, actionable insights that will guide intelligent extraction and
       } else {
         console.log(`✅ DOCUMENT ANALYSIS: All ${documentGroups.length} documents deemed relevant - no filtering applied`);
       }
+      
+      // 🎯 Return relevant document groups for technical term extraction
+      return documentAnalysis.relevantDocumentGroups || [];
       
     } catch (error) {
       console.error('❌ Error parsing multi-document analysis:', error);
@@ -427,7 +533,8 @@ Provide specific, actionable insights that will guide intelligent extraction and
       expectedOutputFormat: 'structured synthesis with proper attribution',
       documents: documents,
       relationships: relationships,
-      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination'
+      crossDocumentStrategy: 'Process each document independently to prevent cross-contamination',
+      relevantDocumentGroups: relevantDocuments  // 🎯 Add relevant document groups for technical extraction
     };
   }
 
@@ -475,12 +582,42 @@ STEP 2: Document Classification
 TYPE: [what kind of document this is]
 MAIN_ENTITY: [primary person/organization/subject this document is about]
 
-STEP 3: Query Relevance Analysis
+STEP 3: Semantic Entity-Query Alignment Analysis
 USER_QUERY: "${query}"
-Using the comprehensive analysis above, determine if this document contains information that helps answer the query.
 
-RELEVANT: [YES if any extracted topics/methods/concepts relate to the query, NO if completely unrelated]
-REASON: [explain specifically what content relates to the query and why]
+🔍 CRITICAL: Analyze semantic alignment between document entities and query focus.
+
+SEMANTIC RELEVANCE RULES:
+1. **Entity Ownership Analysis**: If query asks about "X's work/projects/research", the document MUST be authored by or primarily about person X
+2. **Attribution Matching**: A document about Person A's work is NOT relevant to queries about Person B's work, even if they work on similar topics
+3. **Contextual Authority**: Consider who created, authored, or owns the content described in the document
+4. **Subject vs Author Distinction**: A document ABOUT a topic is different from a document BY someone about that topic
+
+QUERY FOCUS ANALYSIS:
+- Extract the main subject/person the query is asking about
+- Identify if the query is asking for someone's specific work/contributions
+- Determine if query needs content BY a person vs ABOUT a topic
+
+DOCUMENT OWNERSHIP ANALYSIS:
+- Who is the primary author/creator of this document's content?
+- Who does this document's work/research/projects belong to?
+- What entities have ownership/attribution in this document?
+
+CRITICAL ENTITY-QUERY ALIGNMENT:
+Step 3: Zero-Hardcoding Semantic Validation
+- Extract PRIMARY PERSON/ENTITY from query pattern analysis: "${query}"
+- Extract PRIMARY PERSON/ENTITY this document belongs to or is authored by
+- OWNERSHIP RULE: Documents about Entity A are NEVER relevant for queries about Entity B
+- PATTERN RECOGNITION: Look for possessive patterns ("X's work", "from Y's blog", "by Z") to identify query entity
+- DOCUMENT ENTITY: Identify who this document belongs to through authorship, name analysis, and content attribution
+
+ENTITY OWNERSHIP VERIFICATION:
+- Query targets entity: [extract entity from query using pattern recognition]
+- Document belongs to entity: [extract document owner through content analysis]  
+- Semantic match: [YES only if same entity, NO if different entities regardless of topic overlap]
+
+RELEVANT: [YES only if entity ownership matches AND content aligns. NO for entity ownership mismatch]
+REASON: [explain entity ownership analysis first: who query asks for vs who document is about, then content relevance]
 
 Respond in exact format:
 TYPE: [document type]
@@ -799,18 +936,20 @@ Return just the role: source, target, or reference`;
   }
   
   private extractListSection(text: string, sectionName: string): string[] {
-    // 🔍 NATURAL LANGUAGE PARSING: Handle thinking-style responses
-    // First, remove <think> tags if present to get the actual analysis
-    const cleanText = text.replace(/<\/?think>/g, '');
+    // 🔍 MODEL-AGNOSTIC PARSING: Handle both thinking and non-thinking models
+    // Remove <think> tags if present (thinking models) or handle direct responses (non-thinking models)
+    const cleanText = text.replace(/<\/?think>/gi, '').trim();
     
-    // Try multiple patterns to find the section content
+    // Try multiple patterns to find the section content - robust for different model response styles
     const patterns = [
       // Standard format: **SECTION**: content
       new RegExp(`\\*\\*${sectionName}\\*\\*:?\\s*([^\\*]+)`, 'i'),
       // Natural format: For SECTION: content  
       new RegExp(`For ${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
       // Natural format: SECTION: content
-      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i')
+      new RegExp(`${sectionName}:?\\s*([^\\n]{50,}?)(?:\\n\\n|$)`, 'i'),
+      // Non-thinking model format: Direct section content
+      new RegExp(`${sectionName}[:\\s]*([^\\n]+(?:\\n[^\\n]+)*)`, 'i')
     ];
     
     let content = '';
@@ -1267,7 +1406,8 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
    */
   private async extractQueryRelevantTerms(context: ResearchContext, documentGroups: any[]): Promise<void> {
     try {
-      console.log(`🔬 DataInspector: Extracting query-relevant terms from ${documentGroups.length} documents for: "${context.query}"`);
+      const docType = documentGroups.length > 1 ? 'RELEVANT documents' : 'document';
+      console.log(`🔬 DataInspector: Extracting query-relevant terms from ${documentGroups.length} ${docType} for: "${context.query}"`);
       
       // 🎯 INTELLIGENT: Build query-aware content sample  
       const contentSample = await this.buildQueryAwareContentSample(context, documentGroups);
@@ -1576,7 +1716,9 @@ CRITICAL RULES:
 - Focus on what would best help answer the user's specific question
 - Be precise - extract specific names over generic categories
 - Use exact spelling as found in the text
-- If query doesn't need a category, write "none" for that category
+- Extract entities that exist in the document AND relate to the query
+- Source attribution: if document is from source X, then data in document belongs to X
+- Always extract relevant terms from each category if they appear in the content
 
 Extract the most relevant and specific terms for this query:`;
   }

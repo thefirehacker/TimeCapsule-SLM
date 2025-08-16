@@ -9,16 +9,19 @@
 import { BaseAgent } from '../interfaces/Agent';
 import { ResearchContext } from '../interfaces/Context';
 import { LLMFunction } from '../core/Orchestrator';
+import { AgentProgressCallback } from '../interfaces/AgentProgress';
 
 export class SynthesisCoordinator extends BaseAgent {
   readonly name = 'SynthesisCoordinator';
   readonly description = 'Orchestrates synthesis agents and assembles final report';
   
   private llm: LLMFunction;
+  private progressCallback?: AgentProgressCallback;
   
-  constructor(llm: LLMFunction) {
+  constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
     this.llm = llm;
+    this.progressCallback = progressCallback;
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
@@ -37,6 +40,22 @@ export class SynthesisCoordinator extends BaseAgent {
     }
     
     console.log(`🎯 SynthesisCoordinator: Using ${analysisData.length > 0 ? 'analyzed' : 'extracted'} data (${dataToUse.length} items)`);
+    
+    // 🔍 DEBUG: Log actual data structure to understand the issue
+    console.log(`🔍 DEBUG: First data item structure:`, dataToUse[0] ? JSON.stringify(dataToUse[0], null, 2) : 'No items');
+    console.log(`🔍 DEBUG: All data items count: ${dataToUse.length}`);
+    dataToUse.forEach((item, i) => {
+      console.log(`🔍 DEBUG Item ${i+1}:`, {
+        keys: Object.keys(item),
+        hasContent: !!item.content,
+        hasValue: !!item.value,
+        hasText: !!item.text,
+        hasExtractedText: !!item.extractedText,
+        hasBestItem: !!item.bestItem,
+        sample: item.content || item.text || item.extractedText || 'unknown structure'
+      });
+    });
+    
     this.progressCallback?.onAgentProgress?.(this.name, 30, `Ranking ${dataToUse.length} items`);
     
     const itemCount = dataToUse.length;
@@ -64,6 +83,14 @@ export class SynthesisCoordinator extends BaseAgent {
 - Citations included: ${hasCitations ? 'Yes' : 'No'}
 - Final report: ${cleanedReport.length} characters
 - Confidence: ${(context.synthesis.confidence * 100).toFixed(1)}%`);
+    
+    // Report completion
+    this.progressCallback?.onAgentComplete?.(this.name, {
+      finalResponse: context.synthesis?.finalResponse || '',
+      dataItemsUsed: itemCount,
+      reportLength: cleanedReport.length,
+      confidence: context.synthesis?.confidence || 0
+    });
     
     return context;
   }
@@ -178,10 +205,13 @@ export class SynthesisCoordinator extends BaseAgent {
 
     // Add ranked data with relevance scores for context
     topRelevantItems.forEach((item, i) => {
-      const content = item.content || item.bestItem?.content || 'N/A';
-      const value = item.value || item.bestItem?.value || '';
-      const source = item.sourceDocument || item.bestItem?.sourceDocument || 'unknown';
+      // 🔧 FLEXIBLE DATA ACCESS: Handle different extracted data structures
+      const content = this.extractItemContent(item);
+      const value = this.extractItemValue(item);
+      const source = this.extractItemSource(item);
       const relevanceScore = Math.round((item._queryRelevanceScore || 0) * 100);
+      
+      console.log(`🔍 DEBUG Prompt Item ${i+1}:`, { content: content.substring(0, 100), value, source, relevanceScore });
       
       promptSections.push(`${i+1}. "${content}"${value ? ` - ${value}` : ''} (from ${source}, relevance: ${relevanceScore}%)`);
     });
@@ -201,12 +231,14 @@ export class SynthesisCoordinator extends BaseAgent {
     promptSections.push(
       'SYNTHESIS REQUIREMENTS:',
       `1. Answer the query "${context.query}" directly and specifically`,
-      '2. Focus on the highest-relevance items listed above',
-      '3. Avoid including information that is not relevant to the query',
-      '4. Provide specific details and evidence from the relevant data',
-      '5. Structure the response clearly and concisely',
+      '2. Use ALL highest-relevance items listed above in your response',
+      '3. Provide comprehensive analysis with detailed explanations',
+      '4. Include specific evidence and examples from the extracted data',
+      '5. Structure the response with clear sections and thorough coverage',
+      '6. Ground every claim in the specific data provided above',
+      '7. If data seems insufficient, explain what is available and what is missing',
       '',
-      'Generate a comprehensive, query-focused response based on the relevant data above:'
+      'Generate a comprehensive, detailed response that fully addresses the query using all available data:'
     );
 
     return promptSections.join('\n');
@@ -237,6 +269,48 @@ export class SynthesisCoordinator extends BaseAgent {
     }
 
     return formatted;
+  }
+
+  /**
+   * 🔧 FLEXIBLE DATA ACCESS: Extract content from different data structures
+   */
+  private extractItemContent(item: any): string {
+    // Try different possible content fields based on actual data structures
+    return item.content || 
+           item.text || 
+           item.extractedText || 
+           item.description ||
+           item.bestItem?.content || 
+           item.bestItem?.text ||
+           item.match ||
+           item.pattern ||
+           JSON.stringify(item).substring(0, 200) || 
+           'N/A';
+  }
+
+  /**
+   * 🔧 FLEXIBLE DATA ACCESS: Extract value from different data structures
+   */
+  private extractItemValue(item: any): string {
+    return item.value || 
+           item.bestItem?.value || 
+           item.extractedValue ||
+           item.numericValue ||
+           item.metadata?.value ||
+           '';
+  }
+
+  /**
+   * 🔧 FLEXIBLE DATA ACCESS: Extract source from different data structures
+   */
+  private extractItemSource(item: any): string {
+    return item.sourceDocument || 
+           item.bestItem?.sourceDocument || 
+           item.source ||
+           item.documentId ||
+           item.chunkId ||
+           item.metadata?.source ||
+           'unknown document';
   }
 
   /**
