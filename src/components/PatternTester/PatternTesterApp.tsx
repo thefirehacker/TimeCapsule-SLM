@@ -24,6 +24,8 @@ import {
   Sparkles,
   Zap,
   Loader2,
+  ArrowLeft,
+  Pipette,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useOllamaConnection } from "../DeepResearch/hooks/useOllamaConnection";
@@ -31,6 +33,7 @@ import { OllamaConnectionModal } from "../DeepResearch/components/OllamaConnecti
 import { KnowledgeBaseSection } from "../ui/knowledge-base-section";
 import { KnowledgeBaseManager } from "../shared/KnowledgeBaseManager";
 import { useVectorStore } from "@/components/providers/VectorStoreProvider";
+import Link from "next/link";
 
 interface PatternResult {
   pattern: string;
@@ -806,10 +809,12 @@ User prompt: ${promptText}`;
                 </Button>
               </div>
             </CardTitle>
-            <p className="text-gray-600">
-              Test regex patterns against document data, generate patterns with
-              AI, and export results to CSV
-            </p>
+            <Link href="/rag/pipeline">
+              <Button variant="outline" size="sm" className="ml-auto">
+                <Pipette className="h-4 w-4 mr-2" />
+                Rag Pipeline
+              </Button>
+            </Link>
           </CardHeader>
         </Card>
 
