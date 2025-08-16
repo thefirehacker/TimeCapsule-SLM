@@ -20,7 +20,10 @@ import {
   Eye,
   Download,
   Settings,
+  Grid3X3,
 } from "lucide-react";
+import { TableData } from "@/types/chunks";
+import TableViewer from "./TableViewer";
 
 interface Document {
   id: string;
@@ -35,6 +38,8 @@ interface Document {
     source: string;
     description?: string;
     isGenerated?: boolean;
+    hasStructuredData?: boolean;
+    tableCount?: number;
   };
   chunks?: Array<{
     id: string;
@@ -46,6 +51,7 @@ interface Document {
     chunkId: string;
     embedding: number[];
   }>;
+  tables?: TableData[];
 }
 
 interface DocumentStatus {
@@ -53,6 +59,7 @@ interface DocumentStatus {
   totalSize: number;
   totalChunks: number;
   totalVectors: number;
+  totalTables: number;
 }
 
 interface TabConfig {
@@ -179,6 +186,12 @@ export function KnowledgeBaseManager({
                 {documentStatus.totalVectors}
               </span>
             </div>
+            <div>
+              <span className="text-muted-foreground">Total Tables:</span>
+              <span className="font-medium ml-1">
+                {documentStatus.totalTables}
+              </span>
+            </div>
           </div>
 
           {showUploadButton && onUploadDocuments && (
@@ -282,6 +295,15 @@ export function KnowledgeBaseManager({
                                   <span>
                                     {doc.vectors?.length || 0} vectors
                                   </span>
+                                  {doc.tables && doc.tables.length > 0 && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="flex items-center gap-1">
+                                        <Grid3X3 className="w-3 h-3" />
+                                        {doc.tables.length} tables
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
                                   <Badge
@@ -295,6 +317,15 @@ export function KnowledgeBaseManager({
                                   <Badge variant="outline" className="text-xs">
                                     {doc.metadata.source}
                                   </Badge>
+                                  {doc.metadata.hasStructuredData && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs flex items-center gap-1"
+                                    >
+                                      <Grid3X3 className="w-2 h-2" />
+                                      Structured Data
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -391,6 +422,19 @@ export function KnowledgeBaseManager({
                                       : doc.content}
                                   </div>
                                 </div>
+
+                                {/* Tables Section */}
+                                {doc.tables && doc.tables.length > 0 && (
+                                  <div className="space-y-2">
+                                    <TableViewer
+                                      tables={doc.tables}
+                                      title={`Document Tables (${doc.tables.length})`}
+                                      maxHeight="300px"
+                                      showExportOptions={true}
+                                      showMetadata={true}
+                                    />
+                                  </div>
+                                )}
 
                                 {/* Chunks Section */}
                                 {doc.chunks && doc.chunks.length > 0 && (

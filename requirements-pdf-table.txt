@@ -1,0 +1,28 @@
+# PDF Table Extraction Dependencies
+# Install with: pip install -r requirements-pdf-table.txt
+
+# Core PDF processing libraries
+pdfplumber>=0.10.0
+camelot-py>=0.10.2
+pandas>=1.5.0
+
+# Computer vision dependencies for camelot
+opencv-python>=4.7.0
+
+# Additional utilities
+tabula-py>=2.7.0
+PyMuPDF>=1.23.0
+
+# Dependencies for camelot (since [base] extra is not available in newer versions)
+openpyxl>=3.1.0
+pypdf>=4.0
+tabulate>=0.9.0
+click>=8.0.1
+
+# Optional: For better table detection
+# unstructured[pdf]>=0.10.0
+
+# Note: Make sure to also install system dependencies for camelot:
+# Ubuntu/Debian: sudo apt-get install ghostscript python3-tk
+# macOS: brew install ghostscript tcl-tk
+# Windows: Install Ghostscript from https://www.ghostscript.com/download/gsdnld.html
