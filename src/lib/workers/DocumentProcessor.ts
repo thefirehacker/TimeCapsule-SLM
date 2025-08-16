@@ -3,10 +3,10 @@
  * New Architecture: Worker for KB operations, Main thread for ML operations
  */
 
-import { getEmbeddingService } from '../EmbeddingService';
+import { getEmbeddingService } from "../EmbeddingService";
 
 export interface ProcessingProgress {
-  status: 'initializing' | 'chunking' | 'embedding' | 'complete' | 'error';
+  status: "initializing" | "chunking" | "embedding" | "complete" | "error";
   message: string;
   progress: number;
   current?: number;
@@ -58,7 +58,7 @@ export class DocumentProcessor {
   private pendingDocuments: any[] = [];
 
   constructor() {
-    console.log('🔧 DocumentProcessor constructor called (new architecture)');
+    console.log("🔧 DocumentProcessor constructor called (new architecture)");
   }
 
   // Make embedding service accessible for VectorStore
@@ -69,12 +69,14 @@ export class DocumentProcessor {
   async init(onProgress?: ProgressCallback): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        console.log('🔧 Initializing DocumentProcessor with immediate download architecture...');
+        console.log(
+          "🔧 Initializing DocumentProcessor with immediate download architecture..."
+        );
 
         onProgress?.({
-          status: 'initializing',
-          message: 'Initializing text processing...',
-          progress: 10
+          status: "initializing",
+          message: "Initializing text processing...",
+          progress: 10,
         });
 
         // Initialize text processing worker only - Xenova will be handled by VectorStore
@@ -82,20 +84,23 @@ export class DocumentProcessor {
 
         // NOTE: Xenova download is now handled by VectorStore immediately
         // This DocumentProcessor focuses on text processing coordination
-
       } catch (error) {
-        console.error('❌ Document Processor: Failed to initialize:', error);
-        reject(new Error('Document processing initialization failed'));
+        console.error("❌ Document Processor: Failed to initialize:", error);
+        reject(new Error("Document processing initialization failed"));
       }
     });
   }
 
-  private initializeWorker(onProgress?: ProgressCallback, resolve?: () => void, reject?: (error: Error) => void): void {
+  private initializeWorker(
+    onProgress?: ProgressCallback,
+    resolve?: () => void,
+    reject?: (error: Error) => void
+  ): void {
     try {
-      console.log('🔧 Initializing text processing worker...');
-      
+      console.log("🔧 Initializing text processing worker...");
+
       // Use worker from public directory (works reliably in Next.js)
-      const workerUrl = '/workers/embeddingWorker.js';
+      const workerUrl = "/workers/embeddingWorker.js";
       this.worker = new Worker(workerUrl);
 
       // Set up message handler
@@ -104,39 +109,40 @@ export class DocumentProcessor {
       };
 
       this.worker.onerror = (error) => {
-        console.error('❌ Document Processor: Worker error:', error);
+        console.error("❌ Document Processor: Worker error:", error);
         reject?.(new Error(`Worker error: ${error.message}`));
       };
 
       // Handle initialization response
       const initHandler = (event: MessageEvent<any>) => {
-        if (event.data.type === 'init_complete') {
-          this.worker?.removeEventListener('message', initHandler);
+        if (event.data.type === "init_complete") {
+          this.worker?.removeEventListener("message", initHandler);
           this.workerReady = true;
-          console.log('✅ Text processing worker ready');
-          
+          console.log("✅ Text processing worker ready");
+
           onProgress?.({
-            status: 'initializing',
-            message: 'Text processing ready',
-            progress: 100
+            status: "initializing",
+            message: "Text processing ready",
+            progress: 100,
           });
 
           // Complete initialization immediately - embeddings will be lazy-loaded
-          console.log('✅ DocumentProcessor initialization complete (embeddings will load when needed)');
+          console.log(
+            "✅ DocumentProcessor initialization complete (embeddings will load when needed)"
+          );
           resolve?.();
         }
       };
 
-      this.worker.addEventListener('message', initHandler);
+      this.worker.addEventListener("message", initHandler);
 
       // Initialize the worker
-      this.worker.postMessage({ type: 'init' });
-
+      this.worker.postMessage({ type: "init" });
     } catch (error) {
-      console.error('❌ Document Processor: Failed to create worker:', error);
+      console.error("❌ Document Processor: Failed to create worker:", error);
       this.workerReady = false;
       this.worker = null;
-      reject?.(new Error('Text processing worker failed to initialize'));
+      reject?.(new Error("Text processing worker failed to initialize"));
     }
   }
 
@@ -152,8 +158,10 @@ export class DocumentProcessor {
     onError: (error: string) => void
   ): Promise<void> {
     if (!this.worker || !this.workerReady) {
-      console.error('❌ Document Processor: Worker not available');
-      onError('Document processing unavailable - text processing worker failed to initialize');
+      console.error("❌ Document Processor: Worker not available");
+      onError(
+        "Document processing unavailable - text processing worker failed to initialize"
+      );
       return;
     }
 
@@ -163,16 +171,18 @@ export class DocumentProcessor {
         documentData,
         onProgress,
         onComplete,
-        onError
+        onError,
       });
-      
+
       onProgress({
-        status: 'chunking',
-        message: 'Queued for processing...',
-        progress: 0
+        status: "chunking",
+        message: "Queued for processing...",
+        progress: 0,
       });
-      
-      console.log(`📋 Document Processor: Queued ${documentData.title} for processing`);
+
+      console.log(
+        `📋 Document Processor: Queued ${documentData.title} for processing`
+      );
       return;
     }
 
@@ -195,39 +205,41 @@ export class DocumentProcessor {
       documentData,
       onProgress,
       onComplete,
-      onError
+      onError,
     };
 
     this.currentCallbacks = {
       onProgress,
       onComplete,
-      onError
+      onError,
     };
 
     console.log(`📄 Starting document processing: ${documentData.title}`);
 
     // Step 1: Send document to worker for text chunking
     // CRITICAL: Create completely clean serializable object - NO callbacks, functions, or circular refs
-    const cleanSerializableData = JSON.parse(JSON.stringify({
-      id: documentData.id,
-      title: documentData.title,
-      content: documentData.content,
-      metadata: {
-        filename: documentData.metadata?.filename,
-        filesize: documentData.metadata?.filesize,
-        filetype: documentData.metadata?.filetype,
-        uploadedAt: documentData.metadata?.uploadedAt,
-        source: documentData.metadata?.source,
-        description: documentData.metadata?.description,
-        isGenerated: documentData.metadata?.isGenerated,
-        documentType: documentData.metadata?.documentType
-      }
-    }));
-    
+    const cleanSerializableData = JSON.parse(
+      JSON.stringify({
+        id: documentData.id,
+        title: documentData.title,
+        content: documentData.content,
+        metadata: {
+          filename: documentData.metadata?.filename,
+          filesize: documentData.metadata?.filesize,
+          filetype: documentData.metadata?.filetype,
+          uploadedAt: documentData.metadata?.uploadedAt,
+          source: documentData.metadata?.source,
+          description: documentData.metadata?.description,
+          isGenerated: documentData.metadata?.isGenerated,
+          documentType: documentData.metadata?.documentType,
+        },
+      })
+    );
+
     this.worker?.postMessage({
-      type: 'process_document',
+      type: "process_document",
       data: cleanSerializableData,
-      id: Date.now().toString()
+      id: Date.now().toString(),
     });
   }
 
@@ -236,28 +248,29 @@ export class DocumentProcessor {
     if (!callbacks) return;
 
     switch (response.type) {
-      case 'progress':
+      case "progress":
         const progressData = response.data || {};
         const progress: ProcessingProgress = {
-          status: progressData.status === 'chunking' ? 'chunking' : 'initializing',
-          message: progressData.message || 'Processing...',
-          progress: Math.round((progressData.progress || 0) * 0.5) // Scale to 0-50% for chunking
+          status:
+            progressData.status === "chunking" ? "chunking" : "initializing",
+          message: progressData.message || "Processing...",
+          progress: Math.round((progressData.progress || 0) * 0.5), // Scale to 0-50% for chunking
         };
         callbacks.onProgress(progress);
         break;
 
-      case 'document_processed':
+      case "document_processed":
         this.handleChunkedDocument(response.data);
         break;
 
-      case 'error':
-        console.error('❌ Worker error:', response.error);
-        callbacks.onError(response.error || 'Unknown worker error');
+      case "error":
+        console.error("❌ Worker error:", response.error);
+        callbacks.onError(response.error || "Unknown worker error");
         this.finishProcessing();
         break;
 
       default:
-        console.warn('⚠️ Unknown worker message type:', response.type);
+        console.warn("⚠️ Unknown worker message type:", response.type);
     }
   }
 
@@ -266,50 +279,56 @@ export class DocumentProcessor {
     if (!callbacks) return;
 
     try {
-      console.log(`📊 Received chunked document: ${chunkedData.chunks.length} chunks`);
+      console.log(
+        `📊 Received chunked document: ${chunkedData.chunks.length} chunks`
+      );
 
       callbacks.onProgress({
-        status: 'embedding',
-        message: 'Generating embeddings...',
-        progress: 50
+        status: "embedding",
+        message: "Generating embeddings...",
+        progress: 50,
       });
 
       let vectors: number[][] = [];
 
       try {
-        // Use immediately available embedding service (downloaded when page loaded)
-        console.log('🧠 Generating embeddings with pre-loaded Xenova...');
-        
+        // Use immediately available BGE embedding service (downloaded when page loaded)
+        console.log("🧠 Generating embeddings with pre-loaded BGE model...");
+
         // Generate embeddings for each chunk in main thread
-        const chunkTexts = chunkedData.chunks.map((chunk: any) => chunk.content);
-        
+        const chunkTexts = chunkedData.chunks.map(
+          (chunk: any) => chunk.content
+        );
+
         vectors = await this.embeddingService.generateEmbeddings(
           chunkTexts,
           (current: number, total: number) => {
-            const embeddingProgress = Math.round(50 + ((current / total) * 45)); // Scale to 50-95%
+            const embeddingProgress = Math.round(50 + (current / total) * 45); // Scale to 50-95%
             callbacks.onProgress({
-              status: 'embedding',
+              status: "embedding",
               message: `Generating embeddings... ${current}/${total}`,
               progress: embeddingProgress,
               current,
-              total
+              total,
             });
           }
         );
 
-        console.log(`✅ Generated ${vectors.length} embeddings with immediate service`);
-
+        console.log(`✅ Generated ${vectors.length} embeddings with BGE model`);
       } catch (embeddingError) {
-        console.warn('⚠️ Embedding generation failed, proceeding without embeddings:', embeddingError);
+        console.warn(
+          "⚠️ Embedding generation failed, proceeding without embeddings:",
+          embeddingError
+        );
         // Create empty vectors array as fallback
         vectors = chunkedData.chunks.map(() => []);
       }
 
       // Complete processing
       callbacks.onProgress({
-        status: 'complete',
-        message: 'Document processing complete',
-        progress: 100
+        status: "complete",
+        message: "Document processing complete",
+        progress: 100,
       });
 
       const processedDocument: ProcessedDocument = {
@@ -318,15 +337,15 @@ export class DocumentProcessor {
         content: chunkedData.content,
         metadata: chunkedData.metadata,
         chunks: chunkedData.chunks,
-        vectors: vectors
+        vectors: vectors,
       };
 
       callbacks.onComplete(processedDocument);
       this.finishProcessing();
-
     } catch (error) {
-      console.error('❌ Failed to process chunked document:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error("❌ Failed to process chunked document:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       callbacks.onError(`Document processing failed: ${errorMessage}`);
       this.finishProcessing();
     }
@@ -340,7 +359,9 @@ export class DocumentProcessor {
     if (this.pendingDocuments.length > 0) {
       const nextDocument = this.pendingDocuments.shift();
       if (nextDocument) {
-        console.log(`📋 Processing next queued document: ${nextDocument.documentData.title}`);
+        console.log(
+          `📋 Processing next queued document: ${nextDocument.documentData.title}`
+        );
         this.startProcessing(
           nextDocument.documentData,
           nextDocument.onProgress,
@@ -353,7 +374,7 @@ export class DocumentProcessor {
 
   async generateEmbedding(text: string): Promise<number[]> {
     if (!this.embeddingService.available) {
-      throw new Error('Embedding service not available');
+      throw new Error("Embedding service not available");
     }
 
     return this.embeddingService.generateEmbedding(text);
@@ -391,4 +412,4 @@ export function getDocumentProcessor(): DocumentProcessor {
     documentProcessorInstance = new DocumentProcessor();
   }
   return documentProcessorInstance;
-} 
+}
