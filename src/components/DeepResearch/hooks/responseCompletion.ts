@@ -285,6 +285,9 @@ function cleanJsonText(jsonText: string): string {
   // These occur when array elements are missing commas or have malformed objects
   cleaned = fixArrayElementSeparation(cleaned);
 
+  // 🔧 CRITICAL FIX: Fix escape character issues that cause "Bad escaped character" errors
+  cleaned = fixEscapeCharacterIssues(cleaned);
+
   // Convert single-quoted keys and values to double-quoted JSON strings
   cleaned = cleaned
     // Keys like 'key': value → "key": value
@@ -400,4 +403,29 @@ export function sanitizeResponse(text: string): string {
   }
   
   return cleaned;
+}
+
+/**
+ * 🔧 ZERO-HARDCODING: Fix escape character issues in LLM-generated JSON
+ * Handles "Bad escaped character" errors without hardcoded content rules
+ */
+function fixEscapeCharacterIssues(text: string): string {
+  return text
+    // Fix common bad escape sequences from LLMs
+    .replace(/\\[^"\\\/bfnrtux]/g, (match) => {
+      // If it's not a valid JSON escape, escape the backslash
+      const char = match[1];
+      if (char && /[a-zA-Z0-9]/.test(char)) {
+        return '\\\\' + char; // Double-escape the backslash
+      }
+      return match;
+    })
+    // Fix unescaped backslashes before valid characters
+    .replace(/\\(?=[^"\\\/bfnrtu])/g, '\\\\')
+    // Fix trailing backslashes that would break JSON
+    .replace(/\\+$/g, '')
+    // Fix backslashes before closing quotes
+    .replace(/\\+"/g, '\\"')
+    // Fix invalid Unicode escapes
+    .replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u');
 }

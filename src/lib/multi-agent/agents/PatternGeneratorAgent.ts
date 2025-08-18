@@ -83,6 +83,16 @@ export class PatternGeneratorAgent extends BaseAgent {
       chunkId: string;
       sourceDocument?: string;
     }> | undefined;
+    
+    // 🔍 DEBUG: Check data handoff from DataInspector
+    console.log(`🔍 DEBUG PatternGenerator measurements check:`, {
+      hasSharedKnowledge: !!context.sharedKnowledge,
+      hasDocumentInsights: !!context.sharedKnowledge?.documentInsights,
+      hasMeasurements: !!context.sharedKnowledge?.documentInsights?.measurements,
+      measurementsLength: context.sharedKnowledge?.documentInsights?.measurements?.length || 0,
+      measurementsType: typeof context.sharedKnowledge?.documentInsights?.measurements
+    });
+    
     type Hit = { num: string; right: string; left: string };
     let hits: Hit[] = [];
     
@@ -200,17 +210,24 @@ export class PatternGeneratorAgent extends BaseAgent {
     const sorted = [...synth].sort((a, b) => (families.get(b.description.replace('Learned family: ', '').split(' (')[0])!.count - families.get(a.description.replace('Learned family: ', '').split(' (')[0])!.count));
     const top = sorted.slice(0, 12);
 
-    // 6) Append to context.patterns
-    top.forEach(p => context.patterns.push({
+    // 6) Append to context.patterns (with validation)
+    const sampleContent = this.getSampleContent(context, 5);
+    const validatedPatterns = top.filter(p => this.validatePattern(p.regexPattern, sampleContent));
+    
+    validatedPatterns.forEach(p => context.patterns.push({
       description: p.description,
       examples: [],
       extractionStrategy: 'bottom_up_induction',
       confidence: 0.92,
       regexPattern: p.regexPattern
     }));
+    
+    if (validatedPatterns.length < top.length) {
+      console.log(`🔍 Pattern validation: ${validatedPatterns.length}/${top.length} patterns passed validation`);
+    }
 
-    console.log(`✅ Induced ${top.length} measurement families from document (style=${style}, hits=${hits.length})`);
-    return top.length;
+    console.log(`✅ Induced ${validatedPatterns.length} measurement families from document (style=${style}, hits=${hits.length})`);
+    return validatedPatterns.length;
   }
   
   private async generateStrategiesWithLLM(context: ResearchContext): Promise<void> {
@@ -317,7 +334,7 @@ Example for this query: Generate patterns to find project names, person names, r
       // Report progress: Parsing generated patterns
       this.progressCallback?.onAgentProgress(this.name, 70, 'Parsing generated patterns');
       
-      // Parse concrete regex patterns from LLM response
+      // Parse concrete regex patterns from LLM response (already sanitized)
       const regexPatterns = this.parseRegexPatternsFromLLM(response);
       
       if (regexPatterns.length > 0) {
@@ -461,6 +478,35 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
       console.warn(`⚠️ Pattern validation failed: ${pattern}`, error);
       return false;
     }
+  }
+
+  /**
+   * Sanitize LLM-generated regex patterns to fix common escaping errors
+   * ZERO HARDCODING: Fixes only malformed syntax, preserves pattern intent
+   */
+  private sanitizeLLMPattern(pattern: string): string {
+    console.log(`🧪 Sanitizing LLM pattern: ${pattern}`);
+    
+    // Fix common LLM regex escaping errors while preserving pattern intent
+    let sanitized = pattern;
+    
+    // Fix missing backslashes before d+ (most common LLM error)
+    sanitized = sanitized.replace(/\(d\+/g, '(\\d+');
+    sanitized = sanitized.replace(/\(d\(/g, '(\\d(');
+    sanitized = sanitized.replace(/\bd\+/g, '\\d+');
+    
+    // Fix other common escaping issues
+    sanitized = sanitized.replace(/\(\.d\+/g, '(\\.\\d+');
+    sanitized = sanitized.replace(/\(\?\:d\+/g, '(?:\\d+');
+    
+    // Fix malformed capture groups
+    sanitized = sanitized.replace(/\(\?\:\.d\+/g, '(?:\\.\\d+');
+    
+    if (sanitized !== pattern) {
+      console.log(`🔧 Pattern sanitized: ${pattern} → ${sanitized}`);
+    }
+    
+    return sanitized;
   }
 
   /**
@@ -1130,25 +1176,32 @@ NO GENERIC ASSUMPTIONS! Only patterns that match the actual content structure yo
     let patterns = this.parseStructuredFormat(response);
     if (patterns.length > 0) {
       console.log(`✅ Tier 1 SUCCESS: Found ${patterns.length} patterns in structured format`);
-      return patterns;
+      return this.sanitizeAllPatterns(patterns);
     }
     
     // Tier 2: Try extracting from <think> content (Qwen format)  
     patterns = this.parseFromThinkContent(response);
     if (patterns.length > 0) {
       console.log(`✅ Tier 2 SUCCESS: Found ${patterns.length} patterns in think content`);
-      return patterns;
+      return this.sanitizeAllPatterns(patterns);
     }
     
     // Tier 3: Extract patterns from any text format
     patterns = this.parseFromFreeFormText(response);
     if (patterns.length > 0) {
       console.log(`✅ Tier 3 SUCCESS: Found ${patterns.length} patterns in free-form text`);
-      return patterns;
+      return this.sanitizeAllPatterns(patterns);
     }
     
     console.warn(`❌ ALL TIERS FAILED: No patterns found in any format`);
     return [];
+  }
+  
+  /**
+   * Apply sanitization to all parsed patterns to fix LLM escaping errors
+   */
+  private sanitizeAllPatterns(patterns: string[]): string[] {
+    return patterns.map(pattern => this.sanitizeLLMPattern(pattern));
   }
 
   /**
@@ -1587,12 +1640,19 @@ Generate 3-6 effective patterns:`;
       context.patterns = [];
     }
 
-    // Add all strategy-based patterns
-    context.patterns.push(...patterns);
+    // Add all strategy-based patterns (with validation)
+    const sampleContent = this.getSampleContent(context, 5);
+    const validatedPatterns = patterns.filter(p => this.validatePattern(p.regexPattern, sampleContent));
+    
+    context.patterns.push(...validatedPatterns);
+    
+    if (validatedPatterns.length < patterns.length) {
+      console.log(`🔍 Strategy pattern validation: ${validatedPatterns.length}/${patterns.length} patterns passed validation`);
+    }
 
     // Store generation details in shared knowledge
     context.sharedKnowledge.extractionStrategies = {
-      generatedPatterns: patterns.map(p => p.regexPattern),
+      generatedPatterns: validatedPatterns.map(p => p.regexPattern),
       generationMethod: 'planning_agent_strategy',
       basedOnExtractionStrategy: true,
       timestamp: Date.now(),
@@ -1752,9 +1812,9 @@ REGEX_PATTERNS:
 - /pattern2/gi`;
 
         const response = await this.llm(prompt);
-        const generatedPatterns: string[] = this.parseRegexPatternsFromLLM(response);
+        const sanitizedPatterns: string[] = this.parseRegexPatternsFromLLM(response);
         
-        generatedPatterns.forEach((pattern: string, index: number) => {
+        sanitizedPatterns.forEach((pattern: string, index: number) => {
           patterns.push({
             description: `LLM-generated ${concept} pattern ${index + 1}`,
             examples: [],
@@ -1764,7 +1824,7 @@ REGEX_PATTERNS:
           });
         });
         
-        console.log(`✅ Generated ${generatedPatterns.length} LLM-based patterns for "${concept}"`);
+        console.log(`✅ Generated ${sanitizedPatterns.length} LLM-based patterns for "${concept}"`);
         
       } catch (error) {
         console.warn(`⚠️ Failed to generate LLM patterns for "${concept}", using basic pattern`);
