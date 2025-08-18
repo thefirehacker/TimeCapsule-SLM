@@ -20,11 +20,16 @@ No code changes until approved. This plan improves ingestion quality for all doc
 - [ ] Extend chunk schema with optional metadata fields (backward compatible)
 - [ ] Use worker-provided `startIndex/endIndex` when available
 
-4) Embedding model upgrades (browser)
-- [ ] Add model selector: `miniLM` (default), `bge-small`, `gte-small`, `mpnet-base`, `bge-base`, `e5-base`
-- [ ] Enable WebGPU in worker; warm cache on init
-- [ ] Persist storage request (`navigator.storage.persist()`)
-- [ ] Re-index flow when model changes (dimension mismatch)
+4) Embedding model upgrades (browser) ✅ COMPLETED
+- [x] ✅ Upgraded to `Xenova/bge-small-en-v1.5` (better semantic understanding)
+- [x] ✅ Enhanced hybrid search (semantic + keyword matching) 
+- [x] ✅ Quality filtering eliminates "useless search elements"
+- [x] ✅ Adaptive thresholding based on query complexity
+- [x] ✅ All new KB uploads use improved embeddings automatically
+- [ ] Add model selector UI (optional future enhancement)
+- [ ] Enable WebGPU in worker; warm cache on init (optional optimization)
+- [ ] Persist storage request (`navigator.storage.persist()`) (nice-to-have)
+- [ ] Re-index flow when model changes (will be handled in backfill utility)
 
 5) Backfill & re-index utilities
 - [ ] Script to re-parse PDFs via new extractor
@@ -37,17 +42,18 @@ No code changes until approved. This plan improves ingestion quality for all doc
 - [ ] Measure ingest time (≤8s for ≤2MB PDF on mid laptop, excluding first model load)
 
 ## Simple checklist
-- Completed
-  - [ ] Design docs created and approved
+- ✅ Completed
+  - [x] Design docs created and approved
+  - [x] ✅ Embedding model upgrade to bge-small-en-v1.5
+  - [x] ✅ Enhanced semantic search with hybrid approach
+  - [x] ✅ Quality filtering for PatternGenerator improvements
 
-- In Progress
-  - [ ] N/A
-
+- 🔄 In Progress
+  - [ ] PDF extractor implementation (pdfjs-dist) - NEXT PRIORITY
+  
 - Not Started
-  - [ ] PDF extractor implementation (pdfjs-dist)
   - [ ] Structure-aware chunker
   - [ ] RxDB metadata extension
-  - [ ] Embedding selector + cache/persist
   - [ ] Backfill/re-index utility
   - [ ] Quality validation on Tyler blog
 

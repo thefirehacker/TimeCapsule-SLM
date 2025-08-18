@@ -1545,35 +1545,73 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
         if (trimmed.startsWith('methods:')) {
           const terms = line.substring(line.indexOf(':') + 1).trim();
           console.log(`🔍 Parsing methods line: "${terms}"`);
-          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+          // Filter out error messages and "not found" responses
+          if (terms && 
+              terms !== 'none' && 
+              terms.toLowerCase() !== 'none' &&
+              !terms.toLowerCase().includes('no specific') &&
+              !terms.toLowerCase().includes('not found') &&
+              !terms.toLowerCase().includes('no relevant') &&
+              !terms.toLowerCase().includes('[') &&  // Filter out bracketed error messages
+              terms.length < 100) {  // Error messages tend to be long
             insights.methods = terms.split(',')
               .map(t => t.trim())
-              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+              .filter(t => t.length > 0 && 
+                       t.toLowerCase() !== 'none' &&
+                       !t.toLowerCase().includes('no specific') &&
+                       !t.toLowerCase().includes('not found'));
             console.log(`✅ Parsed methods:`, insights.methods);
           }
         } else if (trimmed.startsWith('concepts:')) {
           const terms = line.substring(line.indexOf(':') + 1).trim();
           console.log(`🔍 Parsing concepts line: "${terms}"`);
-          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+          if (terms && 
+              terms !== 'none' && 
+              terms.toLowerCase() !== 'none' &&
+              !terms.toLowerCase().includes('no relevant') &&
+              !terms.toLowerCase().includes('not found') &&
+              !terms.toLowerCase().includes('[') &&
+              terms.length < 100) {
             insights.concepts = terms.split(',')
               .map(t => t.trim())
-              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+              .filter(t => t.length > 0 && 
+                       t.toLowerCase() !== 'none' &&
+                       !t.toLowerCase().includes('no relevant') &&
+                       !t.toLowerCase().includes('not found'));
           }
         } else if (trimmed.startsWith('people:')) {
           const terms = line.substring(line.indexOf(':') + 1).trim();
           console.log(`🔍 Parsing people line: "${terms}"`);
-          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+          if (terms && 
+              terms !== 'none' && 
+              terms.toLowerCase() !== 'none' &&
+              !terms.toLowerCase().includes('no specific') &&
+              !terms.toLowerCase().includes('not found') &&
+              !terms.toLowerCase().includes('[') &&
+              terms.length < 100) {
             insights.people = terms.split(',')
               .map(t => t.trim())
-              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+              .filter(t => t.length > 0 && 
+                       t.toLowerCase() !== 'none' &&
+                       !t.toLowerCase().includes('no specific') &&
+                       !t.toLowerCase().includes('not found'));
           }
         } else if (trimmed.startsWith('data_types:') || trimmed.startsWith('data:')) {
           const terms = line.substring(line.indexOf(':') + 1).trim();
           console.log(`🔍 Parsing data line: "${terms}"`);
-          if (terms && terms !== 'none' && terms.toLowerCase() !== 'none') {
+          if (terms && 
+              terms !== 'none' && 
+              terms.toLowerCase() !== 'none' &&
+              !terms.toLowerCase().includes('no specific') &&
+              !terms.toLowerCase().includes('not found') &&
+              !terms.toLowerCase().includes('[') &&
+              terms.length < 100) {
             insights.data = terms.split(',')
               .map(t => t.trim())
-              .filter(t => t.length > 0 && t.toLowerCase() !== 'none');
+              .filter(t => t.length > 0 && 
+                       t.toLowerCase() !== 'none' &&
+                       !t.toLowerCase().includes('no specific') &&
+                       !t.toLowerCase().includes('not found'));
           }
         }
       }

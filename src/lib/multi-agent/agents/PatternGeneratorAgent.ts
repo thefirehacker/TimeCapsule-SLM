@@ -914,7 +914,8 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
   }
 
   /**
-   * Deterministic RxDB augmentation: semantic search for grounded terms with constraints
+   * Enhanced RxDB augmentation: hybrid semantic search with better quality filtering
+   * Fixes "useless search elements" issue by using bge-small-en-v1.5 + hybrid search
    */
   private async applyRxDBAugmentation(context: ResearchContext) {
     if (!this.vectorStore) return;
@@ -944,17 +945,48 @@ ${regexPatterns.map((pattern, i) => `${i + 1}. ${pattern}`).join('\n')}
 
       for (const term of Array.from(terms)) {
         if (augmented.length >= maxAugment) break;
-        const results = await this.vectorStore.searchSimilar(term, 0.3, 5, { documentTypes: ['userdocs'] });
+        
+        console.log(`🔍 Enhanced semantic search for term: "${term}"`);
+        
+        // Use enhanced hybrid search instead of basic searchSimilar
+        const results = await this.vectorStore.searchHybrid(term, {
+          adaptiveThreshold: true,
+          maxResults: 8,
+          minSemanticThreshold: 0.25,
+          documentTypes: ['userdocs'],
+          semanticWeight: 0.8,
+          keywordWeight: 0.2
+        });
+        
+        console.log(`🔍 Hybrid search for "${term}": ${results.length} results`);
+        
         for (const r of results) {
           const filename = (r.document.metadata as any)?.filename?.toLowerCase?.() || '';
           const title = (r.document.title || '').toLowerCase();
-          const domainOk = domains.length === 0 || domains.some((d: string) => filename.includes(d));
-          const titleOk = titleHints.length === 0 || titleHints.some((h: string) => title.includes(h) || filename.includes(h));
+          
+          // Enhanced constraint checking
+          const domainOk = domains.length === 0 || domains.some((d: string) => 
+            filename.includes(d) || title.includes(d)
+          );
+          const titleOk = titleHints.length === 0 || titleHints.some((h: string) => 
+            title.includes(h) || filename.includes(h)
+          );
           const ownerOk = !owner || title.includes(owner) || filename.includes(owner);
+          
+          // Quality threshold for hybrid results
+          const isQualityResult = r.similarity > 0.2;
+          
           if (constraints.strictness === 'must' && !(domainOk && titleOk && ownerOk)) continue;
+          if (!isQualityResult) {
+            console.log(`⚠️ Skipping low-quality result: "${r.chunk.content.substring(0, 50)}..." (similarity: ${r.similarity.toFixed(3)})`);
+            continue;
+          }
 
           const chunkId = r.chunk.id;
           if (addedChunkIds.has(chunkId)) continue;
+          
+          console.log(`✅ Adding high-quality result: "${r.chunk.content.substring(0, 50)}..." (similarity: ${r.similarity.toFixed(3)}, hybrid: ${((r as any).hybridScore || r.similarity).toFixed(3)})`);
+          
           augmented.push({ r, chunkId });
           addedChunkIds.add(chunkId);
           if (augmented.length >= maxAugment) break;
