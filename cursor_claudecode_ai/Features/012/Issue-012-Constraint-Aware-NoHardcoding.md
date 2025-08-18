@@ -572,5 +572,54 @@ All fixes use pure intelligence and pattern recognition without violating Featur
   - **After**: Speedrun times from Tyler's blog → "Top 3 speedruns: 4.26 hours, 7.51 hours, 8.13 hours"
 - **Testing**: Build compilation successful ✅
 
+## **EMERGENCY UPDATE: DataInspector Document Analysis Parsing Failure**
+
+### **New Critical Discovery (Post-Implementation)**
+After implementing the triple-fix, discovered DataInspector was marking both documents as irrelevant (0 out of 2) due to **LLM response parsing failure**.
+
+### **Root Cause Analysis**
+- **NOT** caused by JSON sanitization changes in responseCompletion.ts
+- **Actual issue**: `extractValue()` method in DataInspectorAgent.ts failing to parse LLM responses with markdown formatting
+- **Evidence**: LLM outputting `**TYPE:**` instead of expected `TYPE:` format, causing parsing failure
+- **Impact**: Tyler's blog marked irrelevant → no chunk sampling → no data extraction → generic responses
+
+### **Implementation (Zero-Hardcoding)**
+**Fix 1: DataInspector Text Parsing Enhancement**
+```typescript
+// Enhanced extractValue() method in DataInspectorAgent.ts
+private cleanMarkdownFormatting(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove **bold**
+    .replace(/\*(.*?)\*/g, '$1')     // Remove *italic*
+    .replace(/```[\s\S]*?```/g, '')  // Remove code blocks
+    .trim();
+}
+
+// Added patterns for markdown-formatted headers
+new RegExp(`\\*\\*${keyVariation}\\*\\*[^:=]*[:=]\\s*(.+?)(?:\\n|$)`, 'i')
+```
+
+**Fix 2: Enhanced Entity Validation Debug Framework**
+```typescript
+// Comprehensive debug logging in PlanningAgent validateDataInspectorResults()
+console.log(`🔍 VALIDATION DEBUG: Query entity extracted = "${queryEntity}"`);
+console.log(`🔍 VALIDATION DEBUG Doc ${index + 1}:`, {
+  docEntity, docType, isRelevant, reasoningPreview
+});
+console.log(`🚨 ENTITY MISMATCH DETECTED: "${queryEntity}" vs "${finalDocEntity}"`);
+```
+
+### **Zero-Hardcoding Validation Framework Enhancement**
+- **Existing Framework**: Claude Code-style `validateDataInspectorResults()` already exists
+- **Issue**: Entity mismatch detection wasn't visible/working properly  
+- **Solution**: Enhanced existing validation with comprehensive debug logging and multiple entity extraction patterns
+- **Expected Result**: Tyler≠Rutwik mismatch triggers validation failure → replan → corrective guidance → DataInspector rerun
+
+### **Technical Architecture**
+- **Markdown Cleaning**: Universal pattern removal (no hardcoded content)
+- **Entity Extraction**: Multiple patterns for robust entity detection
+- **Validation Framework**: Enhanced existing Claude Code-style consumption/validation loop
+- **Debug Visibility**: Comprehensive logging to trace validation decision flow
+
 ## Approval
-Proceed with DataInspector sequencing fix and Claude Code-style consumption/replan implementation in `todo-012.md`.
+**COMPLETED**: DataInspector parsing fixes and enhanced entity validation debug framework implemented. Ready for testing with Tyler's blog speedrun queries.

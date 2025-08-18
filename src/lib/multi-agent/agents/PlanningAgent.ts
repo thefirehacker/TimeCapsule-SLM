@@ -1864,30 +1864,85 @@ Return as strictly valid JSON:
     let queryEntity = null;
     let queryContext = null;
     
+    console.log(`🔍 VALIDATION DEBUG: Testing query "${context.query}" against entity patterns`);
+    
     for (const pattern of possessivePatterns) {
       const match = context.query.match(pattern);
+      console.log(`🔍 VALIDATION DEBUG: Pattern ${pattern} → Match:`, match);
       if (match) {
         queryEntity = match[1];
         queryContext = match[2] || 'content';
+        console.log(`🔍 VALIDATION DEBUG: Extracted entity "${queryEntity}" with context "${queryContext}"`);
         break;
       }
     }
     
+    if (!queryEntity) {
+      console.log(`🔍 VALIDATION DEBUG: No entity ownership pattern found in query "${context.query}"`);
+    }
+    
     if (queryEntity) {
+      console.log(`🔍 VALIDATION DEBUG: Query entity extracted = "${queryEntity}", Query context = "${queryContext}"`);
+      
       // Validate that DataInspector selected documents semantically aligned with query entity
-      const hasEntityMismatch = documentAnalysis.documents?.some((doc: any) => {
+      const hasEntityMismatch = documentAnalysis.documents?.some((doc: any, index: number) => {
         // Check document content and analysis for entity ownership
         const docText = doc.documentName || '';
         const docEntity = doc.primaryEntity || '';
         const docReasoning = doc.reasoning || '';
+        const docType = doc.documentType || '';
+        const isRelevant = doc.isRelevant || false;
+        
+        console.log(`🔍 VALIDATION DEBUG Doc ${index + 1}:`, {
+          docText,
+          docEntity, 
+          docType,
+          isRelevant,
+          reasoningPreview: docReasoning.substring(0, 150) + '...'
+        });
         
         // Entity ownership mismatch detection (zero-hardcoding)
-        const docMentionsOtherEntity = /\b([A-Z][a-z]+)(?:'s|s'|,|\s)/g.exec(docText + ' ' + docEntity + ' ' + docReasoning);
+        const searchText = docText + ' ' + docEntity + ' ' + docReasoning;
+        const docMentionsOtherEntity = /\b([A-Z][a-z]+)(?:'s|s'|,|\s)/g.exec(searchText);
         const docEntityName = docMentionsOtherEntity ? docMentionsOtherEntity[1] : null;
         
+        console.log(`🔍 VALIDATION DEBUG Entity extraction:`, {
+          searchTextPreview: searchText.substring(0, 200) + '...',
+          extractedEntityName: docEntityName,
+          queryEntityExpected: queryEntity,
+          entityMatch: docEntityName === queryEntity,
+          wouldTriggerMismatch: docEntityName && docEntityName !== queryEntity && docEntityName.length > 2
+        });
+        
+        // Additional entity extraction patterns for robustness
+        const additionalEntityPatterns = [
+          new RegExp(`\\b(${docEntity})\\b`, 'i'), // Direct match on primaryEntity
+          /MAIN_ENTITY:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i, // MAIN_ENTITY: format
+          /about\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i, // "about John Smith"
+          /belongs to\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i, // "belongs to Tyler"
+        ];
+        
+        let alternativeEntity = null;
+        for (const pattern of additionalEntityPatterns) {
+          const match = searchText.match(pattern);
+          if (match && match[1]) {
+            alternativeEntity = match[1].trim();
+            break;
+          }
+        }
+        
+        console.log(`🔍 VALIDATION DEBUG Alternative entity extraction:`, {
+          alternativeEntity,
+          directEntityMatch: docEntity,
+          finalEntityForComparison: alternativeEntity || docEntityName
+        });
+        
+        const finalDocEntity = alternativeEntity || docEntityName;
+        
         // If document is about a different person than query asks for
-        if (docEntityName && docEntityName !== queryEntity && docEntityName.length > 2) {
-          console.log(`🚨 ENTITY MISMATCH: Query asks for "${queryEntity}" but document is about "${docEntityName}"`);
+        if (finalDocEntity && finalDocEntity !== queryEntity && finalDocEntity.length > 2) {
+          console.log(`🚨 ENTITY MISMATCH DETECTED: Query asks for "${queryEntity}" but document is about "${finalDocEntity}"`);
+          console.log(`🚨 DOCUMENT MARKED AS RELEVANT: ${isRelevant} - This should be corrected`);
           return true; // Found mismatch
         }
         
@@ -1895,12 +1950,17 @@ Return as strictly valid JSON:
       });
       
       if (hasEntityMismatch) {
-        return {
+        console.log(`🚨 VALIDATION FAILURE: Entity mismatch detected, returning validation failure`);
+        const failureResult = {
           isValid: false,
           replanAction: 'correct_semantic_alignment',
           reason: `Semantic entity-query mismatch detected: Query asks for "${queryEntity}'s ${queryContext}" but DataInspector included documents about different entities`,
           specificGuidance: `Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "${queryEntity}". Reject all documents about other people/entities regardless of topic overlap.`
         };
+        console.log(`🚨 VALIDATION FAILURE RESULT:`, failureResult);
+        return failureResult;
+      } else {
+        console.log(`✅ VALIDATION DEBUG: No entity mismatch detected for query entity "${queryEntity}"`);
       }
     }
 
@@ -1936,11 +1996,13 @@ Return as strictly valid JSON:
       };
     }
 
-    console.log(`✅ DataInspector results validated: Found relevant documents and extracted meaningful entities`);
-    return {
+    console.log(`✅ VALIDATION SUCCESS: DataInspector results validated - Found relevant documents and extracted meaningful entities`);
+    const successResult = {
       isValid: true,
       reason: `DataInspector successfully analyzed ${documentAnalysis?.documents?.length || 0} documents and extracted ${Object.keys(documentInsights).length} entity categories`
     };
+    console.log(`✅ VALIDATION SUCCESS RESULT:`, successResult);
+    return successResult;
   }
 
   /**
