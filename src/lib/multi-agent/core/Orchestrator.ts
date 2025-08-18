@@ -36,6 +36,12 @@ export class Orchestrator {
   // 🔄 Retry tracking  
   private retryingAgents: Set<string> = new Set();
   
+  // 🏃 Running agents tracking - prevents parallel execution conflicts
+  private runningAgents: Set<string> = new Set();
+  
+  // 🔍 Instance tracking for debugging state persistence
+  private instanceId: string = `orch-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+  
   constructor(
     registry: AgentRegistry,
     messageBus: MessageBus,
@@ -52,7 +58,7 @@ export class Orchestrator {
     this.config = config;
     this.vectorStore = vectorStore;
     
-    // Note: createProgressProxy() will be called from index.ts after all agents are registered
+    // Note: createProgressProxy() will be called on first agent execution
   }
   
   private config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean };
@@ -336,6 +342,10 @@ export class Orchestrator {
     const proxyCallback: AgentProgressCallback = {
       onAgentStart: (agentName: string, agentType: string, input: any) => {
         console.log(`🚀 Progress Proxy: ${agentName} started`);
+        console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Adding ${agentName} to runningAgents. Set size before: ${this.runningAgents.size}`);
+        // Track running agent
+        this.runningAgents.add(agentName);
+        console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Set size after adding: ${this.runningAgents.size}, agents: [${Array.from(this.runningAgents).join(', ')}]`);
         // Forward to UI callback immediately (ResearchOrchestrator pattern)
         this.progressCallback?.onAgentStart?.(agentName, agentType, input);
       },
@@ -360,20 +370,34 @@ export class Orchestrator {
       },
       onAgentComplete: (agentName: string, output: any, metrics?: any) => {
         console.log(`✅ Progress Proxy: ${agentName} completed`);
+        console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Removing ${agentName} from runningAgents. Set size before: ${this.runningAgents.size}`);
+        // Remove from running agents
+        this.runningAgents.delete(agentName);
+        console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Set size after removal: ${this.runningAgents.size}, agents: [${Array.from(this.runningAgents).join(', ')}]`);
         // Forward to UI callback immediately (ResearchOrchestrator pattern)
         this.progressCallback?.onAgentComplete?.(agentName, output, metrics);
       },
       onAgentError: (agentName: string, error: string, retryCount?: number) => {
         console.log(`❌ Progress Proxy: ${agentName} error - ${error}`);
+        console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Removing ${agentName} from runningAgents (error). Set size before: ${this.runningAgents.size}`);
+        // Remove from running agents on error
+        this.runningAgents.delete(agentName);
+        console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Set size after error removal: ${this.runningAgents.size}, agents: [${Array.from(this.runningAgents).join(', ')}]`);
         this.progressTracker.errorAgent(agentName, error);
         this.progressCallback?.onAgentError?.(agentName, error, retryCount);
       }
     };
     
+    // 🎯 CRITICAL FIX: Update progressTracker to use the proxy callback 
+    // This ensures that when Orchestrator calls progressTracker.startAgent(), 
+    // it goes through the proxy and adds agents to runningAgents Set
+    console.log(`🔧 Updating progressTracker to use proxy callback for agent tracking`);
+    this.progressTracker.setCallback(proxyCallback);
+    
     // Update all registered agents with the proxy callback
     this.updateAgentsWithProgressProxy(proxyCallback);
     this.progressProxyInitialized = true;
-    console.log(`🔥 Progress proxy created and ${this.registry.getAllAgents().length} agents updated`);
+    console.log(`🔥 Progress proxy created, progressTracker updated, and ${this.registry.getAllAgents().length} agents updated`);
   }
   
   /**
@@ -780,6 +804,13 @@ export class Orchestrator {
   private async masterLLMOrchestration(context: ResearchContext): Promise<void> {
     console.log(`🎯 Master LLM analyzing situation and planning tool calls...`);
     
+    // 🎯 DISABLED: Progress proxy creation causing stack overflow
+    // TODO: Fix proxy implementation to prevent recursion
+    // if (!this.progressProxyInitialized) {
+    //   console.log(`🔧 Creating progress proxy before orchestration starts`);
+    //   this.createProgressProxy();
+    // }
+    
     let iterationCount = 0;
     const maxIterations = 15; // Increased to handle skipped agents gracefully
     let currentGoal = `Answer the user's query: "${context.query}"`;
@@ -817,8 +848,9 @@ export class Orchestrator {
       }
       
       if (decision.action === 'CALL_TOOL') {
-        console.log(`🔧 Master LLM calling tool: ${decision.toolName} - ${decision.reasoning}`);
+        console.log(`🔧 [${this.instanceId}] Master LLM calling tool: ${decision.toolName} - ${decision.reasoning}`);
         await this.executeToolCall(decision.toolName, context);
+        console.log(`✅ [${this.instanceId}] executeToolCall(${decision.toolName}) completed - ready for next iteration`);
         
         // Update goal based on results
         currentGoal = decision.nextGoal || currentGoal;
@@ -2032,9 +2064,11 @@ NEXT_GOAL: [final goal achieved]`;
       this.lastAgentCalled = normalizedToolName;
       
       // 🚨 FIX: Track agent progress for getAgentSubSteps() to work properly
-      this.progressTracker.startAgent(normalizedToolName, normalizedToolName, context);
+      await this.progressTracker.startAgent(normalizedToolName, normalizedToolName, context);
       
+      console.log(`⏳ [${this.instanceId}] Starting ${normalizedToolName} - waiting for completion...`);
       await agent.process(context);
+      console.log(`✅ [${this.instanceId}] ${normalizedToolName} process() completed - agent finished`);
       
       const endTime = Date.now();
       const duration = endTime - startTime;

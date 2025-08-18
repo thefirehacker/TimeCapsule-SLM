@@ -211,17 +211,21 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
   const [showOutput, setShowOutput] = useState(false);
   const IconComponent = AgentIcons[subStep.agentType] || Brain;
   
-  // Debug thinking data
-  React.useEffect(() => {
-    if (subStep.thinking) {
-      console.log(`🎭 UI - Agent ${subStep.agentName} thinking data:`, {
-        hasThinking: subStep.thinking.hasThinking,
-        thinkingContentLength: subStep.thinking.thinkingContent?.length || 0,
-        summaryLength: subStep.thinking.summary?.length || 0,
-        thinkingPreview: subStep.thinking.thinkingContent?.substring(0, 100)
-      });
+  // Stabilize agent display name to prevent mid-execution changes
+  const getStableAgentName = () => {
+    // Extract base agent name from validation prefixes
+    const agentName = subStep.agentName;
+    if (agentName.includes('PlanningAgent Validation:')) {
+      const baseName = agentName.replace('PlanningAgent Validation: ', '');
+      return `${baseName} Validation`;
     }
-  }, [subStep.thinking, subStep.agentName]);
+    // Keep original name for non-validation agents
+    return agentName;
+  };
+  
+  const displayName = getStableAgentName();
+  
+  // Thinking data available (debug removed)
 
   const getStatusColor = () => {
     switch (subStep.status) {
@@ -233,12 +237,38 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
   };
 
   const getStatusIcon = () => {
-    switch (subStep.status) {
-      case 'completed': return <CheckCircle className="w-3 h-3 text-green-500" />;
-      case 'failed': return <AlertCircle className="w-3 h-3 text-red-500" />;
-      case 'in_progress': return <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />;
-      default: return <Clock className="w-3 h-3 text-gray-400" />;
+    // ENHANCED completion detection - multiple indicators including agent-specific logic
+    const hasDuration = subStep.duration !== undefined && subStep.duration !== null && subStep.duration > 0;
+    const hasEndTime = subStep.endTime !== undefined && subStep.endTime !== null;
+    const hasOutput = subStep.output !== undefined && subStep.output !== null;
+    const isProgressComplete = subStep.progress === 100;
+    
+    // Special logic for DataInspector - it may complete without setting duration
+    const isDataInspectorComplete = subStep.agentName === 'DataInspector' && 
+      (subStep.stage === 'Analysis complete' || 
+       subStep.progressHistory?.some(p => p.stage?.includes('complete')) ||
+       (hasOutput && subStep.progress && subStep.progress >= 90));
+    
+    const isActuallyComplete = subStep.status === 'completed' || 
+                              hasDuration || 
+                              hasEndTime || 
+                              isDataInspectorComplete ||
+                              (isProgressComplete && hasOutput);
+    
+    const isActuallyFailed = subStep.status === 'failed' || subStep.error;
+    
+    // Completion detection logic (spam removed)
+    
+    if (isActuallyComplete && !isActuallyFailed) {
+      return <CheckCircle className="w-3 h-3 text-green-500" />;
     }
+    if (isActuallyFailed) {
+      return <AlertCircle className="w-3 h-3 text-red-500" />;
+    }
+    if (subStep.status === 'in_progress' || (!isActuallyComplete && !isActuallyFailed)) {
+      return <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />;
+    }
+    return <Clock className="w-3 h-3 text-gray-400" />;
   };
 
   return (
@@ -248,7 +278,7 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700">
-              {subStep.agentName}
+              {displayName}
             </span>
             {getStatusIcon()}
             {subStep.duration && (
@@ -263,7 +293,7 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
                 size="sm"
                 onClick={() => onRerunAgent(subStep.agentName)}
                 className="h-5 w-5 p-0 hover:bg-primary/10 ml-1"
-                title={`Rerun ${subStep.agentName}`}
+                title={`Rerun ${displayName}`}
               >
                 <svg
                   className="w-3 h-3"
@@ -408,10 +438,11 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
                     </div>
                   ) : (
                     <div className="text-blue-700">
-                      • Analyzing {subStep.agentName === 'DataInspector' ? 'data structure and content' : 
-                          subStep.agentName === 'PatternGenerator' ? 'extraction strategies' :
-                          subStep.agentName === 'Extractor' ? 'relevant information from sources' :
-                          subStep.agentName === 'Synthesizer' ? 'collected data for final answer' : 'research data'}
+                      • Analyzing {displayName.includes('DataInspector') ? 'data structure and content' : 
+                          displayName.includes('PatternGenerator') ? 'extraction strategies' :
+                          displayName.includes('Extractor') ? 'relevant information from sources' :
+                          displayName.includes('Synthesizer') ? 'collected data for final answer' : 
+                          displayName.includes('Validation') ? 'results and ensuring quality' : 'research data'}
                     </div>
                   )}
                   {subStep.thinking.thinkingContent && (
@@ -449,7 +480,7 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
           {showOutput && (
             <div className="mt-1 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg text-xs">
               <div className="text-green-800 font-medium mb-2">
-                Complete {subStep.agentName} Output:
+                Complete {displayName} Output:
               </div>
               <div className="text-green-700 font-mono max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {typeof subStep.output === 'string' 
@@ -476,6 +507,22 @@ function AgentSubStepInline({ subStep, onRerunAgent }: { subStep: AgentSubStep; 
 function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const IconComponent = StepIcons[step.type] || Search;
+  
+  // Aggressive completion counting function
+  const getCompletedSubStepsCount = (subSteps?: any[]) => {
+    if (!subSteps) return 0;
+    return subSteps.filter(subStep => {
+      const hasDuration = subStep.duration !== undefined && subStep.duration !== null && subStep.duration > 0;
+      const hasEndTime = subStep.endTime !== undefined && subStep.endTime !== null;
+      const hasOutput = subStep.output !== undefined && subStep.output !== null;
+      const isProgressComplete = subStep.progress === 100;
+      
+      return subStep.status === 'completed' || 
+             hasDuration || 
+             hasEndTime || 
+             (isProgressComplete && hasOutput);
+    }).length;
+  };
 
   const getStatusColor = () => {
     switch (step.status) {
@@ -589,7 +636,7 @@ function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
                     <Brain className="w-5 h-5" />
                     🤖 Multi-Agent Process ({step.subSteps.length} agents)
                     <Badge variant="secondary" className="ml-auto">
-                      {step.subSteps.filter(s => s.status === 'completed').length}/{step.subSteps.length} completed
+                      {getCompletedSubStepsCount(step.subSteps)}/{step.subSteps.length} completed
                     </Badge>
                     <Button
                       variant="ghost"
@@ -602,8 +649,15 @@ function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
                     </Button>
                   </h4>
                   <div className="space-y-3 pl-4 border-l-2 border-blue-200">
-                    {step.subSteps.map((subStep, subIdx) => (
-                      <AgentSubStepInline key={`${subStep.id}-${subIdx}`} subStep={subStep} onRerunAgent={onRerunAgent} />
+                    {step.subSteps
+                      .sort((a, b) => {
+                        // Sort by startTime to maintain execution order
+                        const timeA = a.startTime || 0;
+                        const timeB = b.startTime || 0;
+                        return timeA - timeB;
+                      })
+                      .map((subStep, subIdx) => (
+                      <AgentSubStepInline key={`agent-${subStep.agentName}-${subStep.startTime}`} subStep={subStep} onRerunAgent={onRerunAgent} />
                     ))}
                   </div>
                 </div>
@@ -643,11 +697,54 @@ export function PerplexityStyleResearch({ steps, isActive = false, className = "
     return null;
   }
 
+  // ENHANCED completion counting - includes DataInspector specific detection
+  const getCompletedSubStepsCount = (subSteps?: any[]) => {
+    if (!subSteps) return 0;
+    return subSteps.filter(subStep => {
+      const hasDuration = subStep.duration !== undefined && subStep.duration !== null && subStep.duration > 0;
+      const hasEndTime = subStep.endTime !== undefined && subStep.endTime !== null;
+      const hasOutput = subStep.output !== undefined && subStep.output !== null;
+      const isProgressComplete = subStep.progress === 100;
+      
+      // Special logic for DataInspector - it may complete without setting duration
+      const isDataInspectorComplete = subStep.agentName === 'DataInspector' && 
+        (subStep.stage === 'Analysis complete' || 
+         subStep.progressHistory?.some(p => p.stage?.includes('complete')) ||
+         (hasOutput && subStep.progress && subStep.progress >= 90));
+      
+      return subStep.status === 'completed' || 
+             hasDuration || 
+             hasEndTime || 
+             isDataInspectorComplete ||
+             (isProgressComplete && hasOutput);
+    }).length;
+  };
+  
   const completedSteps = steps.filter(step => step.status === 'completed').length;
   const totalSteps = steps.length;
+  
+  // For multi-agent steps, use substep completion count
+  const multiAgentStep = steps.find(step => step.subSteps && step.subSteps.length > 0);
+  const completedAgents = multiAgentStep ? getCompletedSubStepsCount(multiAgentStep.subSteps) : 0;
+  const totalAgents = multiAgentStep?.subSteps?.length || 0;
+  
+  // Debug agent visibility
+  React.useEffect(() => {
+    if (multiAgentStep?.subSteps) {
+      const agentNames = multiAgentStep.subSteps.map(s => s.agentName);
+      console.log(`🔍 UI RENDER: Displaying ${totalAgents} agents:`, agentNames);
+      
+      const dataInspectorPresent = agentNames.includes('DataInspector');
+      if (!dataInspectorPresent && totalAgents > 0) {
+        console.warn(`⚠️ UI WARNING: DataInspector missing from display! Current agents:`, agentNames);
+      }
+    }
+  }, [multiAgentStep?.subSteps, totalAgents]);
 
   // Auto-scroll to latest updates when steps change
   useEffect(() => {
+    if (!steps || steps.length === 0) return;
+    
     const currentTime = Date.now();
     const hasActiveSteps = steps.some(step => step.status === 'in_progress');
     const hasSubSteps = steps.some(step => step.subSteps && step.subSteps.length > 0);
@@ -696,7 +793,7 @@ export function PerplexityStyleResearch({ steps, isActive = false, className = "
             <Search className="w-5 h-5 text-blue-600" />
             <h2 className="font-medium text-gray-900">Research Progress</h2>
             <Badge variant="outline" className="text-xs">
-              {completedSteps}/{totalSteps} steps
+              {totalAgents > 0 ? `${completedAgents}/${totalAgents} agents` : `${completedSteps}/${totalSteps} steps`}
             </Badge>
           </div>
           <div className="flex items-center gap-2">
@@ -705,7 +802,7 @@ export function PerplexityStyleResearch({ steps, isActive = false, className = "
             </Badge>
           </div>
         </div>
-        <Progress value={(completedSteps / totalSteps) * 100} className="h-2" />
+        <Progress value={totalAgents > 0 ? (completedAgents / totalAgents) * 100 : (completedSteps / totalSteps) * 100} className="h-2" />
       </div>
 
       {/* Research Steps */}

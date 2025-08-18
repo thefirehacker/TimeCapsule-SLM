@@ -161,18 +161,45 @@ function AgentSubStepCard({
   const IconComponent = AgentIcons[subStep.agentType];
   const iconColor = AgentColors[subStep.agentType];
   const bgColor = AgentBgColors[subStep.agentType];
+  
+  // Stabilize agent display name to prevent mid-execution changes
+  const getStableAgentName = () => {
+    // Extract base agent name from validation prefixes
+    const agentName = subStep.agentName;
+    if (agentName.includes('PlanningAgent Validation:')) {
+      const baseName = agentName.replace('PlanningAgent Validation: ', '');
+      return `${baseName} Validation`;
+    }
+    // Keep original name for non-validation agents
+    return agentName;
+  };
+  
+  const displayName = getStableAgentName();
 
   const getStatusIcon = () => {
-    switch (subStep.status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'failed':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'in_progress':
-        return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
-      default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
+    // AGGRESSIVE completion detection - if agent has duration, it's completed
+    const hasDuration = subStep.duration !== undefined && subStep.duration !== null && subStep.duration > 0;
+    const hasEndTime = subStep.endTime !== undefined && subStep.endTime !== null;
+    const hasOutput = subStep.output !== undefined && subStep.output !== null;
+    const isProgressComplete = subStep.progress === 100;
+    
+    const isActuallyComplete = subStep.status === 'completed' || 
+                              hasDuration || 
+                              hasEndTime || 
+                              (isProgressComplete && hasOutput);
+    
+    const isActuallyFailed = subStep.status === 'failed' || subStep.error;
+    
+    if (isActuallyComplete && !isActuallyFailed) {
+      return <CheckCircle className="w-4 h-4 text-green-500" />;
     }
+    if (isActuallyFailed) {
+      return <AlertCircle className="w-4 h-4 text-red-500" />;
+    }
+    if (subStep.status === 'in_progress' || (!isActuallyComplete && !isActuallyFailed)) {
+      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+    }
+    return <Clock className="w-4 h-4 text-muted-foreground" />;
   };
 
   const formatDuration = (duration?: number) => {
@@ -190,7 +217,7 @@ function AgentSubStepCard({
           <div className="flex items-center gap-3">
             <IconComponent className={`w-5 h-5 ${iconColor}`} />
             <div>
-              <h4 className="font-medium text-sm">{subStep.agentName}</h4>
+              <h4 className="font-medium text-sm">{displayName}</h4>
               <p className="text-xs text-muted-foreground capitalize">
                 {subStep.agentType.replace('_', ' ')}
               </p>
@@ -210,7 +237,7 @@ function AgentSubStepCard({
                 size="sm"
                 onClick={() => onRerunAgent(subStep.agentName)}
                 className="h-6 w-6 p-0 hover:bg-primary/10"
-                title={`Rerun ${subStep.agentName}`}
+                title={`Rerun ${displayName}`}
               >
                 <svg
                   className="w-3 h-3"

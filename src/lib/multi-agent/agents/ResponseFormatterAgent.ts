@@ -25,7 +25,7 @@ export class ResponseFormatterAgent extends BaseAgent {
   async process(context: ResearchContext): Promise<ResearchContext> {
     console.log(`📝 ResponseFormatter: Enhancing response formatting and directness`);
     
-    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Analyzing response structure', 0, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 10, 'Analyzing response structure', 0, undefined);
     
     // Check if we have synthesis results to format
     if (!context.synthesis?.answer) {
@@ -34,7 +34,7 @@ export class ResponseFormatterAgent extends BaseAgent {
       return context;
     }
 
-    this.progressCallback?.onAgentProgress?.(this.name, 30, 'Formatting response for clarity', 0, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 30, 'Formatting response for clarity', 0, undefined);
     
     // Enhance the response formatting and directness
     const enhancedResponse = await this.formatResponseForClarity(context);
@@ -58,7 +58,7 @@ ${enhancedResponse.formattingReasoning}`;
 💡 **Enhancement Details**: Applied formatting best practices to ensure the response directly addresses the user's question with clear structure and actionable information.`);
     }
     
-    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Response formatting completed', 0, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 100, 'Response formatting completed', 0, undefined);
     
     return context;
   }
