@@ -2084,6 +2084,14 @@ NEXT_GOAL: [final goal achieved]`;
       if (this.registry.has('PlanningAgent') && normalizedToolName !== 'PlanningAgent' && normalizedToolName !== 'SynthesisCoordinator') {
         console.log(`🔍 PlanningAgent consuming ${normalizedToolName} results for quality analysis...`);
         
+        // Track PlanningAgent validation as a separate UI step
+        const validationStepName = `PlanningAgent_Validation_${normalizedToolName}`;
+        this.progressTracker.startAgent(validationStepName, 'PlanningAgent', {
+          ...context,
+          validationTarget: normalizedToolName,
+          isValidation: true
+        });
+        
         try {
           const planningAgent = this.registry.get('PlanningAgent') as any;
           if (planningAgent && typeof planningAgent.consumeAgentResults === 'function') {
@@ -2131,9 +2139,20 @@ NEXT_GOAL: [final goal achieved]`;
             } else if (consumption && consumption.shouldContinue) {
               console.log(`✅ ${normalizedToolName} results validated by PlanningAgent - quality acceptable`);
             }
+            
+            // Complete the validation tracking
+            this.progressTracker.completeAgent(validationStepName, {
+              result: 'success',
+              output: consumption
+            });
           }
         } catch (error) {
           console.warn(`⚠️ PlanningAgent consumption failed:`, error);
+          // Complete validation tracking even on error
+          this.progressTracker.completeAgent(validationStepName, {
+            result: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
           // Continue anyway - consumption is for quality improvement, not critical path
         }
       }

@@ -964,6 +964,12 @@ export function useResearch(
     onAgentStart: (agentName: string, agentType: string, input: any) => {
         console.log(`🚀 Agent ${agentName} (${agentType}) started`);
         
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const actualAgentName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
+        
         // Find the main research step (should already exist from research start)
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
@@ -973,17 +979,43 @@ export function useResearch(
           return;
         }
         
-        // Check if this agent already exists in subSteps (for retries)
-        const existingSubStepIndex = mainStep.subSteps?.findIndex(sub => sub.agentName === agentName) ?? -1;
+        // For validation steps, use the modified name for display
+        const displayName = actualAgentName;
+        
+        // Check if this agent already exists in subSteps (for retries or validation)
+        // Handle both exact agent name matches and validation step overwrites
+        let existingSubStepIndex = mainStep.subSteps?.findIndex(sub => 
+          sub.agentName === displayName || 
+          (isValidation && sub.agentName.includes(agentName.replace('PlanningAgent_Validation_', '')))
+        ) ?? -1;
+        
+        // For validation steps, don't create duplicates - just update if exists
+        if (isValidation && existingSubStepIndex === -1) {
+          // Check if there's a pending validation step we should replace
+          existingSubStepIndex = mainStep.subSteps?.findIndex(sub => 
+            sub.agentName.startsWith('PlanningAgent Validation:') && 
+            sub.status === 'in_progress'
+          ) ?? -1;
+        }
         
         if (existingSubStepIndex >= 0) {
-          // Update existing substep for retry
-          console.log(`🔄 Updating existing substep for ${agentName} (retry/restart)`);
+          // Update existing substep for retry/restart
+          const existingStep = mainStep.subSteps![existingSubStepIndex];
+          const isRetry = !isValidation && existingStep.agentName === displayName;
+          const retryCount = isRetry ? (existingStep.retryCount || 0) + 1 : (existingStep.retryCount || 0);
+          
+          console.log(`🔄 ${isRetry ? 'Retry' : 'Update'} existing substep for ${displayName} ${isRetry ? `(attempt #${retryCount})` : ''}`);
+          
           const updatedSubSteps = [...(mainStep.subSteps || [])];
           updatedSubSteps[existingSubStepIndex] = {
             ...updatedSubSteps[existingSubStepIndex],
+            agentName: displayName, // Update name in case it changed (validation steps)
+            agentType: isValidation ? 'verification' : (agentType as any),
             status: 'in_progress',
-            startTime: Date.now()
+            startTime: Date.now(),
+            retryCount,
+            stage: isRetry ? `Retrying with corrective guidance (attempt #${retryCount})` : (isValidation ? 'Validating results' : undefined),
+            isValidation
           };
           
           const updatedMainStep = {
@@ -993,16 +1025,31 @@ export function useResearch(
           };
           researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
         } else {
+          // Double-check to prevent true duplicates (safety check)
+          const finalCheck = mainStep.subSteps?.some(sub => 
+            sub.agentName === displayName && 
+            sub.status === 'in_progress'
+          ) ?? false;
+          
+          if (finalCheck) {
+            console.warn(`⚠️ Preventing duplicate creation of ${displayName} - already in progress`);
+            return;
+          }
+          
           // Add new agent as subStep
           const newSubStep = {
             id: `${agentName.toLowerCase()}_${Date.now()}`,
-            agentName,
-            agentType: agentType as any,
+            agentName: displayName,
+            agentType: isValidation ? 'verification' : (agentType as any),
             status: 'in_progress' as const,
             startTime: Date.now(),
             input,
-            output: null
+            output: null,
+            isValidation,
+            retryCount: 0
           };
+          
+          console.log(`✅ Creating new substep: ${displayName} (validation: ${isValidation})`);
           
           const updatedMainStep = {
             ...mainStep,
@@ -1015,9 +1062,15 @@ export function useResearch(
       onAgentProgress: (agentName: string, progress: number, stage?: string) => {
         console.log(`📊 Agent ${agentName}: ${progress}% - ${stage || 'Processing'}`);
         
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const displayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
+        
         // Update thinking output based on agent and stage
         if (stage) {
-          setThinkingOutput(`🤖 ${agentName}: ${stage} (${progress}%)`);
+          setThinkingOutput(`🤖 ${displayName}: ${stage} (${progress}%)`);
         }
         
         // Find main step and update the corresponding subStep progress
@@ -1025,7 +1078,7 @@ export function useResearch(
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === displayName);
           
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
@@ -1057,12 +1110,18 @@ export function useResearch(
       onAgentThinking: (agentName: string, thinking: any) => {
         console.log(`💭 Agent ${agentName} thinking: ${thinking.summary || 'Processing...'}`);
         
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const displayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
+        
         // Find main step and update the corresponding subStep thinking
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === displayName);
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             updatedSubSteps[subStepIndex] = {
@@ -1087,13 +1146,27 @@ export function useResearch(
       onAgentComplete: (agentName: string, output: any, metrics?: any) => {
         console.log(`✅ Agent ${agentName} completed`);
         
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const displayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
+        
         // Find main step and complete the corresponding subStep
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === displayName);
           if (subStepIndex >= 0) {
+            console.log(`🔄 Completing agent: ${displayName} (found at index ${subStepIndex})`);
+            
+            // Additional safety check - ensure we're updating the right step
+            const targetStep = mainStep.subSteps[subStepIndex];
+            if (targetStep.status === 'completed') {
+              console.warn(`⚠️ Agent ${displayName} already completed, skipping update`);
+              return;
+            }
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
             
@@ -1123,7 +1196,7 @@ export function useResearch(
               confidence: allCompleted ? (updatedSubSteps.reduce((sum, sub) => sum + (sub.metrics?.confidence || 0.8), 0) / updatedSubSteps.length) : undefined
             };
             
-            console.log(`✅ COMPLETION UPDATE: Agent ${agentName} completed - All agents completed: ${allCompleted}`);
+            console.log(`✅ COMPLETION UPDATE: Agent ${displayName} completed - All agents completed: ${allCompleted}`);
             researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
             performedStepsPersist(updatedMainStep);
           }
@@ -1132,12 +1205,18 @@ export function useResearch(
       onAgentError: (agentName: string, error: string, retryCount?: number) => {
         console.log(`❌ Agent ${agentName} error: ${error}${retryCount ? ` (retry ${retryCount})` : ''}`);
         
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const displayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
+        
         // Find main step and mark the corresponding subStep as failed
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === displayName);
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
@@ -1154,7 +1233,7 @@ export function useResearch(
             const updatedMainStep = {
               ...mainStep,
               subSteps: updatedSubSteps,
-              reasoning: `Agent ${agentName} failed: ${error}`
+              reasoning: `Agent ${displayName} failed: ${error}`
             };
             
             researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);

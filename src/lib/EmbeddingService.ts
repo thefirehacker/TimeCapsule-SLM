@@ -81,7 +81,7 @@ class EmbeddingService {
       });
 
       // Load the embedding model with enhanced CDN loading
-      console.log('📦 Loading Xenova/all-MiniLM-L6-v2 model from Hugging Face CDN...');
+      console.log('📦 Loading Xenova/bge-small-en-v1.5 model from Hugging Face CDN...');
       
       onProgress?.({
         message: 'Loading from browser cache...',
@@ -97,7 +97,7 @@ class EmbeddingService {
       // Use pipeline with optimized progress tracking
       this.model = await pipeline(
         'feature-extraction',
-        'Xenova/all-MiniLM-L6-v2',
+        'Xenova/bge-small-en-v1.5',
         {
           // Remove cache_dir to let the browser handle caching naturally
           progress_callback: (progress: any) => {
