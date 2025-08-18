@@ -1252,7 +1252,7 @@ Performance: /\\d+(\\.\\d+)?%?\\s*(improvement|accuracy|score)/gi`}
                     Run a pattern test to see results
                   </div>
                 ) : (
-                  <ScrollArea className="h-96">
+                  <ScrollArea className="h-[1200px]">
                     <div className="space-y-4">
                       {/* Summary */}
                       <div className="bg-blue-50 p-4 rounded-lg">
