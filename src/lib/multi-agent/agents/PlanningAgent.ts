@@ -1565,11 +1565,21 @@ Return as strictly valid JSON:
     
     // Apply corrective strategy by overwriting original DataInspector results
     if (context.sharedKnowledge.documentInsights) {
+      // CRITICAL: Preserve measurements from DataInspector before overwriting
+      const existingMeasurements = context.sharedKnowledge.documentInsights.measurements;
+      
       context.sharedKnowledge.documentInsights.methods = correctedCategories.methods || [];
       context.sharedKnowledge.documentInsights.concepts = correctedCategories.concepts || [];
       context.sharedKnowledge.documentInsights.people = correctedCategories.people || [];
       context.sharedKnowledge.documentInsights.data = correctedCategories.data || [];
-      console.log(`🔧 Applied corrective strategy: overwrote original DataInspector results`);
+      
+      // CRITICAL: Restore measurements - they are essential for PatternGenerator
+      if (existingMeasurements) {
+        context.sharedKnowledge.documentInsights.measurements = existingMeasurements;
+        console.log(`🔧 Applied corrective strategy: overwrote categories but preserved ${existingMeasurements.length} measurements`);
+      } else {
+        console.log(`🔧 Applied corrective strategy: overwrote original DataInspector results`);
+      }
     }
     
     console.log(`✅ Created corrective strategy:`, correctedCategories);
@@ -1950,7 +1960,62 @@ Return as strictly valid JSON:
       });
       
       if (hasEntityMismatch) {
-        console.log(`🚨 VALIDATION FAILURE: Entity mismatch detected, returning validation failure`);
+        console.log(`🚨 VALIDATION FAILURE: Entity mismatch detected, attempting document filtering`);
+        
+        // Try to filter out problematic documents before replanning
+        const filteredDocuments = documentAnalysis.documents?.filter((doc: any) => {
+          const docEntity = doc.primaryEntity || '';
+          const searchText = `${doc.documentName || ''} ${docEntity} ${doc.reasoning || ''}`;
+          
+          // Extract entity name from document analysis
+          const docEntityPatterns = [
+            /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // Names like "Tyler", "Amardeep Singh"  
+          ];
+          
+          let docEntityName = '';
+          for (const pattern of docEntityPatterns) {
+            const matches = searchText.match(pattern);
+            if (matches) {
+              // Find the most relevant entity (prefer names over generic words)
+              docEntityName = matches.find(match => 
+                match.length > 2 && 
+                match !== 'The' && 
+                match !== 'YES' && 
+                /^[A-Z]/.test(match)
+              ) || matches[0];
+              break;
+            }
+          }
+          
+          // Include document if it matches the query entity
+          const matches = docEntityName.toLowerCase().includes(queryEntity.toLowerCase()) ||
+                          queryEntity.toLowerCase().includes(docEntityName.toLowerCase());
+          
+          if (!matches) {
+            console.log(`🔧 Filtering out document about "${docEntityName}" (query asks for "${queryEntity}")`);
+          }
+          
+          return matches;
+        }) || [];
+        
+        // Apply document filtering if we successfully filtered out problematic docs
+        if (filteredDocuments.length < (documentAnalysis.documents?.length || 0)) {
+          console.log(`🔧 Document filtering applied: ${documentAnalysis.documents?.length} → ${filteredDocuments.length} documents`);
+          
+          // Update document analysis with filtered documents
+          if (context.documentAnalysis) {
+            context.documentAnalysis.documents = filteredDocuments;
+          }
+          
+          // If we successfully filtered and have remaining docs, consider this fixed
+          if (filteredDocuments.length > 0) {
+            console.log(`✅ Document filtering successful - continuing with ${filteredDocuments.length} relevant documents`);
+            return { isValid: true, reason: `Document filtering applied - removed entity mismatched documents, continuing with ${filteredDocuments.length} relevant documents` };
+          }
+        }
+        
+        // If filtering didn't help or no docs remain, fall back to replanning
+        console.log(`🔄 Document filtering insufficient, falling back to replanning`);
         const failureResult = {
           isValid: false,
           replanAction: 'correct_semantic_alignment',
@@ -2455,6 +2520,23 @@ Return as strictly valid JSON:
           sessionContext: {
             preventHallucinations: true,
             mustUseExtractedData: true
+          }
+        };
+        
+      case 'correct_semantic_alignment':
+        // Extract expected entity from query for targeted guidance
+        const queryEntityMatch = context.query.match(/\b([A-Z][a-z]+)'s\s+(.+)/);
+        const expectedEntity = queryEntityMatch ? queryEntityMatch[1] : 'the requested entity';
+        
+        return {
+          target: 'DataInspector',
+          guidance: `Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "${expectedEntity}". Reject all documents about other people/entities regardless of topic overlap. Use enhanced relevance analysis to prevent entity ownership mismatches.`,
+          priority: 'document_filtering',
+          sessionContext: {
+            expectedEntity: expectedEntity,
+            strictEntityMatching: true,
+            rejectOtherEntities: true,
+            queryType: 'entity_specific'
           }
         };
         

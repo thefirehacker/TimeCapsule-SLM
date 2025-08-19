@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { DocumentData } from "@/components/VectorStore/VectorStore";
 import { pdfParser, PDFParser } from "@/lib/PDFParser";
+import mammoth from 'mammoth';
 
 export interface DocumentStatus {
   count: number;
@@ -84,6 +85,131 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     }
   }, [vectorStore]);
 
+  // Helper function to convert HTML to structured text with markers
+  const convertHtmlToStructuredText = (html: string): string => {
+    let structuredText = '';
+    
+    // Parse HTML using DOMParser (available in browser)
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Process tables with structural markers
+    const tables = doc.querySelectorAll('table');
+    tables.forEach(table => {
+      const placeholder = doc.createElement('div');
+      placeholder.textContent = '<START_TABLE>';
+      table.parentNode?.insertBefore(placeholder, table);
+      
+      // Process table headers
+      const headers = table.querySelectorAll('th');
+      if (headers.length > 0) {
+        const headerText = Array.from(headers).map(th => th.textContent?.trim() || '').join(' | ');
+        const headerDiv = doc.createElement('div');
+        headerDiv.textContent = `<TABLE_HEADER>${headerText}</TABLE_HEADER>`;
+        table.parentNode?.insertBefore(headerDiv, table);
+      }
+      
+      // Process table rows
+      const rows = table.querySelectorAll('tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length > 0) {
+          const rowText = Array.from(cells).map(td => td.textContent?.trim() || '').join(' | ');
+          const rowDiv = doc.createElement('div');
+          rowDiv.textContent = `<TABLE_ROW>${rowText}</TABLE_ROW>`;
+          table.parentNode?.insertBefore(rowDiv, table);
+        }
+      });
+      
+      const endPlaceholder = doc.createElement('div');
+      endPlaceholder.textContent = '<END_TABLE>';
+      table.parentNode?.insertBefore(endPlaceholder, table.nextSibling);
+      
+      // Remove original table
+      table.remove();
+    });
+    
+    // Process lists with markers
+    const lists = doc.querySelectorAll('ul, ol');
+    lists.forEach(list => {
+      const startMarker = doc.createElement('div');
+      startMarker.textContent = '<START_LIST>';
+      list.parentNode?.insertBefore(startMarker, list);
+      
+      const items = list.querySelectorAll('li');
+      items.forEach(item => {
+        const itemDiv = doc.createElement('div');
+        itemDiv.textContent = `<LIST_ITEM>${item.textContent?.trim() || ''}</LIST_ITEM>`;
+        list.parentNode?.insertBefore(itemDiv, list);
+      });
+      
+      const endMarker = doc.createElement('div');
+      endMarker.textContent = '<END_LIST>';
+      list.parentNode?.insertBefore(endMarker, list.nextSibling);
+      
+      list.remove();
+    });
+    
+    // Process headers with section markers
+    const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    headers.forEach(header => {
+      const title = header.textContent?.trim() || '';
+      const sectionDiv = doc.createElement('div');
+      sectionDiv.textContent = `<START_SECTION:${title}>\n${title}\n<END_SECTION>`;
+      header.parentNode?.replaceChild(sectionDiv, header);
+    });
+    
+    // Process paragraphs
+    const paragraphs = doc.querySelectorAll('p');
+    paragraphs.forEach(para => {
+      const text = para.textContent?.trim() || '';
+      if (text.length > 0) {
+        // Check for measurement data
+        const numericPattern = /\d+\.?\d*\s*(hours?|minutes?|seconds?|ms|[BMK]|GB|MB|KB|tokens?|%)/gi;
+        const hasMultipleNumbers = (text.match(numericPattern) || []).length >= 3;
+        
+        if (hasMultipleNumbers) {
+          para.textContent = `<START_MEASUREMENT_DATA>\n${text}\n<END_MEASUREMENT_DATA>`;
+        } else {
+          para.textContent = `<START_PARAGRAPH>\n${text}\n<END_PARAGRAPH>`;
+        }
+      }
+    });
+    
+    // Get final text content
+    structuredText = doc.body.textContent || '';
+    
+    // Clean up extra whitespace
+    structuredText = structuredText.replace(/\n{3,}/g, '\n\n').trim();
+    
+    return structuredText;
+  };
+
+  // Helper function to validate extracted content quality
+  const validateExtractedContent = useCallback(
+    (content: string, filename: string): string => {
+      // Check for excessive binary/garbage characters
+      const garbageRatio = (content.match(/[^\x20-\x7E\n\r\t]/g) || []).length / content.length;
+      const hasReadableWords = /\b[a-zA-Z]{3,}\b/.test(content);
+      
+      if (garbageRatio > 0.3) {
+        throw new Error(`File ${filename} contains too much binary/corrupted content (${Math.round(garbageRatio * 100)}% corrupted)`);
+      }
+      
+      if (!hasReadableWords) {
+        throw new Error(`File ${filename} does not contain readable text`);
+      }
+      
+      if (content.length < 10) {
+        throw new Error(`File ${filename} is too short or empty after extraction`);
+      }
+      
+      console.log(`✅ Content validation passed for ${filename}: ${content.length} chars, ${Math.round((1 - garbageRatio) * 100)}% readable`);
+      return content;
+    },
+    []
+  );
+
   // Helper function to extract text content from different file types
   const extractFileContent = useCallback(
     async (file: File): Promise<string> => {
@@ -106,11 +232,33 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
             console.log(
               `✅ PDF parsed successfully: ${pdfResult.metadata.pageCount} pages, ${pdfResult.metadata.textLength} characters`
             );
-            return pdfResult.text;
+            return validateExtractedContent(pdfResult.text, file.name);
           } else {
             console.warn(`⚠️ No text extracted from PDF: ${file.name}`);
-            return `[No text content could be extracted from ${file.name}]`;
+            throw new Error(`No text content could be extracted from ${file.name}`);
           }
+        } else if (file.name.endsWith('.docx') || file.type.includes('wordprocessingml')) {
+          // DOCX files - extract text with structural markers using mammoth
+          console.log(`📄 Processing DOCX file with structural detection: ${file.name}`);
+          const arrayBuffer = await file.arrayBuffer();
+          
+          // Use convertToHtml to get structured content that preserves tables
+          const htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+          
+          if (!htmlResult.value || htmlResult.value.trim().length === 0) {
+            // Fall back to raw text extraction
+            const textResult = await mammoth.extractRawText({ arrayBuffer });
+            if (!textResult.value || textResult.value.trim().length === 0) {
+              throw new Error(`No text content could be extracted from ${file.name}`);
+            }
+            return validateExtractedContent(textResult.value, file.name);
+          }
+          
+          // Convert HTML to text with structural markers
+          const structuredText = convertHtmlToStructuredText(htmlResult.value);
+          
+          console.log(`✅ DOCX structured text extracted: ${structuredText.length} characters with markers`);
+          return validateExtractedContent(structuredText, file.name);
         } else if (
           file.type.startsWith("text/") ||
           file.name.endsWith(".txt") ||
@@ -123,7 +271,7 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
 
             reader.onload = (event) => {
               const content = event.target?.result as string;
-              resolve(content);
+              resolve(validateExtractedContent(content, file.name));
             };
 
             reader.onerror = () => {
@@ -133,25 +281,8 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
             reader.readAsText(file);
           });
         } else {
-          // Binary files or unknown types
-          console.warn(
-            `⚠️ Unsupported file type: ${file.type}. Attempting to read as text.`
-          );
-
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-
-            reader.onload = (event) => {
-              const content = event.target?.result as string;
-              resolve(content || "Unable to extract text content");
-            };
-
-            reader.onerror = () => {
-              reject(new Error(`Failed to read file: ${file.name}`));
-            };
-
-            reader.readAsText(file);
-          });
+          // Unsupported file types - throw error instead of creating garbage
+          throw new Error(`Unsupported file type: ${file.type}. Supported formats: PDF, DOCX, TXT, MD, JSON`);
         }
       } catch (error) {
         console.error(`❌ Failed to extract content from ${file.name}:`, error);
@@ -160,7 +291,7 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
         );
       }
     },
-    []
+    [validateExtractedContent]
   );
 
   const handleFileUpload = useCallback(
@@ -198,6 +329,14 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
             console.log(`✅ Successfully processed: ${file.name}`);
           } catch (error) {
             console.error(`❌ Failed to process ${file.name}:`, error);
+            
+            // Show user-friendly error message
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            console.warn(`⚠️ User notification: Failed to process ${file.name}: ${errorMessage}`);
+            
+            // You can add UI notification here if available:
+            // showErrorToast(`Failed to process ${file.name}: ${errorMessage}`);
+            
             // Continue with other files instead of failing the entire batch
           }
         }

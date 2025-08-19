@@ -384,6 +384,14 @@ Direct extraction only:`;
     
     const universalPrompt = `EXTRACT DATA FOR: ${query}
 
+STRUCTURAL MARKERS GUIDE:
+The document contains these structural markers to help you identify content:
+- <TABLE_ROW> marks table data rows - extract data between these markers as structured data
+- <TABLE_HEADER> marks table headers - use these to understand column meanings
+- <START_MEASUREMENT_DATA> marks numeric data clusters - focus extraction here for metrics
+- <START_SECTION:title> marks document sections - helps identify context
+- <LIST_ITEM> marks list items - extract as structured lists
+
 DOCUMENT CONTENT:
 ${content}
 
@@ -393,9 +401,9 @@ ${extractionApproach}
 DOCUMENT STRUCTURE: ${documentAnalysis.structure.join(', ')}
 CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
 
-Based on the document structure and your analysis, extract ALL relevant data that answers the user's query.
-Focus on completeness - don't miss any data points.
-Present the extracted information clearly.`;
+Based on the document structure and structural markers, extract ALL relevant data that answers the user's query.
+Focus on completeness - don't miss any data points, especially those within structural markers.
+Present the extracted information clearly, preserving table structure where present.`;
 
     return universalPrompt;
   }

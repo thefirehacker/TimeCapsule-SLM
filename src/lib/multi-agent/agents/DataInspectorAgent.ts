@@ -140,6 +140,16 @@ export class DataInspectorAgent extends BaseAgent {
     for (const chunk of chunksToProcess) {
       const text = chunk.text || '';
       
+      // 🆕 STRUCTURAL MARKER DETECTION: Check for structural context
+      const hasTableMarkers = text.includes('<TABLE_ROW>') || text.includes('<TABLE_HEADER>');
+      const hasDataMarkers = text.includes('<START_MEASUREMENT_DATA>');
+      const hasSectionMarkers = text.includes('<START_SECTION:');
+      
+      // Store structural context in chunk metadata
+      if (hasTableMarkers || hasDataMarkers || hasSectionMarkers) {
+        console.log(`📊 Structural markers detected in chunk: Table=${hasTableMarkers}, Data=${hasDataMarkers}, Section=${hasSectionMarkers}`);
+      }
+      
       // 🎯 ZERO-HARDCODING: Filter by document source if query specifies one
       if (sourceRequired.sourceRequired && sourceRequired.sourceName) {
         const chunkSource = (chunk.sourceDocument || chunk.source || '').toLowerCase();
@@ -326,6 +336,17 @@ CRITICAL RULES:
     });
     
     const prompt = `I need to intelligently analyze this document and understand how to help the user.
+
+IMPORTANT: Look for these STRUCTURAL MARKERS in the document:
+- <START_TABLE> / <END_TABLE> - Indicates table boundaries
+- <TABLE_ROW> - Marks individual table rows with data
+- <TABLE_HEADER> - Marks table headers
+- <START_SECTION:title> / <END_SECTION> - Document sections
+- <START_PARAGRAPH> / <END_PARAGRAPH> - Text paragraphs
+- <START_MEASUREMENT_DATA> / <END_MEASUREMENT_DATA> - Numeric data clusters
+- <START_LIST> / <LIST_ITEM> / <END_LIST> - List structures
+
+These markers help identify document structure for better extraction and understanding.
 
 USER QUERY: "${context.query}"
 
@@ -679,8 +700,8 @@ REASON: [detailed reasoning based on extracted content]`;
         docType, mainEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
       });
       
-      // Direct relevance determination from comprehensive analysis
-      const isRelevant = relevantText.toUpperCase().includes('YES');
+      // Enhanced relevance determination with semantic analysis
+      const isRelevant = this.determineRelevanceFromResponse(relevantText, reasoning, query, mainEntity);
       
       console.log(`🔍 COMPREHENSIVE ANALYSIS: Query="${query}", Entity="${mainEntity}" → Result: ${isRelevant}`);
       
@@ -817,6 +838,65 @@ REASON: [detailed reasoning based on extracted content]`;
       .trim();
   }
 
+
+  /**
+   * Enhanced relevance determination with semantic analysis
+   * Prevents wrong "YES" extraction by analyzing full context
+   */
+  private determineRelevanceFromResponse(relevantText: string, reasoning: string, query: string, mainEntity: string): boolean {
+    // Clean inputs for analysis
+    const cleanRelevantText = relevantText.trim().toUpperCase();
+    const cleanReasoning = reasoning.trim().toLowerCase();
+    
+    // Primary check: Direct YES/NO from RELEVANT field
+    if (cleanRelevantText === 'YES') {
+      return true;
+    }
+    if (cleanRelevantText === 'NO') {
+      return false;
+    }
+    
+    // Secondary check: Analyze reasoning for semantic signals
+    const negativeSignals = [
+      'unrelated', 'not related', 'does not align', 'focuses on unrelated',
+      'different', 'mismatch', 'irrelevant', 'not relevant'
+    ];
+    
+    const positiveSignals = [
+      'aligns with', 'related to', 'contains information about', 'relevant to',
+      'matches', 'corresponds to', 'addresses'
+    ];
+    
+    // Check for strong negative signals in reasoning
+    const hasNegativeSignal = negativeSignals.some(signal => 
+      cleanReasoning.includes(signal)
+    );
+    
+    const hasPositiveSignal = positiveSignals.some(signal => 
+      cleanReasoning.includes(signal)
+    );
+    
+    // If reasoning explicitly says unrelated, mark as irrelevant
+    if (hasNegativeSignal && !hasPositiveSignal) {
+      console.log(`🔍 DataInspector: Semantic analysis detected irrelevant document - reasoning contains negative signals`);
+      return false;
+    }
+    
+    // Extract entity from query for ownership validation
+    const queryEntityMatch = query.match(/\b([A-Z][a-z]+)'s\s+(.+)/);
+    if (queryEntityMatch) {
+      const expectedEntity = queryEntityMatch[1];
+      
+      // Check if document entity matches query entity
+      if (mainEntity && !mainEntity.toLowerCase().includes(expectedEntity.toLowerCase())) {
+        console.log(`🔍 DataInspector: Entity mismatch detected - query asks for "${expectedEntity}" but document is about "${mainEntity}"`);
+        return false;
+      }
+    }
+    
+    // Fallback to simple YES check if no clear semantic signals
+    return cleanRelevantText.includes('YES');
+  }
 
   /**
    * 🧠 INTELLIGENT ENTITY DISCOVERY: No hardcoded patterns

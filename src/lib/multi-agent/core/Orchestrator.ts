@@ -1927,26 +1927,20 @@ NEXT_GOAL: [final goal achieved]`;
       if (this.shouldBlockSynthesisForEvidence(context)) {
         console.log('⚠️ Blocking synthesis: Insufficient numeric evidence for performance query');
         
-        // Try one loop of PatternGenerator → Extractor if not already done
-        if (!this.calledAgents.has('PatternGenerator') || !this.calledAgents.has('Extractor')) {
-          console.log('🔄 Attempting evidence generation loop: PatternGenerator → Extractor');
+        // Instead of recursive calls, throw error to let Master LLM decide sequencing
+        const needsPatternGen = !this.calledAgents.has('PatternGenerator');
+        const needsExtractor = !this.calledAgents.has('Extractor');
+        
+        if (needsPatternGen || needsExtractor) {
+          const missingAgents = [];
+          if (needsPatternGen) missingAgents.push('PatternGenerator');
+          if (needsExtractor) missingAgents.push('Extractor');
           
-          if (!this.calledAgents.has('PatternGenerator')) {
-            await this.executeToolCall('PatternGenerator', context);
-          }
-          if (!this.calledAgents.has('Extractor')) {
-            await this.executeToolCall('Extractor', context);
-          }
-          
-          // Check evidence again after extraction
-          if (!this.hasMinimalNumericEvidence(context)) {
-            console.log('❌ Still no numeric evidence after extraction attempt');
-            context.synthesis.answer = 'Insufficient numeric evidence found in the documents to answer this performance-related query. The documents may not contain the specific measurements requested.';
-            context.synthesis.confidence = 0.3;
-            return;
-          }
+          console.log(`🔄 Performance query needs ${missingAgents.join(' → ')} before synthesis`);
+          throw new Error(`MISSING_EVIDENCE: Performance query requires ${missingAgents.join(' and ')} to extract numeric data before synthesis.`);
         } else {
           // Already tried extraction, give up
+          console.log('❌ Already tried extraction but still no evidence');
           context.synthesis.answer = 'Unable to extract sufficient numeric evidence from the documents to answer this performance query. Please verify the documents contain the relevant measurements.';
           context.synthesis.confidence = 0.2;
           return;
@@ -2138,9 +2132,13 @@ NEXT_GOAL: [final goal achieved]`;
         output: agentOutput 
       });
       
-      // 🎯 CLAUDE CODE-STYLE CONSUMPTION/REPLAN LOGIC
-      // After each agent completes, have PlanningAgent consume and validate results
-      if (this.registry.has('PlanningAgent') && normalizedToolName !== 'PlanningAgent' && normalizedToolName !== 'SynthesisCoordinator') {
+      // 🎯 STRATEGIC VALIDATION APPROACH - Only validate at key checkpoints
+      // Validate only after: DataInspector, Extractor, and final synthesis agents
+      const strategicValidationAgents = ['DataInspector', 'Extractor', 'SynthesisCoordinator', 'Synthesizer', 'ResponseFormatter'];
+      const shouldValidate = strategicValidationAgents.includes(normalizedToolName);
+      
+      if (this.registry.has('PlanningAgent') && shouldValidate && normalizedToolName !== 'PlanningAgent') {
+        console.log(`🎯 Strategic validation checkpoint: ${normalizedToolName} - running PlanningAgent validation`);
         console.log(`🔍 PlanningAgent consuming ${normalizedToolName} results for quality analysis...`);
         
         // Track PlanningAgent validation as a separate UI step
@@ -2214,6 +2212,9 @@ NEXT_GOAL: [final goal achieved]`;
           });
           // Continue anyway - consumption is for quality improvement, not critical path
         }
+      } else if (this.registry.has('PlanningAgent') && normalizedToolName !== 'PlanningAgent') {
+        // Log skipped validation for non-strategic agents
+        console.log(`⚡ Strategic validation: Skipping validation for ${normalizedToolName} (not a strategic checkpoint)`);
       }
       
     } catch (error) {
@@ -2389,6 +2390,8 @@ NEXT_GOAL: [final goal achieved]`;
       'GENERATOR': 'PatternGenerator',
       'EXTRACT': 'Extractor',
       'EXTRACTION': 'Extractor',
+      'Extraction': 'Extractor',
+      'extraction': 'Extractor',
       'WEBSEARCH': 'WebSearchAgent',
       'SEARCH': 'WebSearchAgent',
       'SYNTHESIS': 'Synthesizer',
@@ -2995,10 +2998,12 @@ Assess based purely on query needs:`;
    */
   private async expandToFullDocumentChunks(context: ResearchContext): Promise<void> {
     if (!context.documentAnalysis?.documents || !this.vectorStore) {
+      console.log(`⚠️ Cannot expand chunks: documentAnalysis=${!!context.documentAnalysis?.documents}, vectorStore=${!!this.vectorStore}`);
       return;
     }
     
     console.log(`🔍 DataInspector approved ${context.documentAnalysis.documents.length} documents - fetching ALL chunks`);
+    console.log(`📊 Approved documents:`, context.documentAnalysis.documents.map(d => d.title));
     
     try {
       const approvedDocumentIds = new Set(
@@ -3007,14 +3012,23 @@ Assess based purely on query needs:`;
       
       // Get all chunks from vector store
       const allChunks = await this.vectorStore.getAllChunks(['userdocs']);
+      console.log(`📚 Total chunks in vector store: ${allChunks.length}`);
       
       // Filter to only chunks from approved documents
       const approvedChunks = allChunks.filter(chunk => {
         const chunkDocId = chunk.source || chunk.metadata?.filename || '';
+        const chunkDocumentId = chunk.metadata?.documentId || '';
+        
+        // Check both source and documentId for matches
         return Array.from(approvedDocumentIds).some(docId => 
-          chunkDocId.includes(docId) || docId.includes(chunkDocId)
+          chunkDocId.includes(docId) || 
+          docId.includes(chunkDocId) ||
+          chunkDocumentId === docId
         );
       });
+      
+      console.log(`🎯 Filtered to ${approvedChunks.length} chunks from approved documents`);
+      console.log(`📊 Current context has ${context.ragResults.chunks.length} chunks`);
       
       if (approvedChunks.length > context.ragResults.chunks.length) {
         console.log(`📦 Expanded chunks: ${context.ragResults.chunks.length} → ${approvedChunks.length} (${approvedChunks.length - context.ragResults.chunks.length} additional chunks for approved documents)`);
