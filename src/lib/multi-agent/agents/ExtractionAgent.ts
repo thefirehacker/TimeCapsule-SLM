@@ -31,14 +31,14 @@ export class ExtractionAgent extends BaseAgent {
     console.log(`⛏️ Extractor: Processing ${context.ragResults.chunks.length} chunks`);
     
     // Report start of processing
-    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Initializing extraction process', 0, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 10, 'Initializing extraction process', 0, undefined);
     
     if (context.patterns.length === 0) {
       console.warn('⚠️ No extraction patterns available');
       this.setReasoning('No extraction patterns to work with');
       
       // Report completion with no patterns
-      this.progressCallback?.onAgentComplete?.(this.name, {
+      await this.progressCallback?.onAgentComplete?.(this.name, {
         message: 'No extraction patterns available',
         extractedItems: 0
       });
@@ -144,7 +144,7 @@ export class ExtractionAgent extends BaseAgent {
     console.log(`✅ Extraction complete: ${uniqueItems.length} items found`);
     
     // Report completion
-    this.progressCallback?.onAgentComplete?.(this.name, {
+    await this.progressCallback?.onAgentComplete?.(this.name, {
       extractedItems: uniqueItems.length,
       patternsUsed: context.patterns.length,
       chunksProcessed: totalChunks
@@ -828,11 +828,11 @@ Keep it simple and direct.`;
     const totalChunks = context.ragResults.chunks.length;
     
     console.log(`📊 Processing ${totalChunks} chunks with ${regexPatterns.length} regex patterns`);
-    this.progressCallback?.onAgentProgress?.(this.name, 30, `Preparing ${regexPatterns.length} patterns`);
+    await this.progressCallback?.onAgentProgress?.(this.name, 30, `Preparing ${regexPatterns.length} patterns`);
     
     // Offload regex scanning to a Web Worker to keep UI responsive
     try {
-      this.progressCallback?.onAgentProgress?.(this.name, 45, 'Spawning extraction worker');
+      await this.progressCallback?.onAgentProgress?.(this.name, 45, 'Spawning extraction worker');
       const itemsFromWorker: ExtractedItem[] = await new Promise((resolve, reject) => {
         const worker = new Worker('/workers/regexExtractionWorker.js');
         const handle = (e: MessageEvent) => {
@@ -873,14 +873,14 @@ Keep it simple and direct.`;
         });
       });
       extractedItems.push(...itemsFromWorker);
-      this.progressCallback?.onAgentProgress?.(this.name, 90, `Merging ${itemsFromWorker.length} matches`);
+      await this.progressCallback?.onAgentProgress?.(this.name, 90, `Merging ${itemsFromWorker.length} matches`);
       console.log(`✅ Worker regex extraction completed with ${itemsFromWorker.length} items`);
     } catch (workerErr) {
       console.warn('⚠️ Regex worker failed; skipping worker offload:', workerErr);
     }
     
     console.log(`🎯 REGEX extraction complete: ${extractedItems.length} items extracted`);
-    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Extraction complete', extractedItems.length, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 100, 'Extraction complete', extractedItems.length, undefined);
     
     // Update reasoning
     this.batchReasoning.push(`🎯 **REGEX MODE**: Used ${regexPatterns.length} patterns from PatternGenerator`);

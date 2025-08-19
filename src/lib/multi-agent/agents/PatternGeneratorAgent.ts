@@ -29,7 +29,7 @@ export class PatternGeneratorAgent extends BaseAgent {
     console.log(`🎯 PatternGenerator: Creating extraction strategies`);
     
     // Report progress: Starting pattern analysis
-    this.progressCallback?.onAgentProgress(this.name, 10, 'Analyzing existing patterns');
+    await this.progressCallback?.onAgentProgress(this.name, 10, 'Analyzing existing patterns');
     
     // DEBUG: Log existing patterns from DataInspector or previous agents
     console.log(`📋 DEBUG - Existing patterns before PatternGenerator:`, {
@@ -39,7 +39,7 @@ export class PatternGeneratorAgent extends BaseAgent {
     });
     
     // Report progress: Generating strategies
-    this.progressCallback?.onAgentProgress(this.name, 30, 'Generating extraction strategies');
+    await this.progressCallback?.onAgentProgress(this.name, 30, 'Generating extraction strategies');
     
     // Use LLM to generate extraction strategies
     await this.generateStrategiesWithLLM(context);
@@ -55,10 +55,10 @@ export class PatternGeneratorAgent extends BaseAgent {
     }
     
     // Report progress: Completed
-    this.progressCallback?.onAgentProgress(this.name, 100, 'Pattern generation completed');
+    await this.progressCallback?.onAgentProgress(this.name, 100, 'Pattern generation completed');
     
     // Report completion
-    this.progressCallback?.onAgentComplete?.(this.name, {
+    await this.progressCallback?.onAgentComplete?.(this.name, {
       patternsGenerated: context.patterns.length,
       documentChunks: context.ragResults?.chunks?.length || 0,
       patternTypes: context.patterns.map(p => (p as any).type || 'regex')

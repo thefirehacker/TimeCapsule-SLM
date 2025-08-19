@@ -34,7 +34,7 @@ export class DataAnalysisAgent extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
-    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Cleaning and deduplicating');
+    await this.progressCallback?.onAgentProgress?.(this.name, 10, 'Cleaning and deduplicating');
     // Initialize if needed
     if (!context.extractedData) {
       context.extractedData = { raw: [], structured: [] };
@@ -51,17 +51,17 @@ export class DataAnalysisAgent extends BaseAgent {
     
     // Step 1: Clean and deduplicate
     const cleaned = this.cleanAndDeduplicateItems(context.extractedData.raw);
-    this.progressCallback?.onAgentProgress?.(this.name, 35, `After cleaning: ${cleaned.length}`);
+    await this.progressCallback?.onAgentProgress?.(this.name, 35, `After cleaning: ${cleaned.length}`);
     console.log(`🧹 After cleaning: ${cleaned.length} items remain`);
     
     // Step 2: 🎯 NEW - Apply query-relevance filtering
     const queryFiltered = this.filterByQueryRelevance(cleaned, context);
-    this.progressCallback?.onAgentProgress?.(this.name, 55, `After relevance filter: ${queryFiltered.length}`);
+    await this.progressCallback?.onAgentProgress?.(this.name, 55, `After relevance filter: ${queryFiltered.length}`);
     console.log(`🎯 After query filtering: ${queryFiltered.length} items remain (${cleaned.length - queryFiltered.length} irrelevant items removed)`);
     
     // Step 3: Group and categorize the filtered items
     const categorized = await this.groupAndCategorize(queryFiltered, context.query);
-    this.progressCallback?.onAgentProgress?.(this.name, 75, `Categorized: ${categorized.length}`);
+    await this.progressCallback?.onAgentProgress?.(this.name, 75, `Categorized: ${categorized.length}`);
     
     // Step 4: Generate insights
     const insights = this.generateInsights(queryFiltered, categorized);
@@ -95,7 +95,7 @@ export class DataAnalysisAgent extends BaseAgent {
 - Categories found: ${categorized.length}
 - Query-irrelevant items removed: ${cleaned.length - queryFiltered.length}
 ${insights}`);
-    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Analysis complete', queryFiltered.length, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 100, 'Analysis complete', queryFiltered.length, undefined);
     
     return context;
   }

@@ -25,7 +25,7 @@ export class SynthesisCoordinator extends BaseAgent {
   }
   
   async process(context: ResearchContext): Promise<ResearchContext> {
-    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Collecting inputs');
+    await this.progressCallback?.onAgentProgress?.(this.name, 10, 'Collecting inputs');
     // Use extracted data directly if no cleaned analysis available
     const extractedData = context.extractedData?.raw || [];
     const analysisData = context.analyzedData?.cleaned || [];
@@ -35,7 +35,7 @@ export class SynthesisCoordinator extends BaseAgent {
     
     if (dataToUse.length === 0) {
       this.setReasoning('No data available for synthesis - both extraction and analysis are empty');
-      this.progressCallback?.onAgentProgress?.(this.name, 100, 'No data for synthesis');
+      await this.progressCallback?.onAgentProgress?.(this.name, 100, 'No data for synthesis');
       return context;
     }
     
@@ -56,7 +56,7 @@ export class SynthesisCoordinator extends BaseAgent {
       });
     });
     
-    this.progressCallback?.onAgentProgress?.(this.name, 30, `Ranking ${dataToUse.length} items`);
+    await this.progressCallback?.onAgentProgress?.(this.name, 30, `Ranking ${dataToUse.length} items`);
     
     const itemCount = dataToUse.length;
     const sectionCount = Object.keys(context.reportSections || {}).length;
@@ -66,7 +66,7 @@ export class SynthesisCoordinator extends BaseAgent {
     
     // Combine all components into final report  
     const finalReport = await this.assembleReport(context, dataToUse);
-    this.progressCallback?.onAgentProgress?.(this.name, 70, 'Assembling report');
+    await this.progressCallback?.onAgentProgress?.(this.name, 70, 'Assembling report');
     
     // Clean and validate
     const cleanedReport = this.cleanFinalAnswer(finalReport);
@@ -74,7 +74,7 @@ export class SynthesisCoordinator extends BaseAgent {
     // Store final answer
     context.synthesis.answer = cleanedReport;
     context.synthesis.confidence = this.calculateConfidence(context);
-    this.progressCallback?.onAgentProgress?.(this.name, 100, 'Synthesis complete');
+    await this.progressCallback?.onAgentProgress?.(this.name, 100, 'Synthesis complete');
     
     // Update reasoning
     this.setReasoning(`✅ Synthesis Coordination Complete:
@@ -85,7 +85,7 @@ export class SynthesisCoordinator extends BaseAgent {
 - Confidence: ${(context.synthesis.confidence * 100).toFixed(1)}%`);
     
     // Report completion
-    this.progressCallback?.onAgentComplete?.(this.name, {
+    await this.progressCallback?.onAgentComplete?.(this.name, {
       finalResponse: context.synthesis?.finalResponse || '',
       dataItemsUsed: itemCount,
       reportLength: cleanedReport.length,

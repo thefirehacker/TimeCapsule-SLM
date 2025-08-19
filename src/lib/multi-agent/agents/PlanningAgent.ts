@@ -61,7 +61,7 @@ export class PlanningAgent extends BaseAgent {
     console.log(`🎯 PlanningAgent: Creating intelligent execution strategy for "${context.query}"`);
     
     // Report progress: Starting analysis
-    this.progressCallback?.onAgentProgress(this.name, 10, 'Analyzing research context');
+    await this.progressCallback?.onAgentProgress(this.name, 10, 'Analyzing research context');
     
     // Analyze current situation
     const situationAnalysis = this.analyzeSituation(context);
@@ -78,19 +78,19 @@ export class PlanningAgent extends BaseAgent {
     
     // 🎯 CRITICAL: Create extraction strategy after DataInspector runs
     if (context.sharedKnowledge.documentInsights) {
-      this.progressCallback?.onAgentProgress(this.name, 25, 'Creating extraction strategy from DataInspector analysis');
+      await this.progressCallback?.onAgentProgress(this.name, 25, 'Creating extraction strategy from DataInspector analysis');
       const extractionStrategy = this.createExtractionStrategy(context);
       console.log(`✅ Created extraction strategy with ${Object.keys(extractionStrategy.patternCategories).length} pattern categories`);
       
       // 🔍 INTELLIGENT OVERRIDE: Validate DataInspector classifications
-      this.progressCallback?.onAgentProgress(this.name, 30, 'Validating entity classifications');
+      await this.progressCallback?.onAgentProgress(this.name, 30, 'Validating entity classifications');
       const classificationsValid = this.validateDataInspectorClassifications(context);
       if (!classificationsValid) {
         console.log(`🔧 Entity classifications corrected - corrective strategy applied`);
       }
       
       // 🔍 DOCUMENT RELEVANCE VALIDATION: Validate DataInspector document selections  
-      this.progressCallback?.onAgentProgress(this.name, 35, 'Validating document relevance');
+      await this.progressCallback?.onAgentProgress(this.name, 35, 'Validating document relevance');
       const documentSelectionsValid = this.validateDocumentSelections(context);
       if (!documentSelectionsValid) {
         console.log(`🔧 Document selections corrected - relevance override applied`);
@@ -98,13 +98,13 @@ export class PlanningAgent extends BaseAgent {
     }
     
     // Report progress: Situation analyzed
-    this.progressCallback?.onAgentProgress(this.name, 40, 'Creating execution plan');
+    await this.progressCallback?.onAgentProgress(this.name, 40, 'Creating execution plan');
     
     // Create execution plan using LLM intelligence
     const executionPlan = await this.createExecutionPlan(context, situationAnalysis);
     
     // Report progress: Plan created
-    this.progressCallback?.onAgentProgress(this.name, 80, 'Storing execution plan');
+    await this.progressCallback?.onAgentProgress(this.name, 80, 'Storing execution plan');
     
     // Store plan in shared knowledge for other agents
     context.sharedKnowledge.executionPlan = executionPlan;
@@ -117,7 +117,7 @@ export class PlanningAgent extends BaseAgent {
     this.setReasoning(`Created execution strategy: ${executionPlan.strategy} with ${executionPlan.steps.length} steps and ${executionPlan.fallbackOptions.length} fallback options`);
     
     // Report progress: Completed
-    this.progressCallback?.onAgentProgress(this.name, 100, 'Execution plan completed');
+    await this.progressCallback?.onAgentProgress(this.name, 100, 'Execution plan completed');
     
     console.log(`✅ Execution plan created: ${executionPlan.strategy}`);
     return context;
@@ -219,12 +219,12 @@ Return as strictly valid JSON:
 
     try {
       // Report progress: Calling LLM for plan generation
-      this.progressCallback?.onAgentProgress(this.name, 50, 'Generating strategic plan with LLM');
+      await this.progressCallback?.onAgentProgress(this.name, 50, 'Generating strategic plan with LLM');
       
       const response = await this.llm(prompt);
       
       // Report progress: Parsing plan
-      this.progressCallback?.onAgentProgress(this.name, 60, 'Parsing execution strategy');
+      await this.progressCallback?.onAgentProgress(this.name, 60, 'Parsing execution strategy');
       
       const plan = this.parseExecutionPlan(response);
       
