@@ -304,6 +304,18 @@ export class SynthesisCoordinator extends BaseAgent {
    * 🔧 FLEXIBLE DATA ACCESS: Extract source from different data structures
    */
   private extractItemSource(item: any): string {
+    // Debug logging to trace source attribution issue
+    console.log(`🔍 DEBUG Source extraction for item:`, {
+      sourceDocument: item.sourceDocument,
+      'bestItem?.sourceDocument': item.bestItem?.sourceDocument,
+      source: item.source,
+      documentId: item.documentId,
+      chunkId: item.chunkId,
+      'metadata?.source': item.metadata?.source,
+      sourceChunkId: item.sourceChunkId,
+      keys: Object.keys(item)
+    });
+    
     return item.sourceDocument || 
            item.bestItem?.sourceDocument || 
            item.source ||
