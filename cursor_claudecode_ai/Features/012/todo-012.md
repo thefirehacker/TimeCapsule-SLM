@@ -80,12 +80,16 @@ No code changes until approved. This plan is source-agnostic and works for any d
 - DataAnalysisAgent: boost numeric/time items when `expectedAnswerType='performance_ranking'`; never filter those below threshold; tolerant decimal parsing
 - RxDB augmentation: avoid embedding raw numbers; anchor around row labels (e.g., preceding/succeeding tokens) or skip augmentation for purely-numeric probes
 
-14) Evidence-Driven Extraction (zero hardcoding)
-- DataInspector: emit `documentInsights.measurements` from real chunk text (numeric hits with ±5-token windows, chunkId; strip brackets/punctuation)
-- PatternGenerator: bottom-up induction from measurements → learn decimal style, joiners, adjacent tokens → cluster into learned families → synthesize regex → score (support, consistency, query-window cosine) → sanitize/dedupe → emit
-- ExtractionAgent: use learned families as-is (worker already preserves originalContext/normalizedContext)
-- DataAnalysisAgent: rank only when evidence threshold met (≥3 in one family or ≥2+1 across families from same source); parse using learned decimal style; do not drop numeric items by query score alone
-- ResearchOrchestrator: add minimal evidence gate before Synthesis; if unmet, loop PatternGenerator→Extractor once with learned families or return “insufficient evidence” with citations
+14) Sequential Agent Execution Fix (UI coordination)
+- **Problem**: Multi-agent system showed parallel execution in UI (multiple agents "running" simultaneously) instead of proper sequential execution
+- **Root Cause**: Progress callbacks in UI were synchronous but marked as awaitable, causing orchestrator to continue before UI updates completed
+- **Solution Applied**: 
+  - Made all React progress callbacks (`onAgentStart`, `onAgentProgress`, `onAgentComplete`, etc.) return `Promise<void>`
+  - Wrapped all state updates (`setThinkingOutput`, `updateStep`) in promises that resolve after React processing
+  - Added `await` to ALL progressTracker calls in Orchestrator (validation agents, retry logic, error handling, proxy callbacks)
+  - Fixed TypeScript errors in Orchestrator.ts (DocumentMetadata properties, SourceReference types, return types)
+- **Result**: Perfect sequential execution - DataInspector → DataInspector Validation → PatternGenerator → Extractor → Extractor Validation → etc.
+- **Status**: ✅ COMPLETED - Build successful, all TypeScript errors resolved, UI shows proper sequential flow
 
 15) Semantic Search Improvements (MiniLM-friendly, zero hardcoding)
 - Build probes from learned numeric windows (mask digits; use observed joiners/tokens); never query raw numbers
@@ -194,6 +198,7 @@ No code changes until approved. This plan is source-agnostic and works for any d
     - Caps: max 200 matches per chunk per pattern
     - Returns both original and normalized text in metadata
   - [x] Evidence-Driven Extraction (DataInspector emit → PatternGenerator induction → Evidence gate) - **COMPLETED: Removed PatternGenerator fallback mode**
+  - [x] **Sequential Agent Execution Fix (UI coordination)** - **COMPLETED** - Fixed parallel agent execution UI issue by making React progress callbacks properly async with Promise<void> returns and awaiting all progressTracker calls in Orchestrator. Result: Perfect sequential flow with proper UI coordination.
   - [x] **URGENT: Fix RegexExtractor tool normalization** - Added RegexExtractor mapping to Orchestrator.normalizeToolName() **COMPLETED**
   - [ ] Semantic Search Improvements (learned-window probes, hybrid, rerank)
   - [ ] Planner-Aligned Orchestration & Rerun Policy (evidence gate, context-aware reruns)

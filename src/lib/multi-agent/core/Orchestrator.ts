@@ -349,11 +349,11 @@ export class Orchestrator {
         // Forward to UI callback immediately (ResearchOrchestrator pattern)
         this.progressCallback?.onAgentStart?.(agentName, agentType, input);
       },
-      onAgentProgress: (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number) => {
+      onAgentProgress: async (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number): Promise<void> => {
         console.log(`📊 Progress Proxy: ${agentName} - ${progress}% ${stage ? `(${stage})` : ''}`);
         
         // 🎯 CRITICAL: Route through progressTracker to build progress history
-        this.progressTracker.updateProgress(agentName, progress, stage, itemsProcessed, totalItems);
+        await this.progressTracker.updateProgress(agentName, progress, stage, itemsProcessed, totalItems);
         
         // 🔥 IMMEDIATE UI UPDATE: Forward to original callback for real-time display (ResearchOrchestrator pattern)
         if (this.progressCallback?.onAgentProgress) {
@@ -363,9 +363,9 @@ export class Orchestrator {
           console.warn(`⚠️ Progress Proxy: No UI callback available for ${agentName} progress update`);
         }
       },
-      onAgentThinking: (agentName: string, thinking: any) => {
+      onAgentThinking: async (agentName: string, thinking: any): Promise<void> => {
         console.log(`🤔 Progress Proxy: ${agentName} thinking`);
-        this.progressTracker.setThinking(agentName, thinking);
+        await this.progressTracker.setThinking(agentName, thinking);
         this.progressCallback?.onAgentThinking?.(agentName, thinking);
       },
       onAgentComplete: (agentName: string, output: any, metrics?: any) => {
@@ -377,13 +377,13 @@ export class Orchestrator {
         // Forward to UI callback immediately (ResearchOrchestrator pattern)
         this.progressCallback?.onAgentComplete?.(agentName, output, metrics);
       },
-      onAgentError: (agentName: string, error: string, retryCount?: number) => {
+      onAgentError: async (agentName: string, error: string, retryCount?: number): Promise<void> => {
         console.log(`❌ Progress Proxy: ${agentName} error - ${error}`);
         console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Removing ${agentName} from runningAgents (error). Set size before: ${this.runningAgents.size}`);
         // Remove from running agents on error
         this.runningAgents.delete(agentName);
         console.log(`🏃 AGENT TRACKING [${this.instanceId}]: Set size after error removal: ${this.runningAgents.size}, agents: [${Array.from(this.runningAgents).join(', ')}]`);
-        this.progressTracker.errorAgent(agentName, error);
+        await this.progressTracker.errorAgent(agentName, error);
         this.progressCallback?.onAgentError?.(agentName, error, retryCount);
       }
     };
@@ -489,19 +489,19 @@ export class Orchestrator {
       id: doc.id || `doc_${Date.now()}`,
       type: 'document' as const,
       title: doc.title,
-      url: doc.url || '',
+      url: (doc.metadata as any)?.url || '',
       excerpt: `Document metadata: ${doc.title} - ${doc.chunkCount} chunks available`,
       snippet: `Document metadata: ${doc.title} - ${doc.chunkCount} chunks available`,
       text: `Document metadata: ${doc.title} - ${doc.chunkCount} chunks available`, // For DataInspector compatibility
       similarity: 1.0,
-      source: doc.source || 'userdocs',
+      source: (doc.metadata as any)?.source || 'userdocs',
       sourceType: 'document' as const, // Mark as document metadata for DataInspector
       metadata: {
+        ...doc.metadata,
         documentId: doc.id,
-        documentType: doc.documentType || 'userdocs',
+        documentType: (doc.metadata as any)?.documentType || 'userdocs',
         chunkCount: doc.chunkCount,
-        filename: doc.title,
-        ...doc.metadata
+        filename: doc.filename
       }
     }));
     
@@ -516,7 +516,7 @@ export class Orchestrator {
     const sampledChunks: SourceReference[] = [];
 
     for (const source of sources) {
-      const documentId = source.metadata?.documentId;
+      const documentId = (source.metadata as any)?.documentId;
       if (!documentId || !this.vectorStore) continue;
 
       try {
@@ -539,18 +539,21 @@ export class Orchestrator {
           
           sampledChunks.push({
             id: chunk.id || `chunk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'chunk' as const,
             title: source.title,
             url: source.url,
+            excerpt: extractedText.substring(0, 200),
             snippet: extractedText,
             similarity: 1.0,
             source: source.source,
+            sourceType: 'chunk' as const,
             metadata: {
               ...source.metadata,
               chunkId: chunk.id,
               chunkIndex: chunk.metadata?.chunkIndex,
               originalText: extractedText,
               source: source.source
-            }
+            } as any
           });
         }
 
@@ -1667,10 +1670,33 @@ NEXT_GOAL: [final goal achieved]`;
         // break;
         
       case 'SynthesisCoordinator':
-        // 🎯 BYPASSED: DataAnalyzer temporarily disabled due to catastrophic data filtering bug
-        console.log(`🎯 Validating SynthesisCoordinator prerequisites - DataAnalyzer bypassed`);
+        // 🎯 CRITICAL: SynthesisCoordinator MUST run after extraction pipeline
+        console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking extraction pipeline`);
+        
+        // Check if Extractor has been called
+        if (!this.calledAgents.has('Extractor')) {
+          console.log(`❌ SynthesisCoordinator cannot run before Extractor`);
+          console.log(`📋 Called agents so far: ${Array.from(this.calledAgents).join(', ')}`);
+          // Add Extractor as critical prerequisite
+          critical.push({
+            agent: 'Extractor',
+            reason: 'SynthesisCoordinator requires extracted data from Extractor'
+          });
+          // Also ensure PatternGenerator runs before Extractor
+          if (!this.calledAgents.has('PatternGenerator')) {
+            critical.push({
+              agent: 'PatternGenerator',
+              reason: 'PatternGenerator must run before Extractor to generate patterns'
+            });
+          }
+        }
+        
         const hasExtractedDataForSynthesis = context.extractedData?.raw && context.extractedData.raw.length > 0;
         console.log(`📊 Has extracted data: ${hasExtractedDataForSynthesis}`);
+        
+        if (!hasExtractedDataForSynthesis && this.calledAgents.has('Extractor')) {
+          console.log(`⚠️ Extractor ran but produced no data - may need to re-run with better patterns`);
+        }
         
         // ⚠️ TEMPORARY FIX: Skip DataAnalyzer to prevent data destruction
         // DataAnalyzer was filtering out 100% of relevant extracted items
@@ -1939,10 +1965,12 @@ NEXT_GOAL: [final goal achieved]`;
       // 🔧 FIX: For DataInspector requirement, guide instead of throwing error
       if (validation.reason.includes('DataInspector must be called first')) {
         console.log(`🔄 Redirecting to DataInspector first as required by pipeline`);
-        // Execute DataInspector first, then the requested agent
+        // Execute DataInspector first, then RETURN to let Master LLM decide next step
         await this.executeToolCall('DataInspector', context);
-        // Now continue with the originally requested agent
-        console.log(`✅ DataInspector completed, now executing ${normalizedToolName}`);
+        // DON'T automatically continue with the originally requested agent
+        // Let the Master LLM decide the next step based on DataInspector results
+        console.log(`✅ DataInspector completed, returning control to Master LLM for next decision`);
+        return; // Exit here, don't execute the originally requested agent
       } else {
         // For other validation failures, still throw error
         throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
@@ -1966,11 +1994,8 @@ NEXT_GOAL: [final goal achieved]`;
     // Check for retrying agents (keep this check but not executing agents)
     if (this.retryingAgents.has(normalizedToolName)) {
       console.log(`⚠️ Agent ${normalizedToolName} is currently retrying, blocking duplicate call`);
-      return { 
-        allowed: false, 
-        reason: `${normalizedToolName} is currently retrying with corrective guidance`, 
-        suggestion: 'Wait for retry to complete' 
-      };
+      console.log(`🚫 Skipping ${normalizedToolName} execution - retry in progress`);
+      return;
     }
     
     if (this.calledAgents.has(normalizedToolName)) {
@@ -2108,7 +2133,7 @@ NEXT_GOAL: [final goal achieved]`;
       
       // 🚨 FIX: Mark agent as completed with result and capture actual output
       const agentOutput = this.extractAgentOutput(context, normalizedToolName);
-      this.progressTracker.completeAgent(normalizedToolName, { 
+      await this.progressTracker.completeAgent(normalizedToolName, { 
         result: 'success',
         output: agentOutput 
       });
@@ -2120,7 +2145,7 @@ NEXT_GOAL: [final goal achieved]`;
         
         // Track PlanningAgent validation as a separate UI step
         const validationStepName = `PlanningAgent_Validation_${normalizedToolName}`;
-        this.progressTracker.startAgent(validationStepName, 'PlanningAgent', {
+        await this.progressTracker.startAgent(validationStepName, 'PlanningAgent', {
           ...context,
           validationTarget: normalizedToolName,
           isValidation: true
@@ -2136,10 +2161,10 @@ NEXT_GOAL: [final goal achieved]`;
               console.log(`📝 Specific Guidance: ${consumption.guidance}`);
               
               // Store replanning guidance in context for the agent to use
-              if (!context.sharedKnowledge.replanningGuidance) {
-                context.sharedKnowledge.replanningGuidance = {};
+              if (!(context.sharedKnowledge as any).replanningGuidance) {
+                (context.sharedKnowledge as any).replanningGuidance = {};
               }
-              context.sharedKnowledge.replanningGuidance[normalizedToolName] = {
+              (context.sharedKnowledge as any).replanningGuidance[normalizedToolName] = {
                 guidance: consumption.guidance,
                 reason: consumption.reason || 'Quality validation failed',
                 timestamp: Date.now()
@@ -2175,7 +2200,7 @@ NEXT_GOAL: [final goal achieved]`;
             }
             
             // Complete the validation tracking
-            this.progressTracker.completeAgent(validationStepName, {
+            await this.progressTracker.completeAgent(validationStepName, {
               result: 'success',
               output: consumption
             });
@@ -2183,7 +2208,7 @@ NEXT_GOAL: [final goal achieved]`;
         } catch (error) {
           console.warn(`⚠️ PlanningAgent consumption failed:`, error);
           // Complete validation tracking even on error
-          this.progressTracker.completeAgent(validationStepName, {
+          await this.progressTracker.completeAgent(validationStepName, {
             result: 'error',
             error: error instanceof Error ? error.message : 'Unknown error'
           });
@@ -2202,7 +2227,7 @@ NEXT_GOAL: [final goal achieved]`;
       });
       
       // 🚨 FIX: Mark agent as failed
-      this.progressTracker.errorAgent(normalizedToolName, error instanceof Error ? error.message : 'Unknown error');
+      await this.progressTracker.errorAgent(normalizedToolName, error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
@@ -2386,8 +2411,7 @@ NEXT_GOAL: [final goal achieved]`;
       'synthesis_coordinator': 'SynthesisCoordinator',
       'CALL_SYNTHESIS_COORDINATOR': 'SynthesisCoordinator',
       'CALL SynthesisCoordinator': 'SynthesisCoordinator',
-      'SYNthesisCoordinator': 'SynthesisCoordinator', // Fix LLM typo with Y instead of I
-      'SYNTHESISCOORDINATOR': 'SynthesisCoordinator'
+      'SYNthesisCoordinator': 'SynthesisCoordinator' // Fix LLM typo with Y instead of I
     };
     
     // First try exact mapping
@@ -2795,7 +2819,7 @@ Assess based purely on query needs:`;
     if (context.extractedData?.raw && context.extractedData.raw.length > 0) {
       const extractedCount = context.extractedData.raw.length;
       const sampleData = context.extractedData.raw.slice(0, 3).map((item, i) => {
-        const content = item.content || item.text || item.match || JSON.stringify(item).substring(0, 100);
+        const content = item.content || (item as any).text || (item as any).match || JSON.stringify(item).substring(0, 100);
         return `${i+1}. ${content.substring(0, 100)}`;
       }).join('\n');
       
@@ -2924,7 +2948,7 @@ Assess based purely on query needs:`;
 
       // Update progress tracker to show retry status
       const retryStage = `Retrying with corrective guidance (attempt #${currentRetries + 1})`;
-      this.progressTracker.updateProgress(agentName, 5, retryStage, 0, undefined);
+      await this.progressTracker.updateProgress(agentName, 5, retryStage, 0, undefined);
       
       // Update tracker retry count
       const tracker = this.progressTracker.getTracker(agentName);
@@ -2943,7 +2967,7 @@ Assess based purely on query needs:`;
         console.log(`🎯 Executing ${agentName} retry with applied corrective guidance`);
         
         // Track progress start
-        this.progressTracker.startAgent(agentName, agentName, context);
+        await this.progressTracker.startAgent(agentName, agentName, context);
         
         // Execute with corrective guidance
         await agent.process(context);
