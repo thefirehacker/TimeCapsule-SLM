@@ -1203,7 +1203,8 @@ export function useResearch(
             
             // Check if all subSteps are completed to mark main step as completed
             // Only mark as complete if we have multiple agents and they're all truly done
-            const allCompleted = updatedSubSteps.length > 3 && updatedSubSteps.every(sub => 
+            // Updated for 4-agent flow: DataInspector → PlanningAgent → PatternGenerator → SynthesisCoordinator
+            const allCompleted = updatedSubSteps.length >= 3 && updatedSubSteps.every(sub => 
               sub.status === 'completed' && sub.output
             );
             

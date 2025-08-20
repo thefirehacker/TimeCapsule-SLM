@@ -2076,7 +2076,8 @@ Return as strictly valid JSON:
   async validatePatternGeneratorResults(context: ResearchContext): Promise<{ isValid: boolean; replanAction?: string; reason: string; specificGuidance?: string }> {
     console.log(`🔍 PlanningAgent: Deep validation of PatternGenerator results for query: "${context.query}"`);
     
-    const extractionPatterns = (context.sharedKnowledge as any)?.extractionPatterns;
+    // Fix: Check context.patterns (where PatternGenerator actually stores patterns) instead of sharedKnowledge
+    const extractionPatterns = context.patterns || [];
     if (!extractionPatterns || extractionPatterns.length === 0) {
       return {
         isValid: false,

@@ -18,6 +18,8 @@ export class DataInspectorAgent extends BaseAgent {
   
   private llm: LLMFunction;
   protected progressCallback?: AgentProgressCallback;
+  protected reasoning: string = '';
+  protected conceptSynthesis: string = '';
   
   constructor(llm: LLMFunction, progressCallback?: AgentProgressCallback) {
     super();
@@ -259,7 +261,8 @@ export class DataInspectorAgent extends BaseAgent {
     
     return Object.entries(groups).map(([docId, chunks]) => ({
       documentId: docId,
-      chunks: chunks
+      chunks: chunks,
+      metadata: chunks[0]?.metadata || {}  // 🔥 PRESERVE DOCUMENT METADATA: Extract from first chunk (all chunks from same document have same metadata)
     }));
   }
 
@@ -532,24 +535,58 @@ Provide specific, actionable insights that will guide intelligent extraction and
         reasoning: docAnalysis.reasoning.substring(0, 100) + '...'
       });
       
-      // 🎯 TRUST LLM INTELLIGENCE: If LLM says it's relevant, include it
-      if (docAnalysis.isRelevant) {
-        console.log(`✅ Including relevant document: ${docAnalysis.documentType} (${docAnalysis.primaryEntity})`);
+      // 🎯 RUN INTELLIGENT DISCOVERY FIRST - Get semantic understanding BEFORE making final decision
+      const sampleContent = group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n');
+      
+      // Use LLM to discover content areas based on actual content
+      const contentAreas = await this.discoverContentAreas(docAnalysis.documentType, sampleContent);
+      
+      // Use LLM to discover entities based on actual content  
+      const keyEntities = await this.discoverEntitiesIntelligently(sampleContent);
+      
+      // Use LLM to discover document role based on query and content
+      const role = await this.discoverDocumentRole(i, documentGroups.length, context.query, sampleContent);
+      
+      // 🔍 ENHANCED RELEVANCE DECISION: Use LLM analysis + intelligent discovery + entity alignment
+      const finalRelevance = this.makeFinalRelevanceDecision(
+        docAnalysis, 
+        keyEntities, 
+        contentAreas, 
+        role, 
+        context.query, 
+        group
+      );
+      
+      // 🎯 INCLUDE DOCUMENT: Based on enhanced intelligence (not just initial LLM decision)
+      if (finalRelevance.isRelevant) {
+        console.log(`✅ Including relevant document: ${docAnalysis.documentType} (${finalRelevance.reason})`);
         relevantDocuments.push(group);
         const includeTimestamp = new Date().toLocaleTimeString();
         await this.progressCallback?.onAgentProgress?.(this.name, Math.round(progress + 5), `[${includeTimestamp}] ✅ Including: ${docAnalysis.primaryEntity}`, i + 1, documentGroups.length);
         
-        // Get sample content for deep LLM analysis
-        const sampleContent = group.chunks.slice(0, 2).map((chunk: any) => chunk.text.substring(0, 300)).join('\n\n');
-        
-        // Use LLM to discover content areas based on actual content
-        const contentAreas = await this.discoverContentAreas(docAnalysis.documentType, sampleContent);
-        
-        // Use LLM to discover entities based on actual content  
-        const keyEntities = await this.discoverEntitiesIntelligently(sampleContent);
-        
-        // Use LLM to discover document role based on query and content
-        const role = await this.discoverDocumentRole(i, documentGroups.length, context.query, sampleContent);
+        // Store concept synthesis in shared knowledge for downstream agents
+        if (docAnalysis.conceptSynthesis) {
+          if (!context.sharedKnowledge) {
+            context.sharedKnowledge = {
+              documentInsights: {},
+              extractionStrategies: {},
+              discoveredPatterns: {},
+              agentFindings: {}
+            };
+          }
+          // Store in agentFindings as DataInspector findings
+          if (!context.sharedKnowledge.agentFindings['DataInspector']) {
+            context.sharedKnowledge.agentFindings['DataInspector'] = {};
+          }
+          if (!context.sharedKnowledge.agentFindings['DataInspector'].conceptSynthesis) {
+            context.sharedKnowledge.agentFindings['DataInspector'].conceptSynthesis = [];
+          }
+          context.sharedKnowledge.agentFindings['DataInspector'].conceptSynthesis.push({
+            documentId: group.documentId,
+            synthesis: docAnalysis.conceptSynthesis
+          });
+          console.log(`🎯 DataInspector: Stored concept synthesis for document ${group.documentId}`);
+        }
         
         documents.push({
           documentId: group.documentId,
@@ -562,9 +599,9 @@ Provide specific, actionable insights that will guide intelligent extraction and
           role: role
         });
       } else {
-        console.log(`⏭️ Skipping irrelevant document: ${docAnalysis.documentType} (${docAnalysis.primaryEntity}) - ${docAnalysis.reasoning.substring(0, 50)}...`);
+        console.log(`⏭️ Skipping irrelevant document: ${finalRelevance.reason} - ${docAnalysis.primaryEntity}`);
         const skipTimestamp = new Date().toLocaleTimeString();
-        await this.progressCallback?.onAgentProgress?.(this.name, Math.round(progress + 5), `[${skipTimestamp}] ⏭️ Skipping: ${docAnalysis.primaryEntity}`, i + 1, documentGroups.length);
+        await this.progressCallback?.onAgentProgress?.(this.name, Math.round(progress + 5), `[${skipTimestamp}] ⏭️ Skipping: ${docAnalysis.primaryEntity} (${finalRelevance.reason})`, i + 1, documentGroups.length);
       }
     }
     
@@ -602,6 +639,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
     primaryEntity: string;
     isRelevant: boolean;
     reasoning: string;
+    conceptSynthesis?: string;
   }> {
     const sampleContent = documentGroup.chunks
       .map((chunk: any, idx: number) => `[CHUNK ${idx + 1}]:\n${chunk.text.substring(0, 800)}`)
@@ -622,7 +660,7 @@ Provide specific, actionable insights that will guide intelligent extraction and
       source: documentSource
     });
 
-    const intelligentPrompt = `You are an intelligent document analyzer. Perform comprehensive analysis to understand what this document contains.
+    const intelligentPrompt = `You are an intelligent document analyzer specializing in semantic concept understanding. Perform multi-intelligence analysis using concept mapping rather than surface-level word matching.
 
 DOCUMENT ${docNumber} METADATA:
 Filename: ${documentFilename}
@@ -632,61 +670,128 @@ ${documentUrl ? `URL: ${documentUrl}` : ''}
 DOCUMENT ${docNumber} SAMPLE CONTENT:
 ${sampleContent}
 
-STEP 1: Comprehensive Document Analysis
-Extract ALL information from this document:
+STEP 1: Multi-Intelligence Document Analysis
+Extract comprehensive information from this document:
 
 TOPICS: List all topics, subjects, domains, and fields covered (broad and specific)
 PEOPLE: List all people mentioned (authors, researchers, subjects, references)  
 METHODS: List all techniques, algorithms, approaches, methodologies described
 CONCEPTS: List all key ideas, principles, theories, frameworks discussed
 DATA: List all datasets, experiments, results, metrics, findings mentioned
+PERFORMANCE_INDICATORS: List any performance metrics, timing data, optimization results, benchmarks, speeds, efficiencies
 
-STEP 2: Document Classification
+STEP 2: Document Classification & Entity Resolution
 TYPE: [what kind of document this is]
 MAIN_ENTITY: [primary person/organization/subject this document is about]
 
-STEP 3: Semantic Entity-Query Alignment Analysis
+STEP 3: Entity Filtering & Semantic Analysis  
 USER_QUERY: "${query}"
 
-🔍 CRITICAL: Analyze semantic alignment between document entities and query focus.
+⚠️ DUAL REQUIREMENT: Entity Alignment + Concept Alignment (BOTH must pass)
 
-SEMANTIC RELEVANCE RULES:
-1. **Entity Ownership Analysis**: If query asks about "X's work/projects/research", the document MUST be authored by or primarily about person X
-2. **Attribution Matching**: A document about Person A's work is NOT relevant to queries about Person B's work, even if they work on similar topics
-3. **Contextual Authority**: Consider who created, authored, or owns the content described in the document
-4. **Subject vs Author Distinction**: A document ABOUT a topic is different from a document BY someone about that topic
+STEP 3A: ENTITY ALIGNMENT CHECK
+- Extract query entity: Who/what is the query asking about? (possessive patterns like "X's work")  
+- Extract document entity: Who/what is document about? (filename + content analysis)
+- Entity match required: Query entity must match document entity
 
-QUERY FOCUS ANALYSIS:
-- Extract the main subject/person the query is asking about
-- Identify if the query is asking for someone's specific work/contributions
-- Determine if query needs content BY a person vs ABOUT a topic
+STEP 3B: CONCEPT ALIGNMENT CHECK  
+- Extract query concepts: What information is needed? (analyze technical terms and intent)
+- Extract document concepts: What information does document provide?
+- Concept match required: Document must contain the type of information query seeks
 
-DOCUMENT OWNERSHIP ANALYSIS:
-- Who is the primary author/creator of this document's content?
-- Who does this document's work/research/projects belong to?
-- What entities have ownership/attribution in this document?
+STEP 3C: CONCEPT SYNTHESIS (Semantic Intelligence Snapshot)
+- Define query concepts in document context: What do the query terms mean specifically in this document?
+- Create semantic concept mappings: How do document concepts relate to query concepts?
+- Generate insight synthesis: What is the core understanding that connects query intent with document content?
+- This provides downstream agents with semantic intelligence about concept relationships
 
-CRITICAL ENTITY-QUERY ALIGNMENT:
-Step 3: Zero-Hardcoding Semantic Validation
-- Extract PRIMARY PERSON/ENTITY from query pattern analysis: "${query}"
-- Extract PRIMARY PERSON/ENTITY this document belongs to or is authored by
-- OWNERSHIP RULE: Documents about Entity A are NEVER relevant for queries about Entity B
-- PATTERN RECOGNITION: Look for possessive patterns ("X's work", "from Y's blog", "by Z") to identify query entity
-- DOCUMENT ENTITY: Identify who this document belongs to through authorship, name analysis, and content attribution
+🎯 COMBINED DECISION: Document is RELEVANT only if BOTH entity AND concept alignment pass
+1. **Query Concept Extraction**: Break down the query into semantic concepts
+   - Identify core concepts beyond surface words
+   - Map technical terms to their broader meanings dynamically based on context
+   - Extract intent patterns (ranking queries, comparison queries, specific attribute queries)
 
-ENTITY OWNERSHIP VERIFICATION:
-- Query targets entity: [extract entity from query using pattern recognition]
-- Document belongs to entity: [extract document owner through content analysis]  
-- Semantic match: [YES only if same entity, NO if different entities regardless of topic overlap]
+2. **Document Concept Extraction**: Identify what semantic concepts this document covers
+   - Technical capabilities and performance aspects
+   - Methodologies and optimization techniques  
+   - Experimental results and benchmarking data
+   - Training processes and efficiency metrics
 
-RELEVANT: [YES only if entity ownership matches AND content aligns. NO for entity ownership mismatch]
-REASON: [explain entity ownership analysis first: who query asks for vs who document is about, then content relevance]
+3. **Semantic Concept Mapping**: Match query concepts with document concepts
+   - Does document content semantically align with query concepts?
+   - Are the underlying technical domains related?
+   - Does document provide the type of information query seeks?
+
+4. **Entity Resolution**: Resolve entities using multiple signals
+   - Extract entities from filename metadata (author indicators)
+   - Check content attribution and authorship
+   - Consider document provenance and source
+
+SEMANTIC RELEVANCE ANALYSIS:
+Query: "${query}"
+
+QUERY CONCEPT ANALYSIS:
+- Break down query terms into semantic concepts dynamically
+- Identify what type of information is being requested
+- Extract entity references and their context (possessive forms, attribution)
+
+DOCUMENT CONCEPT ANALYSIS: 
+- What core concepts and themes does this document cover?
+- What methodologies, techniques, and results does it contain?
+- How does the document's content relate to the query's conceptual intent?
+
+SEMANTIC MATCHING:
+- Concept alignment: Do document concepts semantically match query concepts?
+- Information type match: Does document provide the type of data query seeks?
+- Entity match: Does document entity/author align with query entity (using filename, content attribution)?
+
+HOLISTIC RELEVANCE DECISION:
+Consider ALL signals together:
+- Semantic concept overlap between query and document
+- Document's ability to answer the query type
+- Entity/authorship alignment from multiple sources
+- Content depth and relevance to query intent
+
+🔍 SEMANTIC VERIFICATION (Critical for Small LLMs):
+
+STEP 4A: DOMAIN VERIFICATION
+Query domain: [Extract semantic domain - gaming/research/education/tech/blog]
+Document domain: [Extract semantic domain from content and metadata]
+Domain match: [YES/NO - Do they represent the same semantic field?]
+
+STEP 4B: ENTITY RELATIONSHIP VERIFICATION  
+Query requests content from: [Extract person/entity name from query]
+Document authored by/about: [Extract person/entity from filename and content]
+Entity relationship: [YES/NO - Is this the exact same entity?]
+
+STEP 4C: CONTEXT VALIDATION
+Shared words: [List words that appear in both query and document]
+Context analysis: [For each shared word, does it mean the same thing in both contexts?]
+Example: "speed" in gaming context vs "speed" in testing context = DIFFERENT
+Context validation: [YES/NO - Do shared words have same meaning in both contexts?]
+
+⚠️ MANDATORY DECISION LOGIC:
+1. DOMAIN VERIFICATION: Query and document must be in same semantic domain
+2. ENTITY ALIGNMENT: Extract entity from query → Document MUST be about same entity (check filename/content)
+3. CONCEPT ALIGNMENT: Extract concepts from query → Document MUST contain relevant concept data
+4. CONTEXT VALIDATION: Shared words must mean the same thing in both contexts
+5. ALL REQUIRED: Document passes ONLY if ALL checks pass
+
+ENHANCED DECISION MATRIX:
+- Domain match + Entity match + Concept match + Context valid = YES
+- Any single check fails = NO (prevents false positives from word overlap)
 
 Respond in exact format:
 TYPE: [document type]
 MAIN_ENTITY: [main subject]
-RELEVANT: [YES/NO]
-REASON: [detailed reasoning based on extracted content]`;
+QUERY_DOMAIN: [extracted query semantic domain]
+DOCUMENT_DOMAIN: [extracted document semantic domain]
+DOMAIN_MATCH: [YES/NO]
+ENTITY_RELATIONSHIP: [YES/NO]
+CONTEXT_VALIDATION: [YES/NO]
+RELEVANT: [YES only if ALL verification checks pass, NO if any fails]  
+REASON: [MANDATORY FORMAT: "DOMAIN: [domain analysis]. ENTITY: [entity analysis]. CONTEXT: [context analysis]. RESULT: [Final decision]"]
+CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this document context]`;
 
     try {
       // 🐛 DEBUG: Log the full prompt being sent to LLM
@@ -706,6 +811,11 @@ REASON: [detailed reasoning based on extracted content]`;
       let mainEntity = this.extractValue(response, 'MAIN_ENTITY') || 'Unknown Entity';
       const relevantText = this.extractValue(response, 'RELEVANT') || 'NO';
       const reasoning = this.extractValue(response, 'REASON') || 'No reasoning provided';
+      const conceptSynthesis = this.extractValue(response, 'CONCEPT_SYNTHESIS') || 'No concept synthesis available';
+      
+      // Store reasoning and concept synthesis for use in extractSpecificInsights
+      this.reasoning = reasoning;
+      this.conceptSynthesis = conceptSynthesis;
       
       // 🔥 FALLBACK ENTITY EXTRACTION: If MAIN_ENTITY extraction failed or got malformed data
       if (mainEntity.includes('RELEVANT:') || mainEntity.includes('REASON:') || 
@@ -744,8 +854,8 @@ REASON: [detailed reasoning based on extracted content]`;
         docType, mainEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
       });
       
-      // Enhanced relevance determination with holistic semantic analysis including metadata
-      const isRelevant = this.determineRelevanceFromResponse(relevantText, reasoning, query, mainEntity, documentFilename);
+      // 🔥 PURE LLM DECISION: Extract clean LLM response without entity contamination
+      const isRelevant = relevantText.trim().toUpperCase() === 'YES' || relevantText.trim().toUpperCase().startsWith('YES');
       
       console.log(`🔍 COMPREHENSIVE ANALYSIS: Query="${query}", Entity="${mainEntity}" → Result: ${isRelevant}`);
       
@@ -753,7 +863,8 @@ REASON: [detailed reasoning based on extracted content]`;
         documentType: docType,
         primaryEntity: mainEntity,
         isRelevant: isRelevant,
-        reasoning: reasoning
+        reasoning: reasoning,
+        conceptSynthesis: this.conceptSynthesis
       };
       
     } catch (error) {
@@ -762,7 +873,8 @@ REASON: [detailed reasoning based on extracted content]`;
         documentType: 'Unknown Document',
         primaryEntity: 'Unknown Entity',
         isRelevant: true, // Default to including rather than filtering out
-        reasoning: 'Analysis failed, including document to avoid losing data'
+        reasoning: 'Analysis failed, including document to avoid losing data',
+        conceptSynthesis: undefined
       };
     }
   }
@@ -924,95 +1036,147 @@ REASON: [detailed reasoning based on extracted content]`;
 
 
   /**
-   * Enhanced relevance determination with holistic semantic analysis
-   * Trusts LLM's judgment while providing safety checks for obvious mismatches
+   * Zero-hardcoding relevance determination with pure LLM semantic analysis
+   * Trusts LLM's semantic judgment completely with minimal generic validation
    */
   private determineRelevanceFromResponse(relevantText: string, reasoning: string, query: string, mainEntity: string, documentFilename?: string): boolean {
     // Clean inputs for analysis
     const cleanRelevantText = relevantText.trim().toUpperCase();
-    const cleanReasoning = reasoning.trim().toLowerCase();
+    const cleanReasoning = reasoning.trim();
     
-    // 🔥 PRIMARY: Trust the LLM's explicit YES - it has full document context
+    // 🎯 PRIMARY: Entity alignment check FIRST, then trust LLM semantic analysis
+    const hasEntityAlignment = this.checkEntityAlignment(query, cleanReasoning, mainEntity, documentFilename);
+    
     if (cleanRelevantText === 'YES' || cleanRelevantText.startsWith('YES')) {
-      console.log(`✅ DataInspector: LLM determined document is relevant based on holistic analysis`);
+      // Only trust LLM YES if entity alignment passes
+      if (hasEntityAlignment) {
+        console.log(`✅ DataInspector: LLM says YES + Entity alignment confirmed = RELEVANT`);
+        return true;
+      } else {
+        console.log(`❌ DataInspector: LLM says YES but ENTITY MISMATCH detected - overriding to NOT RELEVANT`);
+        console.log(`   Query entity check failed for: "${query}" with document: "${documentFilename}"`);
+        return false; // Override LLM decision due to entity mismatch
+      }
+    }
+    
+    // 🔥 For explicit NO, check if reasoning is substantial
+    if (cleanRelevantText === 'NO' || cleanRelevantText.startsWith('NO')) {
+      // Generic validation: check if reasoning explains the rejection
+      const hasSubstantialNegativeReasoning = cleanReasoning.length > 20 &&
+                                             !cleanReasoning.toLowerCase().includes('no reason');
+      
+      if (hasSubstantialNegativeReasoning) {
+        console.log(`❌ DataInspector: LLM says NO with substantial reasoning`);
+        return false;
+      } else {
+        // Even with minimal reasoning, respect LLM's NO decision
+        console.log(`❌ DataInspector: LLM says NO - respecting judgment`);
+        return false;
+      }
+    }
+    
+    // 🎯 FALLBACK: Generic entity alignment check (zero hardcoding) - use existing variable
+    
+    // 🔥 DEFAULT: Trust the LLM's analysis - it has full context
+    const defaultDecision = !cleanRelevantText.includes('NO');
+    
+    console.log(`🔍 DataInspector: Zero-hardcoding analysis:`, {
+      relevantText: cleanRelevantText,
+      reasoningLength: cleanReasoning.length,
+      hasEntityAlignment,
+      defaultDecision
+    });
+    
+    console.log(`📋 DataInspector: Using LLM's semantic analysis: ${defaultDecision ? 'relevant' : 'not relevant'}`);
+    return defaultDecision;
+  }
+
+  /**
+   * Zero-hardcoding entity alignment using generic patterns only
+   */
+  private checkEntityAlignment(query: string, reasoning: string, mainEntity: string, documentFilename?: string): boolean {
+    // Generic pattern extraction: possessive patterns ("X's work", "from Y's blog", "by Z")
+    const possessivePatterns = [
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'s\s+/g,         // "Name's work" or "First Last's work"
+      /from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'s\s+/g,    // "from Name's blog"  
+      /by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g,           // "by Name" or "by First Last"
+    ];
+    
+    // Extract all potential entities from query using generic patterns
+    const queryEntities: string[] = [];
+    for (const pattern of possessivePatterns) {
+      let match;
+      while ((match = pattern.exec(query)) !== null) {
+        if (match[1]) {
+          queryEntities.push(match[1].toLowerCase().trim());
+        }
+      }
+    }
+    
+    if (queryEntities.length === 0) {
+      // No specific entities in query, consider entity match satisfied
       return true;
     }
     
-    // 🔥 For explicit NO, verify with reasoning
-    if (cleanRelevantText === 'NO' || cleanRelevantText.startsWith('NO')) {
-      // Check if reasoning confirms it's not relevant
-      const negativeSignals = [
-        'not related', 'unrelated', 'does not align', 'irrelevant',
-        'different entity', 'mismatch', 'not about', 'not from'
-      ];
-      
-      const hasStrongNegativeSignal = negativeSignals.some(signal => 
-        cleanReasoning.includes(signal)
-      );
-      
-      if (hasStrongNegativeSignal) {
-        console.log(`❌ DataInspector: LLM says NO with strong negative signals in reasoning`);
-        return false;
-      }
-    }
+    // Generic filename and reasoning checks (no hardcoded names)
+    const cleanFilename = (documentFilename || '').toLowerCase();
+    const cleanReasoning = reasoning.toLowerCase();
     
-    // 🔥 HOLISTIC ANALYSIS: Check multiple signals for edge cases
-    const queryEntityMatch = query.match(/\b([A-Z][a-z]+)'s\s+(.+)/);
-    if (queryEntityMatch) {
-      const expectedEntity = queryEntityMatch[1].toLowerCase(); // "tyler"
-      const queryContext = queryEntityMatch[2].toLowerCase(); // "blog"
+    // Check if any extracted entity appears in filename ONLY (NO HARDCODING)
+    // Don't use LLM reasoning to avoid circular validation
+    const hasEntityMatch = queryEntities.some(entity => {
+      // Split entity into words for partial matching
+      const entityWords = entity.split(/\s+/);
       
-      // 🔥 Check filename for author information
-      const cleanFilename = (documentFilename || '').toLowerCase();
-      const filenameHasEntity = cleanFilename.includes(expectedEntity) || 
-                                cleanFilename.includes(`${expectedEntity}romero`) || // tylerromero
-                                cleanFilename.includes(`${expectedEntity}-`); // tyler-blog etc
-      
-      if (filenameHasEntity) {
-        console.log(`✅ DataInspector: Author "${expectedEntity}" found in filename: "${documentFilename}"`);
-        return true; // Document belongs to the query entity
+      // Check filename for any entity word (if filename available)
+      if (cleanFilename && cleanFilename !== 'unknown') {
+        const inFilename = entityWords.some(word => 
+          word.length > 2 && cleanFilename.includes(word)
+        );
+        return inFilename;
       }
       
-      // Check multiple signals holistically
-      const signals = {
-        entityInReasoning: cleanReasoning.includes(expectedEntity),
-        contextInReasoning: cleanReasoning.includes(queryContext),
-        entityInMainEntity: mainEntity.toLowerCase().includes(expectedEntity),
-        entityInFilename: filenameHasEntity,
-        // Check if reasoning mentions the document belongs to or is authored by the entity
-        authorshipMentioned: cleanReasoning.includes(`${expectedEntity}'s`) || 
-                            cleanReasoning.includes(`by ${expectedEntity}`) ||
-                            cleanReasoning.includes(`from ${expectedEntity}`),
-        // Check for query-relevant terms
-        hasSpeedrun: cleanReasoning.includes('speedrun') || cleanReasoning.includes('speed run'),
-        hasBlog: cleanReasoning.includes('blog'),
-        hasRelevantContent: cleanReasoning.includes('language model') || 
-                           cleanReasoning.includes('training') ||
-                           cleanReasoning.includes('performance')
-      };
+      // If no meaningful filename, apply multi-intelligence validation
+      // NO HARDCODING: Check mainEntity ONLY (not reasoning to avoid circular validation)
       
-      // Count positive signals
-      const positiveSignalCount = Object.values(signals).filter(s => s === true).length;
+      // Check if entity appears in mainEntity (NOT in reasoning to avoid circular logic)
+      const mainEntityLower = mainEntity.toLowerCase();
+      const entityFoundInMainEntity = entityWords.some(word => {
+        const wordLower = word.toLowerCase();
+        // Only check meaningful words (skip short words like "a", "the", etc.)
+        if (wordLower.length <= 2) return false;
+        
+        // Check if this entity word appears in the document's mainEntity ONLY
+        return mainEntityLower.includes(wordLower);
+      });
       
-      console.log(`🔍 DataInspector: Holistic analysis signals for "${expectedEntity}'s ${queryContext}":`, signals);
+      // Multi-intelligence approach: Check for obvious mismatches
+      // If mainEntity is clearly about something completely different, flag it
+      const queryEntityLower = entity.toLowerCase();
       
-      // If multiple positive signals, likely relevant even if entity name isn't in MAIN_ENTITY
-      if (positiveSignalCount >= 2) {
-        console.log(`✅ DataInspector: Holistic match with ${positiveSignalCount} positive signals`);
-        return true;
+      // Generic categories that indicate wrong document (NO HARDCODING specific names)
+      const isGenericCategory = /^(education|science|engineering|history|mathematics|physics|chemistry|biology)/.test(mainEntityLower);
+      const isPersonQuery = /^[A-Z][a-z]+/.test(entity); // Queries for specific people start with capital letter
+      
+      // If query asks for specific person but mainEntity is generic category, likely mismatch
+      if (isPersonQuery && isGenericCategory && !entityFoundInMainEntity) {
+        return false; // Clear mismatch - different domain
       }
       
-      // Only reject if NO signals match AND LLM didn't say YES
-      if (positiveSignalCount === 0 && !cleanRelevantText.includes('YES')) {
-        console.log(`⚠️ DataInspector: No holistic signals found and LLM didn't say YES`);
-        return false;
-      }
-    }
+      // Otherwise trust multi-intelligence: if entity found in mainEntity, accept
+      return entityFoundInMainEntity;
+    });
     
-    // 🔥 DEFAULT: Trust the LLM's judgment - it has more context than our simple checks
-    const defaultDecision = !cleanRelevantText.includes('NO');
-    console.log(`📋 DataInspector: Using LLM's judgment as default: ${defaultDecision ? 'relevant' : 'not relevant'}`);
-    return defaultDecision;
+    console.log(`🔍 Zero-hardcoding entity alignment check:`, {
+      extractedEntities: queryEntities,
+      mainEntity: mainEntity,
+      filename: documentFilename,
+      hasEntityMatch,
+      reasoningLength: reasoning?.length || 0,
+      filenameCheck: documentFilename && documentFilename !== 'unknown' ? 'via filename' : 'via document text'
+    });
+    
+    return hasEntityMatch;
   }
 
   /**
@@ -1385,49 +1549,203 @@ Return just the role: source, target, or reference`;
   }
   
   /**
-   * 🔥 Extract specific semantic insights that must be preserved (person-specific understanding)
+   * 🔥 Extract specific semantic insights that must be preserved (NO HARDCODING)
+   * Parse concept relationships from existing LLM reasoning for downstream agents
    */
   private extractSpecificInsights(documentAnalysis: any, query: string): string[] {
     // @ts-ignore - documentAnalysis parameter currently unused but kept for future enhancement
     const insights: string[] = [];
-    const reasoning = this.reasoning.toLowerCase();
-    const queryLower = query.toLowerCase();
+    const reasoning = this.reasoning;
     
-    // Extract person-specific insights dynamically
-    const personMatches = queryLower.match(/(\w+)'s\s+(\w+)/g);
-    if (personMatches) {
-      personMatches.forEach(match => {
-        const [person, possession] = match.split("'s ");
-        if (reasoning.includes(person.toLowerCase())) {
-          insights.push(`CRITICAL: User wants ${person}'s personal ${possession}, not generic data`);
-          insights.push(`FOCUS: ${person} has their own content documented`);
-        }
-      });
+    console.log(`🔍 DEBUG extractSpecificInsights: reasoning length = ${reasoning?.length || 0}`);
+    console.log(`🔍 DEBUG extractSpecificInsights: reasoning preview = ${reasoning?.substring(0, 200) || 'NO REASONING'}...`);
+    
+    // 🎯 NO HARDCODING: Extract semantic concept mappings from LLM reasoning
+    const conceptMappings = this.extractSemanticConceptMappings(reasoning, query);
+    console.log(`🔍 DEBUG conceptMappings found: ${conceptMappings.length} items:`, conceptMappings);
+    insights.push(...conceptMappings);
+    
+    // 🎯 NO HARDCODING: Extract domain context relationships
+    const domainContext = this.extractDomainContext(reasoning, query);
+    console.log(`🔍 DEBUG domainContext found: ${domainContext.length} items:`, domainContext);
+    insights.push(...domainContext);
+    
+    // 🎯 NO HARDCODING: Extract measurement/performance relationships
+    const measurementContext = this.extractMeasurementContext(reasoning, query);
+    console.log(`🔍 DEBUG measurementContext found: ${measurementContext.length} items:`, measurementContext);
+    insights.push(...measurementContext);
+    
+    // 🎯 NO HARDCODING: Extract entity-concept associations 
+    const entityConcepts = this.extractEntityConceptAssociations(reasoning, query);
+    console.log(`🔍 DEBUG entityConcepts found: ${entityConcepts.length} items:`, entityConcepts);
+    insights.push(...entityConcepts);
+    
+    // 🎯 CONCEPT SYNTHESIS: Add semantic intelligence snapshot for downstream agents
+    if (this.conceptSynthesis && this.conceptSynthesis !== 'No concept synthesis available') {
+      console.log(`🔍 DEBUG conceptSynthesis found:`, this.conceptSynthesis);
+      insights.push(`CONCEPT_SYNTHESIS: ${this.conceptSynthesis}`);
     }
     
-    // Extract ownership patterns dynamically
+    console.log(`🔍 DEBUG extractSpecificInsights FINAL: ${insights.length} total insights:`, insights);
+    
+    return insights.filter(insight => insight.length > 0);
+  }
+  
+  /**
+   * NO HARDCODING: Extract semantic concept mappings from LLM reasoning
+   */
+  private extractSemanticConceptMappings(reasoning: string, query: string): string[] {
+    const mappings: string[] = [];
+    
+    // Generic patterns to find concept relationships (NO HARDCODING)
+    const conceptPatterns = [
+      // "X aligns with Y", "X refers to Y", "X means Y"
+      /([^.]+?)\s+(?:aligns? with|refers? to|means?|is about|relates to)\s+([^.]+?)(?:\.|$)/gi,
+      // "semantic concepts include X", "query concepts: X"
+      /(?:semantic concepts?|query concepts?)[^:]*:\s*([^.]+?)(?:\.|$)/gi,
+      // "document concepts: X", "concepts.*include X"
+      /(?:document concepts?|concepts?.*include)[^:]*:\s*([^.]+?)(?:\.|$)/gi,
+      // "X semantically matches Y"
+      /([^.]+?)\s+semantically (?:matches?|aligns? with)\s+([^.]+?)(?:\.|$)/gi
+    ];
+    
+    for (const pattern of conceptPatterns) {
+      let match;
+      while ((match = pattern.exec(reasoning)) !== null) {
+        if (match[1] && match[1].trim().length > 3) {
+          const mapping = match[0].trim();
+          // Clean up the mapping text
+          const cleanMapping = mapping.replace(/^[^a-zA-Z]+/, '').replace(/[^a-zA-Z0-9\s\-_,.:;()]+$/, '');
+          if (cleanMapping.length > 10) { // Only meaningful mappings
+            mappings.push(`CONCEPT_MAPPING: ${cleanMapping}`);
+          }
+        }
+      }
+    }
+    
+    return mappings;
+  }
+  
+  /**
+   * NO HARDCODING: Extract domain context from reasoning
+   */
+  private extractDomainContext(reasoning: string, query: string): string[] {
+    const contexts: string[] = [];
+    
+    // Generic patterns for domain context (NO HARDCODING)
+    const domainPatterns = [
+      // "in X context", "X domain", "X field"
+      /(?:in|within)\s+([^\s]+)\s+(?:context|domain|field)/gi,
+      // "X performance", "X optimization", "X benchmarking"
+      /([A-Za-z0-9\/\-]+)\s+(?:performance|optimization|benchmarking|metrics|efficiency)/gi,
+      // "type of X", "kind of X"
+      /(?:type|kind)\s+of\s+([^.]+?)(?:\.|$)/gi
+    ];
+    
+    for (const pattern of domainPatterns) {
+      let match;
+      while ((match = pattern.exec(reasoning)) !== null) {
+        if (match[1] && match[1].trim().length > 2) {
+          const context = match[1].trim();
+          contexts.push(`DOMAIN_CONTEXT: ${context}`);
+        }
+      }
+    }
+    
+    return contexts;
+  }
+  
+  /**
+   * NO HARDCODING: Extract measurement/performance context
+   */
+  private extractMeasurementContext(reasoning: string, query: string): string[] {
+    const measurements: string[] = [];
+    
+    // Generic patterns for measurement context (NO HARDCODING)
+    const measurementPatterns = [
+      // "timing data", "performance metrics", "speed measurements"
+      /(timing\s+data|performance\s+metrics|speed\s+measurements?|efficiency\s+metrics?|benchmarking\s+data)/gi,
+      // "X hours", "X minutes", "X seconds" - indicates timing relevance
+      /(?:mentions?|includes?|contains?).*?(\d+(?:\.\d+)?\s+(?:hours?|minutes?|seconds?|ms|milliseconds?))/gi,
+      // "ranking", "top X", "fastest", "best"
+      /(?:ranking|top\s+\d+|fastest|best|optimization)\s+(?:by|for|based\s+on)\s+([^.]+?)(?:\.|$)/gi
+    ];
+    
+    for (const pattern of measurementPatterns) {
+      let match;
+      while ((match = pattern.exec(reasoning)) !== null) {
+        const measurement = match[0].trim();
+        if (measurement.length > 5) {
+          measurements.push(`MEASUREMENT_CONTEXT: ${measurement}`);
+        }
+      }
+    }
+    
+    return measurements;
+  }
+  
+  /**
+   * NO HARDCODING: Extract entity-concept associations
+   */
+  private extractEntityConceptAssociations(reasoning: string, query: string): string[] {
+    const associations: string[] = [];
+    
+    // Generic patterns for entity-concept links (NO HARDCODING)
+    const entityPatterns = [
+      // "X's Y refers to Z", "X's Y means Z"
+      /([A-Za-z]+)'s\s+([^\s]+)\s+(?:refers? to|means?|is about|relates to)\s+([^.]+?)(?:\.|$)/gi,
+      // "document.*X.*contains Y", "X.*document.*Y"
+      /(?:document.*contains?|includes?)\s+([^.]+?)(?:\.|$)/gi,
+      // "entity.*X.*Y", "authorship.*X.*Y"
+      /(?:entity|authorship)[^:]*:\s*([^.]+?)(?:\.|$)/gi
+    ];
+    
+    for (const pattern of entityPatterns) {
+      let match;
+      while ((match = pattern.exec(reasoning)) !== null) {
+        if (match[1] && match[1].trim().length > 3) {
+          const association = match[0].trim();
+          const cleanAssociation = association.replace(/^[^a-zA-Z]+/, '').replace(/[^a-zA-Z0-9\s\-_,.:;()]+$/, '');
+          if (cleanAssociation.length > 10) {
+            associations.push(`ENTITY_CONCEPT: ${cleanAssociation}`);
+          }
+        }
+      }
+    }
+    
+    return associations;
+  }
+  
+  /**
+   * NO HARDCODING: Extract legacy ownership patterns  
+   */
+  private extractLegacyOwnershipPatterns(reasoning: string, query: string): string[] {
+    const legacyInsights: string[] = [];
+    const queryLower = query.toLowerCase();
+    
+    // Extract ownership patterns dynamically (NO HARDCODING)
     const ownershipPatterns = reasoning.match(/(\w+)'s (\w+)/g);
     if (ownershipPatterns) {
       ownershipPatterns.forEach(pattern => {
-        insights.push(`DOCUMENT OWNERSHIP: This is ${pattern} with their own content`);
+        legacyInsights.push(`DOCUMENT OWNERSHIP: This is ${pattern} with their own content`);
       });
     }
     
-    // Extract ranking requirements
+    // Extract ranking requirements (NO HARDCODING)
     const topNumbers = queryLower.match(/top\s+(\d+|three|five)/g);
     if (topNumbers) {
-      insights.push(`RANKING REQUIRED: User wants ${topNumbers[0]} ranked items, not all data`);
+      legacyInsights.push(`RANKING REQUIRED: User wants ${topNumbers[0]} ranked items, not all data`);
     }
     
-    // Extract content type patterns
+    // Extract content type patterns (NO HARDCODING)
     const contentTypes = reasoning.match(/(\w+)\s+(?:timing|data|metrics|achievements)/g);
     if (contentTypes) {
       contentTypes.forEach(type => {
-        insights.push(`CONTENT TYPE: Document contains ${type} data and performance metrics`);
+        legacyInsights.push(`CONTENT TYPE: Document contains ${type} data and performance metrics`);
       });
     }
     
-    return insights;
+    return legacyInsights;
   }
   
   /**
@@ -1812,10 +2130,10 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
   private async parseExtractedTerms_OLD(response: string): Promise<any> {
     // Keep old implementation for reference
     const insights = {
-      methods: [],
-      concepts: [],
-      people: [],
-      data: []
+      methods: [] as string[],
+      concepts: [] as string[],
+      people: [] as string[],
+      data: [] as string[]
     };
     
     try {
@@ -2095,7 +2413,7 @@ Extract the most relevant and specific terms for this query:`;
 
   /**
    * 🎯 ZERO-HARDCODING: Extract document source requirements from query
-   * Understands queries like "from Tyler's blog", "in X's work", etc.
+   * 
    */
   private extractSourceRequirement(query: string): { sourceRequired: boolean; sourceName?: string; sourceType?: string } {
     // Pattern recognition for source specification (no hardcoding)
@@ -2131,6 +2449,174 @@ Extract the most relevant and specific terms for this query:`;
       sourceRequired: !!(sourceName),
       sourceName,
       sourceType
+    };
+  }
+
+  /**
+   * 🎯 ENHANCED RELEVANCE DECISION: Combine LLM + intelligent discovery + entity alignment
+   * NO HARDCODING - uses generic patterns and discovered intelligence
+   */
+  private makeFinalRelevanceDecision(
+    docAnalysis: any,
+    keyEntities: any[],
+    contentAreas: any[],
+    role: any,
+    query: string,
+    documentGroup: any
+  ): { isRelevant: boolean; reason: string } {
+    
+    // 🔥 STEP 1: Start with LLM semantic intelligence as primary signal
+    const llmSaysRelevant = docAnalysis.isRelevant;
+    const llmReasoning = docAnalysis.reasoning || '';
+    
+    // 🔥 STEP 2: Enhanced entity alignment using discovered entities + filename + mainEntity
+    const discoveredEntityNames = keyEntities
+      .filter(entity => entity?.name && typeof entity.name === 'string')
+      .map(entity => entity.name.toLowerCase());
+    
+    const documentFilename = documentGroup.metadata?.filename || documentGroup.metadata?.name || 'unknown';
+    const mainEntity = docAnalysis.primaryEntity || '';
+    
+    // Extract query entities (NO HARDCODING - generic extraction)
+    const queryWords = query.toLowerCase().split(/\s+/);
+    const queryEntities = queryWords.filter(word => word.length > 2 && /^[a-z]/.test(word));
+    
+    // Multi-intelligence entity check: discovered entities + filename + mainEntity
+    const entityAlignment = this.checkEnhancedEntityAlignment(
+      query, 
+      queryEntities, 
+      discoveredEntityNames, 
+      documentFilename, 
+      mainEntity,
+      llmReasoning
+    );
+    
+    // 🔥 STEP 3: Final decision logic (NO HARDCODING) - Handle ALL cases
+    
+    // CASE 1: LLM says RELEVANT
+    if (llmSaysRelevant && entityAlignment.hasMatch) {
+      return { 
+        isRelevant: true, 
+        reason: `LLM + Entity Match: ${entityAlignment.matchType}` 
+      };
+    }
+    
+    if (llmSaysRelevant && !entityAlignment.hasMatch && entityAlignment.isObviousMismatch) {
+      return { 
+        isRelevant: false, 
+        reason: `LLM override: ${entityAlignment.mismatchReason}` 
+      };
+    }
+    
+    if (llmSaysRelevant && !entityAlignment.hasMatch && !entityAlignment.isObviousMismatch) {
+      return { 
+        isRelevant: true, 
+        reason: `Trust LLM semantic analysis (no obvious mismatch)` 
+      };
+    }
+    
+    // 🚀 CASE 2: LLM says NOT RELEVANT - But intelligence can override!
+    if (!llmSaysRelevant && entityAlignment.hasMatch && !entityAlignment.isObviousMismatch) {
+      return { 
+        isRelevant: true, 
+        reason: `🧠 Intelligence Override: ${entityAlignment.matchType} (LLM was wrong)` 
+      };
+    }
+    
+    if (!llmSaysRelevant && entityAlignment.hasMatch && entityAlignment.isObviousMismatch) {
+      return { 
+        isRelevant: false, 
+        reason: `Conflicting signals: Entity match but obvious domain mismatch` 
+      };
+    }
+    
+    // CASE 3: Both LLM and intelligence agree it's not relevant
+    return { 
+      isRelevant: false, 
+      reason: `LLM + Intelligence agree: Not relevant (${docAnalysis.primaryEntity})` 
+    };
+  }
+
+  /**
+   * 🔍 ENHANCED ENTITY ALIGNMENT: Use all available intelligence sources
+   * NO HARDCODING - generic pattern matching and entity discovery
+   */
+  private checkEnhancedEntityAlignment(
+    query: string,
+    queryEntities: string[],
+    discoveredEntityNames: string[],
+    documentFilename: string,
+    mainEntity: string,
+    llmReasoning: string
+  ): { hasMatch: boolean; matchType: string; isObviousMismatch: boolean; mismatchReason: string } {
+    
+    // Check discovered entities first (most reliable)
+    const entityFoundInDiscovered = queryEntities.some(queryEntity => 
+      discoveredEntityNames.some(discovered => 
+        discovered.includes(queryEntity) || queryEntity.includes(discovered)
+      )
+    );
+    
+    if (entityFoundInDiscovered) {
+      return { 
+        hasMatch: true, 
+        matchType: 'discovered entities', 
+        isObviousMismatch: false, 
+        mismatchReason: '' 
+      };
+    }
+    
+    // Check filename (if available and meaningful)
+    if (documentFilename && documentFilename !== 'unknown') {
+      const cleanFilename = documentFilename.toLowerCase();
+      const entityFoundInFilename = queryEntities.some(queryEntity => 
+        cleanFilename.includes(queryEntity) && queryEntity.length > 2
+      );
+      
+      if (entityFoundInFilename) {
+        return { 
+          hasMatch: true, 
+          matchType: 'filename match', 
+          isObviousMismatch: false, 
+          mismatchReason: '' 
+        };
+      }
+    }
+    
+    // Check mainEntity (fallback)
+    const mainEntityLower = mainEntity.toLowerCase();
+    const entityFoundInMainEntity = queryEntities.some(queryEntity => 
+      mainEntityLower.includes(queryEntity) && queryEntity.length > 2
+    );
+    
+    if (entityFoundInMainEntity) {
+      return { 
+        hasMatch: true, 
+        matchType: 'main entity match', 
+        isObviousMismatch: false, 
+        mismatchReason: '' 
+      };
+    }
+    
+    // Check for obvious domain mismatches (NO HARDCODING - generic categories)
+    const isGenericCategory = /^(education|science|engineering|history|mathematics|physics|chemistry|biology|career|work|experience)/i.test(mainEntity);
+    const queryHasPersonName = queryEntities.some(entity => /^[A-Z]/.test(entity));
+    
+    if (queryHasPersonName && isGenericCategory) {
+      return { 
+        hasMatch: false, 
+        matchType: '', 
+        isObviousMismatch: true, 
+        mismatchReason: 'Person query vs generic category document' 
+      };
+    }
+    
+    // No match found, but not obviously wrong either
+    return { 
+      hasMatch: false, 
+      matchType: '', 
+      isObviousMismatch: false, 
+      mismatchReason: 'No entity match found' 
     };
   }
 }

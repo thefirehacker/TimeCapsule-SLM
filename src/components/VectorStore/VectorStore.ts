@@ -839,10 +839,10 @@ export class VectorStore {
         const docData = doc.toJSON();
         return {
           id: docData.id,
-          filename: docData.filename,
+          filename: docData.metadata?.filename || docData.title || 'untitled',
           title: docData.title,
-          uploadedAt: docData.uploadedAt,
-          description: docData.description,
+          uploadedAt: docData.metadata?.uploadedAt || docData.uploadedAt,
+          description: docData.metadata?.description || docData.description || '',
           metadata: docData.metadata,
           chunkCount: docData.chunks?.length || 0,
           type: docData.type, // Include type for verification

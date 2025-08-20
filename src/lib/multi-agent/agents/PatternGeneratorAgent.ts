@@ -6,7 +6,7 @@
  */
 
 import { BaseAgent } from '../interfaces/Agent';
-import { ResearchContext } from '../interfaces/Context';
+import { ResearchContext, ChunkData, ExtractedItem } from '../interfaces/Context';
 import type { VectorStore } from '@/components/VectorStore/VectorStore';
 import { LLMFunction } from '../core/Orchestrator';
 
@@ -54,12 +54,27 @@ export class PatternGeneratorAgent extends BaseAgent {
       console.warn('⚠️ Induction failed, continuing with existing patterns:', e);
     }
     
-    // Report progress: Completed
-    await this.progressCallback?.onAgentProgress(this.name, 100, 'Pattern generation completed');
+    // 🚀 INTEGRATED EXTRACTION: Run extraction immediately after pattern generation
+    console.log(`🎯 PatternGenerator: Running immediate extraction with ${context.patterns.length} generated patterns`);
     
-    // Report completion
+    try {
+      const extractedItems = await this.extractWithGeneratedPatterns(context);
+      context.extractedData.raw = extractedItems;
+      console.log(`✅ PatternGenerator: Extracted ${extractedItems.length} items immediately`);
+      
+      // Update progress reporting to include extraction
+      await this.progressCallback?.onAgentProgress(this.name, 100, `Generated ${context.patterns.length} patterns, extracted ${extractedItems.length} items`);
+    } catch (error) {
+      console.error(`❌ PatternGenerator extraction failed:`, error);
+      // Continue with empty extraction - don't fail completely
+      context.extractedData.raw = [];
+      await this.progressCallback?.onAgentProgress(this.name, 100, `Generated ${context.patterns.length} patterns, extraction failed`);
+    }
+    
+    // Report completion with extraction results
     await this.progressCallback?.onAgentComplete?.(this.name, {
       patternsGenerated: context.patterns.length,
+      itemsExtracted: context.extractedData.raw.length,
       documentChunks: context.ragResults?.chunks?.length || 0,
       patternTypes: context.patterns.map(p => (p as any).type || 'regex')
     });
@@ -2041,6 +2056,176 @@ REGEX_PATTERNS:
       // Fallback to deterministic performance patterns
       this.addDeterministicPerformancePatterns(context);
     }
+  }
+
+  /**
+   * 🚀 INTEGRATED EXTRACTION: Extract data using generated patterns immediately
+   * Combines simple regex + semantic LLM extraction in single agent
+   */
+  private async extractWithGeneratedPatterns(context: ResearchContext): Promise<ExtractedItem[]> {
+    const regexPatterns = context.patterns.filter(p => p.regexPattern);
+    const extractedItems: ExtractedItem[] = [];
+
+    console.log(`🎯 Running dual extraction: ${regexPatterns.length} regex patterns + 1 semantic approach`);
+
+    // 1. REGEX EXTRACTION (Fast, direct pattern matching)
+    if (regexPatterns.length > 0) {
+      const regexItems = await this.extractUsingRegex(regexPatterns, context.ragResults.chunks);
+      extractedItems.push(...regexItems);
+      console.log(`✅ Regex extraction: Found ${regexItems.length} items`);
+    }
+
+    // 2. SEMANTIC LLM EXTRACTION (One focused LLM call)
+    try {
+      const semanticItems = await this.extractUsingSemanticSearch(context);
+      extractedItems.push(...semanticItems);
+      console.log(`✅ Semantic extraction: Found ${semanticItems.length} items`);
+    } catch (error) {
+      console.warn('⚠️ Semantic extraction failed, continuing with regex results:', error);
+    }
+
+    // 3. DEDUPLICATION
+    const uniqueItems = this.deduplicateExtractedItems(extractedItems);
+    console.log(`🔄 After deduplication: ${uniqueItems.length} unique items`);
+
+    return uniqueItems;
+  }
+
+  /**
+   * Simple regex extraction without Web Worker complexity
+   */
+  private async extractUsingRegex(patterns: any[], chunks: ChunkData[]): Promise<ExtractedItem[]> {
+    const items: ExtractedItem[] = [];
+
+    for (const pattern of patterns) {
+      const regex = new RegExp(pattern.regexPattern.replace(/^\/|\/[gimuy]*$/g, ''), 'gi');
+      
+      for (const chunk of chunks) {
+        let match;
+        while ((match = regex.exec(chunk.text)) !== null) {
+          // Extract context (surrounding text)
+          const startPos = Math.max(0, match.index - 50);
+          const endPos = Math.min(chunk.text.length, match.index + match[0].length + 50);
+          const contextText = chunk.text.substring(startPos, endPos).trim();
+
+          items.push({
+            content: match[0].trim(),
+            value: match[1] || match[0], // Use first capture group or full match
+            unit: this.extractUnit(match[0]) || '',
+            context: contextText,
+            confidence: pattern.confidence || 0.9,
+            sourceChunkId: chunk.id,
+            // 🔥 PRESERVE DOCUMENT ATTRIBUTION: Add document-level source information
+            sourceDocument: chunk.sourceDocument || chunk.metadata?.filename || chunk.source,
+            source: chunk.source,
+            documentId: chunk.sourceDocument,
+            metadata: {
+              method: 'regex',
+              type: 'pattern_generated',
+              pattern: pattern.regexPattern,
+              description: pattern.description
+            }
+          });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  /**
+   * Focused semantic extraction using LLM
+   */
+  private async extractUsingSemanticSearch(context: ResearchContext): Promise<ExtractedItem[]> {
+    // Get sample content for focused analysis
+    const sampleContent = context.ragResults.chunks
+      .slice(0, 3)
+      .map(chunk => chunk.text.substring(0, 500))
+      .join('\n\n---\n\n');
+
+    const prompt = `Extract data for query: "${context.query}"
+
+DOCUMENT CONTENT:
+${sampleContent}
+
+SEMANTIC UNDERSTANDING:
+Based on DataInspector analysis, extract information that answers the user's query.
+Focus on finding specific data points, measurements, or facts.
+
+Return as simple list format:
+- [extracted item 1]
+- [extracted item 2]
+- [extracted item 3]
+
+Extract only concrete, specific information that directly answers the query.`;
+
+    try {
+      const response = await this.llm(prompt);
+      return this.parseSemanticResponse(response, context.ragResults.chunks[0]?.id || 'semantic');
+    } catch (error) {
+      console.error('❌ Semantic LLM extraction failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Parse LLM response into ExtractedItem format
+   */
+  private parseSemanticResponse(response: string, chunkId: string): ExtractedItem[] {
+    const items: ExtractedItem[] = [];
+    const lines = response.split('\n').filter(line => line.trim().startsWith('-'));
+
+    for (const line of lines) {
+      const content = line.replace(/^-\s*/, '').trim();
+      if (content.length > 10) {
+        // Try to extract timing data if present
+        const timeMatch = content.match(/(\d+\.?\d*)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)/i);
+        
+        items.push({
+          content: content,
+          value: timeMatch ? timeMatch[1] : '',
+          unit: timeMatch ? timeMatch[2] : '',
+          context: content,
+          confidence: 0.8,
+          sourceChunkId: chunkId,
+          // 🔥 PRESERVE DOCUMENT ATTRIBUTION: Note - chunkId only, need to enhance if chunk object available
+          sourceDocument: 'semantic_extraction', // TODO: Pass chunk object to get real source
+          source: 'semantic_extraction',
+          documentId: 'semantic_extraction', 
+          metadata: {
+            method: 'semantic_llm',
+            type: 'extracted_data'
+          }
+        });
+      }
+    }
+
+    return items;
+  }
+
+  /**
+   * Simple unit extraction from text
+   */
+  private extractUnit(text: string): string {
+    const unitMatch = text.match(/\b(hours?|hrs?|minutes?|mins?|seconds?|secs?|ms|milliseconds?)\b/i);
+    return unitMatch ? unitMatch[1] : '';
+  }
+
+  /**
+   * Remove duplicate items
+   */
+  private deduplicateExtractedItems(items: ExtractedItem[]): ExtractedItem[] {
+    const seen = new Map<string, ExtractedItem>();
+    
+    for (const item of items) {
+      const key = `${item.content}_${item.value}_${item.unit}`.toLowerCase();
+      
+      if (!seen.has(key) || (seen.get(key)?.confidence || 0) < item.confidence) {
+        seen.set(key, item);
+      }
+    }
+    
+    return Array.from(seen.values()).sort((a, b) => b.confidence - a.confidence);
   }
 
 }

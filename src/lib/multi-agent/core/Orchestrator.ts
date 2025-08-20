@@ -128,7 +128,7 @@ export class Orchestrator {
    */
   private getSynthesisGuidance(availableData: any, context: ResearchContext): string {
     const dataAnalyzerCompleted = availableData.agentsCalled.includes('DataAnalyzer');
-    const extractorCompleted = availableData.extractorCompleted;
+    const extractorCompleted = availableData.patternGeneratorCompleted;
     const synthesisStarted = availableData.agentsCalled.includes('SynthesisCoordinator') || 
                              availableData.agentsCalled.includes('Synthesizer') ||
                              availableData.agentsCalled.includes('ResponseFormatter');
@@ -188,10 +188,8 @@ export class Orchestrator {
     }
     
     // Phase 3: Pattern & Extraction
-    if (availableData.extractorCompleted) {
-      phases.push('✅ Phase 3: Extraction (PatternGenerator + Extractor) - COMPLETE');
-    } else if (availableData.patternGeneratorCompleted) {
-      phases.push('→ Phase 3: Extraction (Extractor) - IN PROGRESS');
+    if (availableData.patternGeneratorCompleted) {
+      phases.push('✅ Phase 3: Extraction (PatternGenerator with integrated extraction) - COMPLETE');
     } else if (availableData.dataInspectorCompleted) {
       phases.push('→ Phase 3: Extraction (PatternGenerator) - READY');
     } else {
@@ -200,7 +198,7 @@ export class Orchestrator {
     
     // Phase 4: Data Processing (BYPASSED)
     const dataAnalyzerCompleted = false; // DataAnalyzer permanently disabled
-    if (availableData.extractorCompleted) {
+    if (availableData.patternGeneratorCompleted) {
       phases.push('⚠️ Phase 4: Data Processing - BYPASSED (DataAnalyzer disabled due to filtering bug)');
     } else {
       phases.push('⏳ Phase 4: Data Processing - WAITING');
@@ -213,7 +211,7 @@ export class Orchestrator {
     
     if (synthesisCompleted) {
       phases.push('✅ Phase 5: Synthesis - COMPLETE');
-    } else if (dataAnalyzerCompleted || availableData.extractorCompleted) {
+    } else if (dataAnalyzerCompleted || availableData.patternGeneratorCompleted) {
       phases.push('🎯 Phase 5: Synthesis (SynthesisCoordinator/ResponseFormatter) - READY TO START');
     } else {
       phases.push('⏳ Phase 5: Synthesis - WAITING');
@@ -236,10 +234,10 @@ export class Orchestrator {
     if (!availableData.patternGeneratorCompleted && availableData.dataInspectorCompleted) {
       return 'PatternGenerator recommended for extraction patterns';
     }
-    if (!availableData.extractorCompleted && availableData.patternGeneratorCompleted) {
-      return 'Extractor recommended to extract data using patterns';
+    if (!availableData.synthesizerCompleted && availableData.patternGeneratorCompleted) {
+      return 'SynthesisCoordinator recommended to synthesize extracted data from PatternGenerator';
     }
-    if (availableData.extractorCompleted && !availableData.synthesizerCompleted) {
+    if (availableData.patternGeneratorCompleted && !availableData.synthesizerCompleted) {
       // Check for synthesis agents
       if (this.registry.has('SynthesisCoordinator')) {
         return 'SynthesisCoordinator recommended to orchestrate final synthesis';
@@ -751,10 +749,9 @@ export class Orchestrator {
   private clearDependentAgentResults(agentName: string, context: ResearchContext): void {
     // Define what agents depend on each agent
     const dependents: Record<string, string[]> = {
-      'DataInspector': ['PlanningAgent', 'PatternGenerator', 'Extractor', 'SynthesisCoordinator', 'Synthesizer'],
-      'PlanningAgent': ['PatternGenerator', 'Extractor'],
-      'PatternGenerator': ['Extractor'],
-      'Extractor': ['SynthesisCoordinator', 'Synthesizer'],
+      'DataInspector': ['PlanningAgent', 'PatternGenerator', 'SynthesisCoordinator', 'Synthesizer'],
+      'PlanningAgent': ['PatternGenerator'],
+      'PatternGenerator': ['SynthesisCoordinator', 'Synthesizer'],
       'SynthesisCoordinator': [],
       'Synthesizer': [],
     };
@@ -923,8 +920,8 @@ CURRENT SITUATION:
 - Available Documents: ${context.ragResults.chunks.length} chunks PRE-LOADED (no need to search)
 - Document Analysis: ${availableData.dataInspectorCompleted ? 'COMPLETED ✅ - DataInspector already called' : 'NOT DONE ❌ - need DataInspector'}
 - Execution Plan: ${this.getExecutionPlanStatus(context)}
-- Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
-- Data Extracted: ${availableData.extractorCompleted ? 'COMPLETED ✅ - Extractor already called' : 'NOT DONE ❌ - need Extractor'}
+- Patterns Generated: ${availableData.patternGeneratorCompleted ? `COMPLETED ✅ - PatternGenerator called with integrated extraction, ${availableData.patternsGenerated} patterns` : 'NOT DONE ❌ - need PatternGenerator'}
+- Data Extracted: ${availableData.patternGeneratorCompleted ? 'COMPLETED ✅ - Integrated extraction in PatternGenerator' : 'NOT DONE ❌ - need PatternGenerator with extraction'}
 - Data Analyzed: BYPASSED ⚠️ - DataAnalyzer disabled (filtering bug), using raw extracted data
 - Final Answer: ${availableData.synthesizerCompleted ? 'COMPLETED ✅ - Synthesizer called' : 'NOT DONE ❌ - need synthesis'}${context.sharedKnowledge.lastSkippedAgent ? `
 
@@ -944,15 +941,14 @@ ${this.buildDynamicToolsList(availableData)}
 ⚡ MANDATORY EXECUTION ORDER - NEVER SKIP STEPS:
 1️⃣ DataInspector (${availableData.dataInspectorCompleted ? 'DONE ✅' : 'REQUIRED ❌'}) → Analyzes and filters documents  
 2️⃣ PlanningAgent (${availableData.planningAgentCompleted ? 'DONE ✅' : availableData.dataInspectorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Creates execution strategy
-3️⃣ PatternGenerator (${availableData.patternGeneratorCompleted ? 'DONE ✅' : availableData.planningAgentCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Identifies data patterns
-4️⃣ Extractor (${availableData.extractorCompleted ? 'DONE ✅' : availableData.patternGeneratorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Extracts data using patterns  
-5️⃣ SynthesisCoordinator (${availableData.synthesizerCompleted ? 'DONE ✅' : availableData.extractorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Synthesizes final answer
+3️⃣ PatternGenerator (${availableData.patternGeneratorCompleted ? 'DONE ✅' : availableData.planningAgentCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Identifies patterns & extracts data
+4️⃣ SynthesisCoordinator (${availableData.synthesizerCompleted ? 'DONE ✅' : availableData.patternGeneratorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Synthesizes final answer
 
 🚨 CRITICAL SEQUENCING RULES:
-❌ NEVER call SynthesisCoordinator before Extractor
-❌ NEVER call Extractor before PatternGenerator  
+❌ NEVER call SynthesisCoordinator before PatternGenerator
 ❌ NEVER skip steps in the sequence above
-✅ ALWAYS follow the order: DataInspector → PlanningAgent → PatternGenerator → Extractor → SynthesisCoordinator
+✅ ALWAYS follow the order: DataInspector → PlanningAgent → PatternGenerator → SynthesisCoordinator
+🎯 NOTE: PatternGenerator now includes integrated extraction (no separate Extractor call needed)
 
 🎯 INTELLIGENT ORCHESTRATION GUIDANCE:
 1. **FOLLOW THE NUMBERED SEQUENCE ABOVE** - Each step depends on the previous one
@@ -964,10 +960,10 @@ ${this.buildDynamicToolsList(availableData)}
 🚨 **SPECIAL RULE FOR PERFORMANCE/RANKING QUERIES**:
 ${this.isPerformanceQuery(context.query) ? `
 ⭐ **PERFORMANCE RANKING QUERY DETECTED**: "${context.query}"
-📊 **MANDATORY FULL PIPELINE**: DataInspector → PlanningAgent → PatternGenerator → Extractor → SynthesisCoordinator
-🎯 **COMPLETION BLOCKED** until all 5 agents are called - this ensures proper time measurement extraction and ranking
+📊 **MANDATORY FULL PIPELINE**: DataInspector → PlanningAgent → PatternGenerator → SynthesisCoordinator  
+🎯 **COMPLETION BLOCKED** until all 4 agents are called - this ensures proper time measurement extraction and ranking
 ⚠️ **DO NOT COMPLETE EARLY** - Performance queries need the complete extraction pipeline to work correctly
-📈 **Current Progress**: DataInspector(${availableData.dataInspectorCompleted ? '✅' : '❌'}) → PlanningAgent(${availableData.planningAgentCompleted ? '✅' : '❌'}) → PatternGenerator(${availableData.patternGeneratorCompleted ? '✅' : '❌'}) → Extractor(${availableData.extractorCompleted ? '✅' : '❌'}) → SynthesisCoordinator(${availableData.synthesizerCompleted ? '✅' : '❌'})
+📈 **Current Progress**: DataInspector(${availableData.dataInspectorCompleted ? '✅' : '❌'}) → PlanningAgent(${availableData.planningAgentCompleted ? '✅' : '❌'}) → PatternGenerator(${availableData.patternGeneratorCompleted ? '✅' : '❌'}) → SynthesisCoordinator(${availableData.synthesizerCompleted ? '✅' : '❌'})
 ` : `
 📝 **REGULAR QUERY**: Standard agent pipeline applies - completion allowed after synthesis
 `}
@@ -1097,11 +1093,11 @@ NEXT_GOAL: [final goal achieved]`;
         };
       }
       
-      if (!this.calledAgents.has('Extractor')) {
+      if (!this.calledAgents.has('PatternGenerator')) {
         return {
           allowed: false,
-          reason: 'Performance ranking query requires Extractor for data extraction',
-          nextAgent: 'Extractor'
+          reason: 'Performance ranking query requires PatternGenerator with integrated extraction',
+          nextAgent: 'PatternGenerator'
         };
       }
       
@@ -1115,8 +1111,8 @@ NEXT_GOAL: [final goal achieved]`;
       
       // Additional validation: Check if we have extracted data for ranking
       const hasExtractedData = context.extractedData?.raw?.length > 0;
-      if (!hasExtractedData && this.calledAgents.has('Extractor')) {
-        console.log(`⚠️ EXTRACTION FAILED: Extractor called but no data extracted - allowing completion to prevent infinite loop`);
+      if (!hasExtractedData && this.calledAgents.has('PatternGenerator')) {
+        console.log(`⚠️ EXTRACTION FAILED: PatternGenerator called but no data extracted - allowing completion to prevent infinite loop`);
       }
       
       console.log(`✅ PERFORMANCE QUERY PIPELINE COMPLETE: All required agents called for ranking query`);
@@ -1145,7 +1141,7 @@ NEXT_GOAL: [final goal achieved]`;
       
       // 🔧 ENHANCED: Check for extracted data availability 
       const hasExtractedData = context.extractedData?.raw?.length > 0;
-      const extractorCalled = this.calledAgents.has('Extractor');
+      const extractorCalled = this.calledAgents.has('PatternGenerator');
       
       console.log(`🔍 COMPLETION CHECK:`, {
         synthesizerCalled,
@@ -1204,12 +1200,12 @@ NEXT_GOAL: [final goal achieved]`;
       };
     }
     
-    // Ensure Extractor runs before Synthesizer
-    if (!this.calledAgents.has('Extractor')) {
+    // Ensure PatternGenerator runs before Synthesizer
+    if (!this.calledAgents.has('PatternGenerator')) {
       return {
         allowed: false,
-        reason: 'Extractor not called - must extract data before synthesis',
-        nextAgent: 'Extractor'
+        reason: 'PatternGenerator not called - must extract data before synthesis',
+        nextAgent: 'PatternGenerator'
       };
     }
     
@@ -1347,7 +1343,6 @@ NEXT_GOAL: [final goal achieved]`;
       dataInspectorCompleted: agentStatus.DataInspector === 'completed',
       planningAgentCompleted: agentStatus.PlanningAgent === 'completed',
       patternGeneratorCompleted: agentStatus.PatternGenerator === 'completed',
-      extractorCompleted: agentStatus.Extractor === 'completed',
       webSearchAgentCompleted: agentStatus.WebSearchAgent === 'completed',
       synthesizerCompleted: agentStatus.Synthesizer === 'completed'
     };
@@ -1688,38 +1683,28 @@ NEXT_GOAL: [final goal achieved]`;
         // break;
         
       case 'SynthesisCoordinator':
-        // 🎯 CRITICAL: SynthesisCoordinator MUST run after extraction pipeline
-        console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking extraction pipeline`);
+        // 🎯 CRITICAL: SynthesisCoordinator MUST run after PatternGenerator (which includes extraction)
+        console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking PatternGenerator completion`);
         
-        // Check if Extractor has been called
-        if (!this.calledAgents.has('Extractor')) {
-          console.log(`❌ SynthesisCoordinator cannot run before Extractor`);
+        // Check if PatternGenerator has been called (PatternGenerator now includes extraction)
+        if (!this.calledAgents.has('PatternGenerator')) {
+          console.log(`❌ SynthesisCoordinator cannot run before PatternGenerator (which includes extraction)`);
           console.log(`📋 Called agents so far: ${Array.from(this.calledAgents).join(', ')}`);
-          // Add Extractor as critical prerequisite
+          // Add PatternGenerator as critical prerequisite
           critical.push({
-            agent: 'Extractor',
-            action: 'Extract data using generated patterns',
-            reasoning: 'SynthesisCoordinator requires extracted data from Extractor',
+            agent: 'PatternGenerator',
+            action: 'Generate patterns and extract data',
+            reasoning: 'SynthesisCoordinator requires extracted data from PatternGenerator (integrated extraction)',
             expectedOutput: 'Extracted data points for synthesis',
             priority: 'high' as const
           });
-          // Also ensure PatternGenerator runs before Extractor
-          if (!this.calledAgents.has('PatternGenerator')) {
-            critical.push({
-              agent: 'PatternGenerator',
-              action: 'Generate extraction patterns',
-              reasoning: 'PatternGenerator must run before Extractor to generate patterns',
-              expectedOutput: 'Extraction patterns for data mining',
-              priority: 'high' as const
-            });
-          }
         }
         
         const hasExtractedDataForSynthesis = context.extractedData?.raw && context.extractedData.raw.length > 0;
         console.log(`📊 Has extracted data: ${hasExtractedDataForSynthesis}`);
         
-        if (!hasExtractedDataForSynthesis && this.calledAgents.has('Extractor')) {
-          console.log(`⚠️ Extractor ran but produced no data - may need to re-run with better patterns`);
+        if (!hasExtractedDataForSynthesis && this.calledAgents.has('PatternGenerator')) {
+          console.log(`⚠️ PatternGenerator ran but produced no data - may need to re-run with better patterns`);
         }
         
         // ⚠️ TEMPORARY FIX: Skip DataAnalyzer to prevent data destruction
@@ -1902,12 +1887,12 @@ NEXT_GOAL: [final goal achieved]`;
               reason: 'Use SynthesisCoordinator directly with raw extracted data (DataAnalyzer bypassed)',
               suggestion: 'Call SynthesisCoordinator to assemble final report from raw extracted data'
             };
-          } else if (!calledAgents.includes('Extractor')) {
+          } else if (!calledAgents.includes('PatternGenerator')) {
             // No data extracted yet
             return {
               allowed: false,
               reason: 'No extracted data available for synthesis',
-              suggestion: 'Call Extractor first, then SynthesisCoordinator directly (DataAnalyzer bypassed)'
+              suggestion: 'Call PatternGenerator first (with integrated extraction), then SynthesisCoordinator directly (DataAnalyzer bypassed)'
             };
           }
         }
@@ -1922,12 +1907,12 @@ NEXT_GOAL: [final goal achieved]`;
         return { allowed: true, reason: 'Sufficient data available for synthesis (legacy mode)' };
       }
       
-      // If no extracted data but Extractor hasn't been called, suggest it
-      if (!calledAgents.includes('Extractor')) {
+      // If no extracted data but PatternGenerator hasn't been called, suggest it
+      if (!calledAgents.includes('PatternGenerator')) {
         return {
           allowed: false,
           reason: 'No extracted data available for synthesis',
-          suggestion: 'Call Extractor first to extract relevant information'
+          suggestion: 'Call PatternGenerator first (with integrated extraction) to extract relevant information'
         };
       }
       
@@ -1953,12 +1938,10 @@ NEXT_GOAL: [final goal achieved]`;
         
         // Instead of recursive calls, throw error to let Master LLM decide sequencing
         const needsPatternGen = !this.calledAgents.has('PatternGenerator');
-        const needsExtractor = !this.calledAgents.has('Extractor');
         
-        if (needsPatternGen || needsExtractor) {
+        if (needsPatternGen) {
           const missingAgents = [];
           if (needsPatternGen) missingAgents.push('PatternGenerator');
-          if (needsExtractor) missingAgents.push('Extractor');
           
           console.log(`🔄 Performance query needs ${missingAgents.join(' → ')} before synthesis`);
           throw new Error(`MISSING_EVIDENCE: Performance query requires ${missingAgents.join(' and ')} to extract numeric data before synthesis.`);
@@ -2465,8 +2448,8 @@ NEXT_GOAL: [final goal achieved]`;
     console.log(`🔧 Attempting intelligent fallback for: "${toolName}"`);
     
     // Pattern 1: *Extractor variations → Extractor  
-    if (lowercaseName.includes('extractor')) {
-      console.log(`🎯 Mapping ${toolName} → Extractor (contains 'extractor')`);
+    if (lowercaseName.includes('extractor') || (lowercaseName.includes('regex') && lowercaseName.includes('extract'))) {
+      console.log(`🎯 Mapping ${toolName} → Extractor (contains 'extractor' or 'regex extract')`);
       return 'Extractor';
     }
     
