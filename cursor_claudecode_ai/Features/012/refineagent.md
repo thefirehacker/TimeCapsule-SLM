@@ -170,3 +170,22 @@ Query: "Give top 3 speedrun from Tyler's blog"
 3. Should guide PatternGenerator to find performance metrics, not generic patterns
 
 This creates true **semantic intelligence** instead of surface-level binary matching.
+
+# What does data Inspector do 
+DataInspector UI
+Bootstrap your entire research based on docs from KB.
+Chunks sample ( 30% chunks to understand doc)
+Document Intention
+Sematic Entities , Persons. concepts , intention , Skills, measurements  etc.
+Document relavent --> Based on Query + doc
+
+# Goal expected from Deep Research
+you keep doing same thing . why cant datainspector + planner work together.\               │
+│   Data inspector does multi intelligence approach . Tell it to extract (Person + concepts +  │
+│   other entity) . What you doing it wrong " Give top 3 speedrun from Tyler's blog") why      │
+│   only tyler it should look at speedrun. Problem is LLM has not tried to make any            │
+│   association with query --> what is the query about --> maybe doc tells me more --> break   │
+│   doc into its intention + perspn + concepts + entity--> aah so speedrun is about changes    │
+│   to GPT-2 architecture to come up with best(fastest) run .\                                 │
+│   \                                                                                          │
+│   Did our system come up with this conclusion ? if now what can be done think hard
