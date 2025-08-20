@@ -507,12 +507,24 @@ Respond with just one word: "regex", "semantic", or "hybrid"`;
           // Search through all chunks with this pattern
           let matchCount = 0;
           for (const chunk of allChunks) {
-            if (regex.test(chunk.text || chunk.content)) {
+            const chunkText = chunk.text || chunk.content || '';
+            
+            // 🆕 STRUCTURAL MARKER BOOST: Prioritize chunks with relevant structural markers
+            let structuralBoost = 0;
+            if (chunkText.includes('<TABLE_ROW>') || chunkText.includes('<TABLE_HEADER>')) {
+              structuralBoost = 0.02; // Boost for table content
+            }
+            if (chunkText.includes('<START_MEASUREMENT_DATA>')) {
+              structuralBoost = 0.03; // Higher boost for measurement data
+            }
+            
+            if (regex.test(chunkText)) {
               regexResults.push({
                 ...chunk,
-                similarity: 0.95, // High similarity for regex matches
+                similarity: 0.95 + structuralBoost, // High similarity for regex matches + structural boost
                 matchedPattern: pattern.regexPattern,
-                matchMethod: 'regex_pattern'
+                matchMethod: 'regex_pattern',
+                hasStructuralMarkers: structuralBoost > 0
               });
               matchCount++;
             }

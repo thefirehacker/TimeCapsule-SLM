@@ -384,6 +384,14 @@ Direct extraction only:`;
     
     const universalPrompt = `EXTRACT DATA FOR: ${query}
 
+STRUCTURAL MARKERS GUIDE:
+The document contains these structural markers to help you identify content:
+- <TABLE_ROW> marks table data rows - extract data between these markers as structured data
+- <TABLE_HEADER> marks table headers - use these to understand column meanings
+- <START_MEASUREMENT_DATA> marks numeric data clusters - focus extraction here for metrics
+- <START_SECTION:title> marks document sections - helps identify context
+- <LIST_ITEM> marks list items - extract as structured lists
+
 DOCUMENT CONTENT:
 ${content}
 
@@ -393,9 +401,9 @@ ${extractionApproach}
 DOCUMENT STRUCTURE: ${documentAnalysis.structure.join(', ')}
 CONTENT AREAS: ${documentAnalysis.contentAreas.join(', ')}
 
-Based on the document structure and your analysis, extract ALL relevant data that answers the user's query.
-Focus on completeness - don't miss any data points.
-Present the extracted information clearly.`;
+Based on the document structure and structural markers, extract ALL relevant data that answers the user's query.
+Focus on completeness - don't miss any data points, especially those within structural markers.
+Present the extracted information clearly, preserving table structure where present.`;
 
     return universalPrompt;
   }
@@ -740,9 +748,15 @@ Focus on completeness - capture every relevant data point.`;
       
       const existing = seen.get(key);
       
-      // Only replace if new item has significantly higher confidence
-      if (!existing || (item.confidence > existing.confidence + 0.1)) {
+      if (!existing) {
+        // No existing item, add this one
         seen.set(key, item);
+      } else {
+        // Item exists, determine which one to keep
+        const shouldReplace = this.shouldReplaceItem(existing, item);
+        if (shouldReplace) {
+          seen.set(key, item);
+        }
       }
     }
     
@@ -755,6 +769,40 @@ Focus on completeness - capture every relevant data point.`;
         // Otherwise by confidence
         return b.confidence - a.confidence;
       });
+  }
+
+  /**
+   * Smart replacement logic to prefer meaningful data over fragments
+   */
+  private shouldReplaceItem(existing: ExtractedItem, newItem: ExtractedItem): boolean {
+    // Always prefer items with metadata types indicating structured data
+    const existingHasStructuredType = existing.metadata?.type === 'timing_data' || 
+                                     existing.metadata?.type === 'table_row' ||
+                                     existing.metadata?.type === 'current_record';
+    const newHasStructuredType = newItem.metadata?.type === 'timing_data' || 
+                                newItem.metadata?.type === 'table_row' ||
+                                newItem.metadata?.type === 'current_record';
+    
+    if (newHasStructuredType && !existingHasStructuredType) {
+      return true; // Replace fragment with structured data
+    }
+    if (existingHasStructuredType && !newHasStructuredType) {
+      return false; // Keep structured data over fragment
+    }
+    
+    // Both are same type, prefer longer content (more context)
+    const existingLength = (existing.content || '').length;
+    const newLength = (newItem.content || '').length;
+    
+    if (newLength > existingLength + 10) {
+      return true; // Significantly longer content
+    }
+    if (existingLength > newLength + 10) {
+      return false; // Keep longer existing content
+    }
+    
+    // Similar length, prefer higher confidence with smaller threshold
+    return newItem.confidence > existing.confidence + 0.05;
   }
   
   private parseJSON(text: string): any {

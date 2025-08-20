@@ -1565,11 +1565,21 @@ Return as strictly valid JSON:
     
     // Apply corrective strategy by overwriting original DataInspector results
     if (context.sharedKnowledge.documentInsights) {
+      // CRITICAL: Preserve measurements from DataInspector before overwriting
+      const existingMeasurements = context.sharedKnowledge.documentInsights.measurements;
+      
       context.sharedKnowledge.documentInsights.methods = correctedCategories.methods || [];
       context.sharedKnowledge.documentInsights.concepts = correctedCategories.concepts || [];
       context.sharedKnowledge.documentInsights.people = correctedCategories.people || [];
       context.sharedKnowledge.documentInsights.data = correctedCategories.data || [];
-      console.log(`🔧 Applied corrective strategy: overwrote original DataInspector results`);
+      
+      // CRITICAL: Restore measurements - they are essential for PatternGenerator
+      if (existingMeasurements) {
+        context.sharedKnowledge.documentInsights.measurements = existingMeasurements;
+        console.log(`🔧 Applied corrective strategy: overwrote categories but preserved ${existingMeasurements.length} measurements`);
+      } else {
+        console.log(`🔧 Applied corrective strategy: overwrote original DataInspector results`);
+      }
     }
     
     console.log(`✅ Created corrective strategy:`, correctedCategories);
@@ -1901,10 +1911,9 @@ Return as strictly valid JSON:
           reasoningPreview: docReasoning.substring(0, 150) + '...'
         });
         
-        // Entity ownership mismatch detection (zero-hardcoding)
+        // Enhanced entity ownership detection (zero-hardcoding, finds authors not topics)
         const searchText = docText + ' ' + docEntity + ' ' + docReasoning;
-        const docMentionsOtherEntity = /\b([A-Z][a-z]+)(?:'s|s'|,|\s)/g.exec(searchText);
-        const docEntityName = docMentionsOtherEntity ? docMentionsOtherEntity[1] : null;
+        const docEntityName = this.extractDocumentOwnershipEntity(searchText, queryEntity);
         
         console.log(`🔍 VALIDATION DEBUG Entity extraction:`, {
           searchTextPreview: searchText.substring(0, 200) + '...',
@@ -1950,7 +1959,62 @@ Return as strictly valid JSON:
       });
       
       if (hasEntityMismatch) {
-        console.log(`🚨 VALIDATION FAILURE: Entity mismatch detected, returning validation failure`);
+        console.log(`🚨 VALIDATION FAILURE: Entity mismatch detected, attempting document filtering`);
+        
+        // Try to filter out problematic documents before replanning
+        const filteredDocuments = documentAnalysis.documents?.filter((doc: any) => {
+          const docEntity = doc.primaryEntity || '';
+          const searchText = `${doc.documentName || ''} ${docEntity} ${doc.reasoning || ''}`;
+          
+          // Extract entity name from document analysis
+          const docEntityPatterns = [
+            /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // Names like "Tyler", "Amardeep Singh"  
+          ];
+          
+          let docEntityName = '';
+          for (const pattern of docEntityPatterns) {
+            const matches = searchText.match(pattern);
+            if (matches) {
+              // Find the most relevant entity (prefer names over generic words)
+              docEntityName = matches.find(match => 
+                match.length > 2 && 
+                match !== 'The' && 
+                match !== 'YES' && 
+                /^[A-Z]/.test(match)
+              ) || matches[0];
+              break;
+            }
+          }
+          
+          // Include document if it matches the query entity
+          const matches = docEntityName.toLowerCase().includes(queryEntity.toLowerCase()) ||
+                          queryEntity.toLowerCase().includes(docEntityName.toLowerCase());
+          
+          if (!matches) {
+            console.log(`🔧 Filtering out document about "${docEntityName}" (query asks for "${queryEntity}")`);
+          }
+          
+          return matches;
+        }) || [];
+        
+        // Apply document filtering if we successfully filtered out problematic docs
+        if (filteredDocuments.length < (documentAnalysis.documents?.length || 0)) {
+          console.log(`🔧 Document filtering applied: ${documentAnalysis.documents?.length} → ${filteredDocuments.length} documents`);
+          
+          // Update document analysis with filtered documents
+          if (context.documentAnalysis) {
+            context.documentAnalysis.documents = filteredDocuments;
+          }
+          
+          // If we successfully filtered and have remaining docs, consider this fixed
+          if (filteredDocuments.length > 0) {
+            console.log(`✅ Document filtering successful - continuing with ${filteredDocuments.length} relevant documents`);
+            return { isValid: true, reason: `Document filtering applied - removed entity mismatched documents, continuing with ${filteredDocuments.length} relevant documents` };
+          }
+        }
+        
+        // If filtering didn't help or no docs remain, fall back to replanning
+        console.log(`🔄 Document filtering insufficient, falling back to replanning`);
         const failureResult = {
           isValid: false,
           replanAction: 'correct_semantic_alignment',
@@ -2458,6 +2522,23 @@ Return as strictly valid JSON:
           }
         };
         
+      case 'correct_semantic_alignment':
+        // Extract expected entity from query for targeted guidance
+        const queryEntityMatch = context.query.match(/\b([A-Z][a-z]+)'s\s+(.+)/);
+        const expectedEntity = queryEntityMatch ? queryEntityMatch[1] : 'the requested entity';
+        
+        return {
+          target: 'DataInspector',
+          guidance: `Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "${expectedEntity}". Reject all documents about other people/entities regardless of topic overlap. Use enhanced relevance analysis to prevent entity ownership mismatches.`,
+          priority: 'document_filtering',
+          sessionContext: {
+            expectedEntity: expectedEntity,
+            strictEntityMatching: true,
+            rejectOtherEntities: true,
+            queryType: 'entity_specific'
+          }
+        };
+        
       default:
         return {
           target: 'PatternGenerator',
@@ -2549,5 +2630,87 @@ Return as strictly valid JSON:
       console.error(`❌ Error in consumption validation for ${completedAgent}:`, error);
       return { shouldContinue: true }; // Continue on error to avoid blocking
     }
+  }
+
+  /**
+   * Enhanced document ownership entity extraction (zero-hardcoding)
+   * Finds document authors/owners, not just content topics
+   */
+  private extractDocumentOwnershipEntity(searchText: string, queryEntity: string): string | null {
+    // Priority 1: Direct authorship patterns (universal, no hardcoding)
+    const authorshipPatterns = [
+      /authored by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /created by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /written by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /blog by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'s\s+(?:blog|work|project|research|document)/i,
+      /document.*(?:belongs to|owned by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+    ];
+
+    // Check authorship patterns first (highest priority)
+    for (const pattern of authorshipPatterns) {
+      const match = searchText.match(pattern);
+      if (match && match[1]) {
+        const author = match[1].trim();
+        console.log(`🔍 Found document author: "${author}" via authorship pattern`);
+        return author;
+      }
+    }
+
+    // Priority 2: Entity mentions in reasoning (look for query entity specifically)
+    if (queryEntity) {
+      const queryEntityPattern = new RegExp(`\\b${queryEntity}\\b`, 'i');
+      if (queryEntityPattern.test(searchText)) {
+        console.log(`🔍 Query entity "${queryEntity}" found in document context`);
+        return queryEntity;
+      }
+    }
+
+    // Priority 3: Document classification context (MAIN_ENTITY analysis)
+    const entityContextPatterns = [
+      /MAIN_ENTITY:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /primarily about\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /focuses on\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:and|,)/i,
+      /document.*about\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'s/i,
+    ];
+
+    for (const pattern of entityContextPatterns) {
+      const match = searchText.match(pattern);
+      if (match && match[1]) {
+        const entity = match[1].trim();
+        // Filter out generic terms that aren't person names
+        if (!this.isGenericTerm(entity)) {
+          console.log(`🔍 Found document entity: "${entity}" via context pattern`);
+          return entity;
+        }
+      }
+    }
+
+    // Priority 4: Last resort - extract first proper noun that's not generic
+    const properNounPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+    let match;
+    while ((match = properNounPattern.exec(searchText)) !== null) {
+      const entity = match[1].trim();
+      if (!this.isGenericTerm(entity) && entity.length > 2) {
+        console.log(`🔍 Fallback entity extraction: "${entity}"`);
+        return entity;
+      }
+    }
+
+    console.log(`🔍 No clear document owner found in: ${searchText.substring(0, 100)}...`);
+    return null;
+  }
+
+  /**
+   * Check if a term is generic (not a person/entity name)
+   */
+  private isGenericTerm(term: string): boolean {
+    const genericTerms = [
+      'The', 'Language', 'Model', 'Document', 'Research', 'Paper', 'Analysis', 
+      'Study', 'Report', 'Data', 'Information', 'Content', 'Text', 'File',
+      'System', 'Method', 'Process', 'Result', 'Conclusion', 'Summary',
+      'YES', 'NO', 'RELEVANT', 'REASON', 'TYPE', 'MAIN'
+    ];
+    return genericTerms.includes(term);
   }
 }

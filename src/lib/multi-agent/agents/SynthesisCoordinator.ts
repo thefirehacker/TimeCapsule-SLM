@@ -132,6 +132,16 @@ export class SynthesisCoordinator extends BaseAgent {
     
     try {
       const response = await this.llm(prompt);
+      
+      // Validate the synthesized content
+      const isValid = this.validateSynthesizedContent(response, rankedData);
+      if (!isValid) {
+        console.warn('⚠️ Synthesis validation failed - response contains data not in sources');
+        // Add warning to response
+        const warning = '\n\n⚠️ Note: Some synthesized content could not be verified against source documents.';
+        return this.formatQueryFocusedResponse(response + warning, context, queryIntent);
+      }
+      
       return this.formatQueryFocusedResponse(response, context, queryIntent);
     } catch (error) {
       console.error('Query-focused synthesis failed:', error);
@@ -229,19 +239,73 @@ export class SynthesisCoordinator extends BaseAgent {
     }
 
     promptSections.push(
-      'SYNTHESIS REQUIREMENTS:',
-      `1. Answer the query "${context.query}" directly and specifically`,
-      '2. Use ALL highest-relevance items listed above in your response',
-      '3. Provide comprehensive analysis with detailed explanations',
-      '4. Include specific evidence and examples from the extracted data',
-      '5. Structure the response with clear sections and thorough coverage',
-      '6. Ground every claim in the specific data provided above',
-      '7. If data seems insufficient, explain what is available and what is missing',
+      'CRITICAL VALIDATION RULES:',
+      '⚠️ ONLY use information that appears in the numbered data items above',
+      '⚠️ Do NOT generate hypothetical examples or scenarios',
+      '⚠️ Do NOT invent data that is not explicitly provided',
+      '⚠️ Every factual claim MUST reference a specific data item number',
       '',
-      'Generate a comprehensive, detailed response that fully addresses the query using all available data:'
+      'CITATION REQUIREMENTS:',
+      '• Include [Item #X] citation after each fact or claim',
+      '• Use exact values/text from the data items (no paraphrasing numbers)',
+      '• When combining multiple items, cite all sources [Items #X, #Y]',
+      '• If insufficient data, explicitly state "Based on available data..." ',
+      '',
+      'SYNTHESIS REQUIREMENTS:',
+      `1. Answer the query "${context.query}" directly using ONLY the provided data`,
+      '2. Reference data items by their numbers [Item #1], [Item #2], etc.',
+      '3. Use exact values and quotes from the data items',
+      '4. If data appears contradictory or incomplete, acknowledge this',
+      '5. Structure the response clearly but stay grounded in provided data',
+      '6. If you cannot fully answer from the data, state what is missing',
+      '',
+      'VERIFICATION CHECKLIST:',
+      '✓ Every claim has a [Item #X] citation',
+      '✓ All numbers/values match exactly with source data',
+      '✓ No information added beyond what is in the data items',
+      '✓ Response directly addresses the original query',
+      '',
+      'Generate a response using ONLY the numbered data items above, with proper citations:'
     );
 
     return promptSections.join('\n');
+  }
+
+  /**
+   * 🎯 NEW: Validate synthesized content against source data
+   */
+  private validateSynthesizedContent(response: string, rankedData: any[]): boolean {
+    // Extract any numeric values from the response
+    const responseNumbers = response.match(/\d+(?:\.\d+)?/g) || [];
+    
+    // Build a set of all valid values from source data
+    const validValues = new Set<string>();
+    rankedData.forEach(item => {
+      const content = this.extractItemContent(item);
+      const value = this.extractItemValue(item);
+      
+      // Extract numbers from content
+      const contentNumbers = content.match(/\d+(?:\.\d+)?/g) || [];
+      contentNumbers.forEach(num => validValues.add(num));
+      
+      // Add explicit values
+      if (value) {
+        const valueNumbers = value.match(/\d+(?:\.\d+)?/g) || [];
+        valueNumbers.forEach(num => validValues.add(num));
+      }
+    });
+    
+    // Check if response contains numbers not in source
+    let hasInvalidData = false;
+    responseNumbers.forEach(num => {
+      // Skip small numbers (likely item references like [Item #1])
+      if (parseFloat(num) > 10 && !validValues.has(num)) {
+        console.warn(`⚠️ Synthesized value "${num}" not found in source data`);
+        hasInvalidData = true;
+      }
+    });
+    
+    return !hasInvalidData;
   }
 
   /**
