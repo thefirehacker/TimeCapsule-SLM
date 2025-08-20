@@ -154,36 +154,84 @@ export function RAGPipelineApp() {
         setCurrentStep("idle");
         return;
       }
-      const patternJsonPrompt = `You are an information extraction planner. Given the task, propose 3-6 high-impact regex patterns in JSON. ONLY valid JSON.
+      const patternJsonPrompt = `You are an information extraction planner. Create 2-4 focused regex patterns to find key terms related to the query. Return ONLY valid JSON - no explanations, no markdown.
+
 {
   "patterns": [
-    { "description": string, "pattern": string, "flags": string }
+    { "description": "description here", "pattern": "regex_pattern", "flags": "gi" }
   ]
 }
+
 Rules:
 - pattern is the regex body WITHOUT surrounding slashes
 - flags is a combination of g,i,m,s,u,y (default to gi)
-Task: ${prompt}`;
-      const llmResp = await generateContent(patternJsonPrompt);
-      const parsed = (() => {
+- Focus on key nouns, names, and specific terms from the query
+- Avoid overly broad patterns like greetings unless specifically relevant
+- MUST return valid JSON format
+
+Query: ${prompt}`;
+
+      let parsed = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (!parsed && attempts < maxAttempts) {
+        attempts++;
+        log(
+          `[1/4] Generating regex patterns... (attempt ${attempts}/${maxAttempts})`
+        );
+
         try {
+          const llmResp = await generateContent(patternJsonPrompt);
           const cleaned = llmResp
             .trim()
             .replace(/^```json|```$/g, "")
+            .replace(/^```|```$/g, "")
             .trim();
+
+          // Try multiple parsing strategies
+          let jsonStr = cleaned;
           const objMatch = cleaned.match(/\{[\s\S]*\}/);
-          if (objMatch) return JSON.parse(objMatch[0]);
-          return JSON.parse(cleaned);
-        } catch {
-          return null;
+          if (objMatch) {
+            jsonStr = objMatch[0];
+          }
+
+          const result = JSON.parse(jsonStr);
+          if (
+            result &&
+            Array.isArray(result.patterns) &&
+            result.patterns.length > 0
+          ) {
+            parsed = result;
+            log(`✓ Successfully generated ${result.patterns.length} patterns`);
+          } else {
+            throw new Error("Invalid patterns structure");
+          }
+        } catch (err: any) {
+          log(`✗ Attempt ${attempts} failed: ${err.message}`);
+          if (attempts === maxAttempts) {
+            // Fallback to basic patterns based on the prompt
+            log("Using fallback patterns based on query keywords");
+            const words = prompt.toLowerCase().match(/\b\w{3,}\b/g) || [];
+            const fallbackPatterns = words.slice(0, 3).map((word, i) => ({
+              description: `Find mentions of "${word}"`,
+              pattern: `\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+              flags: "gi",
+            }));
+            parsed = {
+              patterns:
+                fallbackPatterns.length > 0
+                  ? fallbackPatterns
+                  : [
+                      {
+                        description: "Find any content",
+                        pattern: ".+",
+                        flags: "gi",
+                      },
+                    ],
+            };
+          }
         }
-      })();
-      if (
-        !parsed ||
-        !Array.isArray(parsed.patterns) ||
-        parsed.patterns.length === 0
-      ) {
-        throw new Error("LLM did not return valid patterns JSON");
       }
       const patterns: string[] = parsed.patterns.map((p: any, idx: number) => {
         const desc = (p.description || `Pattern ${idx + 1}`).toString().trim();
@@ -250,7 +298,7 @@ Task: ${prompt}`;
       // Step 3: Semantic search
       setCurrentStep("semantic_search");
       log("[3/4] Running semantic search using Xenova embeddings...");
-      const semResults = await vectorStore!.searchSimilar(prompt, 0.1, 10);
+      const semResults = await vectorStore!.searchSimilar(prompt, 0.1, 15);
       const semFiltered = semResults.filter((r: any) =>
         selectedDocs.includes(r.document.id)
       );
@@ -260,23 +308,53 @@ Task: ${prompt}`;
       setCurrentStep("synthesize");
       log("[4/4] Synthesizing final answer from regex + semantic results...");
       const regexSummary = workerResults
+        .filter((pr) => pr.matches.length > 0)
         .map(
-          (pr) =>
-            `- ${pr.description} (${pr.pattern}): ${pr.matches.length} matches`
+          (pr) => `- Found ${pr.matches.length} matches for: ${pr.description}`
         )
         .join("\n");
       const semanticSummary = semFiltered
-        .slice(0, 10)
+        .slice(0, 8)
         .map(
           (r: any, i: number) =>
-            `#${i + 1} ${r.document.title} [${Math.round(r.similarity * 100)}%]\n${(r.chunk?.content || "").slice(0, 300)}`
+            `**${r.document.title}** [${Math.round(r.similarity * 100)}% relevant]\n${(r.chunk?.content || "").slice(0, 400).trim()}`
         )
         .join("\n\n");
 
-      const synthesisPrompt = `Task: ${prompt}
-First, prioritize the regex-extracted matches to build structured data. Then, enhance and fill gaps using semantic search results. Provide a clean, well-structured final answer (markdown allowed). Be concise but complete.
+      const synthesisPrompt = `You are conducting deep research to answer: "${prompt}"
 
-Regex summary:\n${regexSummary}\n\nSemantic summary (top):\n${semanticSummary}\n\nOutput:`;
+PRIMARY SOURCES - Semantic Search Results (most relevant content):
+${semanticSummary}
+
+SECONDARY SOURCES - Regex Matches (keyword indicators):
+${regexSummary || "No specific keyword matches found."}
+
+DEEP RESEARCH ANALYSIS INSTRUCTIONS:
+1. **Comprehensive Analysis**: Provide a thorough, detailed analysis of all available information
+2. **Multi-faceted Approach**: Examine the topic from multiple angles and perspectives
+3. **Evidence-based Findings**: Use specific examples, quotes, and details from the source material
+4. **Structured Presentation**: Organize findings into clear sections with headings
+5. **Cross-reference Information**: Connect related information across different sources
+6. **Context and Background**: Provide relevant context and background information
+7. **Detailed Insights**: Go beyond surface-level facts to provide meaningful insights
+8. **Professional Formatting**: Use markdown with headers, bullet points, and emphasis
+
+For person-related queries, include:
+- **Professional Background**: Education, career progression, key roles
+- **Technical Skills**: Programming languages, frameworks, tools, expertise areas
+- **Experience Details**: Specific projects, achievements, responsibilities
+- **Contact Information**: Email, phone, social profiles, location
+- **Notable Accomplishments**: Awards, certifications, significant contributions
+
+For technical topics, include:
+- **Detailed Explanations**: Thorough technical descriptions
+- **Implementation Details**: How things work, methodologies used
+- **Comparative Analysis**: Comparisons with alternatives or benchmarks
+- **Practical Applications**: Real-world use cases and examples
+
+Provide a comprehensive, well-researched response with substantial detail:
+
+`;
       const synthesis = await generateContent(synthesisPrompt);
       setFinalOutput(synthesis);
 
@@ -308,7 +386,7 @@ Regex summary:\n${regexSummary}\n\nSemantic summary (top):\n${semanticSummary}\n
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={connectOllama}
+                  onClick={() => connectOllama("http://localhost:11434")}
                   className={
                     connectionState.connected
                       ? "border-green-500 text-green-700"
@@ -585,4 +663,3 @@ Regex summary:\n${regexSummary}\n\nSemantic summary (top):\n${semanticSummary}\n
     </div>
   );
 }
-
