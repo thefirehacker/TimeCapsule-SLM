@@ -1911,10 +1911,9 @@ Return as strictly valid JSON:
           reasoningPreview: docReasoning.substring(0, 150) + '...'
         });
         
-        // Entity ownership mismatch detection (zero-hardcoding)
+        // Enhanced entity ownership detection (zero-hardcoding, finds authors not topics)
         const searchText = docText + ' ' + docEntity + ' ' + docReasoning;
-        const docMentionsOtherEntity = /\b([A-Z][a-z]+)(?:'s|s'|,|\s)/g.exec(searchText);
-        const docEntityName = docMentionsOtherEntity ? docMentionsOtherEntity[1] : null;
+        const docEntityName = this.extractDocumentOwnershipEntity(searchText, queryEntity);
         
         console.log(`🔍 VALIDATION DEBUG Entity extraction:`, {
           searchTextPreview: searchText.substring(0, 200) + '...',
@@ -2631,5 +2630,87 @@ Return as strictly valid JSON:
       console.error(`❌ Error in consumption validation for ${completedAgent}:`, error);
       return { shouldContinue: true }; // Continue on error to avoid blocking
     }
+  }
+
+  /**
+   * Enhanced document ownership entity extraction (zero-hardcoding)
+   * Finds document authors/owners, not just content topics
+   */
+  private extractDocumentOwnershipEntity(searchText: string, queryEntity: string): string | null {
+    // Priority 1: Direct authorship patterns (universal, no hardcoding)
+    const authorshipPatterns = [
+      /authored by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /created by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /written by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /blog by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'s\s+(?:blog|work|project|research|document)/i,
+      /document.*(?:belongs to|owned by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+    ];
+
+    // Check authorship patterns first (highest priority)
+    for (const pattern of authorshipPatterns) {
+      const match = searchText.match(pattern);
+      if (match && match[1]) {
+        const author = match[1].trim();
+        console.log(`🔍 Found document author: "${author}" via authorship pattern`);
+        return author;
+      }
+    }
+
+    // Priority 2: Entity mentions in reasoning (look for query entity specifically)
+    if (queryEntity) {
+      const queryEntityPattern = new RegExp(`\\b${queryEntity}\\b`, 'i');
+      if (queryEntityPattern.test(searchText)) {
+        console.log(`🔍 Query entity "${queryEntity}" found in document context`);
+        return queryEntity;
+      }
+    }
+
+    // Priority 3: Document classification context (MAIN_ENTITY analysis)
+    const entityContextPatterns = [
+      /MAIN_ENTITY:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /primarily about\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /focuses on\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:and|,)/i,
+      /document.*about\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'s/i,
+    ];
+
+    for (const pattern of entityContextPatterns) {
+      const match = searchText.match(pattern);
+      if (match && match[1]) {
+        const entity = match[1].trim();
+        // Filter out generic terms that aren't person names
+        if (!this.isGenericTerm(entity)) {
+          console.log(`🔍 Found document entity: "${entity}" via context pattern`);
+          return entity;
+        }
+      }
+    }
+
+    // Priority 4: Last resort - extract first proper noun that's not generic
+    const properNounPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+    let match;
+    while ((match = properNounPattern.exec(searchText)) !== null) {
+      const entity = match[1].trim();
+      if (!this.isGenericTerm(entity) && entity.length > 2) {
+        console.log(`🔍 Fallback entity extraction: "${entity}"`);
+        return entity;
+      }
+    }
+
+    console.log(`🔍 No clear document owner found in: ${searchText.substring(0, 100)}...`);
+    return null;
+  }
+
+  /**
+   * Check if a term is generic (not a person/entity name)
+   */
+  private isGenericTerm(term: string): boolean {
+    const genericTerms = [
+      'The', 'Language', 'Model', 'Document', 'Research', 'Paper', 'Analysis', 
+      'Study', 'Report', 'Data', 'Information', 'Content', 'Text', 'File',
+      'System', 'Method', 'Process', 'Result', 'Conclusion', 'Summary',
+      'YES', 'NO', 'RELEVANT', 'REASON', 'TYPE', 'MAIN'
+    ];
+    return genericTerms.includes(term);
   }
 }

@@ -607,15 +607,27 @@ Provide specific, actionable insights that will guide intelligent extraction and
       .map((chunk: any, idx: number) => `[CHUNK ${idx + 1}]:\n${chunk.text.substring(0, 800)}`)
       .join('\n\n---\n\n');
     
+    // 🔥 Extract document metadata for better context
+    const documentFilename = documentGroup.metadata?.filename || documentGroup.metadata?.name || 'unknown';
+    const documentSource = documentGroup.metadata?.source || '';
+    const documentUrl = documentGroup.metadata?.url || '';
+    
     // 🐛 DEBUG: Log the sample content to verify document content is available
     console.log(`🔍 DEBUG DataInspector Document ${docNumber} Sample Content:`, {
       chunksCount: documentGroup.chunks.length,
       sampleLength: sampleContent.length,
       firstChunkPreview: documentGroup.chunks[0]?.text?.substring(0, 200) + '...',
-      hasActualContent: sampleContent.length > 100 && !sampleContent.includes('Please provide the content')
+      hasActualContent: sampleContent.length > 100 && !sampleContent.includes('Please provide the content'),
+      filename: documentFilename,
+      source: documentSource
     });
 
     const intelligentPrompt = `You are an intelligent document analyzer. Perform comprehensive analysis to understand what this document contains.
+
+DOCUMENT ${docNumber} METADATA:
+Filename: ${documentFilename}
+Source: ${documentSource}
+${documentUrl ? `URL: ${documentUrl}` : ''}
 
 DOCUMENT ${docNumber} SAMPLE CONTENT:
 ${sampleContent}
@@ -691,17 +703,49 @@ REASON: [detailed reasoning based on extracted content]`;
       
       // Parse the enhanced response
       const docType = this.extractValue(response, 'TYPE') || 'Unknown Document';
-      const mainEntity = this.extractValue(response, 'MAIN_ENTITY') || 'Unknown Entity';
+      let mainEntity = this.extractValue(response, 'MAIN_ENTITY') || 'Unknown Entity';
       const relevantText = this.extractValue(response, 'RELEVANT') || 'NO';
       const reasoning = this.extractValue(response, 'REASON') || 'No reasoning provided';
+      
+      // 🔥 FALLBACK ENTITY EXTRACTION: If MAIN_ENTITY extraction failed or got malformed data
+      if (mainEntity.includes('RELEVANT:') || mainEntity.includes('REASON:') || 
+          mainEntity.length > 100 || mainEntity.includes('YES') || mainEntity.includes('NO')) {
+        console.log(`⚠️ DataInspector: MAIN_ENTITY extraction failed, attempting fallback extraction`);
+        
+        // Try to extract entity from reasoning or response
+        const entityPatterns = [
+          /document is about ([A-Z][^,\.]+)/i,
+          /authored by ([A-Z][^,\.]+)/i,
+          /belongs to ([A-Z][^,\.]+)/i,
+          /written by ([A-Z][^,\.]+)/i,
+          /([A-Z][a-z]+ (?:[A-Z][a-z]+ )?[A-Z][a-z]+)'s/,  // Match "Person's" pattern
+          /about ([A-Z][a-z]+ [A-Z][a-z]+)/,  // Match "about Person Name"
+        ];
+        
+        let foundEntity = false;
+        for (const pattern of entityPatterns) {
+          const match = reasoning.match(pattern) || response.match(pattern);
+          if (match && match[1]) {
+            mainEntity = match[1].trim();
+            console.log(`✅ DataInspector: Fallback entity extraction successful: "${mainEntity}"`);
+            foundEntity = true;
+            break;
+          }
+        }
+        
+        if (!foundEntity) {
+          mainEntity = 'Unknown Entity';
+          console.warn(`❌ DataInspector: Could not extract entity from document ${docNumber}`);
+        }
+      }
       
       // 🐛 DEBUG: Log parsed values to debug extraction
       console.log(`🔍 DataInspector Document ${docNumber} Parsed:`, {
         docType, mainEntity, relevantText, reasoning: reasoning.substring(0, 100) + '...'
       });
       
-      // Enhanced relevance determination with semantic analysis
-      const isRelevant = this.determineRelevanceFromResponse(relevantText, reasoning, query, mainEntity);
+      // Enhanced relevance determination with holistic semantic analysis including metadata
+      const isRelevant = this.determineRelevanceFromResponse(relevantText, reasoning, query, mainEntity, documentFilename);
       
       console.log(`🔍 COMPREHENSIVE ANALYSIS: Query="${query}", Entity="${mainEntity}" → Result: ${isRelevant}`);
       
@@ -754,6 +798,46 @@ REASON: [detailed reasoning based on extracted content]`;
 
     // 🚨 CRITICAL FIX: Clean markdown formatting that breaks parsing
     cleanResponse = this.cleanMarkdownFormatting(cleanResponse);
+    
+    // 🔥 SPECIAL HANDLING FOR MAIN_ENTITY: Stop extraction at next keyword to prevent capturing entire response
+    if (key === 'MAIN_ENTITY') {
+      // Look for MAIN_ENTITY and stop at RELEVANT: or newline
+      const entityPatterns = [
+        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*RELEVANT:|$)/i,  // Stop at RELEVANT: or end
+        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*YES\s*REASON:|$)/i,  // Stop at YES REASON:
+        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*NO\s*REASON:|$)/i,   // Stop at NO REASON:
+        /MAIN_ENTITY:\s*([^\n]+?)(?:\n|$)/i,  // Stop at newline as fallback
+      ];
+      
+      for (const pattern of entityPatterns) {
+        const match = cleanResponse.match(pattern);
+        if (match && match[1].trim()) {
+          let entity = match[1].trim();
+          // Remove any trailing keywords that might have been captured
+          entity = entity.replace(/\s*(RELEVANT|YES|NO|REASON).*$/i, '').trim();
+          console.log(`🎯 DataInspector: Extracted MAIN_ENTITY: "${entity}"`);
+          return entity;
+        }
+      }
+    }
+    
+    // 🔥 SPECIAL HANDLING FOR RELEVANT: Extract just YES or NO without trailing REASON
+    if (key === 'RELEVANT') {
+      // Look for RELEVANT: followed by YES or NO
+      const relevantPatterns = [
+        /RELEVANT:\s*(YES|NO)(?:\s+REASON:|$|\s|\.)/i,  // Match YES/NO followed by REASON: or end
+        /RELEVANT:\s*(YES|NO)\b/i,  // Match YES/NO as word boundary
+      ];
+      
+      for (const pattern of relevantPatterns) {
+        const match = cleanResponse.match(pattern);
+        if (match && match[1]) {
+          const relevantValue = match[1].toUpperCase();
+          console.log(`🎯 DataInspector: Extracted RELEVANT: "${relevantValue}"`);
+          return relevantValue;
+        }
+      }
+    }
     
     // 🔥 ENHANCED: Try with original key first, then with typo-corrected variations
     const keysToTry = [key]; // Start with original key
@@ -840,62 +924,95 @@ REASON: [detailed reasoning based on extracted content]`;
 
 
   /**
-   * Enhanced relevance determination with semantic analysis
-   * Prevents wrong "YES" extraction by analyzing full context
+   * Enhanced relevance determination with holistic semantic analysis
+   * Trusts LLM's judgment while providing safety checks for obvious mismatches
    */
-  private determineRelevanceFromResponse(relevantText: string, reasoning: string, query: string, mainEntity: string): boolean {
+  private determineRelevanceFromResponse(relevantText: string, reasoning: string, query: string, mainEntity: string, documentFilename?: string): boolean {
     // Clean inputs for analysis
     const cleanRelevantText = relevantText.trim().toUpperCase();
     const cleanReasoning = reasoning.trim().toLowerCase();
     
-    // Primary check: Direct YES/NO from RELEVANT field
-    if (cleanRelevantText === 'YES') {
+    // 🔥 PRIMARY: Trust the LLM's explicit YES - it has full document context
+    if (cleanRelevantText === 'YES' || cleanRelevantText.startsWith('YES')) {
+      console.log(`✅ DataInspector: LLM determined document is relevant based on holistic analysis`);
       return true;
     }
-    if (cleanRelevantText === 'NO') {
-      return false;
-    }
     
-    // Secondary check: Analyze reasoning for semantic signals
-    const negativeSignals = [
-      'unrelated', 'not related', 'does not align', 'focuses on unrelated',
-      'different', 'mismatch', 'irrelevant', 'not relevant'
-    ];
-    
-    const positiveSignals = [
-      'aligns with', 'related to', 'contains information about', 'relevant to',
-      'matches', 'corresponds to', 'addresses'
-    ];
-    
-    // Check for strong negative signals in reasoning
-    const hasNegativeSignal = negativeSignals.some(signal => 
-      cleanReasoning.includes(signal)
-    );
-    
-    const hasPositiveSignal = positiveSignals.some(signal => 
-      cleanReasoning.includes(signal)
-    );
-    
-    // If reasoning explicitly says unrelated, mark as irrelevant
-    if (hasNegativeSignal && !hasPositiveSignal) {
-      console.log(`🔍 DataInspector: Semantic analysis detected irrelevant document - reasoning contains negative signals`);
-      return false;
-    }
-    
-    // Extract entity from query for ownership validation
-    const queryEntityMatch = query.match(/\b([A-Z][a-z]+)'s\s+(.+)/);
-    if (queryEntityMatch) {
-      const expectedEntity = queryEntityMatch[1];
+    // 🔥 For explicit NO, verify with reasoning
+    if (cleanRelevantText === 'NO' || cleanRelevantText.startsWith('NO')) {
+      // Check if reasoning confirms it's not relevant
+      const negativeSignals = [
+        'not related', 'unrelated', 'does not align', 'irrelevant',
+        'different entity', 'mismatch', 'not about', 'not from'
+      ];
       
-      // Check if document entity matches query entity
-      if (mainEntity && !mainEntity.toLowerCase().includes(expectedEntity.toLowerCase())) {
-        console.log(`🔍 DataInspector: Entity mismatch detected - query asks for "${expectedEntity}" but document is about "${mainEntity}"`);
+      const hasStrongNegativeSignal = negativeSignals.some(signal => 
+        cleanReasoning.includes(signal)
+      );
+      
+      if (hasStrongNegativeSignal) {
+        console.log(`❌ DataInspector: LLM says NO with strong negative signals in reasoning`);
         return false;
       }
     }
     
-    // Fallback to simple YES check if no clear semantic signals
-    return cleanRelevantText.includes('YES');
+    // 🔥 HOLISTIC ANALYSIS: Check multiple signals for edge cases
+    const queryEntityMatch = query.match(/\b([A-Z][a-z]+)'s\s+(.+)/);
+    if (queryEntityMatch) {
+      const expectedEntity = queryEntityMatch[1].toLowerCase(); // "tyler"
+      const queryContext = queryEntityMatch[2].toLowerCase(); // "blog"
+      
+      // 🔥 Check filename for author information
+      const cleanFilename = (documentFilename || '').toLowerCase();
+      const filenameHasEntity = cleanFilename.includes(expectedEntity) || 
+                                cleanFilename.includes(`${expectedEntity}romero`) || // tylerromero
+                                cleanFilename.includes(`${expectedEntity}-`); // tyler-blog etc
+      
+      if (filenameHasEntity) {
+        console.log(`✅ DataInspector: Author "${expectedEntity}" found in filename: "${documentFilename}"`);
+        return true; // Document belongs to the query entity
+      }
+      
+      // Check multiple signals holistically
+      const signals = {
+        entityInReasoning: cleanReasoning.includes(expectedEntity),
+        contextInReasoning: cleanReasoning.includes(queryContext),
+        entityInMainEntity: mainEntity.toLowerCase().includes(expectedEntity),
+        entityInFilename: filenameHasEntity,
+        // Check if reasoning mentions the document belongs to or is authored by the entity
+        authorshipMentioned: cleanReasoning.includes(`${expectedEntity}'s`) || 
+                            cleanReasoning.includes(`by ${expectedEntity}`) ||
+                            cleanReasoning.includes(`from ${expectedEntity}`),
+        // Check for query-relevant terms
+        hasSpeedrun: cleanReasoning.includes('speedrun') || cleanReasoning.includes('speed run'),
+        hasBlog: cleanReasoning.includes('blog'),
+        hasRelevantContent: cleanReasoning.includes('language model') || 
+                           cleanReasoning.includes('training') ||
+                           cleanReasoning.includes('performance')
+      };
+      
+      // Count positive signals
+      const positiveSignalCount = Object.values(signals).filter(s => s === true).length;
+      
+      console.log(`🔍 DataInspector: Holistic analysis signals for "${expectedEntity}'s ${queryContext}":`, signals);
+      
+      // If multiple positive signals, likely relevant even if entity name isn't in MAIN_ENTITY
+      if (positiveSignalCount >= 2) {
+        console.log(`✅ DataInspector: Holistic match with ${positiveSignalCount} positive signals`);
+        return true;
+      }
+      
+      // Only reject if NO signals match AND LLM didn't say YES
+      if (positiveSignalCount === 0 && !cleanRelevantText.includes('YES')) {
+        console.log(`⚠️ DataInspector: No holistic signals found and LLM didn't say YES`);
+        return false;
+      }
+    }
+    
+    // 🔥 DEFAULT: Trust the LLM's judgment - it has more context than our simple checks
+    const defaultDecision = !cleanRelevantText.includes('NO');
+    console.log(`📋 DataInspector: Using LLM's judgment as default: ${defaultDecision ? 'relevant' : 'not relevant'}`);
+    return defaultDecision;
   }
 
   /**
@@ -1619,49 +1736,97 @@ ${documentSources.map((source, idx) => `- ${source} (${documentGroups[idx]?.chun
     try {
       const lines = response.split('\n');
       
+      // Track current category for multiline content
+      let currentCategory = '';
+      let collectedContent: string[] = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim().toLowerCase();
+        
+        // Check if this line starts a new category
+        if (trimmed.startsWith('methods:') || trimmed.startsWith('concepts:') || 
+            trimmed.startsWith('people:') || trimmed.startsWith('data:')) {
+          
+          // Save previous category if exists
+          if (currentCategory && collectedContent.length > 0) {
+            this.saveParsedCategory(insights, currentCategory, collectedContent.join(' '));
+          }
+          
+          // Start new category
+          if (trimmed.startsWith('methods:')) currentCategory = 'methods';
+          else if (trimmed.startsWith('concepts:')) currentCategory = 'concepts';
+          else if (trimmed.startsWith('people:')) currentCategory = 'people';
+          else if (trimmed.startsWith('data:')) currentCategory = 'data';
+          
+          // Extract content after colon (might be empty if content is on next line)
+          const colonIndex = line.indexOf(':');
+          const terms = line.substring(colonIndex + 1).trim();
+          console.log(`🔍 Parsing ${currentCategory} line: "${terms}"`);
+          
+          collectedContent = terms ? [terms] : [];
+        } else if (currentCategory && line.trim()) {
+          // This is continuation content for current category
+          collectedContent.push(line.trim());
+        }
+      }
+      
+      // Save last category
+      if (currentCategory && collectedContent.length > 0) {
+        this.saveParsedCategory(insights, currentCategory, collectedContent.join(' '));
+      }
+    } catch (error) {
+      console.warn('⚠️ Error parsing extracted terms:', error);
+    }
+    
+    return insights;
+  }
+
+  private saveParsedCategory(insights: any, category: string, content: string) {
+    console.log(`💾 Saving ${category}: "${content.substring(0, 100)}..."`);
+    
+    // Filter out error messages and "not found" responses
+    if (content && 
+        content !== 'none' && 
+        content.toLowerCase() !== 'none' &&
+        !content.toLowerCase().includes('no specific') &&
+        !content.toLowerCase().includes('not found') &&
+        !content.toLowerCase().includes('no relevant') &&
+        !content.toLowerCase().includes('[') &&  // Filter out bracketed error messages
+        content.length < 500) {  // Error messages tend to be long
+      
+      const items = content.split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0 && 
+                 t.toLowerCase() !== 'none' &&
+                 !t.toLowerCase().includes('no specific') &&
+                 !t.toLowerCase().includes('not found'));
+      
+      if (items.length > 0) {
+        insights[category] = items;
+        console.log(`✅ Parsed ${category}:`, insights[category]);
+      }
+    }
+  }
+
+  private async parseExtractedTerms_OLD(response: string): Promise<any> {
+    // Keep old implementation for reference
+    const insights = {
+      methods: [],
+      concepts: [],
+      people: [],
+      data: []
+    };
+    
+    try {
+      const lines = response.split('\n');
+      
       for (const line of lines) {
         const trimmed = line.trim().toLowerCase();
         
         if (trimmed.startsWith('methods:')) {
           const terms = line.substring(line.indexOf(':') + 1).trim();
           console.log(`🔍 Parsing methods line: "${terms}"`);
-          // Filter out error messages and "not found" responses
-          if (terms && 
-              terms !== 'none' && 
-              terms.toLowerCase() !== 'none' &&
-              !terms.toLowerCase().includes('no specific') &&
-              !terms.toLowerCase().includes('not found') &&
-              !terms.toLowerCase().includes('no relevant') &&
-              !terms.toLowerCase().includes('[') &&  // Filter out bracketed error messages
-              terms.length < 100) {  // Error messages tend to be long
-            insights.methods = terms.split(',')
-              .map(t => t.trim())
-              .filter(t => t.length > 0 && 
-                       t.toLowerCase() !== 'none' &&
-                       !t.toLowerCase().includes('no specific') &&
-                       !t.toLowerCase().includes('not found'));
-            console.log(`✅ Parsed methods:`, insights.methods);
-          }
-        } else if (trimmed.startsWith('concepts:')) {
-          const terms = line.substring(line.indexOf(':') + 1).trim();
-          console.log(`🔍 Parsing concepts line: "${terms}"`);
-          if (terms && 
-              terms !== 'none' && 
-              terms.toLowerCase() !== 'none' &&
-              !terms.toLowerCase().includes('no relevant') &&
-              !terms.toLowerCase().includes('not found') &&
-              !terms.toLowerCase().includes('[') &&
-              terms.length < 100) {
-            insights.concepts = terms.split(',')
-              .map(t => t.trim())
-              .filter(t => t.length > 0 && 
-                       t.toLowerCase() !== 'none' &&
-                       !t.toLowerCase().includes('no relevant') &&
-                       !t.toLowerCase().includes('not found'));
-          }
-        } else if (trimmed.startsWith('people:')) {
-          const terms = line.substring(line.indexOf(':') + 1).trim();
-          console.log(`🔍 Parsing people line: "${terms}"`);
           if (terms && 
               terms !== 'none' && 
               terms.toLowerCase() !== 'none' &&

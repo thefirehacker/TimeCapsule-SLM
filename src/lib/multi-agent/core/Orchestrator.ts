@@ -941,14 +941,25 @@ ${this.buildDynamicToolsList(availableData)}
 
 ⚠️ CRITICAL: Use EXACT names above. Do NOT create variations.
 
+⚡ MANDATORY EXECUTION ORDER - NEVER SKIP STEPS:
+1️⃣ DataInspector (${availableData.dataInspectorCompleted ? 'DONE ✅' : 'REQUIRED ❌'}) → Analyzes and filters documents  
+2️⃣ PlanningAgent (${availableData.planningAgentCompleted ? 'DONE ✅' : availableData.dataInspectorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Creates execution strategy
+3️⃣ PatternGenerator (${availableData.patternGeneratorCompleted ? 'DONE ✅' : availableData.planningAgentCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Identifies data patterns
+4️⃣ Extractor (${availableData.extractorCompleted ? 'DONE ✅' : availableData.patternGeneratorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Extracts data using patterns  
+5️⃣ SynthesisCoordinator (${availableData.synthesizerCompleted ? 'DONE ✅' : availableData.extractorCompleted ? 'NEXT ➡️' : 'BLOCKED ⛔'}) → Synthesizes final answer
+
+🚨 CRITICAL SEQUENCING RULES:
+❌ NEVER call SynthesisCoordinator before Extractor
+❌ NEVER call Extractor before PatternGenerator  
+❌ NEVER skip steps in the sequence above
+✅ ALWAYS follow the order: DataInspector → PlanningAgent → PatternGenerator → Extractor → SynthesisCoordinator
+
 🎯 INTELLIGENT ORCHESTRATION GUIDANCE:
-1. **START WITH DataInspector** if not called yet - Analyzes and filters documents (${availableData.dataInspectorCompleted ? 'DONE ✅' : 'REQUIRED ❌'})
-2. **THEN PlanningAgent** if DataInspector done - Creates execution strategy (${availableData.planningAgentCompleted ? 'DONE ✅' : availableData.dataInspectorCompleted ? 'RECOMMENDED' : 'NOT YET'})
-3. **🔥 CRITICAL DEPENDENCY: PatternGenerator BEFORE Extractor** - Extractor requires patterns to function effectively (${availableData.patternGeneratorCompleted ? 'PATTERNS READY ✅' : 'PATTERNS NEEDED ❌'})
-4. **🔥 CRITICAL: FOLLOW EXECUTION PLAN** if available - The plan is validated and prevents sequencing errors
-5. **PLAN-AWARE DECISIONS** - Your decisions are validated against the execution plan automatically
-6. **TRUST THE PLAN** - The PlanningAgent created an intelligent sequence - follow it exactly
-7. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
+1. **FOLLOW THE NUMBERED SEQUENCE ABOVE** - Each step depends on the previous one
+2. **🔥 CRITICAL: FOLLOW EXECUTION PLAN** if available - The plan is validated and prevents sequencing errors  
+3. **PLAN-AWARE DECISIONS** - Your decisions are validated against the execution plan automatically
+4. **TRUST THE PLAN** - The PlanningAgent created an intelligent sequence - follow it exactly
+5. **AVOID REDUNDANT CALLS** - Don't call the same agent twice unless necessary
 
 🚨 **SPECIAL RULE FOR PERFORMANCE/RANKING QUERIES**:
 ${this.isPerformanceQuery(context.query) ? `
@@ -1000,6 +1011,13 @@ ${this.getNextPlannedStep(context, availableData)}
 ⚠️ **CRITICAL**: Your decision will be validated against this plan. Follow the recommended step to avoid sequencing violations.
 ` : ''}
 ${!availableData.planningAgentCompleted && availableData.dataInspectorCompleted ? '\n💡 **OR** make intelligent tool decisions based on document analysis' : ''}`}
+
+🔍 PRE-DECISION VALIDATION CHECKLIST:
+Before calling any tool, verify:
+✅ The tool is the NEXT step in the execution sequence (1→2→3→4→5)
+✅ All prerequisite steps are completed (DONE ✅)
+✅ You're not skipping any steps in the mandatory order
+✅ The tool you're calling shows "NEXT ➡️" status above
 
 🎯 RESPONSE FORMAT:
 
@@ -1325,13 +1343,13 @@ NEXT_GOAL: [final goal achieved]`;
       lastAgentCalled: this.lastAgentCalled,
       agentCallCount: this.calledAgents.size,
       
-      // Agent-specific status
-      dataInspectorCompleted: agentStatus.DataInspector,
-      planningAgentCompleted: agentStatus.PlanningAgent,
-      patternGeneratorCompleted: agentStatus.PatternGenerator,
-      extractorCompleted: agentStatus.Extractor,
-      webSearchAgentCompleted: agentStatus.WebSearchAgent,
-      synthesizerCompleted: agentStatus.Synthesizer
+      // Agent-specific status (fixed truthy string bug - convert to boolean)
+      dataInspectorCompleted: agentStatus.DataInspector === 'completed',
+      planningAgentCompleted: agentStatus.PlanningAgent === 'completed',
+      patternGeneratorCompleted: agentStatus.PatternGenerator === 'completed',
+      extractorCompleted: agentStatus.Extractor === 'completed',
+      webSearchAgentCompleted: agentStatus.WebSearchAgent === 'completed',
+      synthesizerCompleted: agentStatus.Synthesizer === 'completed'
     };
   }
   
@@ -1680,13 +1698,19 @@ NEXT_GOAL: [final goal achieved]`;
           // Add Extractor as critical prerequisite
           critical.push({
             agent: 'Extractor',
-            reason: 'SynthesisCoordinator requires extracted data from Extractor'
+            action: 'Extract data using generated patterns',
+            reasoning: 'SynthesisCoordinator requires extracted data from Extractor',
+            expectedOutput: 'Extracted data points for synthesis',
+            priority: 'high' as const
           });
           // Also ensure PatternGenerator runs before Extractor
           if (!this.calledAgents.has('PatternGenerator')) {
             critical.push({
               agent: 'PatternGenerator',
-              reason: 'PatternGenerator must run before Extractor to generate patterns'
+              action: 'Generate extraction patterns',
+              reasoning: 'PatternGenerator must run before Extractor to generate patterns',
+              expectedOutput: 'Extraction patterns for data mining',
+              priority: 'high' as const
             });
           }
         }
@@ -2142,7 +2166,7 @@ NEXT_GOAL: [final goal achieved]`;
         console.log(`🔍 PlanningAgent consuming ${normalizedToolName} results for quality analysis...`);
         
         // Track PlanningAgent validation as a separate UI step
-        const validationStepName = `PlanningAgent_Validation_${normalizedToolName}`;
+        const validationStepName = `PlanningAgent Validation: ${normalizedToolName}`;
         await this.progressTracker.startAgent(validationStepName, 'PlanningAgent', {
           ...context,
           validationTarget: normalizedToolName,
@@ -2212,6 +2236,11 @@ NEXT_GOAL: [final goal achieved]`;
           });
           // Continue anyway - consumption is for quality improvement, not critical path
         }
+        
+        // 🔥 FIX: Add small delay to ensure validation UI completes before next agent starts
+        // This prevents visual overlap where validation appears to run concurrently with next agent
+        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log(`⏱️ Validation UI sync delay completed`);
       } else if (this.registry.has('PlanningAgent') && normalizedToolName !== 'PlanningAgent') {
         // Log skipped validation for non-strategic agents
         console.log(`⚡ Strategic validation: Skipping validation for ${normalizedToolName} (not a strategic checkpoint)`);
@@ -3003,7 +3032,7 @@ Assess based purely on query needs:`;
     }
     
     console.log(`🔍 DataInspector approved ${context.documentAnalysis.documents.length} documents - fetching ALL chunks`);
-    console.log(`📊 Approved documents:`, context.documentAnalysis.documents.map(d => d.title));
+    console.log(`📊 Approved documents:`, context.documentAnalysis.documents.map(d => d.documentName));
     
     try {
       const approvedDocumentIds = new Set(

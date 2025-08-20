@@ -748,9 +748,15 @@ Focus on completeness - capture every relevant data point.`;
       
       const existing = seen.get(key);
       
-      // Only replace if new item has significantly higher confidence
-      if (!existing || (item.confidence > existing.confidence + 0.1)) {
+      if (!existing) {
+        // No existing item, add this one
         seen.set(key, item);
+      } else {
+        // Item exists, determine which one to keep
+        const shouldReplace = this.shouldReplaceItem(existing, item);
+        if (shouldReplace) {
+          seen.set(key, item);
+        }
       }
     }
     
@@ -763,6 +769,40 @@ Focus on completeness - capture every relevant data point.`;
         // Otherwise by confidence
         return b.confidence - a.confidence;
       });
+  }
+
+  /**
+   * Smart replacement logic to prefer meaningful data over fragments
+   */
+  private shouldReplaceItem(existing: ExtractedItem, newItem: ExtractedItem): boolean {
+    // Always prefer items with metadata types indicating structured data
+    const existingHasStructuredType = existing.metadata?.type === 'timing_data' || 
+                                     existing.metadata?.type === 'table_row' ||
+                                     existing.metadata?.type === 'current_record';
+    const newHasStructuredType = newItem.metadata?.type === 'timing_data' || 
+                                newItem.metadata?.type === 'table_row' ||
+                                newItem.metadata?.type === 'current_record';
+    
+    if (newHasStructuredType && !existingHasStructuredType) {
+      return true; // Replace fragment with structured data
+    }
+    if (existingHasStructuredType && !newHasStructuredType) {
+      return false; // Keep structured data over fragment
+    }
+    
+    // Both are same type, prefer longer content (more context)
+    const existingLength = (existing.content || '').length;
+    const newLength = (newItem.content || '').length;
+    
+    if (newLength > existingLength + 10) {
+      return true; // Significantly longer content
+    }
+    if (existingLength > newLength + 10) {
+      return false; // Keep longer existing content
+    }
+    
+    // Similar length, prefer higher confidence with smaller threshold
+    return newItem.confidence > existing.confidence + 0.05;
   }
   
   private parseJSON(text: string): any {

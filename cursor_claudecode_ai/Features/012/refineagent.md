@@ -72,3 +72,101 @@
 - [ ] Test with Tyler's blog + Amardeep CV to verify document filtering
 - [ ] Verify strategic validation reduces cascade failures
 - [ ] Confirm entity parsing works for different possessive queries
+
+## Critical Insight: Semantic Understanding vs Binary Matching
+
+### Problem: Surface-Level Binary Decisions Instead of Semantic Intelligence
+
+**Current Wrong Approach**:
+```
+Query: "Give top 3 speedrun from Tyler's blog"
+System Logic: Look for "Tyler" in document text → Not found → Reject document
+```
+
+**Missing the Core Concept**: 
+- "speedrun" = performance optimization, fastest training runs, ML benchmarking
+- Document contains performance optimization content but system rejects it because "Tyler" not in text
+
+### What Should Happen: Concept-Level Semantic Matching
+
+**Query Analysis**:
+```
+"Give top 3 speedrun from Tyler's blog"
+- Primary Concept: "speedrun" = performance optimization, training speed, benchmarking
+- Secondary Entity: "Tyler" = author (found in filename: tylerromero.com)
+- Intent: Find performance benchmarks from specific author
+```
+
+**Document Analysis**:
+```
+Tyler's Blog Content:
+- Concepts: training performance, optimization, architecture improvements, speed metrics
+- Methods: GPT-2 modifications, training techniques
+- Author: Tyler (from filename metadata)
+- Match: Performance content + Tyler authorship = SEMANTICALLY RELEVANT
+```
+
+### The Semantic Intelligence Solution
+
+**DataInspector Enhancement**:
+1. **Query Concept Extraction**: "speedrun" → ["performance", "optimization", "training speed", "benchmarking"]
+2. **Document Concept Extraction**: Extract performance/optimization concepts from content
+3. **Semantic Concept Mapping**: Match query concepts with document concepts
+4. **Entity Resolution**: Tyler from filename + performance content = Tyler's speedrun blog
+
+**Enhanced Relevance Logic**:
+```typescript
+// Wrong: Binary word matching
+if (document.contains("Tyler")) return true;
+
+// Correct: Semantic concept matching
+const queryConceptMatch = 
+  (query.contains("speedrun") && document.hasPerformanceConcepts()) ||
+  (query.contains("benchmarks") && document.hasOptimizationContent());
+
+const authorMatch = filename.contains("tyler") || document.authoredBy("tyler");
+return queryConceptMatch && authorMatch;
+```
+
+**Enhanced DataInspector Prompt**:
+```
+SEMANTIC CONCEPT MAPPING:
+Query: "Give top 3 speedrun from Tyler's blog"
+
+1. Extract query concepts:
+   - "speedrun" in ML/AI = performance optimization, fastest training, benchmarking
+   - "Tyler's blog" = authored content by Tyler, personal experiments
+
+2. Extract document concepts:
+   - Performance metrics, training speed, optimization techniques
+   - Architecture improvements, model efficiency
+   - Author identity from filename/metadata
+
+3. Semantic relevance check:
+   - Does document contain speedrun-related concepts? (performance, optimization, speed)
+   - Is document authored by query entity? (Tyler from filename)
+   - RELEVANT if: speedrun concepts + Tyler authorship
+```
+
+### Expected System Behavior
+
+**Tyler's Blog**:
+- Filename: "tylerromero.com-speedrun-worklog" ✓
+- Content: Performance optimization, training speed ✓  
+- Concepts: "speedrun" semantically matches "performance optimization" ✓
+- **Result**: ACCEPTED
+
+**Amardeep's CV**:
+- Filename: "CV_Amardeep.pdf" ✗
+- Content: Education, work experience ✗
+- Concepts: No performance/speedrun concepts ✗
+- **Result**: REJECTED
+
+### Integration with PlanningAgent
+
+**PlanningAgent Validation**:
+1. Did DataInspector extract relevant concepts? (performance optimization = speedrun)
+2. Did DataInspector match entity correctly? (Tyler from filename)
+3. Should guide PatternGenerator to find performance metrics, not generic patterns
+
+This creates true **semantic intelligence** instead of surface-level binary matching.
