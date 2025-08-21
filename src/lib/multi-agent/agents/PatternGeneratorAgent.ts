@@ -281,22 +281,8 @@ export class PatternGeneratorAgent extends BaseAgent {
         availableStrategies: Object.keys(strategies).length
       });
       
-      // Use PlanningAgent's strategy to create targeted patterns
-      await this.generatePatternsFromStrategy(context, extractionStrategy);
-      
-      // 🎯 If expected answer is performance ranking, add deterministic numeric/time patterns (no LLM)
-      const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
-      const queryConstraints = (context.sharedKnowledge as any)?.queryConstraints;
-      const expectedIntent = queryConstraints?.expectedIntent;
-      
-      // Check both expectedAnswerType and expectedIntent for performance ranking
-      if (expectedType === 'performance_ranking' || expectedIntent === 'performance_ranking') {
-        console.log(`🎯 Performance ranking detected: expectedType=${expectedType}, expectedIntent=${expectedIntent}`);
-        this.addDeterministicPerformancePatterns(context);
-      }
-
-      // 🔎 Deterministic RxDB augmentation using grounded terms and query constraints (no LLM)
-      await this.applyRxDBAugmentation(context);
+      // 🎯 FOCUSED APPROACH: Generate exactly 3 regex + 1 semantic pattern (no chaos)
+      await this.generateFocusedPatterns(context, extractionStrategy);
       return;
     }
     
@@ -1567,6 +1553,186 @@ Generate 3-6 effective patterns:`;
   }
 
   /**
+   * 🎯 FOCUSED PATTERN GENERATION: Generate exactly 3 regex + 1 semantic pattern
+   * Uses DataInspector intelligence to create targeted patterns without pollution
+   */
+  private async generateFocusedPatterns(context: ResearchContext, strategy: any): Promise<void> {
+    console.log(`🎯 PatternGenerator: Generating focused patterns (3 regex + 1 semantic)`);
+    
+    if (!context.patterns) context.patterns = [];
+    
+    const { queryIntent = '', expectedAnswerType = '' } = strategy || {};
+    const documentInsights = context.sharedKnowledge?.documentInsights || {};
+    
+    // 1. DETERMINISTIC PERFORMANCE PATTERN (if applicable)
+    const expectedType = (context.sharedKnowledge as any)?.intelligentExpectations?.expectedAnswerType;
+    if (expectedType === 'performance_ranking' || queryIntent === 'performance_ranking') {
+      console.log(`🎯 Performance ranking detected - adding deterministic timing pattern`);
+      const timingPatterns = this.generateTimingPatterns(context);
+      context.patterns.push(...timingPatterns.slice(0, 2)); // Max 2 timing patterns
+    }
+    
+    // 2. DOCUMENT STRUCTURE PATTERN (if table/structured data detected)
+    const structurePattern = this.generateStructurePattern(context, documentInsights);
+    if (structurePattern) {
+      context.patterns.push(structurePattern);
+    }
+    
+    // 3. INTELLIGENCE-BASED PATTERN (using DataInspector methods/concepts)
+    if (documentInsights.methods?.length > 0 || documentInsights.concepts?.length > 0) {
+      const intelligencePattern = this.generateIntelligencePattern(context, documentInsights);
+      if (intelligencePattern) {
+        context.patterns.push(intelligencePattern);
+      }
+    }
+    
+    // 4. SEMANTIC SEARCH PATTERN (always add one)
+    const semanticPattern = this.generateSemanticPattern(context, strategy);
+    context.patterns.push(semanticPattern);
+    
+    // Ensure exactly 3 regex + 1 semantic (max 4 patterns total)
+    const regexPatterns = context.patterns.filter(p => p.regexPattern && p.regexPattern !== 'semantic');
+    const semanticPatterns = context.patterns.filter(p => !p.regexPattern || p.regexPattern === 'semantic');
+    
+    // Limit to 3 regex patterns
+    context.patterns = [
+      ...regexPatterns.slice(0, 3),
+      ...semanticPatterns.slice(0, 1)
+    ];
+    
+    console.log(`✅ Generated ${context.patterns.length} focused patterns:`, 
+      context.patterns.map((p: any) => p.description || 'unnamed pattern'));
+    
+    // Run immediate extraction with focused patterns
+    try {
+      const extractedItems = await this.extractWithGeneratedPatterns(context);
+      context.extractedData.raw = extractedItems;
+      console.log(`✅ PatternGenerator: Extracted ${extractedItems.length} items with focused patterns`);
+    } catch (error) {
+      console.error(`❌ PatternGenerator focused extraction failed:`, error);
+      context.extractedData.raw = [];
+    }
+  }
+
+  /**
+   * Generate timing/performance patterns for ranking queries
+   */
+  private generateTimingPatterns(context: ResearchContext): Array<any> {
+    const patterns = [];
+    
+    // Pattern 1: Hours pattern (proven to work from logs)
+    patterns.push({
+      description: 'Performance timing (hours)',
+      examples: ['2.55 hours', '4.01 hours'],
+      extractionStrategy: 'Extract training/performance timing data',
+      confidence: 0.95,
+      regexPattern: '/((?:\\d+(?:\\.\\d+)?)\\s*hours?)/gi'
+    });
+    
+    // Pattern 2: General timing with units
+    const sampleContent = context.ragResults?.chunks?.slice(0, 3)?.map(c => c.text)?.join(' ') || '';
+    const learnedUnits = this.extractUnitsFromContent(sampleContent);
+    if (learnedUnits.length > 0) {
+      const unitsPattern = learnedUnits.slice(0, 5).map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      patterns.push({
+        description: 'Performance metrics with learned units',
+        examples: learnedUnits.slice(0, 3),
+        extractionStrategy: 'Extract metrics using document-learned units',
+        confidence: 0.9,
+        regexPattern: `/(\\d+(?:\\.\\d+)?\\s*(${unitsPattern}))/gi`
+      });
+    }
+    
+    return patterns;
+  }
+
+  /**
+   * Generate document structure pattern (table rows, etc.)
+   */
+  private generateStructurePattern(context: ResearchContext, insights: any): any | null {
+    const sampleContent = context.ragResults?.chunks?.slice(0, 2)?.map(c => c.text.substring(0, 500))?.join('\n') || '';
+    
+    // Check for table structure
+    if (sampleContent.includes('TABLE_ROW') && sampleContent.includes('|')) {
+      return {
+        description: 'Table row extraction',
+        examples: ['TABLE_ROW entries with structured data'],
+        extractionStrategy: 'Extract table entries with context',
+        confidence: 0.9,
+        regexPattern: '/TABLE_ROW[^<]*([^|]+)\\|([^|]+)\\|([^|]*)/gi'
+      };
+    }
+    
+    // Check for list structure  
+    if (sampleContent.match(/^\s*[\d-]\./m)) {
+      return {
+        description: 'Numbered list extraction',
+        examples: ['1. Item', '2. Item'],
+        extractionStrategy: 'Extract numbered list items',
+        confidence: 0.85,
+        regexPattern: '/^\\s*[\\d-]\\.\\s*([^\\n]+)/gmi'
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Generate intelligence-based pattern using DataInspector findings
+   */
+  private generateIntelligencePattern(context: ResearchContext, insights: any): any | null {
+    const methods = insights.methods || [];
+    const concepts = insights.concepts || [];
+    
+    if (methods.length > 0) {
+      // Create pattern for method names found by DataInspector
+      const methodTerms = methods.slice(0, 5).map((m: string) => 
+        m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      ).join('|');
+      
+      return {
+        description: 'Method extraction using DataInspector intelligence',
+        examples: methods.slice(0, 3),
+        extractionStrategy: 'Extract methods found by DataInspector analysis',
+        confidence: 0.9,
+        regexPattern: `/([^\\n]*(?:${methodTerms})[^\\n]*)/gi`
+      };
+    }
+    
+    if (concepts.length > 0) {
+      const conceptTerms = concepts.slice(0, 5).map((c: string) => 
+        c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').split(/\s+/).slice(0, 2).join('\\s+')
+      ).join('|');
+      
+      return {
+        description: 'Concept extraction using DataInspector intelligence',
+        examples: concepts.slice(0, 3),
+        extractionStrategy: 'Extract concepts found by DataInspector analysis', 
+        confidence: 0.85,
+        regexPattern: `/([^\\n]*(?:${conceptTerms})[^\\n]*)/gi`
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Generate semantic search pattern (always exactly 1)
+   */
+  private generateSemanticPattern(context: ResearchContext, strategy: any): any {
+    const queryIntent = strategy?.queryIntent || context.query || '';
+    
+    return {
+      description: 'Semantic content extraction',
+      examples: ['Context-aware content matching'],
+      extractionStrategy: `Extract content semantically relevant to: ${queryIntent}`,
+      confidence: 0.8,
+      regexPattern: 'semantic', // Special marker for semantic extraction
+      semanticQuery: queryIntent
+    };
+  }
+
+  /**
    * 🎯 CRITICAL: Generate patterns from PlanningAgent's extraction strategy
    * This creates query-aligned patterns based on DataInspector's comprehensive analysis
    */
@@ -2063,25 +2229,28 @@ REGEX_PATTERNS:
    * Combines simple regex + semantic LLM extraction in single agent
    */
   private async extractWithGeneratedPatterns(context: ResearchContext): Promise<ExtractedItem[]> {
-    const regexPatterns = context.patterns.filter(p => p.regexPattern);
+    const regexPatterns = context.patterns.filter(p => p.regexPattern && p.regexPattern !== 'semantic');
+    const semanticPatterns = context.patterns.filter(p => p.regexPattern === 'semantic');
     const extractedItems: ExtractedItem[] = [];
 
-    console.log(`🎯 Running dual extraction: ${regexPatterns.length} regex patterns + 1 semantic approach`);
+    console.log(`🎯 Running focused extraction: ${regexPatterns.length} regex patterns + ${semanticPatterns.length} semantic patterns`);
 
-    // 1. REGEX EXTRACTION (Fast, direct pattern matching)
+    // 1. REGEX EXTRACTION (Fast, direct pattern matching)  
     if (regexPatterns.length > 0) {
       const regexItems = await this.extractUsingRegex(regexPatterns, context.ragResults.chunks);
       extractedItems.push(...regexItems);
       console.log(`✅ Regex extraction: Found ${regexItems.length} items`);
     }
 
-    // 2. SEMANTIC LLM EXTRACTION (One focused LLM call)
-    try {
-      const semanticItems = await this.extractUsingSemanticSearch(context);
-      extractedItems.push(...semanticItems);
-      console.log(`✅ Semantic extraction: Found ${semanticItems.length} items`);
-    } catch (error) {
-      console.warn('⚠️ Semantic extraction failed, continuing with regex results:', error);
+    // 2. SEMANTIC LLM EXTRACTION (One focused LLM call for semantic patterns)
+    if (semanticPatterns.length > 0) {
+      try {
+        const semanticItems = await this.extractUsingSemanticSearch(context, semanticPatterns[0]);
+        extractedItems.push(...semanticItems);
+        console.log(`✅ Semantic extraction: Found ${semanticItems.length} items`);
+      } catch (error) {
+        console.warn('⚠️ Semantic extraction failed, continuing with regex results:', error);
+      }
     }
 
     // 3. DEDUPLICATION
@@ -2136,21 +2305,22 @@ REGEX_PATTERNS:
   /**
    * Focused semantic extraction using LLM
    */
-  private async extractUsingSemanticSearch(context: ResearchContext): Promise<ExtractedItem[]> {
+  private async extractUsingSemanticSearch(context: ResearchContext, semanticPattern?: any): Promise<ExtractedItem[]> {
     // Get sample content for focused analysis
     const sampleContent = context.ragResults.chunks
       .slice(0, 3)
       .map(chunk => chunk.text.substring(0, 500))
       .join('\n\n---\n\n');
 
-    const prompt = `Extract data for query: "${context.query}"
+    const queryIntent = semanticPattern?.semanticQuery || context.query;
+    const prompt = `Extract data for query: "${queryIntent}"
 
 DOCUMENT CONTENT:
 ${sampleContent}
 
 SEMANTIC UNDERSTANDING:
 Based on DataInspector analysis, extract information that answers the user's query.
-Focus on finding specific data points, measurements, or facts.
+Focus on finding specific methods, timing data, performance metrics, or optimization techniques.
 
 Return as simple list format:
 - [extracted item 1]

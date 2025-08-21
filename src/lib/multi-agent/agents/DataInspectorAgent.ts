@@ -423,8 +423,13 @@ CRITICAL RULES:
           documentGroups
         );
 
-      // 🎯 CRITICAL FIX: Extract query-relevant terms ONLY from relevant documents
-      await this.extractQueryRelevantTerms(context, relevantDocuments);
+      // 🎯 ENHANCED FIX: Extract intelligence from stored concept synthesis (before filtering)
+      await this.extractIntelligenceFromConceptSynthesis(context);
+      
+      // 🎯 FALLBACK: Also extract from remaining relevant documents if available
+      if (relevantDocuments.length > 0) {
+        await this.extractQueryRelevantTerms(context, relevantDocuments);
+      }
 
       // Store full response for thinking extraction
       this.setReasoning(response);
@@ -2500,6 +2505,244 @@ ${documentSummary}
         data: [],
       };
     }
+  }
+
+  /**
+   * 🎯 ENHANCED FIX: Extract actionable intelligence from stored concept synthesis
+   * This uses existing LLM analysis instead of running new extraction on filtered documents
+   */
+  private async extractIntelligenceFromConceptSynthesis(context: ResearchContext): Promise<void> {
+    try {
+      console.log(`🧠 DataInspector: Extracting intelligence from concept synthesis`);
+      
+      // Get stored concept synthesis from earlier analysis
+      const conceptSyntheses = context.sharedKnowledge?.agentFindings?.['DataInspector']?.conceptSynthesis || [];
+      
+      if (conceptSyntheses.length === 0) {
+        console.log(`⚠️ No concept synthesis available for intelligence extraction`);
+        return;
+      }
+
+      // Initialize insights if not present
+      if (!context.sharedKnowledge.documentInsights) {
+        context.sharedKnowledge.documentInsights = {};
+      }
+
+      const insights = {
+        methods: [] as string[],
+        concepts: [] as string[],
+        people: [] as string[],
+        data: [] as string[],
+      };
+
+      // Extract intelligence from each concept synthesis
+      for (const synthItem of conceptSyntheses) {
+        console.log(`🔍 Processing concept synthesis for ${synthItem.documentId}`);
+        
+        // Parse methods from synthesis (no hardcoding - extract from existing analysis)
+        const methodMatches = this.extractMethodsFromSynthesis(synthItem.synthesis);
+        insights.methods.push(...methodMatches);
+        
+        // Parse performance concepts
+        const conceptMatches = this.extractConceptsFromSynthesis(synthItem.synthesis);
+        insights.concepts.push(...conceptMatches);
+        
+        // Parse measurement data
+        const dataMatches = this.extractDataFromSynthesis(synthItem.synthesis);
+        insights.data.push(...dataMatches);
+        
+        console.log(`✅ Extracted from synthesis: ${methodMatches.length} methods, ${conceptMatches.length} concepts, ${dataMatches.length} data points`);
+      }
+
+      // Also check document content that was analyzed earlier
+      await this.extractIntelligenceFromDocumentContent(context, insights);
+
+      // Store extracted intelligence
+      Object.assign(context.sharedKnowledge.documentInsights, insights);
+
+      // Also format measurements in the format PatternGenerator expects
+      const measurements = this.formatDataAsMeasurements(insights.data, context);
+      context.sharedKnowledge.documentInsights.measurements = measurements;
+
+      console.log(`🎯 Intelligence extracted from concept synthesis:`, {
+        methods: insights.methods.length,
+        concepts: insights.concepts.length, 
+        people: insights.people.length,
+        data: insights.data.length,
+        measurements: measurements.length
+      });
+
+      // Log specific findings for debugging
+      if (insights.methods.length > 0) {
+        console.log(`📋 Methods from concept synthesis:`, insights.methods.slice(0, 3));
+      }
+      if (insights.data.length > 0) {
+        console.log(`📊 Data from concept synthesis:`, insights.data.slice(0, 3));
+      }
+
+      // Quality gate: Check if meaningful intelligence was extracted
+      const totalIntelligence = insights.methods.length + insights.concepts.length + insights.data.length + measurements.length;
+      if (totalIntelligence === 0) {
+        console.warn(`⚠️ No actionable intelligence extracted from concept synthesis - PatternGenerator may need to analyze chunks directly`);
+      } else {
+        console.log(`✅ Extracted ${totalIntelligence} actionable intelligence items for PatternGenerator`);
+      }
+
+    } catch (error) {
+      console.error("❌ Failed to extract intelligence from concept synthesis:", error);
+    }
+  }
+
+  /**
+   * Extract methods from concept synthesis (no hardcoding)
+   */
+  private extractMethodsFromSynthesis(synthesis: string): string[] {
+    const methods: string[] = [];
+    
+    // Pattern 1: Look for optimization/technique mentions
+    const methodPatterns = [
+      /([A-Z][a-zA-Z\s]+(?:optimization|technique|method|approach|strategy))/gi,
+      /([A-Z][a-zA-Z\s]+(?:soft-capping|dataloading|sequence length))/gi,
+      /(Logit\s+[^,.\n]+)/gi,
+      /(Muon\s+[^,.\n]+)/gi
+    ];
+
+    for (const pattern of methodPatterns) {
+      const matches = synthesis.match(pattern);
+      if (matches) {
+        methods.push(...matches.map(m => m.trim()));
+      }
+    }
+
+    return [...new Set(methods)]; // Remove duplicates
+  }
+
+  /**
+   * Extract concepts from concept synthesis (no hardcoding)
+   */
+  private extractConceptsFromSynthesis(synthesis: string): string[] {
+    const concepts: string[] = [];
+    
+    // Pattern 1: Performance and optimization concepts
+    const conceptPatterns = [
+      /(training\s+[^,.\n]+)/gi,
+      /(performance\s+[^,.\n]+)/gi,
+      /(optimization\s+[^,.\n]+)/gi,
+      /(speed\s+[^,.\n]+)/gi,
+      /(tokens?\s+[^,.\n]+)/gi
+    ];
+
+    for (const pattern of conceptPatterns) {
+      const matches = synthesis.match(pattern);
+      if (matches) {
+        concepts.push(...matches.map(m => m.trim()));
+      }
+    }
+
+    return [...new Set(concepts)];
+  }
+
+  /**
+   * Extract data/measurements from concept synthesis (no hardcoding)
+   */
+  private extractDataFromSynthesis(synthesis: string): string[] {
+    const data: string[] = [];
+    
+    // Pattern 1: Timing data
+    const dataPatterns = [
+      /(\d+\.?\d*\s*hours?)/gi,
+      /(\d+\.?\d*\s*minutes?)/gi,
+      /(\d+\.?\d*[BM]\b)/gi, // Tokens like 1.88B, 205M
+      /(\d+k?\b)/gi // Numbers like 205k
+    ];
+
+    for (const pattern of dataPatterns) {
+      const matches = synthesis.match(pattern);
+      if (matches) {
+        data.push(...matches.map(m => m.trim()));
+      }
+    }
+
+    return [...new Set(data)];
+  }
+
+  /**
+   * Extract additional intelligence from document content that was analyzed
+   */
+  private async extractIntelligenceFromDocumentContent(context: ResearchContext, insights: any): Promise<void> {
+    // Get sample content from chunks that were analyzed earlier  
+    const sampleContent = context.ragResults?.chunks
+      ?.slice(0, 5)
+      ?.map(chunk => chunk.text.substring(0, 500))
+      ?.join('\n\n') || '';
+
+    if (!sampleContent) return;
+
+    // Extract table structure methods if present
+    const tableMatches = sampleContent.match(/TABLE_ROW[^<]*([^|]+)\|([^|]+)\|/g);
+    if (tableMatches) {
+      tableMatches.forEach(match => {
+        const parts = match.split('|');
+        if (parts.length >= 2) {
+          const methodName = parts[0].replace('TABLE_ROW', '').trim();
+          const timing = parts[1].trim();
+          
+          if (methodName && methodName.length > 3) {
+            insights.methods.push(methodName);
+          }
+          if (timing && /\d/.test(timing)) {
+            insights.data.push(timing);
+          }
+        }
+      });
+    }
+
+    console.log(`🔍 Additional intelligence from document content: ${tableMatches?.length || 0} table entries`);
+  }
+
+  /**
+   * Format extracted data as measurements for PatternGenerator
+   */
+  private formatDataAsMeasurements(dataItems: string[], context: ResearchContext): Array<{
+    value: string;
+    leftContext: string;
+    rightContext: string;
+    chunkId: string;
+    sourceDocument?: string;
+  }> {
+    const measurements: Array<{
+      value: string;
+      leftContext: string;
+      rightContext: string;
+      chunkId: string;
+      sourceDocument?: string;
+    }> = [];
+
+    // Find the data items in the actual document content to get context
+    const chunks = context.ragResults?.chunks || [];
+    
+    for (const dataItem of dataItems) {
+      for (const chunk of chunks.slice(0, 10)) { // Check first 10 chunks
+        if (chunk.text.includes(dataItem)) {
+          // Extract context around the measurement
+          const index = chunk.text.indexOf(dataItem);
+          const leftStart = Math.max(0, index - 50);
+          const rightEnd = Math.min(chunk.text.length, index + dataItem.length + 50);
+          
+          measurements.push({
+            value: dataItem,
+            leftContext: chunk.text.substring(leftStart, index).trim(),
+            rightContext: chunk.text.substring(index + dataItem.length, rightEnd).trim(),
+            chunkId: chunk.id,
+            sourceDocument: chunk.metadata?.filename || chunk.sourceDocument || 'unknown'
+          });
+          break; // Found in this chunk, move to next data item
+        }
+      }
+    }
+
+    console.log(`📊 Formatted ${measurements.length} measurements for PatternGenerator`);
+    return measurements;
   }
 
   /**

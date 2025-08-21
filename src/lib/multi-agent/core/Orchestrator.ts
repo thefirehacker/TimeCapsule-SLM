@@ -1980,6 +1980,27 @@ NEXT_GOAL: [final goal achieved]`;
     
     console.log(`✅ Agent execution validated: ${validation.reason}`);
     
+    // 🎯 Option 1: Disable redundant Extractor when PatternGenerator has successfully extracted data
+    if (normalizedToolName === 'Extractor') {
+      const patternGenCalled = this.calledAgents.has('PatternGenerator');
+      const hasExtractedData = context.extractedData?.raw?.length > 0;
+      
+      if (patternGenCalled && hasExtractedData) {
+        console.log(`🚫 SKIPPING REDUNDANT EXTRACTOR: PatternGenerator already extracted ${context.extractedData.raw.length} items`);
+        console.log(`✅ Using PatternGenerator's extracted data to prevent overwriting good results`);
+        
+        // Mark Extractor as called but with PatternGenerator's results
+        this.calledAgents.add(normalizedToolName);
+        this.agentResults.set(normalizedToolName, {
+          extractedData: context.extractedData,
+          itemCount: context.extractedData.raw.length,
+          reasoning: 'Skipped redundant extraction - using PatternGenerator results'
+        });
+        
+        return; // Skip execution
+      }
+    }
+    
     const agent = this.registry.get(normalizedToolName);
     if (!agent) {
       console.error(`❌ Tool name normalization failed. Original: "${toolName}", Normalized: "${normalizedToolName}"`);
