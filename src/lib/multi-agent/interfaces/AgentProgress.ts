@@ -8,11 +8,11 @@
 import { AgentSubStep, AgentThinking } from '@/components/DeepResearch/components/ResearchSteps';
 
 export interface AgentProgressCallback {
-  onAgentStart: (agentName: string, agentType: string, input: any) => void;
-  onAgentProgress: (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number) => void;
-  onAgentThinking: (agentName: string, thinking: AgentThinking) => void;
-  onAgentComplete: (agentName: string, output: any, metrics?: AgentMetrics) => void;
-  onAgentError: (agentName: string, error: string, retryCount?: number) => void;
+  onAgentStart: (agentName: string, agentType: string, input: any) => Promise<void> | void;
+  onAgentProgress: (agentName: string, progress: number, stage?: string, itemsProcessed?: number, totalItems?: number) => Promise<void> | void;
+  onAgentThinking: (agentName: string, thinking: AgentThinking) => Promise<void> | void;
+  onAgentComplete: (agentName: string, output: any, metrics?: AgentMetrics) => Promise<void> | void;
+  onAgentError: (agentName: string, error: string, retryCount?: number) => Promise<void> | void;
 }
 
 export interface AgentMetrics {
@@ -54,7 +54,7 @@ export class AgentProgressTracker {
     this.callback = callback;
   }
 
-  startAgent(agentName: string, agentType: string, input: any): void {
+  async startAgent(agentName: string, agentType: string, input: any): Promise<void> {
     const tracker: AgentTracker = {
       agentName,
       agentType,
@@ -72,16 +72,16 @@ export class AgentProgressTracker {
     };
 
     this.trackers.set(agentName, tracker);
-    this.callback?.onAgentStart(agentName, agentType, input);
+    await this.callback?.onAgentStart?.(agentName, agentType, input);
   }
 
-  updateProgress(
+  async updateProgress(
     agentName: string, 
     progress: number, 
     stage?: string, 
     itemsProcessed?: number, 
     totalItems?: number
-  ): void {
+  ): Promise<void> {
     const tracker = this.trackers.get(agentName);
     if (tracker) {
       tracker.progress = progress;
@@ -92,19 +92,19 @@ export class AgentProgressTracker {
       const entry = { timestamp: Date.now(), stage: stage || 'Processing', progress, itemsProcessed, totalItems };
       (tracker.progressHistory ||= []).push(entry);
       
-      this.callback?.onAgentProgress(agentName, progress, stage, itemsProcessed, totalItems);
+      await this.callback?.onAgentProgress?.(agentName, progress, stage, itemsProcessed, totalItems);
     }
   }
 
-  setThinking(agentName: string, thinking: AgentThinking): void {
+  async setThinking(agentName: string, thinking: AgentThinking): Promise<void> {
     const tracker = this.trackers.get(agentName);
     if (tracker) {
       tracker.thinking = thinking;
-      this.callback?.onAgentThinking(agentName, thinking);
+      await this.callback?.onAgentThinking?.(agentName, thinking);
     }
   }
 
-  completeAgent(agentName: string, output: any, additionalMetrics?: Partial<AgentMetrics>): void {
+  async completeAgent(agentName: string, output: any, additionalMetrics?: Partial<AgentMetrics>): Promise<void> {
     const tracker = this.trackers.get(agentName);
     if (tracker) {
       tracker.endTime = Date.now();
@@ -123,17 +123,17 @@ export class AgentProgressTracker {
       // Final snapshot
       (tracker.progressHistory ||= []).push({ timestamp: Date.now(), stage: 'Completed', progress: 100 });
 
-      this.callback?.onAgentComplete(agentName, output, tracker.metrics);
+      await this.callback?.onAgentComplete?.(agentName, output, tracker.metrics);
     }
   }
 
-  errorAgent(agentName: string, error: string): void {
+  async errorAgent(agentName: string, error: string): Promise<void> {
     const tracker = this.trackers.get(agentName);
     if (tracker) {
       tracker.error = error;
       tracker.retryCount += 1;
       (tracker.progressHistory ||= []).push({ timestamp: Date.now(), stage: 'Error', progress: tracker.progress || 0 });
-      this.callback?.onAgentError(agentName, error, tracker.retryCount);
+      await this.callback?.onAgentError?.(agentName, error, tracker.retryCount);
     }
   }
 

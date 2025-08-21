@@ -839,10 +839,10 @@ export class VectorStore {
         const docData = doc.toJSON();
         return {
           id: docData.id,
-          filename: docData.filename,
+          filename: docData.metadata?.filename || docData.title || 'untitled',
           title: docData.title,
-          uploadedAt: docData.uploadedAt,
-          description: docData.description,
+          uploadedAt: docData.metadata?.uploadedAt || docData.uploadedAt,
+          description: docData.metadata?.description || docData.description || '',
           metadata: docData.metadata,
           chunkCount: docData.chunks?.length || 0,
           type: docData.type, // Include type for verification
@@ -1129,6 +1129,245 @@ export class VectorStore {
       console.error(`❌ RAG Query ${queryId} failed after ${errorTime}ms:`, errorMessage);
       throw error;
     }
+  }
+
+  /**
+   * Enhanced hybrid search combining semantic similarity and keyword matching
+   * Addresses PatternGenerator's "useless search elements" issue
+   */
+  async searchHybrid(
+    query: string,
+    options: {
+      semanticWeight?: number;
+      keywordWeight?: number;
+      adaptiveThreshold?: boolean;
+      maxResults?: number;
+      minSemanticThreshold?: number;
+      documentTypes?: DocumentType[];
+    } = {}
+  ): Promise<SearchResult[]> {
+    const {
+      semanticWeight = 0.7,
+      keywordWeight = 0.3,
+      adaptiveThreshold = true,
+      maxResults = 15,
+      minSemanticThreshold = 0.2,
+      documentTypes
+    } = options;
+
+    console.log(`🔍 Hybrid Search: "${query}" (semantic: ${semanticWeight}, keyword: ${keywordWeight})`);
+
+    // 1. Semantic search with adaptive threshold
+    const semanticThreshold = adaptiveThreshold 
+      ? this.calculateAdaptiveThreshold(query, minSemanticThreshold)
+      : minSemanticThreshold;
+
+    const semanticResults = await this.searchSimilar(query, semanticThreshold, maxResults * 2, {
+      documentTypes,
+      queryType: 'agent_rag'
+    });
+
+    // 2. Keyword search using BM25-like scoring
+    const keywordResults = await this.searchKeywords(query, {
+      documentTypes,
+      maxResults: maxResults * 2
+    });
+
+    // 3. Merge and rerank results
+    const mergedResults = this.mergeSearchResults(
+      semanticResults, 
+      keywordResults, 
+      semanticWeight, 
+      keywordWeight
+    );
+
+    // 4. Apply semantic clustering to remove duplicates
+    const clusteredResults = this.clusterSemanticResults(mergedResults);
+
+    // 5. Final ranking and limit
+    const finalResults = clusteredResults
+      .sort((a, b) => (b as any).hybridScore - (a as any).hybridScore)
+      .slice(0, maxResults);
+
+    console.log(`✅ Hybrid Search: ${finalResults.length} results (from ${semanticResults.length} semantic + ${keywordResults.length} keyword)`);
+
+    return finalResults;
+  }
+
+  /**
+   * Calculate adaptive threshold based on query complexity and context
+   */
+  private calculateAdaptiveThreshold(query: string, baseThreshold: number): number {
+    const words = query.trim().split(/\s+/);
+    const hasSpecificTerms = /\b(project|method|technique|algorithm|model|system)\b/i.test(query);
+    const isShortQuery = words.length <= 3;
+    const hasQuotes = query.includes('"');
+
+    let adaptedThreshold = baseThreshold;
+
+    // Lower threshold for specific technical terms
+    if (hasSpecificTerms) adaptedThreshold *= 0.8;
+
+    // Higher threshold for very short queries to avoid noise
+    if (isShortQuery) adaptedThreshold *= 1.3;
+
+    // Lower threshold for quoted exact phrases
+    if (hasQuotes) adaptedThreshold *= 0.7;
+
+    // Clamp between reasonable bounds
+    return Math.max(0.15, Math.min(0.5, adaptedThreshold));
+  }
+
+  /**
+   * Keyword-based search using BM25-like scoring
+   */
+  private async searchKeywords(
+    query: string, 
+    options: { documentTypes?: DocumentType[]; maxResults?: number } = {}
+  ): Promise<SearchResult[]> {
+    const { documentTypes, maxResults = 20 } = options;
+    
+    const documents = documentTypes && documentTypes.length > 0
+      ? await this.getFilteredDocuments(documentTypes)
+      : await this.getAllDocuments();
+
+    const queryTerms = query.toLowerCase()
+      .split(/\s+/)
+      .filter(term => term.length > 2); // Filter short words
+
+    const results: (SearchResult & { keywordScore: number })[] = [];
+
+    for (const doc of documents) {
+      for (const chunk of doc.chunks) {
+        const chunkText = chunk.content.toLowerCase();
+        let score = 0;
+
+        // BM25-like scoring
+        for (const term of queryTerms) {
+          const termFreq = (chunkText.match(new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'g')) || []).length;
+          if (termFreq > 0) {
+            // Simple BM25 approximation
+            score += Math.log(1 + termFreq) * (2.2 * termFreq) / (termFreq + 1.2);
+          }
+        }
+
+        if (score > 0) {
+          results.push({
+            document: doc,
+            chunk: chunk,
+            similarity: Math.min(score / 10, 0.9), // Normalize to 0-0.9 range
+            keywordScore: score
+          });
+        }
+      }
+    }
+
+    return results
+      .sort((a, b) => b.keywordScore - a.keywordScore)
+      .slice(0, maxResults);
+  }
+
+  /**
+   * Merge semantic and keyword results with weighted scoring
+   */
+  private mergeSearchResults(
+    semanticResults: SearchResult[], 
+    keywordResults: SearchResult[], 
+    semanticWeight: number, 
+    keywordWeight: number
+  ): (SearchResult & { hybridScore: number })[] {
+    const resultMap = new Map<string, SearchResult & { hybridScore: number; semanticScore?: number; keywordScore?: number }>();
+
+    // Add semantic results
+    for (const result of semanticResults) {
+      const key = `${result.document.id}_${result.chunk.id}`;
+      resultMap.set(key, {
+        ...result,
+        hybridScore: result.similarity * semanticWeight,
+        semanticScore: result.similarity
+      });
+    }
+
+    // Add/merge keyword results
+    for (const result of keywordResults as (SearchResult & { keywordScore: number })[]) {
+      const key = `${result.document.id}_${result.chunk.id}`;
+      const existing = resultMap.get(key);
+      
+      if (existing) {
+        // Merge scores
+        existing.hybridScore += result.keywordScore * keywordWeight / 10; // Normalize keyword score
+        existing.keywordScore = result.keywordScore;
+      } else {
+        // Add new result
+        resultMap.set(key, {
+          ...result,
+          hybridScore: result.keywordScore * keywordWeight / 10,
+          keywordScore: result.keywordScore
+        });
+      }
+    }
+
+    return Array.from(resultMap.values());
+  }
+
+  /**
+   * Cluster semantically similar results to reduce redundancy
+   */
+  private clusterSemanticResults(results: SearchResult[]): SearchResult[] {
+    if (results.length <= 3) return results; // No clustering needed for small sets
+
+    const clusters: SearchResult[][] = [];
+    const processed = new Set<string>();
+
+    for (const result of results) {
+      const key = `${result.document.id}_${result.chunk.id}`;
+      if (processed.has(key)) continue;
+
+      const cluster: SearchResult[] = [result];
+      processed.add(key);
+
+      // Find similar results (from same document or high similarity)
+      for (const other of results) {
+        const otherKey = `${other.document.id}_${other.chunk.id}`;
+        if (processed.has(otherKey) || result === other) continue;
+
+        const isSimilar = result.document.id === other.document.id || 
+                         Math.abs(result.similarity - other.similarity) < 0.15;
+        
+        if (isSimilar && cluster.length < 3) { // Limit cluster size
+          cluster.push(other);
+          processed.add(otherKey);
+        }
+      }
+
+      clusters.push(cluster);
+    }
+
+    // Take best result from each cluster
+    return clusters.map(cluster => 
+      cluster.reduce((best, current) => 
+        (current.similarity > best.similarity) ? current : best
+      )
+    );
+  }
+
+  /**
+   * Escape special regex characters
+   */
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Get documents filtered by types
+   */
+  private async getFilteredDocuments(documentTypes: DocumentType[]): Promise<DocumentData[]> {
+    const documents: DocumentData[] = [];
+    for (const docType of documentTypes) {
+      const typedDocs = await this.getDocumentsByType(docType);
+      documents.push(...typedDocs);
+    }
+    return documents;
   }
 
   async getStats(): Promise<{ documentCount: number; chunkCount: number; vectorCount: number }> {

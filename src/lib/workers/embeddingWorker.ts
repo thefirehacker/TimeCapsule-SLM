@@ -23,7 +23,7 @@ class EmbeddingWorker {
       console.log('🔧 Web Worker: Initializing embedding pipeline...');
       
       // Initialize the embedding pipeline in the worker
-      this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+      this.pipeline = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5', {
         quantized: true,
         progress_callback: (progress: any) => {
           self.postMessage({

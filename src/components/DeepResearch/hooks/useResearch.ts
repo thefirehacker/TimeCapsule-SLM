@@ -961,8 +961,14 @@ export function useResearch(
   };
 
   const progressCallback = React.useMemo(() => ({
-    onAgentStart: (agentName: string, agentType: string, input: any) => {
+    onAgentStart: async (agentName: string, agentType: string, input: any): Promise<void> => {
         console.log(`🚀 Agent ${agentName} (${agentType}) started`);
+        
+        // Check if this is a validation step and create stable display name  
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const displayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
         
         // Find the main research step (should already exist from research start)
         const existingSteps = currentStepsRef.current;
@@ -973,17 +979,34 @@ export function useResearch(
           return;
         }
         
-        // Check if this agent already exists in subSteps (for retries)
-        const existingSubStepIndex = mainStep.subSteps?.findIndex(sub => sub.agentName === agentName) ?? -1;
+        // Use the proper display name
+        
+        // Check if this agent already exists in subSteps (for retries ONLY)
+        // DO NOT overwrite original agents with validation agents
+        let existingSubStepIndex = mainStep.subSteps?.findIndex(sub => 
+          sub.agentName === displayName  // Only exact matches, no overwrites
+        ) ?? -1;
+        
+        // For validation steps, always create new entries (don't replace anything)
+        // This preserves all agents in the UI
         
         if (existingSubStepIndex >= 0) {
-          // Update existing substep for retry
-          console.log(`🔄 Updating existing substep for ${agentName} (retry/restart)`);
+          // Update existing substep for retry/restart
+          const existingStep = mainStep.subSteps![existingSubStepIndex];
+          const isRetry = !isValidation && existingStep.agentName === displayName;
+          const retryCount = isRetry ? (existingStep.retryCount || 0) + 1 : (existingStep.retryCount || 0);
+          
+          console.log(`🔄 ${isRetry ? 'Retry' : 'Update'} existing substep for ${displayName} ${isRetry ? `(attempt #${retryCount})` : ''}`);
+          
           const updatedSubSteps = [...(mainStep.subSteps || [])];
           updatedSubSteps[existingSubStepIndex] = {
             ...updatedSubSteps[existingSubStepIndex],
+            agentName: displayName, // Update name in case it changed (validation steps)
+            agentType: isValidation ? 'verification' : (agentType as any),
             status: 'in_progress',
-            startTime: Date.now()
+            startTime: Date.now(),
+            retryCount,
+            stage: isRetry ? `Retrying with corrective guidance (attempt #${retryCount})` : (isValidation ? 'Validating results' : undefined)
           };
           
           const updatedMainStep = {
@@ -991,33 +1014,73 @@ export function useResearch(
             subSteps: updatedSubSteps,
             status: 'in_progress' as const
           };
-          researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+          await new Promise<void>((resolve) => {
+            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+            // Give React time to process the state update
+            setTimeout(resolve, 0);
+          });
         } else {
+          // Double-check to prevent true duplicates (safety check)
+          const finalCheck = mainStep.subSteps?.some(sub => 
+            sub.agentName === displayName && 
+            sub.status === 'in_progress'
+          ) ?? false;
+          
+          if (finalCheck) {
+            console.warn(`⚠️ Preventing duplicate creation of ${displayName} - already in progress`);
+            return;
+          }
+          
           // Add new agent as subStep
           const newSubStep = {
             id: `${agentName.toLowerCase()}_${Date.now()}`,
-            agentName,
-            agentType: agentType as any,
+            agentName: displayName,
+            agentType: isValidation ? 'verification' : (agentType as any),
             status: 'in_progress' as const,
             startTime: Date.now(),
             input,
-            output: null
+            output: null,
+            retryCount: 0
           };
+          
+          console.log(`✅ Creating new substep: ${displayName} (validation: ${isValidation})`);
           
           const updatedMainStep = {
             ...mainStep,
             subSteps: [...(mainStep.subSteps || []), newSubStep],
             status: 'in_progress' as const
           };
-          researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+          
+          console.log(`🔍 Added ${displayName} | Agents: [${updatedMainStep.subSteps.map(s => s.agentName).join(', ')}]`);
+          
+          // Check for DataInspector loss
+          const hasDataInspector = updatedMainStep.subSteps.some(s => s.agentName === 'DataInspector');
+          if (!hasDataInspector && updatedMainStep.subSteps.length > 1) {
+            console.error(`❌ CRITICAL: DataInspector lost! Agents: [${updatedMainStep.subSteps.map(s => s.agentName).join(', ')}]`);
+          }
+          
+          await new Promise<void>((resolve) => {
+            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+            // Give React time to process the state update
+            setTimeout(resolve, 0);
+          });
         }
       },
-      onAgentProgress: (agentName: string, progress: number, stage?: string) => {
+      onAgentProgress: async (agentName: string, progress: number, stage?: string): Promise<void> => {
         console.log(`📊 Agent ${agentName}: ${progress}% - ${stage || 'Processing'}`);
+        
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const progressDisplayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
         
         // Update thinking output based on agent and stage
         if (stage) {
-          setThinkingOutput(`🤖 ${agentName}: ${stage} (${progress}%)`);
+          await new Promise<void>((resolve) => {
+            setThinkingOutput(`🤖 ${progressDisplayName}: ${stage} (${progress}%)`);
+            setTimeout(resolve, 0);
+          });
         }
         
         // Find main step and update the corresponding subStep progress
@@ -1025,7 +1088,7 @@ export function useResearch(
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === progressDisplayName);
           
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
@@ -1050,19 +1113,28 @@ export function useResearch(
               ...mainStep,
               subSteps: updatedSubSteps
             };
-            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+            await new Promise<void>((resolve) => {
+              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              setTimeout(resolve, 0);
+            });
           }
         }
       },
-      onAgentThinking: (agentName: string, thinking: any) => {
+      onAgentThinking: async (agentName: string, thinking: any): Promise<void> => {
         console.log(`💭 Agent ${agentName} thinking: ${thinking.summary || 'Processing...'}`);
+        
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const thinkingDisplayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
         
         // Find main step and update the corresponding subStep thinking
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === thinkingDisplayName);
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             updatedSubSteps[subStepIndex] = {
@@ -1080,20 +1152,37 @@ export function useResearch(
               ...mainStep,
               subSteps: updatedSubSteps
             };
-            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+            await new Promise<void>((resolve) => {
+              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              setTimeout(resolve, 0);
+            });
           }
         }
       },
-      onAgentComplete: (agentName: string, output: any, metrics?: any) => {
+      onAgentComplete: async (agentName: string, output: any, metrics?: any): Promise<void> => {
         console.log(`✅ Agent ${agentName} completed`);
+        
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const completeDisplayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
         
         // Find main step and complete the corresponding subStep
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === completeDisplayName);
           if (subStepIndex >= 0) {
+            console.log(`🔄 Completing agent: ${completeDisplayName} (found at index ${subStepIndex})`);
+            
+            // Additional safety check - ensure we're updating the right step
+            const targetStep = mainStep.subSteps[subStepIndex];
+            if (targetStep.status === 'completed') {
+              console.warn(`⚠️ Agent ${completeDisplayName} already completed, skipping update`);
+              return;
+            }
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
             
@@ -1113,7 +1202,11 @@ export function useResearch(
             };
             
             // Check if all subSteps are completed to mark main step as completed
-            const allCompleted = updatedSubSteps.every(sub => sub.status === 'completed');
+            // Only mark as complete if we have multiple agents and they're all truly done
+            // Updated for 4-agent flow: DataInspector → PlanningAgent → PatternGenerator → SynthesisCoordinator
+            const allCompleted = updatedSubSteps.length >= 3 && updatedSubSteps.every(sub => 
+              sub.status === 'completed' && sub.output
+            );
             
             const updatedMainStep = {
               ...mainStep,
@@ -1123,21 +1216,30 @@ export function useResearch(
               confidence: allCompleted ? (updatedSubSteps.reduce((sum, sub) => sum + (sub.metrics?.confidence || 0.8), 0) / updatedSubSteps.length) : undefined
             };
             
-            console.log(`✅ COMPLETION UPDATE: Agent ${agentName} completed - All agents completed: ${allCompleted}`);
-            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
-            performedStepsPersist(updatedMainStep);
+            console.log(`✅ ${completeDisplayName} completed | All done: ${allCompleted} | Agents: [${updatedSubSteps.map(s => `${s.agentName}:${s.status}`).join(', ')}]`);
+            await new Promise<void>((resolve) => {
+              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              performedStepsPersist(updatedMainStep);
+              setTimeout(resolve, 0);
+            });
           }
         }
       },
-      onAgentError: (agentName: string, error: string, retryCount?: number) => {
+      onAgentError: async (agentName: string, error: string, retryCount?: number): Promise<void> => {
         console.log(`❌ Agent ${agentName} error: ${error}${retryCount ? ` (retry ${retryCount})` : ''}`);
+        
+        // Check if this is a validation step
+        const isValidation = agentName.includes('PlanningAgent_Validation_');
+        const errorDisplayName = isValidation 
+          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+          : agentName;
         
         // Find main step and mark the corresponding subStep as failed
         const existingSteps = currentStepsRef.current;
         const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
         
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === agentName);
+          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === errorDisplayName);
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
@@ -1154,11 +1256,14 @@ export function useResearch(
             const updatedMainStep = {
               ...mainStep,
               subSteps: updatedSubSteps,
-              reasoning: `Agent ${agentName} failed: ${error}`
+              reasoning: `Agent ${errorDisplayName} failed: ${error}`
             };
             
-            researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
-            performedStepsPersist(updatedMainStep);
+            await new Promise<void>((resolve) => {
+              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              performedStepsPersist(updatedMainStep);
+              setTimeout(resolve, 0);
+            });
           }
         }
       }

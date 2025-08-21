@@ -6,6 +6,7 @@
  */
 
 import { SourceReference } from '@/components/DeepResearch/components/ResearchSteps';
+import { RerunMetadata, UserFeedback } from './Feedback';
 
 export interface ChunkData {
   id: string;
@@ -38,6 +39,16 @@ export interface DocumentAnalysis {
   relationships?: DocumentRelationship[]; // How documents relate to each other
   crossDocumentStrategy?: string; // How to combine information across documents
   relevantDocumentGroups?: any[]; // 🎯 Document groups that passed relevance filtering
+  // 🆕 Structural metadata for better agent understanding
+  structuralMarkers?: {
+    hasTables: boolean;
+    hasLists: boolean;
+    hasSections: boolean;
+    hasMeasurementData: boolean;
+    tableCount?: number;
+    sectionTitles?: string[];
+    markerTypes?: string[]; // List of all marker types found
+  };
 }
 
 export interface SingleDocumentAnalysis {
@@ -196,6 +207,9 @@ export interface ResearchContext {
       category: string;
     }[];
   };
+  
+  // Rerun metadata for feedback-based corrections
+  rerunMetadata?: RerunMetadata;
 }
 
 export interface AgentMessage {

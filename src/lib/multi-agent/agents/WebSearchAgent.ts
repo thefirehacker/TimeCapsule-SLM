@@ -43,7 +43,7 @@ export class WebSearchAgent extends BaseAgent {
     console.log(`🌐 WebSearchAgent: Expanding knowledge base for "${context.query}"`);
     
     // Report start of processing
-    this.progressCallback?.onAgentProgress?.(this.name, 10, 'Analyzing knowledge gaps', 0, undefined);
+    await this.progressCallback?.onAgentProgress?.(this.name, 10, 'Analyzing knowledge gaps', 0, undefined);
     
     // 🚨 CRITICAL: Check if web search is disabled by configuration
     if (this.config?.enableWebSearch === false) {
@@ -51,7 +51,7 @@ export class WebSearchAgent extends BaseAgent {
       this.setReasoning('Web search disabled by user configuration');
       
       // Report completion (disabled)
-      this.progressCallback?.onAgentComplete?.(this.name, {
+      await this.progressCallback?.onAgentComplete?.(this.name, {
         message: 'Web search disabled by configuration',
         webResultsAdded: 0
       });
@@ -66,7 +66,7 @@ export class WebSearchAgent extends BaseAgent {
       this.setReasoning(`Web search skipped: ${searchNeeded.reason}`);
       
       // Report completion (not needed)
-      this.progressCallback?.onAgentComplete?.(this.name, {
+      await this.progressCallback?.onAgentComplete?.(this.name, {
         message: `Web search skipped: ${searchNeeded.reason}`,
         webResultsAdded: 0
       });
@@ -109,7 +109,7 @@ export class WebSearchAgent extends BaseAgent {
     console.log(`✅ Web search completed: ${webResults.length} new sources added`);
     
     // Report completion
-    this.progressCallback?.onAgentComplete?.(this.name, {
+    await this.progressCallback?.onAgentComplete?.(this.name, {
       webResultsAdded: webResults.length,
       queriesExecuted: searchStrategy.searchQueries.length,
       searchStrategy: searchStrategy.reasoning
