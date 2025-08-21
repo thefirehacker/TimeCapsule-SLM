@@ -17,8 +17,10 @@ import { LLMFunction } from "../core/Orchestrator";
 import { parseJsonWithResilience } from "../../../components/DeepResearch/hooks/responseCompletion";
 import { VectorStore } from "@/components/VectorStore/VectorStore";
 import { AgentProgressCallback } from "../interfaces/AgentProgress";
+import { FeedbackAwareAgent } from "./FeedbackAwareAgent";
+import { UserFeedback, FeedbackValidation, CorrectionResult } from "../interfaces/Feedback";
 
-export class DataInspectorAgent extends BaseAgent {
+export class DataInspectorAgent extends FeedbackAwareAgent {
   readonly name = "DataInspector";
   readonly description =
     "Analyzes RAG chunks to understand data structure and quality";
@@ -54,7 +56,7 @@ export class DataInspectorAgent extends BaseAgent {
     return null;
   }
 
-  async process(context: ResearchContext): Promise<ResearchContext> {
+  async processNormally(context: ResearchContext): Promise<ResearchContext> {
     // Report start of processing with clear user-friendly message
     await this.progressCallback?.onAgentProgress?.(
       this.name,
@@ -690,7 +692,13 @@ Provide specific, actionable insights that will guide intelligent extraction and
       // Report progress for each document with clear descriptive messaging
       const progress = 15 + (60 * i) / documentGroups.length; // Progress from 15% to 75%
       const timestamp = new Date().toLocaleTimeString();
-      const progressStage = `🔍 [${timestamp}] Analyzing document ${docNumber}/${documentGroups.length}: ${group.documentId.substring(0, 40)}${group.documentId.length > 40 ? "..." : ""}`;
+      // Get proper document name from metadata instead of using document ID
+      const documentName = group.metadata?.title || 
+                          group.metadata?.filename || 
+                          group.metadata?.name ||
+                          `Document_${group.documentId.slice(-6)}`;
+      
+      const progressStage = `🔍 [${timestamp}] Analyzing document ${docNumber}/${documentGroups.length}: ${documentName}`;
       await this.progressCallback?.onAgentProgress?.(
         this.name,
         Math.round(progress),
@@ -768,7 +776,10 @@ Provide specific, actionable insights that will guide intelligent extraction and
         
         documents.push({
           documentId: group.documentId,
-          documentName: group.documentId,
+          documentName: group.metadata?.title || 
+                        group.metadata?.filename || 
+                        group.metadata?.name ||
+                        `Document_${group.documentId.slice(-6)}`,
           documentType: docAnalysis.documentType,
           primaryEntity: docAnalysis.primaryEntity,
           structure: [docAnalysis.documentType.toLowerCase() + " sections"],
@@ -2131,14 +2142,16 @@ Return just the role: source, target, or reference`;
         chunk.text?.startsWith("Document metadata:")
     );
 
-    // Get actual document source names from metadata
+    // Get actual document source names from metadata - prioritize meaningful names
     const documentSources = documentMetadata.map(
       (doc) =>
-        doc.source ||
-        doc.metadata?.filename ||
-        doc.metadata?.source ||
-        (doc as any).title ||
-        "Unknown Document"
+        doc.metadata?.title ||           // Prioritize document title
+        doc.metadata?.filename ||        // Then original filename  
+        doc.metadata?.name ||            // Then generic name field
+        doc.metadata?.originalName ||    // Then original name if available
+        (doc as any).title ||           // Legacy title field
+        doc.metadata?.source ||          // Source path as backup
+        `Document_${doc.id?.slice(-6) || 'Unknown'}` // Create meaningful fallback using doc ID suffix
     );
 
     console.log(
@@ -3237,8 +3250,8 @@ Extract the most relevant and specific terms for this query:`;
   }
 
   /**
-   * 🎯 ENHANCED RELEVANCE DECISION: Combine LLM + intelligent discovery + entity alignment
-   * NO HARDCODING - uses generic patterns and discovered intelligence
+   * 🎯 SEMANTIC RELEVANCE DECISION: Use all collected intelligence for final decision
+   * Combines: LLM analysis + discovered entities + content areas + document role
    */
   private makeFinalRelevanceDecision(
     docAnalysis: any,
@@ -3249,158 +3262,426 @@ Extract the most relevant and specific terms for this query:`;
     documentGroup: any
   ): { isRelevant: boolean; reason: string } {
     
-    // 🔥 STEP 1: Start with LLM semantic intelligence as primary signal
-    const llmSaysRelevant = docAnalysis.isRelevant;
-    const llmReasoning = docAnalysis.reasoning || '';
+    // Gather all intelligence signals
+    const intelligenceSignals = {
+      llmDecision: docAnalysis.isRelevant,
+      llmReasoning: docAnalysis.reasoning || '',
+      primaryEntity: docAnalysis.primaryEntity || '',
+      discoveredEntities: keyEntities.map(e => e?.name).filter(Boolean),
+      contentAreas: contentAreas || [],
+      documentRole: role || 'unknown',
+      documentType: docAnalysis.documentType || 'unknown'
+    };
     
-    // 🔥 STEP 2: Enhanced entity alignment using discovered entities + filename + mainEntity
-    const discoveredEntityNames = keyEntities
-      .filter(entity => entity?.name && typeof entity.name === 'string')
-      .map(entity => entity.name.toLowerCase());
+    // Create comprehensive context for semantic analysis
+    const semanticContext = {
+      query: query,
+      document: {
+        mainEntity: intelligenceSignals.primaryEntity,
+        entities: intelligenceSignals.discoveredEntities.join(', '),
+        contentType: intelligenceSignals.contentAreas.join(', '),
+        role: intelligenceSignals.documentRole,
+        type: intelligenceSignals.documentType
+      },
+      initialAnalysis: {
+        relevant: intelligenceSignals.llmDecision,
+        reasoning: intelligenceSignals.llmReasoning
+      }
+    };
     
-    const documentFilename = documentGroup.metadata?.filename || documentGroup.metadata?.name || 'unknown';
-    const mainEntity = docAnalysis.primaryEntity || '';
+    // Perform final semantic relationship analysis
+    return this.performSemanticRelationshipAnalysis(semanticContext);
+  }
+  
+  /**
+   * 🧠 SEMANTIC RELATIONSHIP ANALYSIS: Final intelligence-based decision
+   * Uses all collected data to make a comprehensive semantic relevance judgment
+   */
+  private performSemanticRelationshipAnalysis(context: any): { isRelevant: boolean; reason: string } {
+    const { query, document, initialAnalysis } = context;
     
-    // Extract query entities (NO HARDCODING - generic extraction)
-    const queryWords = query.toLowerCase().split(/\s+/);
-    const queryEntities = queryWords.filter(word => word.length > 2 && /^[a-z]/.test(word));
-    
-    // Multi-intelligence entity check: discovered entities + filename + mainEntity
-    const entityAlignment = this.checkEnhancedEntityAlignment(
-      query, 
-      queryEntities, 
-      discoveredEntityNames, 
-      documentFilename, 
-      mainEntity,
-      llmReasoning
+    // Extract key elements from query and document for comparison
+    const queryElements = this.extractSemanticElements(query);
+    const docElements = this.extractSemanticElements(
+      `${document.mainEntity} ${document.entities} ${document.contentType} ${document.type}`
     );
     
-    // 🔥 STEP 3: Final decision logic (NO HARDCODING) - Handle ALL cases
+    // Check semantic alignment between query intent and document content
+    const entityAlignment = this.checkSemanticEntityAlignment(queryElements, docElements, document);
+    const contentAlignment = this.checkSemanticContentAlignment(query, document);
+    const purposeAlignment = this.checkSemanticPurposeAlignment(query, document);
     
-    // CASE 1: LLM says RELEVANT
-    if (llmSaysRelevant && entityAlignment.hasMatch) {
-      return { 
-        isRelevant: true, 
-        reason: `LLM + Entity Match: ${entityAlignment.matchType}` 
+    // Combine all semantic signals for final decision
+    const semanticScore = (entityAlignment.score + contentAlignment.score + purposeAlignment.score) / 3;
+    const confidenceThreshold = 0.7;
+    
+    // Make final decision based on semantic analysis
+    if (semanticScore >= confidenceThreshold) {
+      const reasons = [entityAlignment.reason, contentAlignment.reason, purposeAlignment.reason]
+        .filter(r => r).join('; ');
+      return {
+        isRelevant: true,
+        reason: `Semantic alignment confirmed (${Math.round(semanticScore * 100)}%): ${reasons}`
+      };
+    } else {
+      const mismatches = [
+        entityAlignment.score < 0.5 ? 'entity mismatch' : '',
+        contentAlignment.score < 0.5 ? 'content mismatch' : '',
+        purposeAlignment.score < 0.5 ? 'purpose mismatch' : ''
+      ].filter(m => m).join(', ');
+      
+      return {
+        isRelevant: false,
+        reason: `Semantic analysis override (${Math.round(semanticScore * 100)}%): ${mismatches}`
       };
     }
-    
-    if (llmSaysRelevant && !entityAlignment.hasMatch && entityAlignment.isObviousMismatch) {
-      return { 
-        isRelevant: false, 
-        reason: `LLM override: ${entityAlignment.mismatchReason}` 
-      };
-    }
-    
-    if (llmSaysRelevant && !entityAlignment.hasMatch && !entityAlignment.isObviousMismatch) {
-      return { 
-        isRelevant: true, 
-        reason: `Trust LLM semantic analysis (no obvious mismatch)` 
-      };
-    }
-    
-    // 🚀 CASE 2: LLM says NOT RELEVANT - But intelligence can override!
-    if (!llmSaysRelevant && entityAlignment.hasMatch && !entityAlignment.isObviousMismatch) {
-      return { 
-        isRelevant: true, 
-        reason: `🧠 Intelligence Override: ${entityAlignment.matchType} (LLM was wrong)` 
-      };
-    }
-    
-    if (!llmSaysRelevant && entityAlignment.hasMatch && entityAlignment.isObviousMismatch) {
-      return { 
-        isRelevant: false, 
-        reason: `Conflicting signals: Entity match but obvious domain mismatch` 
-      };
-    }
-    
-    // CASE 3: Both LLM and intelligence agree it's not relevant
-    return { 
-      isRelevant: false, 
-      reason: `LLM + Intelligence agree: Not relevant (${docAnalysis.primaryEntity})` 
-    };
   }
-
-  /**
-   * 🔍 ENHANCED ENTITY ALIGNMENT: Use all available intelligence sources
-   * NO HARDCODING - generic pattern matching and entity discovery
-   */
-  private checkEnhancedEntityAlignment(
-    query: string,
-    queryEntities: string[],
-    discoveredEntityNames: string[],
-    documentFilename: string,
-    mainEntity: string,
-    llmReasoning: string
-  ): { hasMatch: boolean; matchType: string; isObviousMismatch: boolean; mismatchReason: string } {
+  
+  private extractSemanticElements(text: string): string[] {
+    return text.toLowerCase()
+      .split(/[\s\-_,]+/)
+      .filter(word => word.length > 2)
+      .filter(word => !/^(the|and|for|with|from|that|this|have|will|are|but)$/.test(word));
+  }
+  
+  private checkSemanticEntityAlignment(queryElements: string[], docElements: string[], document: any): { score: number; reason: string } {
+    // Check if query mentions specific entities and if document contains them
+    const potentialEntities = queryElements.filter(el => 
+      /^[A-Za-z][a-z]*[A-Z]/.test(el) || // CamelCase or mixed case
+      el.length > 4 // Longer words likely to be entities
+    );
     
-    // Check discovered entities first (most reliable)
-    const entityFoundInDiscovered = queryEntities.some(queryEntity => 
-      discoveredEntityNames.some(discovered => 
-        discovered.includes(queryEntity) || queryEntity.includes(discovered)
+    if (potentialEntities.length === 0) {
+      return { score: 1.0, reason: 'no specific entities required' };
+    }
+    
+    const entityMatches = potentialEntities.filter(entity => 
+      docElements.some(docEl => 
+        docEl.includes(entity) || entity.includes(docEl) ||
+        document.mainEntity.toLowerCase().includes(entity)
       )
     );
     
-    if (entityFoundInDiscovered) {
-      return { 
-        hasMatch: true, 
-        matchType: 'discovered entities', 
-        isObviousMismatch: false, 
-        mismatchReason: '' 
-      };
+    const score = entityMatches.length / potentialEntities.length;
+    const reason = score > 0.5 
+      ? `entity match: ${entityMatches.join(', ')}`
+      : `entity mismatch: query has [${potentialEntities.join(', ')}] but document has [${document.mainEntity}]`;
+    
+    return { score, reason };
+  }
+  
+  private checkSemanticContentAlignment(query: string, document: any): { score: number; reason: string } {
+    // Check if the type of content requested matches document content
+    const queryLower = query.toLowerCase();
+    const docContentLower = `${document.contentType} ${document.type}`.toLowerCase();
+    
+    // Personal documents (CV, resume) vs specific content requests
+    if (/personal|resume|cv|education.*background|career.*history/.test(docContentLower) &&
+        /blog|article|tutorial|data|results|analysis|guide/.test(queryLower)) {
+      return { score: 0.2, reason: 'personal document vs specific content request mismatch' };
     }
     
-    // Check filename (if available and meaningful)
-    if (documentFilename && documentFilename !== 'unknown') {
-      const cleanFilename = documentFilename.toLowerCase();
-      const entityFoundInFilename = queryEntities.some(queryEntity => 
-        cleanFilename.includes(queryEntity) && queryEntity.length > 2
-      );
+    // Look for content type alignment
+    const contentMatches = ['blog', 'article', 'tutorial', 'guide', 'data', 'analysis', 'results']
+      .filter(type => queryLower.includes(type) && docContentLower.includes(type));
+    
+    if (contentMatches.length > 0) {
+      return { score: 0.9, reason: `content type match: ${contentMatches.join(', ')}` };
+    }
+    
+    return { score: 0.6, reason: 'neutral content alignment' };
+  }
+  
+  private checkSemanticPurposeAlignment(query: string, document: any): { score: number; reason: string } {
+    // Check if the document's purpose aligns with query intent
+    const queryIntent = this.extractQueryIntent(query);
+    const docPurpose = document.role;
+    
+    if (queryIntent === 'find_specific_content' && docPurpose === 'source') {
+      return { score: 0.9, reason: 'document serves as content source' };
+    }
+    
+    if (queryIntent === 'find_specific_content' && docPurpose === 'reference') {
+      return { score: 0.3, reason: 'document is reference material, not primary source' };
+    }
+    
+    return { score: 0.7, reason: 'adequate purpose alignment' };
+  }
+  
+  private extractQueryIntent(query: string): string {
+    const queryLower = query.toLowerCase();
+    if (/get|find|show|give|list/.test(queryLower)) return 'find_specific_content';
+    if (/compare|difference|vs/.test(queryLower)) return 'compare_content';
+    if (/how|what|why|when/.test(queryLower)) return 'understand_concept';
+    return 'general_query';
+  }
+
+  
+  /**
+   * Process with feedback - handles user corrections for misclassifications
+   */
+  async processWithFeedbackLogic(
+    context: ResearchContext,
+    feedback: UserFeedback,
+    instructions: string[]
+  ): Promise<ResearchContext> {
+    console.log(`🔄 DataInspector: Processing with feedback corrections`, {
+      affectedItems: feedback.affectedItems?.length || 0,
+      correctionType: feedback.correctionType
+    });
+    
+    // Create a copy of context for modification
+    const correctedContext = { ...context };
+    
+    // Filter out affected items if specified
+    if (feedback.affectedItems && feedback.affectedItems.length > 0) {
+      const originalCount = correctedContext.ragResults.chunks.length;
       
-      if (entityFoundInFilename) {
-        return { 
-          hasMatch: true, 
-          matchType: 'filename match', 
-          isObviousMismatch: false, 
-          mismatchReason: '' 
-        };
-      }
+      // Filter chunks based on feedback
+      correctedContext.ragResults.chunks = correctedContext.ragResults.chunks.filter(chunk => {
+        const chunkId = chunk.id || chunk.source;
+        const shouldExclude = feedback.affectedItems?.some(affectedId => {
+          // Check various ways the item might be identified
+          return chunkId.includes(affectedId) || 
+                 chunk.source?.includes(affectedId) ||
+                 chunk.sourceDocument?.includes(affectedId) ||
+                 chunk.text?.includes(affectedId);
+        });
+        
+        if (shouldExclude) {
+          console.log(`❌ Excluding chunk based on feedback: ${chunkId}`);
+        }
+        
+        return !shouldExclude;
+      });
+      
+      console.log(`📊 Filtered ${originalCount - correctedContext.ragResults.chunks.length} chunks based on feedback`);
     }
     
-    // Check mainEntity (fallback)
-    const mainEntityLower = mainEntity.toLowerCase();
-    const entityFoundInMainEntity = queryEntities.some(queryEntity => 
-      mainEntityLower.includes(queryEntity) && queryEntity.length > 2
+    // Apply correction-specific logic
+    if (feedback.correctionType === 'classification') {
+      await this.applyClassificationCorrections(correctedContext, feedback, instructions);
+    }
+    
+    // Re-run analysis with corrected data
+    await this.progressCallback?.onAgentProgress?.(
+      this.name,
+      20,
+      "🔄 Re-analyzing with corrections applied...",
+      0,
+      undefined
     );
     
-    if (entityFoundInMainEntity) {
-      return { 
-        hasMatch: true, 
-        matchType: 'main entity match', 
-        isObviousMismatch: false, 
-        mismatchReason: '' 
-      };
+    // Re-inspect with feedback awareness
+    await this.inspectWithFeedbackAwareness(correctedContext, feedback, instructions);
+    
+    // Add feedback summary to reasoning
+    this.reasoning = `
+      FEEDBACK CORRECTIONS APPLIED:
+      - Issue: ${feedback.issue}
+      - Correction: ${feedback.correction}
+      - Items excluded: ${feedback.affectedItems?.length || 0}
+      - Severity: ${feedback.severity}
+      
+      ${this.reasoning}
+    `;
+    
+    return correctedContext;
+  }
+  
+  /**
+   * Apply classification-specific corrections
+   */
+  private async applyClassificationCorrections(
+    context: ResearchContext,
+    feedback: UserFeedback,
+    instructions: string[]
+  ): Promise<void> {
+    console.log(`🏷️ Applying classification corrections`);
+    
+    // Update document analysis if it exists
+    if (context.documentAnalysis?.documents) {
+      // Re-evaluate document relevance based on feedback
+      context.documentAnalysis.documents = context.documentAnalysis.documents.map(doc => {
+        // Check if this document was mentioned in feedback
+        const isAffected = feedback.affectedItems?.some(item => 
+          doc.documentId.includes(item) || doc.documentName.includes(item)
+        );
+        
+        if (isAffected) {
+          // Mark as irrelevant based on feedback
+          return {
+            ...doc,
+            role: 'reference' as const, // Downgrade to reference role
+            contentAreas: [...doc.contentAreas, 'EXCLUDED_BY_USER_FEEDBACK']
+          };
+        }
+        
+        return doc;
+      });
+      
+      // Update relevant document groups
+      if (context.documentAnalysis.relevantDocumentGroups) {
+        context.documentAnalysis.relevantDocumentGroups = 
+          context.documentAnalysis.relevantDocumentGroups.filter(group => {
+            const hasAffectedDocs = feedback.affectedItems?.some(item =>
+              JSON.stringify(group).includes(item)
+            );
+            return !hasAffectedDocs;
+          });
+      }
+    }
+  }
+  
+  /**
+   * Re-inspect with feedback awareness
+   */
+  private async inspectWithFeedbackAwareness(
+    context: ResearchContext,
+    feedback: UserFeedback,
+    instructions: string[]
+  ): Promise<void> {
+    // Create enhanced prompt with feedback context
+    const feedbackPrompt = `
+      IMPORTANT CORRECTIONS FROM USER:
+      ${instructions.join('\n')}
+      
+      The user has specifically indicated: "${feedback.correction}"
+      
+      Please re-analyze the data with these corrections in mind.
+      Be especially careful about: ${feedback.issue}
+    `;
+    
+    // Use existing inspection logic but with feedback-enhanced prompt
+    if (context.ragResults.chunks.length > 0) {
+      // Re-run document analysis with feedback awareness
+      const hasDocumentMetadata = context.ragResults.chunks.some(
+        chunk => chunk.sourceType === "document" || 
+                chunk.text?.startsWith("Document metadata:")
+      );
+      
+      if (hasDocumentMetadata) {
+        await this.performDocumentMetadataAnalysisWithFeedback(context, feedbackPrompt);
+      } else {
+        await this.inspectWithLLMAndFeedback(context, feedbackPrompt);
+      }
+    }
+  }
+  
+  /**
+   * Perform document metadata analysis with feedback awareness
+   */
+  private async performDocumentMetadataAnalysisWithFeedback(
+    context: ResearchContext,
+    feedbackPrompt: string
+  ): Promise<void> {
+    // Call existing method but with enhanced context
+    await this.performDocumentMetadataAnalysis(context);
+    
+    // Apply additional feedback-based filtering
+    if (context.sharedKnowledge?.documentInsights) {
+      context.sharedKnowledge.documentInsights.feedbackApplied = true;
+      context.sharedKnowledge.documentInsights.feedbackPrompt = feedbackPrompt;
+    }
+  }
+  
+  /**
+   * Inspect with LLM using feedback context
+   */
+  private async inspectWithLLMAndFeedback(
+    context: ResearchContext,
+    feedbackPrompt: string
+  ): Promise<void> {
+    // Call existing method
+    await this.inspectWithLLM(context);
+    
+    // Store feedback context
+    if (context.sharedKnowledge?.documentInsights) {
+      context.sharedKnowledge.documentInsights.feedbackApplied = true;
+      context.sharedKnowledge.documentInsights.feedbackContext = feedbackPrompt;
+    }
+  }
+  
+  /**
+   * Validate agent-specific feedback
+   */
+  protected validateAgentSpecificFeedback(feedback: UserFeedback): FeedbackValidation {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    // DataInspector specific validation
+    if (feedback.correctionType === 'classification' && !feedback.affectedItems?.length) {
+      warnings.push('For classification corrections, specifying affected items helps target the correction more precisely.');
     }
     
-    // Check for obvious domain mismatches (NO HARDCODING - generic categories)
-    const isGenericCategory = /^(education|science|engineering|history|mathematics|physics|chemistry|biology|career|work|experience)/i.test(mainEntity);
-    const queryHasPersonName = queryEntities.some(entity => /^[A-Z]/.test(entity));
-    
-    if (queryHasPersonName && isGenericCategory) {
-      return { 
-        hasMatch: false, 
-        matchType: '', 
-        isObviousMismatch: true, 
-        mismatchReason: 'Person query vs generic category document' 
-      };
+    if (feedback.correctionType === 'extraction' && !feedback.specificInstructions) {
+      warnings.push('For extraction corrections, additional instructions about what to extract would be helpful.');
     }
     
-    // No match found, but not obviously wrong either
-    return { 
-      hasMatch: false, 
-      matchType: '', 
-      isObviousMismatch: false, 
-      mismatchReason: 'No entity match found' 
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined
+    };
+  }
+  
+  /**
+   * Generate DataInspector-specific correction instructions
+   */
+  protected async generateAgentSpecificInstructions(feedback: UserFeedback): Promise<string[]> {
+    const instructions: string[] = [];
+    
+    // Add DataInspector specific instructions based on correction type
+    switch (feedback.correctionType) {
+      case 'classification':
+        instructions.push('Re-evaluate document relevance with stricter criteria');
+        instructions.push('Pay special attention to document type and content relevance');
+        instructions.push('Exclude personal documents (CVs, resumes) unless specifically relevant');
+        break;
+      
+      case 'extraction':
+        instructions.push('Refine data extraction patterns');
+        instructions.push('Focus on extracting only the specified information types');
+        break;
+      
+      case 'filtering':
+        instructions.push('Apply more selective filtering criteria');
+        instructions.push('Exclude documents that do not directly address the query');
+        break;
+    }
+    
+    return instructions;
+  }
+  
+  /**
+   * Apply corrections with DataInspector-specific logic
+   */
+  async applyCorrections(
+    context: ResearchContext,
+    feedback: UserFeedback
+  ): Promise<CorrectionResult> {
+    const correctedItems: string[] = [];
+    const excludedItems: string[] = [];
+    
+    // Track affected items
+    if (feedback.affectedItems) {
+      excludedItems.push(...feedback.affectedItems);
+    }
+    
+    // Calculate correction metrics
+    const originalDocCount = context.documentAnalysis?.documents?.length || 0;
+    const affectedDocCount = excludedItems.length;
+    
+    return {
+      correctedItems,
+      excludedItems,
+      changeSummary: `Applied classification corrections: excluded ${affectedDocCount} misclassified documents`,
+      confidence: 0.9, // High confidence for user-directed corrections
+      comparison: {
+        originalCount: originalDocCount,
+        correctedCount: originalDocCount - affectedDocCount,
+        changePercentage: originalDocCount > 0 ? (affectedDocCount / originalDocCount) * 100 : 0
+      }
     };
   }
 }

@@ -6,6 +6,7 @@
  */
 
 import { SourceReference } from '@/components/DeepResearch/components/ResearchSteps';
+import { RerunMetadata, UserFeedback } from './Feedback';
 
 export interface ChunkData {
   id: string;
@@ -206,6 +207,9 @@ export interface ResearchContext {
       category: string;
     }[];
   };
+  
+  // Rerun metadata for feedback-based corrections
+  rerunMetadata?: RerunMetadata;
 }
 
 export interface AgentMessage {

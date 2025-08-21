@@ -1623,7 +1623,7 @@ Generate 3-6 effective patterns:`;
     // Pattern 1: Hours pattern (proven to work from logs)
     patterns.push({
       description: 'Performance timing (hours)',
-      examples: ['2.55 hours', '4.01 hours'],
+      examples: ['4.65 hours', '7.01 hours'],
       extractionStrategy: 'Extract training/performance timing data',
       confidence: 0.95,
       regexPattern: '/((?:\\d+(?:\\.\\d+)?)\\s*hours?)/gi'
@@ -2142,15 +2142,15 @@ REGEX_PATTERNS:
         regexPattern: '/hours/gi'
       },
       {
-        description: 'Decimal hours format for speedrun times',
-        examples: ['2.55 hours', '4.26 hours', '8.13 hours'],
+        description: 'Decimal hours format for  timing',
+        examples: ['21.55 hours', '41.26 hours', '6.77 hours'],
         extractionStrategy: 'Extract precise time measurements for ranking',
         confidence: 0.98,
         regexPattern: '/([0-9]+\.[0-9]+)\s*(hours?|hrs?)/gi'
       },
       {
         description: 'Concatenated time format for table data',
-        examples: ['8.13hours', '4.26hours', '2.55hours'],
+        examples: ['8.55hours', '8.26hours', '13.55hours'],
         extractionStrategy: 'Extract time from concatenated table cells',
         confidence: 0.95,
         regexPattern: '/([0-9]+\.[0-9]+)(hours?|hrs?)/gi'
@@ -2286,8 +2286,6 @@ REGEX_PATTERNS:
             sourceChunkId: chunk.id,
             // 🔥 PRESERVE DOCUMENT ATTRIBUTION: Add document-level source information
             sourceDocument: chunk.sourceDocument || chunk.metadata?.filename || chunk.source,
-            source: chunk.source,
-            documentId: chunk.sourceDocument,
             metadata: {
               method: 'regex',
               type: 'pattern_generated',
@@ -2359,9 +2357,7 @@ Extract only concrete, specific information that directly answers the query.`;
           confidence: 0.8,
           sourceChunkId: chunkId,
           // 🔥 PRESERVE DOCUMENT ATTRIBUTION: Note - chunkId only, need to enhance if chunk object available
-          sourceDocument: 'semantic_extraction', // TODO: Pass chunk object to get real source
-          source: 'semantic_extraction',
-          documentId: 'semantic_extraction', 
+          sourceDocument: 'semantic_extraction', // TODO: Pass chunk object to get real source 
           metadata: {
             method: 'semantic_llm',
             type: 'extracted_data'

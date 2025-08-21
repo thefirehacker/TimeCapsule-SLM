@@ -13,6 +13,7 @@ import { SourceReference, AgentSubStep } from '@/components/DeepResearch/compone
 import { AgentProgressTracker, AgentProgressCallback } from '../interfaces/AgentProgress';
 import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtractor';
 import type { ExecutionPlan, PlanStep } from '../agents/PlanningAgent';
+import { UserFeedback } from '../interfaces/Feedback';
 
 export type LLMFunction = (prompt: string) => Promise<string>;
 
@@ -567,13 +568,18 @@ export class Orchestrator {
   /**
    * 🔄 RERUN SPECIFIC AGENT - Targeted Agent Execution with Context Preservation
    * Allows rerunning specific agents without restarting the entire pipeline
+   * Now with optional user feedback support for corrections
    */
   async rerunAgent(
     agentName: string, 
     context: ResearchContext, 
-    preservedResults?: Map<string, any>
+    preservedResults?: Map<string, any>,
+    userFeedback?: UserFeedback
   ): Promise<ResearchContext> {
-    console.log(`🔄 Rerunning agent: ${agentName}`);
+    console.log(`🔄 Rerunning agent: ${agentName}`, {
+      hasFeedback: !!userFeedback,
+      feedbackType: userFeedback?.correctionType
+    });
     
     // Validate agent exists
     const agent = this.registry.get(agentName);
@@ -585,6 +591,18 @@ export class Orchestrator {
     const contextValidation = this.validateContextForRerun(agentName, context);
     if (!contextValidation.isValid) {
       throw new Error(`Cannot rerun ${agentName}: ${contextValidation.reason}`);
+    }
+    
+    // If user feedback is provided, inject it into the context
+    if (userFeedback) {
+      console.log(`📝 Injecting user feedback into context for ${agentName}`);
+      context.rerunMetadata = {
+        isRerun: true,
+        previousRunId: context.metadata.startTime.toString(),
+        userFeedback: userFeedback,
+        timestamp: Date.now(),
+        attemptNumber: (context.rerunMetadata?.attemptNumber || 0) + 1
+      };
     }
     
     // Restore preserved results if provided
@@ -606,10 +624,17 @@ export class Orchestrator {
     
     // Execute the specific agent
     try {
-      console.log(`⚡ Executing agent: ${agentName}`);
+      console.log(`⚡ Executing agent: ${agentName} ${userFeedback ? 'with feedback' : 'normally'}`);
       await this.executeToolCall(agentName, context);
       
       console.log(`✅ Successfully reran agent: ${agentName}`);
+      
+      // Clear feedback from context after successful rerun
+      if (userFeedback && context.rerunMetadata) {
+        console.log(`🧹 Clearing feedback from context after successful rerun`);
+        delete context.rerunMetadata.userFeedback;
+      }
+      
       return context;
     } catch (error) {
       console.error(`❌ Failed to rerun agent ${agentName}:`, error);
