@@ -12,8 +12,16 @@ import {
 } from "@/lib/UnifiedWebSearchService";
 import { createMultiAgentSystem, Orchestrator } from "@/lib/multi-agent";
 import { queryIntelligenceService } from "@/lib/QueryIntelligenceService";
-import { ResearchStep, useResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
+import {
+  ResearchStep,
+  useResearchSteps,
+} from "@/components/DeepResearch/components/ResearchSteps";
 import { useResearchHistory } from "../hooks/useResearchHistory";
+import {
+  captureMultiAgentResearchData,
+  validateResearchDataCompleteness,
+} from "@/lib/multiAgentCapture";
+import { storeCompletedResearch } from "@/lib/researchStorage";
 
 export type ResearchType =
   | "deep-research"
@@ -125,7 +133,7 @@ export interface UseResearchReturn {
   // Intelligent Research Integration
   researchSteps: ResearchStep[];
   isIntelligentResearching: boolean;
-  researchResult: ResearchResult | null;
+  researchResult: any | null;
   expandedSteps: Set<string>;
   performIntelligentResearch: (query: string) => Promise<void>;
   handleStepClick: (step: ResearchStep) => void;
@@ -160,16 +168,17 @@ export function useResearch(
   const [isWebSearching, setIsWebSearching] = useState(false);
 
   // Intelligent Research State
-  const [isIntelligentResearching, setIsIntelligentResearching] = useState(false);
-  const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
+  const [isIntelligentResearching, setIsIntelligentResearching] =
+    useState(false);
+  const [researchResult, setResearchResult] = useState<any | null>(null);
   const researchStepsState = useResearchSteps();
   const history = useResearchHistory();
   const historySessionIdRef = React.useRef<string | null>(null);
   const researchStartTimeRef = React.useRef<number | null>(null);
-  
+
   // 🔥 CRITICAL FIX: Ref to track current steps state to avoid React closure issues
   const currentStepsRef = React.useRef<ResearchStep[]>([]);
-  
+
   // Research cancellation control
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -186,8 +195,6 @@ export function useResearch(
 
   // Web Search Service
   const webSearchService = getUnifiedWebSearchService();
-
-
 
   // Configure query intelligence service with LLM
   React.useEffect(() => {
@@ -913,12 +920,14 @@ export function useResearch(
     processedStepIds.current.clear();
   }, [clearRAGContext, clearWebSearchContext, researchStepsState]);
 
-  // Step processing deduplication tracker  
+  // Step processing deduplication tracker
   const processedStepIds = React.useRef(new Set<string>());
 
   const performedStepsPersist = (step: ResearchStep) => {
     if (!historySessionIdRef.current) return;
-    const existing = history.currentSession?.steps?.find(s => s.id === step.id);
+    const existing = history.currentSession?.steps?.find(
+      (s) => s.id === step.id
+    );
     if (existing) {
       history.updateStepInSession(historySessionIdRef.current, step.id, step);
     } else {
@@ -933,86 +942,105 @@ export function useResearch(
 
   // Progress callback for agent system - connects to UI steps
   // Map agent names to appropriate step types for UI display
-  const getAgentStepType = (agentName: string): ResearchStep['type'] => {
+  const getAgentStepType = (agentName: string): ResearchStep["type"] => {
     switch (agentName) {
-      case 'DataInspector':
-      case 'DataInspectorAgent':
-        return 'analysis'; // "Analyzing Documents"
-      case 'PatternGenerator':
-      case 'PatternGeneratorAgent':
-        return 'analysis'; // "Generating Extraction Patterns"
-      case 'Extractor':
-      case 'ExtractionAgent':
-        return 'analysis'; // "Extracting Information"
-      case 'SynthesisCoordinator':
-      case 'Synthesizer':
-      case 'SynthesisAgent':
-        return 'synthesis'; // "Synthesizing Information"
-      case 'PlanningAgent':
-        return 'verification'; // "Planning Execution Strategy"
-      case 'ResponseFormatter':
-      case 'ResponseFormatterAgent':
-        return 'verification'; // "Formatting Response"
-      case 'WebSearchAgent':
-        return 'web_search'; // "Searching Web"
+      case "DataInspector":
+      case "DataInspectorAgent":
+        return "analysis"; // "Analyzing Documents"
+      case "PatternGenerator":
+      case "PatternGeneratorAgent":
+        return "analysis"; // "Generating Extraction Patterns"
+      case "Extractor":
+      case "ExtractionAgent":
+        return "analysis"; // "Extracting Information"
+      case "SynthesisCoordinator":
+      case "Synthesizer":
+      case "SynthesisAgent":
+        return "synthesis"; // "Synthesizing Information"
+      case "PlanningAgent":
+        return "verification"; // "Planning Execution Strategy"
+      case "ResponseFormatter":
+      case "ResponseFormatterAgent":
+        return "verification"; // "Formatting Response"
+      case "WebSearchAgent":
+        return "web_search"; // "Searching Web"
       default:
-        return 'analysis'; // Default fallback
+        return "analysis"; // Default fallback
     }
   };
 
-  const progressCallback = React.useMemo(() => ({
-    onAgentStart: async (agentName: string, agentType: string, input: any): Promise<void> => {
+  const progressCallback = React.useMemo(
+    () => ({
+      onAgentStart: async (
+        agentName: string,
+        agentType: string,
+        input: any
+      ): Promise<void> => {
         console.log(`🚀 Agent ${agentName} (${agentType}) started`);
-        
-        // Check if this is a validation step and create stable display name  
-        const isValidation = agentName.includes('PlanningAgent_Validation_');
-        const displayName = isValidation 
-          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+
+        // Check if this is a validation step and create stable display name
+        const isValidation = agentName.includes("PlanningAgent_Validation_");
+        const displayName = isValidation
+          ? `PlanningAgent Validation: ${agentName.replace("PlanningAgent_Validation_", "")}`
           : agentName;
-        
+
         // Find the main research step (should already exist from research start)
         const existingSteps = currentStepsRef.current;
-        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
-        
+        const mainStep = existingSteps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+
         if (!mainStep) {
-          console.error(`❌ START ERROR: Main step not found for agent "${agentName}". This should not happen!`);
+          console.error(
+            `❌ START ERROR: Main step not found for agent "${agentName}". This should not happen!`
+          );
           return;
         }
-        
+
         // Use the proper display name
-        
+
         // Check if this agent already exists in subSteps (for retries ONLY)
         // DO NOT overwrite original agents with validation agents
-        let existingSubStepIndex = mainStep.subSteps?.findIndex(sub => 
-          sub.agentName === displayName  // Only exact matches, no overwrites
-        ) ?? -1;
-        
+        let existingSubStepIndex =
+          mainStep.subSteps?.findIndex(
+            (sub) => sub.agentName === displayName // Only exact matches, no overwrites
+          ) ?? -1;
+
         // For validation steps, always create new entries (don't replace anything)
         // This preserves all agents in the UI
-        
+
         if (existingSubStepIndex >= 0) {
           // Update existing substep for retry/restart
           const existingStep = mainStep.subSteps![existingSubStepIndex];
-          const isRetry = !isValidation && existingStep.agentName === displayName;
-          const retryCount = isRetry ? (existingStep.retryCount || 0) + 1 : (existingStep.retryCount || 0);
-          
-          console.log(`🔄 ${isRetry ? 'Retry' : 'Update'} existing substep for ${displayName} ${isRetry ? `(attempt #${retryCount})` : ''}`);
-          
+          const isRetry =
+            !isValidation && existingStep.agentName === displayName;
+          const retryCount = isRetry
+            ? (existingStep.retryCount || 0) + 1
+            : existingStep.retryCount || 0;
+
+          console.log(
+            `🔄 ${isRetry ? "Retry" : "Update"} existing substep for ${displayName} ${isRetry ? `(attempt #${retryCount})` : ""}`
+          );
+
           const updatedSubSteps = [...(mainStep.subSteps || [])];
           updatedSubSteps[existingSubStepIndex] = {
             ...updatedSubSteps[existingSubStepIndex],
             agentName: displayName, // Update name in case it changed (validation steps)
-            agentType: isValidation ? 'verification' : (agentType as any),
-            status: 'in_progress',
+            agentType: isValidation ? "verification" : (agentType as any),
+            status: "in_progress",
             startTime: Date.now(),
             retryCount,
-            stage: isRetry ? `Retrying with corrective guidance (attempt #${retryCount})` : (isValidation ? 'Validating results' : undefined)
+            stage: isRetry
+              ? `Retrying with corrective guidance (attempt #${retryCount})`
+              : isValidation
+                ? "Validating results"
+                : undefined,
           };
-          
+
           const updatedMainStep = {
             ...mainStep,
             subSteps: updatedSubSteps,
-            status: 'in_progress' as const
+            status: "in_progress" as const,
           };
           await new Promise<void>((resolve) => {
             researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
@@ -1021,44 +1049,55 @@ export function useResearch(
           });
         } else {
           // Double-check to prevent true duplicates (safety check)
-          const finalCheck = mainStep.subSteps?.some(sub => 
-            sub.agentName === displayName && 
-            sub.status === 'in_progress'
-          ) ?? false;
-          
+          const finalCheck =
+            mainStep.subSteps?.some(
+              (sub) =>
+                sub.agentName === displayName && sub.status === "in_progress"
+            ) ?? false;
+
           if (finalCheck) {
-            console.warn(`⚠️ Preventing duplicate creation of ${displayName} - already in progress`);
+            console.warn(
+              `⚠️ Preventing duplicate creation of ${displayName} - already in progress`
+            );
             return;
           }
-          
+
           // Add new agent as subStep
           const newSubStep = {
             id: `${agentName.toLowerCase()}_${Date.now()}`,
             agentName: displayName,
-            agentType: isValidation ? 'verification' : (agentType as any),
-            status: 'in_progress' as const,
+            agentType: isValidation ? "verification" : (agentType as any),
+            status: "in_progress" as const,
             startTime: Date.now(),
             input,
             output: null,
-            retryCount: 0
+            retryCount: 0,
           };
-          
-          console.log(`✅ Creating new substep: ${displayName} (validation: ${isValidation})`);
-          
+
+          console.log(
+            `✅ Creating new substep: ${displayName} (validation: ${isValidation})`
+          );
+
           const updatedMainStep = {
             ...mainStep,
             subSteps: [...(mainStep.subSteps || []), newSubStep],
-            status: 'in_progress' as const
+            status: "in_progress" as const,
           };
-          
-          console.log(`🔍 Added ${displayName} | Agents: [${updatedMainStep.subSteps.map(s => s.agentName).join(', ')}]`);
-          
+
+          console.log(
+            `🔍 Added ${displayName} | Agents: [${updatedMainStep.subSteps.map((s) => s.agentName).join(", ")}]`
+          );
+
           // Check for DataInspector loss
-          const hasDataInspector = updatedMainStep.subSteps.some(s => s.agentName === 'DataInspector');
+          const hasDataInspector = updatedMainStep.subSteps.some(
+            (s) => s.agentName === "DataInspector"
+          );
           if (!hasDataInspector && updatedMainStep.subSteps.length > 1) {
-            console.error(`❌ CRITICAL: DataInspector lost! Agents: [${updatedMainStep.subSteps.map(s => s.agentName).join(', ')}]`);
+            console.error(
+              `❌ CRITICAL: DataInspector lost! Agents: [${updatedMainStep.subSteps.map((s) => s.agentName).join(", ")}]`
+            );
           }
-          
+
           await new Promise<void>((resolve) => {
             researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
             // Give React time to process the state update
@@ -1066,129 +1105,171 @@ export function useResearch(
           });
         }
       },
-      onAgentProgress: async (agentName: string, progress: number, stage?: string): Promise<void> => {
-        console.log(`📊 Agent ${agentName}: ${progress}% - ${stage || 'Processing'}`);
-        
+      onAgentProgress: async (
+        agentName: string,
+        progress: number,
+        stage?: string
+      ): Promise<void> => {
+        console.log(
+          `📊 Agent ${agentName}: ${progress}% - ${stage || "Processing"}`
+        );
+
         // Check if this is a validation step
-        const isValidation = agentName.includes('PlanningAgent_Validation_');
-        const progressDisplayName = isValidation 
-          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+        const isValidation = agentName.includes("PlanningAgent_Validation_");
+        const progressDisplayName = isValidation
+          ? `PlanningAgent Validation: ${agentName.replace("PlanningAgent_Validation_", "")}`
           : agentName;
-        
+
         // Update thinking output based on agent and stage
         if (stage) {
           await new Promise<void>((resolve) => {
-            setThinkingOutput(`🤖 ${progressDisplayName}: ${stage} (${progress}%)`);
+            setThinkingOutput(
+              `🤖 ${progressDisplayName}: ${stage} (${progress}%)`
+            );
             setTimeout(resolve, 0);
           });
         }
-        
+
         // Find main step and update the corresponding subStep progress
         const existingSteps = currentStepsRef.current;
-        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
-        
+        const mainStep = existingSteps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === progressDisplayName);
-          
+          const subStepIndex = mainStep.subSteps.findIndex(
+            (sub) => sub.agentName === progressDisplayName
+          );
+
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
-            
+
             // Create progress history entry
             const progressEntry = {
               timestamp: Date.now(),
-              stage: stage || 'Processing',
+              stage: stage || "Processing",
               progress,
-              message: stage
+              message: stage,
             };
-            
+
             updatedSubSteps[subStepIndex] = {
               ...currentSubStep,
               progress,
               stage,
-              progressHistory: [...(currentSubStep.progressHistory || []), progressEntry]
+              progressHistory: [
+                ...(currentSubStep.progressHistory || []),
+                progressEntry,
+              ],
             };
-            
+
             const updatedMainStep = {
               ...mainStep,
-              subSteps: updatedSubSteps
+              subSteps: updatedSubSteps,
             };
             await new Promise<void>((resolve) => {
-              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              researchStepsState.updateStep(
+                updatedMainStep.id,
+                updatedMainStep
+              );
               setTimeout(resolve, 0);
             });
           }
         }
       },
-      onAgentThinking: async (agentName: string, thinking: any): Promise<void> => {
-        console.log(`💭 Agent ${agentName} thinking: ${thinking.summary || 'Processing...'}`);
-        
+      onAgentThinking: async (
+        agentName: string,
+        thinking: any
+      ): Promise<void> => {
+        console.log(
+          `💭 Agent ${agentName} thinking: ${thinking.summary || "Processing..."}`
+        );
+
         // Check if this is a validation step
-        const isValidation = agentName.includes('PlanningAgent_Validation_');
-        const thinkingDisplayName = isValidation 
-          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+        const isValidation = agentName.includes("PlanningAgent_Validation_");
+        const thinkingDisplayName = isValidation
+          ? `PlanningAgent Validation: ${agentName.replace("PlanningAgent_Validation_", "")}`
           : agentName;
-        
+
         // Find main step and update the corresponding subStep thinking
         const existingSteps = currentStepsRef.current;
-        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
-        
+        const mainStep = existingSteps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === thinkingDisplayName);
+          const subStepIndex = mainStep.subSteps.findIndex(
+            (sub) => sub.agentName === thinkingDisplayName
+          );
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             updatedSubSteps[subStepIndex] = {
               ...updatedSubSteps[subStepIndex],
               thinking: {
                 hasThinking: true,
-                thinkingContent: thinking.thinkingContent || '',
-                finalOutput: thinking.finalOutput || '',
-                summary: thinking.summary || 'Processing...',
-                insights: thinking.insights || []
-              }
+                thinkingContent: thinking.thinkingContent || "",
+                finalOutput: thinking.finalOutput || "",
+                summary: thinking.summary || "Processing...",
+                insights: thinking.insights || [],
+              },
             };
-            
+
             const updatedMainStep = {
               ...mainStep,
-              subSteps: updatedSubSteps
+              subSteps: updatedSubSteps,
             };
             await new Promise<void>((resolve) => {
-              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              researchStepsState.updateStep(
+                updatedMainStep.id,
+                updatedMainStep
+              );
               setTimeout(resolve, 0);
             });
           }
         }
       },
-      onAgentComplete: async (agentName: string, output: any, metrics?: any): Promise<void> => {
+      onAgentComplete: async (
+        agentName: string,
+        output: any,
+        metrics?: any
+      ): Promise<void> => {
         console.log(`✅ Agent ${agentName} completed`);
-        
+
         // Check if this is a validation step
-        const isValidation = agentName.includes('PlanningAgent_Validation_');
-        const completeDisplayName = isValidation 
-          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+        const isValidation = agentName.includes("PlanningAgent_Validation_");
+        const completeDisplayName = isValidation
+          ? `PlanningAgent Validation: ${agentName.replace("PlanningAgent_Validation_", "")}`
           : agentName;
-        
+
         // Find main step and complete the corresponding subStep
         const existingSteps = currentStepsRef.current;
-        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
-        
+        const mainStep = existingSteps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === completeDisplayName);
+          const subStepIndex = mainStep.subSteps.findIndex(
+            (sub) => sub.agentName === completeDisplayName
+          );
           if (subStepIndex >= 0) {
-            console.log(`🔄 Completing agent: ${completeDisplayName} (found at index ${subStepIndex})`);
-            
+            console.log(
+              `🔄 Completing agent: ${completeDisplayName} (found at index ${subStepIndex})`
+            );
+
             // Additional safety check - ensure we're updating the right step
             const targetStep = mainStep.subSteps[subStepIndex];
-            if (targetStep.status === 'completed') {
-              console.warn(`⚠️ Agent ${completeDisplayName} already completed, skipping update`);
+            if (targetStep.status === "completed") {
+              console.warn(
+                `⚠️ Agent ${completeDisplayName} already completed, skipping update`
+              );
               return;
             }
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
-            
+
             updatedSubSteps[subStepIndex] = {
               ...currentSubStep,
-              status: 'completed',
+              status: "completed",
               endTime: Date.now(),
               duration: Date.now() - currentSubStep.startTime,
               output,
@@ -1197,221 +1278,340 @@ export function useResearch(
                 llmCalls: metrics?.llmCalls || 0,
                 tokensUsed: metrics?.tokensUsed || 0,
                 responseTime: metrics?.responseTime || 0,
-                confidence: metrics?.confidence || 0.8
-              }
+                confidence: metrics?.confidence || 0.8,
+              },
             };
-            
+
             // Check if all subSteps are completed to mark main step as completed
             // Only mark as complete if we have multiple agents and they're all truly done
             // Updated for 4-agent flow: DataInspector → PlanningAgent → PatternGenerator → SynthesisCoordinator
-            const allCompleted = updatedSubSteps.length >= 3 && updatedSubSteps.every(sub => 
-              sub.status === 'completed' && sub.output
-            );
-            
+            const allCompleted =
+              updatedSubSteps.length >= 3 &&
+              updatedSubSteps.every(
+                (sub) => sub.status === "completed" && sub.output
+              );
+
             const updatedMainStep = {
               ...mainStep,
               subSteps: updatedSubSteps,
-              status: allCompleted ? 'completed' as const : 'in_progress' as const,
-              duration: allCompleted ? Date.now() - mainStep.timestamp : undefined,
-              confidence: allCompleted ? (updatedSubSteps.reduce((sum, sub) => sum + (sub.metrics?.confidence || 0.8), 0) / updatedSubSteps.length) : undefined
+              status: allCompleted
+                ? ("completed" as const)
+                : ("in_progress" as const),
+              duration: allCompleted
+                ? Date.now() - mainStep.timestamp
+                : undefined,
+              confidence: allCompleted
+                ? updatedSubSteps.reduce(
+                    (sum, sub) => sum + (sub.metrics?.confidence || 0.8),
+                    0
+                  ) / updatedSubSteps.length
+                : undefined,
             };
-            
-            console.log(`✅ ${completeDisplayName} completed | All done: ${allCompleted} | Agents: [${updatedSubSteps.map(s => `${s.agentName}:${s.status}`).join(', ')}]`);
+
+            console.log(
+              `✅ ${completeDisplayName} completed | All done: ${allCompleted} | Agents: [${updatedSubSteps.map((s) => `${s.agentName}:${s.status}`).join(", ")}]`
+            );
             await new Promise<void>((resolve) => {
-              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              researchStepsState.updateStep(
+                updatedMainStep.id,
+                updatedMainStep
+              );
               performedStepsPersist(updatedMainStep);
               setTimeout(resolve, 0);
             });
           }
         }
       },
-      onAgentError: async (agentName: string, error: string, retryCount?: number): Promise<void> => {
-        console.log(`❌ Agent ${agentName} error: ${error}${retryCount ? ` (retry ${retryCount})` : ''}`);
-        
+      onAgentError: async (
+        agentName: string,
+        error: string,
+        retryCount?: number
+      ): Promise<void> => {
+        console.log(
+          `❌ Agent ${agentName} error: ${error}${retryCount ? ` (retry ${retryCount})` : ""}`
+        );
+
         // Check if this is a validation step
-        const isValidation = agentName.includes('PlanningAgent_Validation_');
-        const errorDisplayName = isValidation 
-          ? `PlanningAgent Validation: ${agentName.replace('PlanningAgent_Validation_', '')}`
+        const isValidation = agentName.includes("PlanningAgent_Validation_");
+        const errorDisplayName = isValidation
+          ? `PlanningAgent Validation: ${agentName.replace("PlanningAgent_Validation_", "")}`
           : agentName;
-        
+
         // Find main step and mark the corresponding subStep as failed
         const existingSteps = currentStepsRef.current;
-        const mainStep = existingSteps.find(step => step.id === 'multi_agent_research');
-        
+        const mainStep = existingSteps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+
         if (mainStep && mainStep.subSteps) {
-          const subStepIndex = mainStep.subSteps.findIndex(sub => sub.agentName === errorDisplayName);
+          const subStepIndex = mainStep.subSteps.findIndex(
+            (sub) => sub.agentName === errorDisplayName
+          );
           if (subStepIndex >= 0) {
             const updatedSubSteps = [...mainStep.subSteps];
             const currentSubStep = updatedSubSteps[subStepIndex];
-            
+
             updatedSubSteps[subStepIndex] = {
               ...currentSubStep,
-              status: 'failed',
+              status: "failed",
               endTime: Date.now(),
               duration: Date.now() - currentSubStep.startTime,
-              error: `${error}${retryCount ? ` (attempt ${retryCount})` : ''}`,
-              retryCount
+              error: `${error}${retryCount ? ` (attempt ${retryCount})` : ""}`,
+              retryCount,
             };
-            
+
             const updatedMainStep = {
               ...mainStep,
               subSteps: updatedSubSteps,
-              reasoning: `Agent ${errorDisplayName} failed: ${error}`
+              reasoning: `Agent ${errorDisplayName} failed: ${error}`,
             };
-            
+
             await new Promise<void>((resolve) => {
-              researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+              researchStepsState.updateStep(
+                updatedMainStep.id,
+                updatedMainStep
+              );
               performedStepsPersist(updatedMainStep);
               setTimeout(resolve, 0);
             });
           }
         }
-      }
-  }), [setThinkingOutput, performedStepsPersist]);
+      },
+    }),
+    [setThinkingOutput, performedStepsPersist]
+  );
 
   // Research Orchestrator - React to configuration changes
   const researchOrchestrator = React.useMemo(() => {
     if (!generateContent) return null;
-    
+
     return createMultiAgentSystem(
       generateContent,
       progressCallback, // Pass callback reference, not executed callback
-      vectorStore,
+      vectorStore || undefined,
       { enableWebSearch: researchConfig.includeWebSearch }
     );
-  }, [vectorStore, researchConfig.includeWebSearch, generateContent, progressCallback]);
+  }, [
+    vectorStore,
+    researchConfig.includeWebSearch,
+    generateContent,
+    progressCallback,
+  ]);
 
   // No need for useEffect to update callback since we use stable reference
 
   // Intelligent Research Functions
-  const performIntelligentResearch = useCallback(async (query: string) => {
-    if (!query.trim() || !isAIReady) {
-      console.warn('⚠️ Cannot perform intelligent research: query empty or AI not ready');
-      return;
-    }
-
-    // Clear previous results immediately when starting new research
-    setResults("");
-    setResearchResult(null);
-    setIsIntelligentResearching(true);
-    setIsGenerating(true);
-    setIsStreaming(true);
-    setThinkingOutput("🧠 Initializing intelligent research system...");
-    researchStepsState.clearSteps();
-    processedStepIds.current.clear();
-    
-    // 🔥 CRITICAL FIX: Create main step ONCE at research start to avoid duplicate prevention conflicts
-    const mainStep = {
-      id: 'multi_agent_research',
-      type: 'synthesis' as const,
-      status: 'in_progress' as const,
-      timestamp: Date.now(),
-      query: query,
-      subSteps: [],
-      reasoning: 'Multi-agent intelligent research process'
-    };
-    researchStepsState.addStep(mainStep);
-    performedStepsPersist(mainStep);
-    console.log(`✅ Main step created at research start: "${mainStep.id}"`);
-    
-    // Start persisted history session
-    researchStartTimeRef.current = Date.now();
-    const session = history.createSession(query);
-    historySessionIdRef.current = session.id;
-
-    // Create abort controller for this research session
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    try {
-      console.log(`🔬 Starting intelligent research for: "${query}"`);
-
-      // Use the stable orchestrator instance created earlier
-      if (!researchOrchestrator) {
-        throw new Error('Research orchestrator not available');
-      }
-      
-      // TODO: Step tracking will be handled via progress callbacks
-
-      if (abortController.signal.aborted) {
-        throw new Error('Research was cancelled by user');
+  const performIntelligentResearch = useCallback(
+    async (query: string) => {
+      if (!query.trim() || !isAIReady) {
+        console.warn(
+          "⚠️ Cannot perform intelligent research: query empty or AI not ready"
+        );
+        return;
       }
 
-      const result = await researchOrchestrator.research(query);
-      
-      // Transform result to match expected format
-      const formattedResult = {
-        finalAnswer: result,
-        steps: [], // TODO: Extract from orchestrator if needed
-        sources: [], // TODO: Extract from orchestrator if needed  
-        confidence: 1.0 // TODO: Calculate from orchestrator if needed
+      // Clear previous results immediately when starting new research
+      setResults("");
+      setResearchResult(null);
+      setIsIntelligentResearching(true);
+      setIsGenerating(true);
+      setIsStreaming(true);
+      setThinkingOutput("🧠 Initializing intelligent research system...");
+      researchStepsState.clearSteps();
+      processedStepIds.current.clear();
+
+      // 🔥 CRITICAL FIX: Create main step ONCE at research start to avoid duplicate prevention conflicts
+      const mainStep = {
+        id: "multi_agent_research",
+        type: "synthesis" as const,
+        status: "in_progress" as const,
+        timestamp: Date.now(),
+        query: query,
+        subSteps: [],
+        reasoning: "Multi-agent intelligent research process",
       };
-      
-      setResearchResult(formattedResult);
-      setResults(formattedResult.finalAnswer);
-      setThinkingOutput(`✅ Research completed: ${formattedResult.steps.length} steps, ${formattedResult.sources.length} sources, ${Math.round(formattedResult.confidence * 100)}% confidence`);
-      
-      // 🔥 CRITICAL FIX: Mark main step as completed
-      const completedMainStep = researchStepsState.steps.find(step => step.id === 'multi_agent_research');
-      if (completedMainStep) {
-        const updatedMainStep = {
-          ...completedMainStep,
-          status: 'completed' as const,
-          duration: Date.now() - completedMainStep.timestamp,
-          reasoning: `Multi-agent research completed successfully`
-        };
-        researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
-        console.log(`✅ Main step marked as completed: "${updatedMainStep.id}"`);
-      }
-      
-      if (historySessionIdRef.current) {
-        const duration = researchStartTimeRef.current ? Date.now() - researchStartTimeRef.current : undefined;
-        history.completeSession(historySessionIdRef.current, duration);
-        history.updateSession(historySessionIdRef.current, {
-          resultCount: formattedResult.steps.length,
-          metadata: { ...(formattedResult as any) } as any,
-        });
-      }
+      researchStepsState.addStep(mainStep);
+      performedStepsPersist(mainStep);
+      console.log(`✅ Main step created at research start: "${mainStep.id}"`);
 
-    } catch (error) {
-      console.error('❌ Intelligent research failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setResults(`Intelligent research failed: ${errorMessage}\n\nPlease check your AI connection and try again.`);
-      setThinkingOutput("❌ Research failed. Please try again.");
-      
-      // 🔥 CRITICAL FIX: Mark main step as failed
-      const failedMainStep = researchStepsState.steps.find(step => step.id === 'multi_agent_research');
-      if (failedMainStep) {
-        const updatedMainStep = {
-          ...failedMainStep,
-          status: 'failed' as const,
-          duration: Date.now() - failedMainStep.timestamp,
-          reasoning: `Multi-agent research failed: ${errorMessage}`
+      // Start persisted history session
+      researchStartTimeRef.current = Date.now();
+      const session = history.createSession(query);
+      historySessionIdRef.current = session.id;
+
+      // Create abort controller for this research session
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      try {
+        console.log(`🔬 Starting intelligent research for: "${query}"`);
+
+        // Use the stable orchestrator instance created earlier
+        if (!researchOrchestrator) {
+          throw new Error("Research orchestrator not available");
+        }
+
+        // TODO: Step tracking will be handled via progress callbacks
+
+        if (abortController.signal.aborted) {
+          throw new Error("Research was cancelled by user");
+        }
+
+        const result = await researchOrchestrator.research(query);
+
+        // 🔥 ENHANCED: Extract complete research context from orchestrator
+        const orchestratorContext = researchOrchestrator.getContext();
+        const agentSubSteps = researchOrchestrator.getAgentSubSteps();
+
+        console.log("🔍 Orchestrator context available:", {
+          hasContext: !!orchestratorContext,
+          hasAgentSubSteps: !!agentSubSteps,
+          agentSubStepsCount: agentSubSteps?.length || 0,
+          contextKeys: orchestratorContext
+            ? Object.keys(orchestratorContext)
+            : [],
+        });
+
+        // Transform result to match expected format with complete data
+        const formattedResult = {
+          finalAnswer: result,
+          steps: agentSubSteps || [],
+          sources: orchestratorContext?.ragResults?.chunks || [],
+          confidence: orchestratorContext?.synthesis?.confidence || 1.0,
+          // 🔥 NEW: Include complete research context for storage
+          researchContext: orchestratorContext,
+          agentTasks: agentSubSteps || [],
         };
-        researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
-        console.log(`❌ Main step marked as failed: "${updatedMainStep.id}"`);
+
+        setResearchResult(formattedResult);
+        setResults(formattedResult.finalAnswer);
+        setThinkingOutput(
+          `✅ Multi-agent research completed: ${formattedResult.agentTasks.length} agents, ${formattedResult.sources.length} sources, ${Math.round(formattedResult.confidence * 100)}% confidence`
+        );
+
+        // 🔥 CRITICAL FIX: Mark main step as completed
+        const completedMainStep = researchStepsState.steps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+        if (completedMainStep) {
+          const updatedMainStep = {
+            ...completedMainStep,
+            status: "completed" as const,
+            duration: Date.now() - completedMainStep.timestamp,
+            reasoning: `Multi-agent research completed successfully with ${formattedResult.agentTasks.length} agents`,
+            subSteps: formattedResult.agentTasks,
+          };
+          researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+          console.log(
+            `✅ Main step marked as completed with ${formattedResult.agentTasks.length} agent substeps`
+          );
+        }
+
+        // 🔥 ENHANCED: Store complete research data in history
+        if (historySessionIdRef.current) {
+          const duration = researchStartTimeRef.current
+            ? Date.now() - researchStartTimeRef.current
+            : undefined;
+
+          // 🔥 ENHANCED: Capture complete multi-agent research data
+          const multiAgentData = captureMultiAgentResearchData(
+            query,
+            researchConfig.type,
+            researchConfig.depth,
+            researchConfig.includeRAG || false,
+            researchConfig.includeWebSearch || false,
+            result,
+            researchStartTimeRef.current || Date.now(),
+            Date.now(),
+            orchestratorContext,
+            agentSubSteps,
+            researchStepsState.steps
+          );
+
+          // Validate data completeness before storage
+          const validation = validateResearchDataCompleteness(multiAgentData);
+          if (!validation.isComplete) {
+            console.warn(
+              "⚠️ Research data incomplete:",
+              validation.missingFields
+            );
+          }
+          if (validation.warnings.length > 0) {
+            console.warn("⚠️ Research data warnings:", validation.warnings);
+          }
+
+          // Store in research history with complete multi-agent data
+          try {
+            const researchId = await storeCompletedResearch(
+              multiAgentData as any
+            );
+            console.log(
+              "✅ Complete multi-agent research stored in RxDB history:",
+              researchId
+            );
+          } catch (error) {
+            console.error(
+              "❌ Failed to store research in RxDB history:",
+              error
+            );
+          }
+
+          history.completeSession(historySessionIdRef.current, duration);
+          history.updateSession(historySessionIdRef.current, {
+            resultCount: formattedResult.agentTasks.length,
+            metadata: {
+              ...formattedResult,
+              researchContext: orchestratorContext,
+              agentSubSteps: agentSubSteps,
+            } as any,
+          });
+        }
+      } catch (error) {
+        console.error("❌ Intelligent research failed:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setResults(
+          `Intelligent research failed: ${errorMessage}\n\nPlease check your AI connection and try again.`
+        );
+        setThinkingOutput("❌ Research failed. Please try again.");
+
+        // 🔥 CRITICAL FIX: Mark main step as failed
+        const failedMainStep = researchStepsState.steps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+        if (failedMainStep) {
+          const updatedMainStep = {
+            ...failedMainStep,
+            status: "failed" as const,
+            duration: Date.now() - failedMainStep.timestamp,
+            reasoning: `Multi-agent research failed: ${errorMessage}`,
+          };
+          researchStepsState.updateStep(updatedMainStep.id, updatedMainStep);
+          console.log(`❌ Main step marked as failed: "${updatedMainStep.id}"`);
+        }
+
+        if (historySessionIdRef.current) {
+          history.failSession(historySessionIdRef.current, errorMessage);
+        }
+      } finally {
+        setIsIntelligentResearching(false);
+        setIsGenerating(false);
+        setIsStreaming(false);
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
       }
-      
-      if (historySessionIdRef.current) {
-        history.failSession(historySessionIdRef.current, errorMessage);
-      }
-    } finally {
-      setIsIntelligentResearching(false);
-      setIsGenerating(false);
-      setIsStreaming(false);
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
-    }
-  }, [
-    isAIReady,
-    generateContent,
-    vectorStore, 
-    researchConfig.includeWebSearch,
-    progressCallback,
-    researchStepsState,
-    history
-  ]);
+    },
+    [
+      isAIReady,
+      generateContent,
+      vectorStore,
+      researchConfig.includeWebSearch,
+      progressCallback,
+      researchStepsState,
+      history,
+    ]
+  );
 
   const clearResearchSteps = useCallback(() => {
     researchStepsState.clearSteps();
@@ -1422,7 +1622,7 @@ export function useResearch(
   // Rerun synthesis function - restarts the intelligent research process
   const rerunSynthesis = useCallback(async () => {
     if (!prompt.trim() || !isAIReady) {
-      console.warn('⚠️ Cannot rerun synthesis: missing query or AI not ready');
+      console.warn("⚠️ Cannot rerun synthesis: missing query or AI not ready");
       return;
     }
 
@@ -1431,30 +1631,40 @@ export function useResearch(
     setThinkingOutput("🔄 Rerunning intelligent research and synthesis...");
 
     try {
-      console.log('🔄 Rerunning synthesis for query:', prompt);
-      
-      // Clear previous results and restart the research process
-      // This will use the fixed DataAnalyzer infinite loop logic
-      const result = await researchOrchestrator.executeResearch(prompt);
-      
-      if (result && result.finalAnswer) {
-        setResearchResult(result);
-        setResults(result.finalAnswer);
-        setThinkingOutput(`✅ Synthesis rerun completed: ${Math.round(result.confidence * 100)}% confidence`);
-        
-        console.log('✅ Synthesis rerun successful:', {
-          confidence: result.confidence,
-          answerLength: result.finalAnswer.length
-        });
-      } else {
-        throw new Error('Synthesis rerun returned no result');
-      }
+      console.log("🔄 Rerunning synthesis for query:", prompt);
 
+      // Clear previous results and restart the research process
+      if (!researchOrchestrator) {
+        throw new Error("Research orchestrator not available");
+      }
+      const result = await researchOrchestrator.research(prompt);
+
+      // Create a formatted result object
+      const formattedResult = {
+        finalAnswer: result,
+        confidence: 1.0,
+      };
+
+      setResearchResult(formattedResult);
+      setResults(result);
+      setThinkingOutput(
+        `✅ Synthesis rerun completed: ${Math.round(formattedResult.confidence * 100)}% confidence`
+      );
+
+      console.log("✅ Synthesis rerun successful:", {
+        confidence: formattedResult.confidence,
+        answerLength: result.length,
+      });
     } catch (error) {
-      console.error('❌ Synthesis rerun failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setResults(`Synthesis rerun failed: ${errorMessage}\n\nPlease check the logs and try again.`);
-      setThinkingOutput("❌ Synthesis rerun failed. Check console for details.");
+      console.error("❌ Synthesis rerun failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setResults(
+        `Synthesis rerun failed: ${errorMessage}\n\nPlease check the logs and try again.`
+      );
+      setThinkingOutput(
+        "❌ Synthesis rerun failed. Check console for details."
+      );
     } finally {
       setIsGenerating(false);
       setIsStreaming(false);
@@ -1462,80 +1672,100 @@ export function useResearch(
   }, [prompt, isAIReady, researchOrchestrator]);
 
   // Rerun specific agent function - targeted agent execution with context preservation
-  const rerunSpecificAgent = useCallback(async (agentName: string) => {
-    // Debug validation values
-    console.log(`🔍 Rerun ${agentName} validation:`, {
-      prompt: prompt,
-      promptTrimmed: prompt.trim(),
-      promptLength: prompt.length,
-      isAIReady: isAIReady,
-      hasResearchResult: !!researchResult,
-      researchQuery: researchResult?.query
-    });
-    
-    // Try to use original query from researchResult if current prompt is empty
-    const queryToUse = prompt.trim() || researchResult?.query || '';
-    
-    if (!queryToUse || !isAIReady) {
-      console.warn(`⚠️ Cannot rerun ${agentName}: missing query or AI not ready`, {
-        queryToUse,
-        isAIReady,
-        promptAvailable: !!prompt.trim(),
-        researchQueryAvailable: !!researchResult?.query
+  const rerunSpecificAgent = useCallback(
+    async (agentName: string) => {
+      // Debug validation values
+      console.log(`🔍 Rerun ${agentName} validation:`, {
+        prompt: prompt,
+        promptTrimmed: prompt.trim(),
+        promptLength: prompt.length,
+        isAIReady: isAIReady,
+        hasResearchResult: !!researchResult,
+        researchQuery: researchResult?.query,
       });
-      return;
-    }
 
-    setIsGenerating(true);
-    setIsStreaming(true);
-    setThinkingOutput(`🔄 Rerunning ${agentName}...`);
+      // Try to use original query from researchResult if current prompt is empty
+      const queryToUse = prompt.trim() || researchResult?.query || "";
 
-    try {
-      console.log(`🔄 Rerunning specific agent: ${agentName} for query:`, queryToUse);
-      
-      // Use the new rerunSpecificAgent method on researchOrchestrator
-      const result = await researchOrchestrator.rerunSpecificAgent(agentName, researchResult, queryToUse);
-      
-      if (result && result.finalAnswer) {
-        setResearchResult(result);
-        setResults(result.finalAnswer);
-        setThinkingOutput(`✅ ${agentName} rerun completed: ${Math.round(result.confidence * 100)}% confidence`);
-        
-        console.log(`✅ ${agentName} rerun successful:`, {
-          confidence: result.confidence,
-          answerLength: result.finalAnswer.length
-        });
-      } else {
-        throw new Error(`${agentName} rerun returned no result`);
+      if (!queryToUse || !isAIReady) {
+        console.warn(
+          `⚠️ Cannot rerun ${agentName}: missing query or AI not ready`,
+          {
+            queryToUse,
+            isAIReady,
+            promptAvailable: !!prompt.trim(),
+            researchQueryAvailable: !!researchResult?.query,
+          }
+        );
+        return;
       }
 
-    } catch (error) {
-      console.error(`❌ ${agentName} rerun failed:`, error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setResults(`${agentName} rerun failed: ${errorMessage}\n\nPlease check the logs and try again.`);
-      setThinkingOutput(`❌ ${agentName} rerun failed. Check console for details.`);
-    } finally {
-      setIsGenerating(false);
-      setIsStreaming(false);
-    }
-  }, [prompt, isAIReady, researchOrchestrator, researchResult]);
+      setIsGenerating(true);
+      setIsStreaming(true);
+      setThinkingOutput(`🔄 Rerunning ${agentName}...`);
+
+      try {
+        console.log(
+          `🔄 Rerunning specific agent: ${agentName} for query:`,
+          queryToUse
+        );
+
+        // For now, just rerun the entire research since rerunSpecificAgent doesn't exist yet
+        if (!researchOrchestrator) {
+          throw new Error("Research orchestrator not available");
+        }
+        const result = await researchOrchestrator.research(queryToUse);
+
+        // Create a formatted result object
+        const formattedResult = {
+          finalAnswer: result,
+          confidence: 1.0,
+        };
+
+        setResearchResult(formattedResult);
+        setResults(result);
+        setThinkingOutput(
+          `✅ ${agentName} rerun completed: ${Math.round(formattedResult.confidence * 100)}% confidence`
+        );
+
+        console.log(`✅ ${agentName} rerun successful:`, {
+          confidence: formattedResult.confidence,
+          answerLength: result.length,
+        });
+      } catch (error) {
+        console.error(`❌ ${agentName} rerun failed:`, error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setResults(
+          `${agentName} rerun failed: ${errorMessage}\n\nPlease check the logs and try again.`
+        );
+        setThinkingOutput(
+          `❌ ${agentName} rerun failed. Check console for details.`
+        );
+      } finally {
+        setIsGenerating(false);
+        setIsStreaming(false);
+      }
+    },
+    [prompt, isAIReady, researchOrchestrator, researchResult]
+  );
 
   // Stop research function - cancels ongoing research
   const stopResearch = useCallback(() => {
     console.log("🛑 Stopping research...");
-    
+
     // Cancel any ongoing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    
+
     // Reset states
     setIsGenerating(false);
     setIsStreaming(false);
     setIsIntelligentResearching(false);
     setThinkingOutput("Research stopped by user");
-    
+
     console.log("✅ Research stopped successfully");
   }, []);
 

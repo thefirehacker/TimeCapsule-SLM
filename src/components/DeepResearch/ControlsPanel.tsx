@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResearchConfig } from "./hooks/useResearch";
 import { DocumentStatus } from "./hooks/useDocuments";
+import { useResearchHistory } from "@/hooks/useResearchHistory";
+import { useResearchNavigation } from "@/hooks/useResearchNavigation";
 import {
   Bot,
   Database,
@@ -17,6 +20,8 @@ import {
   Trash2,
   Eye,
   MessageSquare,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 interface ControlsPanelProps {
@@ -53,51 +58,10 @@ interface ControlsPanelProps {
   onClearAll: () => void;
   onExportResults: () => void;
   onStartNewChat: () => void;
-}
 
-// Mock research history data
-const researchHistory = [
-  {
-    id: "1",
-    title: "AI Impact on Education Systems",
-    type: "academic",
-    timestamp: "2024-01-15T10:30:00Z",
-    status: "completed",
-    wordCount: 2500,
-  },
-  {
-    id: "2",
-    title: "Renewable Energy Adoption Trends",
-    type: "market",
-    timestamp: "2024-01-14T16:45:00Z",
-    status: "completed",
-    wordCount: 1800,
-  },
-  {
-    id: "3",
-    title: "Social Media in Political Movements",
-    type: "social",
-    timestamp: "2024-01-13T14:20:00Z",
-    status: "completed",
-    wordCount: 3200,
-  },
-  {
-    id: "4",
-    title: "Emerging Sustainable Finance",
-    type: "finance",
-    timestamp: "2024-01-12T09:15:00Z",
-    status: "completed",
-    wordCount: 2100,
-  },
-  {
-    id: "5",
-    title: "Machine Learning in Healthcare",
-    type: "technical",
-    timestamp: "2024-01-11T11:30:00Z",
-    status: "completed",
-    wordCount: 2800,
-  },
-];
+  // Navigation
+  onLoadResearch?: (researchId: string) => void;
+}
 
 export function ControlsPanel({
   prompt,
@@ -117,7 +81,76 @@ export function ControlsPanel({
   onClearAll,
   onExportResults,
   onStartNewChat,
+  onLoadResearch,
 }: ControlsPanelProps) {
+  // Research history state
+  const {
+    history: researchHistory,
+    loading: historyLoading,
+    error: historyError,
+    deleteResearch,
+    clearAll,
+    refresh: refreshHistory,
+  } = useResearchHistory();
+
+  // Navigation state
+  const {
+    loadResearch,
+    isLoading: navigationLoading,
+    error: navigationError,
+  } = useResearchNavigation();
+
+  // Local state
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Handlers
+  const handleLoadResearch = async (researchId: string) => {
+    try {
+      console.log("🔄 Loading research session from RxDB:", researchId);
+
+      // First load the research data using navigation hook
+      await loadResearch(researchId);
+
+      // Then call the parent callback if provided
+      if (onLoadResearch) {
+        onLoadResearch(researchId);
+      }
+
+      console.log("✅ Research session loaded successfully from RxDB");
+    } catch (error) {
+      console.error("❌ Error loading research from RxDB:", error);
+      // You could show a toast notification here
+    }
+  };
+
+  const handleDeleteResearch = async (researchId: string) => {
+    if (window.confirm("Are you sure you want to delete this research item?")) {
+      try {
+        setDeletingId(researchId);
+        await deleteResearch(researchId);
+      } catch (error) {
+        console.error("Error deleting research:", error);
+      } finally {
+        setDeletingId(null);
+      }
+    }
+  };
+
+  const handleClearAllHistory = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to clear all research history? This cannot be undone."
+      )
+    ) {
+      try {
+        await clearAll();
+        onClearAll?.();
+      } catch (error) {
+        console.error("Error clearing research history:", error);
+      }
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -126,8 +159,8 @@ export function ControlsPanel({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -135,7 +168,7 @@ export function ControlsPanel({
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-scroll">
       <ScrollArea className="flex-1 h-full">
         <div className="p-4 space-y-4">
           <Button
@@ -310,59 +343,166 @@ export function ControlsPanel({
           {/* Research History */}
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
-                <Clock className="w-4 h-4" />
-                Research History
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2 text-card-foreground">
+                  <Clock className="w-4 h-4" />
+                  Research History
+                  {historyLoading && (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  )}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={refreshHistory}
+                  disabled={historyLoading}
+                  className="h-6 w-6 p-0"
+                  title="Refresh History"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {researchHistory.map((research) => (
-                  <div
-                    key={research.id}
-                    className="group p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer bg-card"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h4 className="text-sm font-medium leading-tight line-clamp-2 text-foreground">
-                        {research.title}
-                      </h4>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
+              {historyError && (
+                <div className="flex items-center gap-2 p-3 mb-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                  <span className="text-sm text-destructive">
+                    {historyError}
+                  </span>
+                </div>
+              )}
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className="text-xs border-border bg-secondary text-secondary-foreground"
-                        >
-                          {research.type}
-                        </Badge>
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">
+                      Loading history...
+                    </span>
+                  </div>
+                </div>
+              ) : researchHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <Clock className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    No research history yet
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Complete your first research to see it here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {researchHistory.map((research) => (
+                    <div
+                      key={research.id}
+                      className="group p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer bg-card"
+                      onClick={() => handleLoadResearch(research.id)}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="text-sm font-medium leading-tight line-clamp-2 text-foreground flex-1">
+                          {research.title}
+                        </h4>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLoadResearch(research.id);
+                            }}
+                            title="Load Research"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteResearch(research.id);
+                            }}
+                            disabled={deletingId === research.id}
+                            title="Delete Research"
+                          >
+                            {deletingId === research.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-border bg-secondary text-secondary-foreground capitalize"
+                          >
+                            {research.type.replace("-", " ")}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {research.wordCount?.toLocaleString() || 0} words
+                          </span>
+                          {research.duration && (
+                            <span className="text-xs text-muted-foreground">
+                              •{" "}
+                              {research.duration < 1000
+                                ? `${research.duration}ms`
+                                : `${(research.duration / 1000).toFixed(1)}s`}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-muted-foreground">
-                          {research.wordCount} words
+                          {formatDate(research.timestamp)}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(research.timestamp)}
-                      </span>
+
+                      {/* Research Configuration */}
+                      <div className="mt-2 flex items-center gap-1 flex-wrap">
+                        {research.researchConfig?.enableRAG && (
+                          <Badge variant="secondary" className="text-xs">
+                            RAG
+                          </Badge>
+                        )}
+                        {research.researchConfig?.enableWebSearch && (
+                          <Badge variant="secondary" className="text-xs">
+                            Web
+                          </Badge>
+                        )}
+                        {research.sourcesCount && research.sourcesCount > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {research.sourcesCount} sources
+                          </Badge>
+                        )}
+                        {research.chunksProcessed &&
+                          research.chunksProcessed > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {research.chunksProcessed} chunks
+                            </Badge>
+                          )}
+                        {research.agentTasks &&
+                          research.agentTasks.length > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {research.agentTasks.length} agents
+                            </Badge>
+                          )}
+                        {research.researchContext?.extractedData?.raw
+                          ?.length && (
+                          <Badge variant="outline" className="text-xs">
+                            {research.researchContext.extractedData.raw.length}{" "}
+                            items
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -382,10 +522,10 @@ export function ControlsPanel({
           <Button
             variant="outline"
             size="sm"
-            onClick={onClearAll}
+            onClick={handleClearAllHistory}
             className="w-full text-destructive hover:text-destructive"
           >
-            Clear Workspace
+            Clear All History
           </Button>
         </div>
       </div>
