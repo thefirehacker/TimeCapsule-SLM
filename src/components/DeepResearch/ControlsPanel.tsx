@@ -8,7 +8,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResearchConfig } from "./hooks/useResearch";
 import { DocumentStatus } from "./hooks/useDocuments";
 import { useResearchHistory } from "@/hooks/useResearchHistory";
-import { useResearchNavigation } from "@/hooks/useResearchNavigation";
 import {
   Bot,
   Database,
@@ -60,7 +59,7 @@ interface ControlsPanelProps {
   onStartNewChat: () => void;
 
   // Navigation
-  onLoadResearch?: (researchId: string) => void;
+  onLoadResearch?: (researchId: string) => Promise<boolean>;
 }
 
 export function ControlsPanel({
@@ -93,32 +92,30 @@ export function ControlsPanel({
     refresh: refreshHistory,
   } = useResearchHistory();
 
-  // Navigation state
-  const {
-    loadResearch,
-    isLoading: navigationLoading,
-    error: navigationError,
-  } = useResearchNavigation();
-
   // Local state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Handlers
   const handleLoadResearch = async (researchId: string) => {
     try {
-      console.log("🔄 Loading research session from RxDB:", researchId);
+      console.log(
+        "🔄 Loading research session from ControlsPanel:",
+        researchId
+      );
 
-      // First load the research data using navigation hook
-      await loadResearch(researchId);
-
-      // Then call the parent callback if provided
+      // Use the passed navigation function
       if (onLoadResearch) {
-        onLoadResearch(researchId);
+        const success = await onLoadResearch(researchId);
+        if (success) {
+          console.log(
+            "✅ Research session loaded successfully from ControlsPanel"
+          );
+        } else {
+          console.error("❌ Failed to load research session");
+        }
       }
-
-      console.log("✅ Research session loaded successfully from RxDB");
     } catch (error) {
-      console.error("❌ Error loading research from RxDB:", error);
+      console.error("❌ Error loading research from ControlsPanel:", error);
       // You could show a toast notification here
     }
   };

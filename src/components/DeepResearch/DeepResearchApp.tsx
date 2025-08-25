@@ -12,6 +12,8 @@ import { FullScreenResearchModal } from "./components/FullScreenResearchModal";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
 import { useResearchHistory } from "./hooks/useResearchHistory";
+import { useResearchNavigation } from "@/hooks/useResearchNavigation";
+import { ResearchHistoryViewer } from "./components/ResearchHistoryViewer";
 import { ResearchProvider } from "@/contexts/ResearchContext";
 import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
 import { getEmbeddingService } from "@/lib/EmbeddingService";
@@ -57,6 +59,24 @@ export function DeepResearchComponent() {
   const research = useResearch(vectorStore);
   const documents = useDocuments(vectorStore);
   const researchHistory = useResearchHistory();
+  const researchNavigation = useResearchNavigation();
+
+  // Debug navigation state
+  useEffect(() => {
+    console.log("🔍 Navigation State Changed in DeepResearchApp:", {
+      currentView: researchNavigation.currentView,
+      hasLoadedSession: !!researchNavigation.loadedResearchSession,
+      sessionTitle: researchNavigation.loadedResearchSession?.item.title,
+      loadedAt: researchNavigation.loadedResearchSession?.loadedAt,
+      isLoading: researchNavigation.isLoading,
+      error: researchNavigation.error,
+    });
+  }, [
+    researchNavigation.currentView,
+    researchNavigation.loadedResearchSession,
+    researchNavigation.isLoading,
+    researchNavigation.error,
+  ]);
 
   // Full-screen modal state
   const [isFullScreenModalOpen, setIsFullScreenModalOpen] = useState(false);
@@ -315,8 +335,15 @@ export function DeepResearchComponent() {
   const handleStartNewChat = () => {
     research.clearResults();
     research.setPrompt("");
+    researchNavigation.clearLoadedSession();
     setStatusMessage("New chat started");
     setTimeout(() => setStatusMessage(""), 2000);
+  };
+
+  const handleLoadResearch = async (researchId: string): Promise<boolean> => {
+    console.log("🔄 Loading research from DeepResearchApp:", researchId);
+    // Use the navigation hook to load the research session
+    return await researchNavigation.loadResearchSession(researchId);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -433,55 +460,74 @@ export function DeepResearchComponent() {
               onClearAll={handleClearAll}
               onExportResults={handleExportResults}
               onStartNewChat={handleStartNewChat}
+              onLoadResearch={handleLoadResearch}
             />
           </div>
 
           {/* Main Chat Interface - Full Width */}
           <div className="flex-1 flex">
             <div className="flex-1 flex flex-col">
-              <ResearchOutput
-                researchResults={research.results}
-                thinkingOutput={research.thinkingOutput}
-                isStreaming={research.isStreaming}
-                onClearOutput={research.clearResults}
-                onExportResults={handleExportResults}
-                onUpdateResults={research.updateResults}
-                prompt={research.prompt}
-                onPromptChange={research.setPrompt}
-                researchConfig={research.researchConfig}
-                onResearchConfigChange={research.setResearchConfig}
-                onGenerateResearchStream={research.generateResearchStream}
-                onGenerateResearchWithContext={
-                  research.generateResearchWithContext
-                }
-                isGenerating={research.isGenerating}
-                connectionState={research.connectionState}
-                onConnectAI={handleConnectAI}
-                // RAG Integration
-                enableRAG={research.researchConfig.includeRAG}
-                onRAGSearch={handleRAGSearch}
-                onRAGToggle={handleRAGToggle}
-                // Web Search Integration
-                webSearchEnabled={webSearchEnabled}
-                onWebSearch={handleWebSearch}
-                onWebSearchToggle={handleWebSearchToggle}
-                webSearchStatus={webSearchStatus}
-                onWebSearchConfigure={handleFirecrawlApiKeyChange}
-                // Intelligent Research Integration
-                onPerformIntelligentResearch={
-                  research.performIntelligentResearch
-                }
-                isIntelligentResearching={research.isIntelligentResearching}
-                researchResult={research.researchResult}
-                // Research Steps Integration - indicate if steps are active
-                researchSteps={research.researchSteps}
-                expandedSteps={research.expandedSteps}
-                onStepClick={research.handleStepClick}
-                // Agent Rerun Integration
-                onRerunAgent={research.rerunSpecificAgent}
-                // Research Control Integration
-                onStopResearch={research.stopResearch}
-              />
+              {/* Show loaded research history or current research */}
+              {(() => {
+                console.log("🎯 Conditional Render Check:", {
+                  hasLoadedSession: !!researchNavigation.loadedResearchSession,
+                  sessionData: researchNavigation.loadedResearchSession,
+                });
+                return researchNavigation.loadedResearchSession ? (
+                  <ResearchHistoryViewer
+                    researchItem={researchNavigation.loadedResearchSession.item}
+                    onBack={() => {
+                      researchNavigation.clearLoadedSession();
+                      researchNavigation.showCurrentResearch();
+                    }}
+                    className="p-8"
+                  />
+                ) : (
+                  <ResearchOutput
+                    researchResults={research.results}
+                    thinkingOutput={research.thinkingOutput}
+                    isStreaming={research.isStreaming}
+                    onClearOutput={research.clearResults}
+                    onExportResults={handleExportResults}
+                    onUpdateResults={research.updateResults}
+                    prompt={research.prompt}
+                    onPromptChange={research.setPrompt}
+                    researchConfig={research.researchConfig}
+                    onResearchConfigChange={research.setResearchConfig}
+                    onGenerateResearchStream={research.generateResearchStream}
+                    onGenerateResearchWithContext={
+                      research.generateResearchWithContext
+                    }
+                    isGenerating={research.isGenerating}
+                    connectionState={research.connectionState}
+                    onConnectAI={handleConnectAI}
+                    // RAG Integration
+                    enableRAG={research.researchConfig.includeRAG}
+                    onRAGSearch={handleRAGSearch}
+                    onRAGToggle={handleRAGToggle}
+                    // Web Search Integration
+                    webSearchEnabled={webSearchEnabled}
+                    onWebSearch={handleWebSearch}
+                    onWebSearchToggle={handleWebSearchToggle}
+                    webSearchStatus={webSearchStatus}
+                    onWebSearchConfigure={handleFirecrawlApiKeyChange}
+                    // Intelligent Research Integration
+                    onPerformIntelligentResearch={
+                      research.performIntelligentResearch
+                    }
+                    isIntelligentResearching={research.isIntelligentResearching}
+                    researchResult={research.researchResult}
+                    // Research Steps Integration - indicate if steps are active
+                    researchSteps={research.researchSteps}
+                    expandedSteps={research.expandedSteps}
+                    onStepClick={research.handleStepClick}
+                    // Agent Rerun Integration
+                    onRerunAgent={research.rerunSpecificAgent}
+                    // Research Control Integration
+                    onStopResearch={research.stopResearch}
+                  />
+                );
+              })()}
             </div>
           </div>
         </div>
