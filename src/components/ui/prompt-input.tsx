@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { RAGContext } from "@/components/DeepResearch/hooks/useResearch";
 import { FirecrawlConfigModal } from "./firecrawl-config-modal";
+import { useResearchContext } from "@/contexts/ResearchContext";
 
 // Web Speech API type declarations
 declare global {
@@ -343,6 +344,8 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     },
     ref
   ) => {
+    // Research context for session tracking
+    const { startSession } = useResearchContext();
     const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [internalValue, setInternalValue] = React.useState(value);
@@ -488,10 +491,35 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         hasWebSearch: !!onWebSearch,
       });
 
+      // Start research session for history tracking
+      try {
+        const researchConfig = {
+          prompt,
+          type: selectedResearchType,
+          depth: selectedResearchDepth,
+          enableRAG,
+          enableWebSearch,
+        };
+        startSession(researchConfig);
+        console.log(
+          "🚀 Research session started for history tracking:",
+          researchConfig
+        );
+      } catch (error) {
+        console.error("❌ Error starting research session:", error);
+      }
+
       // 🔥 FIX: Skip initial RAG search for deep-research - Master Orchestrator handles DataInspector
       // Only perform RAG search for other research types that need traditional RAG
-      if (enableRAG && onRAGSearch && selectedResearchType !== "deep-research") {
-        console.log("🔍 Performing traditional RAG search for research type:", selectedResearchType);
+      if (
+        enableRAG &&
+        onRAGSearch &&
+        selectedResearchType !== "deep-research"
+      ) {
+        console.log(
+          "🔍 Performing traditional RAG search for research type:",
+          selectedResearchType
+        );
         setIsRAGSearching(true);
         try {
           ragContextToSubmit = await onRAGSearch(prompt);
@@ -501,13 +529,17 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           setIsRAGSearching(false);
         }
       } else if (selectedResearchType === "deep-research") {
-        console.log("🧠 Skipping initial RAG search for deep-research - Master Orchestrator will handle DataInspector magic filtering");
+        console.log(
+          "🧠 Skipping initial RAG search for deep-research - Master Orchestrator will handle DataInspector magic filtering"
+        );
       }
 
       // 🚫 UI WEB SEARCH DISABLED: Let WebSearchAgent make intelligent decisions
       // Web search now handled by multi-agent WebSearchAgent with pattern-based queries
-      console.log("🚫 UI web search disabled - WebSearchAgent will handle intelligent web expansion when needed");
-      
+      console.log(
+        "🚫 UI web search disabled - WebSearchAgent will handle intelligent web expansion when needed"
+      );
+
       // Skip UI web search entirely - WebSearchAgent will use PatternGenerator results
       // for targeted, intelligent searches based on document analysis
 
@@ -1012,15 +1044,27 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                           className={cn(
                             "flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none hover:bg-primary/90 disabled:opacity-50",
                             compact ? "h-8 w-8 p-0" : "h-9 px-4",
-                            isGenerating 
-                              ? "bg-red-500 text-white hover:bg-red-600" 
+                            isGenerating
+                              ? "bg-red-500 text-white hover:bg-red-600"
                               : "bg-primary text-primary-foreground"
                           )}
                         >
                           {isGenerating ? (
                             <>
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <rect x="6" y="6" width="12" height="12" rx="2" strokeWidth="2"/>
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <rect
+                                  x="6"
+                                  y="6"
+                                  width="12"
+                                  height="12"
+                                  rx="2"
+                                  strokeWidth="2"
+                                />
                               </svg>
                               {!compact && (
                                 <span className="ml-2">Stop Research</span>

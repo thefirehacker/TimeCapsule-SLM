@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ResearchStep, AgentSubStep, SourceReference } from "./ResearchSteps";
+import { useResearchContext } from "@/contexts/ResearchContext";
 import {
   Search,
   Globe,
@@ -358,7 +359,7 @@ const copyMultiAgentProcess = async (subSteps: any[]) => {
 };
 
 interface PerplexityStyleResearchProps {
-  steps: ResearchStep[];
+  steps?: ResearchStep[];
   isActive?: boolean;
   className?: string;
   onRerunAgent?: (agentName: string) => Promise<void>;
@@ -1527,17 +1528,49 @@ function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
 }
 
 export function PerplexityStyleResearch({
-  steps,
-  isActive = false,
+  steps: propSteps,
+  isActive: propIsActive,
   className = "",
   onRerunAgent,
 }: PerplexityStyleResearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrollTimeRef = useRef<number>(0);
 
+  // Get research state from context
+  const {
+    steps: contextSteps,
+    isActive: contextIsActive,
+    config,
+    addStep,
+    updateStep,
+    completeSession,
+    onResearchStored,
+  } = useResearchContext();
+
+  // Use context data if available, otherwise fall back to props
+  const steps = contextSteps.length > 0 ? contextSteps : propSteps || [];
+  const isActive = contextIsActive || propIsActive || false;
+
   if (!steps || steps.length === 0) {
     return null;
   }
+
+  // Auto-complete session when research finishes
+  useEffect(() => {
+    const allStepsCompleted =
+      steps.length > 0 && steps.every((step) => step.status === "completed");
+    const noStepsInProgress = steps.every(
+      (step) => step.status !== "in_progress"
+    );
+
+    if (isActive && allStepsCompleted && noStepsInProgress) {
+      console.log("🎯 Research completed, storing session...");
+      // Complete session after a short delay to ensure all data is captured
+      setTimeout(() => {
+        completeSession();
+      }, 1000);
+    }
+  }, [steps, isActive, completeSession]);
 
   // ENHANCED completion counting - includes DataInspector specific detection
   const getCompletedSubStepsCount = (subSteps?: any[]) => {

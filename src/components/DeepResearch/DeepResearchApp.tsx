@@ -12,6 +12,9 @@ import { FullScreenResearchModal } from "./components/FullScreenResearchModal";
 import { useResearch } from "./hooks/useResearch";
 import { useDocuments } from "./hooks/useDocuments";
 import { useResearchHistory } from "./hooks/useResearchHistory";
+import { useResearchNavigation } from "@/hooks/useResearchNavigation";
+import { ResearchHistoryViewer } from "./components/ResearchHistoryViewer";
+import { ResearchProvider } from "@/contexts/ResearchContext";
 import { getUnifiedWebSearchService } from "@/lib/UnifiedWebSearchService";
 import { getEmbeddingService } from "@/lib/EmbeddingService";
 import VectorStoreInitModal from "../VectorStoreInitModal";
@@ -56,6 +59,24 @@ export function DeepResearchComponent() {
   const research = useResearch(vectorStore);
   const documents = useDocuments(vectorStore);
   const researchHistory = useResearchHistory();
+  const researchNavigation = useResearchNavigation();
+
+  // Debug navigation state
+  useEffect(() => {
+    console.log("🔍 Navigation State Changed in DeepResearchApp:", {
+      currentView: researchNavigation.currentView,
+      hasLoadedSession: !!researchNavigation.loadedResearchSession,
+      sessionTitle: researchNavigation.loadedResearchSession?.item.title,
+      loadedAt: researchNavigation.loadedResearchSession?.loadedAt,
+      isLoading: researchNavigation.isLoading,
+      error: researchNavigation.error,
+    });
+  }, [
+    researchNavigation.currentView,
+    researchNavigation.loadedResearchSession,
+    researchNavigation.isLoading,
+    researchNavigation.error,
+  ]);
 
   // Full-screen modal state
   const [isFullScreenModalOpen, setIsFullScreenModalOpen] = useState(false);
@@ -314,8 +335,15 @@ export function DeepResearchComponent() {
   const handleStartNewChat = () => {
     research.clearResults();
     research.setPrompt("");
+    researchNavigation.clearLoadedSession();
     setStatusMessage("New chat started");
     setTimeout(() => setStatusMessage(""), 2000);
+  };
+
+  const handleLoadResearch = async (researchId: string): Promise<boolean> => {
+    console.log("🔄 Loading research from DeepResearchApp:", researchId);
+    // Use the navigation hook to load the research session
+    return await researchNavigation.loadResearchSession(researchId);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -329,263 +357,295 @@ export function DeepResearchComponent() {
   // Tab configuration for DeepResearch Knowledge Base Manager
   const deepResearchTabConfigs = [
     {
-      id: 'userdocs',
-      label: 'User Docs',
+      id: "userdocs",
+      label: "User Docs",
       icon: FileText,
-      filter: (doc: any) => 
-        doc.metadata.documentType === 'userdocs' || 
-        (!doc.metadata.documentType && doc.metadata.source === 'upload')
+      filter: (doc: any) =>
+        doc.metadata.documentType === "userdocs" ||
+        (!doc.metadata.documentType && doc.metadata.source === "upload"),
     },
     {
-      id: 'virtual-docs', 
-      label: 'Virtual Docs',
+      id: "virtual-docs",
+      label: "Virtual Docs",
       icon: Globe,
       filter: (doc: any) =>
-        doc.metadata.documentType === 'virtual-docs' || 
-        (!doc.metadata.documentType && doc.metadata.source === 'websearch')
+        doc.metadata.documentType === "virtual-docs" ||
+        (!doc.metadata.documentType && doc.metadata.source === "websearch"),
     },
     {
-      id: 'ai-frames',
-      label: 'AI Frames', 
+      id: "ai-frames",
+      label: "AI Frames",
       icon: Bot,
       filter: (doc: any) =>
-        doc.metadata.documentType === 'ai-frames' || 
-        (!doc.metadata.documentType && (doc.metadata.isGenerated || doc.metadata.source === 'generated'))
+        doc.metadata.documentType === "ai-frames" ||
+        (!doc.metadata.documentType &&
+          (doc.metadata.isGenerated || doc.metadata.source === "generated")),
     },
     {
-      id: 'timecapsule',
-      label: 'TimeCapsule',
-      icon: Clock, 
+      id: "timecapsule",
+      label: "TimeCapsule",
+      icon: Clock,
       filter: (doc: any) =>
-        doc.metadata.documentType === 'timecapsule' || 
-        (!doc.metadata.documentType && doc.metadata.source === 'timecapsule_import')
+        doc.metadata.documentType === "timecapsule" ||
+        (!doc.metadata.documentType &&
+          doc.metadata.source === "timecapsule_import"),
     },
     {
-      id: 'bubblspace',
-      label: 'BubblSpace',
+      id: "bubblspace",
+      label: "BubblSpace",
       icon: MessageSquare,
       filter: (doc: any) =>
-        doc.metadata.documentType === 'bubblspace' || 
-        (!doc.metadata.documentType && doc.metadata.bubblSpaceId)
-    }
+        doc.metadata.documentType === "bubblspace" ||
+        (!doc.metadata.documentType && doc.metadata.bubblSpaceId),
+    },
   ];
 
   return (
-    <div className="h-full bg-background flex flex-col">
-      {/* Vector Store Initialization Modal */}
-      {showModal && (
-        <VectorStoreInitModal
-          isOpen={true}
-          status={
-            vectorStoreError
-              ? "error"
-              : xenovaStatus === "ready"
-                ? "ready"
-                : xenovaStatus === "initializing"
-                  ? "initializing"
-                  : "loading"
-          }
-          progress={downloadProgress}
-          message={
-            vectorStoreError ||
-            (xenovaStatus === "ready"
-              ? "Knowledge Base is ready!"
-              : xenovaStatus === "initializing"
-                ? "Loading Xenova AI models..."
-                : "Initializing secure Knowledge Base...")
-          }
-          onClose={() => {
-            setShowModal(false);
-          }}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Controls Panel */}
-        <div className="w-96 border-r border-border bg-card flex flex-col">
-          <ControlsPanel
-            prompt={research.prompt}
-            onPromptChange={research.setPrompt}
-            researchConfig={research.researchConfig}
-            onResearchConfigChange={research.setResearchConfig}
-            onGenerateResearch={research.generateResearch}
-            onGenerateResearchStream={research.generateResearchStream}
-            isGenerating={research.isGenerating}
-            connectionState={research.connectionState}
-            onConnectAI={handleConnectAI}
-            onDisconnectAI={research.disconnectAI}
-            documentStatus={documents.documentStatus}
-            onManageDocuments={() => documents.setShowDocumentManager(true)}
-            onUploadDocuments={() =>
-              document.getElementById("file-upload")?.click()
+    <ResearchProvider
+      onResearchStored={(researchId) => {
+        console.log("📚 Research stored in history:", researchId);
+        // Optionally refresh history or show notification
+      }}
+    >
+      <div className="h-full bg-background flex flex-col">
+        {/* Vector Store Initialization Modal */}
+        {showModal && (
+          <VectorStoreInitModal
+            isOpen={true}
+            status={
+              vectorStoreError
+                ? "error"
+                : xenovaStatus === "ready"
+                  ? "ready"
+                  : xenovaStatus === "initializing"
+                    ? "initializing"
+                    : "loading"
             }
-            isUploading={documents.isUploading}
-            onClearAll={handleClearAll}
-            onExportResults={handleExportResults}
-            onStartNewChat={handleStartNewChat}
+            progress={downloadProgress}
+            message={
+              vectorStoreError ||
+              (xenovaStatus === "ready"
+                ? "Knowledge Base is ready!"
+                : xenovaStatus === "initializing"
+                  ? "Loading Xenova AI models..."
+                  : "Initializing secure Knowledge Base...")
+            }
+            onClose={() => {
+              setShowModal(false);
+            }}
           />
-        </div>
+        )}
 
-        {/* Main Chat Interface - Full Width */}
-        <div className="flex-1 flex">
-          <div className="flex-1 flex flex-col">
-            <ResearchOutput
-              researchResults={research.results}
-              thinkingOutput={research.thinkingOutput}
-              isStreaming={research.isStreaming}
-              onClearOutput={research.clearResults}
-              onExportResults={handleExportResults}
-              onUpdateResults={research.updateResults}
+        {/* Main Content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar - Controls Panel */}
+          <div className="w-96 border-r border-border bg-card flex flex-col">
+            <ControlsPanel
               prompt={research.prompt}
               onPromptChange={research.setPrompt}
               researchConfig={research.researchConfig}
               onResearchConfigChange={research.setResearchConfig}
+              onGenerateResearch={research.generateResearch}
               onGenerateResearchStream={research.generateResearchStream}
-              onGenerateResearchWithContext={
-                research.generateResearchWithContext
-              }
               isGenerating={research.isGenerating}
               connectionState={research.connectionState}
               onConnectAI={handleConnectAI}
-              // RAG Integration
-              enableRAG={research.researchConfig.includeRAG}
-              onRAGSearch={handleRAGSearch}
-              onRAGToggle={handleRAGToggle}
-              // Web Search Integration
-              webSearchEnabled={webSearchEnabled}
-              onWebSearch={handleWebSearch}
-              onWebSearchToggle={handleWebSearchToggle}
-              webSearchStatus={webSearchStatus}
-              onWebSearchConfigure={handleFirecrawlApiKeyChange}
-              // Intelligent Research Integration
-              onPerformIntelligentResearch={research.performIntelligentResearch}
-              isIntelligentResearching={research.isIntelligentResearching}
-              researchResult={research.researchResult}
-              // Research Steps Integration - indicate if steps are active
-              researchSteps={research.researchSteps}
-              expandedSteps={research.expandedSteps}
-              onStepClick={research.handleStepClick}
-              // Agent Rerun Integration
-              onRerunAgent={research.rerunSpecificAgent}
-              // Research Control Integration
-              onStopResearch={research.stopResearch}
+              onDisconnectAI={research.disconnectAI}
+              documentStatus={documents.documentStatus}
+              onManageDocuments={() => documents.setShowDocumentManager(true)}
+              onUploadDocuments={() =>
+                document.getElementById("file-upload")?.click()
+              }
+              isUploading={documents.isUploading}
+              onClearAll={handleClearAll}
+              onExportResults={handleExportResults}
+              onStartNewChat={handleStartNewChat}
+              onLoadResearch={handleLoadResearch}
             />
           </div>
-        </div>
-      </div>
 
-      {/* Hidden File Input */}
-      <input
-        type="file"
-        id="file-upload"
-        multiple
-        accept=".pdf,.txt,.md,.doc,.docx"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
-
-      {/* Ollama Connection Modal */}
-      <OllamaConnectionModal
-        open={showOllamaModal}
-        onOpenChange={setShowOllamaModal}
-        onConnect={handleOllamaConnect}
-        onTestConnection={research.testConnection}
-        connectionState={research.connectionState}
-      />
-
-      {/* Document Manager Modal - Enhanced with Chunk Display */}
-      {documents.showDocumentManager && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-6xl m-4 max-h-[90vh]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Document Manager
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => documents.setShowDocumentManager(false)}
-                >
-                  ×
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Common Knowledge Base Manager Component */}
-                <KnowledgeBaseManager
-                  documents={documents.documents}
-                  documentStatus={documents.documentStatus}
-                  onDeleteDocument={documents.deleteDocument}
-                  onUploadDocuments={() => document.getElementById("file-upload")?.click()}
-                  isUploading={documents.isUploading}
-                  showUploadButton={true}
-                  tabConfigs={deepResearchTabConfigs}
-                  title="Document Manager"
-                  description="Manage your research documents organized by type and source."
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Vector Store Loading */}
-      {vectorStoreInitializing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="p-6 space-y-4">
-            <div className="text-center">
-              <div className="text-lg font-semibold mb-2">
-                Initializing Research Engine
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Setting up vector store and AI capabilities...
-              </div>
+          {/* Main Chat Interface - Full Width */}
+          <div className="flex-1 flex">
+            <div className="flex-1 flex flex-col">
+              {/* Show loaded research history or current research */}
+              {(() => {
+                console.log("🎯 Conditional Render Check:", {
+                  hasLoadedSession: !!researchNavigation.loadedResearchSession,
+                  sessionData: researchNavigation.loadedResearchSession,
+                });
+                return researchNavigation.loadedResearchSession ? (
+                  <ResearchHistoryViewer
+                    researchItem={researchNavigation.loadedResearchSession.item}
+                    onBack={() => {
+                      researchNavigation.clearLoadedSession();
+                      researchNavigation.showCurrentResearch();
+                    }}
+                    className="p-8"
+                  />
+                ) : (
+                  <ResearchOutput
+                    researchResults={research.results}
+                    thinkingOutput={research.thinkingOutput}
+                    isStreaming={research.isStreaming}
+                    onClearOutput={research.clearResults}
+                    onExportResults={handleExportResults}
+                    onUpdateResults={research.updateResults}
+                    prompt={research.prompt}
+                    onPromptChange={research.setPrompt}
+                    researchConfig={research.researchConfig}
+                    onResearchConfigChange={research.setResearchConfig}
+                    onGenerateResearchStream={research.generateResearchStream}
+                    onGenerateResearchWithContext={
+                      research.generateResearchWithContext
+                    }
+                    isGenerating={research.isGenerating}
+                    connectionState={research.connectionState}
+                    onConnectAI={handleConnectAI}
+                    // RAG Integration
+                    enableRAG={research.researchConfig.includeRAG}
+                    onRAGSearch={handleRAGSearch}
+                    onRAGToggle={handleRAGToggle}
+                    // Web Search Integration
+                    webSearchEnabled={webSearchEnabled}
+                    onWebSearch={handleWebSearch}
+                    onWebSearchToggle={handleWebSearchToggle}
+                    webSearchStatus={webSearchStatus}
+                    onWebSearchConfigure={handleFirecrawlApiKeyChange}
+                    // Intelligent Research Integration
+                    onPerformIntelligentResearch={
+                      research.performIntelligentResearch
+                    }
+                    isIntelligentResearching={research.isIntelligentResearching}
+                    researchResult={research.researchResult}
+                    // Research Steps Integration - indicate if steps are active
+                    researchSteps={research.researchSteps}
+                    expandedSteps={research.expandedSteps}
+                    onStepClick={research.handleStepClick}
+                    // Agent Rerun Integration
+                    onRerunAgent={research.rerunSpecificAgent}
+                    // Research Control Integration
+                    onStopResearch={research.stopResearch}
+                  />
+                );
+              })()}
             </div>
+          </div>
+        </div>
 
-            {downloadProgress &&
-              typeof downloadProgress === "object" &&
-              "progress" in downloadProgress && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Downloading AI models...</span>
-                    <span>
-                      {Math.round((downloadProgress as any).progress)}%
-                    </span>
-                  </div>
-                  <Progress value={(downloadProgress as any).progress} />
+        {/* Hidden File Input */}
+        <input
+          type="file"
+          id="file-upload"
+          multiple
+          accept=".pdf,.txt,.md,.doc,.docx"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+
+        {/* Ollama Connection Modal */}
+        <OllamaConnectionModal
+          open={showOllamaModal}
+          onOpenChange={setShowOllamaModal}
+          onConnect={handleOllamaConnect}
+          onTestConnection={research.testConnection}
+          connectionState={research.connectionState}
+        />
+
+        {/* Document Manager Modal - Enhanced with Chunk Display */}
+        {documents.showDocumentManager && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-6xl m-4 max-h-[90vh]">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Document Manager
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => documents.setShowDocumentManager(false)}
+                  >
+                    ×
+                  </Button>
                 </div>
-              )}
 
-            <div className="flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin" />
-            </div>
-          </Card>
-        </div>
-      )}
+                <div className="space-y-4">
+                  {/* Common Knowledge Base Manager Component */}
+                  <KnowledgeBaseManager
+                    documents={documents.documents}
+                    documentStatus={documents.documentStatus}
+                    onDeleteDocument={documents.deleteDocument}
+                    onUploadDocuments={() =>
+                      document.getElementById("file-upload")?.click()
+                    }
+                    isUploading={documents.isUploading}
+                    showUploadButton={true}
+                    tabConfigs={deepResearchTabConfigs}
+                    title="Document Manager"
+                    description="Manage your research documents organized by type and source."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-      {/* Full-Screen Research Modal */}
-      <FullScreenResearchModal
-        isOpen={isFullScreenModalOpen}
-        onClose={() => setIsFullScreenModalOpen(false)}
-        currentSession={currentResearchSession}
-        sessions={researchHistory.sessions}
-        expandedSteps={research.expandedSteps}
-        onStepClick={research.handleStepClick}
-        onSessionSwitch={(sessionId) => {
-          researchHistory.switchToSession(sessionId);
-          // TODO: Load session steps into current research view
-        }}
-      />
+        {/* Vector Store Loading */}
+        {vectorStoreInitializing && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="p-6 space-y-4">
+              <div className="text-center">
+                <div className="text-lg font-semibold mb-2">
+                  Initializing Research Engine
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Setting up vector store and AI capabilities...
+                </div>
+              </div>
 
-      {/* Status Bar */}
-      <StatusBar
-        message={statusMessage}
-        isGenerating={research.isGenerating}
-        aiConnected={research.connectionState.connected}
-      />
-    </div>
+              {downloadProgress &&
+                typeof downloadProgress === "object" &&
+                "progress" in downloadProgress && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Downloading AI models...</span>
+                      <span>
+                        {Math.round((downloadProgress as any).progress)}%
+                      </span>
+                    </div>
+                    <Progress value={(downloadProgress as any).progress} />
+                  </div>
+                )}
+
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Full-Screen Research Modal */}
+        <FullScreenResearchModal
+          isOpen={isFullScreenModalOpen}
+          onClose={() => setIsFullScreenModalOpen(false)}
+          currentSession={currentResearchSession}
+          sessions={researchHistory.sessions}
+          expandedSteps={research.expandedSteps}
+          onStepClick={research.handleStepClick}
+          onSessionSwitch={(sessionId) => {
+            researchHistory.switchToSession(sessionId);
+            // TODO: Load session steps into current research view
+          }}
+        />
+
+        {/* Status Bar */}
+        <StatusBar
+          message={statusMessage}
+          isGenerating={research.isGenerating}
+          aiConnected={research.connectionState.connected}
+        />
+      </div>
+    </ResearchProvider>
   );
 }

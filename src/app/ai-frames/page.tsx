@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +50,14 @@ import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
 import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
 import { ChapterDialog } from "@/components/ai-graphs/chapter-dialog";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { getMetadataManager, MetadataManager } from "@/lib/MetadataManager";
@@ -69,18 +78,15 @@ import Link from "next/link";
 import Image from "next/image";
 import SignInButton from "@/components/ui/sign-in";
 
-// Import DeepResearch components
-import { DeepResearchApp } from "../../components/DeepResearch/DeepResearchApp";
-
 // Import NEW MODULAR COMPONENTS
-import { 
+import {
   AIFrame,
   GraphState,
   generateFrameId,
   loadFramesFromKnowledgeBase,
   getTimeCapsuleCombinedData,
   setTimeCapsuleCombinedData,
-  DEFAULT_FRAME
+  DEFAULT_FRAME,
 } from "./index";
 
 // UNIFIED: Replace old fragmented storage with unified system
@@ -118,10 +124,19 @@ interface FrameCreationData {
 
 // Main component with dramatically reduced size
 export default function AIFramesPage() {
-  // Initialize page analytics for AI-Frames
+  // ============================================================================
+  // CRITICAL: ALL HOOKS MUST BE CALLED AT THE TOP LEVEL
+  // No conditional logic, early returns, or loops before all hooks are called
+  // ============================================================================
+
+  // Authentication hooks
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Page analytics (must be called before any conditional returns)
   const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
 
-  // Get VectorStore from provider
+  // VectorStore hooks (must be called consistently)
   const {
     vectorStore: providerVectorStore,
     isInitialized: vectorStoreInitialized,
@@ -131,7 +146,7 @@ export default function AIFramesPage() {
     processingStatus,
   } = useVectorStore();
 
-  // SIMPLIFIED: Keep only essential state for FrameGraphIntegration
+  // Essential state hooks
   const [isCreationMode, setIsCreationMode] = useState(true);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
 
@@ -141,14 +156,15 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
-  // PRESERVATION: Graph state management
+  // Graph state management
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  
-  // FIXED: Add loading state to prevent multiple concurrent KB loading calls
+
+  // Loading state to prevent multiple concurrent KB loading calls
   const [isLoadingInitialData, setIsLoadingInitialData] = useState(false);
 
   // Dialog states
-  const [showVectorStoreInitModal, setShowVectorStoreInitModal] = useState(false);
+  const [showVectorStoreInitModal, setShowVectorStoreInitModal] =
+    useState(false);
   const [showBubblSpaceDialog, setShowBubblSpaceDialog] = useState(false);
   const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] = useState(false);
   const [showSafeImportDialog, setShowSafeImportDialog] = useState(false);
@@ -167,18 +183,35 @@ export default function AIFramesPage() {
   const [showChunkView, setShowChunkView] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
 
-
-  // Metadata managers
+  // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
   const graphStorageManagerRef = useRef<GraphStorageManager | null>(null);
 
-  // PRESERVATION: Initialize managers
+  // ============================================================================
+  // ALL EFFECT HOOKS - Must be called consistently on every render
+  // ============================================================================
+
+  // Authentication redirect effect
+  useEffect(() => {
+    if (status === "loading") return; // Still loading
+
+    if (!session) {
+      // Redirect to sign-in with current URL as callback
+      const currentUrl = encodeURIComponent(
+        window.location.pathname + window.location.search
+      );
+      router.push(`/auth/signin?callbackUrl=${currentUrl}`);
+    }
+  }, [session, status, router]);
+
+  // Initialize managers
   useEffect(() => {
     const initializeManagers = async () => {
       if (providerVectorStore && vectorStoreInitialized) {
         try {
           metadataManagerRef.current = getMetadataManager(providerVectorStore);
-          graphStorageManagerRef.current = await getGraphStorageManager(providerVectorStore);
+          graphStorageManagerRef.current =
+            await getGraphStorageManager(providerVectorStore);
           console.log("✅ Managers initialized successfully");
         } catch (error) {
           console.error("❌ Failed to initialize managers:", error);
@@ -187,21 +220,30 @@ export default function AIFramesPage() {
         }
       }
     };
-    
+
     initializeManagers();
   }, [providerVectorStore, vectorStoreInitialized]);
 
   // FIXED: Enhanced VectorStore modal management for stability
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    
+
     // Show modal only during initial loading (not during re-initialization)
-    if (!vectorStoreInitialized && vectorStoreInitializing && !showVectorStoreInitModal) {
+    if (
+      !vectorStoreInitialized &&
+      vectorStoreInitializing &&
+      !showVectorStoreInitModal
+    ) {
       setShowVectorStoreInitModal(true);
     }
-    
+
     // Hide modal when VectorStore is fully ready AND stable
-    if (vectorStoreInitialized && !vectorStoreInitializing && providerVectorStore?.initialized !== false && showVectorStoreInitModal) {
+    if (
+      vectorStoreInitialized &&
+      !vectorStoreInitializing &&
+      providerVectorStore?.initialized !== false &&
+      showVectorStoreInitModal
+    ) {
       // Longer delay to ensure VectorStore is stable before hiding modal
       timeoutId = setTimeout(() => {
         setShowVectorStoreInitModal(false);
@@ -211,30 +253,34 @@ export default function AIFramesPage() {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore?.initialized, showVectorStoreInitModal]);
+  }, [
+    vectorStoreInitialized,
+    vectorStoreInitializing,
+    providerVectorStore?.initialized,
+    showVectorStoreInitModal,
+  ]);
 
   // CRITICAL FIX: Simplified, reliable loading logic
   useEffect(() => {
     const loadInitialData = async () => {
       // Prevent concurrent loading calls only
       if (isLoadingInitialData) return;
-      
+
       try {
         setIsLoadingInitialData(true);
-        
+
         console.log("🔄 Loading initial data with unified storage...");
-        
+
         // UNIFIED: Use single load method
         const success = await unifiedStorage.loadAll();
-        
+
         if (success) {
           console.log("✅ Unified storage load completed successfully");
         } else {
           console.log("📭 No data found in unified storage");
         }
-        
+
         console.log("✅ Initial data loading complete");
-        
       } catch (error) {
         console.error("❌ Error loading initial data:", error);
       } finally {
@@ -246,50 +292,136 @@ export default function AIFramesPage() {
     loadInitialData();
   }, []); // Only run on mount
 
-  // CRITICAL FIX: Removed retryVectorStoreLoad that was clearing frames after creation
-  // 
-  // ORIGINAL ISSUE:
-  // 1. User creates frames → frameCount: 2 ✅
-  // 2. VectorStore syncs frames → vectorStoreInitialized: true
-  // 3. retryVectorStoreLoad triggers with stale unifiedStorage.frames.length === 0
-  // 4. loadFramesFromKnowledgeBase called → finds no frames → clears frames to []
-  // 5. frameCount: 0 ❌ → frames lost!
-  //
-  // SOLUTION: Unified storage already handles VectorStore initialization properly.
-  // This retry logic was redundant and harmful.
+  // Load documents when VectorStore is ready
+  useEffect(() => {
+    const loadDocuments = async () => {
+      // FIXED: Enhanced VectorStore readiness check to prevent "Vector Store not initialized" error
+      if (
+        vectorStoreInitialized &&
+        providerVectorStore &&
+        !vectorStoreInitializing
+      ) {
+        try {
+          // Additional safety check: verify VectorStore has initialized property
+          if (providerVectorStore.initialized === false) {
+            console.log(
+              "VectorStore not fully initialized yet, skipping document load"
+            );
+            return;
+          }
 
-  // REMOVED: Frame creation functionality (handled by FrameGraphIntegration)
+          const allDocuments = await providerVectorStore.getAllDocuments();
+          setDocuments(allDocuments);
+        } catch (error) {
+          // FIXED: Handle "Vector Store not initialized" gracefully
+          if (
+            error instanceof Error &&
+            error.message.includes("Vector Store not initialized")
+          ) {
+            console.log(
+              "VectorStore still initializing, will retry when ready"
+            );
+          } else {
+            console.error("Failed to load documents:", error);
+          }
+        }
+      }
+    };
 
-  // PRESERVATION: Handle frame clear
+    loadDocuments();
+  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore]);
+
+  // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use (reduced logging frequency)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const aiFramesApp = {
+        vectorStore: providerVectorStore,
+        vectorStoreInitialized,
+        frames: unifiedStorage.frames,
+        // UNIFIED: Expose unified storage methods
+        saveAll: unifiedStorage.saveAll,
+        loadAll: unifiedStorage.loadAll,
+        updateFrames: unifiedStorage.updateFrames,
+        updateGraphState: unifiedStorage.updateGraphState,
+        clearAll: unifiedStorage.clearAll,
+        // OPTIMISTIC: Legacy compatibility using optimistic updates (no more blocking!)
+        saveFramesToStorage: () => {
+          /* Frames auto-save via optimistic updates */
+        },
+        syncFramesToVectorStore: () => {
+          /* VectorStore syncs via background saves */
+        },
+        syncGraphChangesToKB: () => {
+          /* Knowledge Base syncs via background saves */
+        },
+        loadFramesFromStorage: unifiedStorage.loadAll,
+        broadcastFrameChanges: unifiedStorage.updateFrames,
+      };
+
+      (window as any).aiFramesApp = aiFramesApp;
+
+      // REDUCED SPAM: Only log when frame count changes or VectorStore state changes
+      if (
+        (window as any).lastLoggedFrameCount !== aiFramesApp.frames.length ||
+        (window as any).lastLoggedVectorStoreState !== vectorStoreInitialized
+      ) {
+        console.log("🔧 AI-Frames unified storage interface updated:", {
+          hasVectorStore: !!aiFramesApp.vectorStore,
+          vectorStoreInitialized: aiFramesApp.vectorStoreInitialized,
+          frameCount: aiFramesApp.frames.length,
+          hasUnifiedMethods: typeof aiFramesApp.saveAll === "function",
+        });
+        (window as any).lastLoggedFrameCount = aiFramesApp.frames.length;
+        (window as any).lastLoggedVectorStoreState = vectorStoreInitialized;
+      }
+    }
+  }, [
+    providerVectorStore,
+    vectorStoreInitialized,
+    unifiedStorage.frames.length,
+  ]);
+
+  // ============================================================================
+  // ALL CALLBACK HOOKS - Must be called consistently on every render
+  // ============================================================================
+
+  // Handle frame clear
   const handleClearFrames = useCallback(() => {
     unifiedStorage.clearAll();
     setCurrentFrameIndex(0);
     console.log("🗑️ All frames cleared");
   }, [unifiedStorage]);
 
-  // PRESERVATION: Handle graph state updates
-  const handleGraphStateUpdate = useCallback((graphState: GraphState) => {
-    unifiedStorage.updateGraphState(graphState);
-  }, [unifiedStorage]);
+  // Handle graph state updates
+  const handleGraphStateUpdate = useCallback(
+    (graphState: GraphState) => {
+      unifiedStorage.updateGraphState(graphState);
+    },
+    [unifiedStorage]
+  );
 
-  // PRESERVATION: Frame navigation
-  const handleFrameNavigation = useCallback((direction: 'next' | 'prev') => {
-    const newIndex = direction === 'next' 
-      ? Math.min(currentFrameIndex + 1, unifiedStorage.frames.length - 1)
-      : Math.max(currentFrameIndex - 1, 0);
-    
-    // CRITICAL LOG: Debug frame index changes
-    console.log("🔍 Frame navigation debug:", {
-      direction,
-      currentIndex: currentFrameIndex,
-      newIndex,
-      frameCount: unifiedStorage.frames.length
-    });
-    
-    setCurrentFrameIndex(newIndex);
-  }, [currentFrameIndex, unifiedStorage.frames.length]);
+  // Frame navigation
+  const handleFrameNavigation = useCallback(
+    (direction: "next" | "prev") => {
+      const newIndex =
+        direction === "next"
+          ? Math.min(currentFrameIndex + 1, unifiedStorage.frames.length - 1)
+          : Math.max(currentFrameIndex - 1, 0);
 
-  // Fix FrameControls props by wrapping the handlers to return boolean
+      // CRITICAL LOG: Debug frame index changes
+      console.log("🔍 Frame navigation debug:", {
+        direction,
+        currentIndex: currentFrameIndex,
+        newIndex,
+        frameCount: unifiedStorage.frames.length,
+      });
+
+      setCurrentFrameIndex(newIndex);
+    },
+    [currentFrameIndex, unifiedStorage.frames.length]
+  );
+
+  // Save frames handler
   const handleSaveFrames = useCallback(async (): Promise<boolean> => {
     // OPTIMISTIC: Manual save now triggers background save
     try {
@@ -301,6 +433,7 @@ export default function AIFramesPage() {
     }
   }, [unifiedStorage]);
 
+  // Load frames handler
   const handleLoadFrames = useCallback(async (): Promise<boolean> => {
     try {
       const success = await unifiedStorage.loadAll();
@@ -311,54 +444,157 @@ export default function AIFramesPage() {
     }
   }, [unifiedStorage]);
 
-  // Fix FrameGraphIntegration props by ensuring order is always a number and attachment type is correct
-  const framesWithOrder = unifiedStorage.frames.map(frame => ({
-    ...frame,
-    order: frame.order ?? 0,
-  }));
+  // Handle frames change
+  const handleFramesChange = useCallback(
+    (newFrames: any[]) => {
+      // Convert the frames to ensure they have the correct type and order
+      const convertedFrames = newFrames.map((frame) => ({
+        ...frame,
+        order: frame.order ?? 0,
+      }));
 
-  const handleFramesChange = useCallback((newFrames: any[]) => {
-    // Convert the frames to ensure they have the correct type and order
-    const convertedFrames = newFrames.map(frame => ({
-      ...frame,
-      order: frame.order ?? 0
-    }));
-    
-    unifiedStorage.updateFrames(convertedFrames);
-  }, [unifiedStorage]);
+      unifiedStorage.updateFrames(convertedFrames);
+    },
+    [unifiedStorage]
+  );
 
-  // REMOVED: Unused renderModeToggle function after refactor
+  // Knowledge Base search
+  const handleKnowledgeBaseSearch = useCallback(async () => {
+    if (!providerVectorStore || !documentSearchQuery.trim()) {
+      setShowSemanticResults(false);
+      setSemanticSearchResults([]);
+      setCurrentSemanticQuery("");
+      return;
+    }
 
-  // REMOVED: Unused renderCreationForm function after refactor
+    setIsSearching(true);
+    try {
+      const results = await providerVectorStore.searchSimilar(
+        documentSearchQuery,
+        searchThreshold,
+        30
+      );
 
-  // Load documents when VectorStore is ready
-  useEffect(() => {
+      setSemanticSearchResults(results);
+      setCurrentSemanticQuery(documentSearchQuery);
+      setShowSemanticResults(results.length > 0);
+    } catch (error) {
+      console.error("KB Semantic search failed:", error);
+      setSemanticSearchResults([]);
+      setShowSemanticResults(false);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [providerVectorStore, documentSearchQuery, searchThreshold]);
 
-    const loadDocuments = async () => {
-      // FIXED: Enhanced VectorStore readiness check to prevent "Vector Store not initialized" error
-      if (vectorStoreInitialized && providerVectorStore && !vectorStoreInitializing) {
-        try {
-          // Additional safety check: verify VectorStore has initialized property
-          if (providerVectorStore.initialized === false) {
-            console.log("VectorStore not fully initialized yet, skipping document load");
-            return;
-          }
-          
-          const allDocuments = await providerVectorStore.getAllDocuments();
-          setDocuments(allDocuments);
-        } catch (error) {
-          // FIXED: Handle "Vector Store not initialized" gracefully
-          if (error instanceof Error && error.message.includes('Vector Store not initialized')) {
-            console.log("VectorStore still initializing, will retry when ready");
-          } else {
-            console.error("Failed to load documents:", error);
-          }
+  // Clear Knowledge Base search
+  const clearKnowledgeBaseSearch = useCallback(() => {
+    setDocumentSearchQuery("");
+    setShowSemanticResults(false);
+    setSemanticSearchResults([]);
+    setCurrentSemanticQuery("");
+  }, []);
+
+  // Handle document preview
+  const handlePreviewDocument = useCallback(
+    async (docId: string) => {
+      try {
+        const doc = documents.find((d) => d.id === docId);
+        if (doc) {
+          setPreviewDocument(doc);
+          setShowDocumentPreview(true);
         }
+      } catch (error) {
+        console.error("Failed to preview document:", error);
       }
+    },
+    [documents]
+  );
+
+  // Handle view chunk
+  const handleViewChunk = useCallback((searchResult: any, document: any) => {
+    const chunkData = {
+      content: searchResult?.chunk?.content || "No content available",
+      similarity: searchResult?.similarity || 0,
+      chunkIndex: searchResult?.chunk?.id || "unknown",
+      documentId: searchResult?.document?.id || "unknown",
+      document: searchResult?.document ||
+        document || { title: "Unknown Document" },
     };
 
-    loadDocuments();
-  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore]);
+    setCurrentChunk(chunkData);
+    setShowChunkView(true);
+  }, []);
+
+  // Download document
+  const downloadDocument = useCallback(
+    (docId: string) => {
+      const doc = documents.find((d) => d.id === docId);
+      if (doc) {
+        const blob = new Blob([doc.content], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${doc.title}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    },
+    [documents]
+  );
+
+  // Delete document
+  const deleteDocument = useCallback(
+    async (docId: string) => {
+      if (providerVectorStore) {
+        try {
+          await providerVectorStore.deleteDocument(docId);
+          setDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+        } catch (error) {
+          console.error("Failed to delete document:", error);
+        }
+      }
+    },
+    [providerVectorStore]
+  );
+
+  // ============================================================================
+  // MEMOIZED VALUES - Computed values that depend on state
+  // ============================================================================
+
+  // Fix FrameGraphIntegration props by ensuring order is always a number
+  const framesWithOrder = useMemo(
+    () =>
+      unifiedStorage.frames.map((frame) => ({
+        ...frame,
+        order: frame.order ?? 0,
+      })),
+    [unifiedStorage.frames]
+  );
+
+  // ============================================================================
+  // CONDITIONAL LOGIC - Now safe to use after all hooks are called
+  // ============================================================================
+
+  // Show loading while checking auth or redirecting
+  if (status === "loading" || !session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {status === "loading"
+              ? "Checking authentication..."
+              : "Redirecting to sign-in..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // COMPONENT LOGIC & HELPER FUNCTIONS
+  // ============================================================================
 
   // Document management functions - copied from Deep Research
   const formatFileSize = (bytes: number) => {
@@ -372,8 +608,8 @@ export default function AIFramesPage() {
   // Tab configuration for AI Frames Knowledge Base Manager
   const aiFramesTabConfigs = [
     {
-      id: 'user',
-      label: 'User Docs',
+      id: "user",
+      label: "User Docs",
       icon: Upload,
       filter: (doc: any) => {
         return !(
@@ -388,65 +624,71 @@ export default function AIFramesPage() {
           doc.title.toLowerCase().includes("timecapsule") ||
           doc.metadata.isGenerated === true
         );
-      }
+      },
     },
     {
-      id: 'aiFrames',
-      label: 'AI Frames',
+      id: "aiFrames",
+      label: "AI Frames",
       icon: Bot,
       filter: (doc: any) => {
-        return doc.metadata.source === "ai-frames" ||
-               doc.title.toLowerCase().includes("ai-frame");
-      }
+        return (
+          doc.metadata.source === "ai-frames" ||
+          doc.title.toLowerCase().includes("ai-frame")
+        );
+      },
     },
     {
-      id: 'system',
-      label: 'System',
+      id: "system",
+      label: "System",
       icon: Package,
       filter: (doc: any) => {
-        return doc.metadata.source === "timecapsule_export" ||
-               doc.metadata.source === "timecapsule_import" ||
-               doc.metadata.source === "aiframes_import" ||
-               doc.metadata.source === "aiframes_combined" ||
-               doc.title.toLowerCase().includes("timecapsule") ||
-               doc.metadata.isGenerated === true;
-      }
+        return (
+          doc.metadata.source === "timecapsule_export" ||
+          doc.metadata.source === "timecapsule_import" ||
+          doc.metadata.source === "aiframes_import" ||
+          doc.metadata.source === "aiframes_combined" ||
+          doc.title.toLowerCase().includes("timecapsule") ||
+          doc.metadata.isGenerated === true
+        );
+      },
     },
     {
-      id: 'agentLogs',
-      label: 'Logs',
+      id: "agentLogs",
+      label: "Logs",
       icon: Settings,
       filter: (doc: any) => {
-        return doc.title.toLowerCase().includes("agent log") ||
-               doc.metadata.source === "research_state";
-      }
-    }
+        return (
+          doc.title.toLowerCase().includes("agent log") ||
+          doc.metadata.source === "research_state"
+        );
+      },
+    },
   ];
 
   // Legacy function for backward compatibility (if needed elsewhere)
   const categorizeDocuments = (docs: any[]) => {
     const categories: Record<string, any[]> = {};
-    
+
     // Initialize categories
-    aiFramesTabConfigs.forEach(config => {
+    aiFramesTabConfigs.forEach((config) => {
       categories[config.id] = [];
     });
-    
+
     // Categorize each document
-    docs.forEach(doc => {
-      aiFramesTabConfigs.forEach(config => {
+    docs.forEach((doc) => {
+      aiFramesTabConfigs.forEach((config) => {
         if (config.filter(doc)) {
           categories[config.id].push(doc);
         }
       });
     });
-    
+
     return categories;
   };
 
   const getDocumentCategoryCounts = () => {
     const counts: Record<string, number> = {};
-    aiFramesTabConfigs.forEach(config => {
+    aiFramesTabConfigs.forEach((config) => {
       counts[config.id] = documents.filter(config.filter).length;
     });
     return counts;
@@ -502,7 +744,8 @@ export default function AIFramesPage() {
     }
 
     const categorized = categorizeDocuments(documents);
-    const categoryDocs = categorized[category as keyof typeof categorized] || [];
+    const categoryDocs =
+      categorized[category as keyof typeof categorized] || [];
 
     if (!documentSearchQuery.trim()) {
       return categoryDocs;
@@ -511,131 +754,13 @@ export default function AIFramesPage() {
     return categoryDocs.filter(
       (doc) =>
         doc.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
-        doc.metadata.description?.toLowerCase().includes(documentSearchQuery.toLowerCase())
+        doc.metadata.description
+          ?.toLowerCase()
+          .includes(documentSearchQuery.toLowerCase())
     );
   };
 
-  const handleKnowledgeBaseSearch = async () => {
-    if (!providerVectorStore || !documentSearchQuery.trim()) {
-      setShowSemanticResults(false);
-      setSemanticSearchResults([]);
-      setCurrentSemanticQuery("");
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const results = await providerVectorStore.searchSimilar(
-        documentSearchQuery,
-        searchThreshold,
-        30
-      );
-
-      setSemanticSearchResults(results);
-      setCurrentSemanticQuery(documentSearchQuery);
-      setShowSemanticResults(results.length > 0);
-    } catch (error) {
-      console.error("KB Semantic search failed:", error);
-      setSemanticSearchResults([]);
-      setShowSemanticResults(false);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const clearKnowledgeBaseSearch = () => {
-    setDocumentSearchQuery("");
-    setShowSemanticResults(false);
-    setSemanticSearchResults([]);
-    setCurrentSemanticQuery("");
-  };
-
-  const handlePreviewDocument = async (docId: string) => {
-    try {
-      const doc = documents.find(d => d.id === docId);
-      if (doc) {
-        setPreviewDocument(doc);
-        setShowDocumentPreview(true);
-      }
-    } catch (error) {
-      console.error("Failed to preview document:", error);
-    }
-  };
-
-  const handleViewChunk = (searchResult: any, document: any) => {
-    const chunkData = {
-      content: searchResult?.chunk?.content || "No content available",
-      similarity: searchResult?.similarity || 0,
-      chunkIndex: searchResult?.chunk?.id || "unknown",
-      documentId: searchResult?.document?.id || "unknown",
-      document: searchResult?.document || document || { title: "Unknown Document" },
-    };
-
-    setCurrentChunk(chunkData);
-    setShowChunkView(true);
-  };
-
-  const downloadDocument = (docId: string) => {
-    const doc = documents.find(d => d.id === docId);
-    if (doc) {
-      const blob = new Blob([doc.content], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${doc.title}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const deleteDocument = async (docId: string) => {
-    if (providerVectorStore) {
-      try {
-        await providerVectorStore.deleteDocument(docId);
-        setDocuments(prev => prev.filter(doc => doc.id !== docId));
-      } catch (error) {
-        console.error("Failed to delete document:", error);
-      }
-    }
-  };
-
-  // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use (reduced logging frequency)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const aiFramesApp = {
-        vectorStore: providerVectorStore,
-        vectorStoreInitialized,
-        frames: unifiedStorage.frames,
-        // UNIFIED: Expose unified storage methods
-        saveAll: unifiedStorage.saveAll,
-        loadAll: unifiedStorage.loadAll,
-        updateFrames: unifiedStorage.updateFrames,
-        updateGraphState: unifiedStorage.updateGraphState,
-        clearAll: unifiedStorage.clearAll,
-        // OPTIMISTIC: Legacy compatibility using optimistic updates (no more blocking!)
-        saveFramesToStorage: () => { /* Frames auto-save via optimistic updates */ },
-        syncFramesToVectorStore: () => { /* VectorStore syncs via background saves */ },
-        syncGraphChangesToKB: () => { /* Knowledge Base syncs via background saves */ },
-        loadFramesFromStorage: unifiedStorage.loadAll,
-        broadcastFrameChanges: unifiedStorage.updateFrames
-      };
-      
-      (window as any).aiFramesApp = aiFramesApp;
-      
-      // REDUCED SPAM: Only log when frame count changes or VectorStore state changes
-      if ((window as any).lastLoggedFrameCount !== aiFramesApp.frames.length || 
-          (window as any).lastLoggedVectorStoreState !== vectorStoreInitialized) {
-        console.log("🔧 AI-Frames unified storage interface updated:", {
-          hasVectorStore: !!aiFramesApp.vectorStore,
-          vectorStoreInitialized: aiFramesApp.vectorStoreInitialized,
-          frameCount: aiFramesApp.frames.length,
-          hasUnifiedMethods: typeof aiFramesApp.saveAll === 'function'
-        });
-        (window as any).lastLoggedFrameCount = aiFramesApp.frames.length;
-        (window as any).lastLoggedVectorStoreState = vectorStoreInitialized;
-      }
-    }
-  }, [providerVectorStore, vectorStoreInitialized, unifiedStorage.frames.length]);
+  // All hooks moved to top section - no more hooks after this point
 
   // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (
@@ -648,16 +773,23 @@ export default function AIFramesPage() {
             {/* Left Sidebar - Knowledge Base Section like Deep Research */}
             <div className="w-80 bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Frames</h3>
-                <p className="text-sm text-gray-600">Interactive AI learning platform</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  AI-Frames
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Interactive AI learning platform
+                </p>
               </div>
 
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
               <KnowledgeBaseSection
                 documentStatus={{
                   count: documents.length,
-                  totalSize: documents.reduce((sum, doc) => sum + (doc.metadata?.filesize || 0), 0),
-                  vectorCount: 0
+                  totalSize: documents.reduce(
+                    (sum, doc) => sum + (doc.metadata?.filesize || 0),
+                    0
+                  ),
+                  vectorCount: 0,
                 }}
                 onUploadDocuments={() => {
                   const input = document.createElement("input");
@@ -673,7 +805,9 @@ export default function AIFramesPage() {
                   input.click();
                 }}
                 onManageKnowledge={() => {
-                  console.log("Manage KB button clicked - opening Knowledge Base Manager");
+                  console.log(
+                    "Manage KB button clicked - opening Knowledge Base Manager"
+                  );
                   setShowDocumentManager(true);
                 }}
                 onScrapeUrl={() => {
@@ -683,11 +817,15 @@ export default function AIFramesPage() {
 
               {/* Frame Stats */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium text-gray-700">Frame Statistics</h4>
+                <h4 className="text-sm font-medium text-gray-700">
+                  Frame Statistics
+                </h4>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Frames:</span>
-                    <Badge variant="outline">{unifiedStorage.frames.length}</Badge>
+                    <Badge variant="outline">
+                      {unifiedStorage.frames.length}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Mode:</span>
@@ -695,7 +833,7 @@ export default function AIFramesPage() {
                       {isCreationMode ? "Creator" : "Learner"}
                     </Badge>
                   </div>
-                  
+
                   {/* UNIFIED: Auto-save status */}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Status:</span>
@@ -723,7 +861,9 @@ export default function AIFramesPage() {
             {/* Main Content Area - Graph Integration */}
             <div className="flex-1 overflow-hidden">
               {/* FIXED: Enhanced VectorStore readiness check for stability */}
-              {vectorStoreInitialized && !vectorStoreInitializing && providerVectorStore?.initialized !== false ? (
+              {vectorStoreInitialized &&
+              !vectorStoreInitializing &&
+              providerVectorStore?.initialized !== false ? (
                 <FrameGraphIntegration
                   frames={framesWithOrder}
                   onFramesChange={handleFramesChange}
@@ -734,11 +874,15 @@ export default function AIFramesPage() {
                       oldIndex: currentFrameIndex,
                       newIndex,
                       frameCount: unifiedStorage.frames.length,
-                      stackTrace: new Error().stack?.split('\n')[1]
+                      stackTrace: new Error().stack?.split("\n")[1],
                     });
                     setCurrentFrameIndex(newIndex);
                   }}
-                  onCreateFrame={() => console.log("Frame creation handled by FrameGraphIntegration")}
+                  onCreateFrame={() =>
+                    console.log(
+                      "Frame creation handled by FrameGraphIntegration"
+                    )
+                  }
                   onGraphChange={handleGraphStateUpdate}
                   initialGraphState={unifiedStorage.graphState}
                   graphStorageManager={graphStorageManagerRef.current}
@@ -747,10 +891,13 @@ export default function AIFramesPage() {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Initializing Knowledge Base...</p>
+                    <p className="text-gray-600">
+                      Initializing Knowledge Base...
+                    </p>
                     <p className="text-xs text-gray-500 mt-2">
-                      Status: {vectorStoreInitialized ? 'Initialized' : 'Initializing'} 
-                      {vectorStoreInitializing && ' (Loading...)'}
+                      Status:{" "}
+                      {vectorStoreInitialized ? "Initialized" : "Initializing"}
+                      {vectorStoreInitializing && " (Loading...)"}
                     </p>
                   </div>
                 </div>
@@ -763,17 +910,25 @@ export default function AIFramesPage() {
       {/* Modals - PRESERVATION: Keep existing dialogs */}
       <VectorStoreInitModal
         isOpen={showVectorStoreInitModal}
-        progress={vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0}
+        progress={
+          vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
+        }
         status={
-          vectorStoreError ? 'error' : 
-          vectorStoreInitialized && !vectorStoreInitializing && providerVectorStore?.initialized !== false ? 'ready' : 
-          'initializing'
+          vectorStoreError
+            ? "error"
+            : vectorStoreInitialized &&
+                !vectorStoreInitializing &&
+                providerVectorStore?.initialized !== false
+              ? "ready"
+              : "initializing"
         }
         message={
-          vectorStoreError || 
-          (vectorStoreInitialized && !vectorStoreInitializing ? 'Knowledge Base ready!' : 
-           vectorStoreInitializing ? 'Initializing Knowledge Base...' : 
-           'Preparing Knowledge Base...')
+          vectorStoreError ||
+          (vectorStoreInitialized && !vectorStoreInitializing
+            ? "Knowledge Base ready!"
+            : vectorStoreInitializing
+              ? "Initializing Knowledge Base..."
+              : "Preparing Knowledge Base...")
         }
       />
       <BubblSpaceDialog
@@ -799,10 +954,10 @@ export default function AIFramesPage() {
         timeCapsuleData={null}
         onImport={async (options) => {
           console.log("Import with options:", options);
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: "Import completed successfully",
-            details: { itemsImported: {} }
+            details: { itemsImported: {} },
           };
         }}
       />
@@ -813,7 +968,7 @@ export default function AIFramesPage() {
         chapterFormData={{
           title: "",
           description: "",
-          color: "#3B82F6"
+          color: "#3B82F6",
         }}
         setChapterFormData={() => {}}
         selectedFrameIds={[]}
@@ -824,7 +979,7 @@ export default function AIFramesPage() {
         onCreateChapter={() => {}}
         onEditChapter={() => {}}
       />
-      
+
       {/* Document Manager Modal - Complete Deep Research implementation */}
       <Dialog
         open={showDocumentManager}
@@ -855,7 +1010,10 @@ export default function AIFramesPage() {
                   <Upload className="h-4 w-4" />
                   User Docs ({getDocumentCategoryCounts().user})
                 </TabsTrigger>
-                <TabsTrigger value="aiFrames" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="aiFrames"
+                  className="flex items-center gap-2"
+                >
                   <Bot className="h-4 w-4" />
                   AI Frames ({getDocumentCategoryCounts().aiFrames})
                 </TabsTrigger>
@@ -863,7 +1021,10 @@ export default function AIFramesPage() {
                   <Package className="h-4 w-4" />
                   System ({getDocumentCategoryCounts().system})
                 </TabsTrigger>
-                <TabsTrigger value="agentLogs" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="agentLogs"
+                  className="flex items-center gap-2"
+                >
                   <Settings className="h-4 w-4" />
                   Logs ({getDocumentCategoryCounts().agentLogs})
                 </TabsTrigger>
@@ -964,68 +1125,119 @@ export default function AIFramesPage() {
                     <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("user").length > 0 ? (
                         <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("user").map((doc, index) => (
-                            <Card
-                              key={showSemanticResults ? `${doc.document?.id || doc.id}-${index}` : doc.id}
-                              className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">
-                                      {showSemanticResults ? (doc.document?.title || doc.title) : doc.title}
-                                    </h4>
-                                    {showSemanticResults && (
-                                      <Badge variant="default" className="text-xs bg-green-600">
-                                        {(doc.similarity * 100).toFixed(1)}% match
+                          {getFilteredDocumentsByCategory("user").map(
+                            (doc, index) => (
+                              <Card
+                                key={
+                                  showSemanticResults
+                                    ? `${doc.document?.id || doc.id}-${index}`
+                                    : doc.id
+                                }
+                                className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {showSemanticResults
+                                          ? doc.document?.title || doc.title
+                                          : doc.title}
+                                      </h4>
+                                      {showSemanticResults && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs bg-green-600"
+                                        >
+                                          {(doc.similarity * 100).toFixed(1)}%
+                                          match
+                                        </Badge>
+                                      )}
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {showSemanticResults
+                                          ? "📄 User"
+                                          : "📄 Upload"}
                                       </Badge>
-                                    )}
-                                    <Badge variant="outline" className="text-xs">
-                                      {showSemanticResults ? "📄 User" : "📄 Upload"}
-                                    </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.filesize || 0
+                                            : doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.uploadedAt || Date.now()
+                                            : doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>
-                                      Size: {formatFileSize(showSemanticResults ? (doc.document?.metadata?.filesize || 0) : (doc.metadata?.filesize || 0))}
-                                    </span>
-                                    <span>
-                                      Added: {new Date(showSemanticResults ? (doc.document?.metadata?.uploadedAt || Date.now()) : (doc.metadata?.uploadedAt || Date.now())).toLocaleDateString()}
-                                    </span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        downloadDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        deleteDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePreviewDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => downloadDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => deleteDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
+                              </Card>
+                            )
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                           <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>No user documents found.</p>
-                          <p className="text-sm">Upload files or scrape URLs to add content to your knowledge base.</p>
+                          <p className="text-sm">
+                            Upload files or scrape URLs to add content to your
+                            knowledge base.
+                          </p>
                         </div>
                       )}
                     </CardContent>
@@ -1050,60 +1262,103 @@ export default function AIFramesPage() {
                     <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("aiFrames").length > 0 ? (
                         <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("aiFrames").map((doc, index) => (
-                            <Card
-                              key={showSemanticResults ? `${doc.document?.id || doc.id}-${index}` : doc.id}
-                              className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">
-                                      {showSemanticResults ? (doc.document?.title || doc.title) : doc.title}
-                                    </h4>
-                                    {showSemanticResults && (
-                                      <Badge variant="default" className="text-xs bg-blue-600">
-                                        {(doc.similarity * 100).toFixed(1)}% match
+                          {getFilteredDocumentsByCategory("aiFrames").map(
+                            (doc, index) => (
+                              <Card
+                                key={
+                                  showSemanticResults
+                                    ? `${doc.document?.id || doc.id}-${index}`
+                                    : doc.id
+                                }
+                                className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {showSemanticResults
+                                          ? doc.document?.title || doc.title
+                                          : doc.title}
+                                      </h4>
+                                      {showSemanticResults && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs bg-blue-600"
+                                        >
+                                          {(doc.similarity * 100).toFixed(1)}%
+                                          match
+                                        </Badge>
+                                      )}
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-blue-600"
+                                      >
+                                        🎓 AI Frame
                                       </Badge>
-                                    )}
-                                    <Badge variant="outline" className="text-xs text-blue-600">
-                                      🎓 AI Frame
-                                    </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.filesize || 0
+                                            : doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.uploadedAt || Date.now()
+                                            : doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>
-                                      Size: {formatFileSize(showSemanticResults ? (doc.document?.metadata?.filesize || 0) : (doc.metadata?.filesize || 0))}
-                                    </span>
-                                    <span>
-                                      Added: {new Date(showSemanticResults ? (doc.document?.metadata?.uploadedAt || Date.now()) : (doc.metadata?.uploadedAt || Date.now())).toLocaleDateString()}
-                                    </span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        downloadDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePreviewDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => downloadDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
+                              </Card>
+                            )
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                           <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>No AI frames found.</p>
-                          <p className="text-sm">AI frames will appear here when synced from the AI-Frames system.</p>
+                          <p className="text-sm">
+                            AI frames will appear here when synced from the
+                            AI-Frames system.
+                          </p>
                         </div>
                       )}
                     </CardContent>
@@ -1128,72 +1383,131 @@ export default function AIFramesPage() {
                     <CardContent className="flex-1 overflow-y-auto">
                       {getFilteredDocumentsByCategory("system").length > 0 ? (
                         <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("system").map((doc, index) => (
-                            <Card
-                              key={showSemanticResults ? `${doc.document?.id || doc.id}-${index}` : doc.id}
-                              className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">
-                                      {showSemanticResults ? (doc.document?.title || doc.title) : doc.title}
-                                    </h4>
-                                    {showSemanticResults && (
-                                      <Badge variant="default" className="text-xs bg-purple-600">
-                                        {(doc.similarity * 100).toFixed(1)}% match
+                          {getFilteredDocumentsByCategory("system").map(
+                            (doc, index) => (
+                              <Card
+                                key={
+                                  showSemanticResults
+                                    ? `${doc.document?.id || doc.id}-${index}`
+                                    : doc.id
+                                }
+                                className="p-3 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {showSemanticResults
+                                          ? doc.document?.title || doc.title
+                                          : doc.title}
+                                      </h4>
+                                      {showSemanticResults && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs bg-purple-600"
+                                        >
+                                          {(doc.similarity * 100).toFixed(1)}%
+                                          match
+                                        </Badge>
+                                      )}
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-purple-600"
+                                      >
+                                        {(showSemanticResults
+                                          ? doc.document?.metadata?.source ||
+                                            doc.metadata?.source
+                                          : doc.metadata?.source) ===
+                                        "timecapsule_export"
+                                          ? "📦 Export"
+                                          : (
+                                                showSemanticResults
+                                                  ? doc.document?.metadata
+                                                      ?.isGenerated ||
+                                                    doc.metadata?.isGenerated
+                                                  : doc.metadata?.isGenerated
+                                              )
+                                            ? "🤖 Generated"
+                                            : "⚙️ System"}
                                       </Badge>
-                                    )}
-                                    <Badge variant="outline" className="text-xs text-purple-600">
-                                      {(showSemanticResults ? (doc.document?.metadata?.source || doc.metadata?.source) : doc.metadata?.source) === "timecapsule_export"
-                                        ? "📦 Export"
-                                        : (showSemanticResults ? (doc.document?.metadata?.isGenerated || doc.metadata?.isGenerated) : doc.metadata?.isGenerated)
-                                          ? "🤖 Generated"
-                                          : "⚙️ System"}
-                                    </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.filesize || 0
+                                            : doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.uploadedAt || Date.now()
+                                            : doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>
-                                      Size: {formatFileSize(showSemanticResults ? (doc.document?.metadata?.filesize || 0) : (doc.metadata?.filesize || 0))}
-                                    </span>
-                                    <span>
-                                      Added: {new Date(showSemanticResults ? (doc.document?.metadata?.uploadedAt || Date.now()) : (doc.metadata?.uploadedAt || Date.now())).toLocaleDateString()}
-                                    </span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        downloadDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        deleteDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePreviewDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => downloadDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => deleteDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
+                              </Card>
+                            )
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                           <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>No system documents found.</p>
-                          <p className="text-sm">TimeCapsule exports and system content will appear here.</p>
+                          <p className="text-sm">
+                            TimeCapsule exports and system content will appear
+                            here.
+                          </p>
                         </div>
                       )}
                     </CardContent>
@@ -1216,70 +1530,120 @@ export default function AIFramesPage() {
                       </p>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto">
-                      {getFilteredDocumentsByCategory("agentLogs").length > 0 ? (
+                      {getFilteredDocumentsByCategory("agentLogs").length >
+                      0 ? (
                         <div className="space-y-2">
-                          {getFilteredDocumentsByCategory("agentLogs").map((doc, index) => (
-                            <Card
-                              key={showSemanticResults ? `${doc.document?.id || doc.id}-${index}` : doc.id}
-                              className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium truncate">
-                                      {showSemanticResults ? (doc.document?.title || doc.title) : doc.title}
-                                    </h4>
-                                    {showSemanticResults && (
-                                      <Badge variant="default" className="text-xs bg-orange-600">
-                                        {(doc.similarity * 100).toFixed(1)}% match
+                          {getFilteredDocumentsByCategory("agentLogs").map(
+                            (doc, index) => (
+                              <Card
+                                key={
+                                  showSemanticResults
+                                    ? `${doc.document?.id || doc.id}-${index}`
+                                    : doc.id
+                                }
+                                className="p-3 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium truncate">
+                                        {showSemanticResults
+                                          ? doc.document?.title || doc.title
+                                          : doc.title}
+                                      </h4>
+                                      {showSemanticResults && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs bg-orange-600"
+                                        >
+                                          {(doc.similarity * 100).toFixed(1)}%
+                                          match
+                                        </Badge>
+                                      )}
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-orange-600"
+                                      >
+                                        📋 Agent Log
                                       </Badge>
-                                    )}
-                                    <Badge variant="outline" className="text-xs text-orange-600">
-                                      📋 Agent Log
-                                    </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                                      <span>
+                                        Size:{" "}
+                                        {formatFileSize(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.filesize || 0
+                                            : doc.metadata?.filesize || 0
+                                        )}
+                                      </span>
+                                      <span>
+                                        Added:{" "}
+                                        {new Date(
+                                          showSemanticResults
+                                            ? doc.document?.metadata
+                                                ?.uploadedAt || Date.now()
+                                            : doc.metadata?.uploadedAt ||
+                                              Date.now()
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                                    <span>
-                                      Size: {formatFileSize(showSemanticResults ? (doc.document?.metadata?.filesize || 0) : (doc.metadata?.filesize || 0))}
-                                    </span>
-                                    <span>
-                                      Added: {new Date(showSemanticResults ? (doc.document?.metadata?.uploadedAt || Date.now()) : (doc.metadata?.uploadedAt || Date.now())).toLocaleDateString()}
-                                    </span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePreviewDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        downloadDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        deleteDocument(
+                                          showSemanticResults
+                                            ? doc.document?.id || doc.id
+                                            : doc.id
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePreviewDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => downloadDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => deleteDocument(showSemanticResults ? (doc.document?.id || doc.id) : doc.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
+                              </Card>
+                            )
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                           <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>No agent logs found.</p>
-                          <p className="text-sm">Agent processing logs will appear here after multi-agent research sessions.</p>
+                          <p className="text-sm">
+                            Agent processing logs will appear here after
+                            multi-agent research sessions.
+                          </p>
                         </div>
                       )}
                     </CardContent>
@@ -1310,4 +1674,4 @@ export default function AIFramesPage() {
       </Dialog>
     </>
   );
-} 
+}

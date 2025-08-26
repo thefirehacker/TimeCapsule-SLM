@@ -1,5 +1,5 @@
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "./button";
 import { LogIn, LogOut } from "lucide-react";
 import {
@@ -17,6 +17,7 @@ import Link from "next/link";
 export default function SignInButton() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   if (status === "loading") {
     return (
       <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
@@ -29,7 +30,7 @@ export default function SignInButton() {
     return (
       <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
         <Button
-          onClick={() => signIn()}
+          onClick={() => signIn(undefined, { callbackUrl: pathname })}
           size="sm"
           variant="outline"
           className="gap-2 bg-background/50 backdrop-blur-sm border-primary/20 hover:bg-primary/5"
