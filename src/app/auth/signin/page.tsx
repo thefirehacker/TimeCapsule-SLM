@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +53,9 @@ interface FormErrors {
   general?: string;
 }
 
-export default function SignInPage() {
+function SignInComponent() {
+  const searchParams = useSearchParams();
+  const [callbackUrl, setCallbackUrl] = useState("/");
   const [formData, setFormData] = useState<CredentialsFormData>({
     email: "",
     password: "",
@@ -60,6 +63,14 @@ export default function SignInPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Get callback URL from search params
+  useEffect(() => {
+    const callback = searchParams.get("callbackUrl");
+    if (callback) {
+      setCallbackUrl(decodeURIComponent(callback));
+    }
+  }, [searchParams]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -122,8 +133,8 @@ export default function SignInPage() {
           });
         }
       } else if (result?.ok) {
-        // Successful sign in
-        window.location.href = "/";
+        // Successful sign in - redirect to callback URL
+        window.location.href = callbackUrl;
       }
     } catch (error) {
       console.error("Sign in error:", error);
@@ -216,7 +227,7 @@ export default function SignInPage() {
               <TabsContent value="oauth" className="space-y-4 mt-6">
                 {/* Google */}
                 <Button
-                  onClick={() => signIn("google", { callbackUrl: "/" })}
+                  onClick={() => signIn("google", { callbackUrl })}
                   className="w-full h-12 gap-3 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 hover:border-gray-400"
                 >
                   <GoogleIcon /> Continue with Google
@@ -224,7 +235,7 @@ export default function SignInPage() {
 
                 {/* GitHub */}
                 <Button
-                  onClick={() => signIn("github", { callbackUrl: "/" })}
+                  onClick={() => signIn("github", { callbackUrl })}
                   className="w-full h-12 gap-3 text-base font-medium bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
                 >
                   <Github className="h-5 w-5" /> Continue with GitHub
@@ -367,5 +378,22 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading Sign In...</p>
+          </div>
+        </div>
+      }
+    >
+      <SignInComponent />
+    </Suspense>
   );
 }
