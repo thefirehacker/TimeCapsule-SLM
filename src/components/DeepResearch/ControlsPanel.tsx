@@ -21,6 +21,8 @@ import {
   MessageSquare,
   AlertCircle,
   RefreshCw,
+  Download,
+  Share,
 } from "lucide-react";
 
 interface ControlsPanelProps {
@@ -87,6 +89,7 @@ export function ControlsPanel({
     history: researchHistory,
     loading: historyLoading,
     error: historyError,
+    addResearch,
     deleteResearch,
     clearAll,
     refresh: refreshHistory,
@@ -94,6 +97,7 @@ export function ControlsPanel({
 
   // Local state
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Handlers
   const handleLoadResearch = async (researchId: string) => {
@@ -146,6 +150,138 @@ export function ControlsPanel({
         console.error("Error clearing research history:", error);
       }
     }
+  };
+
+  // Export all research history
+  const handleExportAllHistory = () => {
+    const exportData = {
+      version: "1.0",
+      exportedAt: new Date().toISOString(),
+      researchHistory: researchHistory,
+      metadata: {
+        appVersion: "TimeCapsule Research",
+        format: "research-history-collection",
+        description: "Complete research history export",
+        count: researchHistory.length,
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `timecapsule-research-history-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import research history
+  const handleImportHistory = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      setIsImporting(true);
+      try {
+        const text = await file.text();
+        const importData = JSON.parse(text);
+
+        // Validate import data structure
+        if (!importData.version) {
+          throw new Error("Invalid file format: missing version");
+        }
+
+        let importedItems = [];
+
+        // Handle different import formats
+        if (
+          importData.researchHistory &&
+          Array.isArray(importData.researchHistory)
+        ) {
+          // Full history export
+          importedItems = importData.researchHistory;
+        } else if (importData.research) {
+          // Single research item export
+          importedItems = [importData.research];
+        } else {
+          throw new Error("Invalid file format: no research data found");
+        }
+
+        // Import each item
+        let successCount = 0;
+        for (const item of importedItems) {
+          try {
+            await addResearch({
+              title: item.title,
+              type: item.type,
+              timestamp: item.timestamp || item.createdAt || Date.now(),
+              status: item.status || "completed",
+              wordCount: item.wordCount || 0,
+              duration: item.duration,
+              researchConfig: item.researchConfig || {
+                type: "unknown",
+                depth: "normal",
+                enableRAG: false,
+                enableWebSearch: false,
+              },
+              originalPrompt: item.originalPrompt || item.title,
+              researchContext: item.researchContext,
+              agentTasks: item.agentTasks || [],
+              steps: item.steps || [],
+              finalOutput: item.finalOutput,
+              sourcesCount: item.sourcesCount,
+              chunksProcessed: item.chunksProcessed,
+              version: item.version || "1.0",
+            });
+            successCount++;
+          } catch (itemError) {
+            console.error("Failed to import item:", item.title, itemError);
+          }
+        }
+
+        alert(
+          `Successfully imported ${successCount} of ${importedItems.length} research items`
+        );
+        refreshHistory();
+      } catch (error) {
+        console.error("Import error:", error);
+        alert(
+          `Failed to import research history: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      } finally {
+        setIsImporting(false);
+      }
+    };
+    input.click();
+  };
+
+  // Export individual research item
+  const handleExportSingleResearch = (research: any) => {
+    const exportData = {
+      version: "1.0",
+      exportedAt: new Date().toISOString(),
+      research: research,
+      metadata: {
+        appVersion: "TimeCapsule Research",
+        format: "research-history-item",
+        description: "Individual research session export",
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `research-${research.title.replace(/\s+/g, "-").toLowerCase()}-${new Date(research.timestamp).toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -348,16 +484,42 @@ export function ControlsPanel({
                     <Loader2 className="w-3 h-3 animate-spin" />
                   )}
                 </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={refreshHistory}
-                  disabled={historyLoading}
-                  className="h-6 w-6 p-0"
-                  title="Refresh History"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleImportHistory}
+                    disabled={historyLoading || isImporting}
+                    className="h-6 w-6 p-0"
+                    title="Import Research History"
+                  >
+                    {isImporting ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Upload className="w-3 h-3" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportAllHistory}
+                    disabled={historyLoading || researchHistory.length === 0}
+                    className="h-6 w-6 p-0"
+                    title="Export All History"
+                  >
+                    <Download className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshHistory}
+                    disabled={historyLoading}
+                    className="h-6 w-6 p-0"
+                    title="Refresh History"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -417,6 +579,18 @@ export function ControlsPanel({
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportSingleResearch(research);
+                            }}
+                            title="Export Research"
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-6 w-6 p-0 hover:text-destructive hover:bg-destructive/10"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -445,56 +619,10 @@ export function ControlsPanel({
                           <span className="text-xs text-muted-foreground">
                             {research.wordCount?.toLocaleString() || 0} words
                           </span>
-                          {research.duration && (
-                            <span className="text-xs text-muted-foreground">
-                              •{" "}
-                              {research.duration < 1000
-                                ? `${research.duration}ms`
-                                : `${(research.duration / 1000).toFixed(1)}s`}
-                            </span>
-                          )}
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(research.timestamp)}
                         </span>
-                      </div>
-
-                      {/* Research Configuration */}
-                      <div className="mt-2 flex items-center gap-1 flex-wrap">
-                        {research.researchConfig?.enableRAG && (
-                          <Badge variant="secondary" className="text-xs">
-                            RAG
-                          </Badge>
-                        )}
-                        {research.researchConfig?.enableWebSearch && (
-                          <Badge variant="secondary" className="text-xs">
-                            Web
-                          </Badge>
-                        )}
-                        {research.sourcesCount && research.sourcesCount > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            {research.sourcesCount} sources
-                          </Badge>
-                        )}
-                        {research.chunksProcessed &&
-                          research.chunksProcessed > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              {research.chunksProcessed} chunks
-                            </Badge>
-                          )}
-                        {research.agentTasks &&
-                          research.agentTasks.length > 0 && (
-                            <Badge variant="outline" className="text-xs">
-                              {research.agentTasks.length} agents
-                            </Badge>
-                          )}
-                        {research.researchContext?.extractedData?.raw
-                          ?.length && (
-                          <Badge variant="outline" className="text-xs">
-                            {research.researchContext.extractedData.raw.length}{" "}
-                            items
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -508,14 +636,32 @@ export function ControlsPanel({
       {/* Actions */}
       <div className="p-4 border-t border-border bg-card">
         <div className="space-y-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExportResults}
-            className="w-full"
-          >
-            Export Current Research
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportAllHistory}
+              disabled={researchHistory.length === 0}
+              className="flex-1"
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Export History
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleImportHistory}
+              disabled={isImporting}
+              className="flex-1"
+            >
+              {isImporting ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-1" />
+              )}
+              Import
+            </Button>
+          </div>
           <Button
             variant="outline"
             size="sm"
