@@ -354,52 +354,6 @@ export function DeepResearchComponent() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  // Tab configuration for DeepResearch Knowledge Base Manager
-  const deepResearchTabConfigs = [
-    {
-      id: "userdocs",
-      label: "User Docs",
-      icon: FileText,
-      filter: (doc: any) =>
-        doc.metadata.documentType === "userdocs" ||
-        (!doc.metadata.documentType && doc.metadata.source === "upload"),
-    },
-    {
-      id: "virtual-docs",
-      label: "Virtual Docs",
-      icon: Globe,
-      filter: (doc: any) =>
-        doc.metadata.documentType === "virtual-docs" ||
-        (!doc.metadata.documentType && doc.metadata.source === "websearch"),
-    },
-    {
-      id: "ai-frames",
-      label: "AI Frames",
-      icon: Bot,
-      filter: (doc: any) =>
-        doc.metadata.documentType === "ai-frames" ||
-        (!doc.metadata.documentType &&
-          (doc.metadata.isGenerated || doc.metadata.source === "generated")),
-    },
-    {
-      id: "timecapsule",
-      label: "TimeCapsule",
-      icon: Clock,
-      filter: (doc: any) =>
-        doc.metadata.documentType === "timecapsule" ||
-        (!doc.metadata.documentType &&
-          doc.metadata.source === "timecapsule_import"),
-    },
-    {
-      id: "bubblspace",
-      label: "BubblSpace",
-      icon: MessageSquare,
-      filter: (doc: any) =>
-        doc.metadata.documentType === "bubblspace" ||
-        (!doc.metadata.documentType && doc.metadata.bubblSpaceId),
-    },
-  ];
-
   return (
     <ResearchProvider
       onResearchStored={(researchId) => {
@@ -556,20 +510,6 @@ export function DeepResearchComponent() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <Card className="w-full max-w-6xl m-4 max-h-[90vh]">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Document Manager
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => documents.setShowDocumentManager(false)}
-                  >
-                    ×
-                  </Button>
-                </div>
-
                 <div className="space-y-4">
                   {/* Common Knowledge Base Manager Component */}
                   <KnowledgeBaseManager
@@ -579,11 +519,12 @@ export function DeepResearchComponent() {
                     onUploadDocuments={() =>
                       document.getElementById("file-upload")?.click()
                     }
+                    onClose={() => documents.setShowDocumentManager(false)}
                     isUploading={documents.isUploading}
                     showUploadButton={true}
-                    tabConfigs={deepResearchTabConfigs}
-                    title="Document Manager"
-                    description="Manage your research documents organized by type and source."
+                    onLoadResearch={handleLoadResearch}
+                    title="Knowledge Base"
+                    description="Your knowledge base is your personal library of information. It is used to store your research documents and other information that you want to keep track of."
                   />
                 </div>
               </CardContent>
