@@ -31,6 +31,8 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
+import { TimeCapsuleExportModal } from "@/components/shared/TimeCapsuleExportModal";
+import { TimeCapsuleImportModal } from "@/components/shared/TimeCapsuleImportModal";
 
 interface DeepResearchNavigationProps {
   isDarkMode?: boolean;
@@ -44,6 +46,8 @@ export function DeepResearchNavigation({
   const { data: session, status } = useSession();
   const { theme, setTheme } = useTheme();
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const handleThemeToggle = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
@@ -64,6 +68,20 @@ export function DeepResearchNavigation({
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleImportClick = () => {
+    setShowImportModal(true);
+  };
+
+  const handleExportClick = () => {
+    setShowExportModal(true);
+  };
+
+  const handleImportComplete = () => {
+    // Optionally refresh the page or show a success notification
+    console.log("✅ TimeCapsule import completed successfully");
+    // You can add additional logic here like refreshing data or showing notifications
   };
 
   return (
@@ -93,12 +111,22 @@ export function DeepResearchNavigation({
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="space-x-2"
+            onClick={handleImportClick}
+          >
             <Upload className="w-4 h-4" />
             <span>Import TimeCapsule</span>
           </Button>
 
-          <Button variant="outline" size="sm" className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="space-x-2"
+            onClick={handleExportClick}
+          >
             <Download className="w-4 h-4" />
             <span>Export TimeCapsule</span>
           </Button>
@@ -194,6 +222,18 @@ export function DeepResearchNavigation({
           )}
         </div>
       </div>
+
+      {/* Import/Export Modals */}
+      <TimeCapsuleImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onImportComplete={handleImportComplete}
+      />
+
+      <TimeCapsuleExportModal
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+      />
     </div>
   );
 }
