@@ -31,7 +31,6 @@ import {
   Copy,
   Download,
   Sparkles,
-  Share,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -564,29 +563,7 @@ export function ResearchHistoryViewer({
     }
   }, [researchItem]);
 
-  // Export research as JSON
-  const handleExportResearch = () => {
-    const exportData = {
-      version: "1.0",
-      exportedAt: new Date().toISOString(),
-      research: researchItem,
-      metadata: {
-        appVersion: "TimeCapsule Research",
-        format: "research-history-item",
-        description: "Individual research session export",
-      },
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `research-${researchItem.title.replace(/\s+/g, "-").toLowerCase()}-${new Date(researchItem.createdAt).toISOString().split("T")[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Note: Individual research export removed - use TimeCapsule export/import system instead
 
   return (
     <div
@@ -607,15 +584,6 @@ export function ResearchHistoryViewer({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportResearch}
-              className="h-8 px-3"
-            >
-              <Share className="w-4 h-4 mr-1" />
-              Export
-            </Button>
             <Badge variant="outline" className="text-xs">
               {researchItem.type}
             </Badge>

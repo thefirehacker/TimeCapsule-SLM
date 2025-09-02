@@ -26,6 +26,7 @@ import {
   FileText,
   Package,
   ChevronDown,
+  Import,
 } from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -117,7 +118,7 @@ export function DeepResearchNavigation({
             className="space-x-2"
             onClick={handleImportClick}
           >
-            <Upload className="w-4 h-4" />
+            <Import className="w-4 h-4" />
             <span>Import TimeCapsule</span>
           </Button>
 
@@ -127,7 +128,7 @@ export function DeepResearchNavigation({
             className="space-x-2"
             onClick={handleExportClick}
           >
-            <Download className="w-4 h-4" />
+            <Upload className="w-4 h-4" />
             <span>Export TimeCapsule</span>
           </Button>
 

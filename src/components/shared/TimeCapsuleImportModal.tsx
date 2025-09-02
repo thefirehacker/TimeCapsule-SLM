@@ -24,6 +24,7 @@ import {
   Bot,
   Database,
   X,
+  Import,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -47,6 +48,13 @@ interface ImportPreview {
     research: number;
     aiFrames: number;
   };
+  researchPreview?: Array<{
+    id: string;
+    title: string;
+    type: string;
+    timestamp: number;
+    wordCount?: number;
+  }>;
   totalSize: number;
   isValid: boolean;
   error?: string;
@@ -96,11 +104,18 @@ export function TimeCapsuleImportModal({
 
         const timeCapsules: TimeCapsule[] = data.timeCapsules || [];
 
-        // Calculate totals
+        // Calculate totals and create research preview
         let totalDocuments = 0;
         let totalResearch = 0;
         let totalAIFrames = 0;
         let totalSize = 0;
+        const researchPreview: Array<{
+          id: string;
+          title: string;
+          type: string;
+          timestamp: number;
+          wordCount?: number;
+        }> = [];
 
         timeCapsules.forEach((tc) => {
           tc.bubblSpaces.forEach((bs) => {
@@ -110,6 +125,17 @@ export function TimeCapsuleImportModal({
 
             bs.documents.forEach((doc) => {
               totalSize += doc.metadata.filesize || 0;
+            });
+
+            // Extract research preview data
+            bs.research.forEach((research) => {
+              researchPreview.push({
+                id: research.id,
+                title: research.title,
+                type: research.type,
+                timestamp: research.timestamp,
+                wordCount: research.wordCount,
+              });
             });
           });
         });
@@ -124,6 +150,7 @@ export function TimeCapsuleImportModal({
             research: totalResearch,
             aiFrames: totalAIFrames,
           },
+          researchPreview: researchPreview.slice(0, 5), // Show only first 5 for preview
           totalSize,
           isValid: true,
         });
@@ -248,10 +275,10 @@ export function TimeCapsuleImportModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="w-5 h-5" />
+            <Import className="w-5 h-5" />
             Import TimeCapsule
           </DialogTitle>
           <DialogDescription>
@@ -416,6 +443,60 @@ export function TimeCapsuleImportModal({
                       ))}
                     </div>
                   </div>
+
+                  {/* Research Preview */}
+                  {importPreview.researchPreview &&
+                    importPreview.researchPreview.length > 0 && (
+                      <div className="border rounded-lg">
+                        <div className="p-3 border-b bg-muted/30">
+                          <h4 className="font-medium flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4" />
+                            Research Preview
+                            <Badge variant="outline" className="text-xs">
+                              {importPreview.totalItems.research} total
+                            </Badge>
+                          </h4>
+                        </div>
+                        <div className="p-3 max-h-32 overflow-y-auto">
+                          <div className="space-y-2">
+                            {importPreview.researchPreview.map((research) => (
+                              <div
+                                key={research.id}
+                                className="flex items-center justify-between p-2 bg-muted/30 rounded text-sm"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">
+                                    {research.title}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs mr-2"
+                                    >
+                                      {research.type}
+                                    </Badge>
+                                    {research.wordCount
+                                      ? `${research.wordCount.toLocaleString()} words`
+                                      : "No word count"}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    research.timestamp
+                                  ).toLocaleDateString()}
+                                </div>
+                              </div>
+                            ))}
+                            {importPreview.totalItems.research > 5 && (
+                              <div className="text-center text-xs text-muted-foreground py-1">
+                                ... and {importPreview.totalItems.research - 5}{" "}
+                                more research items
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                 </div>
               )}
 
@@ -488,4 +569,3 @@ export function TimeCapsuleImportModal({
     </Dialog>
   );
 }
-

@@ -303,6 +303,13 @@ export function HierarchicalCheckbox({
             aiFrame.id
           ] = checked;
         });
+
+        // Update parent TimeCapsule selection
+        const tcSelection = newSelection.timeCapsules[tcId];
+        const hasAnyBubblSpaceSelected = Object.values(
+          tcSelection.bubblSpaces
+        ).some((bs) => bs.selected);
+        tcSelection.selected = hasAnyBubblSpaceSelected;
       } else if (
         item.type === "documents" ||
         item.type === "research" ||
@@ -323,6 +330,22 @@ export function HierarchicalCheckbox({
             ] as any
           )[child.id] = checked;
         });
+
+        // Update parent bubblspace selection
+        const bsSelection = newSelection.timeCapsules[tcId].bubblSpaces[bsId];
+        const hasAnySelected =
+          Object.values(bsSelection.documents).some(Boolean) ||
+          Object.values(bsSelection.research).some(Boolean) ||
+          Object.values(bsSelection.aiFrames).some(Boolean);
+
+        bsSelection.selected = hasAnySelected;
+
+        // Update parent TimeCapsule selection
+        const tcSelection = newSelection.timeCapsules[tcId];
+        const hasAnyBubblSpaceSelected = Object.values(
+          tcSelection.bubblSpaces
+        ).some((bs) => bs.selected);
+        tcSelection.selected = hasAnyBubblSpaceSelected;
       } else {
         // Individual items
         const [tcId, bsId, categoryId] = parentPath;
@@ -346,6 +369,13 @@ export function HierarchicalCheckbox({
           Object.values(bsSelection.aiFrames).some(Boolean);
 
         bsSelection.selected = hasAnySelected;
+
+        // Update parent TimeCapsule selection if needed
+        const tcSelection = newSelection.timeCapsules[tcId];
+        const hasAnyBubblSpaceSelected = Object.values(
+          tcSelection.bubblSpaces
+        ).some((bs) => bs.selected);
+        tcSelection.selected = hasAnyBubblSpaceSelected;
       }
 
       onSelectionChange(newSelection);
@@ -530,4 +560,3 @@ export function HierarchicalCheckbox({
     </div>
   );
 }
-

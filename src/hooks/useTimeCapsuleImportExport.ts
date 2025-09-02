@@ -170,12 +170,40 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
         });
       }
 
-      // Get research history
+      // Get research history - ensure all required fields are present
+      console.log("🔍 [Export] Raw research history from hook:", {
+        count: researchHistory.length,
+        items: researchHistory.map((item) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+        })),
+      });
+
       const research: TimeCapsuleResearch[] = researchHistory.map((item) => ({
         ...item,
+        // Ensure required fields are present for proper export/import
+        id:
+          item.id ||
+          `research_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: item.createdAt || item.timestamp || Date.now(),
+        updatedAt: item.updatedAt || item.timestamp || Date.now(),
+        version: item.version || "1.0",
+        agentTasks: item.agentTasks || [],
         timeCapsuleId: item.timeCapsuleId || "default-timecapsule",
         bubblSpaceId: item.bubblSpaceId || "default-bubblspace",
       }));
+
+      console.log("🔍 [Export] Processed research for export:", {
+        count: research.length,
+        items: research.map((item) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          timeCapsuleId: item.timeCapsuleId,
+          bubblSpaceId: item.bubblSpaceId,
+        })),
+      });
 
       // Get AI Frames (placeholder - you may need to implement this based on your app)
       const aiFrames: TimeCapsuleAIFrame[] = [];
@@ -229,10 +257,22 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
       });
 
       // Group BubblSpaces by TimeCapsule
+      console.log(
+        "🔍 [Export] BubblSpaces created:",
+        Array.from(bubblSpaceMap.entries()).map(([id, bs]) => ({
+          id,
+          name: bs.name,
+          documents: bs.documents.length,
+          research: bs.research.length,
+          aiFrames: bs.aiFrames.length,
+        }))
+      );
+
       bubblSpaceMap.forEach((bubblSpace) => {
         const timeCapsuleId = bubblSpace.timeCapsuleId;
 
         if (!timeCapsuleMap.has(timeCapsuleId)) {
+          console.log(`🔍 [Export] Creating new TimeCapsule: ${timeCapsuleId}`);
           timeCapsuleMap.set(timeCapsuleId, {
             id: timeCapsuleId,
             name:
@@ -253,7 +293,26 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
           });
         }
         timeCapsuleMap.get(timeCapsuleId)!.bubblSpaces.push(bubblSpace);
+        console.log(
+          `🔍 [Export] Added BubblSpace "${bubblSpace.name}" to TimeCapsule "${timeCapsuleId}"`
+        );
       });
+
+      // Log final TimeCapsule structure before metadata calculation
+      console.log(
+        "🔍 [Export] Final TimeCapsule structure before metadata:",
+        Array.from(timeCapsuleMap.entries()).map(([id, tc]) => ({
+          id,
+          name: tc.name,
+          bubblSpaces: tc.bubblSpaces.map((bs) => ({
+            id: bs.id,
+            name: bs.name,
+            documents: bs.documents.length,
+            research: bs.research.length,
+            aiFrames: bs.aiFrames.length,
+          })),
+        }))
+      );
 
       // Calculate metadata
       timeCapsuleMap.forEach((timeCapsule) => {
@@ -342,14 +401,61 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
         setExportProgress(0);
         setError(null);
 
+        console.log("🔄 [Export] Starting TimeCapsule export process");
         const allTimeCapsules = await buildTimeCapsuleData();
+        console.log(
+          `🔍 [Export] Built ${allTimeCapsules.length} TimeCapsules from data`
+        );
+
+        // Debug the selection state
+        console.log("🔍 [Export] Full selection object:", selection);
+        console.log(
+          "🔍 [Export] Selection.timeCapsules keys:",
+          Object.keys(selection.timeCapsules)
+        );
+        Object.entries(selection.timeCapsules).forEach(([tcId, tcSel]) => {
+          console.log(`🔍 [Export] TimeCapsule ${tcId} selection:`, {
+            selected: tcSel.selected,
+            bubblSpaceKeys: Object.keys(tcSel.bubblSpaces),
+            bubblSpaceSelections: Object.entries(tcSel.bubblSpaces).map(
+              ([bsId, bsSel]) => ({
+                id: bsId,
+                selected: bsSel.selected,
+                documentsCount: Object.keys(bsSel.documents).length,
+                researchCount: Object.keys(bsSel.research).length,
+                selectedDocuments: Object.values(bsSel.documents).filter(
+                  Boolean
+                ).length,
+                selectedResearch: Object.values(bsSel.research).filter(Boolean)
+                  .length,
+              })
+            ),
+          });
+        });
+
         const selectedTimeCapsules: TimeCapsule[] = [];
 
         // Filter based on selection
         allTimeCapsules.forEach((timeCapsule) => {
           const tcSelection = selection.timeCapsules[timeCapsule.id];
-          if (!tcSelection?.selected) return;
+          console.log(
+            `🔍 [Export] Checking TimeCapsule "${timeCapsule.name}" (ID: ${timeCapsule.id})`
+          );
+          console.log(`🔍 [Export] - Has selection: ${!!tcSelection}`);
+          console.log(
+            `🔍 [Export] - Selection.selected: ${tcSelection?.selected}`
+          );
 
+          if (!tcSelection?.selected) {
+            console.log(
+              `⏭️ [Export] Skipping unselected TimeCapsule: ${timeCapsule.name}`
+            );
+            return;
+          }
+
+          console.log(
+            `🔍 [Export] Processing TimeCapsule: ${timeCapsule.name}`
+          );
           const filteredTimeCapsule: TimeCapsule = {
             ...timeCapsule,
             bubblSpaces: [],
@@ -357,30 +463,108 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
 
           timeCapsule.bubblSpaces.forEach((bubblSpace) => {
             const bsSelection = tcSelection.bubblSpaces[bubblSpace.id];
-            if (!bsSelection?.selected) return;
+            console.log(
+              `🔍 [Export] Checking BubblSpace "${bubblSpace.name}" (ID: ${bubblSpace.id})`
+            );
+            console.log(
+              `🔍 [Export] - Has BubblSpace selection: ${!!bsSelection}`
+            );
+            console.log(
+              `🔍 [Export] - BubblSpace selection.selected: ${bsSelection?.selected}`
+            );
+            console.log(
+              `🔍 [Export] - BubblSpace contains: ${bubblSpace.documents.length} docs, ${bubblSpace.research.length} research, ${bubblSpace.aiFrames.length} AI frames`
+            );
+
+            if (!bsSelection?.selected) {
+              console.log(
+                `⏭️ [Export] Skipping unselected BubblSpace: ${bubblSpace.name}`
+              );
+              return;
+            }
+
+            console.log(
+              `🔍 [Export] Processing BubblSpace: ${bubblSpace.name} (${bubblSpace.documents.length} docs, ${bubblSpace.research.length} research, ${bubblSpace.aiFrames.length} AI frames)`
+            );
+
+            // Debug research filtering
+            console.log(
+              `🔍 [Export] Filtering research in BubblSpace "${bubblSpace.name}"`
+            );
+            console.log(
+              `🔍 [Export] - Total research items: ${bubblSpace.research.length}`
+            );
+            console.log(
+              `🔍 [Export] - Research selection object:`,
+              bsSelection.research
+            );
+
+            const filteredDocuments = bubblSpace.documents.filter(
+              (doc) => bsSelection.documents[doc.id]
+            );
+            const filteredResearch = bubblSpace.research.filter((research) => {
+              const isSelected = bsSelection.research[research.id];
+              console.log(
+                `🔍 [Export] - Research "${research.title}" (ID: ${research.id}): selected=${isSelected}`
+              );
+              return isSelected;
+            });
+            const filteredAIFrames = bubblSpace.aiFrames.filter(
+              (aiFrame) => bsSelection.aiFrames[aiFrame.id]
+            );
 
             const filteredBubblSpace: BubblSpace = {
               ...bubblSpace,
-              documents: bubblSpace.documents.filter(
-                (doc) => bsSelection.documents[doc.id]
-              ),
-              research: bubblSpace.research.filter(
-                (research) => bsSelection.research[research.id]
-              ),
-              aiFrames: bubblSpace.aiFrames.filter(
-                (aiFrame) => bsSelection.aiFrames[aiFrame.id]
-              ),
+              documents: filteredDocuments,
+              research: filteredResearch,
+              aiFrames: filteredAIFrames,
             };
+
+            console.log(
+              `✅ [Export] Filtered BubblSpace: ${filteredBubblSpace.name} (${filteredBubblSpace.documents.length} docs, ${filteredBubblSpace.research.length} research, ${filteredBubblSpace.aiFrames.length} AI frames)`
+            );
+
+            // Log research items being exported
+            if (filteredBubblSpace.research.length > 0) {
+              filteredBubblSpace.research.forEach((research, idx) => {
+                console.log(
+                  `🔍 [Export] Exporting research ${idx}: "${research.title}" (${research.type})`
+                );
+              });
+            }
 
             filteredTimeCapsule.bubblSpaces.push(filteredBubblSpace);
           });
 
           if (filteredTimeCapsule.bubblSpaces.length > 0) {
             selectedTimeCapsules.push(filteredTimeCapsule);
+            console.log(
+              `✅ [Export] Added TimeCapsule to export: ${filteredTimeCapsule.name}`
+            );
+          } else {
+            console.log(
+              `⏭️ [Export] Skipping TimeCapsule with no content: ${filteredTimeCapsule.name}`
+            );
           }
         });
 
         setExportProgress(50);
+
+        // Calculate final statistics
+        let totalDocs = 0,
+          totalResearch = 0,
+          totalAIFrames = 0;
+        selectedTimeCapsules.forEach((tc) => {
+          tc.bubblSpaces.forEach((bs) => {
+            totalDocs += bs.documents.length;
+            totalResearch += bs.research.length;
+            totalAIFrames += bs.aiFrames.length;
+          });
+        });
+
+        console.log(
+          `📊 [Export] Final export statistics: ${totalDocs} documents, ${totalResearch} research items, ${totalAIFrames} AI frames`
+        );
 
         // Create export data
         const exportData = {
@@ -395,6 +579,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
           },
         };
 
+        console.log("📦 [Export] Created export data package");
         setExportProgress(75);
 
         // Download as JSON
@@ -426,14 +611,96 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
 
   // Validate import data
   const validateImportData = useCallback((data: any): boolean => {
-    if (!data || typeof data !== "object") return false;
-    if (!data.version) return false;
-    if (!data.timeCapsules || !Array.isArray(data.timeCapsules)) return false;
+    try {
+      console.log("🔍 [Import] Starting import data validation");
+      console.log("🔍 [Import] Raw data structure:", {
+        hasData: !!data,
+        dataType: typeof data,
+        keys: data ? Object.keys(data) : [],
+        version: data?.version,
+        hasTimeCapsules: !!data?.timeCapsules,
+        timeCapsuleType: Array.isArray(data?.timeCapsules)
+          ? "array"
+          : typeof data?.timeCapsules,
+        timeCapsuleLength: Array.isArray(data?.timeCapsules)
+          ? data.timeCapsules.length
+          : "N/A",
+      });
 
-    // Basic structure validation
-    return data.timeCapsules.every(
-      (tc: any) => tc.id && tc.name && Array.isArray(tc.bubblSpaces)
-    );
+      if (!data || typeof data !== "object") {
+        console.warn("❌ [Import] Invalid data: not an object");
+        return false;
+      }
+
+      if (!data.version) {
+        console.warn("❌ [Import] Invalid data: missing version");
+        return false;
+      }
+
+      if (!data.timeCapsules || !Array.isArray(data.timeCapsules)) {
+        console.warn(
+          "❌ [Import] Invalid data: missing or invalid timeCapsules array",
+          {
+            hasTimeCapsules: !!data.timeCapsules,
+            timeCapsuleType: typeof data.timeCapsules,
+            isArray: Array.isArray(data.timeCapsules),
+          }
+        );
+        return false;
+      }
+
+      console.log(
+        `🔍 [Import] Validating ${data.timeCapsules.length} TimeCapsules`
+      );
+
+      // Enhanced structure validation
+      for (let i = 0; i < data.timeCapsules.length; i++) {
+        const tc = data.timeCapsules[i];
+        if (!tc.id || !tc.name || !Array.isArray(tc.bubblSpaces)) {
+          console.warn(`❌ [Import] Invalid TimeCapsule ${i}:`, tc);
+          return false;
+        }
+
+        console.log(
+          `🔍 [Import] TimeCapsule ${i}: "${tc.name}" with ${tc.bubblSpaces.length} BubblSpaces`
+        );
+
+        for (let j = 0; j < tc.bubblSpaces.length; j++) {
+          const bs = tc.bubblSpaces[j];
+          if (!bs.id || !bs.name) {
+            console.warn(
+              `❌ [Import] Invalid BubblSpace ${j} in TimeCapsule ${i}:`,
+              bs
+            );
+            return false;
+          }
+
+          // Ensure arrays exist
+          if (!bs.documents) bs.documents = [];
+          if (!bs.research) bs.research = [];
+          if (!bs.aiFrames) bs.aiFrames = [];
+
+          console.log(
+            `🔍 [Import] BubblSpace ${j}: "${bs.name}" - ${bs.documents.length} docs, ${bs.research.length} research, ${bs.aiFrames.length} AI frames`
+          );
+
+          // Log research items for debugging
+          if (bs.research.length > 0) {
+            bs.research.forEach((research: any, idx: number) => {
+              console.log(
+                `🔍 [Import] Research ${idx}: "${research.title}" (${research.type || "unknown type"})`
+              );
+            });
+          }
+        }
+      }
+
+      console.log("✅ [Import] Import data validation successful");
+      return true;
+    } catch (err) {
+      console.error("❌ [Import] Error during validation:", err);
+      return false;
+    }
   }, []);
 
   // Process imported data
@@ -490,13 +757,139 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
 
             // Import research
             for (const research of bubblSpace.research) {
-              const researchData = {
-                ...research,
-                timeCapsuleId: timeCapsule.id,
-                bubblSpaceId: bubblSpace.id,
+              console.log(
+                `🔍 [Import] Processing research: "${research.title}"`
+              );
+              console.log(`🔍 [Import] Raw research data:`, research);
+
+              // Prepare research data for addResearch function
+              // NOTE: addResearch generates its own id, createdAt, updatedAt, version
+              const researchData: any = {
+                // Required fields for RxDB schema (excluding auto-generated ones)
+                title: research.title || "Untitled Research",
+                type: research.type || "deep-research",
+                timestamp:
+                  typeof research.timestamp === "number"
+                    ? research.timestamp
+                    : Date.now(),
+                status:
+                  research.status &&
+                  ["completed", "in_progress", "failed"].includes(
+                    research.status
+                  )
+                    ? research.status
+                    : "completed",
+                wordCount:
+                  typeof research.wordCount === "number"
+                    ? research.wordCount
+                    : 0,
+                researchConfig:
+                  research.researchConfig &&
+                  typeof research.researchConfig === "object"
+                    ? {
+                        type: research.researchConfig.type || "deep-research",
+                        depth: research.researchConfig.depth || "normal",
+                        enableRAG:
+                          typeof research.researchConfig.enableRAG === "boolean"
+                            ? research.researchConfig.enableRAG
+                            : false,
+                        enableWebSearch:
+                          typeof research.researchConfig.enableWebSearch ===
+                          "boolean"
+                            ? research.researchConfig.enableWebSearch
+                            : false,
+                      }
+                    : {
+                        type: "deep-research",
+                        depth: "normal",
+                        enableRAG: false,
+                        enableWebSearch: false,
+                      },
+                originalPrompt: research.originalPrompt || research.title || "",
+                agentTasks: Array.isArray(research.agentTasks)
+                  ? research.agentTasks
+                  : [],
               };
 
-              await addResearch(researchData);
+              // Add optional fields only if they exist and are the correct type
+              if (typeof research.duration === "number") {
+                researchData.duration = research.duration;
+              }
+
+              if (
+                research.researchContext &&
+                typeof research.researchContext === "object"
+              ) {
+                researchData.researchContext = research.researchContext;
+              }
+
+              if (
+                research.ragContext &&
+                typeof research.ragContext === "object"
+              ) {
+                researchData.ragContext = research.ragContext;
+              }
+
+              if (
+                research.webSearchContext &&
+                typeof research.webSearchContext === "object"
+              ) {
+                researchData.webSearchContext = research.webSearchContext;
+              }
+
+              if (Array.isArray(research.steps)) {
+                researchData.steps = research.steps;
+              }
+
+              if (typeof research.finalOutput === "string") {
+                researchData.finalOutput = research.finalOutput;
+              }
+
+              if (typeof research.sourcesCount === "number") {
+                researchData.sourcesCount = research.sourcesCount;
+              }
+
+              if (typeof research.chunksProcessed === "number") {
+                researchData.chunksProcessed = research.chunksProcessed;
+              }
+
+              console.log(`🔍 [Import] Final transformed research data:`, {
+                ...researchData,
+                researchContext: researchData.researchContext
+                  ? "[OBJECT]"
+                  : undefined,
+                ragContext: researchData.ragContext ? "[OBJECT]" : undefined,
+                webSearchContext: researchData.webSearchContext
+                  ? "[OBJECT]"
+                  : undefined,
+              });
+
+              console.log(`🔍 [Import] Schema validation check:`, {
+                hasAllRequiredFields: {
+                  title: !!researchData.title,
+                  type: !!researchData.type,
+                  timestamp: !!researchData.timestamp,
+                  status: !!researchData.status,
+                  wordCount: typeof researchData.wordCount === "number",
+                  researchConfig: !!researchData.researchConfig,
+                  originalPrompt: !!researchData.originalPrompt,
+                  agentTasks: Array.isArray(researchData.agentTasks),
+                },
+                note: "id, createdAt, updatedAt, version will be auto-generated by addResearch",
+              });
+
+              try {
+                const newResearchId = await addResearch(researchData);
+                console.log(
+                  `✅ [Import] Successfully added research: ${researchData.title} with ID: ${newResearchId}`
+                );
+              } catch (importError) {
+                console.error(
+                  `❌ [Import] Failed to add research "${researchData.title}":`,
+                  importError
+                );
+                throw importError;
+              }
 
               processedItems++;
               setImportProgress(10 + (processedItems / totalItems) * 80);
@@ -576,4 +969,3 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
     error,
   };
 }
-

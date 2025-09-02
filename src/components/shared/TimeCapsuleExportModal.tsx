@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,9 @@ import {
   AlertCircle,
   Loader2,
   FileDown,
+  FileText,
+  MessageSquare,
+  Bot,
 } from "lucide-react";
 import { HierarchicalCheckbox } from "./HierarchicalCheckbox";
 import {
@@ -56,21 +59,15 @@ export function TimeCapsuleExportModal({
     selectedItems: 0,
     totalSize: 0,
     selectedSize: 0,
+    totalDocuments: 0,
+    selectedDocuments: 0,
+    totalResearch: 0,
+    selectedResearch: 0,
+    totalAIFrames: 0,
+    selectedAIFrames: 0,
   });
 
-  // Load TimeCapsule data when modal opens
-  useEffect(() => {
-    if (open) {
-      loadTimeCapsuleData();
-    }
-  }, [open]);
-
-  // Calculate export statistics
-  useEffect(() => {
-    calculateExportStats();
-  }, [selection, timeCapsules]);
-
-  const loadTimeCapsuleData = async () => {
+  const loadTimeCapsuleData = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await buildTimeCapsuleData();
@@ -85,13 +82,19 @@ export function TimeCapsuleExportModal({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [buildTimeCapsuleData, createExportSelection]);
 
-  const calculateExportStats = () => {
+  const calculateExportStats = useCallback(() => {
     let totalItems = 0;
     let selectedItems = 0;
     let totalSize = 0;
     let selectedSize = 0;
+    let totalDocuments = 0;
+    let selectedDocuments = 0;
+    let totalResearch = 0;
+    let selectedResearch = 0;
+    let totalAIFrames = 0;
+    let selectedAIFrames = 0;
 
     timeCapsules.forEach((tc) => {
       const tcSelection = selection.timeCapsules[tc.id];
@@ -102,10 +105,12 @@ export function TimeCapsuleExportModal({
         // Documents
         bs.documents.forEach((doc) => {
           totalItems++;
+          totalDocuments++;
           totalSize += doc.metadata.filesize || 0;
 
           if (bsSelection?.documents[doc.id]) {
             selectedItems++;
+            selectedDocuments++;
             selectedSize += doc.metadata.filesize || 0;
           }
         });
@@ -113,18 +118,22 @@ export function TimeCapsuleExportModal({
         // Research
         bs.research.forEach((research) => {
           totalItems++;
+          totalResearch++;
 
           if (bsSelection?.research[research.id]) {
             selectedItems++;
+            selectedResearch++;
           }
         });
 
         // AI Frames
         bs.aiFrames.forEach((aiFrame) => {
           totalItems++;
+          totalAIFrames++;
 
           if (bsSelection?.aiFrames[aiFrame.id]) {
             selectedItems++;
+            selectedAIFrames++;
           }
         });
       });
@@ -135,8 +144,26 @@ export function TimeCapsuleExportModal({
       selectedItems,
       totalSize,
       selectedSize,
+      totalDocuments,
+      selectedDocuments,
+      totalResearch,
+      selectedResearch,
+      totalAIFrames,
+      selectedAIFrames,
     });
-  };
+  }, [timeCapsules, selection]);
+
+  // Load TimeCapsule data when modal opens
+  useEffect(() => {
+    if (open) {
+      loadTimeCapsuleData();
+    }
+  }, [open, loadTimeCapsuleData]);
+
+  // Calculate export statistics
+  useEffect(() => {
+    calculateExportStats();
+  }, [selection, timeCapsules, calculateExportStats]);
 
   const handleExport = async () => {
     try {
@@ -195,7 +222,13 @@ export function TimeCapsuleExportModal({
             <div className="space-y-4">
               {/* Export Statistics */}
               <div className="bg-muted/50 rounded-lg p-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Export Summary
+                </h4>
+
+                {/* Overview Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                   <div>
                     <div className="text-muted-foreground">Total Items</div>
                     <div className="font-medium">{exportStats.totalItems}</div>
@@ -216,6 +249,60 @@ export function TimeCapsuleExportModal({
                     <div className="text-muted-foreground">Selected Size</div>
                     <div className="font-medium text-primary">
                       {formatFileSize(exportStats.selectedSize)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Breakdown by Type */}
+                <div className="border-t pt-3">
+                  <div className="text-sm font-medium mb-2">
+                    Content Breakdown
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-500" />
+                      <div>
+                        <div className="text-muted-foreground">Documents</div>
+                        <div className="font-medium">
+                          <span className="text-primary">
+                            {exportStats.selectedDocuments}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            / {exportStats.totalDocuments}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-green-500" />
+                      <div>
+                        <div className="text-muted-foreground">Research</div>
+                        <div className="font-medium">
+                          <span className="text-primary">
+                            {exportStats.selectedResearch}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            / {exportStats.totalResearch}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-purple-500" />
+                      <div>
+                        <div className="text-muted-foreground">AI Frames</div>
+                        <div className="font-medium">
+                          <span className="text-primary">
+                            {exportStats.selectedAIFrames}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            / {exportStats.totalAIFrames}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
