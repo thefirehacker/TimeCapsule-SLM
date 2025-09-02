@@ -423,10 +423,6 @@ export function DeepResearchComponent() {
             <div className="flex-1 flex flex-col">
               {/* Show loaded research history or current research */}
               {(() => {
-                console.log("🎯 Conditional Render Check:", {
-                  hasLoadedSession: !!researchNavigation.loadedResearchSession,
-                  sessionData: researchNavigation.loadedResearchSession,
-                });
                 return researchNavigation.loadedResearchSession ? (
                   <ResearchHistoryViewer
                     researchItem={researchNavigation.loadedResearchSession.item}

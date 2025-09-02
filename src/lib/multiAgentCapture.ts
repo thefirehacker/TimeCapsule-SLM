@@ -108,6 +108,15 @@ export function captureMultiAgentResearchData(
   }
 
   if (agentTasks.length > 0) {
+    // Enhanced debugging to check progressHistory preservation
+    const agentsWithProgressHistory = agentTasks.filter(
+      (t) => t.progressHistory && t.progressHistory.length > 0
+    );
+    const totalProgressEntries = agentTasks.reduce(
+      (sum, t) => sum + (t.progressHistory?.length || 0),
+      0
+    );
+
     console.log("🤖 Agent tasks captured:", {
       totalAgents: agentTasks.length,
       completedAgents: agentTasks.filter((t) => t.status === "completed")
@@ -116,6 +125,22 @@ export function captureMultiAgentResearchData(
       totalDuration: agentTasks.reduce((sum, t) => sum + (t.duration || 0), 0),
       hasThinking: agentTasks.filter((t) => t.thinking?.hasThinking).length,
       hasOutput: agentTasks.filter((t) => t.output).length,
+      agentsWithProgressHistory: agentsWithProgressHistory.length,
+      totalProgressEntries,
+    });
+
+    // Debug specific progress history data
+    agentsWithProgressHistory.forEach((agent, idx) => {
+      console.log(
+        `📅 [Capture] Agent ${idx + 1} "${agent.agentName}" has ${
+          agent.progressHistory?.length || 0
+        } progress entries:`,
+        agent.progressHistory?.map((entry) => ({
+          stage: entry.stage,
+          progress: entry.progress,
+          timestamp: new Date(entry.timestamp).toLocaleTimeString(),
+        }))
+      );
     });
   }
 
@@ -227,4 +252,3 @@ export function validateResearchDataCompleteness(
     warnings,
   };
 }
-

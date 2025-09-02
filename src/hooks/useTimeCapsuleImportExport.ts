@@ -45,7 +45,39 @@ export interface TimeCapsuleResearch {
   researchConfig: any;
   originalPrompt: string;
   researchContext?: any;
-  agentTasks?: any[];
+  agentTasks?: Array<{
+    agentName: string;
+    agentType: string;
+    status: "completed" | "in_progress" | "failed" | "pending";
+    progress: number;
+    duration?: number;
+    startTime: number;
+    endTime?: number;
+    stage?: string;
+    output?: any;
+    error?: string;
+    thinking?: {
+      hasThinking: boolean;
+      thinkingContent?: string;
+      summary?: string;
+      insights?: string[];
+    };
+    progressHistory?: Array<{
+      stage: string;
+      progress: number;
+      timestamp: number;
+      itemsProcessed?: number;
+      totalItems?: number;
+      message?: string;
+    }>;
+    retryCount?: number;
+    metrics?: {
+      llmCalls: number;
+      tokensUsed: number;
+      responseTime: number;
+      confidence: number;
+    };
+  }>;
   steps?: any[];
   finalOutput?: string;
   sourcesCount?: number;
@@ -202,6 +234,13 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
           type: item.type,
           timeCapsuleId: item.timeCapsuleId,
           bubblSpaceId: item.bubblSpaceId,
+          agentTasksCount: item.agentTasks ? item.agentTasks.length : 0,
+          hasProgressHistory: item.agentTasks
+            ? item.agentTasks.some(
+                (task) =>
+                  task.progressHistory && task.progressHistory.length > 0
+              )
+            : false,
         })),
       });
 
@@ -500,7 +539,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
             );
 
             const filteredDocuments = bubblSpace.documents.filter(
-              (doc) => bsSelection.documents[doc.id]
+                (doc) => bsSelection.documents[doc.id]
             );
             const filteredResearch = bubblSpace.research.filter((research) => {
               const isSelected = bsSelection.research[research.id];
@@ -510,7 +549,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
               return isSelected;
             });
             const filteredAIFrames = bubblSpace.aiFrames.filter(
-              (aiFrame) => bsSelection.aiFrames[aiFrame.id]
+                (aiFrame) => bsSelection.aiFrames[aiFrame.id]
             );
 
             const filteredBubblSpace: BubblSpace = {
@@ -527,8 +566,28 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
             // Log research items being exported
             if (filteredBubblSpace.research.length > 0) {
               filteredBubblSpace.research.forEach((research, idx) => {
+                const agentTasksWithTimeline = research.agentTasks
+                  ? research.agentTasks.filter(
+                      (task) =>
+                        task.progressHistory && task.progressHistory.length > 0
+                    ).length
+                  : 0;
+                const totalProgressEntries = research.agentTasks
+                  ? research.agentTasks.reduce(
+                      (sum, task) =>
+                        sum +
+                        (task.progressHistory
+                          ? task.progressHistory.length
+                          : 0),
+                      0
+                    )
+                  : 0;
+
                 console.log(
                   `🔍 [Export] Exporting research ${idx}: "${research.title}" (${research.type})`
+                );
+                console.log(
+                  `📅 [Export] - Timeline data: ${agentTasksWithTimeline}/${research.agentTasks?.length || 0} agent tasks with progress history, ${totalProgressEntries} total timeline entries`
                 );
               });
             }
@@ -762,6 +821,27 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
               );
               console.log(`🔍 [Import] Raw research data:`, research);
 
+              // Log timeline data being imported
+              if (research.agentTasks && Array.isArray(research.agentTasks)) {
+                const agentTasksWithTimeline = research.agentTasks.filter(
+                  (task) =>
+                    task.progressHistory &&
+                    Array.isArray(task.progressHistory) &&
+                    task.progressHistory.length > 0
+                ).length;
+                const totalProgressEntries = research.agentTasks.reduce(
+                  (sum, task) =>
+                    sum +
+                    (task.progressHistory && Array.isArray(task.progressHistory)
+                      ? task.progressHistory.length
+                      : 0),
+                  0
+                );
+                console.log(
+                  `📅 [Import] - Timeline data found: ${agentTasksWithTimeline}/${research.agentTasks.length} agent tasks with progress history, ${totalProgressEntries} total timeline entries`
+                );
+              }
+
               // Prepare research data for addResearch function
               // NOTE: addResearch generates its own id, createdAt, updatedAt, version
               const researchData: any = {
@@ -807,7 +887,77 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
                       },
                 originalPrompt: research.originalPrompt || research.title || "",
                 agentTasks: Array.isArray(research.agentTasks)
-                  ? research.agentTasks
+                  ? research.agentTasks.map((task) => ({
+                      // Preserve all agent task data including progressHistory
+                      agentName: task.agentName || "Unknown Agent",
+                      agentType: task.agentType || "unknown",
+                      status: task.status || "completed",
+                      progress:
+                        typeof task.progress === "number" ? task.progress : 100,
+                      duration:
+                        typeof task.duration === "number"
+                          ? task.duration
+                          : undefined,
+                      startTime:
+                        typeof task.startTime === "number"
+                          ? task.startTime
+                          : Date.now(),
+                      endTime:
+                        typeof task.endTime === "number"
+                          ? task.endTime
+                          : undefined,
+                      stage: task.stage,
+                      output: task.output,
+                      error: task.error,
+                      thinking: task.thinking,
+                      progressHistory: Array.isArray(task.progressHistory)
+                        ? task.progressHistory.map((entry) => ({
+                            stage: entry.stage || "Unknown stage",
+                            progress:
+                              typeof entry.progress === "number"
+                                ? entry.progress
+                                : 0,
+                            timestamp:
+                              typeof entry.timestamp === "number"
+                                ? entry.timestamp
+                                : Date.now(),
+                            itemsProcessed:
+                              typeof entry.itemsProcessed === "number"
+                                ? entry.itemsProcessed
+                                : undefined,
+                            totalItems:
+                              typeof entry.totalItems === "number"
+                                ? entry.totalItems
+                                : undefined,
+                            message: entry.message,
+                          }))
+                        : undefined,
+                      retryCount:
+                        typeof task.retryCount === "number"
+                          ? task.retryCount
+                          : undefined,
+                      metrics:
+                        task.metrics && typeof task.metrics === "object"
+                          ? {
+                              llmCalls:
+                                typeof task.metrics.llmCalls === "number"
+                                  ? task.metrics.llmCalls
+                                  : 0,
+                              tokensUsed:
+                                typeof task.metrics.tokensUsed === "number"
+                                  ? task.metrics.tokensUsed
+                                  : 0,
+                              responseTime:
+                                typeof task.metrics.responseTime === "number"
+                                  ? task.metrics.responseTime
+                                  : 0,
+                              confidence:
+                                typeof task.metrics.confidence === "number"
+                                  ? task.metrics.confidence
+                                  : 0.5,
+                            }
+                          : undefined,
+                    }))
                   : [],
               };
 
@@ -882,6 +1032,27 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
                 const newResearchId = await addResearch(researchData);
                 console.log(
                   `✅ [Import] Successfully added research: ${researchData.title} with ID: ${newResearchId}`
+                );
+
+                // Log timeline data that was preserved
+                const importedAgentTasksWithTimeline = researchData.agentTasks
+                  ? researchData.agentTasks.filter(
+                      (task) =>
+                        task.progressHistory && task.progressHistory.length > 0
+                    ).length
+                  : 0;
+                const importedProgressEntries = researchData.agentTasks
+                  ? researchData.agentTasks.reduce(
+                      (sum, task) =>
+                        sum +
+                        (task.progressHistory
+                          ? task.progressHistory.length
+                          : 0),
+                      0
+                    )
+                  : 0;
+                console.log(
+                  `📅 [Import] - Timeline data preserved: ${importedAgentTasksWithTimeline}/${researchData.agentTasks?.length || 0} agent tasks with progress history, ${importedProgressEntries} total timeline entries`
                 );
               } catch (importError) {
                 console.error(
