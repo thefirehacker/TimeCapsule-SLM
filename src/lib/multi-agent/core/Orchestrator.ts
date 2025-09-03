@@ -378,6 +378,91 @@ export class Orchestrator {
   }
 
   /**
+   * 🔥 FIX: Create agent progress proxy for use during agent creation
+   * This returns the proxy callback that routes calls through progressTracker
+   */
+  public createAgentProgressProxy(): AgentProgressCallback {
+    console.log(
+      `🔥 Creating agent progress proxy to route progress through progressTracker...`
+    );
+
+    // Create a proxy callback that intercepts agent progress calls
+    return {
+      onAgentStart: (agentName: string, agentType: string, input: any) => {
+        console.log(`🚀 Agent Progress Proxy: ${agentName} started`);
+        // Track running agent
+        this.runningAgents.add(agentName);
+        // Forward to UI callback immediately
+        this.progressCallback?.onAgentStart?.(agentName, agentType, input);
+      },
+      onAgentProgress: async (
+        agentName: string,
+        progress: number,
+        stage?: string,
+        itemsProcessed?: number,
+        totalItems?: number
+      ): Promise<void> => {
+        console.log(
+          `📊 Agent Progress Proxy: ${agentName} - ${progress}% ${stage ? `(${stage})` : ""}`
+        );
+
+        // 🎯 CRITICAL: Route through progressTracker to build progress history
+        await this.progressTracker.updateProgress(
+          agentName,
+          progress,
+          stage,
+          itemsProcessed,
+          totalItems
+        );
+
+        // 🔥 IMMEDIATE UI UPDATE: Forward to original callback for real-time display
+        if (this.progressCallback?.onAgentProgress) {
+          console.log(
+            `🔥 Agent Progress Proxy: Forwarding to UI callback - ${agentName} ${progress}% ${stage || ""}`
+          );
+          this.progressCallback.onAgentProgress(
+            agentName,
+            progress,
+            stage,
+            itemsProcessed,
+            totalItems
+          );
+        } else {
+          console.warn(
+            `⚠️ Agent Progress Proxy: No UI callback available for ${agentName} progress update`
+          );
+        }
+      },
+      onAgentThinking: async (
+        agentName: string,
+        thinking: any
+      ): Promise<void> => {
+        console.log(`🤔 Agent Progress Proxy: ${agentName} thinking`);
+        await this.progressTracker.setThinking(agentName, thinking);
+        this.progressCallback?.onAgentThinking?.(agentName, thinking);
+      },
+      onAgentComplete: (agentName: string, output: any, metrics?: any) => {
+        console.log(`✅ Agent Progress Proxy: ${agentName} completed`);
+        // Remove from running agents
+        this.runningAgents.delete(agentName);
+        // Complete in progress tracker
+        this.progressTracker.completeAgent(agentName, output, metrics);
+        // Forward to UI callback
+        this.progressCallback?.onAgentComplete?.(agentName, output, metrics);
+      },
+      onAgentError: (agentName: string, error: string, retryCount?: number) => {
+        console.log(`❌ Agent Progress Proxy: ${agentName} error - ${error}`);
+        // Remove from running agents
+        this.runningAgents.delete(agentName);
+        // Record error in progress tracker
+        this.progressTracker.errorAgent(agentName, error);
+        // Forward to UI callback
+        this.progressCallback?.onAgentError?.(agentName, error, retryCount);
+      },
+    };
+  }
+
+  /**
    * 🔥 FIX: Create proxy progress callback that routes calls through progressTracker
    * This ensures progress history is properly accumulated for real-time display
    */

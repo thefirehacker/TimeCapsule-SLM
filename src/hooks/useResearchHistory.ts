@@ -183,6 +183,19 @@ export function createResearchHistoryItem(
   steps?: any[],
   finalOutput?: string
 ): Omit<ResearchHistoryItem, "id" | "createdAt" | "updatedAt"> {
+  console.log(
+    "🔍 [createResearchHistoryItem] Creating research history item:",
+    {
+      prompt: prompt.substring(0, 50) + "...",
+      hasAgentTasks: !!agentTasks,
+      agentTasksCount: agentTasks?.length || 0,
+      hasSteps: !!steps,
+      stepsCount: steps?.length || 0,
+      researchType,
+      researchDepth,
+    }
+  );
+
   // Extract title from prompt (first 50 characters)
   const title = prompt.length > 50 ? `${prompt.substring(0, 50)}...` : prompt;
 
@@ -191,41 +204,101 @@ export function createResearchHistoryItem(
     ? finalOutput.split(/\s+/).length
     : prompt.split(/\s+/).length;
 
-  // Calculate total duration from agent tasks or steps
-  const totalDuration =
-    agentTasks?.reduce((sum, task) => sum + (task.duration || 0), 0) ||
-    steps?.reduce((sum, step) => sum + (step.duration || 0), 0) ||
-    0;
+  // 🔥 CRITICAL FIX: Properly preserve agentTasks with timeline data
+  let finalAgentTasks: ResearchAgentTask[] = [];
 
-  // Use provided agent tasks or extract from steps
-  let finalAgentTasks: ResearchAgentTask[] = agentTasks || [];
+  if (agentTasks && agentTasks.length > 0) {
+    // Use provided agent tasks directly - they should already have timeline data
+    finalAgentTasks = agentTasks.map((task) => ({
+      ...task,
+      // Ensure progressHistory is preserved
+      progressHistory: task.progressHistory || [],
+      // Ensure all required fields have defaults
+      agentType: task.agentType || "unknown",
+      status: task.status || "completed",
+      progress: task.progress || 100,
+      startTime: task.startTime || Date.now(),
+      duration: task.duration || 0,
+      retryCount: task.retryCount || 0,
+    }));
 
-  if (!agentTasks && steps) {
+    console.log("📅 [createResearchHistoryItem] Using provided agentTasks:", {
+      totalTasks: finalAgentTasks.length,
+      tasksWithTimeline: finalAgentTasks.filter(
+        (t) => t.progressHistory && t.progressHistory.length > 0
+      ).length,
+      taskNames: finalAgentTasks.map((t) => t.agentName),
+    });
+
+    // Log timeline data for each task
+    finalAgentTasks.forEach((task, idx) => {
+      if (task.progressHistory && task.progressHistory.length > 0) {
+        console.log(
+          `📊 [createResearchHistoryItem] Agent "${task.agentName}" has ${task.progressHistory.length} timeline entries`
+        );
+      }
+    });
+  } else if (steps && steps.length > 0) {
+    // Extract from steps as fallback
+    console.log(
+      "🔄 [createResearchHistoryItem] Extracting agent tasks from steps"
+    );
+
     steps.forEach((step) => {
-      if (step.agentTasks) {
-        finalAgentTasks.push(...step.agentTasks);
-      } else if (step.subSteps) {
+      if (step.agentTasks && Array.isArray(step.agentTasks)) {
+        // Step has direct agentTasks array
+        finalAgentTasks.push(
+          ...step.agentTasks.map((task: any) => ({
+            ...task,
+            progressHistory: task.progressHistory || [],
+            agentType: task.agentType || "unknown",
+            status: task.status || "completed",
+            progress: task.progress || 100,
+            startTime: task.startTime || Date.now(),
+            duration: task.duration || 0,
+            retryCount: task.retryCount || 0,
+          }))
+        );
+      } else if (step.subSteps && Array.isArray(step.subSteps)) {
+        // Step has subSteps (agent sub-steps)
         step.subSteps.forEach((subStep: any) => {
           finalAgentTasks.push({
-            agentName: subStep.agentName,
+            agentName: subStep.agentName || "Unknown Agent",
             agentType: subStep.agentType || "unknown",
-            status: subStep.status,
-            progress: subStep.progress || 0,
-            duration: subStep.duration,
+            status: subStep.status || "completed",
+            progress: subStep.progress || 100,
+            duration: subStep.duration || 0,
             startTime: subStep.startTime || Date.now(),
             endTime: subStep.endTime,
             stage: subStep.stage,
             output: subStep.output,
             error: subStep.error,
             thinking: subStep.thinking,
-            progressHistory: subStep.progressHistory,
-            retryCount: subStep.retryCount,
+            progressHistory: subStep.progressHistory || [], // Preserve timeline
+            retryCount: subStep.retryCount || 0,
             metrics: subStep.metrics,
           });
         });
       }
     });
+
+    console.log("📅 [createResearchHistoryItem] Extracted from steps:", {
+      totalTasks: finalAgentTasks.length,
+      tasksWithTimeline: finalAgentTasks.filter(
+        (t) => t.progressHistory && t.progressHistory.length > 0
+      ).length,
+    });
+  } else {
+    console.warn(
+      "⚠️ [createResearchHistoryItem] No agentTasks or steps provided - creating empty research item"
+    );
   }
+
+  // Calculate total duration from agent tasks or steps
+  const totalDuration =
+    finalAgentTasks.reduce((sum, task) => sum + (task.duration || 0), 0) ||
+    steps?.reduce((sum, step) => sum + (step.duration || 0), 0) ||
+    0;
 
   // Calculate sources and chunks count from research context or steps
   const sourcesCount =
@@ -249,11 +322,11 @@ export function createResearchHistoryItem(
     }, 0) ||
     0;
 
-  return {
+  const researchItem = {
     title,
     type: researchType as any,
     timestamp: Date.now(),
-    status: "completed",
+    status: "completed" as "completed" | "failed" | "in_progress",
     wordCount,
     duration: totalDuration,
     researchConfig: {
@@ -285,4 +358,27 @@ export function createResearchHistoryItem(
     chunksProcessed,
     version: "2.0", // Updated version for enhanced schema
   };
+
+  // 🔥 FINAL VALIDATION: Log what we're returning
+  console.log("✅ [createResearchHistoryItem] Research item created:", {
+    title: researchItem.title,
+    agentTasksCount: researchItem.agentTasks.length,
+    agentTasksWithTimeline: researchItem.agentTasks.filter(
+      (t) => t.progressHistory && t.progressHistory.length > 0
+    ).length,
+    totalTimelineEntries: researchItem.agentTasks.reduce(
+      (sum, t) => sum + (t.progressHistory?.length || 0),
+      0
+    ),
+    hasSteps: !!researchItem.steps,
+    stepsCount: researchItem.steps?.length || 0,
+  });
+
+  if (researchItem.agentTasks.length === 0) {
+    console.warn(
+      "⚠️ [createResearchHistoryItem] WARNING: No agent tasks in final research item!"
+    );
+  }
+
+  return researchItem;
 }

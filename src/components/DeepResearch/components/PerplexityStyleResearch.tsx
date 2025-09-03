@@ -7,7 +7,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1548,12 +1548,10 @@ export function PerplexityStyleResearch({
   } = useResearchContext();
 
   // Use context data if available, otherwise fall back to props
-  const steps = contextSteps.length > 0 ? contextSteps : propSteps || [];
+  const steps = useMemo(() => {
+    return contextSteps.length > 0 ? contextSteps : propSteps || [];
+  }, [contextSteps, propSteps]);
   const isActive = contextIsActive || propIsActive || false;
-
-  if (!steps || steps.length === 0) {
-    return null;
-  }
 
   // Auto-complete session when research finishes
   useEffect(() => {
@@ -1618,25 +1616,6 @@ export function PerplexityStyleResearch({
     : 0;
   const totalAgents = multiAgentStep?.subSteps?.length || 0;
 
-  // Debug agent visibility
-  React.useEffect(() => {
-    if (multiAgentStep?.subSteps) {
-      const agentNames = multiAgentStep.subSteps.map((s) => s.agentName);
-      console.log(
-        `🔍 UI RENDER: Displaying ${totalAgents} agents:`,
-        agentNames
-      );
-
-      const dataInspectorPresent = agentNames.includes("DataInspector");
-      if (!dataInspectorPresent && totalAgents > 0) {
-        console.warn(
-          `⚠️ UI WARNING: DataInspector missing from display! Current agents:`,
-          agentNames
-        );
-      }
-    }
-  }, [multiAgentStep?.subSteps, totalAgents]);
-
   // Auto-scroll to latest updates when steps change
   useEffect(() => {
     if (!steps || steps.length === 0) return;
@@ -1682,6 +1661,29 @@ export function PerplexityStyleResearch({
       }, 300);
     }
   }, [isActive]);
+
+  // Debug agent visibility
+  React.useEffect(() => {
+    if (multiAgentStep?.subSteps) {
+      const agentNames = multiAgentStep.subSteps.map((s) => s.agentName);
+      console.log(
+        `🔍 UI RENDER: Displaying ${totalAgents} agents:`,
+        agentNames
+      );
+
+      const dataInspectorPresent = agentNames.includes("DataInspector");
+      if (!dataInspectorPresent && totalAgents > 0) {
+        console.warn(
+          `⚠️ UI WARNING: DataInspector missing from display! Current agents:`,
+          agentNames
+        );
+      }
+    }
+  }, [multiAgentStep?.subSteps, totalAgents]);
+
+  if (!steps || steps.length === 0) {
+    return null;
+  }
 
   return (
     <div ref={containerRef} className={`perplexity-research ${className}`}>

@@ -47,6 +47,17 @@ interface ResearchHistoryViewerProps {
 const convertAgentTasksToSteps = (
   agentTasks: ResearchAgentTask[]
 ): ResearchStep[] => {
+  console.log(
+    "🔍 [convertAgentTasksToSteps] Converting agent tasks to steps:",
+    {
+      agentTasksCount: agentTasks.length,
+      taskNames: agentTasks.map((t) => t.agentName),
+      tasksWithTimeline: agentTasks.filter(
+        (t) => t.progressHistory && t.progressHistory.length > 0
+      ).length,
+    }
+  );
+
   // Group agent tasks into logical steps
   const stepGroups: { [key: string]: ResearchAgentTask[] } = {};
 
@@ -78,99 +89,136 @@ const convertAgentTasksToSteps = (
     stepGroups[stepType].push(task);
   });
 
+  console.log("📊 [convertAgentTasksToSteps] Step groups created:", {
+    groupCount: Object.keys(stepGroups).length,
+    groups: Object.entries(stepGroups).map(([type, tasks]) => ({
+      type,
+      taskCount: tasks.length,
+      tasks: tasks.map((t) => ({
+        name: t.agentName,
+        hasTimeline: !!(t.progressHistory && t.progressHistory.length > 0),
+        timelineCount: t.progressHistory?.length || 0,
+      })),
+    })),
+  });
+
   // Convert groups to ResearchStep format
-  return Object.entries(stepGroups).map(([stepType, tasks], index) => {
-    const allCompleted = tasks.every((task) => task.status === "completed");
-    const anyFailed = tasks.some((task) => task.status === "failed");
-    const anyInProgress = tasks.some((task) => task.status === "in_progress");
+  const finalSteps = Object.entries(stepGroups).map(
+    ([stepType, tasks], index) => {
+      const allCompleted = tasks.every((task) => task.status === "completed");
+      const anyFailed = tasks.some((task) => task.status === "failed");
+      const anyInProgress = tasks.some((task) => task.status === "in_progress");
 
-    let stepStatus: "completed" | "in_progress" | "failed" | "pending" =
-      "completed";
-    if (anyFailed) stepStatus = "failed";
-    else if (anyInProgress) stepStatus = "in_progress";
-    else if (!allCompleted) stepStatus = "pending";
+      let stepStatus: "completed" | "in_progress" | "failed" | "pending" =
+        "completed";
+      if (anyFailed) stepStatus = "failed";
+      else if (anyInProgress) stepStatus = "in_progress";
+      else if (!allCompleted) stepStatus = "pending";
 
-    // Calculate total duration
-    const totalDuration = tasks.reduce(
-      (sum, task) => sum + (task.duration || 0),
-      0
-    );
+      // Calculate total duration
+      const totalDuration = tasks.reduce(
+        (sum, task) => sum + (task.duration || 0),
+        0
+      );
 
-    // Create sub-steps from agent tasks
-    const subSteps = tasks.map((task, taskIndex) => {
-      // Convert stored thinking format to AgentThinking format if it exists
-      let convertedThinking: any = undefined;
-      if (task.thinking && task.thinking.hasThinking) {
-        convertedThinking = {
-          hasThinking: task.thinking.hasThinking,
-          thinkingContent: task.thinking.thinkingContent || "",
-          finalOutput: task.output || "", // Use task output as final output
-          summary: task.thinking.summary || "",
-          insights: task.thinking.insights || [],
+      // Create sub-steps from agent tasks
+      const subSteps = tasks.map((task, taskIndex) => {
+        // Convert stored thinking format to AgentThinking format if it exists
+        let convertedThinking: any = undefined;
+        if (task.thinking && task.thinking.hasThinking) {
+          convertedThinking = {
+            hasThinking: task.thinking.hasThinking,
+            thinkingContent: task.thinking.thinkingContent || "",
+            finalOutput: task.output || "", // Use task output as final output
+            summary: task.thinking.summary || "",
+            insights: task.thinking.insights || [],
+          };
+        }
+
+        // Get latest progress info from progressHistory if available
+        const latestProgress =
+          task.progressHistory && task.progressHistory.length > 0
+            ? task.progressHistory[task.progressHistory.length - 1]
+            : null;
+
+        return {
+          id: `${stepType}_${index}_task_${taskIndex}`,
+          agentName: task.agentName,
+          agentType: task.agentType as
+            | "query_planner"
+            | "data_inspector"
+            | "pattern_generator"
+            | "extraction"
+            | "synthesis",
+          status: task.status,
+          startTime: task.startTime,
+          endTime: task.endTime,
+          duration: task.duration,
+          input: {}, // Default empty input for stored tasks
+          output: task.output,
+          thinking: convertedThinking,
+          progress: task.progress,
+          stage: task.stage,
+          itemsProcessed: latestProgress?.itemsProcessed,
+          totalItems: latestProgress?.totalItems,
+          progressHistory: task.progressHistory,
+          error: task.error,
+          retryCount: task.retryCount,
+          metrics: task.metrics,
         };
-      }
-
-      // Get latest progress info from progressHistory if available
-      const latestProgress =
-        task.progressHistory && task.progressHistory.length > 0
-          ? task.progressHistory[task.progressHistory.length - 1]
-          : null;
+      });
 
       return {
-        id: `${stepType}_${index}_task_${taskIndex}`,
-        agentName: task.agentName,
-        agentType: task.agentType as
-          | "query_planner"
-          | "data_inspector"
-          | "pattern_generator"
-          | "extraction"
-          | "synthesis",
-        status: task.status,
-        startTime: task.startTime,
-        endTime: task.endTime,
-        duration: task.duration,
-        input: {}, // Default empty input for stored tasks
-        output: task.output,
-        thinking: convertedThinking,
-        progress: task.progress,
-        stage: task.stage,
-        itemsProcessed: latestProgress?.itemsProcessed,
-        totalItems: latestProgress?.totalItems,
-        progressHistory: task.progressHistory,
-        error: task.error,
-        retryCount: task.retryCount,
-        metrics: task.metrics,
+        id: `step_${stepType}_${index}`,
+        type: stepType as
+          | "analysis"
+          | "rag_search"
+          | "web_search"
+          | "synthesis"
+          | "verification",
+        status: stepStatus,
+        timestamp:
+          tasks.length > 0 ? tasks[0].startTime || Date.now() : Date.now(),
+        duration: totalDuration > 0 ? totalDuration : undefined,
+        reasoning: `Completed ${tasks.length} agent task${tasks.length !== 1 ? "s" : ""} in this step`,
+        subSteps,
+        sources: [],
+        results: tasks.map((task) => ({
+          summary: `${task.agentName} completed successfully`,
+          content: task.output,
+        })),
+        confidence:
+          tasks.length > 0
+            ? tasks.reduce(
+                (sum, task) => sum + (task.metrics?.confidence || 0.8),
+                0
+              ) / tasks.length
+            : undefined,
       };
-    });
+    }
+  );
 
-    return {
-      id: `step_${stepType}_${index}`,
-      type: stepType as
-        | "analysis"
-        | "rag_search"
-        | "web_search"
-        | "synthesis"
-        | "verification",
-      status: stepStatus,
-      timestamp:
-        tasks.length > 0 ? tasks[0].startTime || Date.now() : Date.now(),
-      duration: totalDuration > 0 ? totalDuration : undefined,
-      reasoning: `Completed ${tasks.length} agent task${tasks.length !== 1 ? "s" : ""} in this step`,
-      subSteps,
-      sources: [],
-      results: tasks.map((task) => ({
-        summary: `${task.agentName} completed successfully`,
-        content: task.output,
-      })),
-      confidence:
-        tasks.length > 0
-          ? tasks.reduce(
-              (sum, task) => sum + (task.metrics?.confidence || 0.8),
-              0
-            ) / tasks.length
-          : undefined,
-    };
+  console.log("✅ [convertAgentTasksToSteps] Conversion complete:", {
+    originalTaskCount: agentTasks.length,
+    finalStepCount: finalSteps.length,
+    stepsWithSubSteps: finalSteps.filter(
+      (s) => s.subSteps && s.subSteps.length > 0
+    ).length,
+    totalSubSteps: finalSteps.reduce(
+      (sum, s) => sum + (s.subSteps?.length || 0),
+      0
+    ),
+    subStepsWithTimeline: finalSteps.reduce(
+      (sum, s) =>
+        sum +
+        (s.subSteps?.filter(
+          (sub) => sub.progressHistory && sub.progressHistory.length > 0
+        ).length || 0),
+      0
+    ),
   });
+
+  return finalSteps;
 };
 
 // Research metadata component
@@ -557,9 +605,31 @@ export function ResearchHistoryViewer({
 
   // Convert agent tasks to research steps for display
   useEffect(() => {
+    console.log("🔍 [ResearchHistoryViewer] Processing research item:", {
+      title: researchItem.title,
+      hasAgentTasks: !!(
+        researchItem.agentTasks && researchItem.agentTasks.length > 0
+      ),
+      agentTasksCount: researchItem.agentTasks?.length || 0,
+      agentTasksWithTimeline:
+        researchItem.agentTasks?.filter(
+          (t) => t.progressHistory && t.progressHistory.length > 0
+        ).length || 0,
+      totalTimelineEntries:
+        researchItem.agentTasks?.reduce(
+          (sum, t) => sum + (t.progressHistory?.length || 0),
+          0
+        ) || 0,
+    });
+
     if (researchItem.agentTasks && researchItem.agentTasks.length > 0) {
       const steps = convertAgentTasksToSteps(researchItem.agentTasks);
       setResearchSteps(steps);
+    } else {
+      console.warn(
+        "⚠️ [ResearchHistoryViewer] No agent tasks found in research item"
+      );
+      setResearchSteps([]);
     }
   }, [researchItem]);
 
