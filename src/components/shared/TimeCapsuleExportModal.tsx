@@ -23,6 +23,7 @@ import {
   FileText,
   MessageSquare,
   Bot,
+  RefreshCw,
 } from "lucide-react";
 import { HierarchicalCheckbox } from "./HierarchicalCheckbox";
 import {
@@ -44,6 +45,7 @@ export function TimeCapsuleExportModal({
     buildTimeCapsuleData,
     exportTimeCapsules,
     createExportSelection,
+    refresh: refreshTimeCapsuleData,
     isExporting,
     exportProgress,
     error,
@@ -70,6 +72,14 @@ export function TimeCapsuleExportModal({
   const loadTimeCapsuleData = useCallback(async () => {
     try {
       setIsLoading(true);
+      // Clear existing data to ensure fresh load
+      setTimeCapsules([]);
+      setSelection({ timeCapsules: {} });
+
+      // Force refresh of all data sources (research history, vector store, etc.)
+      console.log("🔄 [Export Modal] Refreshing all data sources...");
+      await refreshTimeCapsuleData();
+
       const data = await buildTimeCapsuleData();
       setTimeCapsules(data);
 
@@ -82,7 +92,7 @@ export function TimeCapsuleExportModal({
     } finally {
       setIsLoading(false);
     }
-  }, [buildTimeCapsuleData, createExportSelection]);
+  }, [buildTimeCapsuleData, createExportSelection, refreshTimeCapsuleData]);
 
   const calculateExportStats = useCallback(() => {
     let totalItems = 0;
@@ -156,7 +166,12 @@ export function TimeCapsuleExportModal({
   // Load TimeCapsule data when modal opens
   useEffect(() => {
     if (open) {
+      // Always load fresh data when modal opens
       loadTimeCapsuleData();
+    } else {
+      // Reset state when modal closes
+      setTimeCapsules([]);
+      setSelection({ timeCapsules: {} });
     }
   }, [open, loadTimeCapsuleData]);
 
@@ -187,10 +202,25 @@ export function TimeCapsuleExportModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            Export TimeCapsule
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Export TimeCapsule
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadTimeCapsuleData}
+              disabled={isLoading || isExporting}
+              className="flex items-center gap-2"
+              title="Refresh TimeCapsule data"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+              />
+              {isLoading ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
           <DialogDescription>
             Select the TimeCapsule data you want to export. You can choose
             specific documents, research sessions, and AI frames from different
@@ -204,7 +234,8 @@ export function TimeCapsuleExportModal({
               <div className="text-center">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  Loading TimeCapsule data...
+                  {timeCapsules.length > 0 ? "Refreshing" : "Loading"}{" "}
+                  TimeCapsule data...
                 </p>
               </div>
             </div>

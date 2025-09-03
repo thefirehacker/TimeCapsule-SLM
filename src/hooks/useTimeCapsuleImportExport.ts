@@ -157,6 +157,7 @@ export interface ImportExportOperations {
   // Utility operations
   createExportSelection: (timeCapsules: TimeCapsule[]) => ExportSelection;
   validateImportData: (data: any) => boolean;
+  refresh: () => Promise<void>;
 
   // State
   isExporting: boolean;
@@ -168,7 +169,7 @@ export interface ImportExportOperations {
 
 export function useTimeCapsuleImportExport(): ImportExportOperations {
   const { vectorStore } = useVectorStore();
-  const { history: researchHistory, addResearch } = useResearchHistory();
+  const { history: researchHistory, addResearch, refresh: refreshResearchHistory } = useResearchHistory();
 
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -180,6 +181,10 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
   const buildTimeCapsuleData = useCallback(async (): Promise<TimeCapsule[]> => {
     try {
       setError(null);
+
+      // Force refresh of research history to get latest data from IndexedDB
+      console.log("🔄 [Export] Refreshing research history from IndexedDB...");
+      await refreshResearchHistory();
 
       // Get documents from vector store
       const documents: TimeCapsuleDocument[] = [];
@@ -386,7 +391,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
       );
       return [];
     }
-  }, [vectorStore, researchHistory]);
+  }, [vectorStore, researchHistory, refreshResearchHistory]);
 
   // Create initial export selection
   const createExportSelection = useCallback(
@@ -1119,6 +1124,13 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
     [processImportedData]
   );
 
+  // Refresh function to force reload of all data sources
+  const refresh = useCallback(async () => {
+    console.log("🔄 [TimeCapsule] Refreshing all data sources...");
+    await refreshResearchHistory();
+    // Note: Vector store will be refreshed automatically when buildTimeCapsuleData is called
+  }, [refreshResearchHistory]);
+
   return {
     // Export operations
     exportTimeCapsules,
@@ -1131,6 +1143,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
     // Utility operations
     createExportSelection,
     validateImportData,
+    refresh,
 
     // State
     isExporting,
