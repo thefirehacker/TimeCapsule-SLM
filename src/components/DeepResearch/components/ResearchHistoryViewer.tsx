@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { ResearchHistoryItem, ResearchAgentTask } from "@/lib/indexeddb";
+import { useResearchHistory } from "@/hooks/useResearchHistory";
 import { PerplexityStyleResearch } from "./PerplexityStyleResearch";
 import { ResearchStep } from "./ResearchSteps";
 import {
@@ -31,6 +33,10 @@ import {
   Copy,
   Download,
   Sparkles,
+  Edit2,
+  Save,
+  X,
+  Loader2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -603,6 +609,73 @@ export function ResearchHistoryViewer({
 }: ResearchHistoryViewerProps) {
   const [researchSteps, setResearchSteps] = useState<ResearchStep[]>([]);
 
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(researchItem.title);
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+
+  // Research history hook for updating
+  const { updateResearch } = useResearchHistory();
+
+  // Title editing handlers
+  const handleStartEditTitle = () => {
+    setIsEditingTitle(true);
+    setEditedTitle(researchItem.title);
+  };
+
+  const handleCancelEditTitle = () => {
+    setIsEditingTitle(false);
+    setEditedTitle(researchItem.title);
+  };
+
+  const handleSaveTitle = async () => {
+    const trimmedTitle = editedTitle.trim();
+    if (!trimmedTitle || trimmedTitle === researchItem.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    try {
+      setIsSavingTitle(true);
+      console.log("💾 [ResearchHistoryViewer] Updating title:", {
+        id: researchItem.id,
+        oldTitle: researchItem.title,
+        newTitle: trimmedTitle,
+      });
+
+      await updateResearch(researchItem.id, { title: trimmedTitle });
+
+      // Update local state to reflect the change immediately
+      researchItem.title = trimmedTitle;
+      setIsEditingTitle(false);
+
+      console.log("✅ [ResearchHistoryViewer] Title updated successfully");
+    } catch (error) {
+      console.error(
+        "❌ [ResearchHistoryViewer] Failed to update title:",
+        error
+      );
+      // Reset to original title on error
+      setEditedTitle(researchItem.title);
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
+
+  const handleTitleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveTitle();
+    } else if (e.key === "Escape") {
+      handleCancelEditTitle();
+    }
+  };
+
+  // Update edited title when research item changes
+  useEffect(() => {
+    setEditedTitle(researchItem.title);
+    setIsEditingTitle(false);
+  }, [researchItem.id, researchItem.title]);
+
   // Convert agent tasks to research steps for display
   useEffect(() => {
     console.log("🔍 [ResearchHistoryViewer] Processing research item:", {
@@ -642,11 +715,65 @@ export function ResearchHistoryViewer({
       {/* Header */}
       <div className="flex-shrink-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pb-4 mb-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                {researchItem.title}
-              </h1>
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex-1">
+              {/* Editable Title */}
+              <div className="flex items-center gap-3 mb-2">
+                {isEditingTitle ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      onKeyDown={handleTitleKeyPress}
+                      className="text-2xl font-bold bg-background border-2 border-primary/50 focus:border-primary"
+                      placeholder="Enter research title..."
+                      disabled={isSavingTitle}
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSaveTitle}
+                        disabled={isSavingTitle || !editedTitle.trim()}
+                        className="h-9 px-3"
+                        title="Save title (Enter)"
+                      >
+                        {isSavingTitle ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEditTitle}
+                        disabled={isSavingTitle}
+                        className="h-9 px-3"
+                        title="Cancel editing (Escape)"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 flex-1">
+                    <h1 className="text-2xl font-bold text-foreground flex-1">
+                      {researchItem.title}
+                    </h1>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleStartEditTitle}
+                      className="h-9 px-3"
+                      title="Edit title"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
                 Research session from{" "}
                 {new Date(researchItem.createdAt).toLocaleDateString()}
