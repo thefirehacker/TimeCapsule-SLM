@@ -56,6 +56,7 @@ export function TimeCapsuleExportModal({
     timeCapsules: {},
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [exportStats, setExportStats] = useState({
     totalItems: 0,
     selectedItems: 0,
@@ -76,9 +77,16 @@ export function TimeCapsuleExportModal({
       setTimeCapsules([]);
       setSelection({ timeCapsules: {} });
 
-      // Force refresh of all data sources (research history, vector store, etc.)
-      console.log("🔄 [Export Modal] Refreshing all data sources...");
-      await refreshTimeCapsuleData();
+      // Only refresh data sources on first load to prevent infinite loops
+      if (!hasInitiallyLoaded) {
+        console.log(
+          "🔄 [Export Modal] Initial load - refreshing data sources..."
+        );
+        await refreshTimeCapsuleData();
+        setHasInitiallyLoaded(true);
+      } else {
+        console.log("🔄 [Export Modal] Reloading TimeCapsule data...");
+      }
 
       const data = await buildTimeCapsuleData();
       setTimeCapsules(data);
@@ -89,6 +97,35 @@ export function TimeCapsuleExportModal({
       }
     } catch (err) {
       console.error("Failed to load TimeCapsule data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    buildTimeCapsuleData,
+    createExportSelection,
+    refreshTimeCapsuleData,
+    hasInitiallyLoaded,
+  ]);
+
+  // Manual refresh function for the refresh button
+  const handleManualRefresh = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log("🔄 [Export Modal] Manual refresh triggered...");
+
+      // Force refresh of data sources
+      await refreshTimeCapsuleData();
+
+      // Reload data
+      const data = await buildTimeCapsuleData();
+      setTimeCapsules(data);
+
+      if (data.length > 0) {
+        const initialSelection = createExportSelection(data);
+        setSelection(initialSelection);
+      }
+    } catch (err) {
+      console.error("Failed to refresh TimeCapsule data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -166,12 +203,13 @@ export function TimeCapsuleExportModal({
   // Load TimeCapsule data when modal opens
   useEffect(() => {
     if (open) {
-      // Always load fresh data when modal opens
+      // Load data when modal opens
       loadTimeCapsuleData();
     } else {
       // Reset state when modal closes
       setTimeCapsules([]);
       setSelection({ timeCapsules: {} });
+      setHasInitiallyLoaded(false); // Reset for next time modal opens
     }
   }, [open, loadTimeCapsuleData]);
 
@@ -210,7 +248,7 @@ export function TimeCapsuleExportModal({
             <Button
               variant="outline"
               size="sm"
-              onClick={loadTimeCapsuleData}
+              onClick={handleManualRefresh}
               disabled={isLoading || isExporting}
               className="flex items-center gap-2"
               title="Refresh TimeCapsule data"

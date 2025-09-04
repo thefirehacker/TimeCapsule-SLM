@@ -169,7 +169,11 @@ export interface ImportExportOperations {
 
 export function useTimeCapsuleImportExport(): ImportExportOperations {
   const { vectorStore } = useVectorStore();
-  const { history: researchHistory, addResearch, refresh: refreshResearchHistory } = useResearchHistory();
+  const {
+    history: researchHistory,
+    addResearch,
+    refresh: refreshResearchHistory,
+  } = useResearchHistory();
 
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -177,14 +181,14 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
   const [importProgress, setImportProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Add state guards to prevent concurrent operations
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+
   // Build TimeCapsule data from current app state
   const buildTimeCapsuleData = useCallback(async (): Promise<TimeCapsule[]> => {
     try {
       setError(null);
-
-      // Force refresh of research history to get latest data from IndexedDB
-      console.log("🔄 [Export] Refreshing research history from IndexedDB...");
-      await refreshResearchHistory();
 
       // Get documents from vector store
       const documents: TimeCapsuleDocument[] = [];
@@ -391,7 +395,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
       );
       return [];
     }
-  }, [vectorStore, researchHistory, refreshResearchHistory]);
+  }, [vectorStore, researchHistory]);
 
   // Create initial export selection
   const createExportSelection = useCallback(
@@ -544,7 +548,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
             );
 
             const filteredDocuments = bubblSpace.documents.filter(
-                (doc) => bsSelection.documents[doc.id]
+              (doc) => bsSelection.documents[doc.id]
             );
             const filteredResearch = bubblSpace.research.filter((research) => {
               const isSelected = bsSelection.research[research.id];
@@ -554,7 +558,7 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
               return isSelected;
             });
             const filteredAIFrames = bubblSpace.aiFrames.filter(
-                (aiFrame) => bsSelection.aiFrames[aiFrame.id]
+              (aiFrame) => bsSelection.aiFrames[aiFrame.id]
             );
 
             const filteredBubblSpace: BubblSpace = {
@@ -1124,12 +1128,35 @@ export function useTimeCapsuleImportExport(): ImportExportOperations {
     [processImportedData]
   );
 
-  // Refresh function to force reload of all data sources
+  // Refresh function to force reload of all data sources with debouncing and guards
   const refresh = useCallback(async () => {
-    console.log("🔄 [TimeCapsule] Refreshing all data sources...");
-    await refreshResearchHistory();
+    const now = Date.now();
+    const DEBOUNCE_TIME = 1000; // 1 second debounce
+
+    // Prevent concurrent refreshes and debounce rapid calls
+    if (isRefreshing || now - lastRefreshTime < DEBOUNCE_TIME) {
+      console.log(
+        "⏭️ [TimeCapsule] Skipping refresh - already in progress or too recent"
+      );
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+      setLastRefreshTime(now);
+      console.log("🔄 [TimeCapsule] Refreshing research history data...");
+
+      await refreshResearchHistory();
+
+      console.log("✅ [TimeCapsule] Refresh completed successfully");
+    } catch (error) {
+      console.error("❌ [TimeCapsule] Refresh failed:", error);
+      setError(error instanceof Error ? error.message : "Refresh failed");
+    } finally {
+      setIsRefreshing(false);
+    }
     // Note: Vector store will be refreshed automatically when buildTimeCapsuleData is called
-  }, [refreshResearchHistory]);
+  }, [refreshResearchHistory, isRefreshing, lastRefreshTime]);
 
   return {
     // Export operations

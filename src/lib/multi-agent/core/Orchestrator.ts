@@ -382,10 +382,6 @@ export class Orchestrator {
    * This returns the proxy callback that routes calls through progressTracker
    */
   public createAgentProgressProxy(): AgentProgressCallback {
-    console.log(
-      `🔥 Creating agent progress proxy to route progress through progressTracker...`
-    );
-
     // Create a proxy callback that intercepts agent progress calls
     return {
       onAgentStart: (agentName: string, agentType: string, input: any) => {

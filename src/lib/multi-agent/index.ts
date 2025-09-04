@@ -121,9 +121,5 @@ export function createMultiAgentSystem(
   registry.register(new SynthesisAgent(llm, proxyCallback));
   registry.register(new ResponseFormatterAgent(llm, proxyCallback)); // Ensure direct question answering with good formatting
 
-  console.log(
-    "✅ Multi-agent system created with progress proxy for timeline recording"
-  );
-
   return orchestrator;
 }
