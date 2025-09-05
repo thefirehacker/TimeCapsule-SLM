@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ResearchStep, AgentSubStep, SourceReference } from "./ResearchSteps";
 import { useResearchContext } from "@/contexts/ResearchContext";
+import { RerunFeedbackModal } from "./RerunFeedbackModal";
+import type { UserFeedback } from "@/lib/multi-agent/interfaces/Feedback";
 import {
   Search,
   Globe,
@@ -363,6 +365,10 @@ interface PerplexityStyleResearchProps {
   isActive?: boolean;
   className?: string;
   onRerunAgent?: (agentName: string) => Promise<void>;
+  onRerunAgentWithFeedback?: (
+    agentName: string,
+    feedback: UserFeedback
+  ) => Promise<void>;
 }
 
 interface StepCardProps {
@@ -370,6 +376,10 @@ interface StepCardProps {
   stepNumber: number;
   isLast: boolean;
   onRerunAgent?: (agentName: string) => Promise<void>;
+  onRerunAgentWithFeedback?: (
+    agentName: string,
+    feedback: UserFeedback
+  ) => Promise<void>;
 }
 
 const StepIcons = {
@@ -545,14 +555,20 @@ function SourcesSection({ sources }: { sources: SourceReference[] }) {
 function AgentSubStepInline({
   subStep,
   onRerunAgent,
+  onRerunAgentWithFeedback,
 }: {
   subStep: AgentSubStep;
   onRerunAgent?: (agentName: string) => Promise<void>;
+  onRerunAgentWithFeedback?: (
+    agentName: string,
+    feedback: UserFeedback
+  ) => Promise<void>;
 }) {
   const [showThinking, setShowThinking] = useState(false);
   const [showProgressHistory, setShowProgressHistory] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showRerunModal, setShowRerunModal] = useState(false);
 
   // Use enhanced agent display info
   const agentInfo = getAgentDisplayInfo(subStep.agentName);
@@ -718,16 +734,16 @@ function AgentSubStepInline({
                   </Button>
                 )}
 
-                {/* Rerun Button */}
-                {onRerunAgent &&
+                {/* Rerun Button - Updated to show feedback modal */}
+                {(onRerunAgent || onRerunAgentWithFeedback) &&
                   (subStep.status === "completed" ||
                     subStep.status === "failed") && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onRerunAgent(subStep.agentName)}
+                      onClick={() => setShowRerunModal(true)}
                       className="h-8 px-3 text-xs"
-                      title={`Rerun ${displayName}`}
+                      title={`Rerun ${displayName} with feedback`}
                     >
                       <RotateCcw className="w-3 h-3 mr-1" />
                       Rerun
@@ -1247,11 +1263,38 @@ function AgentSubStepInline({
         isOpen={showSummaryModal}
         onClose={() => setShowSummaryModal(false)}
       />
+
+      {/* Rerun Feedback Modal */}
+      <RerunFeedbackModal
+        isOpen={showRerunModal}
+        onClose={() => setShowRerunModal(false)}
+        onRerun={async (agentName: string, feedback: UserFeedback) => {
+          try {
+            if (onRerunAgentWithFeedback) {
+              await onRerunAgentWithFeedback(agentName, feedback);
+            } else if (onRerunAgent) {
+              // Fallback to legacy rerun for compatibility
+              await onRerunAgent(agentName);
+            }
+          } catch (error) {
+            console.error("Failed to rerun agent:", error);
+            throw error;
+          }
+        }}
+        agentName={subStep.agentName}
+        agentStep={subStep}
+      />
     </>
   );
 }
 
-function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
+function StepCard({
+  step,
+  stepNumber,
+  isLast,
+  onRerunAgent,
+  onRerunAgentWithFeedback,
+}: StepCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const IconComponent = StepIcons[step.type] || Search;
 
@@ -1495,6 +1538,7 @@ function StepCard({ step, stepNumber, isLast, onRerunAgent }: StepCardProps) {
                           key={`agent-${subStep.agentName}-${subStep.startTime}`}
                           subStep={subStep}
                           onRerunAgent={onRerunAgent}
+                          onRerunAgentWithFeedback={onRerunAgentWithFeedback}
                         />
                       ))}
                   </div>
@@ -1532,6 +1576,7 @@ export function PerplexityStyleResearch({
   isActive: propIsActive,
   className = "",
   onRerunAgent,
+  onRerunAgentWithFeedback,
 }: PerplexityStyleResearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrollTimeRef = useRef<number>(0);
@@ -1800,6 +1845,7 @@ export function PerplexityStyleResearch({
             stepNumber={index + 1}
             isLast={index === steps.length - 1}
             onRerunAgent={onRerunAgent}
+            onRerunAgentWithFeedback={onRerunAgentWithFeedback}
           />
         ))}
       </div>

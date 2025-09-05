@@ -98,7 +98,7 @@ export class Orchestrator {
     // Build pipeline progress visualization
     const pipelineProgress: string[] = [];
     let nextStep: any = null;
-    let remainingSteps: string[] = [];
+    const remainingSteps: string[] = [];
 
     for (const step of executionPlan.steps) {
       const agentName = this.normalizeToolName(step.agent);
@@ -4033,6 +4033,293 @@ Assess based purely on query needs:`;
       console.warn(`⚠️ Failed to expand chunks:`, error);
       // Continue with existing chunks if expansion fails
     }
+  }
+
+  /**
+   * 🔄 Rerun specific agent with user feedback and all subsequent agents
+   * This method allows users to correct agent behavior and rerun from that point
+   */
+  async rerunAgentWithFeedback(
+    agentName: string,
+    userFeedback: UserFeedback,
+    query: string
+  ): Promise<string> {
+    console.log(`🔄 Rerunning agent ${agentName} with user feedback:`, {
+      issue: userFeedback.issue,
+      correction: userFeedback.correction,
+      severity: userFeedback.severity,
+      correctionType: userFeedback.correctionType,
+    });
+
+    // Reset orchestrator state for rerun
+    this.resetForRerun(agentName);
+
+    // Create a new research context with feedback metadata
+    const context = createInitialContext(query, []);
+    context.rerunMetadata = {
+      isRerun: true,
+      previousRunId: `rerun_${Date.now()}`,
+      userFeedback: userFeedback,
+      correctionInstructions:
+        await this.generateCorrectionInstructions(userFeedback),
+      excludedResults: userFeedback.affectedItems || [],
+      timestamp: Date.now(),
+      attemptNumber: 1,
+    };
+
+    // Get the agent execution order to know which agents to run after the target agent
+    const executionOrder = this.getAgentExecutionOrder();
+    const targetAgentIndex = executionOrder.findIndex(
+      (name) => name === agentName
+    );
+
+    if (targetAgentIndex === -1) {
+      throw new Error(`Agent ${agentName} not found in execution order`);
+    }
+
+    console.log(
+      `🎯 Found ${agentName} at index ${targetAgentIndex}. Will rerun ${executionOrder.length - targetAgentIndex} agents.`
+    );
+
+    // Restore context up to the target agent (from previous execution)
+    await this.restoreContextUpToAgent(context, agentName);
+
+    // Execute agents starting from the target agent
+    const agentsToRerun = executionOrder.slice(targetAgentIndex);
+    console.log(`🚀 Rerunning agents: ${agentsToRerun.join(" → ")}`);
+
+    for (const currentAgentName of agentsToRerun) {
+      // Skip if this agent should not be activated
+      const agent = this.registry.get(currentAgentName);
+      if (!agent) {
+        console.warn(
+          `⚠️ Agent ${currentAgentName} not found in registry, skipping`
+        );
+        continue;
+      }
+
+      const shouldActivate = await agent.shouldActivate(context);
+      if (!shouldActivate) {
+        console.log(
+          `⏭️ Agent ${currentAgentName} chose not to activate, skipping`
+        );
+        continue;
+      }
+
+      try {
+        console.log(
+          `🎯 Processing ${currentAgentName} with${currentAgentName === agentName ? " feedback corrections" : "out feedback"}`
+        );
+
+        // Track agent start
+        await this.progressTracker.startAgent(
+          currentAgentName,
+          currentAgentName,
+          context
+        );
+
+        // Process the agent - feedback will be automatically applied if it's a FeedbackAwareAgent
+        const updatedContext = await agent.process(context);
+        context.sharedKnowledge = updatedContext.sharedKnowledge;
+        context.ragResults = updatedContext.ragResults;
+        context.documentAnalysis = updatedContext.documentAnalysis;
+        context.patterns = updatedContext.patterns;
+        context.extractedData = updatedContext.extractedData;
+        context.synthesis = updatedContext.synthesis;
+
+        // Mark agent as completed
+        this.calledAgents.add(currentAgentName);
+        await this.progressTracker.completeAgent(currentAgentName, context);
+
+        console.log(`✅ ${currentAgentName} completed successfully in rerun`);
+      } catch (error) {
+        console.error(
+          `❌ Agent ${currentAgentName} failed during rerun:`,
+          error
+        );
+        await this.progressTracker.errorAgent(
+          currentAgentName,
+          error instanceof Error ? error.message : String(error)
+        );
+
+        // Depending on the error handling strategy, we might want to continue or stop
+        // For now, let's continue with other agents but log the error
+        context.sharedKnowledge = context.sharedKnowledge || {
+          documentInsights: {},
+          extractionStrategies: {},
+          discoveredPatterns: {},
+          agentFindings: {},
+        };
+        context.sharedKnowledge.agentFindings[`${currentAgentName}_error`] = {
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: Date.now(),
+          status: "failed",
+        };
+      }
+    }
+
+    // Generate final response
+    const finalResponse =
+      context.synthesis?.answer ||
+      context.sharedKnowledge?.agentFindings?.response ||
+      "Research completed with corrections applied.";
+
+    console.log(
+      `✅ Agent rerun completed. Processed ${agentsToRerun.length} agents with user feedback.`
+    );
+    return finalResponse;
+  }
+
+  /**
+   * Reset orchestrator state for rerun from specific agent
+   */
+  private resetForRerun(fromAgentName: string): void {
+    const executionOrder = this.getAgentExecutionOrder();
+    const fromIndex = executionOrder.findIndex(
+      (name) => name === fromAgentName
+    );
+
+    if (fromIndex === -1) return;
+
+    // Clear state for agents from the target agent onwards
+    const agentsToClear = executionOrder.slice(fromIndex);
+
+    agentsToClear.forEach((agentName) => {
+      this.calledAgents.delete(agentName);
+      this.agentResults.delete(agentName);
+      this.agentInputSignatures.delete(agentName);
+      this.agentRerunCount.delete(agentName);
+      this.retryingAgents.delete(agentName);
+      this.runningAgents.delete(agentName);
+    });
+
+    console.log(
+      `🧹 Cleared state for ${agentsToClear.length} agents: ${agentsToClear.join(", ")}`
+    );
+  }
+
+  /**
+   * Get the standard agent execution order
+   */
+  private getAgentExecutionOrder(): string[] {
+    // This should match the typical execution order in your multi-agent system
+    return [
+      "DataInspector",
+      "PatternGenerator",
+      "Extractor",
+      "WebSearchAgent", // May not always be present
+      "SynthesisCoordinator",
+      "ResponseFormatter",
+    ].filter((agentName) => this.registry.has(agentName));
+  }
+
+  /**
+   * Restore context up to (but not including) the target agent
+   */
+  private async restoreContextUpToAgent(
+    context: ResearchContext,
+    targetAgentName: string
+  ): Promise<void> {
+    // In a real implementation, you might want to restore previous execution state
+    // For now, we'll start with a fresh context and let agents rebuild state
+    console.log(`🔄 Restoring context up to ${targetAgentName}`);
+
+    // Initialize basic RAG search to populate context
+    if (this.vectorStore && context.query) {
+      try {
+        const searchResults = await this.vectorStore.searchSimilar(
+          context.query,
+          0.1, // threshold
+          20, // limit
+          {
+            agentId: "rerun_context_restore",
+            sessionId: `rerun_${Date.now()}`,
+            queryType: "agent_rag" as const,
+            documentTypes: ["userdocs"],
+          }
+        );
+
+        context.ragResults = {
+          chunks: searchResults.map((result) => ({
+            id: result.chunk.id,
+            text: result.chunk.content,
+            source: result.document.metadata?.filename || result.document.title,
+            similarity: result.similarity,
+            metadata: result.document.metadata,
+            sourceDocument: result.document.title,
+            sourceType: "rag" as const,
+          })),
+          summary: `Restored ${searchResults.length} chunks for rerun context`,
+        };
+
+        console.log(
+          `📚 Restored RAG context with ${searchResults.length} chunks`
+        );
+      } catch (error) {
+        console.warn(`⚠️ Failed to restore RAG context:`, error);
+      }
+    }
+  }
+
+  /**
+   * Generate correction instructions from user feedback
+   */
+  private async generateCorrectionInstructions(
+    feedback: UserFeedback
+  ): Promise<string[]> {
+    const instructions: string[] = [];
+
+    // Add basic feedback
+    instructions.push(`User Issue: ${feedback.issue}`);
+    instructions.push(`Required Correction: ${feedback.correction}`);
+
+    // Add severity-based instructions
+    if (feedback.severity === "major") {
+      instructions.push(
+        "CRITICAL: Apply strict validation and double-check all outputs"
+      );
+      instructions.push(
+        "ERROR SEVERITY: HIGH - Previous output had significant issues"
+      );
+    } else {
+      instructions.push(
+        "MINOR: Apply standard corrections with attention to detail"
+      );
+    }
+
+    // Add type-specific instructions
+    switch (feedback.correctionType) {
+      case "classification":
+        instructions.push("FOCUS: Re-evaluate all classification decisions");
+        instructions.push("GUIDANCE: Apply stricter relevance criteria");
+        break;
+      case "extraction":
+        instructions.push("FOCUS: Improve data extraction accuracy");
+        instructions.push("GUIDANCE: Validate all extracted information");
+        break;
+      case "filtering":
+        instructions.push("FOCUS: Adjust document filtering criteria");
+        instructions.push("GUIDANCE: Review inclusion/exclusion rules");
+        break;
+      case "analysis":
+        instructions.push("FOCUS: Reconsider analytical approach");
+        instructions.push(
+          "GUIDANCE: Apply corrected interpretation methodology"
+        );
+        break;
+    }
+
+    // Add specific instructions if provided
+    if (feedback.specificInstructions) {
+      instructions.push(`SPECIFIC GUIDANCE: ${feedback.specificInstructions}`);
+    }
+
+    // Add additional context if provided
+    if (feedback.additionalContext) {
+      instructions.push(`ADDITIONAL CONTEXT: ${feedback.additionalContext}`);
+    }
+
+    return instructions;
   }
 
   // 🗑️ OLD METHODS: No longer needed with Master LLM Orchestrator

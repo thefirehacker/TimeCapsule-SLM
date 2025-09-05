@@ -140,6 +140,10 @@ export interface UseResearchReturn {
   clearResearchSteps: () => void;
   rerunSynthesis: () => Promise<void>;
   rerunSpecificAgent: (agentName: string) => Promise<void>;
+  rerunSpecificAgentWithFeedback: (
+    agentName: string,
+    userFeedback: import("@/lib/multi-agent/interfaces/Feedback").UserFeedback
+  ) => Promise<void>;
   stopResearch: () => void;
 }
 
@@ -1671,17 +1675,16 @@ export function useResearch(
     }
   }, [prompt, isAIReady, researchOrchestrator]);
 
-  // Rerun specific agent function - targeted agent execution with context preservation
-  const rerunSpecificAgent = useCallback(
-    async (agentName: string) => {
-      // Debug validation values
-      console.log(`🔍 Rerun ${agentName} validation:`, {
-        prompt: prompt,
-        promptTrimmed: prompt.trim(),
-        promptLength: prompt.length,
-        isAIReady: isAIReady,
-        hasResearchResult: !!researchResult,
-        researchQuery: researchResult?.query,
+  // Rerun specific agent function with feedback support
+  const rerunSpecificAgentWithFeedback = useCallback(
+    async (
+      agentName: string,
+      userFeedback: import("@/lib/multi-agent/interfaces/Feedback").UserFeedback
+    ) => {
+      console.log(`🔍 Rerun ${agentName} with feedback:`, {
+        issue: userFeedback.issue,
+        correction: userFeedback.correction,
+        severity: userFeedback.severity,
       });
 
       // Try to use original query from researchResult if current prompt is empty
@@ -1690,64 +1693,93 @@ export function useResearch(
       if (!queryToUse || !isAIReady) {
         console.warn(
           `⚠️ Cannot rerun ${agentName}: missing query or AI not ready`,
-          {
-            queryToUse,
-            isAIReady,
-            promptAvailable: !!prompt.trim(),
-            researchQueryAvailable: !!researchResult?.query,
-          }
+          { queryToUse, isAIReady }
         );
-        return;
+        throw new Error("Cannot rerun agent: missing query or AI not ready");
+      }
+
+      if (!researchOrchestrator) {
+        throw new Error("Research orchestrator not available");
       }
 
       setIsGenerating(true);
       setIsStreaming(true);
-      setThinkingOutput(`🔄 Rerunning ${agentName}...`);
+      setThinkingOutput(`🔄 Rerunning ${agentName} with user feedback...`);
 
       try {
         console.log(
-          `🔄 Rerunning specific agent: ${agentName} for query:`,
+          `🔄 Rerunning specific agent: ${agentName} for query: ${queryToUse}`
+        );
+
+        // Use the new rerunAgentWithFeedback method
+        const result = await researchOrchestrator.rerunAgentWithFeedback(
+          agentName,
+          userFeedback,
           queryToUse
         );
 
-        // For now, just rerun the entire research since rerunSpecificAgent doesn't exist yet
-        if (!researchOrchestrator) {
-          throw new Error("Research orchestrator not available");
-        }
-        const result = await researchOrchestrator.research(queryToUse);
-
-        // Create a formatted result object
-        const formattedResult = {
-          finalAnswer: result,
-          confidence: 1.0,
-        };
-
-        setResearchResult(formattedResult);
+        // Update results
         setResults(result);
         setThinkingOutput(
-          `✅ ${agentName} rerun completed: ${Math.round(formattedResult.confidence * 100)}% confidence`
+          `✅ ${agentName} rerun completed with corrections applied`
         );
 
-        console.log(`✅ ${agentName} rerun successful:`, {
-          confidence: formattedResult.confidence,
-          answerLength: result.length,
-        });
+        // Update research result
+        const formattedResult = {
+          finalAnswer: result,
+          confidence: 0.9, // Slightly lower confidence due to corrections
+          agentRerun: {
+            agentName,
+            feedback: userFeedback,
+            timestamp: Date.now(),
+          },
+        };
+        setResearchResult(formattedResult);
+
+        console.log(`✅ ${agentName} rerun successful with feedback applied`);
       } catch (error) {
         console.error(`❌ ${agentName} rerun failed:`, error);
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+          error instanceof Error ? error.message : String(error);
         setResults(
-          `${agentName} rerun failed: ${errorMessage}\n\nPlease check the logs and try again.`
+          `${agentName} rerun failed: ${errorMessage}\n\nPlease check your feedback and try again.`
         );
         setThinkingOutput(
           `❌ ${agentName} rerun failed. Check console for details.`
         );
+        throw error;
       } finally {
         setIsGenerating(false);
         setIsStreaming(false);
       }
     },
     [prompt, isAIReady, researchOrchestrator, researchResult]
+  );
+
+  // Legacy rerun function - now delegates to feedback version with default feedback
+  const rerunSpecificAgent = useCallback(
+    async (agentName: string) => {
+      console.log(
+        `🔄 Legacy rerun called for ${agentName} - using default feedback`
+      );
+
+      // Create default feedback for legacy calls
+      const defaultFeedback: import("@/lib/multi-agent/interfaces/Feedback").UserFeedback =
+        {
+          issue: "Agent needs to be rerun with improved processing",
+          correction:
+            "Please review and improve the analysis with more attention to accuracy",
+          severity: "minor" as const,
+          correctionType: "analysis" as const,
+          affectedItems: [],
+          specificInstructions:
+            "Apply general improvements to processing logic",
+          additionalContext: "Legacy rerun - no specific feedback provided",
+        };
+
+      return rerunSpecificAgentWithFeedback(agentName, defaultFeedback);
+    },
+    [rerunSpecificAgentWithFeedback]
   );
 
   // Stop research function - cancels ongoing research
@@ -1811,6 +1843,7 @@ export function useResearch(
     clearResearchSteps,
     rerunSynthesis,
     rerunSpecificAgent,
+    rerunSpecificAgentWithFeedback,
     stopResearch,
   };
 }
