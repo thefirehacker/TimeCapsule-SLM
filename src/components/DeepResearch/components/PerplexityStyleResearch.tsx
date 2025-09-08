@@ -380,6 +380,7 @@ interface StepCardProps {
     agentName: string,
     feedback: UserFeedback
   ) => Promise<void>;
+  originalQuery?: string;
 }
 
 const StepIcons = {
@@ -556,6 +557,7 @@ function AgentSubStepInline({
   subStep,
   onRerunAgent,
   onRerunAgentWithFeedback,
+  originalQuery,
 }: {
   subStep: AgentSubStep;
   onRerunAgent?: (agentName: string) => Promise<void>;
@@ -563,6 +565,7 @@ function AgentSubStepInline({
     agentName: string,
     feedback: UserFeedback
   ) => Promise<void>;
+  originalQuery?: string;
 }) {
   const [showThinking, setShowThinking] = useState(false);
   const [showProgressHistory, setShowProgressHistory] = useState(false);
@@ -1283,6 +1286,7 @@ function AgentSubStepInline({
         }}
         agentName={subStep.agentName}
         agentStep={subStep}
+        originalQuery={originalQuery}
       />
     </>
   );
@@ -1294,6 +1298,7 @@ function StepCard({
   isLast,
   onRerunAgent,
   onRerunAgentWithFeedback,
+  originalQuery,
 }: StepCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const IconComponent = StepIcons[step.type] || Search;
@@ -1539,6 +1544,7 @@ function StepCard({
                           subStep={subStep}
                           onRerunAgent={onRerunAgent}
                           onRerunAgentWithFeedback={onRerunAgentWithFeedback}
+                          originalQuery={originalQuery}
                         />
                       ))}
                   </div>
@@ -1597,6 +1603,19 @@ export function PerplexityStyleResearch({
     return contextSteps.length > 0 ? contextSteps : propSteps || [];
   }, [contextSteps, propSteps]);
   const isActive = contextIsActive || propIsActive || false;
+
+  // Extract original query from steps for rerun context
+  const originalQuery = useMemo(() => {
+    // Check main research step first
+    const mainStep = steps.find((step) => step.id === "multi_agent_research");
+    if (mainStep?.query) return mainStep.query;
+
+    // Check any step with query
+    const stepWithQuery = steps.find((step) => step.query);
+    if (stepWithQuery?.query) return stepWithQuery.query;
+
+    return undefined;
+  }, [steps]);
 
   // Auto-complete session when research finishes
   useEffect(() => {
@@ -1846,6 +1865,7 @@ export function PerplexityStyleResearch({
             isLast={index === steps.length - 1}
             onRerunAgent={onRerunAgent}
             onRerunAgentWithFeedback={onRerunAgentWithFeedback}
+            originalQuery={originalQuery}
           />
         ))}
       </div>

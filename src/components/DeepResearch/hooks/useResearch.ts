@@ -148,9 +148,12 @@ export interface UseResearchReturn {
 }
 
 export function useResearch(
-  vectorStore: VectorStore | null
+  vectorStore: VectorStore | null,
+  researchNavigation?: any // Add access to research navigation for loaded sessions
 ): UseResearchReturn {
   const [prompt, setPrompt] = useState("");
+  const [originalResearchQuery, setOriginalResearchQuery] =
+    useState<string>(""); // Store original query for reruns
   const [researchConfig, setResearchConfig] = useState<ResearchConfig>({
     type: "deep-research",
     depth: "detailed",
@@ -915,6 +918,7 @@ export function useResearch(
   const clearResults = useCallback(() => {
     setResults("");
     setPrompt("");
+    setOriginalResearchQuery(""); // Clear stored query
     setThinkingOutput("");
     setIsStreaming(false);
     clearRAGContext();
@@ -1414,6 +1418,10 @@ export function useResearch(
         return;
       }
 
+      // Store original query for rerun functionality
+      setOriginalResearchQuery(query);
+      console.log(`📝 Stored original research query for reruns: "${query}"`);
+
       // Clear previous results immediately when starting new research
       setResults("");
       setResearchResult(null);
@@ -1485,6 +1493,9 @@ export function useResearch(
           // 🔥 NEW: Include complete research context for storage
           researchContext: orchestratorContext,
           agentTasks: agentSubSteps || [],
+          // 🔥 CRITICAL: Store original query for rerun functionality
+          originalQuery: query,
+          query: query, // Store both for compatibility
         };
 
         setResearchResult(formattedResult);
@@ -1687,15 +1698,86 @@ export function useResearch(
         severity: userFeedback.severity,
       });
 
-      // Try to use original query from researchResult if current prompt is empty
-      const queryToUse = prompt.trim() || researchResult?.query || "";
+      // Enhanced query resolution - check multiple sources
+      let queryToUse = prompt.trim(); // Current prompt input
+
+      // Fallback 1: Check stored original research query
+      if (!queryToUse && originalResearchQuery) {
+        queryToUse = originalResearchQuery;
+        console.log(`🔍 Found query in stored original: "${queryToUse}"`);
+      }
+
+      // Fallback 2: Check main research step for stored query
+      if (!queryToUse) {
+        const mainStep = researchStepsState.steps.find(
+          (step) => step.id === "multi_agent_research"
+        );
+        queryToUse = mainStep?.query || "";
+        console.log(`🔍 Found query in main step: "${queryToUse}"`);
+      }
+
+      // Fallback 2: Check any research step for query
+      if (!queryToUse) {
+        const stepWithQuery = researchStepsState.steps.find(
+          (step) => step.query
+        );
+        queryToUse = stepWithQuery?.query || "";
+        console.log(`🔍 Found query in step: "${queryToUse}"`);
+      }
+
+      // Fallback 3: Check research result for query information
+      if (!queryToUse && researchResult) {
+        queryToUse = researchResult.query || researchResult.originalQuery || "";
+        console.log(`🔍 Found query in researchResult: "${queryToUse}"`);
+      }
+
+      // Fallback 4: Check if we have a loaded research session from navigation
+      if (!queryToUse && researchNavigation?.loadedResearchSession) {
+        queryToUse =
+          researchNavigation.loadedResearchSession.item.originalPrompt ||
+          researchNavigation.loadedResearchSession.item.title ||
+          "";
+        console.log(`🔍 Found query in loaded session: "${queryToUse}"`);
+      }
+
+      // Fallback 5: Check if we have a current research session with query
+      if (!queryToUse && historySessionIdRef.current) {
+        try {
+          const session = await history.getResearch(
+            historySessionIdRef.current
+          );
+          queryToUse = session?.originalPrompt || "";
+          console.log(`🔍 Found query in current session: "${queryToUse}"`);
+        } catch (error) {
+          console.warn("Could not get current session for query", error);
+        }
+      }
+
+      const debugInfo = {
+        prompt: prompt.trim(),
+        fromSteps:
+          researchStepsState.steps.find((s) => s.query)?.query || "none",
+        fromResult:
+          researchResult?.query || researchResult?.originalQuery || "none",
+        fromNavigation:
+          researchNavigation?.loadedResearchSession?.item?.originalPrompt ||
+          "none",
+        stepsCount: researchStepsState.steps.length,
+        finalQueryToUse: queryToUse,
+        isAIReady,
+      };
+
+      console.log(`🎯 Final query resolution:`, debugInfo);
 
       if (!queryToUse || !isAIReady) {
-        console.warn(
-          `⚠️ Cannot rerun ${agentName}: missing query or AI not ready`,
-          { queryToUse, isAIReady }
+        const errorDetails = !queryToUse
+          ? `Query resolution failed. Checked sources: prompt="${debugInfo.prompt}", steps="${debugInfo.fromSteps}", result="${debugInfo.fromResult}", navigation="${debugInfo.fromNavigation}"`
+          : "AI not ready";
+        console.error(
+          `⚠️ Cannot rerun ${agentName}: ${errorDetails}`,
+          debugInfo
         );
-        throw new Error("Cannot rerun agent: missing query or AI not ready");
+        throw new Error(`Cannot rerun agent: ${errorDetails}`);
       }
 
       if (!researchOrchestrator) {
@@ -1753,7 +1835,17 @@ export function useResearch(
         setIsStreaming(false);
       }
     },
-    [prompt, isAIReady, researchOrchestrator, researchResult]
+    [
+      prompt,
+      originalResearchQuery,
+      isAIReady,
+      researchOrchestrator,
+      researchResult,
+      researchStepsState.steps,
+      history,
+      historySessionIdRef,
+      researchNavigation,
+    ]
   );
 
   // Legacy rerun function - now delegates to feedback version with default feedback

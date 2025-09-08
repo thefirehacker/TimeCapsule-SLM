@@ -56,10 +56,10 @@ export function DeepResearchComponent() {
   } = useVectorStore();
 
   // Custom hooks for state management
-  const research = useResearch(vectorStore);
+  const researchNavigation = useResearchNavigation();
+  const research = useResearch(vectorStore, researchNavigation);
   const documents = useDocuments(vectorStore);
   const researchHistory = useResearchHistory();
-  const researchNavigation = useResearchNavigation();
 
   // Debug navigation state
   useEffect(() => {

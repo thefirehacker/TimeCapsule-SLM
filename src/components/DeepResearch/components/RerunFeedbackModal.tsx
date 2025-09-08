@@ -34,6 +34,7 @@ interface RerunFeedbackModalProps {
   onRerun: (agentName: string, feedback: UserFeedback) => Promise<void>;
   agentName: string;
   agentStep?: any; // The AgentSubStep data
+  originalQuery?: string; // The original research query for context
 }
 
 export function RerunFeedbackModal({
@@ -42,6 +43,7 @@ export function RerunFeedbackModal({
   onRerun,
   agentName,
   agentStep,
+  originalQuery,
 }: RerunFeedbackModalProps) {
   const [feedback, setFeedback] = useState<UserFeedback>({
     issue: "",
@@ -59,6 +61,8 @@ export function RerunFeedbackModal({
     errors: [] as string[],
     warnings: [] as string[],
   });
+  const [manualQuery, setManualQuery] = useState("");
+  const [showManualQuery, setShowManualQuery] = useState(!originalQuery);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -73,26 +77,56 @@ export function RerunFeedbackModal({
         additionalContext: "",
       });
       setValidation({ isValid: true, errors: [], warnings: [] });
+      setManualQuery("");
+      setShowManualQuery(!originalQuery); // Show manual input if no original query
     }
-  }, [isOpen]);
+  }, [isOpen, originalQuery]);
 
   // Validate feedback in real-time
   useEffect(() => {
     const validationResult = validateFeedbackCompleteness(feedback);
+
+    // Add manual query validation if needed
+    if (showManualQuery && !manualQuery.trim()) {
+      validationResult.isValid = false;
+      validationResult.errors = [
+        ...(validationResult.errors || []),
+        "Research query is required",
+      ];
+    }
+
     setValidation(validationResult);
-  }, [feedback]);
+  }, [feedback, showManualQuery, manualQuery]);
 
   const handleSubmit = async () => {
     if (!validation.isValid) {
       return;
     }
 
+    // Check if we have a query available (either original or manual)
+    const queryToUse = originalQuery || manualQuery.trim();
+    if (!queryToUse && showManualQuery) {
+      setValidation((prev) => ({
+        ...prev,
+        isValid: false,
+        errors: [...(prev.errors || []), "Please enter the research query"],
+      }));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await onRerun(agentName, feedback);
+      // Add the query to feedback for better context
+      const enhancedFeedback = {
+        ...feedback,
+        additionalContext: `${feedback.additionalContext ? feedback.additionalContext + " | " : ""}Original query: "${queryToUse}"`,
+      };
+
+      await onRerun(agentName, enhancedFeedback);
       onClose();
     } catch (error) {
       console.error("Failed to rerun agent:", error);
+      // Don't close modal on error so user can see the error and retry
     } finally {
       setIsSubmitting(false);
     }
@@ -194,6 +228,42 @@ export function RerunFeedbackModal({
         </CardHeader>
 
         <CardContent className="space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+          {/* Original Research Query */}
+          {originalQuery && (
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-primary mb-2 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Original Research Query
+              </h4>
+              <p className="text-sm text-foreground font-medium italic">
+                "{originalQuery}"
+              </p>
+            </div>
+          )}
+
+          {/* Manual Query Input - shown when no original query available */}
+          {showManualQuery && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                Research Query Required
+              </h4>
+              <p className="text-sm text-amber-700 mb-3">
+                The original research query could not be found. Please enter it
+                below to proceed with the agent rerun.
+              </p>
+              <label className="text-sm font-semibold text-foreground mb-2 block">
+                Research Query *
+              </label>
+              <textarea
+                value={manualQuery}
+                onChange={(e) => setManualQuery(e.target.value)}
+                placeholder="Enter the research question that was originally asked..."
+                className="w-full h-20 p-3 text-sm border border-border rounded-lg bg-background resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+          )}
+
           {/* Agent Performance Overview */}
           {agentStep && (
             <div className="bg-muted/30 border border-border rounded-lg p-4">
@@ -411,4 +481,3 @@ export function RerunFeedbackModal({
     </div>
   );
 }
-
