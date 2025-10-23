@@ -58,7 +58,7 @@ const DEFAULT_CHAPTER_COLOR = "#3B82F6";
 let id = 0;
 const getId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${id++}`; // SPECS FIX: Guaranteed unique IDs
 
-type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order">>;
+type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order" | "color" >>;
 
 interface EnhancedLearningGraphProps {
   mode?: "creator" | "learner";
@@ -446,6 +446,9 @@ export default function EnhancedLearningGraph({
     if (typeof updates.order === "number") {
       sanitized.order = updates.order;
     }
+    if (typeof updates.color === "string") {
+      sanitized.color = updates.color;
+    }
 
     if (Object.keys(sanitized).length === 0) {
       return;
@@ -541,6 +544,7 @@ export default function EnhancedLearningGraph({
           frameIds: Array.isArray(sanitized.frameIds) ? sanitized.frameIds : existingChapter.frameIds,
           conceptIds: Array.isArray(sanitized.conceptIds) ? sanitized.conceptIds : existingChapter.conceptIds,
           order: typeof sanitized.order === 'number' ? sanitized.order : existingChapter.order,
+          color: typeof sanitized.color === 'string' ? sanitized.color : existingChapter.color,
           updatedAt: timestamp,
         };
 
@@ -559,7 +563,7 @@ export default function EnhancedLearningGraph({
             frameIds: Array.isArray(sanitized.frameIds) ? sanitized.frameIds : [],
             conceptIds: Array.isArray(sanitized.conceptIds) ? sanitized.conceptIds : [],
             order: typeof sanitized.order === 'number' ? sanitized.order : currentChapters.length,
-            color: DEFAULT_CHAPTER_COLOR,
+            color: typeof sanitized.color === 'string' ? sanitized.color : DEFAULT_CHAPTER_COLOR,
             createdAt: timestamp,
             updatedAt: timestamp,
             isCollapsed: false,
@@ -572,6 +576,24 @@ export default function EnhancedLearningGraph({
       chaptersRef.current = nextChapters;
       onChaptersChange(nextChapters);
     }
+
+    if (didUpdate && updatedNodes) {
+      const freshGraphState = {
+        nodes: updatedNodes,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current
+      };
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-update',
+            timestamp: Date.now(),
+            graphState: freshGraphState
+          }
+        }));
+      }
+    }
   }, [emitGraphStateChange, onChaptersChange, setNodes]);
 
   useEffect(() => {
@@ -579,13 +601,16 @@ export default function EnhancedLearningGraph({
       return;
     }
 
+    let patchedFlag = false;
+    let updatedNodes: Node[] | null = null;
+
     setNodes(currentNodes => {
       if (!currentNodes.length) {
         return currentNodes;
       }
 
       const chapterMap = new Map(chapters.map(chapter => [chapter.id, chapter]));
-      let patched = false;
+      let localPatched = false;
 
       const nextNodes = currentNodes.map(node => {
         if (node.type !== 'chapter') {
@@ -603,7 +628,7 @@ export default function EnhancedLearningGraph({
           if (nodeData?.onChapterUpdate && nodeData.id === chapterId) {
             return node;
           }
-          patched = true;
+          localPatched = true;
           return {
             ...node,
             data: {
@@ -624,6 +649,7 @@ export default function EnhancedLearningGraph({
           frameIds: Array.isArray(chapter.frameIds) ? chapter.frameIds : [],
           conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
           order: chapter.order,
+          color: chapter.color,
           onChapterUpdate: handler,
         };
 
@@ -634,26 +660,56 @@ export default function EnhancedLearningGraph({
           JSON.stringify(nodeData.conceptIds || []) !== JSON.stringify(nextData.conceptIds) ||
           nodeData.order !== nextData.order ||
           nodeData.onChapterUpdate !== handler ||
-          nodeData.id !== nextData.id;
+          nodeData.id !== nextData.id ||
+          nodeData.color !== nextData.color;
 
         if (!hasDifference) {
           return node;
         }
 
-        patched = true;
+        localPatched = true;
         return {
           ...node,
           data: nextData,
         };
       });
 
-      return patched ? nextNodes : currentNodes;
+      if (localPatched) {
+        patchedFlag = true;
+        updatedNodes = nextNodes;
+        return nextNodes;
+      }
+
+      return currentNodes;
     });
-  }, [chapters, handleChapterUpdate, setNodes]);
+
+    if (patchedFlag && updatedNodes) {
+      const freshGraphState = {
+        nodes: updatedNodes,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+      };
+
+      emitGraphStateChange('chapter-sync-props', { chapters }, freshGraphState);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-sync-props',
+            timestamp: Date.now(),
+            graphState: freshGraphState,
+          }
+        }));
+      }
+    }
+  }, [chapters, emitGraphStateChange, handleChapterUpdate, setNodes]);
 
   useEffect(() => {
+    let patchedFlag = false;
+    let updatedNodes: Node[] | null = null;
+
     setNodes(currentNodes => {
-      let patched = false;
+      let localPatched = false;
 
       const nextNodes = currentNodes.map(node => {
         if (node.type !== 'chapter') {
@@ -672,7 +728,7 @@ export default function EnhancedLearningGraph({
           return node;
         }
 
-        patched = true;
+        localPatched = true;
         const handler = (updates: ChapterNodeUpdates) => handleChapterUpdate(chapterId, updates);
         boundChapterUpdateHandlers.current.add(chapterId);
 
@@ -688,9 +744,35 @@ export default function EnhancedLearningGraph({
         };
       });
 
-      return patched ? nextNodes : currentNodes;
+      if (localPatched) {
+        patchedFlag = true;
+        updatedNodes = nextNodes;
+        return nextNodes;
+      }
+
+      return currentNodes;
     });
-  }, [handleChapterUpdate, setNodes]);
+
+    if (patchedFlag && updatedNodes) {
+      const freshGraphState = {
+        nodes: updatedNodes,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+      };
+
+      emitGraphStateChange('chapter-sync', { chapters }, freshGraphState);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-sync',
+            timestamp: Date.now(),
+            graphState: freshGraphState,
+          }
+        }));
+      }
+    }
+  }, [chapters, emitGraphStateChange, handleChapterUpdate, setNodes]);
 
   const normalizeConceptValue = useCallback((conceptNode: any): string => {
     if (!conceptNode?.data) return '';

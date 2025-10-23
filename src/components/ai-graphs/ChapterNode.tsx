@@ -21,6 +21,7 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
     description: typeof data.description === "string" ? data.description : "",
   });
   const frameCount = Array.isArray(data.frameIds) ? data.frameIds.length : 0;
+  const accentColor = typeof data.color === "string" && data.color ? data.color : "#10b981";
   const displayTitle = editValues.title && editValues.title.trim().length > 0
     ? editValues.title
     : "Chapter";
@@ -130,8 +131,8 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1 bg-green-100 rounded">
-                <BookOpen className="h-4 w-4 text-green-600" />
+              <div className="p-1 rounded" style={{ backgroundColor: `${accentColor}1A` }}>
+                <BookOpen className="h-4 w-4" style={{ color: accentColor }} />
               </div>
               <div>
                 <CardTitle className="text-sm font-medium text-green-800">

@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,8 +60,8 @@ interface ChapterDialogProps {
   onFrameSelection: (frameId: string, isSelected: boolean) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
-  onCreateChapter: () => void;
-  onEditChapter: () => void;
+  onCreateChapter: () => void | Promise<void>;
+  onEditChapter: () => void | Promise<void>;
 }
 
 const colorOptions = [
@@ -105,6 +106,9 @@ export function ChapterDialog({
             <Layers className="h-5 w-5" />
             {isEditing ? "Edit Chapter" : "Create New Chapter"}
           </DialogTitle>
+          <DialogDescription>
+            Configure chapter details, concept attachments, and frame grouping.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
