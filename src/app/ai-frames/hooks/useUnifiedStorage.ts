@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { AIFrame } from '../types/frames';
+import { AIFrame, Chapter } from '../types/frames';
 import { GraphState } from '@/components/ai-graphs/types';
-import { unifiedStorage, UnifiedAIFrame } from '../lib/unifiedStorage';
+import { unifiedStorage, UnifiedAIFrame, UnifiedChapter } from '../lib/unifiedStorage';
+
+const DEFAULT_CHAPTER_COLOR = '#3B82F6';
 
 interface UseUnifiedStorageProps {
   vectorStore?: any;
@@ -10,6 +12,7 @@ interface UseUnifiedStorageProps {
 
 interface UseUnifiedStorageReturn {
   frames: UnifiedAIFrame[];
+  chapters: UnifiedChapter[];
   graphState: GraphState;
   isLoading: boolean;
   error: string | null;
@@ -19,6 +22,7 @@ interface UseUnifiedStorageReturn {
   saveAll: () => Promise<boolean>;
   loadAll: () => Promise<boolean>;
   updateFrames: (frames: AIFrame[]) => void;
+  updateChapters: (chapters: Chapter[]) => void;
   updateGraphState: (graphState: GraphState) => void;
   clearAll: () => void;
   
@@ -43,6 +47,7 @@ export const useUnifiedStorage = ({
   
   // STATE: Core application state
   const [frames, setFrames] = useState<UnifiedAIFrame[]>([]);
+  const [chapters, setChapters] = useState<UnifiedChapter[]>([]);
   const [graphState, setGraphState] = useState<GraphState>({
     nodes: [],
     edges: [],
@@ -61,6 +66,7 @@ export const useUnifiedStorage = ({
   
   // REFS: Prevent stale closures and infinite loops
   const framesRef = useRef<UnifiedAIFrame[]>([]);
+  const chaptersRef = useRef<UnifiedChapter[]>([]);
   const graphStateRef = useRef<GraphState>({ nodes: [], edges: [], selectedNodeId: null });
   const lastStateSignatureRef = useRef<string>('');
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,10 +76,12 @@ export const useUnifiedStorage = ({
   const backgroundSaveQueue = useRef<{
     isProcessing: boolean;
     pendingFrames: UnifiedAIFrame[] | null;
+    pendingChapters: UnifiedChapter[] | null;
     pendingGraphState: GraphState | null;
   }>({
     isProcessing: false,
     pendingFrames: null,
+    pendingChapters: null,
     pendingGraphState: null
   });
 
@@ -85,7 +93,7 @@ export const useUnifiedStorage = ({
   }, [vectorStore, vectorStoreInitialized]);
 
   // CHECKSUM: Generate hash for change detection with smart position handling
-  const generateStateHash = useCallback((frames: UnifiedAIFrame[], graphState: GraphState): string => {
+  const generateStateHash = useCallback((frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState): string => {
     // PERFORMANCE FIX: Round positions to prevent micro-movements from triggering saves
     const roundedPositions = graphState.nodes.map(n => ({ 
       id: n.id, 
@@ -97,6 +105,12 @@ export const useUnifiedStorage = ({
       frameCount: frames.length,
       frameIds: frames.map(f => f.id).sort(),
       frameContentHash: frames.map(f => `${f.id}-${f.title}-${f.goal}`).sort().join('|'), // Content-based hash
+      chapterCount: chapters.length,
+      chapterIds: chapters.map(c => c.id).sort(),
+      chapterAssignments: chapters
+        .map(chapter => `${chapter.id}:${[...(chapter.frameIds || [])].sort().join(',')}`)
+        .sort()
+        .join('|'),
       nodeCount: graphState.nodes.length,
       edgeCount: graphState.edges.length,
       // POSITION PRESERVATION: Include viewport and rounded node positions
@@ -116,14 +130,337 @@ export const useUnifiedStorage = ({
   }, [frames]);
   
   useEffect(() => {
+    chaptersRef.current = chapters;
+  }, [chapters]);
+  
+  useEffect(() => {
     graphStateRef.current = graphState;
   }, [graphState]);
 
   // BACKGROUND SAVE: Non-blocking queue-based save system
-  const queueBackgroundSave = useCallback(async (frames: UnifiedAIFrame[], graphState: GraphState, priority = false) => {
+  const deriveChaptersFromGraph = useCallback((existingChapters: UnifiedChapter[], framesForGraph: UnifiedAIFrame[], graphStateForDerive: GraphState): UnifiedChapter[] => {
+    const nodes = graphStateForDerive?.nodes || [];
+    const edges = graphStateForDerive?.edges || [];
+    const chapterNodes = nodes.filter((node: any) => node?.type === 'chapter');
+    if (!chapterNodes.length) {
+      return existingChapters;
+    }
+
+    const now = new Date().toISOString();
+    const existingById = new Map(existingChapters.map((chapter) => [chapter.id, chapter]));
+    const frameNodeById = new Map<string, any>();
+    const nodeById = new Map<string, any>();
+    const chapterConceptMap = new Map<string, Set<string>>();
+
+    nodes.forEach((node: any) => {
+      nodeById.set(node.id, node);
+      if (node?.type === 'aiframe' && node?.data?.frameId) {
+        frameNodeById.set(node.id, node);
+      }
+    });
+
+    const collectConcept = (chapterNodeId: string, conceptNode: any) => {
+      if (!conceptNode?.data) return;
+      const conceptValue =
+        (conceptNode.data.concept ||
+          conceptNode.data.title ||
+          conceptNode.data.label ||
+          '').trim();
+      if (!conceptValue) return;
+      const set = chapterConceptMap.get(chapterNodeId) ?? new Set<string>();
+      set.add(conceptValue);
+      chapterConceptMap.set(chapterNodeId, set);
+    };
+
+    edges.forEach((edge: any) => {
+      const sourceNode = nodeById.get(edge.source);
+      const targetNode = nodeById.get(edge.target);
+      if (!sourceNode || !targetNode) return;
+
+      if (sourceNode.type === 'concept' && targetNode.type === 'chapter') {
+        const chapterId = targetNode.data?.id || targetNode.id;
+        collectConcept(chapterId, sourceNode);
+      }
+
+      if (sourceNode.type === 'chapter' && targetNode.type === 'concept') {
+        const chapterId = sourceNode.data?.id || sourceNode.id;
+        collectConcept(chapterId, targetNode);
+      }
+    });
+
+    const derivedChapters: UnifiedChapter[] = chapterNodes.map((node: any, index: number) => {
+      const data = node?.data || {};
+      const chapterId = data.id || node.id || `chapter-${index}`;
+      const previous = existingById.get(chapterId);
+      const frameIdsFromNode = Array.isArray(data.frameIds) ? data.frameIds.filter(Boolean) : [];
+      const frameIdsFromEdges = edges.reduce<string[]>((acc, edge: any) => {
+        if (edge.source === node.id) {
+          const targetNode = frameNodeById.get(edge.target);
+          if (targetNode?.data?.frameId) {
+            acc.push(targetNode.data.frameId);
+          }
+        }
+        if (edge.target === node.id) {
+          const sourceNode = frameNodeById.get(edge.source);
+          if (sourceNode?.data?.frameId) {
+            acc.push(sourceNode.data.frameId);
+          }
+        }
+        return acc;
+      }, []);
+      const frameIdsSet = new Set<string>([...frameIdsFromNode, ...frameIdsFromEdges, ...(previous?.frameIds || [])]);
+      const frameIds = Array.from(frameIdsSet).filter(Boolean);
+      const conceptIdsFromData = Array.isArray(data.conceptIds) ? data.conceptIds.filter(Boolean) : [];
+      const conceptIdsSet = new Set<string>(conceptIdsFromData);
+      const conceptIdsFromEdges = chapterConceptMap.get(chapterId);
+      if (conceptIdsFromEdges) {
+        conceptIdsFromEdges.forEach((concept) => conceptIdsSet.add(concept));
+      }
+      (previous?.conceptIds || []).forEach((concept) => conceptIdsSet.add(concept));
+      const conceptIds = Array.from(conceptIdsSet).filter(Boolean);
+
+      return {
+        id: chapterId,
+        title: data.title || previous?.title || `Chapter ${index + 1}`,
+        description: data.description ?? previous?.description ?? '',
+        color: data.color || previous?.color || DEFAULT_CHAPTER_COLOR,
+        order: typeof data.order === 'number' ? data.order : previous?.order ?? index,
+        frameIds,
+        conceptIds,
+        bubblSpaceId: previous?.bubblSpaceId,
+        timeCapsuleId: previous?.timeCapsuleId,
+        createdAt: previous?.createdAt || now,
+        updatedAt: now,
+        isCollapsed: previous?.isCollapsed ?? false,
+      };
+    });
+
+    if (!edges.length) {
+      return derivedChapters;
+    }
+
+    const chapterIds = derivedChapters.map((chapter) => chapter.id);
+    const adjacency = new Map<string, Set<string>>();
+    const inDegree = new Map<string, number>();
+
+    chapterIds.forEach((id) => {
+      adjacency.set(id, new Set());
+      inDegree.set(id, 0);
+    });
+
+    edges.forEach((edge: any) => {
+      const sourceNode = nodeById.get(edge.source);
+      const targetNode = nodeById.get(edge.target);
+      if (!sourceNode || !targetNode) return;
+      if (sourceNode.type === 'chapter' && targetNode.type === 'chapter') {
+        const fromId = sourceNode.data?.id || sourceNode.id;
+        const toId = targetNode.data?.id || targetNode.id;
+        if (fromId === toId) return;
+        if (!adjacency.has(fromId) || !adjacency.has(toId)) return;
+        const neighbors = adjacency.get(fromId)!;
+        if (!neighbors.has(toId)) {
+          neighbors.add(toId);
+          inDegree.set(toId, (inDegree.get(toId) || 0) + 1);
+        }
+      }
+    });
+
+    const queue: string[] = [];
+    const visitedOrder: string[] = [];
+
+    adjacency.forEach((neighbors, id) => {
+      if ((inDegree.get(id) || 0) === 0) {
+        queue.push(id);
+      }
+    });
+
+    while (queue.length) {
+      const chapterId = queue.shift()!;
+      visitedOrder.push(chapterId);
+      adjacency.get(chapterId)?.forEach((neighbor) => {
+        const newDegree = (inDegree.get(neighbor) || 0) - 1;
+        inDegree.set(neighbor, newDegree);
+        if (newDegree <= 0) {
+          queue.push(neighbor);
+        }
+      });
+    }
+
+    const hasCycle = visitedOrder.length !== chapterIds.length;
+    if (hasCycle) {
+      return derivedChapters;
+    }
+
+    const orderMap = new Map<string, number>();
+    visitedOrder.forEach((id, index) => {
+      orderMap.set(id, index);
+    });
+
+    return derivedChapters.map((chapter) => ({
+      ...chapter,
+      order: orderMap.get(chapter.id) ?? chapter.order,
+    }));
+  }, []);
+
+  const deriveFrameConceptsFromGraph = useCallback((framesForGraph: UnifiedAIFrame[], graphStateForConcepts: GraphState): Map<string, string[]> => {
+    const edges = graphStateForConcepts?.edges || [];
+    if (!edges.length) {
+      return new Map();
+    }
+
+    const nodes = graphStateForConcepts?.nodes || [];
+    const nodesById = new Map<string, any>();
+    const conceptNodes = new Map<string, any>();
+    const frameNodes = new Map<string, any>();
+
+    nodes.forEach((node: any) => {
+      nodesById.set(node.id, node);
+      if (node?.type === 'concept') {
+        conceptNodes.set(node.id, node);
+      }
+      if (node?.type === 'aiframe' && node?.data?.frameId) {
+        frameNodes.set(node.id, node);
+      }
+    });
+
+    const frameConcepts = new Map<string, Set<string>>();
+
+    const addConceptToFrame = (frameId: string, conceptNode: any) => {
+      if (!conceptNode?.data) return;
+      const conceptValue =
+        (conceptNode.data.concept ||
+          conceptNode.data.title ||
+          conceptNode.data.label ||
+          '').trim();
+      if (!conceptValue) return;
+      const set = frameConcepts.get(frameId) ?? new Set<string>();
+      set.add(conceptValue);
+      frameConcepts.set(frameId, set);
+    };
+
+    edges.forEach((edge: any) => {
+      const sourceNode = nodesById.get(edge.source);
+      const targetNode = nodesById.get(edge.target);
+      if (!sourceNode || !targetNode) return;
+
+      if (sourceNode.type === 'concept' && targetNode.type === 'aiframe') {
+        const frameId = targetNode.data?.frameId;
+        if (frameId) {
+          addConceptToFrame(frameId, sourceNode);
+        }
+      } else if (sourceNode.type === 'aiframe' && targetNode.type === 'concept') {
+        const frameId = sourceNode.data?.frameId;
+        if (frameId) {
+          addConceptToFrame(frameId, targetNode);
+        }
+      }
+    });
+
+    const result = new Map<string, string[]>();
+    frameConcepts.forEach((value, key) => {
+      result.set(key, Array.from(value));
+    });
+    return result;
+  }, []);
+
+  const syncFramesWithChapters = useCallback((framesToSync: UnifiedAIFrame[], chaptersToSync: UnifiedChapter[], graphStateForSync: GraphState): UnifiedAIFrame[] => {
+    if (!chaptersToSync.length) {
+      return framesToSync.map((frame) => {
+        const conceptIds = frame.conceptIds || [];
+        if (frame.chapterId || frame.parentFrameId || conceptIds.length) {
+          return { ...frame, chapterId: undefined, parentFrameId: undefined, conceptIds, aiConcepts: frame.aiConcepts };
+        }
+        return frame;
+      });
+    }
+
+    const chapterLookup = new Map<string, UnifiedChapter>();
+    chaptersToSync.forEach((chapter) => {
+      chapter.frameIds.forEach((frameId) => {
+        chapterLookup.set(frameId, chapter);
+      });
+    });
+
+    const frameConceptMap = deriveFrameConceptsFromGraph(framesToSync, graphStateForSync);
+
+    return framesToSync.map((frame) => {
+      const assignedChapter = chapterLookup.get(frame.id);
+      const hasDerivedConcepts = frameConceptMap.has(frame.id);
+      const derivedConcepts = frameConceptMap.get(frame.id) || [];
+      const baseConcepts = frame.conceptIds || frame.aiConcepts || [];
+      let nextConcepts = baseConcepts;
+
+      if (hasDerivedConcepts) {
+        nextConcepts = derivedConcepts;
+      }
+
+      const uniqueConcepts = Array.from(new Set(nextConcepts.filter(Boolean)));
+      let updatedFrame: UnifiedAIFrame = frame;
+
+      if (assignedChapter) {
+        if (frame.chapterId !== assignedChapter.id || frame.parentFrameId !== assignedChapter.id) {
+          updatedFrame = {
+            ...updatedFrame,
+            chapterId: assignedChapter.id,
+            parentFrameId: assignedChapter.id,
+          };
+        }
+      } else if (frame.chapterId || frame.parentFrameId) {
+        updatedFrame = { ...frame, chapterId: undefined, parentFrameId: undefined };
+      }
+
+      if (hasDerivedConcepts) {
+        updatedFrame = {
+          ...updatedFrame,
+          conceptIds: uniqueConcepts,
+          aiConcepts: Array.from(new Set([...(updatedFrame.aiConcepts || []), ...uniqueConcepts])),
+        };
+      } else if (uniqueConcepts.length) {
+        updatedFrame = {
+          ...updatedFrame,
+          conceptIds: uniqueConcepts,
+          aiConcepts: Array.from(new Set([...(updatedFrame.aiConcepts || []), ...uniqueConcepts])),
+        };
+      }
+
+      return updatedFrame;
+    });
+  }, [deriveFrameConceptsFromGraph]);
+
+  const areChaptersEqual = useCallback((a: UnifiedChapter[], b: UnifiedChapter[]): boolean => {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    const serialize = (chaptersToSerialize: UnifiedChapter[]) =>
+      chaptersToSerialize
+        .map((chapter) => ({
+          ...chapter,
+          frameIds: [...(chapter.frameIds || [])].sort(),
+          conceptIds: [...(chapter.conceptIds || [])].sort(),
+        }))
+        .sort((c1, c2) => c1.id.localeCompare(c2.id));
+    return JSON.stringify(serialize(a)) === JSON.stringify(serialize(b));
+  }, []);
+
+  const areFrameChapterAssignmentsEqual = useCallback((a: UnifiedAIFrame[], b: UnifiedAIFrame[]): boolean => {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    const serialize = (framesToSerialize: UnifiedAIFrame[]) =>
+      framesToSerialize
+        .map((frame) => ({
+          id: frame.id,
+          chapterId: frame.chapterId || null,
+          parentFrameId: frame.parentFrameId || null,
+          conceptIds: Array.from(new Set(frame.conceptIds || [])).sort().join('|'),
+        }))
+        .sort((f1, f2) => f1.id.localeCompare(f2.id));
+    return JSON.stringify(serialize(a)) === JSON.stringify(serialize(b));
+  }, []);
+
+  const queueBackgroundSave = useCallback(async (frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState, priority = false) => {
     // CRITICAL FIX: Priority saves (like node drops) lock the queue to prevent overwrites
     if (priority && !backgroundSaveQueue.current.isProcessing) {
       backgroundSaveQueue.current.pendingFrames = frames;
+      backgroundSaveQueue.current.pendingChapters = chapters;
       backgroundSaveQueue.current.pendingGraphState = graphState;
       backgroundSaveQueue.current.isProcessing = true; // Lock immediately
       
@@ -131,11 +468,35 @@ export const useUnifiedStorage = ({
       
       // Process immediately without delay for priority saves
       try {
-        const success = await unifiedStorage.saveAll(frames, graphState);
+        let framesToSave = frames;
+        let chaptersToSave = chapters;
+
+        const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, graphState);
+        if (derivedChapters.length) {
+          chaptersToSave = derivedChapters;
+        }
+
+        const syncedFrames = syncFramesWithChapters(framesToSave, chaptersToSave, graphState);
+        framesToSave = syncedFrames;
+
+        const chaptersChanged = !areChaptersEqual(chaptersRef.current, chaptersToSave);
+        const frameAssignmentsChanged = !areFrameChapterAssignmentsEqual(framesRef.current, framesToSave);
+
+        if (chaptersChanged) {
+          setChapters(chaptersToSave);
+          chaptersRef.current = chaptersToSave;
+        }
+
+        if (frameAssignmentsChanged) {
+          setFrames(framesToSave);
+          framesRef.current = framesToSave;
+        }
+
+        const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, graphState);
         console.log("🔒 PRIORITY SAVE: Completed with result:", { success });
         
         if (success) {
-          const newHash = generateStateHash(frames, graphState);
+          const newHash = generateStateHash(framesToSave, chaptersToSave, graphState);
           lastSaveHash.current = newHash;
           setHasUnsavedChanges(false);
         }
@@ -150,6 +511,7 @@ export const useUnifiedStorage = ({
     // Normal save logic - can be overwritten
     if (!backgroundSaveQueue.current.isProcessing) {
       backgroundSaveQueue.current.pendingFrames = frames;
+      backgroundSaveQueue.current.pendingChapters = chapters;
       backgroundSaveQueue.current.pendingGraphState = graphState;
     }
     
@@ -167,16 +529,19 @@ export const useUnifiedStorage = ({
       
       // Get latest pending data
       const latestFrames = backgroundSaveQueue.current.pendingFrames;
+      const latestChapters = backgroundSaveQueue.current.pendingChapters;
       const latestGraphState = backgroundSaveQueue.current.pendingGraphState;
       
-      if (latestFrames && latestGraphState) {
+      if (latestFrames && latestGraphState && latestChapters) {
         // Clear pending data before save
         backgroundSaveQueue.current.pendingFrames = null;
+        backgroundSaveQueue.current.pendingChapters = null;
         backgroundSaveQueue.current.pendingGraphState = null;
         
         // Perform actual save in background
         console.log("🔄 BACKGROUND SAVE: Starting with data:", {
           frameCount: latestFrames.length,
+          chapterCount: latestChapters.length,
           nodeCount: latestGraphState.nodes.length,
           edgeCount: latestGraphState.edges?.length || 0,
           frameIds: latestFrames.map(f => f.id),
@@ -184,7 +549,31 @@ export const useUnifiedStorage = ({
           timestamp: new Date().toISOString()
         });
         
-        const success = await unifiedStorage.saveAll(latestFrames, latestGraphState);
+        let framesToSave = latestFrames;
+        let chaptersToSave = latestChapters;
+
+        const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, latestGraphState);
+        if (derivedChapters.length) {
+          chaptersToSave = derivedChapters;
+        }
+
+        const syncedFrames = syncFramesWithChapters(framesToSave, chaptersToSave, latestGraphState);
+        framesToSave = syncedFrames;
+
+        const chaptersChanged = !areChaptersEqual(chaptersRef.current, chaptersToSave);
+        const frameAssignmentsChanged = !areFrameChapterAssignmentsEqual(framesRef.current, framesToSave);
+
+        if (chaptersChanged) {
+          setChapters(chaptersToSave);
+          chaptersRef.current = chaptersToSave;
+        }
+
+        if (frameAssignmentsChanged) {
+          setFrames(framesToSave);
+          framesRef.current = framesToSave;
+        }
+
+        const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, latestGraphState);
         
         console.log("🔄 BACKGROUND SAVE: Completed with result:", {
           success,
@@ -192,7 +581,7 @@ export const useUnifiedStorage = ({
         });
         
         if (success) {
-          const newHash = generateStateHash(latestFrames, latestGraphState);
+          const newHash = generateStateHash(framesToSave, chaptersToSave, latestGraphState);
           lastSaveHash.current = newHash;
           setHasUnsavedChanges(false);
           
@@ -200,7 +589,8 @@ export const useUnifiedStorage = ({
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('unified-save-success', {
               detail: {
-                frameCount: latestFrames.length,
+                frameCount: framesToSave.length,
+                chapterCount: chaptersToSave.length,
                 nodeCount: latestGraphState.nodes.length,
                 timestamp: new Date().toISOString(),
                 background: true
@@ -215,16 +605,23 @@ export const useUnifiedStorage = ({
       backgroundSaveQueue.current.isProcessing = false;
       
       // Check if more data was queued while processing
-      if (backgroundSaveQueue.current.pendingFrames) {
+      if (backgroundSaveQueue.current.pendingFrames && backgroundSaveQueue.current.pendingChapters) {
         // Recursively process remaining data
         const frames = backgroundSaveQueue.current.pendingFrames;
+        const chapters = backgroundSaveQueue.current.pendingChapters;
         const graphState = backgroundSaveQueue.current.pendingGraphState;
-        if (frames && graphState) {
-          queueBackgroundSave(frames, graphState);
+        if (frames && chapters && graphState) {
+          queueBackgroundSave(frames, chapters, graphState);
         }
       }
     }
-  }, [generateStateHash]);
+  }, [
+    generateStateHash,
+    deriveChaptersFromGraph,
+    syncFramesWithChapters,
+    areChaptersEqual,
+    areFrameChapterAssignmentsEqual
+  ]);
 
   // SAVE: Unified save to all storage layers
   const saveAll = useCallback(async (): Promise<boolean> => {
@@ -244,10 +641,34 @@ export const useUnifiedStorage = ({
       
       // Using fresh state from refs
 
-      const success = await unifiedStorage.saveAll(currentFrames, currentGraphState);
-      
+      let framesToSave = currentFrames;
+      let chaptersToSave = chaptersRef.current;
+
+      const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, currentGraphState);
+      if (derivedChapters.length) {
+        chaptersToSave = derivedChapters;
+      }
+
+      const syncedFrames = syncFramesWithChapters(framesToSave, chaptersToSave, currentGraphState);
+      framesToSave = syncedFrames;
+
+      const chaptersChanged = !areChaptersEqual(chaptersRef.current, chaptersToSave);
+      const frameAssignmentsChanged = !areFrameChapterAssignmentsEqual(framesRef.current, framesToSave);
+
+      if (chaptersChanged) {
+        setChapters(chaptersToSave);
+        chaptersRef.current = chaptersToSave;
+      }
+
+      if (frameAssignmentsChanged) {
+        setFrames(framesToSave);
+        framesRef.current = framesToSave;
+      }
+
+      const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, currentGraphState);
+
       if (success) {
-        const newHash = generateStateHash(currentFrames, currentGraphState);
+        const newHash = generateStateHash(framesToSave, chaptersToSave, currentGraphState);
         lastSaveHash.current = newHash;
         setHasUnsavedChanges(false);
         console.log("✅ Manual save completed successfully");
@@ -256,7 +677,8 @@ export const useUnifiedStorage = ({
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('unified-save-success', {
             detail: {
-              frameCount: currentFrames.length,
+              frameCount: framesToSave.length,
+              chapterCount: chaptersToSave.length,
               nodeCount: currentGraphState.nodes.length,
               timestamp: new Date().toISOString(),
               manual: true
@@ -278,7 +700,13 @@ export const useUnifiedStorage = ({
       setIsLoading(false);
       isSavingRef.current = false; // Always reset saving flag
     }
-  }, [generateStateHash]);
+  }, [
+    generateStateHash,
+    deriveChaptersFromGraph,
+    syncFramesWithChapters,
+    areChaptersEqual,
+    areFrameChapterAssignmentsEqual
+  ]);
 
   // LOAD: Unified load from best available source
   const loadAll = useCallback(async (): Promise<boolean> => {
@@ -292,6 +720,7 @@ export const useUnifiedStorage = ({
         // Frame content loaded successfully
         
         setFrames(data.frames);
+        setChapters(data.chapters || []);
         
         // CRITICAL FIX: Deduplicate edges to prevent React key conflicts
         const deduplicatedGraphState = {
@@ -363,7 +792,7 @@ export const useUnifiedStorage = ({
         
         setGraphState(syncedGraphState);
         
-        const newHash = generateStateHash(data.frames, data.graphState);
+        const newHash = generateStateHash(data.frames, data.chapters || [], data.graphState);
         lastSaveHash.current = newHash;
         setHasUnsavedChanges(false);
         
@@ -374,6 +803,7 @@ export const useUnifiedStorage = ({
           window.dispatchEvent(new CustomEvent('unified-load-success', {
             detail: {
               frameCount: data.frames.length,
+              chapterCount: data.chapters?.length || 0,
               nodeCount: data.graphState.nodes.length,
               timestamp: new Date().toISOString()
             }
@@ -424,14 +854,36 @@ export const useUnifiedStorage = ({
     setFrames(unifiedFrames);
     
     // CHANGE DETECTION: Mark as unsaved if content changed
-    const newHash = generateStateHash(unifiedFrames, graphState);
+    const currentChapters = chaptersRef.current;
+    const newHash = generateStateHash(unifiedFrames, currentChapters, graphState);
     if (newHash !== lastSaveHash.current) {
       setHasUnsavedChanges(true);
       
       // BACKGROUND SAVE: Queue non-blocking save (don't await)
-      queueBackgroundSave(unifiedFrames, graphState);
+      queueBackgroundSave(unifiedFrames, currentChapters, graphState);
     }
   }, [frames, graphState, generateStateHash, queueBackgroundSave]);
+
+  const updateChapters = useCallback((newChapters: Chapter[]) => {
+    const normalizedChapters = newChapters.map((chapter, index) => ({
+      ...chapter,
+      conceptIds: chapter.conceptIds || [],
+      frameIds: chapter.frameIds || [],
+      order: typeof chapter.order === 'number' ? chapter.order : index,
+      createdAt: chapter.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })) as UnifiedChapter[];
+
+    setChapters(normalizedChapters);
+
+    const currentFrames = framesRef.current;
+    const currentGraphState = graphStateRef.current;
+    const newHash = generateStateHash(currentFrames, normalizedChapters, currentGraphState);
+    if (newHash !== lastSaveHash.current) {
+      setHasUnsavedChanges(true);
+      queueBackgroundSave(currentFrames, normalizedChapters, currentGraphState);
+    }
+  }, [generateStateHash, queueBackgroundSave]);
 
   // OPTIMISTIC UPDATE: Enhanced updateGraphState with instant updates
   const updateGraphState = useCallback((newGraphState: GraphState) => {
@@ -459,12 +911,13 @@ export const useUnifiedStorage = ({
     setGraphState(deduplicatedState);
     
     // CHANGE DETECTION: Mark as unsaved if content changed
-    const newHash = generateStateHash(frames, deduplicatedState);
+    const currentChapters = chaptersRef.current;
+    const newHash = generateStateHash(frames, currentChapters, deduplicatedState);
     if (newHash !== lastSaveHash.current) {
       setHasUnsavedChanges(true);
       
       // BACKGROUND SAVE: Queue non-blocking save (don't await)
-      queueBackgroundSave(frames, deduplicatedState);
+      queueBackgroundSave(frames, currentChapters, deduplicatedState);
     }
   }, [frames, generateStateHash, queueBackgroundSave]);
 
@@ -472,6 +925,7 @@ export const useUnifiedStorage = ({
   const clearAll = useCallback(async () => {
     console.log('🗑️ Clearing all storage...');
     setFrames([]);
+    setChapters([]);
     setGraphState({ nodes: [], edges: [], selectedNodeId: null });
     setHasUnsavedChanges(false);
     lastSaveHash.current = '';
@@ -542,7 +996,7 @@ export const useUnifiedStorage = ({
       setHasUnsavedChanges(true);
       
       // CRITICAL FIX: Queue background save with the already-updated frames
-      queueBackgroundSave(updatedFrames, graphStateRef.current);
+      queueBackgroundSave(updatedFrames, chaptersRef.current, graphStateRef.current);
     };
     
     const handleFramesUpdatedEvent = (event: any) => {
@@ -578,7 +1032,7 @@ export const useUnifiedStorage = ({
       
       // CRITICAL FIX: Trigger immediate background save for connections
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, newGraphState);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState);
     };
     
     const handleGraphElementChangedEvent = (event: any) => {
@@ -604,7 +1058,7 @@ export const useUnifiedStorage = ({
         
         // CRITICAL FIX: Trigger immediate background save for graph elements
         setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, newGraphState);
+        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState);
       }
     };
     
@@ -638,7 +1092,7 @@ export const useUnifiedStorage = ({
       // CRITICAL FIX: Use fresh graph state from event to prevent stale edge saves
       setHasUnsavedChanges(true);
       const graphStateToSave = freshGraphState || graphStateRef.current;
-      queueBackgroundSave(framesRef.current, graphStateToSave);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateToSave);
     };
 
     // CRITICAL FIX: Handle attachment content updates (note name changes, etc.)
@@ -658,7 +1112,7 @@ export const useUnifiedStorage = ({
       
       // OPTIMISTIC: Trigger immediate background save for attachment content changes
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, graphStateRef.current);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
     };
     
     // OPTIMISTIC: Handle force save events from attachment operations  
@@ -680,7 +1134,7 @@ export const useUnifiedStorage = ({
       
       // CRITICAL FIX: Use priority mode for critical graph state changes to prevent overwrites
       const isPriorityMode = (reason === 'node-drop-delayed' || reason === 'node-data-updated') && eventGraphState;
-      queueBackgroundSave(framesRef.current, graphStateToUse, isPriorityMode);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateToUse, isPriorityMode);
     };
     
     // CRITICAL FIX: Handle graph connection events (added/removed)
@@ -708,7 +1162,7 @@ export const useUnifiedStorage = ({
       
       // CRITICAL: Trigger immediate background save for connections
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, updatedGraphState);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState);
     };
     
     // CRITICAL FIX: Handle frame deletion events
@@ -728,7 +1182,7 @@ export const useUnifiedStorage = ({
       
       // OPTIMISTIC: Trigger immediate background save for frame deletion
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, graphStateRef.current);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
     };
     
     // NEW: Handle node removal without frame deletion
@@ -762,7 +1216,7 @@ export const useUnifiedStorage = ({
       
       // Trigger immediate background save for node removal
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, newGraphState);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState);
     };
     
     // Add event listeners for frame edits and updates from UI components
@@ -805,7 +1259,7 @@ export const useUnifiedStorage = ({
       // Trigger background save for new frames to prevent data loss
       if (autoSaveEnabledRef.current && hasUnsavedChanges) {
         setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, graphStateRef.current);
+        queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
       }
     };
     
@@ -913,7 +1367,7 @@ export const useUnifiedStorage = ({
     const handleForceSave = () => {
       // OPTIMISTIC: Use background save instead of blocking save
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, graphStateRef.current);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
     };
 
     // Add event listener for force-save-frames
@@ -928,6 +1382,7 @@ export const useUnifiedStorage = ({
   return {
     // State
     frames,
+    chapters,
     graphState,
     isLoading,
     error,
@@ -937,6 +1392,7 @@ export const useUnifiedStorage = ({
     saveAll,
     loadAll,
     updateFrames,
+    updateChapters,
     updateGraphState,
     clearAll,
     

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import EnhancedLearningGraph from "./EnhancedLearningGraph";
 import { GraphState } from "./types";
+import type { Chapter } from "@/app/ai-frames/types/frames";
 import {
   Video,
   File,
@@ -26,7 +27,8 @@ import {
   Maximize2,
   Minimize2,
   Eye,
-  Network
+  Network,
+  Layers
 } from "lucide-react";
 
 interface AIFrame {
@@ -63,6 +65,8 @@ interface DualPaneFrameViewProps {
   onGetCurrentState?: React.MutableRefObject<(() => GraphState) | null>; // CRITICAL FIX: Get current graph state when needed
   onGraphStateUpdate?: (state: GraphState) => void; // SILENT: Update parent with current graph state
   initialGraphState?: GraphState; // CRITICAL FIX: Re-add initialGraphState prop to restore standalone attachments
+  chapters?: Chapter[];
+  onChaptersChange?: (chapters: Chapter[]) => void;
 }
 
 export default function DualPaneFrameView({
@@ -76,6 +80,8 @@ export default function DualPaneFrameView({
   initialGraphState,
   onGetCurrentState,
   onGraphStateUpdate,
+  chapters = [],
+  onChaptersChange,
 }: DualPaneFrameViewProps) {
   const [graphState, setGraphState] = useState<GraphState>(
     initialGraphState || {
@@ -93,7 +99,7 @@ export default function DualPaneFrameView({
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'connected' | 'disconnected'>>({});
 
   // Get current frame safely
-  const currentFrame = frames[currentFrameIndex];
+  const currentFrame = frames[currentFrameIndex] || null;
 
   // CRITICAL FIX: Setup callback to provide current graph state when requested
   const getCurrentGraphState = useCallback(() => {
@@ -445,6 +451,21 @@ export default function DualPaneFrameView({
     return match ? match[1] : null;
   };
 
+  const sortedChapters = useMemo(() => {
+    return [...chapters]
+      .map((chapter) => ({
+        ...chapter,
+        frameIds: chapter.frameIds || [],
+        conceptIds: chapter.conceptIds || [],
+      }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [chapters]);
+
+  const currentChapter = useMemo(() => {
+    if (!currentFrame) return null;
+    return sortedChapters.find((chapter) => chapter.frameIds.includes(currentFrame.id)) || null;
+  }, [sortedChapters, currentFrame]);
+
   // Handle attachment updates
   const handleAttachmentUpdate = (frameId: string, attachmentData: any) => {
     const updatedFrames = frames.map(frame => 
@@ -528,7 +549,9 @@ export default function DualPaneFrameView({
             <EnhancedLearningGraph
               mode={isCreationMode ? "creator" : "learner"}
               frames={frames}
+              chapters={chapters}
               onFramesChange={onFramesChange}
+              onChaptersChange={onChaptersChange}
               onGraphChange={handleGraphChange}
               initialGraphState={graphState}
             />
@@ -596,6 +619,66 @@ export default function DualPaneFrameView({
               </div>
             ) : currentFrame ? (
               <div className="space-y-6">
+                {sortedChapters.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Layers className="h-4 w-4 text-orange-500" />
+                        Chapters
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {sortedChapters.map((chapter, index) => {
+                        const firstFrameIndex = frames.findIndex((frame) =>
+                          chapter.frameIds.includes(frame.id)
+                        );
+                        const isActive = currentChapter?.id === chapter.id;
+                        return (
+                          <div
+                            key={chapter.id}
+                            className={`flex items-center justify-between rounded-lg border p-3 text-sm transition-colors ${
+                              isActive
+                                ? 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'
+                                : 'border-gray-200 hover:border-orange-200 dark:border-gray-700 dark:hover:border-orange-700'
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant={isActive ? 'default' : 'secondary'}
+                                  className={isActive ? 'bg-orange-500' : ''}
+                                >
+                                  {index + 1}
+                                </Badge>
+                                <span className="font-medium">{chapter.title}</span>
+                              </div>
+                              {chapter.description && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {chapter.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                <span>{chapter.frameIds.length} frame{chapter.frameIds.length === 1 ? '' : 's'}</span>
+                                <span>{chapter.conceptIds.length} concept{chapter.conceptIds.length === 1 ? '' : 's'}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {firstFrameIndex >= 0 && (
+                                <Button
+                                  size="sm"
+                                  variant={isActive ? 'default' : 'outline'}
+                                  onClick={() => onFrameIndexChange(firstFrameIndex)}
+                                >
+                                  View
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                )}
                 {/* Frame Header */}
                 <Card>
                   <CardHeader className="pb-3">
@@ -609,6 +692,15 @@ export default function DualPaneFrameView({
                           <Badge variant="default" className="bg-purple-500">
                             <Network className="h-3 w-3 mr-1" />
                             Selected in Graph
+                          </Badge>
+                        )}
+                        {currentChapter ? (
+                          <Badge variant="outline" className="text-orange-600 border-orange-300 dark:border-orange-700">
+                            {currentChapter.title}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500">
+                            Unassigned
                           </Badge>
                         )}
                       </div>

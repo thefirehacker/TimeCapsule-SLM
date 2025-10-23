@@ -95,9 +95,13 @@ export const FrameManager: React.FC<FrameManagerProps> = ({
   // Handle concepts change
   const handleConceptsChange = useCallback((concepts: string) => {
     if (!editingFrame) return;
-    
-    const conceptsArray = concepts.split(',').map(c => c.trim()).filter(c => c);
+
+    const conceptsArray = concepts
+      .split(',')
+      .map((c) => c.trim())
+      .filter((c) => c);
     handleFieldChange('aiConcepts', conceptsArray);
+    handleFieldChange('conceptIds', conceptsArray);
   }, [editingFrame, handleFieldChange]);
 
   // Render frame display
@@ -176,18 +180,28 @@ export const FrameManager: React.FC<FrameManagerProps> = ({
           )}
 
           {/* AI Concepts */}
-          {currentFrame.aiConcepts?.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Key Concepts</Label>
-              <div className="flex flex-wrap gap-2">
-                {currentFrame.aiConcepts.map((concept, index) => (
-                  <Badge key={index} variant="secondary">
-                    {concept}
-                  </Badge>
-                ))}
+          {(() => {
+            const frameConcepts =
+              currentFrame.conceptIds && currentFrame.conceptIds.length > 0
+                ? currentFrame.conceptIds
+                : currentFrame.aiConcepts;
+            if (!frameConcepts || frameConcepts.length === 0) {
+              return null;
+            }
+
+            return (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Concept Attachments</Label>
+                <div className="flex flex-wrap gap-2">
+                  {frameConcepts.map((concept, index) => (
+                    <Badge key={index} variant="secondary">
+                      {concept}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Metadata */}
           <div className="flex items-center gap-4 text-xs text-gray-500 border-t pt-2">
@@ -289,10 +303,14 @@ export const FrameManager: React.FC<FrameManagerProps> = ({
 
               {/* AI Concepts */}
               <div className="space-y-2">
-                <Label htmlFor="aiConcepts">Key Concepts (comma-separated)</Label>
+                <Label htmlFor="aiConcepts">Concept Attachments (comma-separated)</Label>
                 <Input
                   id="aiConcepts"
-                  value={editingFrame.aiConcepts.join(', ')}
+                  value={(
+                    editingFrame.conceptIds && editingFrame.conceptIds.length > 0
+                      ? editingFrame.conceptIds
+                      : editingFrame.aiConcepts
+                  ).join(', ')}
                   onChange={(e) => handleConceptsChange(e.target.value)}
                   placeholder="concept1, concept2, concept3"
                 />

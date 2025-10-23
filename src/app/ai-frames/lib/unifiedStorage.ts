@@ -1,4 +1,4 @@
-import { AIFrame } from "../types/frames";
+import { AIFrame, Chapter } from "../types/frames";
 import { GraphState } from "@/components/ai-graphs/types";
 
 // DYNAMIC: Fully extensible frame data structure (future-proof for any attachment type)
@@ -19,9 +19,12 @@ export interface UnifiedAIFrame extends Omit<AIFrame, 'attachment'> {
   };
 }
 
+export type UnifiedChapter = Chapter;
+
 // UNIFIED: Complete App State Structure with Position Preservation
 export interface UnifiedAppState {
   frames: UnifiedAIFrame[];
+  chapters: UnifiedChapter[];
   graphState: GraphState; // Already includes viewport and node positions
   metadata: {
     version: string;
@@ -52,7 +55,7 @@ export class UnifiedStorageManager {
   }
 
   // UNIFIED SAVE: Single method that saves to ALL storage layers with SAME format
-  async saveAll(frames: UnifiedAIFrame[], graphState: GraphState): Promise<boolean> {
+  async saveAll(frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState): Promise<boolean> {
     // PREVENT: Concurrent saves that cause conflicts
     if (this.isSaving) {
       console.log("⏳ Save already in progress, skipping...");
@@ -65,9 +68,10 @@ export class UnifiedStorageManager {
 
       // STEP 1: Normalize frame data to unified format
       const unifiedFrames = this.normalizeFrames(frames);
+      const unifiedChapters = this.normalizeChapters(chapters);
       
       // STEP 2: Create complete app state
-      const appState = this.createAppState(unifiedFrames, graphState);
+      const appState = this.createAppState(unifiedFrames, unifiedChapters, graphState);
       
       // STEP 3: Save to ALL storage layers with SAME format
       const results = await Promise.allSettled([
@@ -89,10 +93,11 @@ export class UnifiedStorageManager {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('unified-save-success', {
           detail: {
-            frameCount: frames.length,
-            timestamp: new Date().toISOString(),
-            source: 'unified-storage'
-          }
+          frameCount: frames.length,
+          chapterCount: chapters.length,
+          timestamp: new Date().toISOString(),
+          source: 'unified-storage'
+        }
         }));
       }
       
@@ -107,13 +112,13 @@ export class UnifiedStorageManager {
   }
 
   // UNIFIED LOAD: Single method that loads from best available source
-  async loadAll(): Promise<{ frames: UnifiedAIFrame[]; graphState: GraphState } | null> {
+  async loadAll(): Promise<{ frames: UnifiedAIFrame[]; chapters: UnifiedChapter[]; graphState: GraphState } | null> {
     try {
       console.log("📂 Starting unified load...");
 
       // PRIORITY 1: Try localStorage first (fastest)
       const localData = await this.loadFromLocalStorage();
-      if (localData && localData.frames.length > 0) {
+      if (localData && (localData.frames.length > 0 || localData.chapters.length > 0)) {
         console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames`);
         
         // Loaded app state with graph
@@ -124,7 +129,7 @@ export class UnifiedStorageManager {
       // PRIORITY 2: Try VectorStore (if available)
       if (this.vectorStore) {
         const vectorData = await this.loadFromVectorStore();
-        if (vectorData && vectorData.frames.length > 0) {
+        if (vectorData && (vectorData.frames.length > 0 || vectorData.chapters.length > 0)) {
           console.log(`✅ Loaded from VectorStore: ${vectorData.frames.length} frames`);
           return vectorData;
         }
@@ -132,7 +137,7 @@ export class UnifiedStorageManager {
 
       // PRIORITY 3: Try IndexedDB (fallback)
       const indexedData = await this.loadFromIndexedDB();
-      if (indexedData && indexedData.frames.length > 0) {
+      if (indexedData && (indexedData.frames.length > 0 || indexedData.chapters.length > 0)) {
         console.log(`✅ Loaded from IndexedDB: ${indexedData.frames.length} frames`);
         return indexedData;
       }
@@ -150,6 +155,9 @@ export class UnifiedStorageManager {
   private normalizeFrames(frames: AIFrame[]): UnifiedAIFrame[] {
     return frames.map(frame => ({
       ...frame,
+      aiConcepts: frame.aiConcepts && frame.aiConcepts.length > 0 ? frame.aiConcepts : (frame.conceptIds || []),
+      conceptIds: frame.conceptIds || frame.aiConcepts || [],
+      chapterId: frame.chapterId || frame.parentFrameId,
       // DYNAMIC: Preserve ANY attachment structure without type restrictions
       attachment: frame.attachment ? {
         id: frame.attachment.id || `attachment-${Date.now()}`,
@@ -177,28 +185,55 @@ export class UnifiedStorageManager {
     }));
   }
 
+  private normalizeChapters(chapters: Chapter[]): UnifiedChapter[] {
+    return chapters.map((chapter, index) => ({
+      ...chapter,
+      conceptIds: chapter.conceptIds || [],
+      order: typeof chapter.order === 'number' ? chapter.order : index,
+      createdAt: chapter.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
   // STATE CREATION: Create complete app state with checksum
-  private createAppState(frames: UnifiedAIFrame[], graphState: GraphState): UnifiedAppState {
+  private createAppState(frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState): UnifiedAppState {
     
     // Creating app state for save
     
     const appState: UnifiedAppState = {
       frames,
+      chapters,
       graphState,
       metadata: {
         version: '2.0',
         lastSaved: new Date().toISOString(),
         frameCount: frames.length,
         source: 'ai-frames' as const,
-        checksum: this.generateChecksum(frames, graphState)
+        checksum: this.generateChecksum(frames, chapters, graphState)
       }
     };
     return appState;
   }
 
   // CHECKSUM: Generate data integrity checksum
-  private generateChecksum(frames: UnifiedAIFrame[], graphState: GraphState): string {
-    const dataString = JSON.stringify({ frames, graphState });
+  private generateChecksum(frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState): string {
+    const dataString = JSON.stringify({ 
+      frames: frames.map(f => ({
+        id: f.id,
+        title: f.title,
+        order: f.order,
+        chapterId: f.chapterId,
+        conceptIds: f.conceptIds
+      })),
+      chapters: chapters.map(c => ({
+        id: c.id,
+        title: c.title,
+        order: c.order,
+        conceptIds: c.conceptIds,
+        frameIds: c.frameIds
+      })),
+      graphState 
+    });
     return btoa(dataString).slice(0, 16); // Simple checksum
   }
 
@@ -214,6 +249,7 @@ export class UnifiedStorageManager {
     localStorage.setItem('timecapsule_combined', JSON.stringify({
       data: {
         frames: appState.frames,
+        chapters: appState.chapters,
         graphState: appState.graphState,
         metadata: appState.metadata
       },
@@ -222,7 +258,7 @@ export class UnifiedStorageManager {
   }
 
   // LOCALSTORAGE: Load with unified format
-  private async loadFromLocalStorage(): Promise<{ frames: UnifiedAIFrame[]; graphState: GraphState } | null> {
+  private async loadFromLocalStorage(): Promise<{ frames: UnifiedAIFrame[]; chapters: UnifiedChapter[]; graphState: GraphState } | null> {
     try {
       // TRY: New unified format first
       const unifiedData = localStorage.getItem('ai_frames_unified');
@@ -230,6 +266,7 @@ export class UnifiedStorageManager {
         const appState: UnifiedAppState = JSON.parse(unifiedData);
         return {
           frames: appState.frames,
+          chapters: appState.chapters || [],
           graphState: appState.graphState
         };
       }
@@ -241,6 +278,7 @@ export class UnifiedStorageManager {
         if (parsed.data?.frames) {
           return {
             frames: this.normalizeFrames(parsed.data.frames),
+            chapters: this.normalizeChapters(parsed.data.chapters || []),
             graphState: parsed.data.graphState || { nodes: [], edges: [], selectedNodeId: null }
           };
         }
@@ -277,6 +315,8 @@ export class UnifiedStorageManager {
             duration: frame.duration,
             afterVideoText: frame.afterVideoText,
             aiConcepts: frame.aiConcepts,
+            conceptIds: frame.conceptIds || frame.aiConcepts || [],
+            chapterId: frame.chapterId || null,
             isGenerated: frame.isGenerated,
             order: frame.order,
             bubblSpaceId: frame.bubblSpaceId,
@@ -293,6 +333,21 @@ export class UnifiedStorageManager {
 
         await this.vectorStore.upsertDocument(documentData);
       }
+
+      const chapterDocument = {
+        id: `aiframe-chapters`,
+        title: `AI-Frame Chapters`,
+        content: this.generateChapterContent(appState.chapters),
+        metadata: {
+          type: 'ai-frame-chapters',
+          source: 'ai-frames',
+          updatedAt: new Date().toISOString(),
+          chapters: appState.chapters
+        },
+        chunks: [],
+        vectors: []
+      };
+      await this.vectorStore.upsertDocument(chapterDocument);
 
       // CLEANUP: Remove orphaned documents (frames that no longer exist)
       const existingDocs = await this.vectorStore.getAllDocuments();
@@ -325,13 +380,22 @@ export class UnifiedStorageManager {
         doc.metadata?.source === 'ai-frames' && doc.metadata?.type === 'ai-frame'
       );
 
-      if (frameDocuments.length === 0) {
+      const chapterDocument = documents.find((doc: any) =>
+        doc.metadata?.source === 'ai-frames' && doc.metadata?.type === 'ai-frame-chapters'
+      );
+
+      if (frameDocuments.length === 0 && !chapterDocument) {
         return null;
       }
 
       const frames = frameDocuments.map((doc: any) => this.parseFrameFromDocument(doc));
+      const chapters = chapterDocument?.metadata?.chapters 
+        ? this.normalizeChapters(chapterDocument.metadata.chapters)
+        : [];
+
       return {
         frames,
+        chapters,
         graphState: { nodes: [], edges: [], selectedNodeId: null } // TODO: Load graph state from VectorStore
       };
 
@@ -379,7 +443,7 @@ export class UnifiedStorageManager {
     }
   }
 
-  private async loadFromIndexedDB(): Promise<{ frames: UnifiedAIFrame[]; graphState: GraphState } | null> {
+  private async loadFromIndexedDB(): Promise<{ frames: UnifiedAIFrame[]; chapters: UnifiedChapter[]; graphState: GraphState } | null> {
     try {
       if (typeof window === 'undefined' || !window.indexedDB) {
         return null;
@@ -404,6 +468,7 @@ export class UnifiedStorageManager {
       if (appState) {
         return {
           frames: appState.frames,
+          chapters: appState.chapters || [],
           graphState: appState.graphState
         };
       }
@@ -429,6 +494,8 @@ After Video Content:
 ${frame.afterVideoText || "No additional content"}
 
 AI Concepts: ${frame.aiConcepts ? frame.aiConcepts.join(", ") : "None"}
+Concept Attachments: ${frame.conceptIds ? frame.conceptIds.join(", ") : "None"}
+Chapter: ${frame.chapterId || "Unassigned"}
 
 ${attachment ? `
 Attachment Details:
@@ -445,6 +512,20 @@ Metadata:
     `.trim();
   }
 
+  private generateChapterContent(chapters: UnifiedChapter[]): string {
+    if (chapters.length === 0) {
+      return "No chapters configured.";
+    }
+
+    return chapters.map((chapter, index) => `
+Chapter ${index + 1}: ${chapter.title}
+- Description: ${chapter.description || "No description"}
+- Order: ${chapter.order}
+- Frames: ${chapter.frameIds.length}
+- Concept Attachments: ${chapter.conceptIds.length > 0 ? chapter.conceptIds.join(", ") : "None"}
+    `.trim()).join('\n\n');
+  }
+
   // DOCUMENT PARSING: Convert VectorStore document back to frame
   private parseFrameFromDocument(document: any): UnifiedAIFrame {
     const { metadata } = document;
@@ -458,12 +539,14 @@ Metadata:
       startTime: metadata.startTime || 0,
       duration: metadata.duration || 300,
       afterVideoText: metadata.afterVideoText || 'Key takeaways and next steps...',
-      aiConcepts: metadata.aiConcepts || [],
+      aiConcepts: metadata.aiConcepts || metadata.conceptIds || [],
+      conceptIds: metadata.conceptIds || metadata.aiConcepts || [],
       isGenerated: metadata.isGenerated || false,
       order: metadata.order || 1,
       bubblSpaceId: metadata.bubblSpaceId || 'default',
       timeCapsuleId: metadata.timeCapsuleId || 'default',
       type: metadata.frameType || 'aiframe',
+      chapterId: metadata.chapterId || metadata.parentFrameId || undefined,
       createdAt: metadata.createdAt || new Date().toISOString(),
       updatedAt: metadata.updatedAt || new Date().toISOString(),
       attachment: metadata.attachment,

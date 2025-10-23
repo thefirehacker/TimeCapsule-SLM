@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DualPaneFrameView from "./DualPaneFrameView";
 import { GraphState } from "./types";
+import type { Chapter } from "@/app/ai-frames/types/frames";
 import {
   Network,
   Eye,
@@ -15,6 +16,8 @@ import {
   Zap,
 } from "lucide-react";
 // import { debugFrames, debugStorage } from '@/lib/debugUtils'; // Disabled to prevent spam
+
+const DEFAULT_CHAPTER_COLOR = "#3B82F6";
 
 interface AIFrame {
   id: string;
@@ -52,7 +55,9 @@ interface FrameGraphIntegrationProps {
   currentFrameIndex: number;
   onFrameIndexChange: (index: number) => void;
   onCreateFrame?: () => void;
-  onTimeCapsuleUpdate?: (graphState: GraphState, chapters: any[]) => void;
+  chapters: Chapter[];
+  onChaptersChange?: (chapters: Chapter[]) => void;
+  onTimeCapsuleUpdate?: (graphState: GraphState, chapters: Chapter[]) => void;
   graphStorageManager?: any; // Add graphStorageManager prop
   initialGraphState?: GraphState; // CRITICAL FIX: Add initialGraphState prop to restore standalone attachments
   onGraphChange?: (graphState: GraphState) => void; // CRITICAL FIX: Add graph state change callback
@@ -74,6 +79,8 @@ export default function FrameGraphIntegration({
   currentFrameIndex,
   onFrameIndexChange,
   onCreateFrame,
+  chapters,
+  onChaptersChange,
   onTimeCapsuleUpdate,
   graphStorageManager,
   initialGraphState,
@@ -96,7 +103,6 @@ export default function FrameGraphIntegration({
       selectedNodeId: null,
     }
   );
-  const [chapters, setChapters] = useState<any[]>([]);
   const [sessionInitialized, setSessionInitialized] = useState(false);
   const initializingRef = useRef(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
@@ -453,34 +459,6 @@ Metadata:
     onFramesChange(updatedFrames);
   }, [onFramesChange, frames.length]);
 
-  // Auto-organize frames into chapters based on concepts
-  const organizeIntoChapters = useCallback(() => {
-    const conceptGroups = new Map<string, AIFrame[]>();
-    
-    frames.forEach((frame) => {
-      const mainConcept = frame.aiConcepts[0] || "General";
-      if (!conceptGroups.has(mainConcept)) {
-        conceptGroups.set(mainConcept, []);
-      }
-      conceptGroups.get(mainConcept)?.push(frame);
-    });
-
-    const newChapters = Array.from(conceptGroups.entries()).map(([concept, chapterFrames], index) => ({
-      id: `chapter-${index}`,
-      title: concept,
-      description: `Chapter focusing on ${concept}`,
-      frames: chapterFrames,
-      startIndex: frames.findIndex(f => f.id === chapterFrames[0]?.id),
-      endIndex: frames.findIndex(f => f.id === chapterFrames[chapterFrames.length - 1]?.id),
-    }));
-
-    setChapters(newChapters);
-  }, [frames]);
-
-  useEffect(() => {
-    organizeIntoChapters();
-  }, [frames]); // CRITICAL FIX: Depend on frames directly instead of organizeIntoChapters to prevent infinite loop
-
   const handleGraphChange = useCallback((newGraphState: GraphState) => {
     setGraphState(newGraphState);
     
@@ -508,6 +486,7 @@ Metadata:
         informationText: node.data.informationText || 'Provide background context...',
         afterVideoText: node.data.afterVideoText || 'Key takeaways...',
         aiConcepts: node.data.aiConcepts || [],
+        conceptIds: node.data.conceptIds || node.data.aiConcepts || [],
         isGenerated: node.data.isGenerated || false,
         videoUrl: node.data.videoUrl || '',
         startTime: node.data.startTime || 0,
@@ -547,12 +526,56 @@ Metadata:
     }
   }, [chapters, onTimeCapsuleUpdate, frames, handleFramesChangeWithRealTimeSync, onGraphChange]);
 
+  const organizeIntoChapters = useCallback(() => {
+    if (!onChaptersChange) {
+      return;
+    }
+
+    const conceptGroups = new Map<string, AIFrame[]>();
+
+    frames.forEach((frame) => {
+      const primaryConcept = frame.aiConcepts?.[0] || frame.title || 'General';
+      const key = primaryConcept.trim() || 'General';
+      if (!conceptGroups.has(key)) {
+        conceptGroups.set(key, []);
+      }
+      conceptGroups.get(key)?.push(frame);
+    });
+
+    const generatedChapters: Chapter[] = Array.from(conceptGroups.entries()).map(([concept, groupedFrames], index) => ({
+      id: `auto-chapter-${concept.toLowerCase().replace(/[^a-z0-9]+/g, '-') || index}`,
+      title: concept,
+      description: `Frames related to ${concept}`,
+      color: DEFAULT_CHAPTER_COLOR,
+      order: index,
+      frameIds: groupedFrames.map((frame) => frame.id),
+      conceptIds: groupedFrames.flatMap((frame) => frame.aiConcepts || []).filter(Boolean),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+
+    onChaptersChange(generatedChapters);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('force-save-frames', {
+        detail: {
+          reason: 'auto-organize-chapters',
+          timestamp: Date.now(),
+        },
+      }));
+    }
+  }, [frames, onChaptersChange]);
+
   const handleChapterClick = useCallback((chapter: any) => {
     onFrameIndexChange(chapter.startIndex);
   }, [onFrameIndexChange]);
 
   // Load graph state from TimeCapsule
   useEffect(() => {
+    if (!onChaptersChange || (chapters && chapters.length > 0)) {
+      return;
+    }
+
     try {
       const timeCapsuleData = localStorage.getItem("ai_frames_timecapsule");
       if (timeCapsuleData) {
@@ -561,14 +584,13 @@ Metadata:
           setGraphState(parsedData.data.graphState);
         }
         if (parsedData.data.chapters) {
-          setChapters(parsedData.data.chapters);
+          onChaptersChange(parsedData.data.chapters);
         }
-
       }
     } catch (error) {
       console.error("Failed to load graph state from TimeCapsule:", error);
     }
-  }, []);
+  }, [chapters, onChaptersChange]);
 
   // Save graph state to TimeCapsule when it changes
   useEffect(() => {
@@ -1427,7 +1449,9 @@ Updated: ${new Date().toISOString()}`,
       <div className="flex-1 overflow-hidden">
         <DualPaneFrameView
           frames={frames}
+          chapters={chapters}
           onFramesChange={handleFramesChangeWithRealTimeSync}
+          onChaptersChange={onChaptersChange}
           isCreationMode={isCreationMode}
           currentFrameIndex={currentFrameIndex}
           onFrameIndexChange={onFrameIndexChange}

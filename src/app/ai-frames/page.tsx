@@ -15,6 +15,7 @@ import VectorStoreInitModal from "@/components/VectorStoreInitModal";
 import {
   Network,
   Layers,
+  Edit3,
   Target,
   Plus,
   Database,
@@ -88,25 +89,11 @@ import {
   setTimeCapsuleCombinedData,
   DEFAULT_FRAME,
 } from "./index";
+import type { Chapter } from "./types/frames";
 
 // UNIFIED: Replace old fragmented storage with unified system
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
-
-// PRESERVATION: Keep the same interfaces for backward compatibility
-interface Chapter {
-  id: string;
-  title: string;
-  description: string;
-  color: string;
-  order: number;
-  frameIds: string[];
-  bubblSpaceId?: string;
-  timeCapsuleId?: string;
-  createdAt: string;
-  updatedAt: string;
-  isCollapsed?: boolean;
-}
 
 interface FrameCreationData {
   goal: string;
@@ -121,6 +108,19 @@ interface FrameCreationData {
   textContent?: string;
   textNotes?: string;
 }
+
+const DEFAULT_CHAPTER_COLOR = "#3B82F6";
+const EMPTY_CHAPTER_FORM: {
+  title: string;
+  description: string;
+  color: string;
+  conceptIds: string[];
+} = {
+  title: "",
+  description: "",
+  color: DEFAULT_CHAPTER_COLOR,
+  conceptIds: [],
+};
 
 // Main component with dramatically reduced size
 export default function AIFramesPage() {
@@ -169,6 +169,11 @@ export default function AIFramesPage() {
   const [showTimeCapsuleDialog, setShowTimeCapsuleDialog] = useState(false);
   const [showSafeImportDialog, setShowSafeImportDialog] = useState(false);
   const [showChapterDialog, setShowChapterDialog] = useState(false);
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [chapterFormData, setChapterFormData] = useState(() => ({
+    ...EMPTY_CHAPTER_FORM,
+  }));
+  const [selectedChapterFrameIds, setSelectedChapterFrameIds] = useState<string[]>([]);
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [documentManagerTab, setDocumentManagerTab] = useState("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
@@ -458,6 +463,237 @@ export default function AIFramesPage() {
     [unifiedStorage]
   );
 
+  const resetChapterDialogState = useCallback(() => {
+    setEditingChapter(null);
+    setChapterFormData({ ...EMPTY_CHAPTER_FORM });
+    setSelectedChapterFrameIds([]);
+  }, []);
+
+  const openCreateChapterDialog = useCallback(() => {
+    resetChapterDialogState();
+    setShowChapterDialog(true);
+  }, [resetChapterDialogState]);
+
+  const openEditChapterDialog = useCallback(
+    (chapter: Chapter) => {
+      setEditingChapter(chapter);
+      setChapterFormData({
+        title: chapter.title || "",
+        description: chapter.description || "",
+        color: chapter.color || DEFAULT_CHAPTER_COLOR,
+        conceptIds: chapter.conceptIds || [],
+      });
+      setSelectedChapterFrameIds(chapter.frameIds || []);
+      setShowChapterDialog(true);
+    },
+    []
+  );
+
+  const handleChapterFrameSelection = useCallback((frameId: string, isSelected: boolean) => {
+    setSelectedChapterFrameIds((prev) => {
+      if (isSelected) {
+        if (prev.includes(frameId)) {
+          return prev;
+        }
+        return [...prev, frameId];
+      }
+      return prev.filter((id) => id !== frameId);
+    });
+  }, []);
+
+  const selectAllChapterFrames = useCallback(() => {
+    setSelectedChapterFrameIds(
+      unifiedStorage.frames
+        .filter((frame) => {
+          if (editingChapter) {
+            return true;
+          }
+          return !frame.chapterId;
+        })
+        .map((frame) => frame.id)
+    );
+  }, [unifiedStorage.frames, editingChapter]);
+
+  const deselectAllChapterFrames = useCallback(() => {
+    setSelectedChapterFrameIds([]);
+  }, []);
+
+  const applyChapterAssignments = useCallback(
+    (chapterId: string, frameIds: string[], frames: UnifiedAIFrame[]): UnifiedAIFrame[] => {
+      const selectedSet = new Set(frameIds);
+      return frames.map((frame) => {
+        if (selectedSet.has(frame.id)) {
+          return {
+            ...frame,
+            chapterId,
+            parentFrameId: chapterId,
+          };
+        }
+
+        if (frame.chapterId === chapterId && !selectedSet.has(frame.id)) {
+          return {
+            ...frame,
+            chapterId: undefined,
+            parentFrameId: undefined,
+          };
+        }
+
+        if (selectedSet.has(frame.id) && frame.chapterId && frame.chapterId !== chapterId) {
+          return {
+            ...frame,
+            chapterId,
+            parentFrameId: chapterId,
+          };
+        }
+
+        return frame;
+      });
+    },
+    []
+  );
+
+  const syncChapterFrames = useCallback(
+    (chapters: Chapter[], frames: UnifiedAIFrame[]): Chapter[] =>
+      chapters.map((chapter, index) => ({
+        ...chapter,
+        frameIds: frames
+          .filter((frame) => frame.chapterId === chapter.id)
+          .map((frame) => frame.id),
+        order: typeof chapter.order === "number" ? chapter.order : index,
+      })),
+    []
+  );
+
+  const handleCreateChapter = useCallback(() => {
+    const trimmedTitle = chapterFormData.title.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+
+    const updatedFrames = applyChapterAssignments(
+      chapterId,
+      selectedChapterFrameIds,
+      unifiedStorage.frames
+    );
+
+    const baseChapter: Chapter = {
+      id: chapterId,
+      title: trimmedTitle,
+      description: chapterFormData.description.trim(),
+      color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+      conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+      frameIds: [],
+      order: unifiedStorage.chapters.length,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
+    const syncedChapters = syncChapterFrames(chaptersWithNew, updatedFrames).map((chapter) =>
+      chapter.id === chapterId
+        ? {
+            ...chapter,
+            conceptIds: baseChapter.conceptIds,
+            color: baseChapter.color,
+            description: baseChapter.description,
+            createdAt: baseChapter.createdAt,
+            updatedAt: now,
+            order: baseChapter.order,
+          }
+        : chapter
+    );
+
+    unifiedStorage.updateFrames(updatedFrames);
+    unifiedStorage.updateChapters(syncedChapters);
+    setShowChapterDialog(false);
+    resetChapterDialogState();
+  }, [
+    chapterFormData,
+    selectedChapterFrameIds,
+    unifiedStorage.frames,
+    unifiedStorage.chapters,
+    applyChapterAssignments,
+    syncChapterFrames,
+    resetChapterDialogState,
+  ]);
+
+  const handleEditChapter = useCallback(() => {
+    if (!editingChapter) {
+      return;
+    }
+
+    const trimmedTitle = chapterFormData.title.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    const updatedFrames = applyChapterAssignments(
+      editingChapter.id,
+      selectedChapterFrameIds,
+      unifiedStorage.frames
+    );
+
+    const updatedChapters = unifiedStorage.chapters.map((chapter) =>
+      chapter.id === editingChapter.id
+        ? {
+            ...chapter,
+            title: trimmedTitle,
+            description: chapterFormData.description.trim(),
+            color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+            conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+            updatedAt: now,
+          }
+        : chapter
+    );
+
+    const syncedChapters = syncChapterFrames(updatedChapters, updatedFrames);
+
+    unifiedStorage.updateFrames(updatedFrames);
+    unifiedStorage.updateChapters(syncedChapters);
+    setShowChapterDialog(false);
+    resetChapterDialogState();
+  }, [
+    editingChapter,
+    chapterFormData,
+    selectedChapterFrameIds,
+    unifiedStorage.frames,
+    unifiedStorage.chapters,
+    applyChapterAssignments,
+    syncChapterFrames,
+    resetChapterDialogState,
+  ]);
+
+  const handleDeleteChapter = useCallback(
+    (chapterId: string) => {
+      const filteredChapters = unifiedStorage.chapters.filter(
+        (chapter) => chapter.id !== chapterId
+      );
+
+      const updatedFrames = unifiedStorage.frames.map((frame) =>
+        frame.chapterId === chapterId
+          ? { ...frame, chapterId: undefined, parentFrameId: undefined }
+          : frame
+      );
+
+      const reorderedChapters = syncChapterFrames(
+        filteredChapters.map((chapter, index) => ({
+          ...chapter,
+          order: index,
+        })),
+        updatedFrames
+      );
+
+      unifiedStorage.updateFrames(updatedFrames);
+      unifiedStorage.updateChapters(reorderedChapters);
+    },
+    [unifiedStorage.chapters, unifiedStorage.frames, syncChapterFrames]
+  );
+
   // Knowledge Base search
   const handleKnowledgeBaseSearch = useCallback(async () => {
     if (!providerVectorStore || !documentSearchQuery.trim()) {
@@ -571,6 +807,27 @@ export default function AIFramesPage() {
       })),
     [unifiedStorage.frames]
   );
+
+  const availableConcepts = useMemo(() => {
+    const conceptSet = new Set<string>();
+
+    unifiedStorage.frames.forEach((frame) => {
+      frame.aiConcepts?.forEach((concept) => {
+        if (concept) conceptSet.add(concept);
+      });
+      frame.conceptIds?.forEach((concept) => {
+        if (concept) conceptSet.add(concept);
+      });
+    });
+
+    unifiedStorage.chapters.forEach((chapter) => {
+      chapter.conceptIds?.forEach((concept) => {
+        if (concept) conceptSet.add(concept);
+      });
+    });
+
+    return Array.from(conceptSet).sort((a, b) => a.localeCompare(b));
+  }, [unifiedStorage.frames, unifiedStorage.chapters]);
 
   // ============================================================================
   // CONDITIONAL LOGIC - Now safe to use after all hooks are called
@@ -856,6 +1113,91 @@ export default function AIFramesPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Chapter Management */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-700">
+                    Chapters
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={openCreateChapterDialog}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {unifiedStorage.chapters.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No chapters defined. Create one to group frames.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {unifiedStorage.chapters.map((chapter) => {
+                      const frameCount = chapter.frameIds?.length || 0;
+                      const conceptCount = chapter.conceptIds?.length || 0;
+
+                      return (
+                        <Card key={chapter.id} className="shadow-sm">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                  <span
+                                    className="inline-block h-3 w-3 rounded-full"
+                                    style={{ backgroundColor: chapter.color || DEFAULT_CHAPTER_COLOR }}
+                                  ></span>
+                                  {chapter.title || "Untitled Chapter"}
+                                </CardTitle>
+                                {chapter.description && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {chapter.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditChapterDialog(chapter)}
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `Delete chapter "${chapter.title}"? Frames will be left unassigned.`
+                                      )
+                                    ) {
+                                      handleDeleteChapter(chapter.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Badge variant="outline">
+                                {frameCount} {frameCount === 1 ? "frame" : "frames"}
+                              </Badge>
+                              <Badge variant="outline">
+                                {conceptCount} {conceptCount === 1 ? "concept" : "concepts"}
+                              </Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Main Content Area - Graph Integration */}
@@ -883,6 +1225,8 @@ export default function AIFramesPage() {
                       "Frame creation handled by FrameGraphIntegration"
                     )
                   }
+                  chapters={unifiedStorage.chapters}
+                  onChaptersChange={unifiedStorage.updateChapters}
                   onGraphChange={handleGraphStateUpdate}
                   initialGraphState={unifiedStorage.graphState}
                   graphStorageManager={graphStorageManagerRef.current}
@@ -963,21 +1307,23 @@ export default function AIFramesPage() {
       />
       <ChapterDialog
         open={showChapterDialog}
-        onOpenChange={setShowChapterDialog}
-        editingChapter={null}
-        chapterFormData={{
-          title: "",
-          description: "",
-          color: "#3B82F6",
+        onOpenChange={(open) => {
+          setShowChapterDialog(open);
+          if (!open) {
+            resetChapterDialogState();
+          }
         }}
-        setChapterFormData={() => {}}
-        selectedFrameIds={[]}
-        frames={[]}
-        onFrameSelection={() => {}}
-        onSelectAll={() => {}}
-        onDeselectAll={() => {}}
-        onCreateChapter={() => {}}
-        onEditChapter={() => {}}
+        editingChapter={editingChapter}
+        chapterFormData={chapterFormData}
+        setChapterFormData={setChapterFormData}
+        selectedFrameIds={selectedChapterFrameIds}
+        frames={framesWithOrder}
+        availableConcepts={availableConcepts}
+        onFrameSelection={handleChapterFrameSelection}
+        onSelectAll={selectAllChapterFrames}
+        onDeselectAll={deselectAllChapterFrames}
+        onCreateChapter={handleCreateChapter}
+        onEditChapter={handleEditChapter}
       />
 
       {/* Document Manager Modal - Complete Deep Research implementation */}

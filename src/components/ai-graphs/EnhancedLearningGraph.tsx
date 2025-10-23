@@ -27,6 +27,7 @@ import TextAttachmentNode from "./TextAttachmentNode";
 import ConceptNode from "./ConceptNode";
 import ChapterNode from "./ChapterNode";
 import EnhancedSidebar from "./EnhancedSidebar";
+import type { Chapter as AiChapter } from "@/app/ai-frames/types/frames";
 
 import { 
   NodeData, 
@@ -36,7 +37,8 @@ import {
   FrameAttachment,
   VideoAttachmentNodeData,
   PDFAttachmentNodeData,
-  TextAttachmentNodeData
+  TextAttachmentNodeData,
+  ChapterNodeData
 } from "./types";
 
 // Enhanced node types with attachment system
@@ -51,9 +53,12 @@ const enhancedNodeTypes = {
 
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
+const DEFAULT_CHAPTER_COLOR = "#3B82F6";
 
 let id = 0;
 const getId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${id++}`; // SPECS FIX: Guaranteed unique IDs
+
+type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order">>;
 
 interface EnhancedLearningGraphProps {
   mode?: "creator" | "learner";
@@ -61,6 +66,8 @@ interface EnhancedLearningGraphProps {
   onFramesChange?: (frames: any[]) => void;
   onGraphChange?: (graphState: GraphState) => void;
   initialGraphState?: GraphState;
+  chapters?: AiChapter[];
+  onChaptersChange?: (chapters: AiChapter[]) => void;
 }
 
 export default function EnhancedLearningGraph({ 
@@ -68,7 +75,9 @@ export default function EnhancedLearningGraph({
   frames = [],
   onFramesChange,
   onGraphChange,
-  initialGraphState
+  initialGraphState,
+  chapters = [],
+  onChaptersChange,
 }: EnhancedLearningGraphProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraphState?.nodes || initialNodes);
@@ -79,24 +88,29 @@ export default function EnhancedLearningGraph({
   const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
   const lastEmissionRef = useRef<number>(0);
   const lastAppliedGraphState = useRef<string | null>(null);
+  const chaptersRef = useRef<AiChapter[]>(chapters || []);
   
   // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
   const framesRef = useRef(frames);
   useEffect(() => {
     framesRef.current = frames;
   }, [frames]);
+  useEffect(() => {
+    chaptersRef.current = Array.isArray(chapters) ? chapters : [];
+  }, [chapters]);
   
   // CRITICAL FIX: Add refs to track current graph state for fresh values
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   const selectedNodeRef = useRef(selectedNode);
+  const boundChapterUpdateHandlers = useRef<Set<string>>(new Set());
   
   useEffect(() => {
     nodesRef.current = nodes;
     edgesRef.current = edges;
     selectedNodeRef.current = selectedNode;
   }, [nodes, edges, selectedNode]);
-  
+
   // CRITICAL FIX: Add mutex to prevent concurrent frame creation
   const isCreatingFrame = useRef(false);
   
@@ -353,7 +367,7 @@ export default function EnhancedLearningGraph({
     
     // OPTIMISTIC: Background save will handle persistence automatically
     // No need for force save since optimistic updates are now implemented
-  }, [frames, onFramesChange]);
+  }, [onFramesChange]);
 
   // Handle content detachment from frames
   const handleDetachContent = useCallback((frameId: string) => {
@@ -409,7 +423,334 @@ export default function EnhancedLearningGraph({
       frameId,
       action: 'detached'
     });
-  }, [frames, onFramesChange]);
+  }, [onFramesChange]);
+
+  const handleChapterUpdate = useCallback((chapterNodeId: string, updates: ChapterNodeUpdates) => {
+    if (!updates) {
+      return;
+    }
+
+    const sanitized: ChapterNodeUpdates = {};
+    if (typeof updates.title === "string") {
+      sanitized.title = updates.title;
+    }
+    if (typeof updates.description === "string") {
+      sanitized.description = updates.description;
+    }
+    if (Array.isArray(updates.frameIds)) {
+      sanitized.frameIds = updates.frameIds;
+    }
+    if (Array.isArray(updates.conceptIds)) {
+      sanitized.conceptIds = updates.conceptIds;
+    }
+    if (typeof updates.order === "number") {
+      sanitized.order = updates.order;
+    }
+
+    if (Object.keys(sanitized).length === 0) {
+      return;
+    }
+
+    let updatedNodes: Node[] | null = null;
+    let didUpdate = false;
+    let resolvedChapterId: string | null = null;
+
+    setNodes(currentNodes => {
+      const nextNodes = currentNodes.map(node => {
+        if (node.type !== 'chapter') {
+          return node;
+        }
+
+        const nodeData = node.data as ChapterNodeData;
+        const nodeChapterId = nodeData?.id || node.id;
+        const isTargetNode = node.id === chapterNodeId || nodeChapterId === chapterNodeId;
+        if (!isTargetNode) {
+          return node;
+        }
+
+        const nextData: ChapterNodeData = {
+          ...nodeData,
+          ...sanitized,
+          id: nodeChapterId,
+          updatedAt: new Date().toISOString(),
+          onChapterUpdate: nodeData?.onChapterUpdate,
+        };
+
+        const hasLocalChange = Object.keys(sanitized).some((key) => {
+          const typedKey = key as keyof ChapterNodeUpdates;
+          return (nodeData as any)?.[typedKey] !== (nextData as any)[typedKey];
+        });
+
+        if (!hasLocalChange) {
+          return node;
+        }
+
+        didUpdate = true;
+        resolvedChapterId = nodeChapterId;
+        return {
+          ...node,
+          data: {
+            ...nextData,
+            onChapterUpdate: nodeData?.onChapterUpdate,
+          },
+        };
+      });
+
+      if (didUpdate) {
+        updatedNodes = nextNodes;
+        return nextNodes;
+      }
+
+      return currentNodes;
+    });
+
+    if (didUpdate && updatedNodes) {
+      emitGraphStateChange(
+        'chapter-updated',
+        {
+          chapterNodeId: resolvedChapterId ?? chapterNodeId,
+          updates: sanitized,
+        },
+        { nodes: updatedNodes, edges: edgesRef.current }
+      );
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('chapter-node-updated', {
+          detail: {
+            chapterNodeId: resolvedChapterId ?? chapterNodeId,
+            updates: sanitized,
+            timestamp: new Date().toISOString(),
+          }
+        }));
+      }
+    }
+
+    if (didUpdate && onChaptersChange) {
+      const targetChapterId = resolvedChapterId ?? chapterNodeId;
+      const currentChapters = chaptersRef.current || [];
+      const timestamp = new Date().toISOString();
+      const existingIndex = currentChapters.findIndex(chapter => chapter.id === targetChapterId);
+      let nextChapters: AiChapter[];
+
+      if (existingIndex !== -1) {
+        const existingChapter = currentChapters[existingIndex];
+        const updatedChapter: AiChapter = {
+          ...existingChapter,
+          title: typeof sanitized.title === 'string' ? sanitized.title : existingChapter.title,
+          description: typeof sanitized.description === 'string' ? sanitized.description : existingChapter.description,
+          frameIds: Array.isArray(sanitized.frameIds) ? sanitized.frameIds : existingChapter.frameIds,
+          conceptIds: Array.isArray(sanitized.conceptIds) ? sanitized.conceptIds : existingChapter.conceptIds,
+          order: typeof sanitized.order === 'number' ? sanitized.order : existingChapter.order,
+          updatedAt: timestamp,
+        };
+
+        nextChapters = [
+          ...currentChapters.slice(0, existingIndex),
+          updatedChapter,
+          ...currentChapters.slice(existingIndex + 1),
+        ];
+      } else {
+        nextChapters = [
+          ...currentChapters,
+          {
+            id: targetChapterId,
+            title: sanitized.title || "New Chapter",
+            description: sanitized.description || "",
+            frameIds: Array.isArray(sanitized.frameIds) ? sanitized.frameIds : [],
+            conceptIds: Array.isArray(sanitized.conceptIds) ? sanitized.conceptIds : [],
+            order: typeof sanitized.order === 'number' ? sanitized.order : currentChapters.length,
+            color: DEFAULT_CHAPTER_COLOR,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            isCollapsed: false,
+            bubblSpaceId: undefined,
+            timeCapsuleId: undefined,
+          },
+        ];
+      }
+
+      chaptersRef.current = nextChapters;
+      onChaptersChange(nextChapters);
+    }
+  }, [emitGraphStateChange, onChaptersChange, setNodes]);
+
+  useEffect(() => {
+    if (!Array.isArray(chapters)) {
+      return;
+    }
+
+    setNodes(currentNodes => {
+      if (!currentNodes.length) {
+        return currentNodes;
+      }
+
+      const chapterMap = new Map(chapters.map(chapter => [chapter.id, chapter]));
+      let patched = false;
+
+      const nextNodes = currentNodes.map(node => {
+        if (node.type !== 'chapter') {
+          return node;
+        }
+
+        const nodeData = node.data as ChapterNodeData;
+        const chapterId = nodeData?.id || node.id;
+        const chapter = chapterMap.get(chapterId);
+        const handler = typeof nodeData?.onChapterUpdate === 'function'
+          ? nodeData.onChapterUpdate
+          : (updates: ChapterNodeUpdates) => handleChapterUpdate(chapterId, updates);
+
+        if (!chapter) {
+          if (nodeData?.onChapterUpdate && nodeData.id === chapterId) {
+            return node;
+          }
+          patched = true;
+          return {
+            ...node,
+            data: {
+              ...nodeData,
+              id: chapterId,
+              onChapterUpdate: handler,
+              frameIds: Array.isArray(nodeData?.frameIds) ? nodeData.frameIds : [],
+              conceptIds: Array.isArray(nodeData?.conceptIds) ? nodeData.conceptIds : [],
+            },
+          };
+        }
+
+        const nextData: ChapterNodeData = {
+          ...nodeData,
+          id: chapterId,
+          title: chapter.title,
+          description: chapter.description || "",
+          frameIds: Array.isArray(chapter.frameIds) ? chapter.frameIds : [],
+          conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
+          order: chapter.order,
+          onChapterUpdate: handler,
+        };
+
+        const hasDifference =
+          nodeData.title !== nextData.title ||
+          (nodeData.description || "") !== nextData.description ||
+          JSON.stringify(nodeData.frameIds || []) !== JSON.stringify(nextData.frameIds) ||
+          JSON.stringify(nodeData.conceptIds || []) !== JSON.stringify(nextData.conceptIds) ||
+          nodeData.order !== nextData.order ||
+          nodeData.onChapterUpdate !== handler ||
+          nodeData.id !== nextData.id;
+
+        if (!hasDifference) {
+          return node;
+        }
+
+        patched = true;
+        return {
+          ...node,
+          data: nextData,
+        };
+      });
+
+      return patched ? nextNodes : currentNodes;
+    });
+  }, [chapters, handleChapterUpdate, setNodes]);
+
+  useEffect(() => {
+    setNodes(currentNodes => {
+      let patched = false;
+
+      const nextNodes = currentNodes.map(node => {
+        if (node.type !== 'chapter') {
+          return node;
+        }
+
+        const nodeData = node.data as ChapterNodeData;
+        const chapterId = nodeData?.id || node.id;
+        const handlerBound = boundChapterUpdateHandlers.current.has(chapterId);
+        const hasHandler = typeof nodeData?.onChapterUpdate === 'function';
+        const needsHandler = !hasHandler || !handlerBound;
+        const needsId = nodeData?.id !== chapterId;
+
+        if (!needsHandler && !needsId) {
+          boundChapterUpdateHandlers.current.add(chapterId);
+          return node;
+        }
+
+        patched = true;
+        const handler = (updates: ChapterNodeUpdates) => handleChapterUpdate(chapterId, updates);
+        boundChapterUpdateHandlers.current.add(chapterId);
+
+        return {
+          ...node,
+          data: {
+            ...nodeData,
+            id: chapterId,
+            frameIds: Array.isArray(nodeData?.frameIds) ? nodeData.frameIds : [],
+            conceptIds: Array.isArray(nodeData?.conceptIds) ? nodeData.conceptIds : [],
+            onChapterUpdate: handler,
+          },
+        };
+      });
+
+      return patched ? nextNodes : currentNodes;
+    });
+  }, [handleChapterUpdate, setNodes]);
+
+  const normalizeConceptValue = useCallback((conceptNode: any): string => {
+    if (!conceptNode?.data) return '';
+    return (
+      conceptNode.data.concept ||
+      conceptNode.data.title ||
+      conceptNode.data.label ||
+      ''
+    ).trim();
+  }, []);
+
+  const handleAttachConceptToFrame = useCallback((frameId: string, conceptValue: string) => {
+    if (!conceptValue || !onFramesChange) {
+      return;
+    }
+
+    const currentFrames = framesRef.current;
+    const updatedFrames = currentFrames.map((frame) => {
+      if (frame.id !== frameId) {
+        return frame;
+      }
+
+      const nextConcepts = Array.from(new Set([...(frame.conceptIds || frame.aiConcepts || []), conceptValue]))
+        .filter(Boolean);
+
+      return {
+        ...frame,
+        conceptIds: nextConcepts,
+        aiConcepts: Array.from(new Set([...(frame.aiConcepts || []), ...nextConcepts])),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    onFramesChange(updatedFrames);
+  }, [onFramesChange]);
+
+  const handleDetachConceptFromFrame = useCallback((frameId: string, conceptValue: string) => {
+    if (!onFramesChange || !conceptValue) {
+      return;
+    }
+
+    const currentFrames = framesRef.current;
+    const updatedFrames = currentFrames.map((frame) => {
+      if (frame.id !== frameId) {
+        return frame;
+      }
+
+      const remainingConcepts = (frame.conceptIds || frame.aiConcepts || [])
+        .filter((concept: string) => concept !== conceptValue);
+
+      return {
+        ...frame,
+        conceptIds: remainingConcepts,
+        aiConcepts: remainingConcepts,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    onFramesChange(updatedFrames);
+  }, [onFramesChange]);
 
   // REAL-TIME SYNC: Handle node deletion
   useEffect(() => {
@@ -716,16 +1057,53 @@ export default function EnhancedLearningGraph({
   // Handle connections with attachment logic
   const onConnect = useCallback(
     (params: Connection) => {
-      
-      
+      const currentNodes = nodesRef.current;
+      const currentEdges = edgesRef.current;
+
+      const sourceNode = currentNodes.find((n) => n.id === params.source);
+      const targetNode = currentNodes.find((n) => n.id === params.target);
+
+      if (!sourceNode || !targetNode) {
+        return;
+      }
+
+      const sourceType = sourceNode.type;
+      const targetType = targetNode.type;
+
+      if (sourceType === 'concept' && targetType === 'aiframe' && targetNode.data?.frameId) {
+        const conceptValue = normalizeConceptValue(sourceNode);
+        handleAttachConceptToFrame(targetNode.data.frameId, conceptValue);
+      }
+
+      if (sourceType === 'aiframe' && targetType === 'concept' && sourceNode.data?.frameId) {
+        const conceptValue = normalizeConceptValue(targetNode);
+        handleAttachConceptToFrame(sourceNode.data.frameId, conceptValue);
+      }
+
+      if (targetType === 'chapter') {
+        const allowFrameAttachment =
+          params.targetHandle === 'chapter-frame-in' || params.targetHandle === 'chapter-frame-out';
+        const allowChapterOrdering =
+          params.targetHandle === 'chapter-order-in' || params.sourceHandle === 'chapter-order-out';
+
+        if (!allowFrameAttachment && !allowChapterOrdering) {
+          console.warn('⚠️ Connection rejected: use the bottom handle to attach frames or side handles to order chapters.');
+          return;
+        }
+      }
+
+      if (sourceType === 'chapter' && targetType === 'aiframe') {
+        if (params.sourceHandle !== 'chapter-frame-out') {
+          console.warn('⚠️ Connection rejected: use the bottom handle on the chapter to connect to a frame.');
+          return;
+        }
+      }
+
       // Check if this is an attachment connection
       if (params.targetHandle === 'attachment-slot') {
-        const sourceNode = nodes.find(n => n.id === params.source);
-        const targetNode = nodes.find(n => n.id === params.target);
-        
-        if (sourceNode && targetNode && targetNode.data.frameId) {
+        if (targetNode && targetNode.data.frameId) {
           // Check if target frame already has an attachment
-          const hasAttachment = edges.some(edge => 
+          const hasAttachment = currentEdges.some(edge => 
             edge.target === params.target && (edge as any).targetHandle === 'attachment-slot'
           );
           
@@ -806,7 +1184,13 @@ export default function EnhancedLearningGraph({
           }));
         }
       }
-      
+
+      const isChapterOrderingEdge =
+        sourceType === 'chapter' &&
+        targetType === 'chapter' &&
+        params.sourceHandle === 'chapter-order-out' &&
+        params.targetHandle === 'chapter-order-in';
+
       // Create the edge with enhanced styling and guaranteed unique ID
       const edge: Edge = {
         id: `edge_${params.source}_${params.target}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -814,9 +1198,14 @@ export default function EnhancedLearningGraph({
         target: params.target!,
         sourceHandle: params.sourceHandle || null,
         targetHandle: params.targetHandle || null,
-        style: params.targetHandle === 'attachment-slot' 
-          ? { stroke: "#f97316", strokeWidth: 3 } 
-          : { stroke: "#3b82f6", strokeWidth: 2 },
+        style:
+          params.targetHandle === 'attachment-slot'
+            ? { stroke: "#f97316", strokeWidth: 3 }
+            : isChapterOrderingEdge
+              ? { stroke: "#fb923c", strokeWidth: 3, strokeDasharray: '6 3' }
+              : (sourceType === 'concept' || targetType === 'concept')
+                ? { stroke: "#14b8a6", strokeWidth: 2, strokeDasharray: '4 2' }
+                : { stroke: "#3b82f6", strokeWidth: 2 },
       };
       
       // CRITICAL FIX: Prevent duplicate edges by checking if edge already exists
@@ -832,12 +1221,12 @@ export default function EnhancedLearningGraph({
       // Emit connection event for real-time sync
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('graph-connection-added', {
-          detail: {
-            connection: edge,
-            sourceNode: nodes.find(n => n.id === params.source),
-            targetNode: nodes.find(n => n.id === params.target),
-            timestamp: new Date().toISOString()
-          }
+            detail: {
+              connection: edge,
+              sourceNode,
+              targetNode,
+              timestamp: new Date().toISOString()
+            }
         }));
         
         // COMPATIBILITY: Also emit legacy connection-changed event
@@ -852,47 +1241,47 @@ export default function EnhancedLearningGraph({
         // CRITICAL FIX: Emit graph-state-changed with fresh edge state to trigger unified save
         setTimeout(() => {
           // Get current state and add the new edge
-          const currentNodes = nodesRef.current;
-          const currentEdges = [...edgesRef.current, edge];
+          const nextNodes = nodesRef.current;
+          const nextEdges = [...edgesRef.current, edge];
           
           // CRITICAL FIX: For attachment connections, emit graph-attachment-changed with fresh state
           if (params.targetHandle === 'attachment-slot') {
-            const targetNode = nodes.find(n => n.id === params.target);
-            if (targetNode?.data?.frameId) {
+            const attachmentTargetNode = nextNodes.find(n => n.id === params.target);
+            if (attachmentTargetNode?.data?.frameId) {
               window.dispatchEvent(new CustomEvent('graph-attachment-changed', {
                 detail: {
-                  frameId: targetNode.data.frameId,
-                  attachment: targetNode.data.attachment,
+                  frameId: attachmentTargetNode.data.frameId,
+                  attachment: attachmentTargetNode.data.attachment,
                   action: 'attached',
                   // CRITICAL FIX: Include fresh graph state with the new edge
                   freshGraphState: {
-                    nodes: currentNodes,
-                    edges: currentEdges,
+                    nodes: nextNodes,
+                    edges: nextEdges,
                     selectedNodeId: selectedNodeRef.current
                   }
                 }
               }));
             }
           }
-          
+
           emitGraphStateChange('edge-added', {
             edgeData: edge
           }, {
-            nodes: currentNodes,
-            edges: currentEdges
+            nodes: nextNodes,
+            edges: nextEdges
           });
           
           console.log('🎯 Connection created, triggering unified save with fresh state:', {
             edgeId: edge.id,
             source: edge.source,
             target: edge.target,
-            totalEdges: currentEdges.length,
+            totalEdges: nextEdges.length,
             isAttachment: params.targetHandle === 'attachment-slot'
           });
         }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
       }
     },
-    [handleAttachContent] // PERFORMANCE FIX: Remove nodes/edges deps to prevent constant recreation during drag
+    [normalizeConceptValue, handleAttachConceptToFrame, handleAttachContent, emitGraphStateChange]
   );
 
   // REAL-TIME SYNC: Handle edge/connection deletion
@@ -903,11 +1292,13 @@ export default function EnhancedLearningGraph({
         edges: edgesToDelete.map(e => ({ id: e.id, source: e.source, target: e.target }))
       });
 
+      const currentNodes = nodesRef.current;
+
       edgesToDelete.forEach(edge => {
         // Check if this is an attachment connection
         if ((edge as any).targetHandle === 'attachment-slot') {
-          const sourceNode = nodes.find(n => n.id === edge.source);
-          const targetNode = nodes.find(n => n.id === edge.target);
+          const sourceNode = currentNodes.find(n => n.id === edge.source);
+          const targetNode = currentNodes.find(n => n.id === edge.target);
           
           if (sourceNode && targetNode && targetNode.data.frameId) {
             console.log('🔗 Enhanced: Removing attachment connection:', {
@@ -928,14 +1319,32 @@ export default function EnhancedLearningGraph({
             }));
           }
         }
+
+        const sourceNode = currentNodes.find(n => n.id === edge.source);
+        const targetNode = currentNodes.find(n => n.id === edge.target);
+
+        if (sourceNode && targetNode) {
+          const sourceType = sourceNode.type;
+          const targetType = targetNode.type;
+
+          if (sourceType === 'concept' && targetType === 'aiframe' && targetNode.data?.frameId) {
+            const conceptValue = normalizeConceptValue(sourceNode);
+            handleDetachConceptFromFrame(targetNode.data.frameId, conceptValue);
+          }
+
+          if (sourceType === 'aiframe' && targetType === 'concept' && sourceNode.data?.frameId) {
+            const conceptValue = normalizeConceptValue(targetNode);
+            handleDetachConceptFromFrame(sourceNode.data.frameId, conceptValue);
+          }
+        }
         
         // Emit connection removal event for real-time sync
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('graph-connection-removed', {
             detail: {
               connection: edge,
-              sourceNode: nodes.find(n => n.id === edge.source),
-              targetNode: nodes.find(n => n.id === edge.target),
+              sourceNode,
+              targetNode,
               timestamp: new Date().toISOString()
             }
           }));
@@ -972,7 +1381,7 @@ export default function EnhancedLearningGraph({
         }
       });
     },
-    [nodes, handleDetachContent]
+    [normalizeConceptValue, handleDetachConceptFromFrame, handleDetachContent, emitGraphStateChange]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -1014,6 +1423,7 @@ export default function EnhancedLearningGraph({
         y: event.clientY,
       });
 
+      const nodeId = getId();
       const newNodeData: NodeData = (() => {
         switch (type) {
           case "aiframe":
@@ -1075,9 +1485,13 @@ export default function EnhancedLearningGraph({
           case "chapter":
             return {
               type: "chapter",
+              id: nodeId,
               title: "New Chapter",
               description: "Chapter description",
               frameIds: [],
+              conceptIds: [],
+              order: nodesRef.current.length,
+              onChapterUpdate: (updates) => handleChapterUpdate(nodeId, updates),
             };
             
           default:
@@ -1086,11 +1500,15 @@ export default function EnhancedLearningGraph({
       })();
 
       const newNode: Node = {
-        id: getId(),
+        id: nodeId,
         type,
         position,
         data: newNodeData,
       };
+
+      if (type === 'chapter') {
+        boundChapterUpdateHandlers.current.add(nodeId);
+      }
 
       setNodes((nds) => nds.concat(newNode));
       
