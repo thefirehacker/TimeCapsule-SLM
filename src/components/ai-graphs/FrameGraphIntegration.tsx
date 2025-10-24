@@ -504,21 +504,7 @@ Metadata:
       handleFramesChangeWithRealTimeSync(updatedFrames);
     }
 
-    // Check for deleted AI frame nodes
-    const deletedFrameIds = frames
-      .filter(frame => !newGraphState.nodes.some(node => 
-        node.type === 'aiframe' && node.data?.frameId === frame.id
-      ))
-      .map(frame => frame.id);
-
-    if (deletedFrameIds.length > 0) {
-      // console.log('🗑️ REAL-TIME: AI frame nodes deleted from graph, removing frames:', {
-      //   deletedFrameIds
-      // });
-
-      const updatedFrames = frames.filter(frame => !deletedFrameIds.includes(frame.id));
-      handleFramesChangeWithRealTimeSync(updatedFrames);
-    }
+    // NOTE: Frame deletions are handled via dedicated events; avoid mutating frames here to prevent accidental data loss.
     
     // Notify parent component for TimeCapsule updates
     if (onTimeCapsuleUpdate) {

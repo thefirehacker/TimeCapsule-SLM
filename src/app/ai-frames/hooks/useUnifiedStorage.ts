@@ -457,10 +457,31 @@ export const useUnifiedStorage = ({
   }, []);
 
   const queueBackgroundSave = useCallback(async (frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState, priority = false) => {
+    const resolveFrames = (candidate: UnifiedAIFrame[] | null | undefined) => {
+      if (candidate && candidate.length > 0) return candidate;
+      if (framesRef.current && framesRef.current.length > 0) return framesRef.current;
+      return candidate || [];
+    };
+
+    const ensureFramesNotEmpty = (candidate: UnifiedAIFrame[]) => {
+      if (candidate.length === 0 && framesRef.current && framesRef.current.length > 0) {
+        return framesRef.current;
+      }
+      return candidate;
+    };
+
+    const resolveChapters = (candidate: UnifiedChapter[] | null | undefined) => {
+      if (candidate && candidate.length > 0) return candidate;
+      if (chaptersRef.current && chaptersRef.current.length > 0) return chaptersRef.current;
+      return candidate || [];
+    };
+
+    const safeFrames = resolveFrames(frames);
+    const safeChapters = resolveChapters(chapters);
     // CRITICAL FIX: Priority saves (like node drops) lock the queue to prevent overwrites
     if (priority && !backgroundSaveQueue.current.isProcessing) {
-      backgroundSaveQueue.current.pendingFrames = frames;
-      backgroundSaveQueue.current.pendingChapters = chapters;
+      backgroundSaveQueue.current.pendingFrames = safeFrames;
+      backgroundSaveQueue.current.pendingChapters = safeChapters;
       backgroundSaveQueue.current.pendingGraphState = graphState;
       backgroundSaveQueue.current.isProcessing = true; // Lock immediately
       
@@ -468,8 +489,8 @@ export const useUnifiedStorage = ({
       
       // Process immediately without delay for priority saves
       try {
-        let framesToSave = frames;
-        let chaptersToSave = chapters;
+        let framesToSave = ensureFramesNotEmpty(resolveFrames(safeFrames));
+        let chaptersToSave = resolveChapters(safeChapters);
 
         const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, graphState);
         if (derivedChapters.length) {
@@ -510,9 +531,15 @@ export const useUnifiedStorage = ({
     
     // Normal save logic - can be overwritten
     if (!backgroundSaveQueue.current.isProcessing) {
-      backgroundSaveQueue.current.pendingFrames = frames;
-      backgroundSaveQueue.current.pendingChapters = chapters;
+      const resolvedFrames = ensureFramesNotEmpty(resolveFrames(safeFrames));
+      backgroundSaveQueue.current.pendingFrames = resolvedFrames;
+      backgroundSaveQueue.current.pendingChapters = safeChapters;
       backgroundSaveQueue.current.pendingGraphState = graphState;
+
+      framesRef.current = resolvedFrames;
+      if (!chaptersRef.current || chaptersRef.current.length === 0) {
+        chaptersRef.current = safeChapters;
+      }
     }
     
     // Don't start processing if already processing
@@ -528,11 +555,11 @@ export const useUnifiedStorage = ({
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Get latest pending data
-      const latestFrames = backgroundSaveQueue.current.pendingFrames;
-      const latestChapters = backgroundSaveQueue.current.pendingChapters;
+      const latestFrames = ensureFramesNotEmpty(resolveFrames(backgroundSaveQueue.current.pendingFrames));
+      const latestChapters = resolveChapters(backgroundSaveQueue.current.pendingChapters);
       const latestGraphState = backgroundSaveQueue.current.pendingGraphState;
       
-      if (latestFrames && latestGraphState && latestChapters) {
+      if (latestGraphState && latestFrames && latestChapters) {
         // Clear pending data before save
         backgroundSaveQueue.current.pendingFrames = null;
         backgroundSaveQueue.current.pendingChapters = null;
@@ -549,8 +576,8 @@ export const useUnifiedStorage = ({
           timestamp: new Date().toISOString()
         });
         
-        let framesToSave = latestFrames;
-        let chaptersToSave = latestChapters;
+        let framesToSave = ensureFramesNotEmpty(resolveFrames(latestFrames));
+        let chaptersToSave = resolveChapters(latestChapters);
 
         const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, latestGraphState);
         if (derivedChapters.length) {
@@ -720,7 +747,9 @@ export const useUnifiedStorage = ({
         // Frame content loaded successfully
         
         setFrames(data.frames);
+        framesRef.current = data.frames;
         setChapters(data.chapters || []);
+        chaptersRef.current = data.chapters || [];
         
         // CRITICAL FIX: Deduplicate edges to prevent React key conflicts
         const deduplicatedGraphState = {
@@ -791,6 +820,7 @@ export const useUnifiedStorage = ({
         };
         
         setGraphState(syncedGraphState);
+        graphStateRef.current = syncedGraphState;
         
         const newHash = generateStateHash(data.frames, data.chapters || [], data.graphState);
         lastSaveHash.current = newHash;
@@ -1066,33 +1096,39 @@ export const useUnifiedStorage = ({
     const handleAttachmentChangedEvent = (event: any) => {
       const { frameId, attachment, action, freshGraphState } = event.detail;
       
-      // Attachment change detected
-      
-      // Update frames state to reflect attachment change
-      if (action === 'attached' && attachment) {
-        const updatedFrames = frames.map(frame => 
-          frame.id === frameId ? { 
-            ...frame, 
-            attachment,
-            updatedAt: new Date().toISOString() 
-          } : frame
-        );
-        setFrames(updatedFrames);
-      } else if (action === 'detached') {
-        const updatedFrames = frames.map(frame => 
-          frame.id === frameId ? { 
-            ...frame, 
-            attachment: undefined,
-            updatedAt: new Date().toISOString() 
-          } : frame
-        );
-        setFrames(updatedFrames);
-      }
-      
-      // CRITICAL FIX: Use fresh graph state from event to prevent stale edge saves
-      setHasUnsavedChanges(true);
-      const graphStateToSave = freshGraphState || graphStateRef.current;
-      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateToSave);
+    // Attachment change detected
+
+    // Update frames state to reflect attachment change
+    if (action === 'attached' && attachment) {
+      const updatedFrames = framesRef.current.map(frame =>
+        frame.id === frameId
+          ? {
+              ...frame,
+              attachment,
+              updatedAt: new Date().toISOString()
+            }
+          : frame
+      );
+      framesRef.current = updatedFrames;
+      setFrames(updatedFrames);
+    } else if (action === 'detached') {
+      const updatedFrames = framesRef.current.map(frame =>
+        frame.id === frameId
+          ? {
+              ...frame,
+              attachment: undefined,
+              updatedAt: new Date().toISOString()
+            }
+          : frame
+      );
+      framesRef.current = updatedFrames;
+      setFrames(updatedFrames);
+    }
+
+    // CRITICAL FIX: Use fresh graph state from event to prevent stale edge saves
+    setHasUnsavedChanges(true);
+    const graphStateToSave = freshGraphState || graphStateRef.current;
+    queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateToSave);
     };
 
     // CRITICAL FIX: Handle attachment content updates (note name changes, etc.)
@@ -1100,7 +1136,7 @@ export const useUnifiedStorage = ({
       const { frameId, attachment } = event.detail;
       
       // Update the frame's attachment property in unified storage
-      const updatedFrames = frames.map(frame => 
+      const updatedFrames = framesRef.current.map(frame => 
         frame.id === frameId ? { 
           ...frame, 
           attachment: attachment,
@@ -1108,6 +1144,7 @@ export const useUnifiedStorage = ({
         } : frame
       );
       
+      framesRef.current = updatedFrames;
       setFrames(updatedFrames);
       
       // OPTIMISTIC: Trigger immediate background save for attachment content changes

@@ -98,8 +98,31 @@ export default function DualPaneFrameView({
   // REMOVED: useEffect that was breaking sync system
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'connected' | 'disconnected'>>({});
 
+  useEffect(() => {
+    if (!frames.length) {
+      if (currentFrameIndex !== 0) {
+        onFrameIndexChange(0);
+      }
+      setEditingFrameId(null);
+      setEditData({});
+      return;
+    }
+
+    if (currentFrameIndex < 0 || currentFrameIndex >= frames.length) {
+      const clamped = currentFrameIndex < 0 ? 0 : frames.length - 1;
+      onFrameIndexChange(clamped);
+    }
+  }, [frames.length, frames, currentFrameIndex, onFrameIndexChange]);
+
   // Get current frame safely
-  const currentFrame = frames[currentFrameIndex] || null;
+  const clampedFrameIndex = useMemo(() => {
+    if (!frames.length) return 0;
+    if (currentFrameIndex < 0) return 0;
+    if (currentFrameIndex >= frames.length) return frames.length - 1;
+    return currentFrameIndex;
+  }, [frames.length, currentFrameIndex]);
+
+  const currentFrame = frames[clampedFrameIndex] || null;
 
   // CRITICAL FIX: Setup callback to provide current graph state when requested
   const getCurrentGraphState = useCallback(() => {
@@ -574,19 +597,19 @@ export default function DualPaneFrameView({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onFrameIndexChange(Math.max(0, currentFrameIndex - 1))}
-                      disabled={currentFrameIndex === 0}
+                      onClick={() => onFrameIndexChange(Math.max(0, clampedFrameIndex - 1))}
+                      disabled={clampedFrameIndex === 0}
                     >
                       <SkipBack className="h-4 w-4" />
                     </Button>
                     <Badge variant="default">
-                      {currentFrameIndex + 1} of {frames.length}
+                      {clampedFrameIndex + 1} of {frames.length}
                     </Badge>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onFrameIndexChange(Math.min(frames.length - 1, currentFrameIndex + 1))}
-                      disabled={currentFrameIndex === frames.length - 1}
+                      onClick={() => onFrameIndexChange(Math.min(frames.length - 1, clampedFrameIndex + 1))}
+                      disabled={clampedFrameIndex === frames.length - 1}
                     >
                       <SkipForward className="h-4 w-4" />
                     </Button>
@@ -684,7 +707,7 @@ export default function DualPaneFrameView({
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">Frame {currentFrame.order || currentFrameIndex + 1}</Badge>
+                        <Badge variant="secondary">Frame {currentFrame.order || clampedFrameIndex + 1}</Badge>
                         {currentFrame.isGenerated && (
                           <Badge variant="outline">AI Generated</Badge>
                         )}

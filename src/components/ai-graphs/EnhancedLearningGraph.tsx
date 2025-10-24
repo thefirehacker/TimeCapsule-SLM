@@ -1573,6 +1573,7 @@ export default function EnhancedLearningGraph({
               frameIds: [],
               conceptIds: [],
               order: nodesRef.current.length,
+              color: DEFAULT_CHAPTER_COLOR,
               onChapterUpdate: (updates) => handleChapterUpdate(nodeId, updates),
             };
             
