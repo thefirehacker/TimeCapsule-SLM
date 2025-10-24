@@ -110,11 +110,15 @@ export default function FrameGraphIntegration({
 
   // CRITICAL FIX: Update graphState when initialGraphState changes (for restoration after refresh)
   useEffect(() => {
-    if (initialGraphState && initialGraphState.nodes && initialGraphState.nodes.length > 0) {
-      // Updating graphState from initialGraphState
-      setGraphState(initialGraphState);
-      setCurrentGraphStateRef(initialGraphState);
+    if (!initialGraphState) {
+      const emptyState: GraphState = { nodes: [], edges: [], selectedNodeId: null };
+      setGraphState(emptyState);
+      setCurrentGraphStateRef(emptyState);
+      return;
     }
+
+    setGraphState(initialGraphState);
+    setCurrentGraphStateRef(initialGraphState);
   }, [initialGraphState]);
   const [lastFrameStates, setLastFrameStates] = useState<Record<string, string>>({});
   
@@ -968,11 +972,14 @@ Updated: ${new Date().toISOString()}`,
   }, [frames]); // CRITICAL FIX: Remove lastSavedSnapshot dependency to prevent infinite loop
 
   // DRAGON SLAYER: Silent initialization
-  useEffect(() => {
-    if (initialGraphState && initialGraphState.nodes && initialGraphState.nodes.length > 0) {
-      setCurrentGraphStateRef(initialGraphState);
-    }
-  }, [initialGraphState]);
+useEffect(() => {
+  if (!initialGraphState) {
+    setCurrentGraphStateRef({ nodes: [], edges: [], selectedNodeId: null });
+    return;
+  }
+
+  setCurrentGraphStateRef(initialGraphState);
+}, [initialGraphState]);
 
   useEffect(() => {
     const handleKBFramesLoaded = (event: CustomEvent) => {

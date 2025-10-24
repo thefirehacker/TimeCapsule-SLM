@@ -219,12 +219,22 @@ export const useUnifiedStorage = ({
       (previous?.conceptIds || []).forEach((concept) => conceptIdsSet.add(concept));
       const conceptIds = Array.from(conceptIdsSet).filter(Boolean);
 
+      const resolvedTitle = previous?.title || data.title || `Chapter ${index + 1}`;
+      const resolvedDescription = previous?.description ?? data.description ?? '';
+      const resolvedColor = previous?.color || data.color || DEFAULT_CHAPTER_COLOR;
+      let resolvedOrder = index;
+      if (typeof previous?.order === 'number') {
+        resolvedOrder = previous.order as number;
+      } else if (typeof data.order === 'number') {
+        resolvedOrder = data.order;
+      }
+
       return {
         id: chapterId,
-        title: data.title || previous?.title || `Chapter ${index + 1}`,
-        description: data.description ?? previous?.description ?? '',
-        color: data.color || previous?.color || DEFAULT_CHAPTER_COLOR,
-        order: typeof data.order === 'number' ? data.order : previous?.order ?? index,
+        title: resolvedTitle,
+        description: resolvedDescription,
+        color: resolvedColor,
+        order: resolvedOrder,
         frameIds,
         conceptIds,
         bubblSpaceId: previous?.bubblSpaceId,
@@ -905,13 +915,82 @@ export const useUnifiedStorage = ({
     })) as UnifiedChapter[];
 
     setChapters(normalizedChapters);
+    chaptersRef.current = normalizedChapters;
+
+    const currentGraphState = graphStateRef.current;
+    let graphStateWithChapterMeta = currentGraphState;
+    let graphStateChanged = false;
+
+    if (currentGraphState?.nodes?.length) {
+      const nextNodes = currentGraphState.nodes.map((node: any) => {
+        if (node?.type !== 'chapter') {
+          return node;
+        }
+
+        const nodeData = node.data || {};
+        const chapterNodeId = nodeData.id || node.id;
+        const matchingChapter = normalizedChapters.find((chapter) => chapter.id === chapterNodeId);
+
+        if (!matchingChapter) {
+          return node;
+        }
+
+        const nextData = {
+          ...nodeData,
+          id: chapterNodeId,
+          title: matchingChapter.title,
+          description: matchingChapter.description,
+          color: matchingChapter.color || nodeData.color || DEFAULT_CHAPTER_COLOR,
+          conceptIds: matchingChapter.conceptIds || [],
+          frameIds: matchingChapter.frameIds || [],
+          order: matchingChapter.order,
+          updatedAt: matchingChapter.updatedAt,
+        };
+
+        const existingFrameIds = Array.isArray(nodeData.frameIds) ? nodeData.frameIds : [];
+        const existingConceptIds = Array.isArray(nodeData.conceptIds) ? nodeData.conceptIds : [];
+        const sameFrameIds =
+          existingFrameIds.length === nextData.frameIds.length &&
+          existingFrameIds.every((id: string, index: number) => id === nextData.frameIds[index]);
+        const sameConceptIds =
+          existingConceptIds.length === nextData.conceptIds.length &&
+          existingConceptIds.every((id: string, index: number) => id === nextData.conceptIds[index]);
+
+        const hasMetaChange =
+          nodeData.title !== nextData.title ||
+          nodeData.description !== nextData.description ||
+          nodeData.color !== nextData.color ||
+          nodeData.order !== nextData.order ||
+          !sameFrameIds ||
+          !sameConceptIds;
+
+        if (!hasMetaChange) {
+          return node;
+        }
+
+        graphStateChanged = true;
+        return {
+          ...node,
+          data: nextData,
+        };
+      });
+
+      if (graphStateChanged) {
+        graphStateWithChapterMeta = {
+          ...currentGraphState,
+          nodes: nextNodes,
+        };
+        setGraphState(graphStateWithChapterMeta);
+        graphStateRef.current = graphStateWithChapterMeta;
+      }
+    }
 
     const currentFrames = framesRef.current;
-    const currentGraphState = graphStateRef.current;
-    const newHash = generateStateHash(currentFrames, normalizedChapters, currentGraphState);
+    const graphStateForHash = graphStateWithChapterMeta || graphStateRef.current;
+    const newHash = generateStateHash(currentFrames, normalizedChapters, graphStateForHash);
     if (newHash !== lastSaveHash.current) {
       setHasUnsavedChanges(true);
-      queueBackgroundSave(currentFrames, normalizedChapters, currentGraphState);
+      queueBackgroundSave(currentFrames, normalizedChapters, graphStateForHash);
     }
   }, [generateStateHash, queueBackgroundSave]);
 
@@ -954,20 +1033,61 @@ export const useUnifiedStorage = ({
   // CLEANUP: Clear all storage and reset state
   const clearAll = useCallback(async () => {
     console.log('🗑️ Clearing all storage...');
+    const previousFrameCount = framesRef.current.length;
+    const emptyGraphState: GraphState = { nodes: [], edges: [], selectedNodeId: null };
+
     setFrames([]);
     setChapters([]);
-    setGraphState({ nodes: [], edges: [], selectedNodeId: null });
-    setHasUnsavedChanges(false);
-    lastSaveHash.current = '';
-    
-    // CLEANUP: Remove old storage
+    setGraphState(emptyGraphState);
+
+    framesRef.current = [];
+    chaptersRef.current = [];
+    graphStateRef.current = emptyGraphState;
+
+    // Reset any pending background save operations to prevent stale data from persisting
+    backgroundSaveQueue.current.isProcessing = false;
+    backgroundSaveQueue.current.pendingFrames = null;
+    backgroundSaveQueue.current.pendingChapters = null;
+    backgroundSaveQueue.current.pendingGraphState = null;
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
+    }
+
+    // Notify graph-connected components to reset their internal state
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('clear-all-frames', {
+        detail: { clearedCount: previousFrameCount }
+      }));
+    }
+
+    try {
+      const saveSucceeded = await unifiedStorage.saveAll([], [], emptyGraphState);
+
+      if (saveSucceeded) {
+        const emptyHash = generateStateHash([], [], emptyGraphState);
+        lastSaveHash.current = emptyHash;
+        setHasUnsavedChanges(false);
+      } else {
+        setHasUnsavedChanges(true);
+        console.warn('⚠️ Failed to persist empty state during clearAll');
+      }
+    } catch (err) {
+      const error = err as Error;
+      setError(`Clear failed: ${error.message}`);
+      setHasUnsavedChanges(true);
+      console.error('❌ Error clearing storage:', error);
+    }
+
+    // CLEANUP: Remove old storage keys that might reintroduce stale data
     try {
       await unifiedStorage.cleanup();
       console.log('✅ All storage cleared successfully');
     } catch (err) {
-      console.error('❌ Error clearing storage:', err);
+      console.error('❌ Error during storage cleanup:', err);
     }
-  }, []);
+  }, [generateStateHash]);
 
   // AUTO-SAVE: Disabled in favor of background saves
   // Background saves are now handled by queueBackgroundSave for better performance
