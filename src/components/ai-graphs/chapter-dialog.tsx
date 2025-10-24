@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +25,14 @@ interface Chapter {
   createdAt: string;
   updatedAt: string;
   isCollapsed?: boolean;
+  conceptIds?: string[];
 }
 
 interface AIFrame {
   id: string;
   title: string;
   goal: string;
+  chapterId?: string;
   parentFrameId?: string;
 }
 
@@ -41,21 +44,24 @@ interface ChapterDialogProps {
     title: string;
     description: string;
     color: string;
+    conceptIds: string[];
   };
   setChapterFormData: React.Dispatch<
     React.SetStateAction<{
       title: string;
       description: string;
       color: string;
+      conceptIds: string[];
     }>
   >;
   selectedFrameIds: string[];
   frames: AIFrame[];
+  availableConcepts: string[];
   onFrameSelection: (frameId: string, isSelected: boolean) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
-  onCreateChapter: () => void;
-  onEditChapter: () => void;
+  onCreateChapter: () => void | Promise<void>;
+  onEditChapter: () => void | Promise<void>;
 }
 
 const colorOptions = [
@@ -77,14 +83,20 @@ export function ChapterDialog({
   setChapterFormData,
   selectedFrameIds,
   frames,
+  availableConcepts,
   onFrameSelection,
   onSelectAll,
   onDeselectAll,
   onCreateChapter,
   onEditChapter,
 }: ChapterDialogProps) {
-  const unassignedFrames = frames.filter((frame) => !frame.parentFrameId);
   const isEditing = !!editingChapter;
+  const availableFrames = isEditing
+    ? frames
+    : frames.filter(
+        (frame) => !frame.chapterId || selectedFrameIds.includes(frame.id)
+      );
+  const unassignedFrames = availableFrames;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,6 +106,9 @@ export function ChapterDialog({
             <Layers className="h-5 w-5" />
             {isEditing ? "Edit Chapter" : "Create New Chapter"}
           </DialogTitle>
+          <DialogDescription>
+            Configure chapter details, concept attachments, and frame grouping.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -157,8 +172,63 @@ export function ChapterDialog({
             </div>
           </div>
 
-          {/* Frame Selection (only for creation) */}
-          {!isEditing && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Concept Attachments</Label>
+              <Input
+                value={chapterFormData.conceptIds.join(", ")}
+                onChange={(e) => {
+                  const concepts = e.target.value
+                    .split(",")
+                    .map((concept) => concept.trim())
+                    .filter((concept) => concept.length > 0);
+                  setChapterFormData((prev) => ({
+                    ...prev,
+                    conceptIds: concepts,
+                  }));
+                }}
+                placeholder="concept-a, concept-b"
+                className="mt-1"
+              />
+              {availableConcepts.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableConcepts.map((concept) => {
+                    const isSelected = chapterFormData.conceptIds.includes(
+                      concept
+                    );
+                    return (
+                      <Badge
+                        key={concept}
+                        variant={isSelected ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          setChapterFormData((prev) => {
+                            const alreadySelected = prev.conceptIds.includes(
+                              concept
+                            );
+                            if (alreadySelected) {
+                              return {
+                                ...prev,
+                                conceptIds: prev.conceptIds.filter(
+                                  (id) => id !== concept
+                                ),
+                              };
+                            }
+                            return {
+                              ...prev,
+                              conceptIds: [...prev.conceptIds, concept],
+                            };
+                          });
+                        }}
+                      >
+                        {concept}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label>Select Frames to Group</Label>
@@ -188,46 +258,52 @@ export function ChapterDialog({
                 {unassignedFrames.length === 0 ? (
                   <div className="text-center text-slate-500 py-4">
                     <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No unassigned frames available</p>
+                    <p>No available frames</p>
                     <p className="text-sm">
-                      All frames are already in chapters
+                      {isEditing
+                        ? "All frames are hidden"
+                        : "All frames are already in chapters"}
                     </p>
                   </div>
                 ) : (
-                  unassignedFrames.map((frame) => (
-                    <div
-                      key={frame.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedFrameIds.includes(frame.id)
-                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750"
-                      }`}
-                      onClick={() =>
-                        onFrameSelection(
-                          frame.id,
-                          !selectedFrameIds.includes(frame.id)
-                        )
-                      }
-                    >
+                  unassignedFrames.map((frame) => {
+                    const isSelected = selectedFrameIds.includes(frame.id);
+                    const assignedElsewhere =
+                      !!frame.chapterId && frame.chapterId !== editingChapter?.id;
+
+                    return (
                       <div
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          selectedFrameIds.includes(frame.id)
-                            ? "bg-blue-500 border-blue-500"
-                            : "border-slate-300 dark:border-slate-600"
+                        key={frame.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750"
                         }`}
+                        onClick={() => onFrameSelection(frame.id, !isSelected)}
                       >
-                        {selectedFrameIds.includes(frame.id) && (
-                          <Check className="h-3 w-3 text-white" />
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                            isSelected
+                              ? "bg-blue-500 border-blue-500"
+                              : "border-slate-300 dark:border-slate-600"
+                          }`}
+                        >
+                          {isSelected && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{frame.title}</div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400">
+                            {frame.goal}
+                          </div>
+                        </div>
+                        {assignedElsewhere && (
+                          <Badge variant="outline" className="text-xs">
+                            Assigned to another chapter
+                          </Badge>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{frame.title}</div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400">
-                          {frame.goal}
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
@@ -240,7 +316,7 @@ export function ChapterDialog({
                 </div>
               )}
             </div>
-          )}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-4 border-t">

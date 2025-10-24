@@ -9,6 +9,7 @@ export interface AIFrame {
   duration: number;
   afterVideoText: string;
   aiConcepts: string[];
+  conceptIds?: string[];
   isGenerated?: boolean;
   sourceGoal?: string;
   sourceUrl?: string;
@@ -16,6 +17,7 @@ export interface AIFrame {
   bubblSpaceId?: string;
   timeCapsuleId?: string;
   parentFrameId?: string;
+  chapterId?: string;
   type: "frame" | "chapter" | "module";
   createdAt: string;
   updatedAt: string;
@@ -99,6 +101,21 @@ export interface FrameNavigationProps {
   className?: string;
 }
 
+export interface Chapter {
+  id: string;
+  title: string;
+  description?: string;
+  color?: string;
+  order: number;
+  frameIds: string[];
+  conceptIds: string[];
+  bubblSpaceId?: string;
+  timeCapsuleId?: string;
+  createdAt: string;
+  updatedAt: string;
+  isCollapsed?: boolean;
+}
+
 // Graph integration types
 export interface GraphState {
   nodes: Array<{
@@ -131,8 +148,9 @@ export const DEFAULT_FRAME: Partial<AIFrame> = {
   duration: 0,
   afterVideoText: "",
   aiConcepts: [],
+  conceptIds: [],
   type: "frame",
   order: 0,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-}; 
+};

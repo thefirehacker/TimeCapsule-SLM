@@ -102,9 +102,22 @@ export interface ConceptNodeData extends Record<string, unknown> {
 
 export interface ChapterNodeData extends Record<string, unknown> {
   type: "chapter";
+  id?: string;
   title: string;
   description: string;
   frameIds: string[];
+  conceptIds?: string[];
+  order?: number;
+  color?: string;
+  updatedAt?: string;
+  onChapterUpdate?: (updates: {
+    title?: string;
+    description?: string;
+    frameIds?: string[];
+    conceptIds?: string[];
+    order?: number;
+    color?: string;
+  }) => void;
 }
 
 export type NodeData = 
