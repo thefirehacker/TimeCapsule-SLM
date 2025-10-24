@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +62,11 @@ interface ChapterDialogProps {
   onDeselectAll: () => void;
   onCreateChapter: () => void | Promise<void>;
   onEditChapter: () => void | Promise<void>;
+  onCreateFrameInline?: (options: {
+    title: string;
+    goal?: string;
+    chapterId?: string;
+  }) => Promise<AIFrame | void> | AIFrame | void;
 }
 
 const colorOptions = [
@@ -89,8 +94,52 @@ export function ChapterDialog({
   onDeselectAll,
   onCreateChapter,
   onEditChapter,
+  onCreateFrameInline,
 }: ChapterDialogProps) {
   const isEditing = !!editingChapter;
+
+  const showCreateFrameActions = typeof onCreateFrameInline === 'function';
+  const [showCreateFrameForm, setShowCreateFrameForm] = useState(false);
+  const [newFrameTitle, setNewFrameTitle] = useState("");
+  const [newFrameGoal, setNewFrameGoal] = useState("");
+  const [isCreatingFrame, setIsCreatingFrame] = useState(false);
+
+  const handleInlineFrameCreate = async () => {
+    if (!onCreateFrameInline) return;
+    const trimmedTitle = newFrameTitle.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    setIsCreatingFrame(true);
+    try {
+      const result = await onCreateFrameInline({
+        title: trimmedTitle,
+        goal: newFrameGoal.trim() || undefined,
+        chapterId: editingChapter?.id,
+      });
+
+      const createdFrame = (result as AIFrame | undefined) || undefined;
+      if (createdFrame && createdFrame.id) {
+        onFrameSelection(createdFrame.id, true);
+      }
+
+      setNewFrameTitle("");
+      setNewFrameGoal("");
+      setShowCreateFrameForm(false);
+    } catch (error) {
+      console.error("Inline frame creation failed:", error);
+    } finally {
+      setIsCreatingFrame(false);
+    }
+  };
+
+  const handleCancelInlineFrame = () => {
+    setShowCreateFrameForm(false);
+    setNewFrameTitle("");
+    setNewFrameGoal("");
+  };
+
   const availableFrames = isEditing
     ? frames
     : frames.filter(
@@ -233,6 +282,21 @@ export function ChapterDialog({
               <div className="flex items-center justify-between">
                 <Label>Select Frames to Group</Label>
                 <div className="flex gap-2">
+                  {showCreateFrameActions && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        showCreateFrameForm
+                          ? handleCancelInlineFrame()
+                          : setShowCreateFrameForm(true)
+                      }
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      {showCreateFrameForm ? "Cancel" : "New Frame"}
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -254,6 +318,49 @@ export function ChapterDialog({
                 </div>
               </div>
 
+
+              {showCreateFrameActions && showCreateFrameForm && (
+                <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3 space-y-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="inline-frame-title">Frame Title</Label>
+                    <Input
+                      id="inline-frame-title"
+                      value={newFrameTitle}
+                      onChange={(e) => setNewFrameTitle(e.target.value)}
+                      placeholder="e.g., Frame Introduction"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="inline-frame-goal">Learning Goal (optional)</Label>
+                    <Textarea
+                      id="inline-frame-goal"
+                      rows={2}
+                      value={newFrameGoal}
+                      onChange={(e) => setNewFrameGoal(e.target.value)}
+                      placeholder="What should learners achieve in this frame?"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCancelInlineFrame}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleInlineFrameCreate}
+                      disabled={isCreatingFrame || !newFrameTitle.trim()}
+                    >
+                      {isCreatingFrame ? "Creating..." : "Create Frame"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-2">
                 {unassignedFrames.length === 0 ? (
                   <div className="text-center text-slate-500 py-4">
@@ -261,8 +368,12 @@ export function ChapterDialog({
                     <p>No available frames</p>
                     <p className="text-sm">
                       {isEditing
-                        ? "All frames are hidden"
-                        : "All frames are already in chapters"}
+                        ? showCreateFrameActions
+                          ? "Create a new frame or adjust chapter assignments from the graph."
+                          : "All frames are hidden"
+                        : showCreateFrameActions
+                          ? "Use the New Frame button to create one."
+                          : "All frames are already in chapters"}
                     </p>
                   </div>
                 ) : (
@@ -331,10 +442,7 @@ export function ChapterDialog({
             <Button
               type="button"
               onClick={isEditing ? onEditChapter : onCreateChapter}
-              disabled={
-                !chapterFormData.title.trim() ||
-                (!isEditing && selectedFrameIds.length === 0)
-              }
+              disabled={!chapterFormData.title.trim()}
             >
               {isEditing ? (
                 <>
