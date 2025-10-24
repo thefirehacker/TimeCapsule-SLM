@@ -187,6 +187,8 @@ export default function AIFramesPage() {
   const [currentChunk, setCurrentChunk] = useState<any>(null);
   const [showChunkView, setShowChunkView] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [graphResetKey, setGraphResetKey] = useState(0);
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -391,10 +393,15 @@ export default function AIFramesPage() {
   // ============================================================================
 
   // Handle frame clear
-  const handleClearFrames = useCallback(() => {
-    unifiedStorage.clearAll();
-    setCurrentFrameIndex(0);
-    console.log("🗑️ All frames cleared");
+  const handleClearFrames = useCallback(async () => {
+    try {
+      await unifiedStorage.clearAll();
+      setCurrentFrameIndex(0);
+      setGraphResetKey((prev) => prev + 1);
+      console.log("🗑️ All frames cleared");
+    } catch (error) {
+      console.error("❌ Failed to clear AI Frames:", error);
+    }
   }, [unifiedStorage]);
 
   // Handle graph state updates
@@ -1114,6 +1121,27 @@ export default function AIFramesPage() {
                 </div>
               </div>
 
+              {/* Danger Zone */}
+              <div className="space-y-2 border-t border-gray-200 pt-4">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Danger Zone
+                </h4>
+                <p className="text-xs text-gray-500">
+                  Remove every AI Frame, chapter, and graph connection from this space.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setShowClearConfirm(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete All AI Frames
+                </Button>
+              </div>
+
               {/* Chapter Management */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1207,6 +1235,7 @@ export default function AIFramesPage() {
               !vectorStoreInitializing &&
               providerVectorStore?.initialized !== false ? (
                 <FrameGraphIntegration
+                  key={graphResetKey}
                   frames={framesWithOrder}
                   onFramesChange={handleFramesChange}
                   isCreationMode={isCreationMode}
@@ -2016,6 +2045,31 @@ export default function AIFramesPage() {
               Close
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete all AI Frames?</DialogTitle>
+            <DialogDescription>
+              This removes every frame, chapter, and graph connection from the workspace. You can’t undo this action.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowClearConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await handleClearFrames();
+                setShowClearConfirm(false);
+              }}
+            >
+              Delete Everything
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
