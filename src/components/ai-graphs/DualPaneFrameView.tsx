@@ -845,6 +845,7 @@ export default function DualPaneFrameView({
   return (
     <div className="flex h-full">
       {/* LEFT PANE: Graph View */}
+      {viewMode !== "linear" && (
       <div className={`${graphPaneClasses} border-r border-gray-200 dark:border-gray-700 transition-all duration-300`}>
         <div className="h-full flex flex-col">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -857,7 +858,7 @@ export default function DualPaneFrameView({
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                {renderViewToggle()}
+                {viewMode !== "linear" && renderViewToggle()}
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -879,6 +880,7 @@ export default function DualPaneFrameView({
           </div>
         </div>
       </div>
+      )}
 
       {/* RIGHT PANE: Linear View */}
       {viewMode !== "graph" && (
