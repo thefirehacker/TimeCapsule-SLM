@@ -61,19 +61,19 @@ const enhancedDragItems: Array<{
 
   // Organization
   {
-    nodeType: "concept",
-    label: "Concept",
-    icon: <Brain className="h-4 w-4" />,
-    color: "bg-yellow-500",
-    description: "AI concept visualization",
-    category: "concepts",
-  },
-  {
     nodeType: "chapter",
     label: "Chapter",
     icon: <Layers className="h-4 w-4" />,
     color: "bg-indigo-500",
     description: "Group related frames",
+    category: "concepts",
+  },
+  {
+    nodeType: "concept",
+    label: "Concept",
+    icon: <Brain className="h-4 w-4" />,
+    color: "bg-yellow-500",
+    description: "AI concept visualization",
     category: "concepts",
   },
 ];
@@ -163,6 +163,40 @@ export default function EnhancedSidebar() {
 
       <Separator />
 
+      {/* Organization */}
+      <div>
+        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+          <Brain className="h-4 w-4" />
+          Organization
+        </h4>
+        <div className="space-y-2">
+          {conceptItems.map((item) => (
+            <div
+              key={item.nodeType}
+              className="p-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-move hover:border-yellow-400 dark:hover:border-yellow-500 transition-colors"
+              draggable
+              onDragStart={(event) => onDragStart(event, item.nodeType)}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded ${item.color} text-white`}>
+                  {item.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm text-slate-900 dark:text-white">
+                    {item.label}
+                  </div>
+                  <div className="text-xs text-slate-600 dark:text-slate-400">
+                    {item.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Content Attachments */}
       <div>
         <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
@@ -205,40 +239,6 @@ export default function EnhancedSidebar() {
           <div>
             3. <strong>Connect to orange handle</strong>
           </div>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Organization */}
-      <div>
-        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-          <Brain className="h-4 w-4" />
-          Organization
-        </h4>
-        <div className="space-y-2">
-          {conceptItems.map((item) => (
-            <div
-              key={item.nodeType}
-              className="p-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-move hover:border-yellow-400 dark:hover:border-yellow-500 transition-colors"
-              draggable
-              onDragStart={(event) => onDragStart(event, item.nodeType)}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded ${item.color} text-white`}>
-                  {item.icon}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-sm text-slate-900 dark:text-white">
-                    {item.label}
-                  </div>
-                  <div className="text-xs text-slate-600 dark:text-slate-400">
-                    {item.description}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 

@@ -11,7 +11,8 @@ import {
   Edit3,
   Save,
   X,
-  Hash
+  Hash,
+  Brain
 } from "lucide-react";
 
 export default function ChapterNode({ data, selected }: NodeProps & { data: ChapterNodeData }) {
@@ -21,6 +22,7 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
     description: typeof data.description === "string" ? data.description : "",
   });
   const frameCount = Array.isArray(data.frameIds) ? data.frameIds.length : 0;
+  const conceptCount = Array.isArray(data.conceptIds) ? data.conceptIds.length : 0;
   const accentColor = typeof data.color === "string" && data.color ? data.color : "#10b981";
   const displayTitle = editValues.title && editValues.title.trim().length > 0
     ? editValues.title
@@ -150,6 +152,12 @@ export default function ChapterNode({ data, selected }: NodeProps & { data: Chap
                   <Hash className="h-2 w-2 mr-1" />
                   {frameCount} frame{frameCount === 1 ? '' : 's'}
                 </Badge>
+                {conceptCount > 0 && (
+                  <Badge variant="outline" className="mt-1 text-xs bg-yellow-100 text-yellow-700 border-yellow-300">
+                    <Brain className="h-2 w-2 mr-1" />
+                    {conceptCount} concept{conceptCount === 1 ? '' : 's'}
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="flex gap-1">
