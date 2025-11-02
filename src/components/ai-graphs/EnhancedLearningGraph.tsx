@@ -104,7 +104,6 @@ export default function EnhancedLearningGraph({
   const edgesRef = useRef(edges);
   const selectedNodeRef = useRef(selectedNode);
   const boundChapterUpdateHandlers = useRef<Set<string>>(new Set());
-  const boundConceptUpdateHandlers = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -222,8 +221,6 @@ export default function EnhancedLearningGraph({
           }
         }));
       });
-      
-      console.log(`🎯 Edge changes detected (${meaningfulChanges.length}), triggering unified save`);
     }
   }, [onEdgesChange, nodes, edges, selectedNode]);
 
@@ -249,28 +246,15 @@ export default function EnhancedLearningGraph({
         }
       });
     }
-    
-    console.log('🔄 FRAME UPDATE DEBUG:', {
-      frameId,
-      originalData: updatedData,
-      safeUpdatedData,
-      hasOnFramesChange: !!onFramesChange,
-      safeDataKeys: Object.keys(safeUpdatedData)
-    });
-    
+
     // CRITICAL FIX: Only update if we have safe data to prevent corruption
     if (Object.keys(safeUpdatedData).length > 0 && onFramesChange) {
       // CRITICAL FIX: Use framesRef.current instead of stale frames prop to prevent empty array corruption
       const currentFrames = framesRef.current;
-      const updatedFrames = currentFrames.map(frame => 
+      const updatedFrames = currentFrames.map(frame =>
         frame.id === frameId ? { ...frame, ...safeUpdatedData, updatedAt: new Date().toISOString() } : frame
       );
-      
-      console.log('🔄 CALLING onFramesChange with:', {
-        frameCount: updatedFrames.length,
-        updatedFrame: updatedFrames.find(f => f.id === frameId)
-      });
-      
+
       onFramesChange(updatedFrames);
       
     }
@@ -295,19 +279,6 @@ export default function EnhancedLearningGraph({
 
   // Handle content attachment to frames
   const handleAttachContent = useCallback((frameId: string, attachment: FrameAttachment) => {
-    
-    
-    // CRITICAL DEBUG: Log video attachment data
-    if (attachment.type === 'video') {
-      console.log('🎥 CRITICAL DEBUG: Video attachment data:', {
-        attachmentDataVideoUrl: attachment.data.videoUrl,
-        attachmentDataStartTime: attachment.data.startTime,
-        attachmentDataDuration: attachment.data.duration,
-        videoUrlEmpty: !attachment.data.videoUrl,
-        videoUrlLength: attachment.data.videoUrl?.length || 0
-      });
-    }
-    
     // Update the frame in the frames array
     if (onFramesChange) {
       // CRITICAL FIX: Use framesRef.current instead of stale frames prop for attachments
@@ -320,28 +291,8 @@ export default function EnhancedLearningGraph({
           updatedAt: new Date().toISOString()
         } : frame
       );
-      
-      // CRITICAL DEBUG: Log the frame update
-      if (attachment.type === 'video') {
-        const updatedFrame = updatedFrames.find(f => f.id === frameId);
-        console.log('🎥 CRITICAL DEBUG: Frame updated with video data:', {
-          frameId,
-          frameVideoUrl: updatedFrame?.videoUrl,
-          frameStartTime: updatedFrame?.startTime,
-          frameDuration: updatedFrame?.duration,
-          frameHasAttachment: !!updatedFrame?.attachment,
-          frameAttachmentType: updatedFrame?.attachment?.type
-        });
-      }
-      
+
       onFramesChange(updatedFrames);
-      
-      console.log('📊 ATTACHMENT DEBUG: Frame updated in array:', {
-        frameId,
-        totalFrames: updatedFrames.length,
-        attachedFrame: updatedFrames.find(f => f.id === frameId),
-        attachmentPresent: !!updatedFrames.find(f => f.id === frameId)?.attachment
-      });
     }
 
     // Update the graph node
@@ -360,12 +311,6 @@ export default function EnhancedLearningGraph({
 
     // NOTE: graph-attachment-changed event moved to onConnect to include fresh edge state
 
-    console.log('✅ Enhanced: Content attached → Frame Navigation sync triggered:', {
-      frameId,
-      attachmentType: attachment.type,
-      action: 'attached'
-    });
-    
     // OPTIMISTIC: Background save will handle persistence automatically
     // No need for force save since optimistic updates are now implemented
   }, [onFramesChange]);
@@ -419,11 +364,6 @@ export default function EnhancedLearningGraph({
         }
       }));
     }
-
-    console.log('✅ Enhanced: Content detached → Frame Navigation sync triggered:', {
-      frameId,
-      action: 'detached'
-    });
   }, [onFramesChange]);
 
   const handleChapterUpdate = useCallback((chapterNodeId: string, updates: ChapterNodeUpdates) => {
@@ -1295,29 +1235,6 @@ export default function EnhancedLearningGraph({
     });
   }, [frames, chapters, handleConceptUpdate, handleConceptDelete, setNodes]);
 
-  // FALLBACK EVENT SYSTEM: Handle concept updates when callbacks are missing
-  useEffect(() => {
-    const handleConceptUpdateRequest = (event: Event) => {
-      const customEvent = event as CustomEvent<{ nodeId: string; updates: { concept: string; description?: string } }>;
-      const { nodeId, updates } = customEvent.detail;
-      handleConceptUpdate(nodeId, updates);
-    };
-
-    const handleConceptDeleteRequest = (event: Event) => {
-      const customEvent = event as CustomEvent<{ nodeId: string }>;
-      const { nodeId } = customEvent.detail;
-      handleConceptDelete(nodeId);
-    };
-
-    window.addEventListener('concept-update-request', handleConceptUpdateRequest);
-    window.addEventListener('concept-delete-request', handleConceptDeleteRequest);
-
-    return () => {
-      window.removeEventListener('concept-update-request', handleConceptUpdateRequest);
-      window.removeEventListener('concept-delete-request', handleConceptDeleteRequest);
-    };
-  }, [handleConceptUpdate, handleConceptDelete]);
-
   // REAL-TIME SYNC: Handle node deletion
   useEffect(() => {
     if (previousNodes.length > 0) {
@@ -1365,25 +1282,14 @@ export default function EnhancedLearningGraph({
   useEffect(() => {
     // If initialGraphState was provided with nodes, ensure they are displayed
     if (initialGraphState?.nodes?.length && nodes.length === 0) {
-      console.log('🔄 Applying initial graph state with nodes:', {
-        initialNodeCount: initialGraphState.nodes.length,
-        currentNodeCount: nodes.length
-      });
-      
       // Use the initialGraphState if provided and we have no nodes
       setNodes(initialGraphState.nodes);
       setEdges(initialGraphState.edges || []);
       return;
     }
-    
+
     // Only sync if we have frames, no nodes, and no initial graph state was provided
     if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
-      console.log('🔄 Syncing frames to nodes - creating nodes from frames:', {
-        frameCount: frames.length,
-        frameIds: frames.map(f => f.id),
-        currentNodeCount: nodes.length
-      });
-      
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
       
@@ -1399,17 +1305,6 @@ export default function EnhancedLearningGraph({
           informationText: frame.informationText != null ? frame.informationText : 'Add context and background information...',
           afterVideoText: frame.afterVideoText != null ? frame.afterVideoText : 'Key takeaways and next steps...',
         };
-        
-        // DEBUG: Verify content preservation
-        if (frame.title !== safeFrameData.title || frame.goal !== safeFrameData.goal) {
-          console.log('🔍 CONTENT PRESERVATION CHECK:', {
-            frameId: frame.id,
-            originalTitle: frame.title,
-            preservedTitle: safeFrameData.title,
-            originalGoal: frame.goal,
-            preservedGoal: safeFrameData.goal
-          });
-        }
 
         // Create enhanced AI frame node with validated content
         const frameNode: Node = {
@@ -1434,14 +1329,7 @@ export default function EnhancedLearningGraph({
             onDetachContent: handleDetachContent,
           },
         };
-        
-        console.log('🔧 NODE CREATION DEBUG:', {
-          frameId: frame.id,
-          nodeId: nodeId,
-          hasHandleFrameUpdate: !!handleFrameUpdate,
-          callbackAttached: !!frameNode.data.onFrameUpdate
-        });
-        
+
         newNodes.push(frameNode);
         
         // If frame has attachment, create the attachment node
@@ -1481,16 +1369,10 @@ export default function EnhancedLearningGraph({
         //   });
         // }
       });
-      
+
       setNodes(newNodes);
       setEdges(newEdges);
-      
-      console.log('✅ Enhanced: Graph synchronized with frames:', {
-        frameCount: frames.length,
-        nodeCount: newNodes.length,
-        edgeCount: newEdges.length
-      });
-      
+
       // CRITICAL FIX: Save graph state after creating nodes from frames
       if (newNodes.length > 0) {
         setTimeout(() => {
@@ -1565,8 +1447,7 @@ export default function EnhancedLearningGraph({
       // Only update nodes if there were actual changes
       if (hasChanges) {
         setNodes(updatedNodes);
-        console.log('✅ SYNC FIX: Node synchronization completed with updated frame data');
-        
+
         // CRITICAL FIX: Save graph state after updating nodes with frame data
         setTimeout(() => {
           emitGraphStateChange('frame-data-sync', {
@@ -1685,17 +1566,9 @@ export default function EnhancedLearningGraph({
           );
           
           if (hasAttachment) {
-            
             return;
           }
-          
-          // ENHANCED DEBUG: Check if video attachment has empty URL
-          if (sourceNode.type === 'video-attachment' && !sourceNode.data.videoUrl) {
-            console.warn('⚠️ VIDEO ATTACHMENT WARNING: VideoAttachmentNode has empty videoUrl!');
-            console.warn('📝 USER WORKFLOW: Please edit the VideoAttachmentNode first and add a YouTube URL before connecting');
-            console.warn('🎯 EXPECTED WORKFLOW: 1) Drag VideoAttachmentNode → 2) Click Edit → 3) Add YouTube URL → 4) Save → 5) Connect to frame');
-          }
-          
+
           // Create attachment from source node
           const attachment: FrameAttachment = {
             id: sourceNode.id,
@@ -1717,37 +1590,7 @@ export default function EnhancedLearningGraph({
               }),
             }
           };
-          
-          // ENHANCED DEBUG: Log attachment being created with detailed video info
-          console.log('🔗 Creating attachment connection:', {
-            sourceNode: sourceNode.type,
-            targetFrameId: targetNode.data.frameId,
-            attachmentType: attachment.type,
-            attachmentData: attachment.data,
-            sourceNodeVideoUrl: sourceNode.data.videoUrl,
-            sourceNodeStartTime: sourceNode.data.startTime,
-            sourceNodeDuration: sourceNode.data.duration,
-            // CRITICAL DEBUG: Show if video URL is empty
-            videoUrlEmpty: !sourceNode.data.videoUrl,
-            videoUrlLength: sourceNode.data.videoUrl?.length || 0,
-            // CRITICAL DEBUG: Show what's actually in attachment.data
-            attachmentDataVideoUrl: attachment.data.videoUrl,
-            attachmentDataStartTime: attachment.data.startTime,
-            attachmentDataDuration: attachment.data.duration
-          });
-          
-          // ENHANCED DEBUG: Warn if video attachment has no URL
-          if (sourceNode.type === 'video-attachment' && !sourceNode.data.videoUrl) {
-            console.error('❌ CRITICAL: Video attachment connected with empty videoUrl!');
-            console.error('💡 SOLUTION: Edit the VideoAttachmentNode and add a YouTube URL before connecting');
-            console.error('🔧 CURRENT DATA:', {
-              videoUrl: sourceNode.data.videoUrl,
-              startTime: sourceNode.data.startTime,
-              duration: sourceNode.data.duration,
-              title: sourceNode.data.title
-            });
-          }
-          
+
           // Attach content to frame
           handleAttachContent(targetNode.data.frameId, attachment);
           
@@ -1847,14 +1690,6 @@ export default function EnhancedLearningGraph({
             nodes: nextNodes,
             edges: nextEdges
           });
-          
-          console.log('🎯 Connection created, triggering unified save with fresh state:', {
-            edgeId: edge.id,
-            source: edge.source,
-            target: edge.target,
-            totalEdges: nextEdges.length,
-            isAttachment: params.targetHandle === 'attachment-slot'
-          });
         }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
       }
     },
@@ -1864,11 +1699,6 @@ export default function EnhancedLearningGraph({
   // REAL-TIME SYNC: Handle edge/connection deletion
   const onEdgesDelete = useCallback(
     (edgesToDelete: Edge[]) => {
-      console.log('🗑️ Enhanced: Connections being deleted:', {
-        count: edgesToDelete.length,
-        edges: edgesToDelete.map(e => ({ id: e.id, source: e.source, target: e.target }))
-      });
-
       const currentNodes = nodesRef.current;
 
       edgesToDelete.forEach(edge => {
@@ -1876,13 +1706,8 @@ export default function EnhancedLearningGraph({
         if ((edge as any).targetHandle === 'attachment-slot') {
           const sourceNode = currentNodes.find(n => n.id === edge.source);
           const targetNode = currentNodes.find(n => n.id === edge.target);
-          
+
           if (sourceNode && targetNode && targetNode.data.frameId) {
-            console.log('🔗 Enhanced: Removing attachment connection:', {
-              sourceNodeId: sourceNode.id,
-              targetFrameId: targetNode.data.frameId
-            });
-            
             // Detach content from frame
             handleDetachContent(targetNode.data.frameId);
             
@@ -1957,13 +1782,6 @@ export default function EnhancedLearningGraph({
             }, {
               nodes: currentNodes,
               edges: currentEdges
-            });
-            
-            console.log('🎯 Connection removed, triggering unified save with fresh state:', {
-              edgeId: edge.id,
-              source: edge.source,
-              target: edge.target,
-              remainingEdges: currentEdges.length
             });
           }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
         }
@@ -2103,16 +1921,10 @@ export default function EnhancedLearningGraph({
         boundChapterUpdateHandlers.current.add(nodeId);
       }
 
-      if (type === 'concept') {
-        boundConceptUpdateHandlers.current.add(nodeId);
-      }
-
       setNodes((nds) => nds.concat(newNode));
-      
+
       // CRITICAL FIX: Emit save events for ALL node types
       if (typeof window !== 'undefined') {
-        console.log(`🎯 Node drop detected - ${type} added, triggering delayed unified save`);
-        
         // CRITICAL FIX: Only use delayed save to ensure graph state is updated before save
         setTimeout(() => {
           // Get fresh graph state after React Flow updates
@@ -2210,12 +2022,6 @@ export default function EnhancedLearningGraph({
                 });
               }, 200); // SPECS COMPLIANT: Debounced timing for unified save
             }
-            
-            console.log('✅ New frame created via drag-drop:', {
-              frameId: newFrame.id,
-              title: newFrame.title,
-              totalFrames: updatedFrames.length
-            });
           }
         } finally {
           // Reset mutex after a short delay
@@ -2246,16 +2052,6 @@ export default function EnhancedLearningGraph({
               nodeId: node.id
             }
           }));
-        }
-        
-        // REDUCED LOGGING: Only log significant events to reduce spam
-        if (frameIndex !== (window as any).lastFrameIndex) {
-          console.log('🔄 Enhanced: Graph node selected → Frame Navigation sync triggered:', {
-            nodeId: node.id,
-            frameId: node.data.frameId,
-            frameIndex
-          });
-          (window as any).lastFrameIndex = frameIndex;
         }
       }
     }
@@ -2335,39 +2131,18 @@ export default function EnhancedLearningGraph({
   // Listen for clear all frames event and reset graph nodes/edges
   useEffect(() => {
     const handleClearAllFrames = (event: CustomEvent) => {
-      const { clearedCount } = event.detail;
-      console.log('🗑️ Enhanced Graph: Clear all frames event received, clearing nodes and edges:', {
-        clearedCount,
-        currentNodes: nodes.length,
-        currentEdges: edges.length
-      });
-      
       // Clear all nodes and edges
       setNodes([]);
       setEdges([]);
       setSelectedNode(null);
-      
-      
     };
 
     const handleAttachmentNodeUpdated = (event: CustomEvent) => {
       const { frameId, attachment, nodeId } = event.detail;
-      console.log('📡 Enhanced Graph: Attachment node updated event received:', {
-        frameId, 
-        nodeId, 
-        attachmentType: attachment.type,
-        attachmentData: attachment.data
-      });
-      
+
       // CRITICAL: Update the graph node itself to reflect the latest attachment data
       setNodes(nds => nds.map(node => {
         if (node.id === nodeId) {
-          console.log('🔄 Updating graph node with latest attachment data:', {
-            nodeId,
-            oldData: node.data,
-            newAttachmentData: attachment.data
-          });
-          
           return {
             ...node,
             data: {
@@ -2390,24 +2165,10 @@ export default function EnhancedLearningGraph({
     // CRITICAL FIX: Handle node data updates to ensure text content persists in React Flow
     const handleNodeDataUpdate = (event: CustomEvent) => {
       const { nodeId, newData } = event.detail;
-      console.log('🔄 REACT FLOW NODE UPDATE:', { 
-        nodeId, 
-        hasText: !!newData.text, 
-        textLength: newData.text?.length || 0,
-        isAttached: newData.isAttached,
-        attachedToFrameId: newData.attachedToFrameId
-      });
-      
+
       setNodes(currentNodes => {
         const updatedNodes = currentNodes.map(node => {
           if (node.id === nodeId) {
-            console.log('🔄 UPDATING NODE DATA:', {
-              nodeId,
-              oldIsAttached: node.data.isAttached,
-              newIsAttached: newData.isAttached,
-              oldFrameId: node.data.attachedToFrameId,
-              newFrameId: newData.attachedToFrameId
-            });
             return { ...node, data: newData };
           }
           return node;
