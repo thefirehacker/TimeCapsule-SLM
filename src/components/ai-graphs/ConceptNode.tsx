@@ -22,26 +22,12 @@ export default function ConceptNode({ id, data, selected }: ConceptNodeProps) {
   const handleSave = (updatedConcept: { concept: string; description?: string }) => {
     if (data.onConceptUpdate) {
       data.onConceptUpdate(id, updatedConcept);
-    } else {
-      // FALLBACK: If callback is missing (after refresh), use event system
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('concept-update-request', {
-          detail: { nodeId: id, updates: updatedConcept }
-        }));
-      }
     }
   };
 
   const handleDelete = () => {
     if (data.onConceptDelete) {
       data.onConceptDelete(id);
-    } else {
-      // FALLBACK: If callback is missing (after refresh), use event system
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('concept-delete-request', {
-          detail: { nodeId: id }
-        }));
-      }
     }
   };
 
