@@ -15,6 +15,7 @@ import {
   Save,
   Zap,
 } from "lucide-react";
+import dagre from "@dagrejs/dagre";
 // import { debugFrames, debugStorage } from '@/lib/debugUtils'; // Disabled to prevent spam
 
 const DEFAULT_CHAPTER_COLOR = "#3B82F6";
@@ -75,6 +76,326 @@ function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
   }) as T;
+}
+
+// Graph layout helper functions
+interface GraphStructure {
+  hasChapters: boolean;
+  chapterNodes: any[];
+  frameNodes: any[];
+  attachmentNodes: any[];
+  conceptNodes: any[];
+  chapterFrameMap: Map<string, any[]>;
+  orphanedFrames: any[];
+  attachmentMap: Map<string, any[]>;
+  edges: any[];
+}
+
+function analyzeGraphStructure(nodes: any[], edges: any[]): GraphStructure {
+  const chapterNodes = nodes.filter(n => n.type === 'chapter');
+  const frameNodes = nodes.filter(n => n.type === 'aiframe');
+  const attachmentNodes = nodes.filter(n =>
+    n.type === 'video-attachment' ||
+    n.type === 'pdf-attachment' ||
+    n.type === 'text-attachment'
+  );
+  const conceptNodes = nodes.filter(n => n.type === 'concept');
+
+  const chapterFrameMap = new Map<string, any[]>();
+  const attachmentMap = new Map<string, any[]>();
+
+  // Build chapter -> frames mapping
+  edges.forEach(edge => {
+    if (edge.sourceHandle === 'chapter-frame-out') {
+      const chapterId = edge.source;
+      if (!chapterFrameMap.has(chapterId)) {
+        chapterFrameMap.set(chapterId, []);
+      }
+      const frameNode = frameNodes.find(f => f.id === edge.target);
+      if (frameNode) {
+        chapterFrameMap.get(chapterId)?.push(frameNode);
+      }
+    }
+  });
+
+  // Build frame -> attachments mapping
+  console.log('🔍 Analyzing edges for attachments:', {
+    totalEdges: edges.length,
+    attachmentNodeIds: attachmentNodes.map(a => a.id),
+    frameNodeIds: frameNodes.map(f => f.id),
+    edgeDetails: edges.map(e => ({
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle,
+      targetHandle: e.targetHandle,
+      isTargetAttachment: attachmentNodes.some(a => a.id === e.target)
+    }))
+  });
+
+  edges.forEach(edge => {
+    // FIXED: Attachment edges have Attachment as SOURCE and Frame as TARGET
+    // Check for attachment edges - by targetHandle or by checking if source is an attachment
+    const isAttachmentEdge = edge.targetHandle === 'attachment-slot' ||
+                             attachmentNodes.some(a => a.id === edge.source);
+
+    if (isAttachmentEdge) {
+      const frameId = edge.target; // FIXED: Frame is the target
+      const attachmentNode = attachmentNodes.find(a => a.id === edge.source); // FIXED: Attachment is the source
+
+      if (attachmentNode && frameNodes.some(f => f.id === frameId)) {
+        if (!attachmentMap.has(frameId)) {
+          attachmentMap.set(frameId, []);
+        }
+        attachmentMap.get(frameId)?.push(attachmentNode);
+        console.log('✅ Found attachment edge:', { frameId, attachmentId: attachmentNode.id });
+      }
+    }
+  });
+
+  // Find orphaned frames (frames not in any chapter)
+  const framesInChapters = new Set<string>();
+  chapterFrameMap.forEach(frames => {
+    frames.forEach(frame => framesInChapters.add(frame.id));
+  });
+  const orphanedFrames = frameNodes.filter(f => !framesInChapters.has(f.id));
+
+  // Debug logging
+  console.log('📊 Graph structure analysis:', {
+    chapters: chapterNodes.length,
+    frames: frameNodes.length,
+    attachments: attachmentNodes.length,
+    concepts: conceptNodes.length,
+    attachmentMapSize: attachmentMap.size,
+    attachmentMapEntries: Array.from(attachmentMap.entries()).map(([frameId, attachments]) => ({
+      frameId,
+      attachmentCount: attachments.length,
+      attachmentIds: attachments.map(a => a.id)
+    }))
+  });
+
+  return {
+    hasChapters: chapterNodes.length > 0,
+    chapterNodes,
+    frameNodes,
+    attachmentNodes,
+    conceptNodes,
+    chapterFrameMap,
+    orphanedFrames,
+    attachmentMap,
+    edges
+  };
+}
+
+function getLayoutedElements(nodes: any[], edges: any[], direction: 'TB' | 'LR' = 'TB'): { nodes: any[], edges: any[] } {
+  const structure = analyzeGraphStructure(nodes, edges);
+
+  if (structure.hasChapters) {
+    return hierarchicalLayout(structure, direction);
+  } else {
+    return sequentialLayout(structure, direction);
+  }
+}
+
+function hierarchicalLayout(structure: GraphStructure, direction: 'TB' | 'LR'): { nodes: any[], edges: any[] } {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 100,  // IMPROVED: Tighter horizontal spacing (150 → 100)
+    ranksep: 300,  // IMPROVED: More vertical spacing for clarity (250 → 300)
+    marginx: 50,
+    marginy: 50
+  });
+
+  const nodeWidth = 400;
+  const nodeHeight = 200;
+  const attachmentWidth = 300;
+  const attachmentHeight = 180;
+  const chapterWidth = 360;
+  const chapterHeight = 150;
+  const conceptWidth = 200;
+  const conceptHeight = 100;
+
+  // Add all nodes to dagre
+  structure.chapterNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: chapterWidth, height: chapterHeight });
+  });
+
+  structure.frameNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  structure.attachmentNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: attachmentWidth, height: attachmentHeight });
+  });
+
+  structure.conceptNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: conceptWidth, height: conceptHeight });
+  });
+
+  // Add edges to dagre
+  structure.edges.forEach(edge => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  // Calculate layout
+  dagre.layout(dagreGraph);
+
+  // Apply calculated positions to nodes with custom alignment for attachments and concepts
+  const layoutedNodes = [...structure.chapterNodes, ...structure.frameNodes, ...structure.attachmentNodes, ...structure.conceptNodes].map(node => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    const baseX = nodeWithPosition.x - (node.type === 'chapter' ? chapterWidth :
+       node.type === 'aiframe' ? nodeWidth :
+       node.type === 'concept' ? conceptWidth : attachmentWidth) / 2;
+    const baseY = nodeWithPosition.y - (node.type === 'chapter' ? chapterHeight :
+       node.type === 'aiframe' ? nodeHeight :
+       node.type === 'concept' ? conceptHeight : attachmentHeight) / 2;
+
+    return {
+      ...node,
+      position: { x: baseX, y: baseY },
+    };
+  });
+
+  // POST-PROCESS: Align attachments to the right of their parent frames
+  structure.attachmentMap.forEach((attachments, frameId) => {
+    const parentFrame = layoutedNodes.find(n => n.id === frameId);
+    if (!parentFrame) return;
+
+    attachments.forEach((attachment, index) => {
+      const attachmentNode = layoutedNodes.find(n => n.id === attachment.id);
+      if (attachmentNode) {
+        // Position attachment to the right of the frame with better spacing
+        attachmentNode.position = {
+          x: parentFrame.position.x + nodeWidth + 150, // IMPROVED: 150px gap from frame
+          y: parentFrame.position.y, // IMPROVED: Align on same row (remove vertical offset for cleaner look)
+        };
+      }
+    });
+  });
+
+  // POST-PROCESS: Align concepts in a vertical column on the far right
+  if (structure.conceptNodes.length > 0) {
+    // Find the rightmost position among all main nodes (chapters, frames, attachments)
+    const maxX = Math.max(
+      ...layoutedNodes
+        .filter(n => n.type !== 'concept')
+        .map(n => n.position.x + (n.type === 'aiframe' ? nodeWidth : n.type === 'chapter' ? chapterWidth : attachmentWidth))
+    );
+
+    // Position concepts in a vertical column
+    structure.conceptNodes.forEach((concept, index) => {
+      const conceptNode = layoutedNodes.find(n => n.id === concept.id);
+      if (conceptNode) {
+        conceptNode.position = {
+          x: maxX + 200, // 200px gap from rightmost node
+          y: 100 + (index * (conceptHeight + 30)), // Vertical spacing
+        };
+      }
+    });
+  }
+
+  return {
+    nodes: layoutedNodes,
+    edges: structure.edges,
+  };
+}
+
+function sequentialLayout(structure: GraphStructure, direction: 'TB' | 'LR'): { nodes: any[], edges: any[] } {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 100,  // IMPROVED: Tighter horizontal spacing
+    ranksep: 300,  // IMPROVED: More vertical spacing for clarity
+    marginx: 50,
+    marginy: 50
+  });
+
+  const nodeWidth = 400;
+  const nodeHeight = 200;
+  const attachmentWidth = 300;
+  const attachmentHeight = 180;
+  const conceptWidth = 200;
+  const conceptHeight = 100;
+
+  // Add all nodes to dagre
+  structure.frameNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  structure.attachmentNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: attachmentWidth, height: attachmentHeight });
+  });
+
+  structure.conceptNodes.forEach(node => {
+    dagreGraph.setNode(node.id, { width: conceptWidth, height: conceptHeight });
+  });
+
+  // Add edges to dagre
+  structure.edges.forEach(edge => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  // Calculate layout
+  dagre.layout(dagreGraph);
+
+  // Apply calculated positions to nodes
+  const layoutedNodes = [...structure.frameNodes, ...structure.attachmentNodes, ...structure.conceptNodes].map(node => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    const baseX = nodeWithPosition.x - (node.type === 'aiframe' ? nodeWidth :
+       node.type === 'concept' ? conceptWidth : attachmentWidth) / 2;
+    const baseY = nodeWithPosition.y - (node.type === 'aiframe' ? nodeHeight :
+       node.type === 'concept' ? conceptHeight : attachmentHeight) / 2;
+
+    return {
+      ...node,
+      position: { x: baseX, y: baseY },
+    };
+  });
+
+  // POST-PROCESS: Align attachments to the right of their parent frames
+  structure.attachmentMap.forEach((attachments, frameId) => {
+    const parentFrame = layoutedNodes.find(n => n.id === frameId);
+    if (!parentFrame) return;
+
+    attachments.forEach((attachment, index) => {
+      const attachmentNode = layoutedNodes.find(n => n.id === attachment.id);
+      if (attachmentNode) {
+        // Position attachment to the right of the frame with better spacing
+        attachmentNode.position = {
+          x: parentFrame.position.x + nodeWidth + 150, // IMPROVED: 150px gap from frame
+          y: parentFrame.position.y, // IMPROVED: Align on same row (remove vertical offset for cleaner look)
+        };
+      }
+    });
+  });
+
+  // POST-PROCESS: Align concepts in a vertical column on the far right
+  if (structure.conceptNodes.length > 0) {
+    // Find the rightmost position among all main nodes (frames, attachments)
+    const maxX = Math.max(
+      ...layoutedNodes
+        .filter(n => n.type !== 'concept')
+        .map(n => n.position.x + (n.type === 'aiframe' ? nodeWidth : attachmentWidth))
+    );
+
+    // Position concepts in a vertical column
+    structure.conceptNodes.forEach((concept, index) => {
+      const conceptNode = layoutedNodes.find(n => n.id === concept.id);
+      if (conceptNode) {
+        conceptNode.position = {
+          x: maxX + 200, // 200px gap from rightmost node
+          y: 100 + (index * (conceptHeight + 30)), // Vertical spacing
+        };
+      }
+    });
+  }
+
+  return {
+    nodes: layoutedNodes,
+    edges: structure.edges,
+  };
 }
 
 export default function FrameGraphIntegration({
@@ -501,46 +822,6 @@ Metadata:
     }
   }, [chapters, onTimeCapsuleUpdate, frames, handleFramesChangeWithRealTimeSync, onGraphChange]);
 
-  const organizeIntoChapters = useCallback(() => {
-    if (!onChaptersChange) {
-      return;
-    }
-
-    const conceptGroups = new Map<string, AIFrame[]>();
-
-    frames.forEach((frame) => {
-      const primaryConcept = frame.aiConcepts?.[0] || frame.title || 'General';
-      const key = primaryConcept.trim() || 'General';
-      if (!conceptGroups.has(key)) {
-        conceptGroups.set(key, []);
-      }
-      conceptGroups.get(key)?.push(frame);
-    });
-
-    const generatedChapters: Chapter[] = Array.from(conceptGroups.entries()).map(([concept, groupedFrames], index) => ({
-      id: `auto-chapter-${concept.toLowerCase().replace(/[^a-z0-9]+/g, '-') || index}`,
-      title: concept,
-      description: `Frames related to ${concept}`,
-      color: DEFAULT_CHAPTER_COLOR,
-      order: index,
-      frameIds: groupedFrames.map((frame) => frame.id),
-      conceptIds: groupedFrames.flatMap((frame) => frame.aiConcepts || []).filter(Boolean),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-
-    onChaptersChange(generatedChapters);
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('force-save-frames', {
-        detail: {
-          reason: 'auto-organize-chapters',
-          timestamp: Date.now(),
-        },
-      }));
-    }
-  }, [frames, onChaptersChange]);
-
   const handleChapterClick = useCallback((chapter: any) => {
     onFrameIndexChange(chapter.startIndex);
   }, [onFrameIndexChange]);
@@ -924,6 +1205,69 @@ Updated: ${new Date().toISOString()}`,
     // Fallback to cached state reference
     return currentGraphStateRef || { nodes: [], edges: [], selectedNodeId: null };
   }, [currentGraphStateRef]);
+
+  // Auto-layout function using dagre
+  const organizeGraphLayout = useCallback(() => {
+    // Get current graph state
+    const currentGraphState = getCurrentGraphState();
+
+    if (!currentGraphState || !currentGraphState.nodes || currentGraphState.nodes.length === 0) {
+      console.log('No graph nodes to organize');
+      return;
+    }
+
+    console.log('🎨 Auto-layout: Organizing graph with', currentGraphState.nodes.length, 'nodes');
+
+    // Apply dagre layout
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      currentGraphState.nodes,
+      currentGraphState.edges || [],
+      'TB' // Top-to-bottom layout
+    );
+
+    // Update graph state with new positions
+    const newGraphState: GraphState = {
+      ...currentGraphState,
+      nodes: layoutedNodes,
+      edges: layoutedEdges,
+    };
+
+    // Update the graph state
+    setGraphState(newGraphState);
+    setCurrentGraphStateRef(newGraphState);
+
+    // Notify parent component
+    if (onGraphChange) {
+      onGraphChange(newGraphState);
+    }
+
+    // Trigger save event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('force-save-frames', {
+        detail: {
+          reason: 'auto-layout-graph',
+          timestamp: Date.now(),
+        },
+      }));
+    }
+
+    console.log('✅ Auto-layout: Graph organized successfully');
+
+    // Wait for React state to propagate, then notify React Flow to update
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('graph-layout-applied', {
+          detail: {
+            reason: 'auto-layout',
+            nodeCount: layoutedNodes.length,
+            timestamp: Date.now(),
+            graphState: newGraphState
+          }
+        }));
+        console.log('📡 Dispatched graph-layout-applied event');
+      }
+    }, 100); // Wait for state propagation
+  }, [getCurrentGraphState, onGraphChange]);
 
   // DRAGON SLAYER: Ultra-lightweight state update with ZERO logging
   const handleGraphStateUpdate = useCallback((state: GraphState) => {
@@ -1405,19 +1749,19 @@ useEffect(() => {
               size="sm"
               onClick={async () => {
                 try {
-                  organizeIntoChapters();
+                  organizeGraphLayout();
                   // Wait a moment for state to update, then save
                   await new Promise(resolve => setTimeout(resolve, 100));
                   await handleSaveGraph();
                 } catch (error) {
-                  console.error("❌ Organize failed:", error);
+                  console.error("❌ Auto-layout failed:", error);
                 }
               }}
               disabled={isAutoSaving}
               className="text-green-600 hover:text-green-700"
             >
               <Layers className="h-4 w-4 mr-2" />
-              Organize
+              Auto-Layout
             </Button>
           </div>
         </div>
