@@ -104,7 +104,8 @@ export default function EnhancedLearningGraph({
   const edgesRef = useRef(edges);
   const selectedNodeRef = useRef(selectedNode);
   const boundChapterUpdateHandlers = useRef<Set<string>>(new Set());
-  
+  const boundConceptUpdateHandlers = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     nodesRef.current = nodes;
     edgesRef.current = edges;
@@ -1045,6 +1046,278 @@ export default function EnhancedLearningGraph({
     onFramesChange(updatedFrames);
   }, [onFramesChange]);
 
+  // Handle concept attachment to chapters
+  const handleAttachConceptToChapter = useCallback((chapterId: string, conceptValue: string) => {
+    if (!conceptValue || !onChaptersChange || !chapters) {
+      return;
+    }
+
+    const updatedChapters = chapters.map((chapter) => {
+      if (chapter.id === chapterId) {
+        const existingConcepts = Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [];
+
+        // Don't add duplicates
+        if (existingConcepts.includes(conceptValue)) {
+          return chapter;
+        }
+
+        return {
+          ...chapter,
+          conceptIds: [...existingConcepts, conceptValue],
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return chapter;
+    });
+
+    onChaptersChange(updatedChapters);
+  }, [chapters, onChaptersChange]);
+
+  // Handle concept detachment from chapters
+  const handleDetachConceptFromChapter = useCallback((chapterId: string, conceptValue: string) => {
+    if (!onChaptersChange || !chapters || !conceptValue) {
+      return;
+    }
+
+    const updatedChapters = chapters.map((chapter) => {
+      if (chapter.id === chapterId) {
+        const remainingConcepts = (chapter.conceptIds || []).filter(
+          (concept) => concept !== conceptValue
+        );
+
+        return {
+          ...chapter,
+          conceptIds: remainingConcepts,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return chapter;
+    });
+
+    onChaptersChange(updatedChapters);
+  }, [chapters, onChaptersChange]);
+
+  // Handle concept updates (edit name/description)
+  const handleConceptUpdate = useCallback((nodeId: string, updates: { concept: string; description?: string }) => {
+    const conceptNode = nodes.find(n => n.id === nodeId);
+    if (!conceptNode || conceptNode.type !== 'concept') {
+      return;
+    }
+
+    const oldConceptName = conceptNode.data?.concept;
+    const newConceptName = updates.concept;
+    const conceptNameChanged = oldConceptName !== newConceptName;
+
+    let updatedNodes: any[] = [];
+
+    // Update the concept node in the graph
+    setNodes((nds) => {
+      updatedNodes = nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              concept: newConceptName,
+              description: updates.description,
+            },
+          };
+        }
+        return node;
+      });
+      return updatedNodes;
+    });
+
+    // If concept name changed, update all references in frames and chapters
+    if (conceptNameChanged && onFramesChange) {
+      const updatedFrames = frames.map((frame) => {
+        const hasOldConcept = frame.conceptIds?.includes(oldConceptName) || frame.aiConcepts?.includes(oldConceptName);
+
+        if (hasOldConcept) {
+          return {
+            ...frame,
+            conceptIds: frame.conceptIds?.map((c: string) => c === oldConceptName ? newConceptName : c),
+            aiConcepts: frame.aiConcepts?.map((c: string) => c === oldConceptName ? newConceptName : c),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return frame;
+      });
+
+      onFramesChange(updatedFrames);
+    }
+
+    // Update concept references in chapters
+    if (conceptNameChanged && onChaptersChange && chapters) {
+      const updatedChapters = chapters.map((chapter) => {
+        const hasOldConcept = chapter.conceptIds?.includes(oldConceptName);
+
+        if (hasOldConcept) {
+          return {
+            ...chapter,
+            conceptIds: chapter.conceptIds?.map((c: string) => c === oldConceptName ? newConceptName : c),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return chapter;
+      });
+
+      onChaptersChange(updatedChapters);
+    }
+
+    // CRITICAL FIX: Emit graph state change and force save to ensure concept name is saved
+    setTimeout(() => {
+      const freshGraphState = {
+        nodes: nodesRef.current,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+      };
+      emitGraphStateChange('concept-updated', { nodeId, oldConceptName, newConceptName }, freshGraphState);
+
+      // CRITICAL FIX: Dispatch force-save event to trigger immediate save (mirrors chapter update pattern)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'concept-updated',
+            timestamp: Date.now(),
+            graphState: freshGraphState,
+          }
+        }));
+      }
+    }, 50); // Small delay to ensure refs are updated
+  }, [nodes, frames, chapters, onFramesChange, onChaptersChange, emitGraphStateChange, setNodes]);
+
+  // Handle concept deletion
+  const handleConceptDelete = useCallback((nodeId: string) => {
+    const conceptNode = nodes.find(n => n.id === nodeId);
+    if (!conceptNode || conceptNode.type !== 'concept') {
+      return;
+    }
+
+    const conceptName = conceptNode.data?.concept;
+
+    // Remove concept from all frames
+    if (conceptName && onFramesChange) {
+      const updatedFrames = frames.map((frame) => {
+        const hasThisConcept = frame.conceptIds?.includes(conceptName) || frame.aiConcepts?.includes(conceptName);
+
+        if (hasThisConcept) {
+          return {
+            ...frame,
+            conceptIds: frame.conceptIds?.filter((c: string) => c !== conceptName),
+            aiConcepts: frame.aiConcepts?.filter((c: string) => c !== conceptName),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return frame;
+      });
+
+      onFramesChange(updatedFrames);
+    }
+
+    // Remove concept from all chapters
+    if (conceptName && onChaptersChange && chapters) {
+      const updatedChapters = chapters.map((chapter) => {
+        const hasThisConcept = chapter.conceptIds?.includes(conceptName);
+
+        if (hasThisConcept) {
+          return {
+            ...chapter,
+            conceptIds: chapter.conceptIds?.filter((c: string) => c !== conceptName),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return chapter;
+      });
+
+      onChaptersChange(updatedChapters);
+    }
+
+    // Remove the node from the graph
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+
+    // CRITICAL FIX: Emit graph state change and force save to ensure concept deletion is saved
+    setTimeout(() => {
+      const freshGraphState = {
+        nodes: nodesRef.current,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+      };
+      emitGraphStateChange('concept-deleted', { nodeId, conceptName }, freshGraphState);
+
+      // CRITICAL FIX: Dispatch force-save event to trigger immediate save (mirrors chapter update pattern)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'concept-deleted',
+            timestamp: Date.now(),
+            graphState: freshGraphState,
+          }
+        }));
+      }
+    }, 50); // Small delay to ensure refs are updated
+  }, [nodes, frames, chapters, onFramesChange, onChaptersChange, emitGraphStateChange, setNodes]);
+
+  // REAL-TIME SYNC: Update concept nodes with latest frames/chapters data
+  useEffect(() => {
+    setNodes((currentNodes) => {
+      const conceptNodes = currentNodes.filter(n => n.type === 'concept');
+      if (conceptNodes.length === 0) return currentNodes;
+
+      let needsUpdate = false;
+
+      const nextNodes = currentNodes.map((node) => {
+        if (node.type !== 'concept') return node;
+
+        // Always reattach callbacks to ensure they're fresh
+        const callbacksMissing = !node.data?.onConceptUpdate || !node.data?.onConceptDelete;
+        const framesChanged = node.data?.frames !== frames;
+        const chaptersChanged = node.data?.chapters !== chapters;
+
+        if (callbacksMissing || framesChanged || chaptersChanged) {
+          needsUpdate = true;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              onConceptUpdate: handleConceptUpdate,
+              onConceptDelete: handleConceptDelete,
+              frames: frames,
+              chapters: chapters,
+            },
+          };
+        }
+
+        return node;
+      });
+
+      return needsUpdate ? nextNodes : currentNodes;
+    });
+  }, [frames, chapters, handleConceptUpdate, handleConceptDelete, setNodes]);
+
+  // FALLBACK EVENT SYSTEM: Handle concept updates when callbacks are missing
+  useEffect(() => {
+    const handleConceptUpdateRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<{ nodeId: string; updates: { concept: string; description?: string } }>;
+      const { nodeId, updates } = customEvent.detail;
+      handleConceptUpdate(nodeId, updates);
+    };
+
+    const handleConceptDeleteRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<{ nodeId: string }>;
+      const { nodeId } = customEvent.detail;
+      handleConceptDelete(nodeId);
+    };
+
+    window.addEventListener('concept-update-request', handleConceptUpdateRequest);
+    window.addEventListener('concept-delete-request', handleConceptDeleteRequest);
+
+    return () => {
+      window.removeEventListener('concept-update-request', handleConceptUpdateRequest);
+      window.removeEventListener('concept-delete-request', handleConceptDeleteRequest);
+    };
+  }, [handleConceptUpdate, handleConceptDelete]);
+
   // REAL-TIME SYNC: Handle node deletion
   useEffect(() => {
     if (previousNodes.length > 0) {
@@ -1373,6 +1646,17 @@ export default function EnhancedLearningGraph({
         handleAttachConceptToFrame(sourceNode.data.frameId, conceptValue);
       }
 
+      // Handle concept-to-chapter connections
+      if (sourceType === 'concept' && targetType === 'chapter' && targetNode.data?.id) {
+        const conceptValue = normalizeConceptValue(sourceNode);
+        handleAttachConceptToChapter(targetNode.data.id, conceptValue);
+      }
+
+      if (sourceType === 'chapter' && targetType === 'concept' && sourceNode.data?.id) {
+        const conceptValue = normalizeConceptValue(targetNode);
+        handleAttachConceptToChapter(sourceNode.data.id, conceptValue);
+      }
+
       if (targetType === 'chapter') {
         const allowFrameAttachment =
           params.targetHandle === 'chapter-frame-in' || params.targetHandle === 'chapter-frame-out';
@@ -1574,7 +1858,7 @@ export default function EnhancedLearningGraph({
         }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
       }
     },
-    [normalizeConceptValue, handleAttachConceptToFrame, handleAttachContent, emitGraphStateChange]
+    [normalizeConceptValue, handleAttachConceptToFrame, handleAttachConceptToChapter, handleAttachContent, emitGraphStateChange]
   );
 
   // REAL-TIME SYNC: Handle edge/connection deletion
@@ -1629,8 +1913,19 @@ export default function EnhancedLearningGraph({
             const conceptValue = normalizeConceptValue(targetNode);
             handleDetachConceptFromFrame(sourceNode.data.frameId, conceptValue);
           }
+
+          // Handle concept-to-chapter disconnections
+          if (sourceType === 'concept' && targetType === 'chapter' && targetNode.data?.id) {
+            const conceptValue = normalizeConceptValue(sourceNode);
+            handleDetachConceptFromChapter(targetNode.data.id, conceptValue);
+          }
+
+          if (sourceType === 'chapter' && targetType === 'concept' && sourceNode.data?.id) {
+            const conceptValue = normalizeConceptValue(targetNode);
+            handleDetachConceptFromChapter(sourceNode.data.id, conceptValue);
+          }
         }
-        
+
         // Emit connection removal event for real-time sync
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('graph-connection-removed', {
@@ -1674,7 +1969,7 @@ export default function EnhancedLearningGraph({
         }
       });
     },
-    [normalizeConceptValue, handleDetachConceptFromFrame, handleDetachContent, emitGraphStateChange]
+    [normalizeConceptValue, handleDetachConceptFromFrame, handleDetachConceptFromChapter, handleDetachContent, emitGraphStateChange]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -1773,6 +2068,10 @@ export default function EnhancedLearningGraph({
               concept: "New Concept",
               description: "Concept description",
               relatedFrameId: "",
+              onConceptUpdate: handleConceptUpdate,
+              onConceptDelete: handleConceptDelete,
+              frames: frames,
+              chapters: chapters,
             };
             
           case "chapter":
@@ -1802,6 +2101,10 @@ export default function EnhancedLearningGraph({
 
       if (type === 'chapter') {
         boundChapterUpdateHandlers.current.add(nodeId);
+      }
+
+      if (type === 'concept') {
+        boundConceptUpdateHandlers.current.add(nodeId);
       }
 
       setNodes((nds) => nds.concat(newNode));
@@ -1922,7 +2225,7 @@ export default function EnhancedLearningGraph({
         }
       }
     },
-    [reactFlowInstance, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent]
+    [reactFlowInstance, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent, handleConceptUpdate, handleConceptDelete, frames, chapters]
   );
 
   // Handle node selection and emit events for Frame Navigation sync

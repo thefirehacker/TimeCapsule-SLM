@@ -30,7 +30,8 @@ import {
   Plus,
   Split,
   PanelLeft,
-  PanelRight
+  PanelRight,
+  Brain
 } from "lucide-react";
 
 interface AIFrame {
@@ -54,6 +55,13 @@ interface AIFrame {
   type?: 'frame' | 'chapter' | 'module';
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface ChapterLinearEntry {
+  chapter: Chapter;
+  frames: AIFrame[];
+  incoming: number;
+  outgoing: number;
 }
 
 interface DualPaneFrameViewProps {
@@ -99,6 +107,23 @@ export default function DualPaneFrameView({
   );
   const [editingFrameId, setEditingFrameId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<AIFrame>>({});
+
+  // Navigation mode state: 'chapter' shows position within current chapter, 'frame' shows position in all frames
+  const NAV_MODE_STORAGE_KEY = "aiFramesNavigationMode";
+  const computeInitialNavMode = (): "chapter" | "frame" => {
+    if (typeof window === "undefined") {
+      // Smart default: chapter mode if chapters exist, else frame mode
+      return chapters.length > 0 ? "chapter" : "frame";
+    }
+    const stored = window.localStorage.getItem(NAV_MODE_STORAGE_KEY);
+    if (stored === "chapter" || stored === "frame") {
+      return stored;
+    }
+    // Smart default: chapter mode if chapters exist, else frame mode
+    return chapters.length > 0 ? "chapter" : "frame";
+  };
+  const [navigationMode, setNavigationMode] = useState<"chapter" | "frame">(computeInitialNavMode);
+
   const VIEW_MODE_STORAGE_KEY = "aiFramesDualPaneViewMode";
   const computeInitialViewMode = (): "graph" | "split" | "linear" => {
     const fallback = defaultMaximized ? "graph" : "split";
@@ -904,12 +929,33 @@ export default function DualPaneFrameView({
     return frameList;
   }, [linearTopology]);
 
-  // Calculate chapter-scoped navigation info
+  // Calculate chapter-scoped navigation info based on navigation mode
   const chapterNavInfo = useMemo(() => {
-    if (!currentFrame || !currentChapter) {
+    if (!currentFrame) {
+      return {
+        position: 1,
+        total: frames.length,
+        chapterTitle: 'All Frames',
+        isOrphan: false
+      };
+    }
+
+    // FRAME MODE: Always show position in all frames following graph topology
+    if (navigationMode === "frame") {
+      const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+      return {
+        position: currentIndex !== -1 ? currentIndex + 1 : clampedFrameIndex + 1,
+        total: sequentialFrameList.length,
+        chapterTitle: 'All Frames',
+        isOrphan: false
+      };
+    }
+
+    // CHAPTER MODE: Show position within current chapter (using topology frames, not just frameIds)
+    if (!currentChapter) {
       // Frame is orphaned - find which orphan group it belongs to
       for (const orphanGroup of linearTopology.orphanFrameGroups) {
-        const groupIndex = orphanGroup.findIndex(f => f.id === currentFrame?.id);
+        const groupIndex = orphanGroup.findIndex(f => f.id === currentFrame.id);
         if (groupIndex !== -1) {
           const groupTitle = orphanGroup.length > 1
             ? `Ungrouped Frame Group (${orphanGroup.length} connected)`
@@ -931,10 +977,25 @@ export default function DualPaneFrameView({
       };
     }
 
-    // Find frames in current chapter
-    const chapterFrames = currentChapter.frameIds
-      .map(id => frames.find(f => f.id === id))
-      .filter((f): f is AIFrame => f !== undefined);
+    // Find frames in current chapter from linearTopology (includes cascaded frames)
+    let chapterFrames: AIFrame[] = [];
+
+    // Search in connected groups
+    for (const group of linearTopology.connectedGroups) {
+      const chapterEntry = group.chapters.find(entry => entry.chapter.id === currentChapter.id);
+      if (chapterEntry) {
+        chapterFrames = chapterEntry.frames;
+        break;
+      }
+    }
+
+    // Search in standalone chapters if not found
+    if (chapterFrames.length === 0) {
+      const chapterEntry = linearTopology.standaloneChapters.find(entry => entry.chapter.id === currentChapter.id);
+      if (chapterEntry) {
+        chapterFrames = chapterEntry.frames;
+      }
+    }
 
     const positionInChapter = chapterFrames.findIndex(f => f.id === currentFrame.id);
 
@@ -944,7 +1005,7 @@ export default function DualPaneFrameView({
       chapterTitle: currentChapter.title,
       isOrphan: false
     };
-  }, [currentFrame, currentChapter, linearTopology.orphanFrameGroups, clampedFrameIndex, frames]);
+  }, [currentFrame, currentChapter, linearTopology, clampedFrameIndex, frames, sequentialFrameList, navigationMode]);
 
   const navigateToFrame = useCallback(
     (frameId: string) => {
@@ -998,47 +1059,47 @@ export default function DualPaneFrameView({
     };
   }, [currentFrame, sequentialFrameList]);
 
-  // DEBUG: Log frame and chapter data
-  useEffect(() => {
-    console.log('🔍 DEBUG - Frame Navigation Analysis:');
-    console.log('📦 All Frames:', frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })));
-    console.log('📚 All Chapters:', sortedChapters.map(c => ({
-      id: c.id,
-      title: c.title,
-      frameIds: c.frameIds,
-      frameCount: c.frameIds.length
-    })));
-    console.log('🗺️ Linear Topology (with cascading frames):');
-    linearTopology.connectedGroups.forEach((group, idx) => {
-      console.log(`  Connected Group ${idx + 1}:`, group.chapters.map(ch => ({
-        chapterId: ch.chapter.id,
-        chapterTitle: ch.chapter.title,
-        directFrameIds: ch.chapter.frameIds,
-        allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
-        totalFrameCount: ch.frames.length
-      })));
-    });
-    console.log('  Standalone Chapters:', linearTopology.standaloneChapters.map(ch => ({
-      chapterId: ch.chapter.id,
-      chapterTitle: ch.chapter.title,
-      directFrameIds: ch.chapter.frameIds,
-      allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
-      totalFrameCount: ch.frames.length
-    })));
-    console.log('  Orphan Frame Groups:', linearTopology.orphanFrameGroups.map((group, idx) => ({
-      groupIndex: idx + 1,
-      frameCount: group.length,
-      frames: group.map(f => ({ id: f.id, title: f.title || 'Untitled' }))
-    })));
-    console.log('📐 Sequential Frame List:', sequentialFrameList.map((f, idx) => ({
-      position: idx + 1,
-      id: f.id,
-      title: f.title || 'Untitled'
-    })));
-    console.log('🎯 Current Frame:', currentFrame ? { id: currentFrame.id, title: currentFrame.title || 'Untitled' } : 'none');
-    console.log('📍 Current Chapter:', currentChapter ? { id: currentChapter.id, title: currentChapter.title } : 'none');
-    console.log('🧭 Navigation State:', navigationState);
-  }, [frames, sortedChapters, linearTopology, currentFrame, currentChapter, sequentialFrameList, navigationState]);
+  // DEBUG: Log frame and chapter data (DISABLED - causing performance issues)
+  // useEffect(() => {
+  //   console.log('🔍 DEBUG - Frame Navigation Analysis:');
+  //   console.log('📦 All Frames:', frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })));
+  //   console.log('📚 All Chapters:', sortedChapters.map(c => ({
+  //     id: c.id,
+  //     title: c.title,
+  //     frameIds: c.frameIds,
+  //     frameCount: c.frameIds.length
+  //   })));
+  //   console.log('🗺️ Linear Topology (with cascading frames):');
+  //   linearTopology.connectedGroups.forEach((group, idx) => {
+  //     console.log(`  Connected Group ${idx + 1}:`, group.chapters.map(ch => ({
+  //       chapterId: ch.chapter.id,
+  //       chapterTitle: ch.chapter.title,
+  //       directFrameIds: ch.chapter.frameIds,
+  //       allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
+  //       totalFrameCount: ch.frames.length
+  //     })));
+  //   });
+  //   console.log('  Standalone Chapters:', linearTopology.standaloneChapters.map(ch => ({
+  //     chapterId: ch.chapter.id,
+  //     chapterTitle: ch.chapter.title,
+  //     directFrameIds: ch.chapter.frameIds,
+  //     allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
+  //     totalFrameCount: ch.frames.length
+  //   })));
+  //   console.log('  Orphan Frame Groups:', linearTopology.orphanFrameGroups.map((group, idx) => ({
+  //     groupIndex: idx + 1,
+  //     frameCount: group.length,
+  //     frames: group.map(f => ({ id: f.id, title: f.title || 'Untitled' }))
+  //   })));
+  //   console.log('📐 Sequential Frame List:', sequentialFrameList.map((f, idx) => ({
+  //     position: idx + 1,
+  //     id: f.id,
+  //     title: f.title || 'Untitled'
+  //   })));
+  //   console.log('🎯 Current Frame:', currentFrame ? { id: currentFrame.id, title: currentFrame.title || 'Untitled' } : 'none');
+  //   console.log('📍 Current Chapter:', currentChapter ? { id: currentChapter.id, title: currentChapter.title } : 'none');
+  //   console.log('🧭 Navigation State:', navigationState);
+  // }, [frames, sortedChapters, linearTopology, currentFrame, currentChapter, sequentialFrameList, navigationState]);
 
   const handleCreateFrameClick = useCallback(() => {
     if (!onCreateFrame) return;
@@ -1134,6 +1195,21 @@ export default function DualPaneFrameView({
     }
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  // Persist navigation mode to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(NAV_MODE_STORAGE_KEY, navigationMode);
+  }, [navigationMode]);
+
+  // Smart default: Auto-switch to frame mode if no chapters exist
+  useEffect(() => {
+    if (chapters.length === 0 && navigationMode === "chapter") {
+      setNavigationMode("frame");
+    }
+  }, [chapters.length, navigationMode]);
 
   const graphPaneClasses =
     viewMode === "graph"
@@ -1268,7 +1344,34 @@ export default function DualPaneFrameView({
               </div>
             ) : (
               <div className="space-y-6">
-{hasChapters && (
+                {/* Navigation Mode Toggle - Above Chapter Overview */}
+                {hasFrames && (
+                  <div className="flex items-center justify-center gap-2 pb-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Navigation View:</span>
+                    <div className="inline-flex items-center gap-0.5 rounded-md border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 p-0.5">
+                      <Button
+                        variant={navigationMode === "chapter" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setNavigationMode("chapter")}
+                        className="h-7 px-3 text-xs"
+                        title="Show position within current chapter"
+                        disabled={chapters.length === 0}
+                      >
+                        Chapter
+                      </Button>
+                      <Button
+                        variant={navigationMode === "frame" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setNavigationMode("frame")}
+                        className="h-7 px-3 text-xs"
+                        title="Show position in all frames"
+                      >
+                        Frame
+                      </Button>
+                    </div>
+                  </div>
+                )}
+{hasChapters && navigationMode === "chapter" && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex flex-col gap-1">
@@ -1342,10 +1445,10 @@ export default function DualPaneFrameView({
                                                 return (
                                                   <Button
                                                     key={frame.id}
-                                                    size="xs"
+                                                    size="sm"
                                                     variant={isActiveFrame ? 'default' : 'outline'}
                                                     onClick={() => navigateToFrame(frame.id)}
-                                                    className="flex items-center gap-1"
+                                                    className="flex items-center gap-1 h-7 text-xs"
                                                   >
                                                     <Play className="h-3 w-3" />
                                                     {frame.title || 'Untitled Frame'}
@@ -1358,6 +1461,26 @@ export default function DualPaneFrameView({
                                               </span>
                                             )}
                                           </div>
+                                          {/* Concepts attached to this chapter */}
+                                          {entry.chapter.conceptIds && entry.chapter.conceptIds.length > 0 && (
+                                            <div className="mt-2">
+                                              <Label className="text-xs font-medium flex items-center gap-1 mb-1 text-yellow-700 dark:text-yellow-400">
+                                                <Brain className="h-3 w-3" />
+                                                Concepts ({entry.chapter.conceptIds.length})
+                                              </Label>
+                                              <div className="flex flex-wrap gap-1">
+                                                {entry.chapter.conceptIds.map((conceptId) => (
+                                                  <Badge
+                                                    key={conceptId}
+                                                    variant="outline"
+                                                    className="text-xs bg-yellow-50 border-yellow-300 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-400"
+                                                  >
+                                                    {conceptId}
+                                                  </Badge>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                         <div className="flex flex-col items-end gap-1 text-[10px] text-gray-500 dark:text-gray-400">
                                           <span>Incoming: {entry.incoming}</span>
@@ -1415,10 +1538,10 @@ export default function DualPaneFrameView({
                                     return (
                                       <Button
                                         key={frame.id}
-                                        size="xs"
+                                        size="sm"
                                         variant={isActiveFrame ? 'default' : 'outline'}
                                         onClick={() => navigateToFrame(frame.id)}
-                                        className="flex items-center gap-1"
+                                        className="flex items-center gap-1 h-7 text-xs"
                                       >
                                         <Play className="h-3 w-3" />
                                         {frame.title || 'Untitled Frame'}
@@ -1431,6 +1554,26 @@ export default function DualPaneFrameView({
                                   </span>
                                 )}
                               </div>
+                              {/* Concepts attached to this chapter */}
+                              {entry.chapter.conceptIds && entry.chapter.conceptIds.length > 0 && (
+                                <div className="mt-2">
+                                  <Label className="text-xs font-medium flex items-center gap-1 mb-1 text-yellow-700 dark:text-yellow-400">
+                                    <Brain className="h-3 w-3" />
+                                    Concepts ({entry.chapter.conceptIds.length})
+                                  </Label>
+                                  <div className="flex flex-wrap gap-1">
+                                    {entry.chapter.conceptIds.map((conceptId) => (
+                                      <Badge
+                                        key={conceptId}
+                                        variant="outline"
+                                        className="text-xs bg-yellow-50 border-yellow-300 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-400"
+                                      >
+                                        {conceptId}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1446,7 +1589,7 @@ export default function DualPaneFrameView({
                 </CardContent>
               </Card>
             )}
-{orphanFrameGroups.length > 0 && (
+{orphanFrameGroups.length > 0 && navigationMode === "frame" && (
               <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
