@@ -1389,6 +1389,43 @@ export default function EnhancedLearningGraph({
   // REMOVED: Problematic useEffect that caused infinite re-rendering
   // The initial state is already properly handled by useNodesState and useEdgesState
 
+  // AUTO-LAYOUT FIX: Listen for auto-layout event and apply positions
+  useEffect(() => {
+    const handleAutoLayoutApplied = (event: CustomEvent) => {
+      console.log('🎨 React Flow: Auto-layout event received', event.detail);
+
+      // Try to get graph state from event detail first, then fall back to initialGraphState
+      const graphState = event.detail?.graphState || initialGraphState;
+
+      if (!graphState?.nodes || graphState.nodes.length === 0) {
+        console.log('⚠️ No graph nodes to apply');
+        return;
+      }
+
+      console.log('🎨 React Flow: Applying auto-layout positions', {
+        nodeCount: graphState.nodes.length,
+        edgeCount: graphState.edges?.length || 0,
+        source: event.detail?.graphState ? 'event' : 'initialGraphState'
+      });
+
+      setNodes(graphState.nodes);
+      if (graphState.edges) {
+        setEdges(graphState.edges);
+      }
+
+      // Animate viewport to show new layout after a brief delay
+      if (reactFlowInstance) {
+        setTimeout(() => {
+          reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+          console.log('✅ Auto-layout viewport updated');
+        }, 150);
+      }
+    };
+
+    window.addEventListener('graph-layout-applied', handleAutoLayoutApplied as EventListener);
+    return () => window.removeEventListener('graph-layout-applied', handleAutoLayoutApplied as EventListener);
+  }, [initialGraphState, reactFlowInstance, setNodes, setEdges]);
+
   // CRITICAL FIX: Sync existing nodes with updated frame data when frames prop changes
   useEffect(() => {
     // Only update existing nodes if we have both frames and nodes
@@ -2265,11 +2302,11 @@ export default function EnhancedLearningGraph({
           attributionPosition="top-right"
           proOptions={{ hideAttribution: true }}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-          minZoom={0.5}
+          minZoom={0.25}
           maxZoom={2}
         >
-          <MiniMap />
-          <Controls />
+          <MiniMap position="top-left" />
+          <Controls position="top-left" />
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
