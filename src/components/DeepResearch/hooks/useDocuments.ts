@@ -298,6 +298,12 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
     async (files: FileList) => {
       if (!vectorStore || !files.length) return;
 
+      // File count limit check
+      if (files.length > 20) {
+        console.error(`❌ Too many files: ${files.length}. Maximum 20 files allowed per upload.`);
+        return;
+      }
+
       setIsUploading(true);
       try {
         console.log(`📚 Processing ${files.length} files...`);
@@ -320,7 +326,7 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
             const content = await extractFileContent(file);
 
             // Process with VectorStore
-            await vectorStore.addDocument(file, content, (progress: any) => {
+            await vectorStore.addDocument(file, content, 'userdocs', (progress: any) => {
               console.log(
                 `📊 Processing ${file.name}: ${progress.message} (${progress.progress}%)`
               );

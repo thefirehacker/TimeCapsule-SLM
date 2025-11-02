@@ -444,9 +444,9 @@ export class VectorStore {
       throw new Error('Document processing is unavailable. Please refresh the page and try again.');
     }
 
-    // File size check (following reference implementation - 10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error(`File too large: ${file.name} (${this.formatFileSize(file.size)}). Please use files under 10MB.`);
+    // File size check - 50MB limit
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error(`File too large: ${file.name} (${this.formatFileSize(file.size)}). Please use files under 50MB.`);
     }
 
     console.log(`📄 Processing document: ${file.name}`);

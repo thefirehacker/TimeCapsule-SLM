@@ -41,6 +41,7 @@ import {
 import { VectorStore } from "../../components/VectorStore/VectorStore";
 import { useVectorStore } from "../../components/providers/VectorStoreProvider";
 import { usePageAnalytics } from "@/components/analytics/Analytics";
+import { useDocuments } from "@/components/DeepResearch/hooks/useDocuments";
 
 // Import Graph Integration (keeping in src/components/ai-graphs)
 import { FrameGraphIntegration } from "@/components/ai-graphs";
@@ -152,6 +153,9 @@ export default function AIFramesPage() {
     processingAvailable,
     processingStatus,
   } = useVectorStore();
+
+  // Documents hook for file upload handling
+  const documentsHook = useDocuments(providerVectorStore);
 
   // Essential state hooks
   const [isCreationMode, setIsCreationMode] = useState(true);
@@ -1106,6 +1110,27 @@ export default function AIFramesPage() {
   // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (
     <>
+      {/* Hidden file input for KB document uploads */}
+      <input
+        id="kb-file-upload"
+        type="file"
+        multiple
+        accept=".pdf,.docx,.txt,.md"
+        className="hidden"
+        onChange={async (e) => {
+          if (e.target.files) {
+            await documentsHook.handleFileUpload(e.target.files);
+
+            // Refresh documents list to show newly uploaded files
+            if (providerVectorStore) {
+              const allDocuments = await providerVectorStore.getAllDocuments();
+              setDocuments(allDocuments);
+            }
+
+            e.target.value = ""; // Reset input
+          }
+        }}
+      />
       <div className="min-h-screen flex flex-col pt-20">
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">
@@ -1125,26 +1150,15 @@ export default function AIFramesPage() {
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
               <KnowledgeBaseSection
                 documentStatus={{
-                  count: documents.length,
-                  totalSize: documents.reduce(
-                    (sum, doc) => sum + (doc.metadata?.filesize || 0),
-                    0
-                  ),
+                  count: documents.filter(aiFramesTabConfigs[0].filter).length,
+                  totalSize: documents
+                    .filter(aiFramesTabConfigs[0].filter)
+                    .reduce((sum, doc) => sum + (doc.metadata?.filesize || 0), 0),
                   vectorCount: 0,
                 }}
-                onUploadDocuments={() => {
-                  const input = document.createElement("input");
-                  input.type = "file";
-                  input.multiple = true;
-                  input.onchange = (e) => {
-                    const files = (e.target as HTMLInputElement).files;
-                    if (files) {
-                      console.log("Upload documents:", files);
-                      // Handle file upload here
-                    }
-                  };
-                  input.click();
-                }}
+                onUploadDocuments={() =>
+                  document.getElementById("kb-file-upload")?.click()
+                }
                 onManageKnowledge={() => {
                   console.log(
                     "Manage KB button clicked - opening Knowledge Base Manager"
@@ -1438,14 +1452,38 @@ export default function AIFramesPage() {
       >
         <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
-              Knowledge Base Manager
-            </DialogTitle>
-            <DialogDescription>
-              Organized view of your documents by category. Search and manage
-              your knowledge base content.
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                  Knowledge Base Manager
+                </DialogTitle>
+                <DialogDescription>
+                  Organized view of your documents by category. Search and manage
+                  your knowledge base content.
+                </DialogDescription>
+              </div>
+
+              {/* Upload Button */}
+              <Button
+                onClick={() => document.getElementById("kb-file-upload")?.click()}
+                disabled={documentsHook.isUploading}
+                className="space-x-2"
+                size="sm"
+              >
+                {documentsHook.isUploading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    <span>Upload Files</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6">
