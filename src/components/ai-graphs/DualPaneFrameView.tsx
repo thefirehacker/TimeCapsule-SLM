@@ -513,17 +513,10 @@ export default function DualPaneFrameView({
     const assignedFrameIds = new Set<string>();
     const chapterMap = new Map(sortedChapters.map((chapter) => [chapter.id, chapter]));
 
-    if (sortedChapters.length === 0) {
-      return {
-        connectedGroups: [] as Array<{ id: string; connected: boolean; chapters: ChapterLinearEntry[] }>,
-        standaloneChapters: [] as ChapterLinearEntry[],
-        orphanFrames: frames,
-      };
-    }
-
     const nodes = graphState?.nodes || [];
     const edges = graphState?.edges || [];
     const chapterNodeLookup = new Map<string, string>();
+    const frameNodeLookup = new Map<string, string>(); // Map node IDs to frame IDs
 
     nodes.forEach((node) => {
       if (node?.type === 'chapter') {
@@ -531,8 +524,132 @@ export default function DualPaneFrameView({
         if (chapterMap.has(chapterId)) {
           chapterNodeLookup.set(node.id, chapterId);
         }
+      } else if (node?.type === 'aiframe') {
+        const frameId = node.data?.frameId || node.data?.id || node.id;
+        if (framesMap.has(frameId)) {
+          frameNodeLookup.set(node.id, frameId);
+        }
       }
     });
+
+    // Build directed frame edges (source -> target)
+    const frameOutgoing = new Map<string, Set<string>>();
+    const frameIncoming = new Map<string, Set<string>>();
+    frames.forEach(frame => {
+      frameOutgoing.set(frame.id, new Set());
+      frameIncoming.set(frame.id, new Set());
+    });
+
+    edges.forEach((edge) => {
+      const sourceFrameId = frameNodeLookup.get(edge.source);
+      const targetFrameId = frameNodeLookup.get(edge.target);
+
+      if (sourceFrameId && targetFrameId) {
+        frameOutgoing.get(sourceFrameId)?.add(targetFrameId);
+        frameIncoming.get(targetFrameId)?.add(sourceFrameId);
+      }
+    });
+
+    // Find cascade chains starting from root frames (frames with no incoming edges from other frames)
+    const frameCascadeGroups: string[][] = [];
+    const frameToGroupIndex = new Map<string, number>();
+    const assignedToGroup = new Set<string>();
+
+    frames.forEach(frame => {
+      if (assignedToGroup.has(frame.id)) return;
+
+      const incomingFrames = frameIncoming.get(frame.id);
+      const outgoingFrames = frameOutgoing.get(frame.id);
+      const hasIncoming = incomingFrames && incomingFrames.size > 0;
+      const hasOutgoing = outgoingFrames && outgoingFrames.size > 0;
+
+      // Isolated frame (no connections at all) - create single-frame group
+      if (!hasIncoming && !hasOutgoing) {
+        const groupIndex = frameCascadeGroups.length;
+        frameCascadeGroups.push([frame.id]);
+        frameToGroupIndex.set(frame.id, groupIndex);
+        assignedToGroup.add(frame.id);
+        return;
+      }
+
+      // Root frame in a cascade chain (has outgoing but no incoming)
+      if (!hasIncoming && hasOutgoing) {
+        // Follow the cascade chain forward
+        const cascade: string[] = [];
+        const queue = [frame.id];
+        const visited = new Set<string>();
+
+        while (queue.length > 0) {
+          const currentId = queue.shift()!;
+          if (visited.has(currentId)) continue;
+
+          visited.add(currentId);
+          cascade.push(currentId);
+          assignedToGroup.add(currentId);
+
+          const outgoing = frameOutgoing.get(currentId);
+          if (outgoing) {
+            outgoing.forEach(targetId => {
+              if (!visited.has(targetId)) {
+                queue.push(targetId);
+              }
+            });
+          }
+        }
+
+        if (cascade.length > 0) {
+          const groupIndex = frameCascadeGroups.length;
+          frameCascadeGroups.push(cascade);
+          cascade.forEach(frameId => {
+            frameToGroupIndex.set(frameId, groupIndex);
+          });
+        }
+      }
+    });
+
+    // Handle frames that are part of cycles or weren't caught (middle of chain but disconnected)
+    frames.forEach(frame => {
+      if (!assignedToGroup.has(frame.id)) {
+        const groupIndex = frameCascadeGroups.length;
+        frameCascadeGroups.push([frame.id]);
+        frameToGroupIndex.set(frame.id, groupIndex);
+      }
+    });
+
+    // Detect chapter-to-frame connections from graph edges
+    const chapterToFrameEdges = new Map<string, Set<string>>();
+    sortedChapters.forEach(chapter => {
+      chapterToFrameEdges.set(chapter.id, new Set());
+    });
+
+    edges.forEach((edge) => {
+      const sourceChapterId = chapterNodeLookup.get(edge.source);
+      const targetFrameId = frameNodeLookup.get(edge.target);
+
+      if (sourceChapterId && targetFrameId) {
+        // Chapter connects to frame
+        chapterToFrameEdges.get(sourceChapterId)?.add(targetFrameId);
+      }
+    });
+
+    // If no chapters, just return orphan frame groups
+    if (sortedChapters.length === 0) {
+      const orphanFrameGroups: AIFrame[][] = [];
+      frameCascadeGroups.forEach(groupIds => {
+        const groupFrames = groupIds
+          .map(id => framesMap.get(id))
+          .filter((f): f is AIFrame => f !== undefined);
+        if (groupFrames.length > 0) {
+          orphanFrameGroups.push(groupFrames);
+        }
+      });
+
+      return {
+        connectedGroups: [] as Array<{ id: string; connected: boolean; chapters: ChapterLinearEntry[] }>,
+        standaloneChapters: [] as ChapterLinearEntry[],
+        orphanFrameGroups,
+      };
+    }
 
     const connectionMap = new Map<string, { incoming: Set<string>; outgoing: Set<string> }>();
     sortedChapters.forEach((chapter) => {
@@ -674,14 +791,36 @@ export default function DualPaneFrameView({
             outgoing: new Set<string>(),
           };
 
-          const chapterFrames = (chapterData.frameIds || [])
-            .map((frameId) => {
-              const frame = framesMap.get(frameId);
-              if (frame) {
-                assignedFrameIds.add(frame.id);
-              }
-              return frame;
-            })
+          // Get all frames in cascade groups of directly connected frames
+          const includedGroupIndices = new Set<number>();
+
+          // Combine frameIds from chapter data AND graph edges
+          const directFrameIds = new Set([
+            ...(chapterData.frameIds || []),
+            ...(chapterToFrameEdges.get(id) || [])
+          ]);
+
+          // Find all cascade groups that contain directly connected frames
+          directFrameIds.forEach(frameId => {
+            const groupIndex = frameToGroupIndex.get(frameId);
+            if (groupIndex !== undefined) {
+              includedGroupIndices.add(groupIndex);
+            }
+          });
+
+          // Collect all frames from included cascade groups
+          const allFrameIds = new Set<string>();
+          includedGroupIndices.forEach(groupIndex => {
+            const group = frameCascadeGroups[groupIndex];
+            group.forEach(frameId => {
+              allFrameIds.add(frameId);
+              assignedFrameIds.add(frameId);
+            });
+          });
+
+          // Convert to frame objects
+          const chapterFrames = Array.from(allFrameIds)
+            .map(frameId => framesMap.get(frameId))
             .filter((frame): frame is AIFrame => Boolean(frame));
 
           return {
@@ -717,10 +856,95 @@ export default function DualPaneFrameView({
       .flatMap((group) => group.chapters)
       .sort((a, b) => (a.chapter.order ?? 0) - (b.chapter.order ?? 0));
 
-    const orphanFrames = frames.filter((frame) => !assignedFrameIds.has(frame.id));
+    // Group orphan frames by their cascade groups
+    const orphanFrameGroups: AIFrame[][] = [];
+    const processedOrphanGroups = new Set<number>();
 
-    return { connectedGroups, standaloneChapters, orphanFrames };
+    frames.forEach(frame => {
+      if (assignedFrameIds.has(frame.id)) return;
+
+      const groupIndex = frameToGroupIndex.get(frame.id);
+      if (groupIndex === undefined || processedOrphanGroups.has(groupIndex)) return;
+
+      processedOrphanGroups.add(groupIndex);
+      const groupFrameIds = frameCascadeGroups[groupIndex];
+      const groupFrames = groupFrameIds
+        .map(id => framesMap.get(id))
+        .filter((f): f is AIFrame => f !== undefined && !assignedFrameIds.has(f.id));
+
+      if (groupFrames.length > 0) {
+        orphanFrameGroups.push(groupFrames);
+      }
+    });
+
+    return { connectedGroups, standaloneChapters, orphanFrameGroups };
   }, [frames, graphState, sortedChapters]);
+
+  // Build sequential frame list for chapter-aware navigation
+  const sequentialFrameList = useMemo(() => {
+    const frameList: AIFrame[] = [];
+
+    // Add frames from connected groups (in sequence)
+    linearTopology.connectedGroups.forEach(group => {
+      group.chapters.forEach(chapterEntry => {
+        frameList.push(...chapterEntry.frames);
+      });
+    });
+
+    // Add frames from standalone chapters
+    linearTopology.standaloneChapters.forEach(chapterEntry => {
+      frameList.push(...chapterEntry.frames);
+    });
+
+    // Add orphan frame groups at the end
+    linearTopology.orphanFrameGroups.forEach(group => {
+      frameList.push(...group);
+    });
+
+    return frameList;
+  }, [linearTopology]);
+
+  // Calculate chapter-scoped navigation info
+  const chapterNavInfo = useMemo(() => {
+    if (!currentFrame || !currentChapter) {
+      // Frame is orphaned - find which orphan group it belongs to
+      for (const orphanGroup of linearTopology.orphanFrameGroups) {
+        const groupIndex = orphanGroup.findIndex(f => f.id === currentFrame?.id);
+        if (groupIndex !== -1) {
+          const groupTitle = orphanGroup.length > 1
+            ? `Ungrouped Frame Group (${orphanGroup.length} connected)`
+            : 'Ungrouped Frames';
+          return {
+            position: groupIndex + 1,
+            total: orphanGroup.length,
+            chapterTitle: groupTitle,
+            isOrphan: true
+          };
+        }
+      }
+      // Fallback to global navigation
+      return {
+        position: clampedFrameIndex + 1,
+        total: frames.length,
+        chapterTitle: 'All Frames',
+        isOrphan: false
+      };
+    }
+
+    // Find frames in current chapter
+    const chapterFrames = currentChapter.frameIds
+      .map(id => frames.find(f => f.id === id))
+      .filter((f): f is AIFrame => f !== undefined);
+
+    const positionInChapter = chapterFrames.findIndex(f => f.id === currentFrame.id);
+
+    return {
+      position: positionInChapter !== -1 ? positionInChapter + 1 : 1,
+      total: chapterFrames.length,
+      chapterTitle: currentChapter.title,
+      isOrphan: false
+    };
+  }, [currentFrame, currentChapter, linearTopology.orphanFrameGroups, clampedFrameIndex, frames]);
 
   const navigateToFrame = useCallback(
     (frameId: string) => {
@@ -733,6 +957,89 @@ export default function DualPaneFrameView({
     [frames, onFrameIndexChange]
   );
 
+  // Sequential chapter-aware navigation
+  const navigateToPreviousFrame = useCallback(() => {
+    if (!currentFrame || sequentialFrameList.length === 0) return;
+
+    const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+    if (currentIndex <= 0) return; // Already at first frame
+
+    const previousFrame = sequentialFrameList[currentIndex - 1];
+    const globalIndex = frames.findIndex(f => f.id === previousFrame.id);
+    if (globalIndex !== -1) {
+      onFrameIndexChange(globalIndex);
+    }
+  }, [currentFrame, sequentialFrameList, frames, onFrameIndexChange]);
+
+  const navigateToNextFrame = useCallback(() => {
+    if (!currentFrame || sequentialFrameList.length === 0) return;
+
+    const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+    if (currentIndex === -1 || currentIndex >= sequentialFrameList.length - 1) return; // Already at last frame
+
+    const nextFrame = sequentialFrameList[currentIndex + 1];
+    const globalIndex = frames.findIndex(f => f.id === nextFrame.id);
+    if (globalIndex !== -1) {
+      onFrameIndexChange(globalIndex);
+    }
+  }, [currentFrame, sequentialFrameList, frames, onFrameIndexChange]);
+
+  // Calculate navigation boundaries
+  const navigationState = useMemo(() => {
+    if (!currentFrame || sequentialFrameList.length === 0) {
+      return { isAtFirst: true, isAtLast: true, sequentialIndex: 0 };
+    }
+
+    const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+    return {
+      isAtFirst: currentIndex <= 0,
+      isAtLast: currentIndex >= sequentialFrameList.length - 1,
+      sequentialIndex: currentIndex
+    };
+  }, [currentFrame, sequentialFrameList]);
+
+  // DEBUG: Log frame and chapter data
+  useEffect(() => {
+    console.log('🔍 DEBUG - Frame Navigation Analysis:');
+    console.log('📦 All Frames:', frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })));
+    console.log('📚 All Chapters:', sortedChapters.map(c => ({
+      id: c.id,
+      title: c.title,
+      frameIds: c.frameIds,
+      frameCount: c.frameIds.length
+    })));
+    console.log('🗺️ Linear Topology (with cascading frames):');
+    linearTopology.connectedGroups.forEach((group, idx) => {
+      console.log(`  Connected Group ${idx + 1}:`, group.chapters.map(ch => ({
+        chapterId: ch.chapter.id,
+        chapterTitle: ch.chapter.title,
+        directFrameIds: ch.chapter.frameIds,
+        allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
+        totalFrameCount: ch.frames.length
+      })));
+    });
+    console.log('  Standalone Chapters:', linearTopology.standaloneChapters.map(ch => ({
+      chapterId: ch.chapter.id,
+      chapterTitle: ch.chapter.title,
+      directFrameIds: ch.chapter.frameIds,
+      allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
+      totalFrameCount: ch.frames.length
+    })));
+    console.log('  Orphan Frame Groups:', linearTopology.orphanFrameGroups.map((group, idx) => ({
+      groupIndex: idx + 1,
+      frameCount: group.length,
+      frames: group.map(f => ({ id: f.id, title: f.title || 'Untitled' }))
+    })));
+    console.log('📐 Sequential Frame List:', sequentialFrameList.map((f, idx) => ({
+      position: idx + 1,
+      id: f.id,
+      title: f.title || 'Untitled'
+    })));
+    console.log('🎯 Current Frame:', currentFrame ? { id: currentFrame.id, title: currentFrame.title || 'Untitled' } : 'none');
+    console.log('📍 Current Chapter:', currentChapter ? { id: currentChapter.id, title: currentChapter.title } : 'none');
+    console.log('🧭 Navigation State:', navigationState);
+  }, [frames, sortedChapters, linearTopology, currentFrame, currentChapter, sequentialFrameList, navigationState]);
+
   const handleCreateFrameClick = useCallback(() => {
     if (!onCreateFrame) return;
     const result = onCreateFrame();
@@ -743,7 +1050,7 @@ export default function DualPaneFrameView({
     }
   }, [onCreateFrame]);
 
-  const { connectedGroups, standaloneChapters, orphanFrames } = linearTopology;
+  const { connectedGroups, standaloneChapters, orphanFrameGroups } = linearTopology;
   const hasChapters = sortedChapters.length > 0;
   const hasFrames = frames.length > 0;
 
@@ -908,19 +1215,26 @@ export default function DualPaneFrameView({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onFrameIndexChange(Math.max(0, clampedFrameIndex - 1))}
-                      disabled={clampedFrameIndex === 0}
+                      onClick={navigateToPreviousFrame}
+                      disabled={navigationState.isAtFirst}
+                      title="Previous frame in sequence"
                     >
                       <SkipBack className="h-4 w-4" />
                     </Button>
-                    <Badge variant="default">
-                      {clampedFrameIndex + 1} of {frames.length}
-                    </Badge>
+                    <div className="flex flex-col items-center">
+                      <Badge variant="default">
+                        {chapterNavInfo.position} of {chapterNavInfo.total}
+                      </Badge>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        in {chapterNavInfo.chapterTitle}
+                      </span>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onFrameIndexChange(Math.min(frames.length - 1, clampedFrameIndex + 1))}
-                      disabled={clampedFrameIndex === frames.length - 1}
+                      onClick={navigateToNextFrame}
+                      disabled={navigationState.isAtLast}
+                      title="Next frame in sequence"
                     >
                       <SkipForward className="h-4 w-4" />
                     </Button>
@@ -1132,7 +1446,7 @@ export default function DualPaneFrameView({
                 </CardContent>
               </Card>
             )}
-{orphanFrames.length > 0 && (
+{orphanFrameGroups.length > 0 && (
               <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1143,24 +1457,39 @@ export default function DualPaneFrameView({
                   Frames currently not linked to a chapter.
                 </p>
               </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {orphanFrames.map((frame) => {
-                      const isActiveFrame = currentFrame?.id === frame.id;
-                      return (
-                        <Button
-                          key={frame.id}
-                          size="sm"
-                          variant={isActiveFrame ? 'default' : 'outline'}
-                          onClick={() => navigateToFrame(frame.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <Play className="h-4 w-4" />
-                          {frame.title || 'Untitled Frame'}
-                        </Button>
-                      );
-                    })}
-                  </div>
+                <CardContent className="space-y-4">
+                  {orphanFrameGroups.map((frameGroup, groupIndex) => (
+                    <div key={groupIndex} className="space-y-2">
+                      {frameGroup.length > 1 && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                          <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600"></div>
+                          <span className="px-2">Connected Sequence ({frameGroup.length} frames)</span>
+                          <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600"></div>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {frameGroup.map((frame, frameIndex) => {
+                          const isActiveFrame = currentFrame?.id === frame.id;
+                          return (
+                            <div key={frame.id} className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant={isActiveFrame ? 'default' : 'outline'}
+                                onClick={() => navigateToFrame(frame.id)}
+                                className="flex items-center gap-2"
+                              >
+                                <Play className="h-4 w-4" />
+                                {frame.title || 'Untitled Frame'}
+                              </Button>
+                              {frameIndex < frameGroup.length - 1 && (
+                                <span className="text-gray-400 text-sm">→</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             )}

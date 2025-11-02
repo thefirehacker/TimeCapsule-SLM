@@ -476,42 +476,22 @@ Metadata:
       onGraphChange(newGraphState);
     }
     
-    // Check for new AI frame nodes and sync them immediately
-    const newAIFrameNodes = newGraphState.nodes.filter(node => 
-      node.type === 'aiframe' && 
-      node.data?.frameId && 
-      !frames.some(f => f.id === node.data.frameId)
-    );
+    // DISABLED: Duplicate frame creation logic - EnhancedLearningGraph already handles frame creation via onDrop
+    // This was causing race conditions where Frame 2 would be created twice with stale frame arrays
+    // Original code checked for new AI frame nodes and created frames, but this conflicts with
+    // EnhancedLearningGraph.tsx:1886-1889 which already calls onFramesChange with new frames
 
-    if (newAIFrameNodes.length > 0) {
-      // console.log('🎯 REAL-TIME: New AI frame nodes detected in graph, creating frames:', {
-      //   nodes: newAIFrameNodes.map(n => ({ id: n.id, title: n.data.title }))
-      // });
-
-      const newFrames = newAIFrameNodes.map(node => ({
-        id: node.data.frameId,
-        title: node.data.title || 'New AI Frame',
-        goal: node.data.goal || 'Enter learning goal here...',
-        informationText: node.data.informationText || 'Provide background context...',
-        afterVideoText: node.data.afterVideoText || 'Key takeaways...',
-        aiConcepts: node.data.aiConcepts || [],
-        conceptIds: node.data.conceptIds || node.data.aiConcepts || [],
-        isGenerated: node.data.isGenerated || false,
-        videoUrl: node.data.videoUrl || '',
-        startTime: node.data.startTime || 0,
-        duration: node.data.duration || 300,
-        attachment: node.data.attachment,
-        order: frames.length + 1,
-        bubblSpaceId: "default",
-        timeCapsuleId: "default",
-        type: 'frame' as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
-
-      const updatedFrames = [...frames, ...newFrames];
-      handleFramesChangeWithRealTimeSync(updatedFrames);
-    }
+    // const newAIFrameNodes = newGraphState.nodes.filter(node =>
+    //   node.type === 'aiframe' &&
+    //   node.data?.frameId &&
+    //   !frames.some(f => f.id === node.data.frameId)
+    // );
+    //
+    // if (newAIFrameNodes.length > 0) {
+    //   const newFrames = newAIFrameNodes.map(node => ({...}));
+    //   const updatedFrames = [...frames, ...newFrames];
+    //   handleFramesChangeWithRealTimeSync(updatedFrames);
+    // }
 
     // NOTE: Frame deletions are handled via dedicated events; avoid mutating frames here to prevent accidental data loss.
     
