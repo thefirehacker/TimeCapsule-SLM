@@ -24,11 +24,13 @@ import {
   SkipForward,
   SkipBack,
   Clock,
-  Maximize2,
-  Minimize2,
   Eye,
   Network,
-  Layers
+  Layers,
+  Plus,
+  Split,
+  PanelLeft,
+  PanelRight
 } from "lucide-react";
 
 interface AIFrame {
@@ -60,7 +62,12 @@ interface DualPaneFrameViewProps {
   isCreationMode: boolean;
   currentFrameIndex: number;
   onFrameIndexChange: (index: number) => void;
-  onCreateFrame?: () => void;
+  onCreateFrame?: (options?: {
+    title?: string;
+    goal?: string;
+    chapterId?: string;
+    selectFrame?: boolean;
+  }) => Promise<AIFrame | void> | AIFrame | void;
   defaultMaximized?: boolean; // New prop to control default maximization
   onGetCurrentState?: React.MutableRefObject<(() => GraphState) | null>; // CRITICAL FIX: Get current graph state when needed
   onGraphStateUpdate?: (state: GraphState) => void; // SILENT: Update parent with current graph state
@@ -92,7 +99,19 @@ export default function DualPaneFrameView({
   );
   const [editingFrameId, setEditingFrameId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<AIFrame>>({});
-  const [isGraphMaximized, setIsGraphMaximized] = useState(defaultMaximized);
+  const VIEW_MODE_STORAGE_KEY = "aiFramesDualPaneViewMode";
+  const computeInitialViewMode = (): "graph" | "split" | "linear" => {
+    const fallback = defaultMaximized ? "graph" : "split";
+    if (typeof window === "undefined") {
+      return fallback;
+    }
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    if (stored === "graph" || stored === "split" || stored === "linear") {
+      return stored;
+    }
+    return fallback;
+  };
+  const [viewMode, setViewMode] = useState<"graph" | "split" | "linear">(computeInitialViewMode);
   const [selectedNodeFrameId, setSelectedNodeFrameId] = useState<string | null>(null);
 
   // REMOVED: useEffect that was breaking sync system
@@ -489,6 +508,552 @@ export default function DualPaneFrameView({
     return sortedChapters.find((chapter) => chapter.frameIds.includes(currentFrame.id)) || null;
   }, [sortedChapters, currentFrame]);
 
+  const linearTopology = useMemo(() => {
+    const framesMap = new Map(frames.map((frame) => [frame.id, frame]));
+    const assignedFrameIds = new Set<string>();
+    const chapterMap = new Map(sortedChapters.map((chapter) => [chapter.id, chapter]));
+
+    const nodes = graphState?.nodes || [];
+    const edges = graphState?.edges || [];
+    const chapterNodeLookup = new Map<string, string>();
+    const frameNodeLookup = new Map<string, string>(); // Map node IDs to frame IDs
+
+    nodes.forEach((node) => {
+      if (node?.type === 'chapter') {
+        const chapterId = node.data?.id || node.id;
+        if (chapterMap.has(chapterId)) {
+          chapterNodeLookup.set(node.id, chapterId);
+        }
+      } else if (node?.type === 'aiframe') {
+        const frameId = node.data?.frameId || node.data?.id || node.id;
+        if (framesMap.has(frameId)) {
+          frameNodeLookup.set(node.id, frameId);
+        }
+      }
+    });
+
+    // Build directed frame edges (source -> target)
+    const frameOutgoing = new Map<string, Set<string>>();
+    const frameIncoming = new Map<string, Set<string>>();
+    frames.forEach(frame => {
+      frameOutgoing.set(frame.id, new Set());
+      frameIncoming.set(frame.id, new Set());
+    });
+
+    edges.forEach((edge) => {
+      const sourceFrameId = frameNodeLookup.get(edge.source);
+      const targetFrameId = frameNodeLookup.get(edge.target);
+
+      if (sourceFrameId && targetFrameId) {
+        frameOutgoing.get(sourceFrameId)?.add(targetFrameId);
+        frameIncoming.get(targetFrameId)?.add(sourceFrameId);
+      }
+    });
+
+    // Find cascade chains starting from root frames (frames with no incoming edges from other frames)
+    const frameCascadeGroups: string[][] = [];
+    const frameToGroupIndex = new Map<string, number>();
+    const assignedToGroup = new Set<string>();
+
+    frames.forEach(frame => {
+      if (assignedToGroup.has(frame.id)) return;
+
+      const incomingFrames = frameIncoming.get(frame.id);
+      const outgoingFrames = frameOutgoing.get(frame.id);
+      const hasIncoming = incomingFrames && incomingFrames.size > 0;
+      const hasOutgoing = outgoingFrames && outgoingFrames.size > 0;
+
+      // Isolated frame (no connections at all) - create single-frame group
+      if (!hasIncoming && !hasOutgoing) {
+        const groupIndex = frameCascadeGroups.length;
+        frameCascadeGroups.push([frame.id]);
+        frameToGroupIndex.set(frame.id, groupIndex);
+        assignedToGroup.add(frame.id);
+        return;
+      }
+
+      // Root frame in a cascade chain (has outgoing but no incoming)
+      if (!hasIncoming && hasOutgoing) {
+        // Follow the cascade chain forward
+        const cascade: string[] = [];
+        const queue = [frame.id];
+        const visited = new Set<string>();
+
+        while (queue.length > 0) {
+          const currentId = queue.shift()!;
+          if (visited.has(currentId)) continue;
+
+          visited.add(currentId);
+          cascade.push(currentId);
+          assignedToGroup.add(currentId);
+
+          const outgoing = frameOutgoing.get(currentId);
+          if (outgoing) {
+            outgoing.forEach(targetId => {
+              if (!visited.has(targetId)) {
+                queue.push(targetId);
+              }
+            });
+          }
+        }
+
+        if (cascade.length > 0) {
+          const groupIndex = frameCascadeGroups.length;
+          frameCascadeGroups.push(cascade);
+          cascade.forEach(frameId => {
+            frameToGroupIndex.set(frameId, groupIndex);
+          });
+        }
+      }
+    });
+
+    // Handle frames that are part of cycles or weren't caught (middle of chain but disconnected)
+    frames.forEach(frame => {
+      if (!assignedToGroup.has(frame.id)) {
+        const groupIndex = frameCascadeGroups.length;
+        frameCascadeGroups.push([frame.id]);
+        frameToGroupIndex.set(frame.id, groupIndex);
+      }
+    });
+
+    // Detect chapter-to-frame connections from graph edges
+    const chapterToFrameEdges = new Map<string, Set<string>>();
+    sortedChapters.forEach(chapter => {
+      chapterToFrameEdges.set(chapter.id, new Set());
+    });
+
+    edges.forEach((edge) => {
+      const sourceChapterId = chapterNodeLookup.get(edge.source);
+      const targetFrameId = frameNodeLookup.get(edge.target);
+
+      if (sourceChapterId && targetFrameId) {
+        // Chapter connects to frame
+        chapterToFrameEdges.get(sourceChapterId)?.add(targetFrameId);
+      }
+    });
+
+    // If no chapters, just return orphan frame groups
+    if (sortedChapters.length === 0) {
+      const orphanFrameGroups: AIFrame[][] = [];
+      frameCascadeGroups.forEach(groupIds => {
+        const groupFrames = groupIds
+          .map(id => framesMap.get(id))
+          .filter((f): f is AIFrame => f !== undefined);
+        if (groupFrames.length > 0) {
+          orphanFrameGroups.push(groupFrames);
+        }
+      });
+
+      return {
+        connectedGroups: [] as Array<{ id: string; connected: boolean; chapters: ChapterLinearEntry[] }>,
+        standaloneChapters: [] as ChapterLinearEntry[],
+        orphanFrameGroups,
+      };
+    }
+
+    const connectionMap = new Map<string, { incoming: Set<string>; outgoing: Set<string> }>();
+    sortedChapters.forEach((chapter) => {
+      connectionMap.set(chapter.id, {
+        incoming: new Set(),
+        outgoing: new Set(),
+      });
+    });
+
+    edges.forEach((edge) => {
+      const sourceChapter = chapterNodeLookup.get(edge.source);
+      const targetChapter = chapterNodeLookup.get(edge.target);
+      if (!sourceChapter || !targetChapter || sourceChapter === targetChapter) {
+        return;
+      }
+
+      const sourceEntry = connectionMap.get(sourceChapter);
+      const targetEntry = connectionMap.get(targetChapter);
+
+      if (sourceEntry && targetEntry) {
+        sourceEntry.outgoing.add(targetChapter);
+        targetEntry.incoming.add(sourceChapter);
+      }
+    });
+
+    const adjacency = new Map<string, Set<string>>();
+    sortedChapters.forEach((chapter) => {
+      adjacency.set(chapter.id, new Set());
+    });
+
+    edges.forEach((edge) => {
+      const sourceChapter = chapterNodeLookup.get(edge.source);
+      const targetChapter = chapterNodeLookup.get(edge.target);
+      if (!sourceChapter || !targetChapter || sourceChapter === targetChapter) {
+        return;
+      }
+      adjacency.get(sourceChapter)?.add(targetChapter);
+      adjacency.get(targetChapter)?.add(sourceChapter);
+    });
+
+    const visited = new Set<string>();
+    const groups: Array<{ id: string; connected: boolean; chapters: ChapterLinearEntry[] }> = [];
+
+    sortedChapters.forEach((chapter) => {
+      if (visited.has(chapter.id)) {
+        return;
+      }
+
+      const originChapterId = chapter.id;
+      const queue: string[] = [originChapterId];
+      const component: string[] = [];
+      let hasConnection = false;
+
+      while (queue.length) {
+        const current = queue.shift()!;
+        if (visited.has(current)) {
+          continue;
+        }
+        visited.add(current);
+        component.push(current);
+
+        const neighbors = adjacency.get(current);
+        if (neighbors && neighbors.size > 0) {
+          hasConnection = true;
+          neighbors.forEach((neighbor) => {
+            if (!visited.has(neighbor)) {
+              queue.push(neighbor);
+            }
+          });
+        }
+      }
+
+      component.forEach((id) => {
+        const entry = connectionMap.get(id);
+        if (entry && (entry.incoming.size > 0 || entry.outgoing.size > 0)) {
+          hasConnection = true;
+        }
+      });
+
+      const localIds = new Set(component);
+      let orderedIds: string[] = [];
+
+      if (hasConnection) {
+        const inDegree = new Map<string, number>();
+        const outgoing = new Map<string, Set<string>>();
+
+        component.forEach((id) => {
+          const entry = connectionMap.get(id);
+          const outgoingTargets = new Set(
+            Array.from(entry?.outgoing || []).filter((target) => localIds.has(target))
+          );
+          outgoing.set(id, outgoingTargets);
+          const incomingCount = Array.from(entry?.incoming || []).filter((source) => localIds.has(source)).length;
+          inDegree.set(id, incomingCount);
+        });
+
+        const topoQueue: string[] = Array.from(inDegree.entries())
+          .filter(([, degree]) => degree === 0)
+          .map(([id]) => id);
+
+        const topoVisited = new Set<string>();
+        while (topoQueue.length) {
+          const nodeId = topoQueue.shift()!;
+          orderedIds.push(nodeId);
+          topoVisited.add(nodeId);
+
+          outgoing.get(nodeId)?.forEach((target) => {
+            const nextDegree = (inDegree.get(target) || 0) - 1;
+            inDegree.set(target, nextDegree);
+            if (nextDegree === 0) {
+              topoQueue.push(target);
+            }
+          });
+        }
+
+        if (orderedIds.length !== component.length) {
+          orderedIds = [...component].sort((a, b) => {
+            const aOrder = chapterMap.get(a)?.order ?? 0;
+            const bOrder = chapterMap.get(b)?.order ?? 0;
+            return aOrder - bOrder;
+          });
+        }
+      } else {
+        orderedIds = [...component].sort((a, b) => {
+          const aOrder = chapterMap.get(a)?.order ?? 0;
+          const bOrder = chapterMap.get(b)?.order ?? 0;
+          return aOrder - bOrder;
+        });
+      }
+
+      const chaptersForGroup: ChapterLinearEntry[] = orderedIds
+        .map((id) => {
+          const chapterData = chapterMap.get(id);
+          if (!chapterData) {
+            return null;
+          }
+          const connection = connectionMap.get(id) || {
+            incoming: new Set<string>(),
+            outgoing: new Set<string>(),
+          };
+
+          // Get all frames in cascade groups of directly connected frames
+          const includedGroupIndices = new Set<number>();
+
+          // Combine frameIds from chapter data AND graph edges
+          const directFrameIds = new Set([
+            ...(chapterData.frameIds || []),
+            ...(chapterToFrameEdges.get(id) || [])
+          ]);
+
+          // Find all cascade groups that contain directly connected frames
+          directFrameIds.forEach(frameId => {
+            const groupIndex = frameToGroupIndex.get(frameId);
+            if (groupIndex !== undefined) {
+              includedGroupIndices.add(groupIndex);
+            }
+          });
+
+          // Collect all frames from included cascade groups
+          const allFrameIds = new Set<string>();
+          includedGroupIndices.forEach(groupIndex => {
+            const group = frameCascadeGroups[groupIndex];
+            group.forEach(frameId => {
+              allFrameIds.add(frameId);
+              assignedFrameIds.add(frameId);
+            });
+          });
+
+          // Convert to frame objects
+          const chapterFrames = Array.from(allFrameIds)
+            .map(frameId => framesMap.get(frameId))
+            .filter((frame): frame is AIFrame => Boolean(frame));
+
+          return {
+            chapter: chapterData,
+            frames: chapterFrames,
+            incoming: connection.incoming.size,
+            outgoing: connection.outgoing.size,
+          } as ChapterLinearEntry;
+        })
+        .filter(Boolean) as ChapterLinearEntry[];
+
+      groups.push({
+        id: orderedIds[0] || originChapterId,
+        connected: hasConnection,
+        chapters: chaptersForGroup,
+      });
+    });
+
+    const connectedGroups = groups
+      .filter((group) => group.connected)
+      .sort((a, b) => {
+        const aOrder = Math.min(
+          ...a.chapters.map((entry) => entry.chapter.order ?? Number.MAX_SAFE_INTEGER)
+        );
+        const bOrder = Math.min(
+          ...b.chapters.map((entry) => entry.chapter.order ?? Number.MAX_SAFE_INTEGER)
+        );
+        return aOrder - bOrder;
+      });
+
+    const standaloneChapters = groups
+      .filter((group) => !group.connected)
+      .flatMap((group) => group.chapters)
+      .sort((a, b) => (a.chapter.order ?? 0) - (b.chapter.order ?? 0));
+
+    // Group orphan frames by their cascade groups
+    const orphanFrameGroups: AIFrame[][] = [];
+    const processedOrphanGroups = new Set<number>();
+
+    frames.forEach(frame => {
+      if (assignedFrameIds.has(frame.id)) return;
+
+      const groupIndex = frameToGroupIndex.get(frame.id);
+      if (groupIndex === undefined || processedOrphanGroups.has(groupIndex)) return;
+
+      processedOrphanGroups.add(groupIndex);
+      const groupFrameIds = frameCascadeGroups[groupIndex];
+      const groupFrames = groupFrameIds
+        .map(id => framesMap.get(id))
+        .filter((f): f is AIFrame => f !== undefined && !assignedFrameIds.has(f.id));
+
+      if (groupFrames.length > 0) {
+        orphanFrameGroups.push(groupFrames);
+      }
+    });
+
+    return { connectedGroups, standaloneChapters, orphanFrameGroups };
+  }, [frames, graphState, sortedChapters]);
+
+  // Build sequential frame list for chapter-aware navigation
+  const sequentialFrameList = useMemo(() => {
+    const frameList: AIFrame[] = [];
+
+    // Add frames from connected groups (in sequence)
+    linearTopology.connectedGroups.forEach(group => {
+      group.chapters.forEach(chapterEntry => {
+        frameList.push(...chapterEntry.frames);
+      });
+    });
+
+    // Add frames from standalone chapters
+    linearTopology.standaloneChapters.forEach(chapterEntry => {
+      frameList.push(...chapterEntry.frames);
+    });
+
+    // Add orphan frame groups at the end
+    linearTopology.orphanFrameGroups.forEach(group => {
+      frameList.push(...group);
+    });
+
+    return frameList;
+  }, [linearTopology]);
+
+  // Calculate chapter-scoped navigation info
+  const chapterNavInfo = useMemo(() => {
+    if (!currentFrame || !currentChapter) {
+      // Frame is orphaned - find which orphan group it belongs to
+      for (const orphanGroup of linearTopology.orphanFrameGroups) {
+        const groupIndex = orphanGroup.findIndex(f => f.id === currentFrame?.id);
+        if (groupIndex !== -1) {
+          const groupTitle = orphanGroup.length > 1
+            ? `Ungrouped Frame Group (${orphanGroup.length} connected)`
+            : 'Ungrouped Frames';
+          return {
+            position: groupIndex + 1,
+            total: orphanGroup.length,
+            chapterTitle: groupTitle,
+            isOrphan: true
+          };
+        }
+      }
+      // Fallback to global navigation
+      return {
+        position: clampedFrameIndex + 1,
+        total: frames.length,
+        chapterTitle: 'All Frames',
+        isOrphan: false
+      };
+    }
+
+    // Find frames in current chapter
+    const chapterFrames = currentChapter.frameIds
+      .map(id => frames.find(f => f.id === id))
+      .filter((f): f is AIFrame => f !== undefined);
+
+    const positionInChapter = chapterFrames.findIndex(f => f.id === currentFrame.id);
+
+    return {
+      position: positionInChapter !== -1 ? positionInChapter + 1 : 1,
+      total: chapterFrames.length,
+      chapterTitle: currentChapter.title,
+      isOrphan: false
+    };
+  }, [currentFrame, currentChapter, linearTopology.orphanFrameGroups, clampedFrameIndex, frames]);
+
+  const navigateToFrame = useCallback(
+    (frameId: string) => {
+      if (!frameId) return;
+      const index = frames.findIndex((frame) => frame.id === frameId);
+      if (index !== -1) {
+        onFrameIndexChange(index);
+      }
+    },
+    [frames, onFrameIndexChange]
+  );
+
+  // Sequential chapter-aware navigation
+  const navigateToPreviousFrame = useCallback(() => {
+    if (!currentFrame || sequentialFrameList.length === 0) return;
+
+    const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+    if (currentIndex <= 0) return; // Already at first frame
+
+    const previousFrame = sequentialFrameList[currentIndex - 1];
+    const globalIndex = frames.findIndex(f => f.id === previousFrame.id);
+    if (globalIndex !== -1) {
+      onFrameIndexChange(globalIndex);
+    }
+  }, [currentFrame, sequentialFrameList, frames, onFrameIndexChange]);
+
+  const navigateToNextFrame = useCallback(() => {
+    if (!currentFrame || sequentialFrameList.length === 0) return;
+
+    const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+    if (currentIndex === -1 || currentIndex >= sequentialFrameList.length - 1) return; // Already at last frame
+
+    const nextFrame = sequentialFrameList[currentIndex + 1];
+    const globalIndex = frames.findIndex(f => f.id === nextFrame.id);
+    if (globalIndex !== -1) {
+      onFrameIndexChange(globalIndex);
+    }
+  }, [currentFrame, sequentialFrameList, frames, onFrameIndexChange]);
+
+  // Calculate navigation boundaries
+  const navigationState = useMemo(() => {
+    if (!currentFrame || sequentialFrameList.length === 0) {
+      return { isAtFirst: true, isAtLast: true, sequentialIndex: 0 };
+    }
+
+    const currentIndex = sequentialFrameList.findIndex(f => f.id === currentFrame.id);
+    return {
+      isAtFirst: currentIndex <= 0,
+      isAtLast: currentIndex >= sequentialFrameList.length - 1,
+      sequentialIndex: currentIndex
+    };
+  }, [currentFrame, sequentialFrameList]);
+
+  // DEBUG: Log frame and chapter data
+  useEffect(() => {
+    console.log('🔍 DEBUG - Frame Navigation Analysis:');
+    console.log('📦 All Frames:', frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })));
+    console.log('📚 All Chapters:', sortedChapters.map(c => ({
+      id: c.id,
+      title: c.title,
+      frameIds: c.frameIds,
+      frameCount: c.frameIds.length
+    })));
+    console.log('🗺️ Linear Topology (with cascading frames):');
+    linearTopology.connectedGroups.forEach((group, idx) => {
+      console.log(`  Connected Group ${idx + 1}:`, group.chapters.map(ch => ({
+        chapterId: ch.chapter.id,
+        chapterTitle: ch.chapter.title,
+        directFrameIds: ch.chapter.frameIds,
+        allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
+        totalFrameCount: ch.frames.length
+      })));
+    });
+    console.log('  Standalone Chapters:', linearTopology.standaloneChapters.map(ch => ({
+      chapterId: ch.chapter.id,
+      chapterTitle: ch.chapter.title,
+      directFrameIds: ch.chapter.frameIds,
+      allFrames: ch.frames.map(f => ({ id: f.id, title: f.title || 'Untitled' })),
+      totalFrameCount: ch.frames.length
+    })));
+    console.log('  Orphan Frame Groups:', linearTopology.orphanFrameGroups.map((group, idx) => ({
+      groupIndex: idx + 1,
+      frameCount: group.length,
+      frames: group.map(f => ({ id: f.id, title: f.title || 'Untitled' }))
+    })));
+    console.log('📐 Sequential Frame List:', sequentialFrameList.map((f, idx) => ({
+      position: idx + 1,
+      id: f.id,
+      title: f.title || 'Untitled'
+    })));
+    console.log('🎯 Current Frame:', currentFrame ? { id: currentFrame.id, title: currentFrame.title || 'Untitled' } : 'none');
+    console.log('📍 Current Chapter:', currentChapter ? { id: currentChapter.id, title: currentChapter.title } : 'none');
+    console.log('🧭 Navigation State:', navigationState);
+  }, [frames, sortedChapters, linearTopology, currentFrame, currentChapter, sequentialFrameList, navigationState]);
+
+  const handleCreateFrameClick = useCallback(() => {
+    if (!onCreateFrame) return;
+    const result = onCreateFrame();
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      (result as Promise<unknown>).catch((error) => {
+        console.error('Failed to create frame from linear view:', error);
+      });
+    }
+  }, [onCreateFrame]);
+
+  const { connectedGroups, standaloneChapters, orphanFrameGroups } = linearTopology;
+  const hasChapters = sortedChapters.length > 0;
+  const hasFrames = frames.length > 0;
+
   // Handle attachment updates
   const handleAttachmentUpdate = (frameId: string, attachmentData: any) => {
     const updatedFrames = frames.map(frame => 
@@ -529,10 +1094,66 @@ export default function DualPaneFrameView({
     return null;
   };
 
+  const renderViewToggle = () => (
+    <div className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white p-1">
+      <Button
+        variant={viewMode === "graph" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => setViewMode("graph")}
+        className="h-7 px-2"
+        title="Maximize graph view"
+      >
+        <PanelLeft className="h-3 w-3 mr-1" />
+        Graph
+      </Button>
+      <Button
+        variant={viewMode === "split" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => setViewMode("split")}
+        className="h-7 px-2"
+        title="Show split view"
+      >
+        <Split className="h-3 w-3 mr-1" />
+        Split
+      </Button>
+      <Button
+        variant={viewMode === "linear" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => setViewMode("linear")}
+        className="h-7 px-2"
+        title="Maximize linear view"
+      >
+        <PanelRight className="h-3 w-3 mr-1" />
+        Linear
+      </Button>
+    </div>
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+  }, [viewMode]);
+
+  const graphPaneClasses =
+    viewMode === "graph"
+      ? "w-full"
+      : viewMode === "split"
+        ? "w-1/2"
+        : "w-0 hidden lg:flex";
+
+  const linearPaneClasses =
+    viewMode === "linear"
+      ? "w-full"
+      : viewMode === "split"
+        ? "w-1/2"
+        : "hidden";
+
   return (
     <div className="flex h-full">
       {/* LEFT PANE: Graph View */}
-      <div className={`${isGraphMaximized ? 'w-full' : 'w-1/2'} border-r border-gray-200 dark:border-gray-700 transition-all duration-300`}>
+      {viewMode !== "linear" && (
+      <div className={`${graphPaneClasses} border-r border-gray-200 dark:border-gray-700 transition-all duration-300`}>
         <div className="h-full flex flex-col">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
@@ -544,31 +1165,16 @@ export default function DualPaneFrameView({
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsGraphMaximized(!isGraphMaximized)}
-                  title={isGraphMaximized ? "Show Linear View" : "Maximize Graph View"}
-                >
-                  {isGraphMaximized ? (
-                    <>
-                      <Minimize2 className="h-4 w-4 mr-2" />
-                      Split View
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2 className="h-4 w-4 mr-2" />
-                      Maximize
-                    </>
-                  )}
-                </Button>
+                {viewMode !== "linear" && renderViewToggle()}
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Drag and connect frames visually • {isGraphMaximized ? 'Maximized' : 'Split view'}
+              {viewMode === "linear"
+                ? 'Graph hidden (linear view maximized)'
+                : `Drag and connect frames visually • ${viewMode === "graph" ? "Maximized" : "Split view"}`}
             </p>
           </div>
-          <div className="flex-1">
+          <div className={`flex-1 ${viewMode === "linear" ? "hidden" : ""}`}>
             <EnhancedLearningGraph
               mode={isCreationMode ? "creator" : "learner"}
               frames={frames}
@@ -581,35 +1187,54 @@ export default function DualPaneFrameView({
           </div>
         </div>
       </div>
+      )}
 
       {/* RIGHT PANE: Linear View */}
-      {!isGraphMaximized && (
-        <div className="w-1/2 flex flex-col">
+      {viewMode !== "graph" && (
+        <div className={`${linearPaneClasses} flex flex-col`}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <Eye className="h-5 w-5 text-blue-600" />
                 <h3 className="text-lg font-semibold">Linear View</h3>
               </div>
-              <div className="flex items-center gap-2">
-                {frames.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
+                {renderViewToggle()}
+                {onCreateFrame && (
+                  <Button
+                    size="sm"
+                    onClick={handleCreateFrameClick}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Frame
+                  </Button>
+                )}
+                {hasFrames && (
                   <>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onFrameIndexChange(Math.max(0, clampedFrameIndex - 1))}
-                      disabled={clampedFrameIndex === 0}
+                      onClick={navigateToPreviousFrame}
+                      disabled={navigationState.isAtFirst}
+                      title="Previous frame in sequence"
                     >
                       <SkipBack className="h-4 w-4" />
                     </Button>
-                    <Badge variant="default">
-                      {clampedFrameIndex + 1} of {frames.length}
-                    </Badge>
+                    <div className="flex flex-col items-center">
+                      <Badge variant="default">
+                        {chapterNavInfo.position} of {chapterNavInfo.total}
+                      </Badge>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        in {chapterNavInfo.chapterTitle}
+                      </span>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onFrameIndexChange(Math.min(frames.length - 1, clampedFrameIndex + 1))}
-                      disabled={clampedFrameIndex === frames.length - 1}
+                      onClick={navigateToNextFrame}
+                      disabled={navigationState.isAtLast}
+                      title="Next frame in sequence"
                     >
                       <SkipForward className="h-4 w-4" />
                     </Button>
@@ -623,85 +1248,274 @@ export default function DualPaneFrameView({
           </div>
 
           <ScrollArea className="flex-1 p-4">
-            {frames.length === 0 ? (
+            {!hasFrames && !hasChapters ? (
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                   <Video className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <h4 className="text-lg font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    No Frames Yet
+                    Nothing to show yet
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-                    Create your first AI frame in the graph view or use the create button
+                    Add a chapter from the graph or create a frame to start building the journey.
                   </p>
                   {onCreateFrame && (
-                    <Button onClick={onCreateFrame}>
+                    <Button onClick={handleCreateFrameClick} className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
                       Create Frame
                     </Button>
                   )}
                 </div>
               </div>
-            ) : currentFrame ? (
+            ) : (
               <div className="space-y-6">
-                {sortedChapters.length > 0 && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Layers className="h-4 w-4 text-orange-500" />
-                        Chapters
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {sortedChapters.map((chapter, index) => {
-                        const firstFrameIndex = frames.findIndex((frame) =>
-                          chapter.frameIds.includes(frame.id)
-                        );
-                        const isActive = currentChapter?.id === chapter.id;
-                        return (
-                          <div
-                            key={chapter.id}
-                            className={`flex items-center justify-between rounded-lg border p-3 text-sm transition-colors ${
-                              isActive
-                                ? 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'
-                                : 'border-gray-200 hover:border-orange-200 dark:border-gray-700 dark:hover:border-orange-700'
-                            }`}
-                          >
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  variant={isActive ? 'default' : 'secondary'}
-                                  className={isActive ? 'bg-orange-500' : ''}
-                                >
-                                  {index + 1}
-                                </Badge>
-                                <span className="font-medium">{chapter.title}</span>
+{hasChapters && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col gap-1">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Layers className="h-4 w-4 text-orange-500" />
+                      Chapter Overview
+                    </CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Track sequencing and frame assignments without leaving the linear view.
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {connectedGroups.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+                        Connected Sequences
+                      </h4>
+                      <div className="space-y-3">
+                        {connectedGroups.map((group, groupIndex) => {
+                          const frameCount = group.chapters.reduce((total, entry) => total + entry.frames.length, 0);
+                          return (
+                            <div
+                              key={group.id}
+                              className="rounded-lg border border-orange-200/80 dark:border-orange-800/60 bg-orange-50/60 dark:bg-orange-900/10 p-3 space-y-3"
+                            >
+                              <div className="flex items-center justify-between text-xs text-orange-700 dark:text-orange-200">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="border-orange-300 text-orange-600 dark:border-orange-700 dark:text-orange-300">
+                                    Sequence {groupIndex + 1}
+                                  </Badge>
+                                  <span>{group.chapters.length} chapter{group.chapters.length === 1 ? '' : 's'}</span>
+                                </div>
+                                <span>{frameCount} frame{frameCount === 1 ? '' : 's'}</span>
                               </div>
-                              {chapter.description && (
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  {chapter.description}
+                              <div className="space-y-3">
+                                {group.chapters.map((entry, entryIndex) => {
+                                  const isActiveChapter = currentChapter?.id === entry.chapter.id;
+                                  const sequenceLabel = `${groupIndex + 1}.${entryIndex + 1}`;
+                                  return (
+                                    <div
+                                      key={entry.chapter.id}
+                                      className={`rounded-lg border p-3 transition-colors ${
+                                        isActiveChapter
+                                          ? 'border-orange-300 bg-white dark:border-orange-700/80 dark:bg-orange-900/20'
+                                          : 'border-orange-200/60 bg-white dark:border-orange-800/40 dark:bg-orange-950/40'
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 space-y-2">
+                                          <div className="flex items-center gap-2">
+                                            <Badge variant="secondary">{sequenceLabel}</Badge>
+                                            <span className="font-medium text-sm text-gray-800 dark:text-gray-100">
+                                              {entry.chapter.title}
+                                            </span>
+                                            {isActiveChapter && (
+                                              <Badge variant="default" className="bg-orange-500 text-white">
+                                                Active
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          {entry.chapter.description && (
+                                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                              {entry.chapter.description}
+                                            </p>
+                                          )}
+                                          <div className="flex flex-wrap gap-2">
+                                            {entry.frames.length > 0 ? (
+                                              entry.frames.map((frame) => {
+                                                const isActiveFrame = currentFrame?.id === frame.id;
+                                                return (
+                                                  <Button
+                                                    key={frame.id}
+                                                    size="xs"
+                                                    variant={isActiveFrame ? 'default' : 'outline'}
+                                                    onClick={() => navigateToFrame(frame.id)}
+                                                    className="flex items-center gap-1"
+                                                  >
+                                                    <Play className="h-3 w-3" />
+                                                    {frame.title || 'Untitled Frame'}
+                                                  </Button>
+                                                );
+                                              })
+                                            ) : (
+                                              <span className="text-xs italic text-gray-500 dark:text-gray-400">
+                                                No frames attached
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                          <span>Incoming: {entry.incoming}</span>
+                                          <span>Outgoing: {entry.outgoing}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {standaloneChapters.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                        Standalone Chapters
+                      </h4>
+                      <div className="space-y-2">
+                        {standaloneChapters.map((entry) => {
+                          const isActiveChapter = currentChapter?.id === entry.chapter.id;
+                          return (
+                            <div
+                              key={entry.chapter.id}
+                              className={`rounded-lg border p-3 transition-colors ${
+                                isActiveChapter
+                                  ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary">{(entry.chapter.order ?? 0) + 1}</Badge>
+                                  <span className="font-medium text-sm text-gray-800 dark:text-gray-100">
+                                    {entry.chapter.title}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {entry.frames.length} frame{entry.frames.length === 1 ? '' : 's'}
+                                </span>
+                              </div>
+                              {entry.chapter.description && (
+                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                                  {entry.chapter.description}
                                 </p>
                               )}
-                              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                                <span>{chapter.frameIds.length} frame{chapter.frameIds.length === 1 ? '' : 's'}</span>
-                                <span>{chapter.conceptIds.length} concept{chapter.conceptIds.length === 1 ? '' : 's'}</span>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {entry.frames.length > 0 ? (
+                                  entry.frames.map((frame) => {
+                                    const isActiveFrame = currentFrame?.id === frame.id;
+                                    return (
+                                      <Button
+                                        key={frame.id}
+                                        size="xs"
+                                        variant={isActiveFrame ? 'default' : 'outline'}
+                                        onClick={() => navigateToFrame(frame.id)}
+                                        className="flex items-center gap-1"
+                                      >
+                                        <Play className="h-3 w-3" />
+                                        {frame.title || 'Untitled Frame'}
+                                      </Button>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="text-xs italic text-gray-500 dark:text-gray-400">
+                                    No frames attached
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {firstFrameIndex >= 0 && (
-                                <Button
-                                  size="sm"
-                                  variant={isActive ? 'default' : 'outline'}
-                                  onClick={() => onFrameIndexChange(firstFrameIndex)}
-                                >
-                                  View
-                                </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {connectedGroups.length === 0 && standaloneChapters.length === 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Chapters will appear here once you add them from the graph or sidebar.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+{orphanFrameGroups.length > 0 && (
+              <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BookOpen className="h-4 w-4 text-indigo-500" />
+                  Ungrouped Frames
+                </CardTitle>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Frames currently not linked to a chapter.
+                </p>
+              </CardHeader>
+                <CardContent className="space-y-4">
+                  {orphanFrameGroups.map((frameGroup, groupIndex) => (
+                    <div key={groupIndex} className="space-y-2">
+                      {frameGroup.length > 1 && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                          <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600"></div>
+                          <span className="px-2">Connected Sequence ({frameGroup.length} frames)</span>
+                          <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600"></div>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {frameGroup.map((frame, frameIndex) => {
+                          const isActiveFrame = currentFrame?.id === frame.id;
+                          return (
+                            <div key={frame.id} className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant={isActiveFrame ? 'default' : 'outline'}
+                                onClick={() => navigateToFrame(frame.id)}
+                                className="flex items-center gap-2"
+                              >
+                                <Play className="h-4 w-4" />
+                                {frame.title || 'Untitled Frame'}
+                              </Button>
+                              {frameIndex < frameGroup.length - 1 && (
+                                <span className="text-gray-400 text-sm">→</span>
                               )}
                             </div>
-                          </div>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
-                )}
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+{hasChapters && !hasFrames && (
+              <Card>
+                <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      Chapters are ready, but no frames are attached yet.
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Create a frame here or drag one in the graph to start linking your content.
+                    </p>
+                  </div>
+                  {onCreateFrame && (
+                    <Button onClick={handleCreateFrameClick} className="w-full md:w-auto flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create First Frame
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+                {hasFrames ? (
+                  currentFrame ? (
+                    <>
                 {/* Frame Header */}
                 <Card>
                   <CardHeader className="pb-3">
@@ -942,10 +1756,15 @@ export default function DualPaneFrameView({
                     </Button>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="text-center text-gray-500 py-8">
-                Select a frame to view details
+              </>
+                  ) : (
+                    <Card>
+                    <CardContent className="text-center text-gray-500 dark:text-gray-400 py-8">
+                      Select a frame to view details
+                    </CardContent>
+                  </Card>
+                  )
+                ) : null}
               </div>
             )}
           </ScrollArea>

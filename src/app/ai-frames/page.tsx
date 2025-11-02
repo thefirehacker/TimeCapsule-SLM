@@ -109,6 +109,13 @@ interface FrameCreationData {
   textNotes?: string;
 }
 
+interface CreateFrameOptions {
+  title?: string;
+  goal?: string;
+  chapterId?: string;
+  selectFrame?: boolean;
+}
+
 const DEFAULT_CHAPTER_COLOR = "#3B82F6";
 const EMPTY_CHAPTER_FORM: {
   title: string;
@@ -468,6 +475,76 @@ export default function AIFramesPage() {
       unifiedStorage.updateFrames(convertedFrames);
     },
     [unifiedStorage]
+  );
+
+  const handleCreateFrame = useCallback(
+    (options: CreateFrameOptions = {}): AIFrame => {
+      const { title, goal, chapterId, selectFrame = true } = options;
+      const now = new Date().toISOString();
+      const existingOrders = unifiedStorage.frames
+        .map((frame) => (typeof frame.order === "number" ? frame.order : null))
+        .filter((value): value is number => value !== null);
+      const nextOrder = existingOrders.length
+        ? Math.max(...existingOrders) + 1
+        : 1;
+
+      const fallbackIndex = unifiedStorage.frames.length + 1;
+      const newFrame: AIFrame = {
+        id: generateFrameId(),
+        title: title?.trim() || `Untitled Frame ${fallbackIndex}`,
+        goal: goal?.trim() || "",
+        informationText: "",
+        videoUrl: "",
+        startTime: 0,
+        duration: 0,
+        afterVideoText: "",
+        aiConcepts: [],
+        conceptIds: [],
+        isGenerated: false,
+        sourceGoal: "",
+        sourceUrl: "",
+        order: nextOrder,
+        bubblSpaceId: undefined,
+        timeCapsuleId: undefined,
+        parentFrameId: chapterId,
+        chapterId,
+        type: "frame",
+        createdAt: now,
+        updatedAt: now,
+        attachment: undefined,
+        notes: "",
+        documents: [],
+      };
+
+      const updatedFrames = [...unifiedStorage.frames, newFrame];
+      unifiedStorage.updateFrames(updatedFrames);
+
+      if (selectFrame) {
+        const newIndex = updatedFrames.findIndex((frame) => frame.id === newFrame.id);
+        if (newIndex >= 0) {
+          setCurrentFrameIndex(newIndex);
+        }
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("external-frame-created", {
+            detail: { frame: newFrame },
+          })
+        );
+      }
+
+      return newFrame;
+    },
+    [setCurrentFrameIndex, unifiedStorage.frames, unifiedStorage.updateFrames]
+  );
+
+  const handleCreateFrameInline = useCallback(
+    async (options: CreateFrameOptions = {}): Promise<AIFrame> => {
+      const frame = handleCreateFrame({ ...options, selectFrame: false });
+      return frame;
+    },
+    [handleCreateFrame]
   );
 
   const resetChapterDialogState = useCallback(() => {
@@ -1121,27 +1198,6 @@ export default function AIFramesPage() {
                 </div>
               </div>
 
-              {/* Danger Zone */}
-              <div className="space-y-2 border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-medium text-gray-700">
-                  Danger Zone
-                </h4>
-                <p className="text-xs text-gray-500">
-                  Remove every AI Frame, chapter, and graph connection from this space.
-                </p>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => {
-                    setShowClearConfirm(true);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete All AI Frames
-                </Button>
-              </div>
-
               {/* Chapter Management */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1226,10 +1282,31 @@ export default function AIFramesPage() {
                   </div>
                 )}
               </div>
+
+              {/* Danger Zone */}
+              <div className="space-y-2 border-t border-gray-200 pt-4">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Danger Zone
+                </h4>
+                <p className="text-xs text-gray-500">
+                  Remove every AI Frame, chapter, and graph connection from this space.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setShowClearConfirm(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete All AI Frames
+                </Button>
+              </div>
             </div>
 
             {/* Main Content Area - Graph Integration */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto overscroll-y-contain">
               {/* FIXED: Enhanced VectorStore readiness check for stability */}
               {vectorStoreInitialized &&
               !vectorStoreInitializing &&
@@ -1249,11 +1326,7 @@ export default function AIFramesPage() {
                     });
                     setCurrentFrameIndex(newIndex);
                   }}
-                  onCreateFrame={() =>
-                    console.log(
-                      "Frame creation handled by FrameGraphIntegration"
-                    )
-                  }
+                  onCreateFrame={handleCreateFrame}
                   chapters={unifiedStorage.chapters}
                   onChaptersChange={unifiedStorage.updateChapters}
                   onGraphChange={handleGraphStateUpdate}
@@ -1353,6 +1426,7 @@ export default function AIFramesPage() {
         onDeselectAll={deselectAllChapterFrames}
         onCreateChapter={handleCreateChapter}
         onEditChapter={handleEditChapter}
+        onCreateFrameInline={handleCreateFrameInline}
       />
 
       {/* Document Manager Modal - Complete Deep Research implementation */}

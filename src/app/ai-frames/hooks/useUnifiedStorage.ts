@@ -878,8 +878,29 @@ export const useUnifiedStorage = ({
       });
     }
     
+    let maxExistingOrder = -Infinity;
+    newFrames.forEach(frame => {
+      if (typeof frame.order === 'number') {
+        maxExistingOrder = Math.max(maxExistingOrder, frame.order);
+      }
+    });
+
+    let nextOrderValue = maxExistingOrder === -Infinity ? 1 : maxExistingOrder + 1;
+
+    const normalizedFrames = newFrames.map(frame => {
+      if (typeof frame.order === 'number') {
+        return frame;
+      }
+      const assignedOrder = nextOrderValue;
+      nextOrderValue += 1;
+      return {
+        ...frame,
+        order: assignedOrder,
+      };
+    });
+
     // NORMALIZE: Convert to unified format
-    const unifiedFrames = newFrames.map(frame => ({
+    const unifiedFrames = normalizedFrames.map(frame => ({
       ...frame,
       metadata: {
         version: '2.0',
@@ -889,16 +910,16 @@ export const useUnifiedStorage = ({
         lastSaved: lastSaveHash.current ? new Date().toISOString() : ''
       }
     })) as UnifiedAIFrame[];
-    
+
     // OPTIMISTIC UPDATE: Apply UI changes instantly
     setFrames(unifiedFrames);
-    
+
     // CHANGE DETECTION: Mark as unsaved if content changed
     const currentChapters = chaptersRef.current;
     const newHash = generateStateHash(unifiedFrames, currentChapters, graphState);
     if (newHash !== lastSaveHash.current) {
       setHasUnsavedChanges(true);
-      
+
       // BACKGROUND SAVE: Queue non-blocking save (don't await)
       queueBackgroundSave(unifiedFrames, currentChapters, graphState);
     }

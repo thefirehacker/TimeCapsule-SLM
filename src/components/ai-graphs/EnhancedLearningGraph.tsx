@@ -603,26 +603,29 @@ export default function EnhancedLearningGraph({
 
     let patchedFlag = false;
     let updatedNodes: Node[] | null = null;
+    let createdChapterNodes: Node[] = [];
 
     setNodes(currentNodes => {
-      if (!currentNodes.length) {
-        return currentNodes;
-      }
-
       const chapterMap = new Map(chapters.map(chapter => [chapter.id, chapter]));
       let localPatched = false;
+      const existingChapterIds = new Set<string>();
 
-      const nextNodes = currentNodes.map(node => {
+      const mappedNodes = currentNodes.map(node => {
         if (node.type !== 'chapter') {
           return node;
         }
 
         const nodeData = node.data as ChapterNodeData;
         const chapterId = nodeData?.id || node.id;
+        if (chapterId) {
+          existingChapterIds.add(chapterId);
+        }
+
         const chapter = chapterMap.get(chapterId);
-        const handler = typeof nodeData?.onChapterUpdate === 'function'
-          ? nodeData.onChapterUpdate
-          : (updates: ChapterNodeUpdates) => handleChapterUpdate(chapterId, updates);
+        const handler =
+          typeof nodeData?.onChapterUpdate === 'function'
+            ? nodeData.onChapterUpdate
+            : (updates: ChapterNodeUpdates) => handleChapterUpdate(chapterId, updates);
 
         if (!chapter) {
           if (nodeData?.onChapterUpdate && nodeData.id === chapterId) {
@@ -649,7 +652,7 @@ export default function EnhancedLearningGraph({
           frameIds: Array.isArray(chapter.frameIds) ? chapter.frameIds : [],
           conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
           order: chapter.order,
-          color: chapter.color,
+          color: chapter.color || nodeData.color || DEFAULT_CHAPTER_COLOR,
           onChapterUpdate: handler,
         };
 
@@ -674,13 +677,66 @@ export default function EnhancedLearningGraph({
         };
       });
 
+      const nextNodes = [...mappedNodes];
+
+      // Automatically create chapter nodes that are missing from the graph
+      const existingChapterNodeCount = nextNodes.filter(node => node.type === 'chapter').length;
+      const newlyCreatedNodes: Node[] = [];
+
+      chapters.forEach((chapter, index) => {
+        if (!chapter || !chapter.id) {
+          return;
+        }
+
+        if (existingChapterIds.has(chapter.id)) {
+          return;
+        }
+
+        const insertionIndex = existingChapterNodeCount + newlyCreatedNodes.length;
+        const column = insertionIndex % 3;
+        const row = Math.floor(insertionIndex / 3);
+
+        const nodeId = getId();
+        const handler = (updates: ChapterNodeUpdates) => handleChapterUpdate(chapter.id, updates);
+        boundChapterUpdateHandlers.current.add(chapter.id);
+
+        const newNode: Node = {
+          id: nodeId,
+          type: "chapter",
+          position: {
+            x: column * 360 + 120,
+            y: row * 240 + 120,
+          },
+          data: {
+            type: "chapter",
+            id: chapter.id,
+            title: chapter.title,
+            description: chapter.description || "",
+            frameIds: Array.isArray(chapter.frameIds) ? chapter.frameIds : [],
+            conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
+            order: chapter.order,
+            color: chapter.color || DEFAULT_CHAPTER_COLOR,
+            onChapterUpdate: handler,
+          } satisfies ChapterNodeData,
+        };
+
+        newlyCreatedNodes.push(newNode);
+        existingChapterIds.add(chapter.id);
+      });
+
+      if (newlyCreatedNodes.length > 0) {
+        localPatched = true;
+        nextNodes.push(...newlyCreatedNodes);
+        createdChapterNodes = newlyCreatedNodes;
+      }
+
       if (localPatched) {
         patchedFlag = true;
         updatedNodes = nextNodes;
         return nextNodes;
       }
 
-      return currentNodes;
+      return currentNodes.length === nextNodes.length ? currentNodes : nextNodes;
     });
 
     if (patchedFlag && updatedNodes) {
@@ -690,12 +746,24 @@ export default function EnhancedLearningGraph({
         selectedNodeId: selectedNodeRef.current,
       };
 
-      emitGraphStateChange('chapter-sync-props', { chapters }, freshGraphState);
+      emitGraphStateChange('chapter-sync-props', {
+        chapters,
+        createdChapterIds: createdChapterNodes.map(node => (node.data as ChapterNodeData)?.id),
+      }, freshGraphState);
 
       if (typeof window !== 'undefined') {
+        if (createdChapterNodes.length > 0) {
+          window.dispatchEvent(new CustomEvent('chapter-nodes-created', {
+            detail: {
+              chapterIds: createdChapterNodes.map(node => (node.data as ChapterNodeData)?.id),
+              timestamp: Date.now(),
+            }
+          }));
+        }
+
         window.dispatchEvent(new CustomEvent('force-save-frames', {
           detail: {
-            reason: 'chapter-sync-props',
+            reason: createdChapterNodes.length > 0 ? 'chapter-created' : 'chapter-sync-props',
             timestamp: Date.now(),
             graphState: freshGraphState,
           }
@@ -703,6 +771,149 @@ export default function EnhancedLearningGraph({
       }
     }
   }, [chapters, emitGraphStateChange, handleChapterUpdate, setNodes]);
+
+  // Ensure chapter ↔ frame connections reflect sidebar assignments
+  useEffect(() => {
+    if (!Array.isArray(chapters) || chapters.length === 0) {
+      return;
+    }
+
+    const currentNodes = nodesRef.current;
+    if (!currentNodes || currentNodes.length === 0) {
+      return;
+    }
+
+    const chapterNodeByChapterId = new Map<string, Node>();
+    const frameNodeByFrameId = new Map<string, Node>();
+    const nodeById = new Map<string, Node>();
+
+    currentNodes.forEach(node => {
+      nodeById.set(node.id, node);
+      if (node.type === 'chapter') {
+        const chapterId = (node.data as ChapterNodeData)?.id || node.id;
+        if (chapterId) {
+          chapterNodeByChapterId.set(chapterId, node);
+        }
+      } else if (node.type === 'aiframe') {
+        const frameId = node.data?.frameId;
+        if (frameId) {
+          frameNodeByFrameId.set(frameId, node);
+        }
+      }
+    });
+
+    let changed = false;
+
+    // Determine which chapter/frame links are required
+    const requiredPairs = new Map<string, { chapterNode: Node; frameNode: Node }>();
+    chapters.forEach(chapter => {
+      if (!chapter || !chapter.id) return;
+      const chapterNode = chapterNodeByChapterId.get(chapter.id);
+      if (!chapterNode) return;
+
+      (chapter.frameIds || []).forEach(frameId => {
+        if (!frameId) return;
+        const frameNode = frameNodeByFrameId.get(frameId);
+        if (!frameNode) return;
+        const key = `${chapter.id}->${frameId}`;
+        requiredPairs.set(key, { chapterNode, frameNode });
+      });
+    });
+
+    const currentEdges = edgesRef.current || [];
+    const edgesToKeep: Edge[] = [];
+    const existingPairs = new Set<string>();
+
+    currentEdges.forEach(edge => {
+      const sourceNode = nodeById.get(edge.source);
+      const targetNode = nodeById.get(edge.target);
+      if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {
+        const chapterId = (sourceNode.data as ChapterNodeData)?.id || sourceNode.id;
+        const frameId = targetNode.data?.frameId;
+        if (chapterId && frameId) {
+          const key = `${chapterId}->${frameId}`;
+          if (requiredPairs.has(key)) {
+            existingPairs.add(key);
+
+            const desiredStyle = { stroke: "#10b981", strokeWidth: 2.5 };
+            const needsUpdate =
+              edge.sourceHandle !== 'chapter-frame-out' ||
+              JSON.stringify(edge.style) !== JSON.stringify(desiredStyle);
+
+            if (needsUpdate) {
+              changed = true;
+              edgesToKeep.push({
+                ...edge,
+                sourceHandle: 'chapter-frame-out',
+                style: desiredStyle,
+              });
+            } else {
+              edgesToKeep.push(edge);
+            }
+            return;
+          }
+
+          // Edge no longer required
+          changed = true;
+          return;
+        }
+      }
+
+      edgesToKeep.push(edge);
+    });
+
+    const edgesToAdd: Edge[] = [];
+    requiredPairs.forEach((pair, key) => {
+      if (existingPairs.has(key)) {
+        return;
+      }
+
+      const { chapterNode, frameNode } = pair;
+      const edgeId = `edge_chapter_${(chapterNode.data as ChapterNodeData)?.id || chapterNode.id}_${frameNode.data?.frameId}`;
+
+      edgesToAdd.push({
+        id: edgeId,
+        source: chapterNode.id,
+        target: frameNode.id,
+        sourceHandle: 'chapter-frame-out',
+        targetHandle: null,
+        style: { stroke: "#10b981", strokeWidth: 2.5 },
+        type: 'straight',
+      });
+    });
+
+    if (edgesToAdd.length > 0) {
+      changed = true;
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    const nextEdges = [...edgesToKeep, ...edgesToAdd];
+    setEdges(nextEdges);
+
+    const freshGraphState = {
+      nodes: nodesRef.current,
+      edges: nextEdges,
+      selectedNodeId: selectedNodeRef.current,
+    };
+
+    emitGraphStateChange('chapter-frame-sync', {
+      addedEdgeCount: edgesToAdd.length,
+      removedEdgeCount: currentEdges.length - edgesToKeep.length,
+    }, freshGraphState);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('force-save-frames', {
+        detail: {
+          reason: 'chapter-frame-sync',
+          timestamp: Date.now(),
+          graphState: freshGraphState,
+        }
+      }));
+    }
+  }, [chapters, frames, emitGraphStateChange, setEdges]);
 
   useEffect(() => {
     let patchedFlag = false;
@@ -1746,6 +1957,77 @@ export default function EnhancedLearningGraph({
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleExternalFrameCreated = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      const frame = detail?.frame;
+      if (!frame || !frame.id) {
+        return;
+      }
+
+      const existingNode = nodesRef.current.find((node) => node.data?.frameId === frame.id);
+      if (existingNode) {
+        return;
+      }
+
+      const column = nodesRef.current.length % 4;
+      const row = Math.floor(nodesRef.current.length / 4);
+      const newNodePosition = {
+        x: column * 320 + 80,
+        y: row * 220 + 80,
+      };
+
+      const newNode: Node = {
+        id: getId(),
+        type: 'aiframe',
+        position: newNodePosition,
+        data: {
+          type: 'aiframe',
+          frameId: frame.id,
+          title: frame.title || 'New AI Frame',
+          goal: frame.goal || 'Define the learning goal for this frame...',
+          informationText: frame.informationText || 'Provide supporting context and information...',
+          afterVideoText: frame.afterVideoText || 'Summarize key takeaways and next steps...',
+          aiConcepts: frame.aiConcepts || frame.conceptIds || [],
+          isGenerated: frame.isGenerated || false,
+          onFrameUpdate: handleFrameUpdate,
+          onAttachContent: handleAttachContent,
+          onDetachContent: handleDetachContent,
+        },
+      };
+
+      const updatedNodes = [...nodesRef.current, newNode];
+      setNodes(updatedNodes);
+
+      const freshGraphState = {
+        nodes: updatedNodes,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+      };
+
+      emitGraphStateChange('external-frame-created', { frameId: frame.id }, freshGraphState);
+
+      window.dispatchEvent(
+        new CustomEvent('graph-frame-added', {
+          detail: {
+            newFrame: frame,
+            totalFrames: framesRef.current.length + 1,
+          },
+        })
+      );
+    };
+
+    window.addEventListener('external-frame-created', handleExternalFrameCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('external-frame-created', handleExternalFrameCreated as EventListener);
+    };
+  }, [emitGraphStateChange, handleAttachContent, handleDetachContent, handleFrameUpdate, setNodes]);
 
   // Listen for clear all frames event and reset graph nodes/edges
   useEffect(() => {
