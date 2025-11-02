@@ -2305,7 +2305,7 @@ export default function EnhancedLearningGraph({
           minZoom={0.25}
           maxZoom={2}
         >
-          <MiniMap position="top-left" />
+          <MiniMap position="top-right" />
           <Controls position="top-left" />
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
