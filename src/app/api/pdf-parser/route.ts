@@ -316,11 +316,16 @@ export async function POST(req: NextRequest) {
           const PDFParser = require("pdf2json");
           const pdfParser = new PDFParser(null, 1);
 
+          // Calculate dynamic timeout based on file size
+          const fileSizeMB = fileBuffer.length / (1024 * 1024);
+          const dynamicTimeout = Math.max(30000, 30000 + (fileSizeMB * 3000)); // 30s base + 3s per MB
+          console.log(`📄 PDF size: ${fileSizeMB.toFixed(2)}MB, parsing timeout: ${(dynamicTimeout/1000).toFixed(0)}s`);
+
           // Parse PDF with pdf2json using Promise wrapper
           parsedText = await new Promise<string>((resolve, reject) => {
             const timeout = setTimeout(() => {
-              reject(new Error("PDF2JSON parsing timeout after 30 seconds"));
-            }, 30000);
+              reject(new Error(`PDF2JSON parsing timeout after ${(dynamicTimeout/1000).toFixed(0)} seconds`));
+            }, dynamicTimeout);
 
             pdfParser.on("pdfParser_dataReady", () => {
               clearTimeout(timeout);

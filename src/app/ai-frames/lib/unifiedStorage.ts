@@ -389,14 +389,33 @@ export class UnifiedStorageManager {
       }
 
       const frames = frameDocuments.map((doc: any) => this.parseFrameFromDocument(doc));
-      const chapters = chapterDocument?.metadata?.chapters 
+      const chapters = chapterDocument?.metadata?.chapters
         ? this.normalizeChapters(chapterDocument.metadata.chapters)
         : [];
+
+      // CRITICAL FIX: Load graph state from IndexedDB/localStorage (VectorStore only stores documents)
+      let graphState: GraphState = { nodes: [], edges: [], selectedNodeId: null };
+
+      // Try IndexedDB first (most reliable)
+      const indexedDBData = await this.loadFromIndexedDB();
+      if (indexedDBData?.graphState) {
+        console.log('✅ Loaded graph state from IndexedDB');
+        graphState = indexedDBData.graphState;
+      } else {
+        // Fallback to localStorage
+        const localStorageData = await this.loadFromLocalStorage();
+        if (localStorageData?.graphState) {
+          console.log('✅ Loaded graph state from localStorage');
+          graphState = localStorageData.graphState;
+        } else {
+          console.log('📭 No saved graph state found');
+        }
+      }
 
       return {
         frames,
         chapters,
-        graphState: { nodes: [], edges: [], selectedNodeId: null } // TODO: Load graph state from VectorStore
+        graphState
       };
 
     } catch (error) {
@@ -428,6 +447,46 @@ export class UnifiedStorageManager {
         dbRequest.onerror = () => reject(dbRequest.error);
       });
 
+      // Verify object store exists before creating transaction
+      if (!db.objectStoreNames.contains('appState')) {
+        console.warn("⚠️ IndexedDB 'appState' object store not found, closing and recreating database");
+        db.close();
+
+        // Delete and recreate the database
+        await new Promise<void>((resolve, reject) => {
+          const deleteRequest = indexedDB.deleteDatabase('ai-frames-unified');
+          deleteRequest.onsuccess = () => resolve();
+          deleteRequest.onerror = () => reject(deleteRequest.error);
+        });
+
+        // Recreate database with object store
+        const recreateRequest = indexedDB.open('ai-frames-unified', 1);
+        recreateRequest.onupgradeneeded = (event) => {
+          const newDb = (event.target as IDBOpenDBRequest).result;
+          if (!newDb.objectStoreNames.contains('appState')) {
+            newDb.createObjectStore('appState');
+          }
+        };
+
+        const newDb = await new Promise<IDBDatabase>((resolve, reject) => {
+          recreateRequest.onsuccess = () => resolve(recreateRequest.result);
+          recreateRequest.onerror = () => reject(recreateRequest.error);
+        });
+
+        const transaction = newDb.transaction(['appState'], 'readwrite');
+        const store = transaction.objectStore('appState');
+
+        await new Promise<void>((resolve, reject) => {
+          const request = store.put(appState, 'current');
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+
+        newDb.close();
+        console.log("✅ IndexedDB recreated and save completed");
+        return;
+      }
+
       const transaction = db.transaction(['appState'], 'readwrite');
       const store = transaction.objectStore('appState');
       
@@ -437,6 +496,7 @@ export class UnifiedStorageManager {
         request.onerror = () => reject(request.error);
       });
 
+      db.close();
       console.log("✅ IndexedDB save completed");
     } catch (error) {
       console.warn("⚠️ IndexedDB save failed:", error);
