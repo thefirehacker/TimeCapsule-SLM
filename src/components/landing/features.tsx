@@ -17,6 +17,9 @@ import {
   Globe,
   BookOpen,
   Lightbulb,
+  Layers,
+  GraduationCap,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,39 +34,21 @@ import { AnimatedGroup } from "@/components/ui/animated-group";
 
 const features = [
   {
-    id: "deepresearch",
-    icon: Microscope,
-    title: "DeepResearch TimeCapsule",
-    subtitle: "Generate Novel Ideas • Discover Hidden Insights",
+    id: "ai-frames",
+    icon: Layers,
+    title: "AI-Frames Platform",
+    subtitle: "Annotate • Learn • Research • Manage",
     description:
-      "Advanced AI-powered research platform that uncovers novel insights, generates innovative ideas, and enables collaborative knowledge discovery.",
+      "Comprehensive AI platform combining annotation, learning, deep research, and workflow management in one unified experience.",
     features: [
-      "Generate novel research ideas with AI analysis",
-      "Discover hidden patterns and insights",
-      "Enable collaborative knowledge discovery",
-      "Create comprehensive research TimeCapsules",
-    ],
-    href: "/deep-research",
-    buttonText: "Start Deep Research",
-    buttonIcon: Microscope,
-    status: "available",
-  },
-  {
-    id: "aiframes",
-    icon: Palette,
-    title: "AI-Frames",
-    subtitle: "Interactive AI-Guided Learning • Visual Learning Paths",
-    description:
-      "Create structured learning experiences with AI-guided frames. Each frame contains videos, documents, and interactive elements with AI assistance.",
-    features: [
-      "Create interactive learning frames with videos and docs",
-      "AI-guided explanations and concept clarification",
-      "Sequential learning paths with context awareness",
-      "Integration with TimeCapsule knowledge base",
+      "🏷️ Annotation Engine - Intelligent content markup",
+      "📚 Learning Platform - Interactive AI-driven learning",
+      "🔬 Deep Research Tool - Multi-agent collaboration",
+      "⚙️ Workflow Manager - AI-powered automation",
     ],
     href: "/ai-frames",
-    buttonText: "Try AI-Frames",
-    buttonIcon: Palette,
+    buttonText: "Explore AI-Frames",
+    buttonIcon: Layers,
     status: "available",
   },
 ];
@@ -342,22 +327,11 @@ export function FeaturesSection() {
                 asChild
                 size="lg"
                 variant="secondary"
-                className="bg-white text-blue-600 hover:bg-gray-100"
-              >
-                <Link href="/deep-research">
-                  <Microscope className="w-5 h-5 mr-2" />
-                  Start Research Now
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-blue-600"
+                className="bg-white text-purple-600 hover:bg-gray-100"
               >
                 <Link href="/ai-frames">
-                  <Palette className="w-5 h-5 mr-2" />
-                  Try AI-Frames
+                  <Layers className="w-5 h-5 mr-2" />
+                  Try AI-Frames Platform
                 </Link>
               </Button>
             </div>

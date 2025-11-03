@@ -64,23 +64,32 @@ In today's digital age, researchers, educators, and learners face several critic
 
 TimeCapsuleSLM is a comprehensive AI-powered platform that addresses these challenges by providing:
 
-### 🧠 **DeepResearch TimeCapsule**
+### 🚀 **AI-Frames: Your Complete AI Platform**
 
-Transform your research workflow with AI-powered insights and collaborative discovery.
+A comprehensive platform combining annotation, learning, research, and workflow management in one unified experience.
 
-- **🔬 Advanced Research Platform**: Generate novel insights and discover hidden patterns
-- **🤝 Collaborative Discovery**: Work together with AI agents and human collaborators
+#### 🏷️ **Annotation Engine**
+- **Smart Content Markup**: Intelligent organization and structuring of content
+- **Multi-Format Support**: Rich text, PDF, and multimedia annotations
+- **Contextual Tagging**: AI-powered categorization and metadata
+
+#### 📚 **Learning Platform**
+- **Interactive Learning Experiences**: Create structured, adaptive learning paths
+- **📹 Video Integration**: Timestamp-controlled video segments for focused learning
+- **📄 Document Support**: Rich text, PDF, and multimedia content integration
+- **🎯 Goal-Oriented Navigation**: Sequential learning paths with clear objectives
+
+#### 🔬 **Deep Research Tool**
+- **Advanced AI Research**: Multi-agent collaboration for novel insights
+- **Knowledge Discovery**: Uncover hidden patterns and connections
 - **📦 TimeCapsule Export/Import**: Save and share complete research sessions
 - **🔗 Knowledge Base Integration**: Seamlessly connect with your local knowledge base
 
-### 🎥 **AI-Frames Interactive Learning**
-
-Create structured, adaptive learning experiences that evolve with your needs.
-
-- **📹 Video Integration**: Timestamp-controlled video segments for focused learning
-- **📄 Document Support**: Rich text, PDF, and multimedia content integration
-- **🤖 AI-Powered Assistance**: Contextual help and concept explanations
-- **🎯 Goal-Oriented Navigation**: Sequential learning paths with clear objectives
+#### ⚙️ **Workflow Manager**
+- **AI-Powered Automation**: Streamline your research and learning workflows
+- **Process Orchestration**: Coordinate complex multi-step tasks
+- **Template System**: Reusable workflows for common tasks
+- **Integration Hub**: Connect different tools and services seamlessly
 
 ### 📚 **Knowledge Base Management**
 
@@ -166,8 +175,11 @@ TimeCapsuleSLM revolutionizes education by providing powerful tools for both tea
 
 | Feature                   | Description                                              | Benefits                                               |
 | ------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| 🧠 **DeepResearch**       | AI-powered research with multi-agent collaboration       | Discover insights faster with AI assistance            |
-| 🎥 **AI-Frames**          | Interactive learning with video and document integration | Create engaging, personalized learning experiences     |
+| 🚀 **AI-Frames Platform** | Complete platform: Annotation, Learning, Research & Workflow | All-in-one solution for knowledge work                |
+| 🏷️ **Annotation Engine**  | Smart content markup and organization                    | Efficiently structure and categorize content           |
+| 📚 **Learning Platform**  | Interactive learning with video and document integration | Create engaging, personalized learning experiences     |
+| 🔬 **Deep Research Tool** | AI-powered research with multi-agent collaboration       | Discover insights faster with AI assistance            |
+| ⚙️ **Workflow Manager**   | AI-powered process automation and orchestration          | Streamline complex tasks and workflows                 |
 | 📚 **Knowledge Base**     | Local RAG system with semantic search                    | Keep your data private while leveraging AI             |
 | 🤖 **Multi-Agent AI**     | Unified AI ecosystem with local and cloud options        | Choose the right AI for each task                      |
 | 🔄 **TimeCapsule Export** | Complete session export/import system                    | Share and preserve your work                           |
@@ -279,21 +291,33 @@ RESEND_API_KEY=your-resend-api-key
 
 ## 📖 **Usage Guide**
 
-### 🧠 **DeepResearch TimeCapsule**
+### 🚀 **AI-Frames Platform**
 
-1. **Start Research**: Navigate to the DeepResearch section
-2. **Define Topic**: Enter your research question or topic
-3. **AI Collaboration**: Work with AI agents to explore and analyze
-4. **Save Progress**: Export your research as a TimeCapsule
-5. **Share & Collaborate**: Import TimeCapsules to continue or share work
+#### 🏷️ **Annotation Engine**
+1. **Upload Content**: Add documents, PDFs, or multimedia
+2. **Smart Markup**: Use AI-powered annotation tools
+3. **Organize**: Structure content with intelligent categorization
+4. **Tag & Connect**: Create relationships between content pieces
 
-### 🎥 **AI-Frames Learning**
-
+#### 📚 **Learning Platform**
 1. **Create Frame**: Start with a learning goal
 2. **Add Content**: Include videos, documents, and context
 3. **AI Assistance**: Get contextual help and explanations
 4. **Build Path**: Create connected learning sequences
 5. **Export Experience**: Share learning paths via TimeCapsules
+
+#### 🔬 **Deep Research Tool**
+1. **Start Research**: Navigate to the AI-Frames platform
+2. **Define Topic**: Enter your research question or topic
+3. **AI Collaboration**: Work with multi-agent AI to explore and analyze
+4. **Save Progress**: Export your research as a TimeCapsule
+5. **Share & Collaborate**: Import TimeCapsules to continue or share work
+
+#### ⚙️ **Workflow Manager**
+1. **Define Workflow**: Outline your process steps
+2. **Automate Tasks**: Set up AI-powered automation
+3. **Integrate Tools**: Connect with other platform features
+4. **Monitor Progress**: Track workflow execution and results
 
 ### 📚 **Knowledge Base**
 

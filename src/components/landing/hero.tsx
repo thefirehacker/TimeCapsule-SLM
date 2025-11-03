@@ -15,6 +15,9 @@ import {
   Palette,
   Database,
   Bot,
+  FileText,
+  GraduationCap,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,27 +45,27 @@ const transitionVariants = {
 const majorFeatures = [
   {
     icon: Microscope,
-    title: "DeepResearch",
+    title: "Deep Research Tool",
     description: "AI-powered research with multi-agent collaboration",
     color: "text-blue-600",
   },
   {
-    icon: Palette,
-    title: "AI-Frames",
-    description: "Interactive learning with video and document integration",
-    color: "text-indigo-600",
+    icon: FileText,
+    title: "Annotation Engine",
+    description: "Intelligent content markup and organization",
+    color: "text-purple-600",
   },
   {
-    icon: Database,
-    title: "Knowledge Base",
-    description: "Local RAG system with semantic search",
+    icon: GraduationCap,
+    title: "Learning Platform",
+    description: "Interactive AI-driven learning experiences",
     color: "text-green-600",
   },
   {
-    icon: Bot,
-    title: "Multi-Agent AI",
-    description: "Unified AI ecosystem with local and cloud options",
-    color: "text-purple-600",
+    icon: GitBranch,
+    title: "Workflow Manager",
+    description: "Streamline processes with AI automation",
+    color: "text-orange-600",
   },
 ];
 
@@ -115,9 +118,7 @@ export function HeroSection() {
                 </div>
 
                 <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
-                  Advanced research tools with DeepResearch, in-browser RAG, and
-                  collaborative TimeCapsule sharing for seamless knowledge
-                  discovery.
+                  AI Frames: Your complete platform for annotation, learning, research, and workflow management with AI-powered intelligence.
                 </p>
               </AnimatedGroup>
 
@@ -142,11 +143,11 @@ export function HeroSection() {
                   <Button
                     asChild
                     size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-8"
                   >
-                    <Link href="/deep-research">
+                    <Link href="/ai-frames">
                       <Zap className="w-5 h-5 mr-2" />
-                      Start Research
+                      Try AI-Frames
                     </Link>
                   </Button>
 
@@ -198,7 +199,7 @@ export function HeroSection() {
                       Platform Features
                     </Badge>
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      Everything You Need for AI Research
+                      Everything You Need in One Platform
                     </h3>
                   </div>
 

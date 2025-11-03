@@ -15,28 +15,22 @@ import {
   Shield,
   Users,
   Globe,
+  Layers,
 } from "lucide-react";
 import { Separator } from "./separator";
 
 const navigationLinks = [
   { name: "Home", href: "/" },
-  { name: "DeepResearch", href: "/deep-research" },
   { name: "AI-Frames", href: "/ai-frames" },
   { name: "Contact", href: "/contact" },
 ];
 
 const productFeatures = [
   {
-    name: "DeepResearch",
-    href: "/deep-research",
-    icon: Microscope,
-    description: "AI-powered research platform",
-  },
-  {
     name: "AI-Frames",
     href: "/ai-frames",
-    icon: Palette,
-    description: "Interactive learning frames",
+    icon: Layers,
+    description: "Complete AI platform for annotation, learning, research & workflows",
   },
 ];
 
