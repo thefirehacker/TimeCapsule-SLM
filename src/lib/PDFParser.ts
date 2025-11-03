@@ -106,13 +106,15 @@ export class PDFParser {
         );
       }
 
-      // Get the parsed text from response
-      const parsedText = await response.text();
+      // Get the parsed result from response (now returns JSON with text and pageCount)
+      const parseResult = await response.json();
+      const parsedText = parseResult.text || "";
+      const actualPageCount = parseResult.pageCount || 1;
 
       onProgress?.({
         page: 1,
-        total: 1,
-        message: "Processing extracted text...",
+        total: actualPageCount,
+        message: `Processing ${actualPageCount} pages...`,
       });
 
       // Clean and normalize text
@@ -135,23 +137,20 @@ export class PDFParser {
         text = "[No text content could be extracted from this PDF]";
       }
 
-      // Estimate page count based on text length (rough approximation)
-      const estimatedPages = Math.max(1, Math.ceil(text.length / 2000));
-
       onProgress?.({
-        page: estimatedPages,
-        total: estimatedPages,
-        message: `Extracted ${estimatedPages} pages with ${text.length} characters`,
+        page: actualPageCount,
+        total: actualPageCount,
+        message: `Extracted ${actualPageCount} pages with ${text.length} characters`,
       });
 
       const finalResult: PDFParseResult = {
         text,
-        pages: estimatedPages,
+        pages: actualPageCount,
         info: {}, // Metadata not available from API route
         metadata: {
           filename: file.name,
           filesize: file.size,
-          pageCount: estimatedPages,
+          pageCount: actualPageCount,
           textLength: text.length,
           hasText,
           parseTime: Date.now() - startTime,
@@ -160,7 +159,7 @@ export class PDFParser {
 
       console.log(`✅ PDF parsed successfully:`, {
         filename: file.name,
-        pages: estimatedPages,
+        pages: actualPageCount,
         textLength: text.length,
         parseTime: `${finalResult.metadata.parseTime}ms`,
         hasText,

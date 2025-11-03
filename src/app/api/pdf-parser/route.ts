@@ -272,6 +272,7 @@ export async function POST(req: NextRequest) {
     const uploadedFiles = formData.getAll("FILE");
     let fileName = "";
     let parsedText = "";
+    let pageCount = 1;
 
     console.log(
       `📄 PDF Parser API: Found ${uploadedFiles.length} uploaded files`
@@ -329,10 +330,14 @@ export async function POST(req: NextRequest) {
 
             pdfParser.on("pdfParser_dataReady", () => {
               clearTimeout(timeout);
-              
+
               // Extract text with table structure preservation
               const text = extractStructuredText(pdfParser) || "";
-              console.log(`📄 pdf2json extracted ${text.length} characters with table structure`);
+
+              // Get actual page count from pdf2json
+              pageCount = pdfParser.data?.Pages?.length || 1;
+
+              console.log(`📄 pdf2json extracted ${text.length} characters with table structure from ${pageCount} pages`);
               resolve(text);
             });
 
@@ -411,10 +416,13 @@ export async function POST(req: NextRequest) {
       return new NextResponse("No File Found", { status: 404 });
     }
 
-    const response = new NextResponse(parsedText);
-    response.headers.set("FileName", fileName);
+    const response = NextResponse.json({
+      text: parsedText,
+      pageCount: pageCount || 1,
+      fileName: fileName
+    });
     console.log(
-      `✅ PDF Parser API: Successfully processed file, returning ${parsedText.length} characters`
+      `✅ PDF Parser API: Successfully processed file, returning ${parsedText.length} characters from ${pageCount} pages`
     );
     return response;
   } catch (error) {

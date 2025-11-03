@@ -232,6 +232,10 @@ export function useDocuments(vectorStore: any): UseDocumentsReturn {
             console.log(
               `✅ PDF parsed successfully: ${pdfResult.metadata.pageCount} pages, ${pdfResult.metadata.textLength} characters`
             );
+            // Store pageCount in file object for later use by VectorStore
+            (file as any)._pdfMetadata = {
+              pageCount: pdfResult.metadata.pageCount
+            };
             return validateExtractedContent(pdfResult.text, file.name);
           } else {
             console.warn(`⚠️ No text extracted from PDF: ${file.name}`);
