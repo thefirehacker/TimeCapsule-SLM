@@ -1,41 +1,405 @@
-# Test 01
-useUnifiedStorage.ts:498 🔒 PRIORITY SAVE: Locked queue with fresh graph state
-unifiedStorage.ts:67 💾 Starting unified save...
-VectorStore.ts:1672 📋 Retrieved latest revision for aiframe-chapters: 209-tkaiwakuyd
-unifiedStorage.ts:500 ✅ IndexedDB save completed
-VectorStore.ts:1608 📊 Synced frame AI-Frame Chapters to Knowledge Base (updated)
-VectorStore.ts:2262 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
-VectorStore.ts:2307 💾 Database flush completed
-VectorStore.ts:1672 📋 Retrieved latest revision for aiframe-chapters: 210-rdawigjmra
-VectorStore.ts:2275 ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 210-rdawigjmra)
-unifiedStorage.ts:90 ✅ Unified save completed successfully
-useUnifiedStorage.ts:527 🔒 PRIORITY SAVE: Completed with result: {success: true}
+page.tsx:386 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 1, hasUnifiedMethods: true}
+react-dom-client.development.js:16378 [Violation] 'drop' handler took 185ms
+FrameGraphIntegration.tsx:1054 📋 SCHEMA CHECK: Session document structure before insertion: {hasId: true, hasTitle: true, hasContent: true, hasMetadata: true, hasChunks: true, …}
+FrameGraphIntegration.tsx:1066 ✅ Session document inserted successfully: {sessionId: 'session_1762264673959', documentId: 'sess-1762264673959-fxiv1p'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(1), …}
+FrameGraphIntegration.tsx:711 ✅ Frame synced to Knowledge Base successfully: {frameId: 'frame-1762264673705-1o6iyvaci', frameTitle: 'Frame 1', documentId: 'aiframe-frame-1762264673705-1o6iyvaci', source: 'FrameGraphIntegration'}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:57:54.302Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:57:58.694Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:00.945Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 2, edgeCount: 0, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:03.077Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 1, edgeCount: 0, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:05.988Z'}
+FrameGraphIntegration.tsx:1112 🔗 ID GENERATION: Connection document ID created: {originalConnectionId: 'edge_node_1762264682589_fnf4qpar3_1_node_1762264673705_u5yvpsvun_0_1762264686126_cif0k3zqp', originalLength: 90, generatedDocId: 'conn-3hfiyc', generatedLength: 11, schemaCompliant: true}
+FrameGraphIntegration.tsx:1153 🔗 SCHEMA CHECK: Connection document structure before insertion: {hasId: true, idLength: 11, hasTitle: true, hasContent: true, hasMetadata: true, …}
+FrameGraphIntegration.tsx:1166 ✅ Connection inserted successfully: {connectionId: 'edge_node_1762264682589_fnf4qpar3_1_node_1762264673705_u5yvpsvun_0_1762264686126_cif0k3zqp', documentId: 'conn-3hfiyc', idLength: 11}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 1, edgeCount: 1, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:06.228Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 2, edgeCount: 2, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:09.268Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 3, edgeCount: 1, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:20.584Z'}
+FrameGraphIntegration.tsx:1112 🔗 ID GENERATION: Connection document ID created: {originalConnectionId: 'edge_node_1762264700136_dh1z7t1uh_2_node_1762264673705_u5yvpsvun_0_1762264701928_3b5xdimre', originalLength: 90, generatedDocId: 'conn-7hfhs3', generatedLength: 11, schemaCompliant: true}
+FrameGraphIntegration.tsx:1153 🔗 SCHEMA CHECK: Connection document structure before insertion: {hasId: true, idLength: 11, hasTitle: true, hasContent: true, hasMetadata: true, …}
+react-dom-client.development.js:16378 [Violation] 'mouseup' handler took 163ms
+FrameGraphIntegration.tsx:1166 ✅ Connection inserted successfully: {connectionId: 'edge_node_1762264700136_dh1z7t1uh_2_node_1762264673705_u5yvpsvun_0_1762264701928_3b5xdimre', documentId: 'conn-7hfhs3', idLength: 11}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 2, edgeCount: 2, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:22.231Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 3, edgeCount: 3, frameIds: Array(1), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:24.090Z'}
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+g.Rj @ base.js:3165
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+g.Rj @ base.js:3165
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+kXg @ base.js:5140
+g.F.updateVideoData @ base.js:12708
+g.Rj @ base.js:3169
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+BE @ base.js:7217
+g.Rj @ base.js:3169
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+UWC @ base.js:7400
+pxA @ base.js:6939
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+www-embed-player.js:2271 [Violation] 'setTimeout' handler took 54ms
+base.js:6026 [Violation] 'setTimeout' handler took 64ms
+www-embed-player.js:1228 XHR finished loading: GET "https://googleads.g.doubleclick.net/pagead/id".
+Nq @ www-embed-player.js:1228
+Rq @ www-embed-player.js:1233
+(anonymous) @ www-embed-player.js:1829
+Fk @ www-embed-player.js:678
+Ny @ www-embed-player.js:1826
+Zp @ www-embed-player.js:1848
+gz @ www-embed-player.js:1853
+mA @ www-embed-player.js:1906
+(anonymous) @ www-embed-player.js:2342
+(anonymous) @ po7doQNkhuU?start=0:10
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 3, edgeCount: 2, frameIds: Array(1), …}
+react-dom-client.development.js:16378 [Violation] 'setTimeout' handler took 113ms
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:30.914Z'}
+www-embed-player.js:1228 XHR finished loading: POST "https://www.youtube.com/youtubei/v1/log_event?alt=json".
+Nq @ www-embed-player.js:1228
+Rq @ www-embed-player.js:1233
+iw @ www-embed-player.js:1643
+p.sendAndWrite @ www-embed-player.js:1546
+hw.sendAndWrite @ www-embed-player.js:1638
+e @ www-embed-player.js:1654
+(anonymous) @ www-embed-player.js:1662
+Promise.then
+pv @ www-embed-player.js:1662
+Zx @ www-embed-player.js:1770
+ay @ www-embed-player.js:1761
+(anonymous) @ www-embed-player.js:1759
+Fk @ www-embed-player.js:678
+Vx @ www-embed-player.js:1759
+c @ www-embed-player.js:1762
+(anonymous) @ www-embed-player.js:1764
+(anonymous) @ www-embed-player.js:1196
+setTimeout
+Dq @ www-embed-player.js:1217
+Xx @ www-embed-player.js:1777
+Yx @ www-embed-player.js:1764
+Ux @ www-embed-player.js:1756
+Ox @ www-embed-player.js:1754
+hy @ www-embed-player.js:1785
+Cs @ www-embed-player.js:1786
+UA.tick @ www-embed-player.js:1955
+gB @ www-embed-player.js:1977
+(anonymous) @ www-embed-player.js:1196
+yB @ www-embed-player.js:2002
+IE @ www-embed-player.js:2338
+p.yb @ www-embed-player.js:992
+pE @ www-embed-player.js:2282
+kE @ www-embed-player.js:2281
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8378 XHR finished loading: POST "https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/Create".
+g.F.send @ base.js:8378
+iue @ base.js:5037
+(anonymous) @ base.js:7352
+(anonymous) @ base.js:7352
+oAH @ base.js:7355
+DaZ.create @ base.js:8532
+(anonymous) @ base.js:7526
+XE @ base.js:3331
+Rps.next @ base.js:4923
+(anonymous) @ base.js:991
+Uvl @ base.js:990
+g.G @ base.js:4249
+B1l @ base.js:7526
+tie @ base.js:4264
+(anonymous) @ base.js:3415
+XE @ base.js:3331
+Rps.next @ base.js:4923
+e @ base.js:988
+Promise.then
+m @ base.js:990
+(anonymous) @ base.js:991
+Uvl @ base.js:990
+g.G @ base.js:4249
+B3q @ base.js:3414
+hy @ base.js:2244
+Tc$ @ base.js:3480
+mTm @ base.js:1078
+KU @ base.js:6467
+(anonymous) @ base.js:1252
+Rr @ www-embed-player.js:1303
+Wr @ www-embed-player.js:1312
+p.yf @ www-embed-player.js:1305
+requestIdleCallback
+p.start @ www-embed-player.js:1313
+Wr @ www-embed-player.js:1312
+p.cg @ www-embed-player.js:1308
+requestAnimationFrame
+p.start @ www-embed-player.js:1313
+p.Xa @ www-embed-player.js:1296
+gs @ www-embed-player.js:1319
+rs.Xa @ www-embed-player.js:1332
+Lr.ra @ www-embed-player.js:1291
+JE @ www-embed-player.js:2331
+(anonymous) @ www-embed-player.js:2345
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8378 XHR finished loading: POST "https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT".
+g.F.send @ base.js:8378
+iue @ base.js:5037
+(anonymous) @ base.js:7352
+(anonymous) @ base.js:7352
+oAH @ base.js:7355
+(anonymous) @ base.js:5167
+XE @ base.js:3331
+Rps.next @ base.js:4923
+(anonymous) @ base.js:991
+Uvl @ base.js:990
+g.G @ base.js:4249
+Xnm @ base.js:5167
+E3H @ base.js:5259
+(anonymous) @ base.js:2069
+XE @ base.js:3331
+Rps.next @ base.js:4923
+e @ base.js:988
+Promise.then
+m @ base.js:990
+(anonymous) @ base.js:991
+Uvl @ base.js:990
+g.G @ base.js:4249
+xi @ base.js:2067
+(anonymous) @ base.js:3671
+QQ$.T.Af @ base.js:1267
+ED6 @ base.js:427
+(anonymous) @ base.js:3418
+XE @ base.js:3331
+Rps.next @ base.js:4923
+e @ base.js:988
+Promise.then
+m @ base.js:990
+Promise.then
+m @ base.js:990
+Promise.then
+m @ base.js:990
+Promise.then
+m @ base.js:990
+Promise.then
+m @ base.js:990
+(anonymous) @ base.js:991
+Uvl @ base.js:990
+g.G @ base.js:4249
+B3q @ base.js:3414
+hy @ base.js:2244
+Tc$ @ base.js:3480
+mTm @ base.js:1078
+KU @ base.js:6467
+(anonymous) @ base.js:1252
+Rr @ www-embed-player.js:1303
+Wr @ www-embed-player.js:1312
+p.yf @ www-embed-player.js:1305
+requestIdleCallback
+p.start @ www-embed-player.js:1313
+Wr @ www-embed-player.js:1312
+p.cg @ www-embed-player.js:1308
+requestAnimationFrame
+p.start @ www-embed-player.js:1313
+p.Xa @ www-embed-player.js:1296
+gs @ www-embed-player.js:1319
+rs.Xa @ www-embed-player.js:1332
+Lr.ra @ www-embed-player.js:1291
+JE @ www-embed-player.js:2331
+(anonymous) @ www-embed-player.js:2345
+(anonymous) @ po7doQNkhuU?start=0:10
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 1, nodeCount: 3, edgeCount: 2, frameIds: Array(1), …}
+page.tsx:386 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 2, hasUnifiedMethods: true}
+useUnifiedStorage.ts:1331 ⏸️ Skipping delayed save - background save already in progress
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:37.130Z'}
+FrameGraphIntegration.tsx:711 ✅ Frame synced to Knowledge Base successfully: {frameId: 'frame-1762264717014-eda5n0av1', frameTitle: 'Frame 2', documentId: 'aiframe-frame-1762264717014-eda5n0av1', source: 'FrameGraphIntegration'}
+www-embed-player.js:1228 XHR finished loading: POST "https://www.youtube.com/youtubei/v1/log_event?alt=json".
+Nq @ www-embed-player.js:1228
+Rq @ www-embed-player.js:1233
+iw @ www-embed-player.js:1643
+p.sendAndWrite @ www-embed-player.js:1546
+hw.sendAndWrite @ www-embed-player.js:1638
+K @ base.js:2937
+(anonymous) @ base.js:2945
+Promise.then
+g.H$ @ base.js:2945
+VR6 @ base.js:6895
+FEg @ base.js:1660
+(anonymous) @ base.js:6926
+g.cF @ base.js:2768
+cL @ base.js:6926
+k @ base.js:2772
+(anonymous) @ base.js:2774
+(anonymous) @ base.js:6026
+setTimeout
+g.h$ @ base.js:4215
+A1 @ base.js:3744
+ZcZ @ base.js:2774
+Cre @ base.js:5943
+k3Z @ base.js:3603
+hA @ base.js:3875
+g.WN @ base.js:5323
+g.Dr.flush @ base.js:8989
+g.F.Ou @ base.js:8367
+(anonymous) @ base.js:412
+(anonymous) @ base.js:2083
+setTimeout
+mwZ @ base.js:2083
+dR.lK @ base.js:8421
+g.F.lK @ base.js:8405
+(anonymous) @ base.js:3672
+Promise.then
+iS @ base.js:3672
+mTm @ base.js:1079
+KU @ base.js:6467
+(anonymous) @ base.js:1252
+Rr @ www-embed-player.js:1303
+Wr @ www-embed-player.js:1312
+p.yf @ www-embed-player.js:1305
+requestIdleCallback
+p.start @ www-embed-player.js:1313
+Wr @ www-embed-player.js:1312
+p.cg @ www-embed-player.js:1308
+requestAnimationFrame
+p.start @ www-embed-player.js:1313
+p.Xa @ www-embed-player.js:1296
+gs @ www-embed-player.js:1319
+rs.Xa @ www-embed-player.js:1332
+Lr.ra @ www-embed-player.js:1291
+JE @ www-embed-player.js:2331
+(anonymous) @ www-embed-player.js:2345
+(anonymous) @ po7doQNkhuU?start=0:10
+page.tsx:1335 🔍 CRITICAL: Frame index change called: {oldIndex: 0, newIndex: 1, frameCount: 2, stackTrace: '    at onFrameIndexChange (webpack-internal:///(ap…es-browser)/./src/app/ai-frames/page.tsx:1535:67)'}
+page.tsx:1335 🔍 CRITICAL: Frame index change called: {oldIndex: 0, newIndex: 1, frameCount: 2, stackTrace: '    at onFrameIndexChange (webpack-internal:///(ap…es-browser)/./src/app/ai-frames/page.tsx:1535:67)'}
+FrameGraphIntegration.tsx:1112 🔗 ID GENERATION: Connection document ID created: {originalConnectionId: 'edge_node_1762264673705_u5yvpsvun_0_node_1762264717014_vpfj4hq48_4_1762264721737_lquhrqzxy', originalLength: 90, generatedDocId: 'conn-2vsue', generatedLength: 10, schemaCompliant: true}
+FrameGraphIntegration.tsx:1153 🔗 SCHEMA CHECK: Connection document structure before insertion: {hasId: true, idLength: 10, hasTitle: true, hasContent: true, hasMetadata: true, …}
+react-dom-client.development.js:16378 [Violation] 'mouseup' handler took 234ms
+FrameGraphIntegration.tsx:1166 ✅ Connection inserted successfully: {connectionId: 'edge_node_1762264673705_u5yvpsvun_0_node_1762264717014_vpfj4hq48_4_1762264721737_lquhrqzxy', documentId: 'conn-2vsue', idLength: 10}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 4, edgeCount: 3, frameIds: Array(2), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:42.247Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 5, edgeCount: 3, frameIds: Array(2), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:46.364Z'}
+FrameGraphIntegration.tsx:1112 🔗 ID GENERATION: Connection document ID created: {originalConnectionId: 'edge_node_1762264725718_mdqvyebnr_5_node_1762264717014_vpfj4hq48_4_1762264734978_kq167mbmu', originalLength: 90, generatedDocId: 'conn-m46jzm', generatedLength: 11, schemaCompliant: true}
+FrameGraphIntegration.tsx:1153 🔗 SCHEMA CHECK: Connection document structure before insertion: {hasId: true, idLength: 11, hasTitle: true, hasContent: true, hasMetadata: true, …}
+react-dom-client.development.js:16378 [Violation] 'mouseup' handler took 234ms
+FrameGraphIntegration.tsx:1166 ✅ Connection inserted successfully: {connectionId: 'edge_node_1762264725718_mdqvyebnr_5_node_1762264717014_vpfj4hq48_4_1762264734978_kq167mbmu', documentId: 'conn-m46jzm', idLength: 11}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 4, edgeCount: 5, frameIds: Array(2), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:58:55.284Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 5, edgeCount: 5, frameIds: Array(2), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:59:00.573Z'}
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 5, edgeCount: 4, frameIds: Array(2), …}
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:59:04.413Z'}
+PDFAttachmentNode.tsx:106 🎯 PDF attachment data updated, triggering node data save: {nodeId: 'node_1762264725718_mm5gebb0n_6', title: 'slides.pdf', source: 'kb', kbDocumentId: 'doc_1762187233809_9wiaeo9vf'}
+PDFAttachmentNode.tsx:163 📡 PDF attachment updated, notifying connected frame: {frameId: 'frame-1762264717014-eda5n0av1', type: 'pdf-kb', source: 'kb'}
+react-dom-client.development.js:16378 [Violation] 'click' handler took 187ms
+useUnifiedStorage.ts:1331 ⏸️ Skipping delayed save - background save already in progress
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 5, edgeCount: 4, frameIds: Array(2), …}
+useUnifiedStorage.ts:1331 ⏸️ Skipping delayed save - background save already in progress
+useUnifiedStorage.ts:1331 ⏸️ Skipping delayed save - background save already in progress
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:59:07.548Z'}
 Navigated to http://localhost:3000/ai-frames
 analytics.ts:160 📱 Device Info Collected: {userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Ap…KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', platform: 'MacIntel', vendor: 'Google Inc.', language: 'en-US', languages: Array(4), …}
-analytics.ts:177 [Violation] Only request geolocation information in response to a user gesture.
-collectLocationInfo @ analytics.ts:177
-Analytics @ analytics.ts:75
-eval @ analytics.ts:556
-(app-pages-browser)/./src/lib/analytics.ts @ layout.js:7974
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
-eval @ Analytics.tsx:10
-(app-pages-browser)/./src/components/analytics/Analytics.tsx @ layout.js:7820
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
-Promise.then
-eval @ next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fnode_modules%2Fnext%2Ffont%2Fgoogle%2Ftarget.css%3F%7B%5C%22path%5C%22%3A%5C%22src%2Fapp%2Flayout.tsx%5C%22%2C%5C%22import%5C%22%3A%5C%22Poppins%5C%22%2C%5C%22arguments%5C%22%3A%5B%7B%5C%22variable%5C%22%3A%5C%22--font-poppins%5C%22%2C%5C%22subsets%5C%22%3A%5B%5C%22latin%5C%22%5D%2C%5C%22weight%5C%22%3A%5B%5C%22400%5C%22%2C%5C%22500%5C%22%2C%5C%22600%5C%22%2C%5C%22700%5C%22%5D%7D%5D%2C%5C%22variableName%5C%22%3A%5C%22poppins%5C%22%7D%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fapp%2Fglobals.css%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fanalytics%2FAnalytics.tsx%22%2C%22ids%22%3A%5B%22Analytics%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FSessionProvider.tsx%22%2C%22ids%22%3A%5B%22SessionProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2Ftheme-provider.tsx%22%2C%22ids%22%3A%5B%22ThemeProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FVectorStoreProvider.tsx%22%2C%22ids%22%3A%5B%22VectorStoreProvider%22%5D%7D&server=false!:5
-(app-pages-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fnode_modules%2Fnext%2Ffont%2Fgoogle%2Ftarget.css%3F%7B%5C%22path%5C%22%3A%5C%22src%2Fapp%2Flayout.tsx%5C%22%2C%5C%22import%5C%22%3A%5C%22Poppins%5C%22%2C%5C%22arguments%5C%22%3A%5B%7B%5C%22variable%5C%22%3A%5C%22--font-poppins%5C%22%2C%5C%22subsets%5C%22%3A%5B%5C%22latin%5C%22%5D%2C%5C%22weight%5C%22%3A%5B%5C%22400%5C%22%2C%5C%22500%5C%22%2C%5C%22600%5C%22%2C%5C%22700%5C%22%5D%7D%5D%2C%5C%22variableName%5C%22%3A%5C%22poppins%5C%22%7D%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fapp%2Fglobals.css%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fanalytics%2FAnalytics.tsx%22%2C%22ids%22%3A%5B%22Analytics%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FSessionProvider.tsx%22%2C%22ids%22%3A%5B%22SessionProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2Ftheme-provider.tsx%22%2C%22ids%22%3A%5B%22ThemeProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FVectorStoreProvider.tsx%22%2C%22ids%22%3A%5B%22VectorStoreProvider%22%5D%7D&server=false! @ layout.js:4998
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ layout.js:8073
-(anonymous) @ layout.js:8074
-__webpack_require__.O @ webpack.js?v=1762238029805:84
-(anonymous) @ layout.js:8075
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ layout.js:9
 analytics.ts:193 🌍 Location Info Collected: {timezone: 'Asia/Calcutta', timezoneOffset: -330, language: 'en-US'}
 analytics.ts:79 📊 GA4 Environment Variables Debug: {measurementId: 'G-V1B8R98P79', anonymizeIp: false, debugMode: false, siteName: 'TimeCapsule- SLM', siteUrl: 'http://localhost:3000', …}
 VectorStore.ts:22 -------------- RxDB dev-mode warning -------------------------------
@@ -54,54 +418,43 @@ init @ index.js:73
 addRxPlugin @ plugin.js:75
 eval @ VectorStore.ts:22
 (app-pages-browser)/./src/components/VectorStore/VectorStore.ts @ layout.js:7809
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ VectorStoreProvider.tsx:11
 (app-pages-browser)/./src/components/providers/VectorStoreProvider.tsx @ layout.js:7842
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 Promise.then
 eval @ next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fnode_modules%2Fnext%2Ffont%2Fgoogle%2Ftarget.css%3F%7B%5C%22path%5C%22%3A%5C%22src%2Fapp%2Flayout.tsx%5C%22%2C%5C%22import%5C%22%3A%5C%22Poppins%5C%22%2C%5C%22arguments%5C%22%3A%5B%7B%5C%22variable%5C%22%3A%5C%22--font-poppins%5C%22%2C%5C%22subsets%5C%22%3A%5B%5C%22latin%5C%22%5D%2C%5C%22weight%5C%22%3A%5B%5C%22400%5C%22%2C%5C%22500%5C%22%2C%5C%22600%5C%22%2C%5C%22700%5C%22%5D%7D%5D%2C%5C%22variableName%5C%22%3A%5C%22poppins%5C%22%7D%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fapp%2Fglobals.css%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fanalytics%2FAnalytics.tsx%22%2C%22ids%22%3A%5B%22Analytics%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FSessionProvider.tsx%22%2C%22ids%22%3A%5B%22SessionProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2Ftheme-provider.tsx%22%2C%22ids%22%3A%5B%22ThemeProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FVectorStoreProvider.tsx%22%2C%22ids%22%3A%5B%22VectorStoreProvider%22%5D%7D&server=false!:11
 (app-pages-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fnode_modules%2Fnext%2Ffont%2Fgoogle%2Ftarget.css%3F%7B%5C%22path%5C%22%3A%5C%22src%2Fapp%2Flayout.tsx%5C%22%2C%5C%22import%5C%22%3A%5C%22Poppins%5C%22%2C%5C%22arguments%5C%22%3A%5B%7B%5C%22variable%5C%22%3A%5C%22--font-poppins%5C%22%2C%5C%22subsets%5C%22%3A%5B%5C%22latin%5C%22%5D%2C%5C%22weight%5C%22%3A%5B%5C%22400%5C%22%2C%5C%22500%5C%22%2C%5C%22600%5C%22%2C%5C%22700%5C%22%5D%7D%5D%2C%5C%22variableName%5C%22%3A%5C%22poppins%5C%22%7D%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fapp%2Fglobals.css%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fanalytics%2FAnalytics.tsx%22%2C%22ids%22%3A%5B%22Analytics%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FSessionProvider.tsx%22%2C%22ids%22%3A%5B%22SessionProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2Ftheme-provider.tsx%22%2C%22ids%22%3A%5B%22ThemeProvider%22%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FVectorStoreProvider.tsx%22%2C%22ids%22%3A%5B%22VectorStoreProvider%22%5D%7D&server=false! @ layout.js:4998
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
 __webpack_exec__ @ layout.js:8073
 (anonymous) @ layout.js:8074
-__webpack_require__.O @ webpack.js?v=1762238029805:84
+__webpack_require__.O @ webpack.js?v=1762264751027:84
 (anonymous) @ layout.js:8075
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
 (anonymous) @ layout.js:9
-analytics.ts:183 🌍 Location Info Updated: {timezone: 'Asia/Calcutta', timezoneOffset: -330, language: 'en-US', latitude: 19.168426846232684, longitude: 72.84656913435076, …}
-unifiedStorage.ts:117 📂 Starting unified load...
+analytics.ts:183 🌍 Location Info Updated: {timezone: 'Asia/Calcutta', timezoneOffset: -330, language: 'en-US', latitude: 19.168235763632616, longitude: 72.84637523697, …}
 page.tsx:290 🔄 Loading initial data with unified storage...
-unifiedStorage.ts:117 📂 Starting unified load...
 page.tsx:386 🔧 AI-Frames unified storage interface updated: {hasVectorStore: false, vectorStoreInitialized: false, frameCount: 0, hasUnifiedMethods: true}
 VectorStoreProvider.tsx:143 🚀 Auto-initializing VectorStore for route: /ai-frames
 VectorStoreProvider.tsx:79 🚀 VectorStoreProvider: Creating new singleton VectorStore...
 RAGTracker.ts:26 🔍 RAG Tracker initialized with config: {enableTracking: true, enableVisualization: true, enablePerformanceMetrics: true, enableQualityMetrics: false, maxQueryHistory: 1000, …}
-VectorStore.ts:199 🗂️ VectorStore constructor called
-VectorStore.ts:200 🔍 RAG Tracker initialized for VectorStore
-VectorStore.ts:261 🗂️ Initializing RxDB Vector Store...
-VectorStore.ts:264 🤖 Loading document processor and starting immediate Xenova download...
 EmbeddingService.ts:35 🧠 Xenova environment configured for CDN loading
 DocumentProcessor.ts:61 🔧 DocumentProcessor constructor called (new architecture)
-VectorStore.ts:268 🧠 Starting immediate background Xenova download...
-VectorStore.ts:2119 🧠 Starting immediate Xenova download in background...
-VectorStore.ts:2136 🔄 Initializing web worker (attempt 1/3)...
 DocumentProcessor.ts:72 🔧 Initializing DocumentProcessor with immediate download architecture...
 DocumentProcessor.ts:95 🔧 Initializing text processing worker...
-VectorStore.ts:313 📚 Creating RxDB database...
-unifiedStorage.ts:122 ✅ Loaded from localStorage: 0 frames, 1 nodes
-unifiedStorage.ts:122 ✅ Loaded from localStorage: 0 frames, 1 nodes
-useUnifiedStorage.ts:826 ⚠️ No matching frame found for node node_1762238023879_t17226dht_0 with frameId: undefined
+useUnifiedStorage.ts:847 ✅ Node node_1762264673705_u5yvpsvun_0 already in sync with frame data
+useUnifiedStorage.ts:850 ⚠️ No matching frame found for node node_1762264682589_fnf4qpar3_1 with frameId: undefined
 overrideMethod @ hook.js:608
-useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:826
-useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:794
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:850
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:818
 await in useUnifiedStorage.useCallback[loadAll]
-useUnifiedStorage.useEffect.initializeData @ useUnifiedStorage.ts:1121
-useUnifiedStorage.useEffect @ useUnifiedStorage.ts:1125
+useUnifiedStorage.useEffect.initializeData @ useUnifiedStorage.ts:1146
+useUnifiedStorage.useEffect @ useUnifiedStorage.ts:1150
 react-stack-bottom-frame @ react-dom-client.development.js:23055
 runWithFiberInDEV @ react-dom-client.development.js:845
 commitHookEffectListMount @ react-dom-client.development.js:11978
@@ -272,27 +625,415 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
-useUnifiedStorage.ts:839 ✅ Load completed: 0 frames
-useUnifiedStorage.ts:826 ⚠️ No matching frame found for node node_1762238023879_t17226dht_0 with frameId: undefined
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+useUnifiedStorage.ts:850 ⚠️ No matching frame found for node node_1762264700136_dh1z7t1uh_2 with frameId: undefined
 overrideMethod @ hook.js:608
-useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:826
-useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:794
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:850
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:818
+await in useUnifiedStorage.useCallback[loadAll]
+useUnifiedStorage.useEffect.initializeData @ useUnifiedStorage.ts:1146
+useUnifiedStorage.useEffect @ useUnifiedStorage.ts:1150
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+<AIFramesPage>
+exports.jsx @ react-jsx-runtime.development.js:339
+ClientPageRoot @ client-page.js:20
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+eval @ react-server-dom-webpack-client.browser.development.js:2354
+initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
+resolveModelChunk @ react-server-dom-webpack-client.browser.development.js:1031
+resolveModel @ react-server-dom-webpack-client.browser.development.js:1599
+processFullStringRow @ react-server-dom-webpack-client.browser.development.js:2288
+processFullBinaryRow @ react-server-dom-webpack-client.browser.development.js:2233
+progress @ react-server-dom-webpack-client.browser.development.js:2479
+"use server"
+ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
+createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
+exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
+eval @ app-index.js:132
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
+eval @ app-next-dev.js:11
+eval @ app-bootstrap.js:62
+loadScriptsInSequence @ app-bootstrap.js:23
+appBootstrap @ app-bootstrap.js:56
+eval @ app-next-dev.js:10
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+useUnifiedStorage.ts:847 ✅ Node node_1762264717014_vpfj4hq48_4 already in sync with frame data
+useUnifiedStorage.ts:850 ⚠️ No matching frame found for node node_1762264725718_mdqvyebnr_5 with frameId: undefined
+overrideMethod @ hook.js:608
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:850
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:818
+await in useUnifiedStorage.useCallback[loadAll]
+useUnifiedStorage.useEffect.initializeData @ useUnifiedStorage.ts:1146
+useUnifiedStorage.useEffect @ useUnifiedStorage.ts:1150
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+<AIFramesPage>
+exports.jsx @ react-jsx-runtime.development.js:339
+ClientPageRoot @ client-page.js:20
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+eval @ react-server-dom-webpack-client.browser.development.js:2354
+initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
+resolveModelChunk @ react-server-dom-webpack-client.browser.development.js:1031
+resolveModel @ react-server-dom-webpack-client.browser.development.js:1599
+processFullStringRow @ react-server-dom-webpack-client.browser.development.js:2288
+processFullBinaryRow @ react-server-dom-webpack-client.browser.development.js:2233
+progress @ react-server-dom-webpack-client.browser.development.js:2479
+"use server"
+ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
+createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
+exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
+eval @ app-index.js:132
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
+eval @ app-next-dev.js:11
+eval @ app-bootstrap.js:62
+loadScriptsInSequence @ app-bootstrap.js:23
+appBootstrap @ app-bootstrap.js:56
+eval @ app-next-dev.js:10
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+useUnifiedStorage.ts:863 ✅ Load completed: 2 frames
+useUnifiedStorage.ts:847 ✅ Node node_1762264673705_u5yvpsvun_0 already in sync with frame data
+useUnifiedStorage.ts:850 ⚠️ No matching frame found for node node_1762264682589_fnf4qpar3_1 with frameId: undefined
+overrideMethod @ hook.js:608
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:850
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:818
 await in useUnifiedStorage.useCallback[loadAll]
 AIFramesPage.useEffect.loadInitialData @ page.tsx:293
 AIFramesPage.useEffect @ page.tsx:310
@@ -466,23 +1207,410 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
-useUnifiedStorage.ts:839 ✅ Load completed: 0 frames
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+useUnifiedStorage.ts:850 ⚠️ No matching frame found for node node_1762264700136_dh1z7t1uh_2 with frameId: undefined
+overrideMethod @ hook.js:608
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:850
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:818
+await in useUnifiedStorage.useCallback[loadAll]
+AIFramesPage.useEffect.loadInitialData @ page.tsx:293
+AIFramesPage.useEffect @ page.tsx:310
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+<AIFramesPage>
+exports.jsx @ react-jsx-runtime.development.js:339
+ClientPageRoot @ client-page.js:20
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+eval @ react-server-dom-webpack-client.browser.development.js:2354
+initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
+resolveModelChunk @ react-server-dom-webpack-client.browser.development.js:1031
+resolveModel @ react-server-dom-webpack-client.browser.development.js:1599
+processFullStringRow @ react-server-dom-webpack-client.browser.development.js:2288
+processFullBinaryRow @ react-server-dom-webpack-client.browser.development.js:2233
+progress @ react-server-dom-webpack-client.browser.development.js:2479
+"use server"
+ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
+createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
+exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
+eval @ app-index.js:132
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
+eval @ app-next-dev.js:11
+eval @ app-bootstrap.js:62
+loadScriptsInSequence @ app-bootstrap.js:23
+appBootstrap @ app-bootstrap.js:56
+eval @ app-next-dev.js:10
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+useUnifiedStorage.ts:847 ✅ Node node_1762264717014_vpfj4hq48_4 already in sync with frame data
+useUnifiedStorage.ts:850 ⚠️ No matching frame found for node node_1762264725718_mdqvyebnr_5 with frameId: undefined
+overrideMethod @ hook.js:608
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:850
+useUnifiedStorage.useCallback[loadAll] @ useUnifiedStorage.ts:818
+await in useUnifiedStorage.useCallback[loadAll]
+AIFramesPage.useEffect.loadInitialData @ page.tsx:293
+AIFramesPage.useEffect @ page.tsx:310
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+<AIFramesPage>
+exports.jsx @ react-jsx-runtime.development.js:339
+ClientPageRoot @ client-page.js:20
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+eval @ react-server-dom-webpack-client.browser.development.js:2354
+initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
+resolveModelChunk @ react-server-dom-webpack-client.browser.development.js:1031
+resolveModel @ react-server-dom-webpack-client.browser.development.js:1599
+processFullStringRow @ react-server-dom-webpack-client.browser.development.js:2288
+processFullBinaryRow @ react-server-dom-webpack-client.browser.development.js:2233
+progress @ react-server-dom-webpack-client.browser.development.js:2479
+"use server"
+ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
+createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
+exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
+eval @ app-index.js:132
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
+eval @ app-next-dev.js:11
+eval @ app-bootstrap.js:62
+loadScriptsInSequence @ app-bootstrap.js:23
+appBootstrap @ app-bootstrap.js:56
+eval @ app-next-dev.js:10
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+useUnifiedStorage.ts:863 ✅ Load completed: 2 frames
 page.tsx:296 ✅ Unified storage load completed successfully
 page.tsx:301 ✅ Initial data loading complete
 VectorStore.ts:320 -------------- RxDB Open Core RxStorage -------------------------------
@@ -595,23 +1723,22 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
-VectorStore.ts:327 📄 Creating documents collection...
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
 navbar.tsx:70 Image with src "/Media/TimeCapsule_04.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
 overrideMethod @ hook.js:608
 warnOnce @ warn-once.js:16
@@ -849,170 +1976,32 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
+page.tsx:386 🔧 AI-Frames unified storage interface updated: {hasVectorStore: false, vectorStoreInitialized: false, frameCount: 2, hasUnifiedMethods: true}
+VectorStoreProvider.tsx:146 ⏭️ Skipping auto-init for /ai-frames: {isInitialized: false, isInitializing: true, attemptedBefore: true, singletonInitialized: false}
 embeddingWorker.js:487 🔧 Text processing worker loaded successfully
 embeddingWorker.js:59 🔧 Initializing text processing worker...
-VectorStoreProvider.tsx:146 ⏭️ Skipping auto-init for /ai-frames: {isInitialized: false, isInitializing: true, attemptedBefore: true, singletonInitialized: false}
 embeddingWorker.js:73 ✅ Text processing worker initialized successfully
 DocumentProcessor.ts:116 ✅ Text processing worker ready
 DocumentProcessor.ts:125 ✅ DocumentProcessor initialization complete (embeddings will load when needed)
-VectorStore.ts:2138 ✅ Web worker initialized successfully
-VectorStore.ts:2156 🧠 Starting Xenova embedding service download...
 EmbeddingService.ts:69 🧠 Starting Xenova embedding service initialization...
 EmbeddingService.ts:77 ✅ Loading model (checking cache)...
 EmbeddingService.ts:84 📦 Loading Xenova/bge-small-en-v1.5 model from Hugging Face CDN...
-SessionProvider.tsx:11 Fetch finished loading: GET "http://localhost:3000/api/auth/session".
-fetchData @ client.js:44
-getSession @ react.js:123
-SessionProvider.useEffect @ react.js:289
-SessionProvider.useEffect @ react.js:317
-react-stack-bottom-frame @ react-dom-client.development.js:23055
-runWithFiberInDEV @ react-dom-client.development.js:845
-commitHookEffectListMount @ react-dom-client.development.js:11978
-commitHookPassiveMountEffects @ react-dom-client.development.js:12099
-commitPassiveMountOnFiber @ react-dom-client.development.js:13929
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13932
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13932
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13932
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13932
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13922
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:14048
-recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
-commitPassiveMountOnFiber @ react-dom-client.development.js:13941
-flushPassiveEffects @ react-dom-client.development.js:15869
-eval @ react-dom-client.development.js:15505
-performWorkUntilDeadline @ scheduler.development.js:45
-<SessionProvider>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
-SessionProvider @ SessionProvider.tsx:11
-react-stack-bottom-frame @ react-dom-client.development.js:22974
-renderWithHooksAgain @ react-dom-client.development.js:6767
-renderWithHooks @ react-dom-client.development.js:6679
-updateFunctionComponent @ react-dom-client.development.js:8931
-beginWork @ react-dom-client.development.js:10505
-runWithFiberInDEV @ react-dom-client.development.js:845
-performUnitOfWork @ react-dom-client.development.js:15258
-workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
-renderRootConcurrent @ react-dom-client.development.js:15227
-performWorkOnRoot @ react-dom-client.development.js:14525
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
-performWorkUntilDeadline @ scheduler.development.js:45
-"use client"
-RootLayout @ layout.tsx:172
-eval @ react-server-dom-webpack-client.browser.development.js:2355
-initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
-getOutlinedModel @ react-server-dom-webpack-client.browser.development.js:1327
-parseModelString @ react-server-dom-webpack-client.browser.development.js:1540
-eval @ react-server-dom-webpack-client.browser.development.js:2294
-initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
-resolveModelChunk @ react-server-dom-webpack-client.browser.development.js:1031
-resolveModel @ react-server-dom-webpack-client.browser.development.js:1599
-processFullStringRow @ react-server-dom-webpack-client.browser.development.js:2288
-processFullBinaryRow @ react-server-dom-webpack-client.browser.development.js:2233
-progress @ react-server-dom-webpack-client.browser.development.js:2479
-<RootLayout>
-buildFakeTask @ react-server-dom-webpack-client.browser.development.js:2040
-initializeFakeTask @ react-server-dom-webpack-client.browser.development.js:2027
-resolveDebugInfo @ react-server-dom-webpack-client.browser.development.js:2063
-processFullStringRow @ react-server-dom-webpack-client.browser.development.js:2261
-processFullBinaryRow @ react-server-dom-webpack-client.browser.development.js:2233
-progress @ react-server-dom-webpack-client.browser.development.js:2479
-"use server"
-ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
-createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
-exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
-eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
-eval @ app-next-dev.js:11
-eval @ app-bootstrap.js:62
-loadScriptsInSequence @ app-bootstrap.js:23
-appBootstrap @ app-bootstrap.js:56
-eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
 dialog.tsx:60 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
 overrideMethod @ hook.js:608
 DescriptionWarning.useEffect @ index.mjs:477
@@ -1349,22 +2338,22 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
 dialog.tsx:60 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
 overrideMethod @ hook.js:600
 DescriptionWarning.useEffect @ index.mjs:477
@@ -1624,49 +2613,48 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
 Analytics.tsx:39 ⏳ Analytics: Skipping page tracking - no consent or not initialized
-VectorStore.ts:493 ✅ RxDB Vector Store initialized successfully
-VectorStore.ts:494 🧠 Xenova download running in background...
 VectorStoreProvider.tsx:85 ✅ VectorStoreProvider: Singleton VectorStore initialized successfully
-EmbeddingService.ts:98 Unable to determine content-length from response headers. Will expand buffer when needed.
-overrideMethod @ hook.js:608
-readResponse @ hub.js:607
-getModelFile @ hub.js:536
-await in getModelFile
-getModelJSON @ hub.js:584
-loadTokenizer @ tokenizers.js:106
-from_pretrained @ tokenizers.js:4503
-loadItems @ pipelines.js:3261
-pipeline @ pipelines.js:3209
-performImmediateInitialization @ EmbeddingService.ts:98
-init @ EmbeddingService.ts:58
-initializeXenovaService @ VectorStore.ts:2164
-startImmediateBackgroundDownload @ VectorStore.ts:2125
-await in startImmediateBackgroundDownload
-init @ VectorStore.ts:277
-VectorStoreProvider.useCallback[initializeVectorStore] @ VectorStoreProvider.tsx:84
-VectorStoreProvider.useEffect @ VectorStoreProvider.tsx:144
+SessionProvider.tsx:11 Fetch finished loading: GET "http://localhost:3000/api/auth/session".
+fetchData @ client.js:44
+getSession @ react.js:123
+SessionProvider.useEffect @ react.js:289
+SessionProvider.useEffect @ react.js:317
 react-stack-bottom-frame @ react-dom-client.development.js:23055
 runWithFiberInDEV @ react-dom-client.development.js:845
 commitHookEffectListMount @ react-dom-client.development.js:11978
 commitHookPassiveMountEffects @ react-dom-client.development.js:12099
 commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
 recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
 commitPassiveMountOnFiber @ react-dom-client.development.js:14048
 recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
@@ -1724,8 +2712,23 @@ commitPassiveMountOnFiber @ react-dom-client.development.js:13941
 flushPassiveEffects @ react-dom-client.development.js:15869
 eval @ react-dom-client.development.js:15505
 performWorkUntilDeadline @ scheduler.development.js:45
+<SessionProvider>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+SessionProvider @ SessionProvider.tsx:11
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
 "use client"
-RootLayout @ layout.tsx:165
+RootLayout @ layout.tsx:172
 eval @ react-server-dom-webpack-client.browser.development.js:2355
 initializeModelChunk @ react-server-dom-webpack-client.browser.development.js:1054
 getOutlinedModel @ react-server-dom-webpack-client.browser.development.js:1327
@@ -1749,74 +2752,216 @@ ResponseInstance @ react-server-dom-webpack-client.browser.development.js:1587
 createResponseFromOptions @ react-server-dom-webpack-client.browser.development.js:2396
 exports.createFromReadableStream @ react-server-dom-webpack-client.browser.development.js:2717
 eval @ app-index.js:132
-(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762238029805:160
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-fn @ webpack.js?v=1762238029805:369
+(app-pages-browser)/./node_modules/next/dist/client/app-index.js @ main-app.js?v=1762264751027:160
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+fn @ webpack.js?v=1762264751027:369
 eval @ app-next-dev.js:11
 eval @ app-bootstrap.js:62
 loadScriptsInSequence @ app-bootstrap.js:23
 appBootstrap @ app-bootstrap.js:56
 eval @ app-next-dev.js:10
-(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762238029805:182
-options.factory @ webpack.js?v=1762238029805:712
-__webpack_require__ @ webpack.js?v=1762238029805:37
-__webpack_exec__ @ main-app.js?v=1762238029805:2824
-(anonymous) @ main-app.js?v=1762238029805:2825
-webpackJsonpCallback @ webpack.js?v=1762238029805:1388
-(anonymous) @ main-app.js?v=1762238029805:9
+(app-pages-browser)/./node_modules/next/dist/client/app-next-dev.js @ main-app.js?v=1762264751027:182
+options.factory @ webpack.js?v=1762264751027:712
+__webpack_require__ @ webpack.js?v=1762264751027:37
+__webpack_exec__ @ main-app.js?v=1762264751027:2824
+(anonymous) @ main-app.js?v=1762264751027:2825
+webpackJsonpCallback @ webpack.js?v=1762264751027:1388
+(anonymous) @ main-app.js?v=1762264751027:9
 GraphStorageManager.ts:84 🗂️ Initializing GraphStorageManager with VectorStore backend...
 GraphStorageManager.ts:86 ✅ GraphStorageManager initialized successfully
-page.tsx:386 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 0, hasUnifiedMethods: true}
+page.tsx:386 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 2, hasUnifiedMethods: true}
 VectorStoreProvider.tsx:146 ⏭️ Skipping auto-init for /ai-frames: {isInitialized: true, isInitializing: false, attemptedBefore: true, singletonInitialized: true}
 MetadataManager.ts:1022 📋 Syncing metadata with vector store...
 MetadataManager.ts:611 🔄 Starting enhanced metadata sync to Knowledge Base... {bubblSpacesCount: 1, timeCapslesCount: 1, vectorStoreStatus: {…}}
 MetadataManager.ts:628 📝 Syncing BubblSpace: My BubblSpace (ID: bubblspace-bubbl-1762166245688iq)
-VectorStore.ts:1008 🗑️ Deleting document: bubblspace-bubbl-1762166245688iq (attempt 1/5)
 page.tsx:233 ✅ Managers initialized successfully
+useUnifiedStorage.ts:600 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 1, nodeCount: 5, edgeCount: 4, frameIds: Array(2), …}
 client.js:44 Fetch finished loading: GET "http://localhost:3000/api/auth/session".
 fetchData @ client.js:44
 getSession @ react.js:123
 SessionProvider.useEffect @ react.js:289
 SessionProvider.useEffect.handle @ react.js:332
-VectorStore.ts:1672 📋 Retrieved latest revision for bubblspace-bubbl-1762166245688iq: 109-rdawigjmra
-VectorStore.ts:1016 📋 Document bubblspace-bubbl-1762166245688iq found with revision: 109-rdawigjmra
-useDocuments.ts:73 📊 Document status updated: {documents: 15, totalSize: '4.1 MB', totalChunks: 3, totalVectors: 3, avgChunksPerDoc: '0.2', …}
-VectorStore.ts:1020 ✅ Document deleted successfully: bubblspace-bubbl-1762166245688iq
+hook.js:608 Unable to determine content-length from response headers. Will expand buffer when needed.
+overrideMethod @ hook.js:608
+readResponse @ hub.js:607
+getModelFile @ hub.js:536
+useDocuments.ts:73 📊 Document status updated: {documents: 29, totalSize: '4.1 MB', totalChunks: 3, totalVectors: 3, avgChunksPerDoc: '0.1', …}
+FrameGraphIntegration.tsx:1054 📋 SCHEMA CHECK: Session document structure before insertion: {hasId: true, hasTitle: true, hasContent: true, hasMetadata: true, hasChunks: true, …}
+FrameGraphIntegration.tsx:1066 ✅ Session document inserted successfully: {sessionId: 'session_1762264753827', documentId: 'sess-1762264753827-mlzq4v'}
 MetadataManager.ts:634 🗑️ Deleted old BubblSpace document: bubblspace-bubbl-1762166245688iq
+EmbeddingService.ts:129 ✅ Model loaded successfully
 EmbeddingService.ts:147 ✅ Model loaded from cache instantly
-VectorStore.ts:2170 📊 Xenova progress: Embedding model ready (100%)
 EmbeddingService.ts:156 ✅ EmbeddingService initialized successfully
-VectorStore.ts:2176 ✅ Xenova embedding service ready
-VectorStore.ts:2127 ✅ Immediate background download completed
-VectorStore.ts:286 ✅ Xenova model loaded from cache - all features ready
-VectorStore.ts:295 🔍 Status set to ready. Full status: {isInitialized: true, downloadStatus: 'ready', hasDocumentProcessor: true, processorAvailable: true, processingAvailable: true, …}
-VectorStore.ts:1877 🔄 Bypassing duplicate detection for metadata update: BubblSpace: My BubblSpace
-VectorStore.ts:1814 ✅ Document inserted: bubblspace-bubbl-1762166245688iq
-VectorStore.ts:2262 🔍 Verifying document persistence: bubblspace-bubbl-1762166245688iq (attempt 1/3)
-VectorStore.ts:2307 💾 Database flush completed
-VectorStore.ts:1672 📋 Retrieved latest revision for bubblspace-bubbl-1762166245688iq: 111-onpoajxtcd
-VectorStore.ts:2275 ✅ Document persistence verified: BubblSpace: My BubblSpace (ID: bubblspace-bubbl-1762166245688iq, Rev: 111-onpoajxtcd)
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+g.Rj @ base.js:3165
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+g.Rj @ base.js:3165
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+kXg @ base.js:5140
+g.F.updateVideoData @ base.js:12708
+g.Rj @ base.js:3169
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+BE @ base.js:7217
+g.Rj @ base.js:3169
+pxA @ base.js:6934
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
+base.js:8650 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+Y1.N @ base.js:8650
+g.F.N @ base.js:12174
+$1 @ base.js:974
+g.j2 @ base.js:3155
+UWC @ base.js:7400
+pxA @ base.js:6939
+g.F.init @ base.js:12891
+g.oW.create @ base.js:12945
+GL @ base.js:752
+g.T6 @ base.js:4389
+g.T6.create @ base.js:13389
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10
 MetadataManager.ts:681 ✅ BubblSpace synced to Knowledge Base: My BubblSpace
 MetadataManager.ts:686 ✅ BubblSpace persistence verified: My BubblSpace
 MetadataManager.ts:715 📝 Syncing TimeCapsule: Untitled TimeCapsule (ID: timecapsule-TC-1762166245689mq)
-VectorStore.ts:1008 🗑️ Deleting document: timecapsule-TC-1762166245689mq (attempt 1/5)
-VectorStore.ts:1672 📋 Retrieved latest revision for timecapsule-TC-1762166245689mq: 109-rdawigjmra
-VectorStore.ts:1016 📋 Document timecapsule-TC-1762166245689mq found with revision: 109-rdawigjmra
-VectorStore.ts:1020 ✅ Document deleted successfully: timecapsule-TC-1762166245689mq
 MetadataManager.ts:721 🗑️ Deleted old TimeCapsule document: timecapsule-TC-1762166245689mq
-VectorStore.ts:1877 🔄 Bypassing duplicate detection for metadata update: TimeCapsule: Untitled TimeCapsule
-VectorStore.ts:1884 📋 Found 0 existing TimeCapsule documents for timeCapsuleId: TC-1762166245689mq
-VectorStore.ts:1701 📋 TimeCapsule document operation: {id: 'timecapsule-TC-1762166245689mq', title: 'TimeCapsule: Untitled TimeCapsule', source: 'metadata', timeCapsuleId: 'TC-1762166245689mq', name: 'Untitled TimeCapsule', …}
-VectorStore.ts:1814 ✅ Document inserted: timecapsule-TC-1762166245689mq
-VectorStore.ts:2262 🔍 Verifying document persistence: timecapsule-TC-1762166245689mq (attempt 1/3)
-VectorStore.ts:2307 💾 Database flush completed
-VectorStore.ts:1672 📋 Retrieved latest revision for timecapsule-TC-1762166245689mq: 111-onpoajxtcd
-VectorStore.ts:2275 ✅ Document persistence verified: TimeCapsule: Untitled TimeCapsule (ID: timecapsule-TC-1762166245689mq, Rev: 111-onpoajxtcd)
+useUnifiedStorage.ts:638 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-04T13:59:14.349Z'}
+base.js:6026 [Violation] 'setTimeout' handler took 51ms
+www-embed-player.js:1228 XHR finished loading: GET "https://googleads.g.doubleclick.net/pagead/id".
+Nq @ www-embed-player.js:1228
+Rq @ www-embed-player.js:1233
+(anonymous) @ www-embed-player.js:1829
+Fk @ www-embed-player.js:678
+Ny @ www-embed-player.js:1826
+Zp @ www-embed-player.js:1848
+gz @ www-embed-player.js:1853
+mA @ www-embed-player.js:1906
+(anonymous) @ www-embed-player.js:2342
+(anonymous) @ po7doQNkhuU?start=0:10
 MetadataManager.ts:772 ✅ TimeCapsule synced to Knowledge Base: Untitled TimeCapsule
 MetadataManager.ts:777 ✅ TimeCapsule persistence verified: Untitled TimeCapsule
 MetadataManager.ts:806 ✅ All metadata synced to Knowledge Base successfully {syncedBubblSpaces: 1, syncedTimeCapsules: 1, totalItems: 2}
 MetadataManager.ts:1027 ✅ Metadata synced with vector store
-scheduler.development.js:14 [Violation] 'message' handler took 156ms
-
-# Test 02
+www-embed-player.js:1228 XHR finished loading: POST "https://www.youtube.com/youtubei/v1/log_event?alt=json".
+Nq @ www-embed-player.js:1228
+Rq @ www-embed-player.js:1233
+iw @ www-embed-player.js:1643
+p.sendAndWrite @ www-embed-player.js:1546
+hw.sendAndWrite @ www-embed-player.js:1638
+e @ www-embed-player.js:1654
+(anonymous) @ www-embed-player.js:1662
+Promise.then
+pv @ www-embed-player.js:1662
+Zx @ www-embed-player.js:1770
+ay @ www-embed-player.js:1761
+(anonymous) @ www-embed-player.js:1759
+Fk @ www-embed-player.js:678
+Vx @ www-embed-player.js:1759
+c @ www-embed-player.js:1762
+(anonymous) @ www-embed-player.js:1764
+(anonymous) @ www-embed-player.js:1196
+setTimeout
+Dq @ www-embed-player.js:1217
+Xx @ www-embed-player.js:1777
+Yx @ www-embed-player.js:1764
+Ux @ www-embed-player.js:1756
+Ox @ www-embed-player.js:1754
+hy @ www-embed-player.js:1785
+Cs @ www-embed-player.js:1786
+UA.tick @ www-embed-player.js:1955
+gB @ www-embed-player.js:1977
+(anonymous) @ www-embed-player.js:1196
+yB @ www-embed-player.js:2002
+IE @ www-embed-player.js:2338
+p.yb @ www-embed-player.js:992
+pE @ www-embed-player.js:2282
+kE @ www-embed-player.js:2281
+a.G @ www-embed-player.js:2278
+dE @ www-embed-player.js:2279
+p.loadNewVideoConfig @ www-embed-player.js:2273
+(anonymous) @ www-embed-player.js:2271
+setTimeout
+aE @ www-embed-player.js:2271
+uE @ www-embed-player.js:2311
+(anonymous) @ www-embed-player.js:2344
+(anonymous) @ po7doQNkhuU?start=0:10

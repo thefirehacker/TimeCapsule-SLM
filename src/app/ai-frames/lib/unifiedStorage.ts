@@ -55,7 +55,12 @@ export class UnifiedStorageManager {
   }
 
   // UNIFIED SAVE: Single method that saves to ALL storage layers with SAME format
-  async saveAll(frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState): Promise<boolean> {
+  async saveAll(
+    frames: UnifiedAIFrame[],
+    chapters: UnifiedChapter[],
+    graphState: GraphState,
+    options: { skipVectorStore?: boolean } = {}
+  ): Promise<boolean> {
     // PREVENT: Concurrent saves that cause conflicts
     if (this.isSaving) {
       console.log("⏳ Save already in progress, skipping...");
@@ -64,7 +69,10 @@ export class UnifiedStorageManager {
 
     try {
       this.isSaving = true;
-      console.log("💾 Starting unified save...");
+      const { skipVectorStore = false } = options;
+      console.log("💾 Starting unified save...", {
+        skipVectorStore,
+      });
 
       // STEP 1: Normalize frame data to unified format
       const unifiedFrames = this.normalizeFrames(frames);
@@ -73,12 +81,17 @@ export class UnifiedStorageManager {
       // STEP 2: Create complete app state
       const appState = this.createAppState(unifiedFrames, unifiedChapters, graphState);
       
-      // STEP 3: Save to ALL storage layers with SAME format
-      const results = await Promise.allSettled([
+      // STEP 3: Save to storage layers (optionally skip VectorStore for graph-only updates)
+      const saveTasks: Promise<void>[] = [
         this.saveToLocalStorage(appState),
-        this.saveToVectorStore(appState),
-        this.saveToIndexedDB(appState)
-      ]);
+        this.saveToIndexedDB(appState),
+      ];
+
+      if (!skipVectorStore) {
+        saveTasks.push(this.saveToVectorStore(appState));
+      }
+
+      const results = await Promise.allSettled(saveTasks);
 
       // STEP 4: Verify all saves succeeded
       const failures = results.filter(r => r.status === 'rejected');
@@ -370,8 +383,8 @@ export class UnifiedStorageManager {
     }
   }
 
-  // VECTORSTORE: Load with consistent parsing
-  private async loadFromVectorStore(): Promise<{ frames: UnifiedAIFrame[]; graphState: GraphState } | null> {
+  // VECTOR STORE: Load with consistent parsing
+  private async loadFromVectorStore(): Promise<{ frames: UnifiedAIFrame[]; chapters: UnifiedChapter[]; graphState: GraphState } | null> {
     if (!this.vectorStore) return null;
 
     try {
@@ -424,6 +437,36 @@ export class UnifiedStorageManager {
     }
   }
 
+  // SANITIZATION: Remove functions from objects for IndexedDB compatibility
+  private sanitizeForIndexedDB(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeForIndexedDB(item));
+    }
+
+    // Handle objects
+    if (typeof obj === 'object') {
+      const sanitized: any = {};
+      for (const key in obj) {
+        const value = obj[key];
+        // Skip functions
+        if (typeof value === 'function') {
+          continue;
+        }
+        // Recursively sanitize nested objects
+        sanitized[key] = this.sanitizeForIndexedDB(value);
+      }
+      return sanitized;
+    }
+
+    // Return primitives as-is
+    return obj;
+  }
+
   // INDEXEDDB: Simple implementation as backup storage
   private async saveToIndexedDB(appState: UnifiedAppState): Promise<void> {
     try {
@@ -431,6 +474,9 @@ export class UnifiedStorageManager {
         console.log("📝 IndexedDB not available, skipping");
         return;
       }
+
+      // CRITICAL: Sanitize appState to remove functions before saving
+      const sanitizedAppState = this.sanitizeForIndexedDB(appState);
 
       // Create a simple key-value store in IndexedDB
       const dbRequest = indexedDB.open('ai-frames-unified', 1);
@@ -477,7 +523,7 @@ export class UnifiedStorageManager {
         const store = transaction.objectStore('appState');
 
         await new Promise<void>((resolve, reject) => {
-          const request = store.put(appState, 'current');
+          const request = store.put(sanitizedAppState, 'current');
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
         });
@@ -489,9 +535,9 @@ export class UnifiedStorageManager {
 
       const transaction = db.transaction(['appState'], 'readwrite');
       const store = transaction.objectStore('appState');
-      
+
       await new Promise<void>((resolve, reject) => {
-        const request = store.put(appState, 'current');
+        const request = store.put(sanitizedAppState, 'current');
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });

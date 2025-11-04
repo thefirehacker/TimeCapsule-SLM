@@ -765,7 +765,7 @@ export default function EnhancedLearningGraph({
     const edgesToKeep: Edge[] = [];
     const existingPairs = new Set<string>();
 
-    currentEdges.forEach(edge => {
+    currentEdges.forEach((edge: Edge) => {
       const sourceNode = nodeById.get(edge.source);
       const targetNode = nodeById.get(edge.target);
       if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {

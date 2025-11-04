@@ -78,11 +78,13 @@ export const useUnifiedStorage = ({
     pendingFrames: UnifiedAIFrame[] | null;
     pendingChapters: UnifiedChapter[] | null;
     pendingGraphState: GraphState | null;
+    pendingOptions: { priority?: boolean; skipVectorStore?: boolean } | null;
   }>({
     isProcessing: false,
     pendingFrames: null,
     pendingChapters: null,
-    pendingGraphState: null
+    pendingGraphState: null,
+    pendingOptions: null
   });
 
   // INITIALIZATION: Set up unified storage
@@ -466,7 +468,20 @@ export const useUnifiedStorage = ({
     return JSON.stringify(serialize(a)) === JSON.stringify(serialize(b));
   }, []);
 
-  const queueBackgroundSave = useCallback(async (frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState, priority = false) => {
+  const queueBackgroundSave = useCallback(async (
+    frames: UnifiedAIFrame[],
+    chapters: UnifiedChapter[],
+    graphState: GraphState,
+    options: boolean | { priority?: boolean; skipVectorStore?: boolean } = {}
+  ) => {
+    const normalizedOptions =
+      typeof options === 'boolean'
+        ? { priority: options }
+        : options || {};
+    const priority = normalizedOptions.priority ?? false;
+    const skipVectorStore = normalizedOptions.skipVectorStore ?? false;
+    const queueOptions = { priority, skipVectorStore };
+
     const resolveFrames = (candidate: UnifiedAIFrame[] | null | undefined) => {
       if (candidate && candidate.length > 0) return candidate;
       if (framesRef.current && framesRef.current.length > 0) return framesRef.current;
@@ -493,6 +508,7 @@ export const useUnifiedStorage = ({
       backgroundSaveQueue.current.pendingFrames = safeFrames;
       backgroundSaveQueue.current.pendingChapters = safeChapters;
       backgroundSaveQueue.current.pendingGraphState = graphState;
+      backgroundSaveQueue.current.pendingOptions = queueOptions;
       backgroundSaveQueue.current.isProcessing = true; // Lock immediately
       
       console.log("🔒 PRIORITY SAVE: Locked queue with fresh graph state");
@@ -523,7 +539,9 @@ export const useUnifiedStorage = ({
           framesRef.current = framesToSave;
         }
 
-        const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, graphState);
+        const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, graphState, {
+          skipVectorStore,
+        });
         console.log("🔒 PRIORITY SAVE: Completed with result:", { success });
         
         if (success) {
@@ -535,6 +553,7 @@ export const useUnifiedStorage = ({
         console.error("❌ Priority save failed:", error);
       } finally {
         backgroundSaveQueue.current.isProcessing = false;
+        backgroundSaveQueue.current.pendingOptions = null;
       }
       return;
     }
@@ -545,6 +564,7 @@ export const useUnifiedStorage = ({
       backgroundSaveQueue.current.pendingFrames = resolvedFrames;
       backgroundSaveQueue.current.pendingChapters = safeChapters;
       backgroundSaveQueue.current.pendingGraphState = graphState;
+      backgroundSaveQueue.current.pendingOptions = queueOptions;
 
       framesRef.current = resolvedFrames;
       if (!chaptersRef.current || chaptersRef.current.length === 0) {
@@ -574,6 +594,7 @@ export const useUnifiedStorage = ({
         backgroundSaveQueue.current.pendingFrames = null;
         backgroundSaveQueue.current.pendingChapters = null;
         backgroundSaveQueue.current.pendingGraphState = null;
+        backgroundSaveQueue.current.pendingOptions = null;
         
         // Perform actual save in background
         console.log("🔄 BACKGROUND SAVE: Starting with data:", {
@@ -610,7 +631,9 @@ export const useUnifiedStorage = ({
           framesRef.current = framesToSave;
         }
 
-        const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, latestGraphState);
+        const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, latestGraphState, {
+          skipVectorStore,
+        });
         
         console.log("🔄 BACKGROUND SAVE: Completed with result:", {
           success,
@@ -647,8 +670,9 @@ export const useUnifiedStorage = ({
         const frames = backgroundSaveQueue.current.pendingFrames;
         const chapters = backgroundSaveQueue.current.pendingChapters;
         const graphState = backgroundSaveQueue.current.pendingGraphState;
+        const pendingOptions = backgroundSaveQueue.current.pendingOptions || {};
         if (frames && chapters && graphState) {
-          queueBackgroundSave(frames, chapters, graphState);
+          queueBackgroundSave(frames, chapters, graphState, pendingOptions);
         }
       }
     }
@@ -1047,7 +1071,7 @@ export const useUnifiedStorage = ({
       setHasUnsavedChanges(true);
       
       // BACKGROUND SAVE: Queue non-blocking save (don't await)
-      queueBackgroundSave(frames, currentChapters, deduplicatedState);
+      queueBackgroundSave(frames, currentChapters, deduplicatedState, { skipVectorStore: true });
     }
   }, [frames, generateStateHash, queueBackgroundSave]);
 
@@ -1070,6 +1094,7 @@ export const useUnifiedStorage = ({
     backgroundSaveQueue.current.pendingFrames = null;
     backgroundSaveQueue.current.pendingChapters = null;
     backgroundSaveQueue.current.pendingGraphState = null;
+    backgroundSaveQueue.current.pendingOptions = null;
 
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
@@ -1203,7 +1228,7 @@ export const useUnifiedStorage = ({
       
       // CRITICAL FIX: Trigger immediate background save for connections
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
     };
     
     const handleGraphElementChangedEvent = (event: any) => {
@@ -1229,7 +1254,7 @@ export const useUnifiedStorage = ({
         
         // CRITICAL FIX: Trigger immediate background save for graph elements
         setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState);
+        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
       }
     };
     
@@ -1340,7 +1365,7 @@ export const useUnifiedStorage = ({
       
       // CRITICAL: Trigger immediate background save for connections
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
     };
     
     // CRITICAL FIX: Handle frame deletion events
@@ -1394,7 +1419,7 @@ export const useUnifiedStorage = ({
       
       // Trigger immediate background save for node removal
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
     };
     
     // Add event listeners for frame edits and updates from UI components
