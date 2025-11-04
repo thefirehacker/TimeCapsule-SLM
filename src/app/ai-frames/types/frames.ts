@@ -114,6 +114,7 @@ export interface Chapter {
   createdAt: string;
   updatedAt: string;
   isCollapsed?: boolean;
+  linkSequentially?: boolean;
 }
 
 // Graph integration types

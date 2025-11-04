@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Layers, Plus, X, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 interface Chapter {
   id: string;
@@ -45,6 +46,7 @@ interface ChapterDialogProps {
     description: string;
     color: string;
     conceptIds: string[];
+    linkSequentially: boolean;
   };
   setChapterFormData: React.Dispatch<
     React.SetStateAction<{
@@ -52,6 +54,7 @@ interface ChapterDialogProps {
       description: string;
       color: string;
       conceptIds: string[];
+      linkSequentially: boolean;
     }>
   >;
   selectedFrameIds: string[];
@@ -103,6 +106,21 @@ export function ChapterDialog({
   const [newFrameTitle, setNewFrameTitle] = useState("");
   const [newFrameGoal, setNewFrameGoal] = useState("");
   const [isCreatingFrame, setIsCreatingFrame] = useState(false);
+  const [localFrames, setLocalFrames] = useState<AIFrame[]>(frames);
+
+  useEffect(() => {
+    setLocalFrames(prev => {
+      const existingIds = new Set(prev.map(frame => frame.id));
+      const merged = [...prev];
+      frames.forEach(frame => {
+        if (!existingIds.has(frame.id)) {
+          merged.push(frame);
+          existingIds.add(frame.id);
+        }
+      });
+      return merged;
+    });
+  }, [frames]);
 
   const handleInlineFrameCreate = async () => {
     if (!onCreateFrameInline) return;
@@ -121,6 +139,10 @@ export function ChapterDialog({
 
       const createdFrame = (result as AIFrame | undefined) || undefined;
       if (createdFrame && createdFrame.id) {
+        setLocalFrames(prev => {
+          const exists = prev.some(frame => frame.id === createdFrame.id);
+          return exists ? prev : [...prev, createdFrame];
+        });
         onFrameSelection(createdFrame.id, true);
       }
 
@@ -140,12 +162,31 @@ export function ChapterDialog({
     setNewFrameGoal("");
   };
 
-  const availableFrames = isEditing
-    ? frames
-    : frames.filter(
-        (frame) => !frame.chapterId || selectedFrameIds.includes(frame.id)
-      );
-  const unassignedFrames = availableFrames;
+  const normalizeFramesForDisplay = () => {
+    const frameMap = new Map(localFrames.map((frame) => [frame.id, frame]));
+    const baseFrames = (isEditing
+      ? localFrames
+      : localFrames.filter(
+          (frame) => !frame.chapterId || selectedFrameIds.includes(frame.id)
+        )) as AIFrame[];
+
+    const ensuredSelected = selectedFrameIds
+      .map((id) => frameMap.get(id))
+      .filter((frame): frame is AIFrame => Boolean(frame));
+
+    const mergedIds = new Set(baseFrames.map((frame) => frame.id));
+    const mergedFrames = [...baseFrames];
+    ensuredSelected.forEach((frame) => {
+      if (!mergedIds.has(frame.id)) {
+        mergedIds.add(frame.id);
+        mergedFrames.push(frame);
+      }
+    });
+
+    return mergedFrames;
+  };
+
+  const unassignedFrames = normalizeFramesForDisplay();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -316,6 +357,29 @@ export function ChapterDialog({
                     Deselect All
                   </Button>
                 </div>
+              </div>
+
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/20 p-3">
+                <div className="flex-1">
+                  <Label htmlFor="link-sequentially" className="text-sm font-medium">
+                    Sequential linking
+                  </Label>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                    Automatically connect selected frames in order so navigation flows like
+                    Frame&nbsp;1 → Frame&nbsp;2.
+                  </p>
+                </div>
+                <Switch
+                  id="link-sequentially"
+                  checked={chapterFormData.linkSequentially}
+                  onCheckedChange={(checked) =>
+                    setChapterFormData((prev) => ({
+                      ...prev,
+                      linkSequentially: checked,
+                    }))
+                  }
+                  aria-label="Link selected frames sequentially"
+                />
               </div>
 
 

@@ -746,32 +746,50 @@ export default function EnhancedLearningGraph({
     let changed = false;
 
     // Determine which chapter/frame links are required
-    const requiredPairs = new Map<string, { chapterNode: Node; frameNode: Node }>();
-    chapters.forEach(chapter => {
-      if (!chapter || !chapter.id) return;
-      const chapterNode = chapterNodeByChapterId.get(chapter.id);
-      if (!chapterNode) return;
+   const requiredPairs = new Map<string, { chapterNode: Node; frameNode: Node }>();
+   chapters.forEach(chapter => {
+     if (!chapter || !chapter.id) return;
+     const chapterNode = chapterNodeByChapterId.get(chapter.id);
+     if (!chapterNode) return;
 
-      (chapter.frameIds || []).forEach(frameId => {
+      const targetFrameIds = chapter.linkSequentially
+        ? (chapter.frameIds && chapter.frameIds.length > 0 ? [chapter.frameIds[0]] : [])
+        : (chapter.frameIds || []);
+
+      targetFrameIds.forEach(frameId => {
         if (!frameId) return;
         const frameNode = frameNodeByFrameId.get(frameId);
         if (!frameNode) return;
         const key = `${chapter.id}->${frameId}`;
         requiredPairs.set(key, { chapterNode, frameNode });
       });
+   });
+
+   const currentEdges = edgesRef.current || [];
+   const edgesToKeep: Edge[] = [];
+   const existingPairs = new Set<string>();
+    const sequenceChapterIds = new Set<string>();
+    chapters.forEach(chapter => {
+      if (chapter?.linkSequentially && chapter.frameIds && chapter.frameIds.length > 1) {
+        sequenceChapterIds.add(chapter.id);
+      }
     });
 
-    const currentEdges = edgesRef.current || [];
-    const edgesToKeep: Edge[] = [];
-    const existingPairs = new Set<string>();
-
-    currentEdges.forEach((edge: Edge) => {
+   currentEdges.forEach((edge: Edge) => {
       const sourceNode = nodeById.get(edge.source);
       const targetNode = nodeById.get(edge.target);
-      if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {
-        const chapterId = (sourceNode.data as ChapterNodeData)?.id || sourceNode.id;
-        const frameId = targetNode.data?.frameId;
-        if (chapterId && frameId) {
+     if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {
+       const chapterId = (sourceNode.data as ChapterNodeData)?.id || sourceNode.id;
+       const frameId = targetNode.data?.frameId;
+       if (chapterId && frameId) {
+          if (sequenceChapterIds.has(chapterId)) {
+            if (edge.data?.relationship === 'chapter-sequence' || edge.data?.relationship === 'sequential') {
+              edgesToKeep.push(edge);
+            } else {
+              changed = true;
+            }
+            return;
+          }
           const key = `${chapterId}->${frameId}`;
           if (requiredPairs.has(key)) {
             existingPairs.add(key);
@@ -803,9 +821,9 @@ export default function EnhancedLearningGraph({
       edgesToKeep.push(edge);
     });
 
-    const edgesToAdd: Edge[] = [];
-    requiredPairs.forEach((pair, key) => {
-      if (existingPairs.has(key)) {
+   const edgesToAdd: Edge[] = [];
+   requiredPairs.forEach((pair, key) => {
+     if (existingPairs.has(key)) {
         return;
       }
 
@@ -820,6 +838,7 @@ export default function EnhancedLearningGraph({
         targetHandle: null,
         style: { stroke: "#10b981", strokeWidth: 2.5 },
         type: 'straight',
+        data: { relationship: 'chapter-frame' },
       });
     });
 
@@ -2195,6 +2214,191 @@ export default function EnhancedLearningGraph({
       window.removeEventListener('external-frame-created', handleExternalFrameCreated as EventListener);
     };
   }, [emitGraphStateChange, handleAttachContent, handleDetachContent, handleFrameUpdate, setNodes]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleLinkSequential = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const frameIds: string[] = Array.isArray(detail.frameIds) ? detail.frameIds : [];
+      const chapterId: string | undefined = detail.chapterId;
+      const attempt: number = typeof detail.attempt === 'number' ? detail.attempt : 0;
+
+      if (frameIds.length < 2) {
+        return;
+      }
+
+      const nodesById = new Map<string, Node>();
+      nodesRef.current.forEach((node: Node) => nodesById.set(node.id, node));
+
+      const frameNodeLookup = new Map<string, Node>();
+      nodesRef.current.forEach((node: Node) => {
+        if (node.type === 'aiframe') {
+          const frameId = node.data?.frameId;
+          if (frameId) {
+            frameNodeLookup.set(frameId, node);
+          }
+        }
+      });
+
+      const chapterNode = nodesRef.current.find(
+        node => node.type === 'chapter' && (node.data as ChapterNodeData)?.id === chapterId
+      );
+
+      const existingEdgeKeys = new Set(edgesRef.current.map(edge => `${edge.source}->${edge.target}`));
+      const newConnections: Array<{ sourceId: string; targetId: string }> = [];
+      let missingNode = false;
+      let missingChapterNode = !chapterNode;
+
+      frameIds.forEach((sourceFrameId: string, index: number) => {
+        if (index === frameIds.length - 1) {
+          return;
+        }
+        const targetFrameId = frameIds[index + 1];
+        const sourceNode = frameNodeLookup.get(sourceFrameId);
+        const targetNode = frameNodeLookup.get(targetFrameId);
+        if (!sourceNode || !targetNode) {
+          missingNode = true;
+          return;
+        }
+
+        const key = `${sourceNode.id}->${targetNode.id}`;
+        if (existingEdgeKeys.has(key)) {
+          return;
+        }
+        newConnections.push({ sourceId: sourceNode.id, targetId: targetNode.id });
+        existingEdgeKeys.add(key);
+      });
+
+      if (!missingChapterNode && chapterNode) {
+        const firstFrameNode = frameNodeLookup.get(frameIds[0]);
+        if (!firstFrameNode) {
+          missingNode = true;
+        } else {
+          const key = `${chapterNode.id}->${firstFrameNode.id}`;
+          if (!existingEdgeKeys.has(key)) {
+            newConnections.unshift({ sourceId: chapterNode.id, targetId: firstFrameNode.id });
+            existingEdgeKeys.add(key);
+          }
+        }
+      }
+
+      if (newConnections.length > 0) {
+        let nextEdges = [...edgesRef.current];
+        const keySet = new Set(nextEdges.map(edge => `${edge.source}->${edge.target}`));
+        const addedEdges: Edge[] = [];
+
+        newConnections.forEach(({ sourceId, targetId }) => {
+          const key = `${sourceId}->${targetId}`;
+          if (keySet.has(key)) {
+            return;
+          }
+
+          const edgeId = `edge_seq_${sourceId}_${targetId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+          const sequentialEdge: Edge = {
+            id: edgeId,
+            source: sourceId,
+            target: targetId,
+            data: {
+              relationship: 'chapter-sequence',
+              chapterId,
+            },
+          } as Edge;
+
+          nextEdges = addEdge(sequentialEdge, nextEdges);
+          addedEdges.push({ ...sequentialEdge });
+          keySet.add(key);
+        });
+
+        if (addedEdges.length > 0) {
+          setEdges(nextEdges);
+
+          const freshGraphState = {
+            nodes: nodesRef.current,
+            edges: nextEdges,
+            selectedNodeId: selectedNodeRef.current,
+          };
+
+          emitGraphStateChange('chapter-sequence-added', {
+            chapterId,
+            frameIds,
+            addedEdgeIds: addedEdges.map(edge => edge.id),
+          }, freshGraphState);
+
+          window.dispatchEvent(
+            new CustomEvent('force-save-frames', {
+              detail: {
+                reason: 'chapter-sequence-added',
+                timestamp: Date.now(),
+                graphState: freshGraphState,
+              },
+            })
+          );
+        }
+      }
+
+      if ((missingNode || missingChapterNode) && attempt < 5) {
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent('link-chapter-frames-sequentially', {
+              detail: {
+                chapterId,
+                frameIds,
+                attempt: attempt + 1,
+              },
+            })
+          );
+        }, 400);
+      }
+    };
+
+    const handleUnlinkSequential = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const chapterId: string | undefined = detail.chapterId;
+      if (!chapterId) {
+        return;
+      }
+
+      const filteredEdges = edgesRef.current.filter(edge => {
+        const relationship = (edge as any).data;
+        return !(relationship?.relationship === 'chapter-sequence' && relationship?.chapterId === chapterId);
+      });
+
+      if (filteredEdges.length === edgesRef.current.length) {
+        return;
+      }
+
+      setEdges(filteredEdges);
+
+      const freshGraphState = {
+        nodes: nodesRef.current,
+        edges: filteredEdges,
+        selectedNodeId: selectedNodeRef.current,
+      };
+
+      emitGraphStateChange('chapter-sequence-removed', { chapterId }, freshGraphState);
+
+      window.dispatchEvent(
+        new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-sequence-removed',
+            timestamp: Date.now(),
+            graphState: freshGraphState,
+          },
+        })
+      );
+    };
+
+    window.addEventListener('link-chapter-frames-sequentially', handleLinkSequential as EventListener);
+    window.addEventListener('unlink-chapter-frames-sequentially', handleUnlinkSequential as EventListener);
+
+    return () => {
+      window.removeEventListener('link-chapter-frames-sequentially', handleLinkSequential as EventListener);
+      window.removeEventListener('unlink-chapter-frames-sequentially', handleUnlinkSequential as EventListener);
+    };
+  }, [emitGraphStateChange, setEdges]);
 
   // Listen for clear all frames event and reset graph nodes/edges
   useEffect(() => {
