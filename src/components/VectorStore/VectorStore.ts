@@ -414,7 +414,72 @@ export class VectorStore {
 
           this.documentsCollection = await this.database.addCollections({
             documents: {
-              schema: documentSchema
+              schema: documentSchema,
+              migrationStrategies: {
+                // Migration from version 0 to version 1
+                1: function(oldDoc: any) {
+                  // Migrate old documents to new schema
+                  const newDoc = {
+                    ...oldDoc,
+                    metadata: {
+                      ...oldDoc.metadata,
+                      // Ensure all required fields exist
+                      filename: oldDoc.metadata.filename || oldDoc.metadata.name || oldDoc.title,
+                      filesize: oldDoc.metadata.filesize || 0,
+                      filetype: oldDoc.metadata.filetype || 'unknown',
+                      uploadedAt: oldDoc.metadata.uploadedAt || oldDoc.metadata.createdAt || new Date().toISOString(),
+                      source: oldDoc.metadata.source || 'unknown',
+                      description: oldDoc.metadata.description || '',
+                      isGenerated: oldDoc.metadata.isGenerated || false,
+                      // Preserve existing fields
+                      bubblSpaceId: oldDoc.metadata.bubblSpaceId,
+                      category: oldDoc.metadata.category,
+                      createdAt: oldDoc.metadata.createdAt,
+                      name: oldDoc.metadata.name,
+                      timeCapsuleId: oldDoc.metadata.timeCapsuleId,
+                      type: oldDoc.metadata.type
+                    }
+                  };
+                  return newDoc;
+                },
+                // Migration from version 1 to version 2 - add documentType field
+                2: function(oldDoc: any) {
+                  // Determine document type based on existing metadata
+                  let documentType: DocumentType = 'userdocs'; // default
+
+                  if (oldDoc.metadata) {
+                    if (oldDoc.metadata.source === 'generated' || oldDoc.metadata.isGenerated) {
+                      documentType = 'ai-frames';
+                    } else if (oldDoc.metadata.type === 'timecapsule' || oldDoc.metadata.timeCapsuleId) {
+                      documentType = 'timecapsule';
+                    } else if (oldDoc.metadata.bubblSpaceId) {
+                      documentType = 'bubblspace';
+                    } else if (oldDoc.metadata.source === 'websearch' || oldDoc.metadata.source === 'scraping') {
+                      documentType = 'virtual-docs';
+                    }
+                  }
+
+                  return {
+                    ...oldDoc,
+                    metadata: {
+                      ...oldDoc.metadata,
+                      documentType: documentType
+                    }
+                  };
+                },
+                // Migration from version 2 to version 3 - add pageCount field for PDF documents
+                3: function(oldDoc: any) {
+                  return {
+                    ...oldDoc,
+                    metadata: {
+                      ...oldDoc.metadata,
+                      // Preserve existing pageCount if it was somehow stored, otherwise use undefined
+                      // New PDFs will have actual pageCount, existing PDFs will need re-upload
+                      pageCount: oldDoc.metadata.pageCount
+                    }
+                  };
+                }
+              }
             }
           });
           

@@ -1280,12 +1280,27 @@ export default function EnhancedLearningGraph({
 
   // CRITICAL FIX: Ensure initialGraphState nodes are properly displayed
   useEffect(() => {
-    // If initialGraphState was provided with nodes, ensure they are displayed
-    if (initialGraphState?.nodes?.length && nodes.length === 0) {
-      // Use the initialGraphState if provided and we have no nodes
-      setNodes(initialGraphState.nodes);
-      setEdges(initialGraphState.edges || []);
-      return;
+    // If initialGraphState was provided with nodes, merge them with existing nodes
+    // This ensures standalone attachment nodes persist even when frame nodes exist
+    if (initialGraphState?.nodes?.length) {
+      // CRITICAL FIX: Merge nodes instead of replacing to preserve standalone attachment nodes
+
+      // Get existing frame nodes (if any were already created)
+      const existingFrameNodes = nodes.filter(n => n.type === 'aiframe');
+      const existingFrameIds = new Set(existingFrameNodes.map(n => n.id));
+
+      // Get all nodes from initialGraphState that aren't duplicates
+      const loadedNodes = initialGraphState.nodes.filter(n => !existingFrameIds.has(n.id));
+
+      // Merge: existing frame nodes + all loaded nodes (deduplicates by ID)
+      const mergedNodes = [...existingFrameNodes, ...loadedNodes];
+
+      // Only update if we're actually adding new nodes
+      if (mergedNodes.length > nodes.length || nodes.length === 0) {
+        setNodes(mergedNodes);
+        setEdges(initialGraphState.edges || []);
+        return;
+      }
     }
 
     // Only sync if we have frames, no nodes, and no initial graph state was provided
@@ -1335,9 +1350,13 @@ export default function EnhancedLearningGraph({
         // If frame has attachment, create the attachment node
         if (frame.attachment) {
           const attachmentNodeId = getId();
+          // Normalize 'pdf-kb' to 'pdf-attachment' since they use the same node component
+          const nodeType = frame.attachment.type === 'pdf-kb'
+            ? 'pdf-attachment'
+            : `${frame.attachment.type}-attachment`;
           const attachmentNode: Node = {
             id: attachmentNodeId,
-            type: `${frame.attachment.type}-attachment`,
+            type: nodeType,
             position: { x: x + 420, y: y }, // Position to the right
             data: createAttachmentNodeData(frame.attachment, frame.id)
           };
@@ -1519,11 +1538,23 @@ export default function EnhancedLearningGraph({
         } as VideoAttachmentNodeData;
       
       case 'pdf':
+      case 'pdf-kb':  // Handle KB PDF attachments
         return {
           ...baseData,
           type: 'pdf-attachment',
+          // URL PDF fields
           pdfUrl: attachment.data.pdfUrl || '',
           pages: attachment.data.pages || '',
+          // KB PDF fields (only included when type is 'pdf-kb')
+          ...(attachment.type === 'pdf-kb' && {
+            kbDocumentId: attachment.data.kbDocumentId,
+            filename: attachment.data.filename,
+            startPage: attachment.data.startPage,
+            endPage: attachment.data.endPage,
+            totalPages: attachment.data.totalPages,
+            filesize: attachment.data.filesize,
+            uploadedAt: attachment.data.uploadedAt,
+          }),
         } as PDFAttachmentNodeData;
       
       case 'text':
@@ -1960,26 +1991,26 @@ export default function EnhancedLearningGraph({
 
       setNodes((nds) => nds.concat(newNode));
 
-      // CRITICAL FIX: Emit save events for ALL node types
+      // CRITICAL FIX: Emit save events for ALL node types (OUTSIDE setNodes to avoid React error)
       if (typeof window !== 'undefined') {
-        // CRITICAL FIX: Only use delayed save to ensure graph state is updated before save
+        // Delay to ensure React Flow updates and useEffect syncs refs
         setTimeout(() => {
-          // Get fresh graph state after React Flow updates
+          // Get fresh graph state from refs (updated by useEffect at lines 109-111)
           const freshGraphState = {
             nodes: nodesRef.current,
             edges: edgesRef.current,
             selectedNodeId: selectedNodeRef.current
           };
-          
+
           // Trigger save with fresh graph state included in event
           window.dispatchEvent(new CustomEvent('force-save-frames', {
-            detail: { 
-              reason: 'node-drop-delayed', 
+            detail: {
+              reason: 'node-drop-delayed',
               nodeType: type,
-              graphState: freshGraphState 
+              graphState: freshGraphState
             }
           }));
-        }, 100); // Small delay to let React Flow update state
+        }, 100); // 100ms is sufficient for useEffect to update refs
       }
       
       // If it's an AI frame node, sync with frames array

@@ -118,27 +118,27 @@ export class UnifiedStorageManager {
 
       // PRIORITY 1: Try localStorage first (fastest)
       const localData = await this.loadFromLocalStorage();
-      if (localData && (localData.frames.length > 0 || localData.chapters.length > 0)) {
-        console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames`);
-        
+      if (localData && (localData.frames.length > 0 || localData.chapters.length > 0 || localData.graphState?.nodes?.length > 0)) {
+        console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames, ${localData.graphState?.nodes?.length || 0} nodes`);
+
         // Loaded app state with graph
-        
+
         return localData;
       }
 
       // PRIORITY 2: Try VectorStore (if available)
       if (this.vectorStore) {
         const vectorData = await this.loadFromVectorStore();
-        if (vectorData && (vectorData.frames.length > 0 || vectorData.chapters.length > 0)) {
-          console.log(`✅ Loaded from VectorStore: ${vectorData.frames.length} frames`);
+        if (vectorData && (vectorData.frames.length > 0 || vectorData.chapters.length > 0 || vectorData.graphState?.nodes?.length > 0)) {
+          console.log(`✅ Loaded from VectorStore: ${vectorData.frames.length} frames, ${vectorData.graphState?.nodes?.length || 0} nodes`);
           return vectorData;
         }
       }
 
       // PRIORITY 3: Try IndexedDB (fallback)
       const indexedData = await this.loadFromIndexedDB();
-      if (indexedData && (indexedData.frames.length > 0 || indexedData.chapters.length > 0)) {
-        console.log(`✅ Loaded from IndexedDB: ${indexedData.frames.length} frames`);
+      if (indexedData && (indexedData.frames.length > 0 || indexedData.chapters.length > 0 || indexedData.graphState?.nodes?.length > 0)) {
+        console.log(`✅ Loaded from IndexedDB: ${indexedData.frames.length} frames, ${indexedData.graphState?.nodes?.length || 0} nodes`);
         return indexedData;
       }
 
