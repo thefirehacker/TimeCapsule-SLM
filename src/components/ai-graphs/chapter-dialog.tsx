@@ -110,17 +110,17 @@ export function ChapterDialog({
 
   useEffect(() => {
     setLocalFrames(prev => {
-      const existingIds = new Set(prev.map(frame => frame.id));
-      const merged = [...prev];
-      frames.forEach(frame => {
-        if (!existingIds.has(frame.id)) {
-          merged.push(frame);
-          existingIds.add(frame.id);
+      const latestMap = new Map(frames.map(frame => [frame.id, frame]));
+
+      prev.forEach(frame => {
+        if (!latestMap.has(frame.id) && selectedFrameIds.includes(frame.id)) {
+          latestMap.set(frame.id, frame);
         }
       });
-      return merged;
+
+      return Array.from(latestMap.values());
     });
-  }, [frames]);
+  }, [frames, selectedFrameIds]);
 
   const handleInlineFrameCreate = async () => {
     if (!onCreateFrameInline) return;

@@ -203,6 +203,8 @@ export default function AIFramesPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [graphResetKey, setGraphResetKey] = useState(0);
+  const [showChapterProcessing, setShowChapterProcessing] = useState(false);
+  const chapterProcessingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -266,6 +268,33 @@ export default function AIFramesPage() {
       return changed ? next : prev;
     });
   }, [unifiedStorage.frames]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleSaveSuccess = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.background && showChapterProcessing) {
+        setShowChapterProcessing(false);
+        if (chapterProcessingTimeoutRef.current) {
+          clearTimeout(chapterProcessingTimeoutRef.current);
+          chapterProcessingTimeoutRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener("unified-save-success", handleSaveSuccess as EventListener);
+
+    return () => {
+      window.removeEventListener("unified-save-success", handleSaveSuccess as EventListener);
+      if (chapterProcessingTimeoutRef.current) {
+        clearTimeout(chapterProcessingTimeoutRef.current);
+        chapterProcessingTimeoutRef.current = null;
+      }
+    };
+  }, [showChapterProcessing]);
 
   // FIXED: Enhanced VectorStore modal management for stability
   useEffect(() => {
@@ -434,6 +463,7 @@ export default function AIFramesPage() {
       await unifiedStorage.clearAll();
       setCurrentFrameIndex(0);
       setGraphResetKey((prev) => prev + 1);
+      setPendingChapterFrames({});
       console.log("🗑️ All frames cleared");
     } catch (error) {
       console.error("❌ Failed to clear AI Frames:", error);
@@ -995,6 +1025,15 @@ export default function AIFramesPage() {
       return;
     }
 
+    setShowChapterProcessing(true);
+    if (chapterProcessingTimeoutRef.current) {
+      clearTimeout(chapterProcessingTimeoutRef.current);
+    }
+    chapterProcessingTimeoutRef.current = setTimeout(() => {
+      setShowChapterProcessing(false);
+      chapterProcessingTimeoutRef.current = null;
+    }, 30000);
+
     const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
     const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
@@ -1089,6 +1128,15 @@ export default function AIFramesPage() {
     if (!trimmedTitle) {
       return;
     }
+
+    setShowChapterProcessing(true);
+    if (chapterProcessingTimeoutRef.current) {
+      clearTimeout(chapterProcessingTimeoutRef.current);
+    }
+    chapterProcessingTimeoutRef.current = setTimeout(() => {
+      setShowChapterProcessing(false);
+      chapterProcessingTimeoutRef.current = null;
+    }, 30000);
 
     const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
     const now = new Date().toISOString();
@@ -1634,8 +1682,24 @@ export default function AIFramesPage() {
       </div>
 
       {/* Modals - PRESERVATION: Keep existing dialogs */}
+      <Dialog open={showChapterProcessing} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Applying chapter changes
+            </DialogTitle>
+            <DialogDescription>
+              Updating frame connections. This may take a few seconds.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-sm text-gray-600">
+            Please keep this page open while updates complete.
+          </div>
+        </DialogContent>
+      </Dialog>
       <VectorStoreInitModal
-        isOpen={showVectorStoreInitModal}
+       isOpen={showVectorStoreInitModal}
         progress={
           vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
         }

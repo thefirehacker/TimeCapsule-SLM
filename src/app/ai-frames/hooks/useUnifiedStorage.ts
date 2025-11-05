@@ -79,12 +79,14 @@ export const useUnifiedStorage = ({
     pendingChapters: UnifiedChapter[] | null;
     pendingGraphState: GraphState | null;
     pendingOptions: { priority?: boolean; skipVectorStore?: boolean } | null;
+    settleAttempts: number;
   }>({
     isProcessing: false,
     pendingFrames: null,
     pendingChapters: null,
     pendingGraphState: null,
-    pendingOptions: null
+    pendingOptions: null,
+    settleAttempts: 0,
   });
 
   // INITIALIZATION: Set up unified storage
@@ -221,6 +223,10 @@ export const useUnifiedStorage = ({
       (previous?.conceptIds || []).forEach((concept) => conceptIdsSet.add(concept));
       const conceptIds = Array.from(conceptIdsSet).filter(Boolean);
 
+      const linkSequentially = typeof data.linkSequentially === 'boolean'
+        ? data.linkSequentially
+        : previous?.linkSequentially ?? false;
+
       const resolvedTitle = previous?.title || data.title || `Chapter ${index + 1}`;
       const resolvedDescription = previous?.description ?? data.description ?? '';
       const resolvedColor = previous?.color || data.color || DEFAULT_CHAPTER_COLOR;
@@ -244,6 +250,7 @@ export const useUnifiedStorage = ({
         createdAt: previous?.createdAt || now,
         updatedAt: now,
         isCollapsed: previous?.isCollapsed ?? false,
+        linkSequentially,
       };
     });
 
@@ -483,20 +490,19 @@ export const useUnifiedStorage = ({
     const queueOptions = { priority, skipVectorStore };
 
     const resolveFrames = (candidate: UnifiedAIFrame[] | null | undefined) => {
-      if (candidate && candidate.length > 0) return candidate;
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
       if (framesRef.current && framesRef.current.length > 0) return framesRef.current;
       return candidate || [];
     };
 
-    const ensureFramesNotEmpty = (candidate: UnifiedAIFrame[]) => {
-      if (candidate.length === 0 && framesRef.current && framesRef.current.length > 0) {
-        return framesRef.current;
-      }
-      return candidate;
-    };
+    const ensureFramesNotEmpty = (candidate: UnifiedAIFrame[]) => candidate;
 
     const resolveChapters = (candidate: UnifiedChapter[] | null | undefined) => {
-      if (candidate && candidate.length > 0) return candidate;
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
       if (chaptersRef.current && chaptersRef.current.length > 0) return chaptersRef.current;
       return candidate || [];
     };
@@ -553,6 +559,7 @@ export const useUnifiedStorage = ({
         console.error("❌ Priority save failed:", error);
       } finally {
         backgroundSaveQueue.current.isProcessing = false;
+        backgroundSaveQueue.current.settleAttempts = 0;
         backgroundSaveQueue.current.pendingOptions = null;
       }
       return;
@@ -588,14 +595,30 @@ export const useUnifiedStorage = ({
       const latestFrames = ensureFramesNotEmpty(resolveFrames(backgroundSaveQueue.current.pendingFrames));
       const latestChapters = resolveChapters(backgroundSaveQueue.current.pendingChapters);
       const latestGraphState = backgroundSaveQueue.current.pendingGraphState;
-      
+      const currentOptions = backgroundSaveQueue.current.pendingOptions || {};
+
       if (latestGraphState && latestFrames && latestChapters) {
         // Clear pending data before save
         backgroundSaveQueue.current.pendingFrames = null;
         backgroundSaveQueue.current.pendingChapters = null;
         backgroundSaveQueue.current.pendingGraphState = null;
         backgroundSaveQueue.current.pendingOptions = null;
-        
+        const nodeLookup = new Map<string, any>((latestGraphState.nodes || []).map(node => [node.id, node]));
+        const hasChapterEdges = (latestGraphState.edges || []).some(edge => {
+          const sourceNode = nodeLookup.get(edge.source);
+          return sourceNode?.type === 'chapter';
+        });
+        const chaptersExpectingEdges = latestChapters.some(ch => (ch.frameIds?.length || 0) > 0);
+        if (chaptersExpectingEdges && !hasChapterEdges && backgroundSaveQueue.current.settleAttempts < 5) {
+          backgroundSaveQueue.current.isProcessing = false;
+          backgroundSaveQueue.current.settleAttempts += 1;
+          setTimeout(() => {
+            queueBackgroundSave(latestFrames, latestChapters, latestGraphState, currentOptions);
+          }, 200);
+          return;
+        }
+        backgroundSaveQueue.current.settleAttempts = 0;
+
         // Perform actual save in background
         console.log("🔄 BACKGROUND SAVE: Starting with data:", {
           frameCount: latestFrames.length,
@@ -957,6 +980,7 @@ export const useUnifiedStorage = ({
       order: typeof chapter.order === 'number' ? chapter.order : index,
       createdAt: chapter.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      linkSequentially: chapter.linkSequentially ?? false,
     })) as UnifiedChapter[];
 
     setChapters(normalizedChapters);
@@ -1095,6 +1119,7 @@ export const useUnifiedStorage = ({
     backgroundSaveQueue.current.pendingChapters = null;
     backgroundSaveQueue.current.pendingGraphState = null;
     backgroundSaveQueue.current.pendingOptions = null;
+    backgroundSaveQueue.current.settleAttempts = 0;
 
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);

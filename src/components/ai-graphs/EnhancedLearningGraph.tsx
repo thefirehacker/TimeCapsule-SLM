@@ -29,8 +29,9 @@ import ChapterNode from "./ChapterNode";
 import EnhancedSidebar from "./EnhancedSidebar";
 import type { Chapter as AiChapter } from "@/app/ai-frames/types/frames";
 
-import { 
-  NodeData, 
+import {
+  NodeData,
+  AIFrameNodeData,
   EnhancedDragItem, 
   GraphState, 
   FrameGraphMapping,
@@ -58,7 +59,7 @@ const DEFAULT_CHAPTER_COLOR = "#3B82F6";
 let id = 0;
 const getId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${id++}`; // SPECS FIX: Guaranteed unique IDs
 
-type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order" | "color" >>;
+type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order" | "color" | "linkSequentially">>;
 
 interface EnhancedLearningGraphProps {
   mode?: "creator" | "learner";
@@ -390,6 +391,9 @@ export default function EnhancedLearningGraph({
     if (typeof updates.color === "string") {
       sanitized.color = updates.color;
     }
+    if (typeof updates.linkSequentially === "boolean") {
+      sanitized.linkSequentially = updates.linkSequentially;
+    }
 
     if (Object.keys(sanitized).length === 0) {
       return;
@@ -594,6 +598,7 @@ export default function EnhancedLearningGraph({
           conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
           order: chapter.order,
           color: chapter.color || nodeData.color || DEFAULT_CHAPTER_COLOR,
+          linkSequentially: chapter.linkSequentially ?? false,
           onChapterUpdate: handler,
         };
 
@@ -605,7 +610,8 @@ export default function EnhancedLearningGraph({
           nodeData.order !== nextData.order ||
           nodeData.onChapterUpdate !== handler ||
           nodeData.id !== nextData.id ||
-          nodeData.color !== nextData.color;
+          nodeData.color !== nextData.color ||
+          (nodeData as ChapterNodeData)?.linkSequentially !== nextData.linkSequentially;
 
         if (!hasDifference) {
           return node;
@@ -657,6 +663,7 @@ export default function EnhancedLearningGraph({
             conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
             order: chapter.order,
             color: chapter.color || DEFAULT_CHAPTER_COLOR,
+            linkSequentially: chapter.linkSequentially ?? false,
             onChapterUpdate: handler,
           } satisfies ChapterNodeData,
         };
@@ -746,28 +753,27 @@ export default function EnhancedLearningGraph({
     let changed = false;
 
     // Determine which chapter/frame links are required
-   const requiredPairs = new Map<string, { chapterNode: Node; frameNode: Node }>();
-   chapters.forEach(chapter => {
-     if (!chapter || !chapter.id) return;
-     const chapterNode = chapterNodeByChapterId.get(chapter.id);
-     if (!chapterNode) return;
+    const requiredPairs = new Map<string, { chapterNode: Node; frameNode: Node }>();
+    chapters.forEach(chapter => {
+      if (!chapter || !chapter.id) return;
+      if (chapter.linkSequentially) {
+        return;
+      }
+      const chapterNode = chapterNodeByChapterId.get(chapter.id);
+      if (!chapterNode) return;
 
-      const targetFrameIds = chapter.linkSequentially
-        ? (chapter.frameIds && chapter.frameIds.length > 0 ? [chapter.frameIds[0]] : [])
-        : (chapter.frameIds || []);
-
-      targetFrameIds.forEach(frameId => {
+      (chapter.frameIds || []).forEach(frameId => {
         if (!frameId) return;
         const frameNode = frameNodeByFrameId.get(frameId);
         if (!frameNode) return;
         const key = `${chapter.id}->${frameId}`;
         requiredPairs.set(key, { chapterNode, frameNode });
       });
-   });
+    });
 
-   const currentEdges = edgesRef.current || [];
-   const edgesToKeep: Edge[] = [];
-   const existingPairs = new Set<string>();
+    const currentEdges = edgesRef.current || [];
+    const edgesToKeep: Edge[] = [];
+    const existingPairs = new Set<string>();
     const sequenceChapterIds = new Set<string>();
     chapters.forEach(chapter => {
       if (chapter?.linkSequentially && chapter.frameIds && chapter.frameIds.length > 1) {
@@ -2236,8 +2242,9 @@ export default function EnhancedLearningGraph({
       const frameNodeLookup = new Map<string, Node>();
       nodesRef.current.forEach((node: Node) => {
         if (node.type === 'aiframe') {
-          const frameId = node.data?.frameId;
-          if (frameId) {
+          const frameData = node.data as AIFrameNodeData | undefined;
+          const frameId = frameData?.frameId;
+          if (typeof frameId === 'string' && frameId.length > 0) {
             frameNodeLookup.set(frameId, node);
           }
         }
