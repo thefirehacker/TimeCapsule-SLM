@@ -170,7 +170,8 @@ export class UnifiedStorageManager {
       ...frame,
       aiConcepts: frame.aiConcepts && frame.aiConcepts.length > 0 ? frame.aiConcepts : (frame.conceptIds || []),
       conceptIds: frame.conceptIds || frame.aiConcepts || [],
-      chapterId: frame.chapterId || frame.parentFrameId,
+      // Respect explicit undefined for ungrouped frames - only use parentFrameId if chapterId is missing entirely
+      chapterId: frame.chapterId !== undefined ? frame.chapterId : (frame.parentFrameId || undefined),
       // DYNAMIC: Preserve ANY attachment structure without type restrictions
       attachment: frame.attachment ? {
         id: frame.attachment.id || `attachment-${Date.now()}`,

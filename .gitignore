@@ -45,3 +45,8 @@ next-env.d.ts
 .cursor/*
 
 
+# temp 
+Test/temp/*
+
+#logs
+logs.md
