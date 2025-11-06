@@ -90,6 +90,7 @@ export default function EnhancedLearningGraph({
   const lastEmissionRef = useRef<number>(0);
   const lastAppliedGraphState = useRef<string | null>(null);
   const chaptersRef = useRef<AiChapter[]>(chapters || []);
+  const isFilteringNodesRef = useRef<boolean>(false);
 
   // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
   const framesRef = useRef(frames);
@@ -1335,22 +1336,58 @@ export default function EnhancedLearningGraph({
     // If initialGraphState was provided with nodes, merge them with existing nodes
     // This ensures standalone attachment nodes persist even when frame nodes exist
     if (initialGraphState?.nodes?.length) {
-      // CRITICAL FIX: Merge nodes instead of replacing to preserve standalone attachment nodes
+      const currentFrameIds = new Set(frames.map(frame => frame.id));
+      const existingNodeIds = new Set(nodes.map(node => node.id));
+      const existingFrameIds = new Set(
+        nodes
+          .filter(node => node.type === 'aiframe' && node.data?.frameId)
+          .map(node => node.data.frameId)
+      );
 
-      // Get existing frame nodes (if any were already created)
-      const existingFrameNodes = nodes.filter(n => n.type === 'aiframe');
-      const existingFrameIds = new Set(existingFrameNodes.map(n => n.id));
+      // Collect nodes from initialGraphState that are not already on the canvas
+      const loadedNodes = initialGraphState.nodes.filter(node => !existingNodeIds.has(node.id));
 
-      // Get all nodes from initialGraphState that aren't duplicates
-      const loadedNodes = initialGraphState.nodes.filter(n => !existingFrameIds.has(n.id));
+      const skippedFrameIds = new Set<string>();
+      const filteredLoadedNodes = loadedNodes.filter(node => {
+        if (node.type === 'aiframe' && node.data?.frameId) {
+          const frameId = node.data.frameId;
+          if (!currentFrameIds.has(frameId)) {
+            skippedFrameIds.add(frameId);
+            return false;
+          }
+          if (existingFrameIds.has(frameId)) {
+            return false;
+          }
+        }
 
-      // Merge: existing frame nodes + all loaded nodes (deduplicates by ID)
-      const mergedNodes = [...existingFrameNodes, ...loadedNodes];
+        if (node.type?.includes('-attachment') && node.data?.attachedToFrameId) {
+          const parentFrameId = node.data.attachedToFrameId;
+          if (!currentFrameIds.has(parentFrameId)) {
+            skippedFrameIds.add(parentFrameId);
+            return false;
+          }
+        }
 
-      // Only update if we're actually adding new nodes
-      if (mergedNodes.length > nodes.length || nodes.length === 0) {
+        return true;
+      });
+
+      if (filteredLoadedNodes.length > 0) {
+        const mergedNodes = [...nodes, ...filteredLoadedNodes];
+        const mergedNodeIds = new Set(mergedNodes.map(node => node.id));
+        const mergedEdges = (initialGraphState.edges || []).filter(
+          edge => mergedNodeIds.has(edge.source) && mergedNodeIds.has(edge.target)
+        );
+
+        console.log('🧪 Graph merge from initialGraphState', {
+          existingNodeCount: nodes.length,
+          incomingNodeIds: loadedNodes.map(node => node.id),
+          appendedNodeIds: filteredLoadedNodes.map(node => node.id),
+          skippedFrameIds: Array.from(skippedFrameIds),
+          frameCount: frames.length
+        });
+
         setNodes(mergedNodes);
-        setEdges(initialGraphState.edges || []);
+        setEdges(mergedEdges);
         return;
       }
     }
@@ -1537,39 +1574,56 @@ export default function EnhancedLearningGraph({
 
   // CRITICAL FIX: Sync existing nodes with updated frame data when frames prop changes
   useEffect(() => {
-    // Only update existing nodes if we have both frames and nodes
-    if (frames.length > 0 && nodes.length > 0) {
-      // PERFORMANCE FIX: Skip sync if any node is currently being dragged to prevent blinking
-      const isDragging = nodes.some(node => node.dragging === true);
-      if (isDragging) {
-        return;
-      }
-      
-      // CRITICAL FIX: Skip sync for short period after drag to prevent attachment clearing
-      const recentDragEnd = nodes.some(node => node.selected === true);
-      if (recentDragEnd) {
-        return;
-      }
-      
-      // REMOVED: Performance spam logging that was firing 200+ times per interaction
-      // console.log('🔄 Checking frame-to-node sync:', ...)
-      
-      // Check if any frame data has changed and update corresponding nodes
-      let hasChanges = false;
-      const updatedNodes = nodes.map(node => {
+    if (isFilteringNodesRef.current) {
+      return;
+    }
+
+    const currentNodes = nodesRef.current || [];
+    if (currentNodes.length === 0) {
+      return;
+    }
+
+    if (currentNodes.some(node => node.dragging === true)) {
+      return;
+    }
+
+    const frameIds = new Set(frames.map(f => f.id));
+    const framesById = new Map(frames.map(frame => [frame.id, frame]));
+
+    let hasChanges = false;
+    const updatedNodes = currentNodes
+      .filter(node => {
         if (node.type === 'aiframe' && node.data?.frameId) {
-          const correspondingFrame = frames.find(f => f.id === node.data.frameId);
+          const shouldKeep = frameIds.has(node.data.frameId);
+          if (!shouldKeep) {
+            hasChanges = true;
+          }
+          return shouldKeep;
+        }
+
+        if (node.type?.includes('-attachment') && node.data?.attachedToFrameId) {
+          const shouldKeep = frameIds.has(node.data.attachedToFrameId);
+          if (!shouldKeep) {
+            hasChanges = true;
+          }
+          return shouldKeep;
+        }
+
+        return true;
+      })
+      .map(node => {
+        if (node.type === 'aiframe' && node.data?.frameId) {
+          const correspondingFrame = framesById.get(node.data.frameId);
           if (correspondingFrame) {
-            // Check if node data is different from frame data
-            const nodeNeedsUpdate = 
+            const nodeNeedsUpdate =
               node.data.title !== correspondingFrame.title ||
               node.data.goal !== correspondingFrame.goal ||
               node.data.informationText !== correspondingFrame.informationText ||
               node.data.afterVideoText !== correspondingFrame.afterVideoText;
-            
+
             if (nodeNeedsUpdate) {
               hasChanges = true;
-              
+
               return {
                 ...node,
                 data: {
@@ -1579,7 +1633,6 @@ export default function EnhancedLearningGraph({
                   informationText: correspondingFrame.informationText,
                   afterVideoText: correspondingFrame.afterVideoText,
                   aiConcepts: correspondingFrame.aiConcepts || [],
-                  // CRITICAL FIX: Preserve existing node attachment unless frame has newer one
                   attachment: correspondingFrame.attachment || node.data.attachment,
                   updatedAt: new Date().toISOString()
                 }
@@ -1589,23 +1642,35 @@ export default function EnhancedLearningGraph({
         }
         return node;
       });
-      
-      // Only update nodes if there were actual changes
-      if (hasChanges) {
-        setNodes(updatedNodes);
 
-        // CRITICAL FIX: Save graph state after updating nodes with frame data
-        setTimeout(() => {
-          emitGraphStateChange('frame-data-sync', {
-            updatedNodeCount: updatedNodes.filter((node, index) => {
-              const originalNode = nodes[index];
-              return originalNode && JSON.stringify(node.data) !== JSON.stringify(originalNode.data);
-            }).length
-          });
-        }, 200); // SPECS COMPLIANT: Debounced timing to ensure fresh state
-      }
+    const nodesChanged = hasChanges || updatedNodes.length !== currentNodes.length;
+    if (!nodesChanged) {
+      return;
     }
-  }, [frames]); // PERFORMANCE FIX: Remove 'nodes' dependency to prevent constant firing
+
+    isFilteringNodesRef.current = true;
+
+    setNodes(updatedNodes);
+
+    const updatedNodeIds = new Set(updatedNodes.map(node => node.id));
+    setEdges(prevEdges => {
+      if (!prevEdges || prevEdges.length === 0) {
+        return prevEdges;
+      }
+      const filteredEdges = prevEdges.filter(edge => updatedNodeIds.has(edge.source) && updatedNodeIds.has(edge.target));
+      return filteredEdges.length === prevEdges.length ? prevEdges : filteredEdges;
+    });
+
+    setTimeout(() => {
+      emitGraphStateChange('frame-data-sync', {
+        updatedNodeCount: updatedNodes.filter((node, index) => {
+          const originalNode = currentNodes[index];
+          return originalNode && JSON.stringify(node.data) !== JSON.stringify(originalNode.data);
+        }).length
+      });
+      isFilteringNodesRef.current = false;
+    }, 200);
+  }, [frames, setNodes, setEdges, emitGraphStateChange]);
 
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {

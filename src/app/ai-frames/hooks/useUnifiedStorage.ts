@@ -1169,6 +1169,57 @@ export const useUnifiedStorage = ({
     initializeData();
   }, []); // Empty dependency array - only run on mount
 
+  const pruneGraphStateForFrames = useCallback((frameIdsToRemove: string[]): GraphState | null => {
+    if (!Array.isArray(frameIdsToRemove) || frameIdsToRemove.length === 0) {
+      return null;
+    }
+
+    const frameIdSet = new Set(frameIdsToRemove);
+    const currentGraphState = graphStateRef.current || { nodes: [], edges: [], selectedNodeId: null };
+    const currentNodes = currentGraphState.nodes || [];
+
+    const nextNodes = currentNodes.filter((node: any) => {
+      const nodeFrameId = node?.data?.frameId;
+      if (nodeFrameId && frameIdSet.has(nodeFrameId)) {
+        return false;
+      }
+      const attachmentParentId = node?.data?.attachedToFrameId;
+      if (attachmentParentId && frameIdSet.has(attachmentParentId)) {
+        return false;
+      }
+      return true;
+    });
+
+    const hasNodeRemovals = nextNodes.length !== currentNodes.length;
+    const nextNodeIds = new Set(nextNodes.map((node: any) => node.id));
+
+    const currentEdges = currentGraphState.edges || [];
+    const nextEdges = currentEdges.filter((edge: any) => nextNodeIds.has(edge.source) && nextNodeIds.has(edge.target));
+    const hasEdgeRemovals = nextEdges.length !== currentEdges.length;
+
+    if (!hasNodeRemovals && !hasEdgeRemovals) {
+      return null;
+    }
+
+    let nextSelectedNodeId = currentGraphState.selectedNodeId || null;
+    if (nextSelectedNodeId && !nextNodeIds.has(nextSelectedNodeId)) {
+      nextSelectedNodeId = null;
+    }
+
+    const updatedGraphState: GraphState = {
+      ...currentGraphState,
+      nodes: nextNodes,
+      edges: nextEdges,
+      selectedNodeId: nextSelectedNodeId
+    };
+
+    graphStateRef.current = updatedGraphState;
+    setGraphState(updatedGraphState);
+    loopPreventionRef.current = `${updatedGraphState.nodes.length}-${updatedGraphState.edges.length}-${updatedGraphState.selectedNodeId || 'null'}`;
+
+    return updatedGraphState;
+  }, [setGraphState]);
+
   // CRITICAL FIX: Add event listeners to capture frame edit events from UI components
   useEffect(() => {
     const handleFrameEditedEvent = (event: any) => {
@@ -1418,11 +1469,19 @@ export const useUnifiedStorage = ({
         setFrames(updatedFrames);
       }
 
+      const framesToRemove = Array.isArray(deletedFrameIds) && deletedFrameIds.length > 0
+        ? deletedFrameIds
+        : frameId
+          ? [frameId]
+          : [];
+
+      const prunedGraphState = pruneGraphStateForFrames(framesToRemove);
+
       // RESTORED: Trigger immediate background save for frame deletion
       // This is safe now that duplicate force-save-frames listener has been removed
       // Reference implementation uses this pattern successfully
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, prunedGraphState || graphStateRef.current);
     };
     
     // NEW: Handle node removal without frame deletion
@@ -1491,7 +1550,7 @@ export const useUnifiedStorage = ({
         window.removeEventListener("graph-state-changed", handleGraphStateChangedEvent);
       };
     }
-  }, [queueBackgroundSave]);
+  }, [queueBackgroundSave, pruneGraphStateForFrames]);
 
   // OPTIMISTIC: Add background save for new frames
   useEffect(() => {
