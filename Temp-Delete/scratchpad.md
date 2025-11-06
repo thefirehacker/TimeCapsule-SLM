@@ -1,3 +1,14 @@
+# 2025-11-06 Update – why the new fix works
+
+## Frames finally stay deleted in the graph
+- **Root cause (confirmed in logs):** after we removed the frame node from React Flow, the “initialGraphState merge” effect instantly re-added anything that was still present in the last saved snapshot. Because that snapshot still contained the deleted frame, we would get a resurrection before the cleanup effect had another chance to run.
+- **Fix:** during the merge we now gate every candidate node against the live `frames` array. If a frame ID is no longer present we skip both the frame node and any attachment node that points at it. We also trim edges to match the surviving nodes and log what was merged.
+- **Evidence:** deleting Frame 2 (“Test 01”) no longer emits a `🧪 Graph merge…` log, meaning the merge skipped rehydration entirely. The background save immediately afterwards shows `nodeCount: 1` and the graph stays clean without a refresh.
+
+## Still to do
+- Attachment/notes deletion (“Test 02”) still replays the old attachment node. The merge log now shows it: `EnhancedLearningGraph.tsx:1381 🧪 Graph merge from initialGraphState {... appendedNodeIds: ['node_…'], skippedFrameIds: []}`, which tells us an attachment node is re-added even though the frame itself survives without the attachment. We need to extend the guard so attachments only merge when the frame still advertises that attachment ID.
+- Chapter deletions behave the same way—the merge has no knowledge of the updated `chapters` array yet. We should cross-check the incoming nodes against live chapter IDs before rehydrating them.
+
 # Frame Deletion Bug - Complete Analysis
 
 ## THE CORE ISSUE
