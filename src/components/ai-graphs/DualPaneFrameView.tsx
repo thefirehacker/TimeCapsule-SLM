@@ -569,10 +569,20 @@ export default function DualPaneFrameView({
       const sourceFrameId = frameNodeLookup.get(edge.source);
       const targetFrameId = frameNodeLookup.get(edge.target);
 
-      if (sourceFrameId && targetFrameId) {
-        frameOutgoing.get(sourceFrameId)?.add(targetFrameId);
-        frameIncoming.get(targetFrameId)?.add(sourceFrameId);
-      }
+    if (sourceFrameId && targetFrameId) {
+      frameOutgoing.get(sourceFrameId)?.add(targetFrameId);
+      frameIncoming.get(targetFrameId)?.add(sourceFrameId);
+    }
+  });
+
+    const frameRelations = new Map<string, { sequential: boolean; verticalChapters: string[] }>();
+    frames.forEach(frame => {
+      const incomingSize = frameIncoming.get(frame.id)?.size ?? 0;
+      const outgoingSize = frameOutgoing.get(frame.id)?.size ?? 0;
+      frameRelations.set(frame.id, {
+        sequential: incomingSize > 0 || outgoingSize > 0,
+        verticalChapters: [],
+      });
     });
 
     // Find cascade chains starting from root frames (frames with no incoming edges from other frames)
@@ -657,6 +667,33 @@ export default function DualPaneFrameView({
       }
     });
 
+    const frameVerticalMap = new Map<string, Set<string>>();
+    sortedChapters.forEach(chapter => {
+      const relatedFrames = new Set<string>([
+        ...(chapter.frameIds || []),
+        ...(chapterToFrameEdges.get(chapter.id) || []),
+      ]);
+      relatedFrames.forEach(frameId => {
+        if (!frameVerticalMap.has(frameId)) {
+          frameVerticalMap.set(frameId, new Set());
+        }
+        frameVerticalMap.get(frameId)!.add(chapter.id);
+      });
+    });
+
+    frameVerticalMap.forEach((chaptersSet, frameId) => {
+      const relation = frameRelations.get(frameId);
+      const verticalList = Array.from(chaptersSet);
+      if (relation) {
+        relation.verticalChapters = verticalList;
+      } else {
+        frameRelations.set(frameId, {
+          sequential: false,
+          verticalChapters: verticalList,
+        });
+      }
+    });
+
     // If no chapters, just return orphan frame groups
     if (sortedChapters.length === 0) {
       const orphanFrameGroups: AIFrame[][] = [];
@@ -673,6 +710,7 @@ export default function DualPaneFrameView({
         connectedGroups: [] as Array<{ id: string; connected: boolean; chapters: ChapterLinearEntry[] }>,
         standaloneChapters: [] as ChapterLinearEntry[],
         orphanFrameGroups,
+        frameRelations,
       };
     }
 
@@ -902,7 +940,7 @@ export default function DualPaneFrameView({
       }
     });
 
-    return { connectedGroups, standaloneChapters, orphanFrameGroups };
+    return { connectedGroups, standaloneChapters, orphanFrameGroups, frameRelations };
   }, [frames, graphState, sortedChapters]);
 
   // Build sequential frame list for chapter-aware navigation
@@ -1111,7 +1149,52 @@ export default function DualPaneFrameView({
     }
   }, [onCreateFrame]);
 
-  const { connectedGroups, standaloneChapters, orphanFrameGroups } = linearTopology;
+  const { connectedGroups, standaloneChapters, orphanFrameGroups, frameRelations } = linearTopology;
+
+  const renderRelationBadges = useCallback(
+    (frameId: string, chapterId?: string) => {
+      const relation = frameRelations?.get(frameId);
+      if (!relation) {
+        return null;
+      }
+
+      const badges: React.ReactNode[] = [];
+      const hasVertical = chapterId
+        ? relation.verticalChapters.includes(chapterId)
+        : relation.verticalChapters.length > 0;
+
+      if (hasVertical) {
+        badges.push(
+          <Badge
+            key="vertical"
+            variant="outline"
+            className="text-[10px] bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-900/30 dark:border-emerald-700 dark:text-emerald-300"
+          >
+            Vertical
+          </Badge>
+        );
+      }
+
+      if (relation.sequential) {
+        badges.push(
+          <Badge
+            key="sequential"
+            variant="outline"
+            className="text-[10px] bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-700 dark:text-indigo-300"
+          >
+            Sequential
+          </Badge>
+        );
+      }
+
+      if (badges.length === 0) {
+        return null;
+      }
+
+      return <div className="flex items-center gap-1 mt-1">{badges}</div>;
+    },
+    [frameRelations]
+  );
   const hasChapters = sortedChapters.length > 0;
   const hasFrames = frames.length > 0;
 
@@ -1443,16 +1526,18 @@ export default function DualPaneFrameView({
                                               entry.frames.map((frame) => {
                                                 const isActiveFrame = currentFrame?.id === frame.id;
                                                 return (
-                                                  <Button
-                                                    key={frame.id}
-                                                    size="sm"
-                                                    variant={isActiveFrame ? 'default' : 'outline'}
-                                                    onClick={() => navigateToFrame(frame.id)}
-                                                    className="flex items-center gap-1 h-7 text-xs"
-                                                  >
-                                                    <Play className="h-3 w-3" />
-                                                    {frame.title || 'Untitled Frame'}
-                                                  </Button>
+                                                  <div key={frame.id} className="flex flex-col items-start">
+                                                    <Button
+                                                      size="sm"
+                                                      variant={isActiveFrame ? 'default' : 'outline'}
+                                                      onClick={() => navigateToFrame(frame.id)}
+                                                      className="flex items-center gap-1 h-7 text-xs"
+                                                    >
+                                                      <Play className="h-3 w-3" />
+                                                      {frame.title || 'Untitled Frame'}
+                                                    </Button>
+                                                    {renderRelationBadges(frame.id, entry.chapter.id)}
+                                                  </div>
                                                 );
                                               })
                                             ) : (
@@ -1536,16 +1621,18 @@ export default function DualPaneFrameView({
                                   entry.frames.map((frame) => {
                                     const isActiveFrame = currentFrame?.id === frame.id;
                                     return (
-                                      <Button
-                                        key={frame.id}
-                                        size="sm"
-                                        variant={isActiveFrame ? 'default' : 'outline'}
-                                        onClick={() => navigateToFrame(frame.id)}
-                                        className="flex items-center gap-1 h-7 text-xs"
-                                      >
-                                        <Play className="h-3 w-3" />
-                                        {frame.title || 'Untitled Frame'}
-                                      </Button>
+                                      <div key={frame.id} className="flex flex-col items-start">
+                                        <Button
+                                          size="sm"
+                                          variant={isActiveFrame ? 'default' : 'outline'}
+                                          onClick={() => navigateToFrame(frame.id)}
+                                          className="flex items-center gap-1 h-7 text-xs"
+                                        >
+                                          <Play className="h-3 w-3" />
+                                          {frame.title || 'Untitled Frame'}
+                                        </Button>
+                                        {renderRelationBadges(frame.id, entry.chapter.id)}
+                                      </div>
                                     );
                                   })
                                 ) : (
@@ -1615,15 +1702,18 @@ export default function DualPaneFrameView({
                           const isActiveFrame = currentFrame?.id === frame.id;
                           return (
                             <div key={frame.id} className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant={isActiveFrame ? 'default' : 'outline'}
-                                onClick={() => navigateToFrame(frame.id)}
-                                className="flex items-center gap-2"
-                              >
-                                <Play className="h-4 w-4" />
-                                {frame.title || 'Untitled Frame'}
-                              </Button>
+                              <div className="flex flex-col items-start">
+                                <Button
+                                  size="sm"
+                                  variant={isActiveFrame ? 'default' : 'outline'}
+                                  onClick={() => navigateToFrame(frame.id)}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Play className="h-4 w-4" />
+                                  {frame.title || 'Untitled Frame'}
+                                </Button>
+                                {renderRelationBadges(frame.id)}
+                              </div>
                               {frameIndex < frameGroup.length - 1 && (
                                 <span className="text-gray-400 text-sm">→</span>
                               )}

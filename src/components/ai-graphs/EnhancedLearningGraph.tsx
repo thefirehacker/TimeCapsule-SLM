@@ -29,8 +29,9 @@ import ChapterNode from "./ChapterNode";
 import EnhancedSidebar from "./EnhancedSidebar";
 import type { Chapter as AiChapter } from "@/app/ai-frames/types/frames";
 
-import { 
-  NodeData, 
+import {
+  NodeData,
+  AIFrameNodeData,
   EnhancedDragItem, 
   GraphState, 
   FrameGraphMapping,
@@ -58,7 +59,7 @@ const DEFAULT_CHAPTER_COLOR = "#3B82F6";
 let id = 0;
 const getId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${id++}`; // SPECS FIX: Guaranteed unique IDs
 
-type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order" | "color" >>;
+type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order" | "color" | "linkSequentially">>;
 
 interface EnhancedLearningGraphProps {
   mode?: "creator" | "learner";
@@ -89,7 +90,8 @@ export default function EnhancedLearningGraph({
   const lastEmissionRef = useRef<number>(0);
   const lastAppliedGraphState = useRef<string | null>(null);
   const chaptersRef = useRef<AiChapter[]>(chapters || []);
-  
+  const viewportRestoredRef = useRef(false); // Track if viewport has been restored to prevent multiple runs
+
   // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
   const framesRef = useRef(frames);
   useEffect(() => {
@@ -390,6 +392,9 @@ export default function EnhancedLearningGraph({
     if (typeof updates.color === "string") {
       sanitized.color = updates.color;
     }
+    if (typeof updates.linkSequentially === "boolean") {
+      sanitized.linkSequentially = updates.linkSequentially;
+    }
 
     if (Object.keys(sanitized).length === 0) {
       return;
@@ -594,6 +599,7 @@ export default function EnhancedLearningGraph({
           conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
           order: chapter.order,
           color: chapter.color || nodeData.color || DEFAULT_CHAPTER_COLOR,
+          linkSequentially: chapter.linkSequentially ?? false,
           onChapterUpdate: handler,
         };
 
@@ -605,7 +611,8 @@ export default function EnhancedLearningGraph({
           nodeData.order !== nextData.order ||
           nodeData.onChapterUpdate !== handler ||
           nodeData.id !== nextData.id ||
-          nodeData.color !== nextData.color;
+          nodeData.color !== nextData.color ||
+          (nodeData as ChapterNodeData)?.linkSequentially !== nextData.linkSequentially;
 
         if (!hasDifference) {
           return node;
@@ -657,6 +664,7 @@ export default function EnhancedLearningGraph({
             conceptIds: Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [],
             order: chapter.order,
             color: chapter.color || DEFAULT_CHAPTER_COLOR,
+            linkSequentially: chapter.linkSequentially ?? false,
             onChapterUpdate: handler,
           } satisfies ChapterNodeData,
         };
@@ -749,6 +757,9 @@ export default function EnhancedLearningGraph({
     const requiredPairs = new Map<string, { chapterNode: Node; frameNode: Node }>();
     chapters.forEach(chapter => {
       if (!chapter || !chapter.id) return;
+      if (chapter.linkSequentially) {
+        return;
+      }
       const chapterNode = chapterNodeByChapterId.get(chapter.id);
       if (!chapterNode) return;
 
@@ -764,14 +775,28 @@ export default function EnhancedLearningGraph({
     const currentEdges = edgesRef.current || [];
     const edgesToKeep: Edge[] = [];
     const existingPairs = new Set<string>();
+    const sequenceChapterIds = new Set<string>();
+    chapters.forEach(chapter => {
+      if (chapter?.linkSequentially && chapter.frameIds && chapter.frameIds.length > 1) {
+        sequenceChapterIds.add(chapter.id);
+      }
+    });
 
-    currentEdges.forEach(edge => {
+   currentEdges.forEach((edge: Edge) => {
       const sourceNode = nodeById.get(edge.source);
       const targetNode = nodeById.get(edge.target);
-      if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {
-        const chapterId = (sourceNode.data as ChapterNodeData)?.id || sourceNode.id;
-        const frameId = targetNode.data?.frameId;
-        if (chapterId && frameId) {
+     if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {
+       const chapterId = (sourceNode.data as ChapterNodeData)?.id || sourceNode.id;
+       const frameId = targetNode.data?.frameId;
+       if (chapterId && frameId) {
+          if (sequenceChapterIds.has(chapterId)) {
+            if (edge.data?.relationship === 'chapter-sequence' || edge.data?.relationship === 'sequential') {
+              edgesToKeep.push(edge);
+            } else {
+              changed = true;
+            }
+            return;
+          }
           const key = `${chapterId}->${frameId}`;
           if (requiredPairs.has(key)) {
             existingPairs.add(key);
@@ -803,9 +828,9 @@ export default function EnhancedLearningGraph({
       edgesToKeep.push(edge);
     });
 
-    const edgesToAdd: Edge[] = [];
-    requiredPairs.forEach((pair, key) => {
-      if (existingPairs.has(key)) {
+   const edgesToAdd: Edge[] = [];
+   requiredPairs.forEach((pair, key) => {
+     if (existingPairs.has(key)) {
         return;
       }
 
@@ -820,6 +845,7 @@ export default function EnhancedLearningGraph({
         targetHandle: null,
         style: { stroke: "#10b981", strokeWidth: 2.5 },
         type: 'straight',
+        data: { relationship: 'chapter-frame' },
       });
     });
 
@@ -1253,24 +1279,22 @@ export default function EnhancedLearningGraph({
           const deletedFrameIds = deletedAIFrameNodes.map(node => node.data.frameId);
           // Silently handle node removal - frames preserved
 
-          // FIX: Do NOT remove frames from the frames array
-          // Only the visual node is removed, frame data is preserved
-          // This prevents loss of attached videos, PDFs, and other content
-          
-          // Emit events for graph cleanup without data loss
+          // Delete frames when nodes are removed
+          // This allows users to properly delete frames from the graph
+
+          // Emit frame deletion event to remove frame data
           deletedFrameIds.forEach(frameId => {
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('graph-node-removed', {
-                detail: { 
+              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
+                detail: {
                   frameId,
-                  action: 'node_removed_only',
-                  frameDataPreserved: true 
+                  deletedFrameIds: [frameId]
                 }
               }));
             }
           });
 
-          // Node removal complete - frame data preserved
+          // Frame deletion complete
         }
       }
     }
@@ -1280,23 +1304,43 @@ export default function EnhancedLearningGraph({
 
   // CRITICAL FIX: Ensure initialGraphState nodes are properly displayed
   useEffect(() => {
-    // If initialGraphState was provided with nodes, ensure they are displayed
-    if (initialGraphState?.nodes?.length && nodes.length === 0) {
-      // Use the initialGraphState if provided and we have no nodes
-      setNodes(initialGraphState.nodes);
-      setEdges(initialGraphState.edges || []);
-      return;
+    // If initialGraphState was provided with nodes, merge them with existing nodes
+    // This ensures standalone attachment nodes persist even when frame nodes exist
+    if (initialGraphState?.nodes?.length) {
+      // CRITICAL FIX: Merge nodes instead of replacing to preserve standalone attachment nodes
+
+      // Get existing frame nodes (if any were already created)
+      const existingFrameNodes = nodes.filter(n => n.type === 'aiframe');
+      const existingFrameIds = new Set(existingFrameNodes.map(n => n.id));
+
+      // Get all nodes from initialGraphState that aren't duplicates
+      const loadedNodes = initialGraphState.nodes.filter(n => !existingFrameIds.has(n.id));
+
+      // Merge: existing frame nodes + all loaded nodes (deduplicates by ID)
+      const mergedNodes = [...existingFrameNodes, ...loadedNodes];
+
+      // Only update if we're actually adding new nodes
+      if (mergedNodes.length > nodes.length || nodes.length === 0) {
+        setNodes(mergedNodes);
+        setEdges(initialGraphState.edges || []);
+        return;
+      }
     }
 
-    // Only sync if we have frames, no nodes, and no initial graph state was provided
-    if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
+    // Only sync if we have frames and no nodes currently displayed
+    // Allow using saved positions from initialGraphState even if it exists
+    if (frames.length > 0 && nodes.length === 0) {
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
       
       frames.forEach((frame, index) => {
-        const nodeId = getId();
-        const x = index * 500; // More space for enhanced nodes
-        const y = 100;
+        // Check if this frame has a saved position in initialGraphState
+        const savedNode = initialGraphState?.nodes?.find(n => n.data?.frameId === frame.id);
+        const nodeId = savedNode?.id || getId(); // Preserve saved node ID
+
+        // Use saved position if available, otherwise use default layout
+        const x = savedNode?.position?.x ?? (index * 500); // More space for enhanced nodes
+        const y = savedNode?.position?.y ?? 100;
         
         // CRITICAL FIX: Preserve loaded frame content - only use defaults for undefined/null values
         const safeFrameData = {
@@ -1334,11 +1378,20 @@ export default function EnhancedLearningGraph({
         
         // If frame has attachment, create the attachment node
         if (frame.attachment) {
-          const attachmentNodeId = getId();
+          // Check for saved attachment node position
+          const savedAttachmentNode = initialGraphState?.nodes?.find(n =>
+            n.data?.attachmentId === frame.attachment?.id ||
+            n.data?.frameId === frame.id && n.type?.includes('attachment')
+          );
+          const attachmentNodeId = savedAttachmentNode?.id || getId();
+          // Normalize 'pdf-kb' to 'pdf-attachment' since they use the same node component
+          const nodeType = frame.attachment.type === 'pdf-kb'
+            ? 'pdf-attachment'
+            : `${frame.attachment.type}-attachment`;
           const attachmentNode: Node = {
             id: attachmentNodeId,
-            type: `${frame.attachment.type}-attachment`,
-            position: { x: x + 420, y: y }, // Position to the right
+            type: nodeType,
+            position: savedAttachmentNode?.position || { x: x + 420, y: y }, // Use saved position or default to the right
             data: createAttachmentNodeData(frame.attachment, frame.id)
           };
           
@@ -1368,6 +1421,20 @@ export default function EnhancedLearningGraph({
         //     style: { stroke: "#3b82f6", strokeWidth: 2 }, // Blue sequential connection
         //   });
         // }
+      });
+
+      // Restore any saved edges from initialGraphState that aren't already in newEdges
+      const savedEdges = initialGraphState?.edges || [];
+      const edgeMap = new Map(newEdges.map(e => [e.id, e]));
+
+      // Add saved edges that still have valid source and target nodes
+      const nodeIdSet = new Set(newNodes.map(n => n.id));
+      savedEdges.forEach(savedEdge => {
+        if (!edgeMap.has(savedEdge.id) &&
+            nodeIdSet.has(savedEdge.source) &&
+            nodeIdSet.has(savedEdge.target)) {
+          newEdges.push(savedEdge);
+        }
       });
 
       setNodes(newNodes);
@@ -1414,7 +1481,8 @@ export default function EnhancedLearningGraph({
       }
 
       // Animate viewport to show new layout after a brief delay
-      if (reactFlowInstance) {
+      // BUT: Skip if we're restoring a saved viewport
+      if (reactFlowInstance && !initialGraphState?.viewport) {
         setTimeout(() => {
           reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
           console.log('✅ Auto-layout viewport updated');
@@ -1425,6 +1493,39 @@ export default function EnhancedLearningGraph({
     window.addEventListener('graph-layout-applied', handleAutoLayoutApplied as EventListener);
     return () => window.removeEventListener('graph-layout-applied', handleAutoLayoutApplied as EventListener);
   }, [initialGraphState, reactFlowInstance, setNodes, setEdges]);
+
+  // VIEWPORT RESTORATION: Restore saved viewport when graph loads (ONE TIME ONLY)
+  useEffect(() => {
+    if (!reactFlowInstance) return;
+
+    // Skip if already restored - this prevents extra zooms while still waiting for nodes
+    if (viewportRestoredRef.current) return;
+
+    // Wait for nodes to be ready before restoring viewport
+    // This ensures positions are applied before we set the viewport
+    if (initialGraphState?.viewport && nodes.length > 0) {
+      // Wait for nodes to render, then restore viewport
+      setTimeout(() => {
+        reactFlowInstance.setViewport(initialGraphState.viewport);
+        viewportRestoredRef.current = true; // Mark as restored to prevent re-runs
+        console.log('✅ Viewport restored:', initialGraphState.viewport);
+      }, 300);
+    } else if (!initialGraphState?.viewport && nodes.length > 0) {
+      // Fit view if no saved viewport (only when we have nodes)
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.1, duration: 500 });
+        viewportRestoredRef.current = true; // Mark as restored to prevent re-runs
+      }, 300);
+    }
+
+    // CRITICAL: Include nodes.length to wait for nodes to be ready
+    // But use viewportRestoredRef to prevent multiple runs (no extra zooms)
+  }, [reactFlowInstance, initialGraphState?.viewport, nodes.length]);
+
+  // Reset viewport restoration flag when graph state changes
+  useEffect(() => {
+    viewportRestoredRef.current = false;
+  }, [initialGraphState]);
 
   // CRITICAL FIX: Sync existing nodes with updated frame data when frames prop changes
   useEffect(() => {
@@ -1519,11 +1620,23 @@ export default function EnhancedLearningGraph({
         } as VideoAttachmentNodeData;
       
       case 'pdf':
+      case 'pdf-kb':  // Handle KB PDF attachments
         return {
           ...baseData,
           type: 'pdf-attachment',
+          // URL PDF fields
           pdfUrl: attachment.data.pdfUrl || '',
           pages: attachment.data.pages || '',
+          // KB PDF fields (only included when type is 'pdf-kb')
+          ...(attachment.type === 'pdf-kb' && {
+            kbDocumentId: attachment.data.kbDocumentId,
+            filename: attachment.data.filename,
+            startPage: attachment.data.startPage,
+            endPage: attachment.data.endPage,
+            totalPages: attachment.data.totalPages,
+            filesize: attachment.data.filesize,
+            uploadedAt: attachment.data.uploadedAt,
+          }),
         } as PDFAttachmentNodeData;
       
       case 'text':
@@ -1827,6 +1940,155 @@ export default function EnhancedLearningGraph({
     [normalizeConceptValue, handleDetachConceptFromFrame, handleDetachConceptFromChapter, handleDetachContent, emitGraphStateChange]
   );
 
+  // POSITION PERSISTENCE: Handle node drag stop to save positions
+  const handleNodeDragStop = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      // Update graph state with new node position
+      const updatedNodes = nodesRef.current.map(n =>
+        n.id === node.id ? { ...n, position: node.position } : n
+      );
+
+      const freshGraphState = {
+        nodes: updatedNodes,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+        viewport: reactFlowInstance?.getViewport()
+      };
+
+      // Emit change event for storage
+      emitGraphStateChange('node-dragged', {
+        nodeId: node.id,
+        position: node.position
+      }, freshGraphState);
+
+      // Trigger save
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'node-position-changed',
+            timestamp: Date.now(),
+            graphState: freshGraphState
+          }
+        }));
+      }
+    },
+    [emitGraphStateChange, reactFlowInstance]
+  );
+
+  // ZOOM/PAN PERSISTENCE: Handle viewport movement end to save viewport state
+  const handleMoveEnd = useCallback(
+    (event?: MouseEvent | TouchEvent | null, viewport?: { x: number; y: number; zoom: number }) => {
+      if (!viewport) return;
+
+      const freshGraphState = {
+        nodes: nodesRef.current,
+        edges: edgesRef.current,
+        selectedNodeId: selectedNodeRef.current,
+        viewport: viewport
+      };
+
+      // Debounced emit to avoid excessive saves during smooth scrolling
+      setTimeout(() => {
+        emitGraphStateChange('viewport-changed', {
+          viewport
+        }, freshGraphState);
+
+        // Trigger save
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: {
+              reason: 'viewport-changed',
+              timestamp: Date.now(),
+              graphState: freshGraphState
+            }
+          }));
+        }
+      }, 300); // Debounce viewport saves
+    },
+    [emitGraphStateChange]
+  );
+
+  // DELETION: Handle explicit node deletion (Delete key press)
+  const handleNodesDelete = useCallback(
+    (nodesToDelete: Node[]) => {
+      nodesToDelete.forEach(node => {
+        // Get all edges connected to this node
+        const connectedEdges = edgesRef.current.filter(
+          edge => edge.source === node.id || edge.target === node.id
+        );
+
+        // Remove connected edges first
+        if (connectedEdges.length > 0) {
+          setEdges(eds => eds.filter(
+            edge => !connectedEdges.some(ce => ce.id === edge.id)
+          ));
+        }
+
+        // Handle frame node deletion
+        if (node.type === 'aiframe' && node.data?.frameId) {
+          // Emit frame deletion event
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
+              detail: {
+                frameId: node.data.frameId,
+                deletedFrameIds: [node.data.frameId]
+              }
+            }));
+          }
+        }
+
+        // Handle attachment node deletion
+        if (node.type?.includes('attachment') && node.data?.attachedToFrameId) {
+          handleDetachContent(node.data.attachedToFrameId as string);
+        }
+
+        // Handle concept node deletion
+        if (node.type === 'concept') {
+          handleConceptDelete(node.id);
+        }
+
+        // Handle chapter node deletion
+        if (node.type === 'chapter' && node.data?.id) {
+          // Update chapters array
+          if (onChaptersChange) {
+            const chapterIdToDelete = node.data.id;
+            const updatedChapters = chaptersRef.current.filter(
+              ch => ch.id !== chapterIdToDelete
+            );
+            onChaptersChange(updatedChapters);
+          }
+        }
+      });
+
+      // Emit graph state change with fresh state after all deletions
+      setTimeout(() => {
+        const freshGraphState = {
+          nodes: nodesRef.current,
+          edges: edgesRef.current,
+          selectedNodeId: selectedNodeRef.current,
+          viewport: reactFlowInstance?.getViewport()
+        };
+
+        emitGraphStateChange('nodes-deleted', {
+          deletedCount: nodesToDelete.length,
+          deletedNodeIds: nodesToDelete.map(n => n.id)
+        }, freshGraphState);
+
+        // Force save
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: {
+              reason: 'nodes-deleted',
+              timestamp: Date.now(),
+              graphState: freshGraphState
+            }
+          }));
+        }
+      }, 100);
+    },
+    [handleDetachContent, handleConceptDelete, onChaptersChange, emitGraphStateChange, reactFlowInstance, setEdges]
+  );
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
@@ -1960,26 +2222,26 @@ export default function EnhancedLearningGraph({
 
       setNodes((nds) => nds.concat(newNode));
 
-      // CRITICAL FIX: Emit save events for ALL node types
+      // CRITICAL FIX: Emit save events for ALL node types (OUTSIDE setNodes to avoid React error)
       if (typeof window !== 'undefined') {
-        // CRITICAL FIX: Only use delayed save to ensure graph state is updated before save
+        // Delay to ensure React Flow updates and useEffect syncs refs
         setTimeout(() => {
-          // Get fresh graph state after React Flow updates
+          // Get fresh graph state from refs (updated by useEffect at lines 109-111)
           const freshGraphState = {
             nodes: nodesRef.current,
             edges: edgesRef.current,
             selectedNodeId: selectedNodeRef.current
           };
-          
+
           // Trigger save with fresh graph state included in event
           window.dispatchEvent(new CustomEvent('force-save-frames', {
-            detail: { 
-              reason: 'node-drop-delayed', 
+            detail: {
+              reason: 'node-drop-delayed',
               nodeType: type,
-              graphState: freshGraphState 
+              graphState: freshGraphState
             }
           }));
-        }, 100); // Small delay to let React Flow update state
+        }, 100); // 100ms is sufficient for useEffect to update refs
       }
       
       // If it's an AI frame node, sync with frames array
@@ -2165,6 +2427,192 @@ export default function EnhancedLearningGraph({
     };
   }, [emitGraphStateChange, handleAttachContent, handleDetachContent, handleFrameUpdate, setNodes]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleLinkSequential = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const frameIds: string[] = Array.isArray(detail.frameIds) ? detail.frameIds : [];
+      const chapterId: string | undefined = detail.chapterId;
+      const attempt: number = typeof detail.attempt === 'number' ? detail.attempt : 0;
+
+      if (frameIds.length < 2) {
+        return;
+      }
+
+      const nodesById = new Map<string, Node>();
+      nodesRef.current.forEach((node: Node) => nodesById.set(node.id, node));
+
+      const frameNodeLookup = new Map<string, Node>();
+      nodesRef.current.forEach((node: Node) => {
+        if (node.type === 'aiframe') {
+          const frameData = node.data as AIFrameNodeData | undefined;
+          const frameId = frameData?.frameId;
+          if (typeof frameId === 'string' && frameId.length > 0) {
+            frameNodeLookup.set(frameId, node);
+          }
+        }
+      });
+
+      const chapterNode = nodesRef.current.find(
+        node => node.type === 'chapter' && (node.data as ChapterNodeData)?.id === chapterId
+      );
+
+      const existingEdgeKeys = new Set(edgesRef.current.map(edge => `${edge.source}->${edge.target}`));
+      const newConnections: Array<{ sourceId: string; targetId: string }> = [];
+      let missingNode = false;
+      let missingChapterNode = !chapterNode;
+
+      frameIds.forEach((sourceFrameId: string, index: number) => {
+        if (index === frameIds.length - 1) {
+          return;
+        }
+        const targetFrameId = frameIds[index + 1];
+        const sourceNode = frameNodeLookup.get(sourceFrameId);
+        const targetNode = frameNodeLookup.get(targetFrameId);
+        if (!sourceNode || !targetNode) {
+          missingNode = true;
+          return;
+        }
+
+        const key = `${sourceNode.id}->${targetNode.id}`;
+        if (existingEdgeKeys.has(key)) {
+          return;
+        }
+        newConnections.push({ sourceId: sourceNode.id, targetId: targetNode.id });
+        existingEdgeKeys.add(key);
+      });
+
+      if (!missingChapterNode && chapterNode) {
+        const firstFrameNode = frameNodeLookup.get(frameIds[0]);
+        if (!firstFrameNode) {
+          missingNode = true;
+        } else {
+          const key = `${chapterNode.id}->${firstFrameNode.id}`;
+          if (!existingEdgeKeys.has(key)) {
+            newConnections.unshift({ sourceId: chapterNode.id, targetId: firstFrameNode.id });
+            existingEdgeKeys.add(key);
+          }
+        }
+      }
+
+      if (newConnections.length > 0) {
+        let nextEdges = [...edgesRef.current];
+        const keySet = new Set(nextEdges.map(edge => `${edge.source}->${edge.target}`));
+        const addedEdges: Edge[] = [];
+
+        newConnections.forEach(({ sourceId, targetId }) => {
+          const key = `${sourceId}->${targetId}`;
+          if (keySet.has(key)) {
+            return;
+          }
+
+          const edgeId = `edge_seq_${sourceId}_${targetId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+          const sequentialEdge: Edge = {
+            id: edgeId,
+            source: sourceId,
+            target: targetId,
+            data: {
+              relationship: 'chapter-sequence',
+              chapterId,
+            },
+          } as Edge;
+
+          nextEdges = addEdge(sequentialEdge, nextEdges);
+          addedEdges.push({ ...sequentialEdge });
+          keySet.add(key);
+        });
+
+        if (addedEdges.length > 0) {
+          setEdges(nextEdges);
+
+          const freshGraphState = {
+            nodes: nodesRef.current,
+            edges: nextEdges,
+            selectedNodeId: selectedNodeRef.current,
+          };
+
+          emitGraphStateChange('chapter-sequence-added', {
+            chapterId,
+            frameIds,
+            addedEdgeIds: addedEdges.map(edge => edge.id),
+          }, freshGraphState);
+
+          window.dispatchEvent(
+            new CustomEvent('force-save-frames', {
+              detail: {
+                reason: 'chapter-sequence-added',
+                timestamp: Date.now(),
+                graphState: freshGraphState,
+              },
+            })
+          );
+        }
+      }
+
+      if ((missingNode || missingChapterNode) && attempt < 5) {
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent('link-chapter-frames-sequentially', {
+              detail: {
+                chapterId,
+                frameIds,
+                attempt: attempt + 1,
+              },
+            })
+          );
+        }, 400);
+      }
+    };
+
+    const handleUnlinkSequential = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const chapterId: string | undefined = detail.chapterId;
+      if (!chapterId) {
+        return;
+      }
+
+      const filteredEdges = edgesRef.current.filter(edge => {
+        const relationship = (edge as any).data;
+        return !(relationship?.relationship === 'chapter-sequence' && relationship?.chapterId === chapterId);
+      });
+
+      if (filteredEdges.length === edgesRef.current.length) {
+        return;
+      }
+
+      setEdges(filteredEdges);
+
+      const freshGraphState = {
+        nodes: nodesRef.current,
+        edges: filteredEdges,
+        selectedNodeId: selectedNodeRef.current,
+      };
+
+      emitGraphStateChange('chapter-sequence-removed', { chapterId }, freshGraphState);
+
+      window.dispatchEvent(
+        new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-sequence-removed',
+            timestamp: Date.now(),
+            graphState: freshGraphState,
+          },
+        })
+      );
+    };
+
+    window.addEventListener('link-chapter-frames-sequentially', handleLinkSequential as EventListener);
+    window.addEventListener('unlink-chapter-frames-sequentially', handleUnlinkSequential as EventListener);
+
+    return () => {
+      window.removeEventListener('link-chapter-frames-sequentially', handleLinkSequential as EventListener);
+      window.removeEventListener('unlink-chapter-frames-sequentially', handleUnlinkSequential as EventListener);
+    };
+  }, [emitGraphStateChange, setEdges]);
+
   // Listen for clear all frames event and reset graph nodes/edges
   useEffect(() => {
     const handleClearAllFrames = (event: CustomEvent) => {
@@ -2289,19 +2737,20 @@ export default function EnhancedLearningGraph({
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onEdgesDelete={onEdgesDelete}
+          onNodesDelete={handleNodesDelete}
           onConnect={onConnect}
           onInit={setReactFlowInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onNodeClick={handleNodeClick}
+          onNodeDragStop={handleNodeDragStop}
+          onMoveEnd={handleMoveEnd}
           nodeTypes={memoizedNodeTypes}
           nodesDraggable={nodesDraggable}
           nodesConnectable={nodesConnectable}
           elementsSelectable={elementsSelectable}
-          fitView
           attributionPosition="top-right"
           proOptions={{ hideAttribution: true }}
-          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
           minZoom={0.25}
           maxZoom={2}
         >

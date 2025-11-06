@@ -26,7 +26,7 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Document schema for RxDB
 const documentSchema = {
-  version: 2, // Incremented from 1 to handle documentType field addition
+  version: 3, // Incremented from 2 to add pageCount field for PDF metadata
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -71,7 +71,9 @@ const documentSchema = {
         privacy: { type: 'string' },
         difficulty: { type: 'string' },
         estimatedDuration: { type: 'number' },
-        fullObject: { type: 'string' }
+        fullObject: { type: 'string' },
+        // PDF-specific metadata
+        pageCount: { type: 'number' }
       }
     },
     chunks: {
@@ -131,6 +133,8 @@ export interface DocumentData {
     difficulty?: string;
     estimatedDuration?: number;
     fullObject?: string;
+    // PDF-specific metadata
+    pageCount?: number;
   };
   chunks: Array<{
     id: string;
@@ -355,7 +359,7 @@ export class VectorStore {
               2: function(oldDoc: any) {
                 // Determine document type based on existing metadata
                 let documentType: DocumentType = 'userdocs'; // default
-                
+
                 if (oldDoc.metadata) {
                   if (oldDoc.metadata.source === 'generated' || oldDoc.metadata.isGenerated) {
                     documentType = 'ai-frames';
@@ -367,12 +371,24 @@ export class VectorStore {
                     documentType = 'virtual-docs';
                   }
                 }
-                
+
                 return {
                   ...oldDoc,
                   metadata: {
                     ...oldDoc.metadata,
                     documentType: documentType
+                  }
+                };
+              },
+              // Migration from version 2 to version 3 - add pageCount field for PDF documents
+              3: function(oldDoc: any) {
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    // Preserve existing pageCount if it was somehow stored, otherwise use undefined
+                    // New PDFs will have actual pageCount, existing PDFs will need re-upload
+                    pageCount: oldDoc.metadata.pageCount
                   }
                 };
               }
@@ -398,7 +414,72 @@ export class VectorStore {
 
           this.documentsCollection = await this.database.addCollections({
             documents: {
-              schema: documentSchema
+              schema: documentSchema,
+              migrationStrategies: {
+                // Migration from version 0 to version 1
+                1: function(oldDoc: any) {
+                  // Migrate old documents to new schema
+                  const newDoc = {
+                    ...oldDoc,
+                    metadata: {
+                      ...oldDoc.metadata,
+                      // Ensure all required fields exist
+                      filename: oldDoc.metadata.filename || oldDoc.metadata.name || oldDoc.title,
+                      filesize: oldDoc.metadata.filesize || 0,
+                      filetype: oldDoc.metadata.filetype || 'unknown',
+                      uploadedAt: oldDoc.metadata.uploadedAt || oldDoc.metadata.createdAt || new Date().toISOString(),
+                      source: oldDoc.metadata.source || 'unknown',
+                      description: oldDoc.metadata.description || '',
+                      isGenerated: oldDoc.metadata.isGenerated || false,
+                      // Preserve existing fields
+                      bubblSpaceId: oldDoc.metadata.bubblSpaceId,
+                      category: oldDoc.metadata.category,
+                      createdAt: oldDoc.metadata.createdAt,
+                      name: oldDoc.metadata.name,
+                      timeCapsuleId: oldDoc.metadata.timeCapsuleId,
+                      type: oldDoc.metadata.type
+                    }
+                  };
+                  return newDoc;
+                },
+                // Migration from version 1 to version 2 - add documentType field
+                2: function(oldDoc: any) {
+                  // Determine document type based on existing metadata
+                  let documentType: DocumentType = 'userdocs'; // default
+
+                  if (oldDoc.metadata) {
+                    if (oldDoc.metadata.source === 'generated' || oldDoc.metadata.isGenerated) {
+                      documentType = 'ai-frames';
+                    } else if (oldDoc.metadata.type === 'timecapsule' || oldDoc.metadata.timeCapsuleId) {
+                      documentType = 'timecapsule';
+                    } else if (oldDoc.metadata.bubblSpaceId) {
+                      documentType = 'bubblspace';
+                    } else if (oldDoc.metadata.source === 'websearch' || oldDoc.metadata.source === 'scraping') {
+                      documentType = 'virtual-docs';
+                    }
+                  }
+
+                  return {
+                    ...oldDoc,
+                    metadata: {
+                      ...oldDoc.metadata,
+                      documentType: documentType
+                    }
+                  };
+                },
+                // Migration from version 2 to version 3 - add pageCount field for PDF documents
+                3: function(oldDoc: any) {
+                  return {
+                    ...oldDoc,
+                    metadata: {
+                      ...oldDoc.metadata,
+                      // Preserve existing pageCount if it was somehow stored, otherwise use undefined
+                      // New PDFs will have actual pageCount, existing PDFs will need re-upload
+                      pageCount: oldDoc.metadata.pageCount
+                    }
+                  };
+                }
+              }
             }
           });
           
@@ -444,9 +525,9 @@ export class VectorStore {
       throw new Error('Document processing is unavailable. Please refresh the page and try again.');
     }
 
-    // File size check (following reference implementation - 10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error(`File too large: ${file.name} (${this.formatFileSize(file.size)}). Please use files under 10MB.`);
+    // File size check - 50MB limit
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error(`File too large: ${file.name} (${this.formatFileSize(file.size)}). Please use files under 50MB.`);
     }
 
     console.log(`📄 Processing document: ${file.name}`);
@@ -454,6 +535,9 @@ export class VectorStore {
     
     // Generate document ID
     const docId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+    // Extract PDF metadata if available
+    const pdfMetadata = (file as any)._pdfMetadata;
 
     // Prepare document data for Web Worker
     const documentData = {
@@ -468,7 +552,9 @@ export class VectorStore {
         source: 'upload',
         description: `Uploaded file: ${file.name}`,
         isGenerated: false,
-        documentType: documentType
+        documentType: documentType,
+        // Include PDF page count if available
+        ...(pdfMetadata?.pageCount && { pageCount: pdfMetadata.pageCount })
       }
     };
 
@@ -514,7 +600,12 @@ export class VectorStore {
             await this.documentsCollection.documents.insert(documentData);
             console.log(`✅ Document stored with ID: ${docId}`);
             console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
-            
+
+            // Verify pageCount was stored correctly (for PDF documents)
+            if (documentData.metadata.pageCount !== undefined) {
+              console.log(`📄 PDF page count stored: ${documentData.metadata.pageCount} pages`);
+            }
+
             resolve(docId);
           } catch (error) {
             console.error('❌ Failed to store processed document:', error);

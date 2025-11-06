@@ -41,6 +41,7 @@ import {
 import { VectorStore } from "../../components/VectorStore/VectorStore";
 import { useVectorStore } from "../../components/providers/VectorStoreProvider";
 import { usePageAnalytics } from "@/components/analytics/Analytics";
+import { useDocuments } from "@/components/DeepResearch/hooks/useDocuments";
 
 // Import Graph Integration (keeping in src/components/ai-graphs)
 import { FrameGraphIntegration } from "@/components/ai-graphs";
@@ -122,11 +123,13 @@ const EMPTY_CHAPTER_FORM: {
   description: string;
   color: string;
   conceptIds: string[];
+  linkSequentially: boolean;
 } = {
   title: "",
   description: "",
   color: DEFAULT_CHAPTER_COLOR,
   conceptIds: [],
+  linkSequentially: false,
 };
 
 // Main component with dramatically reduced size
@@ -152,6 +155,9 @@ export default function AIFramesPage() {
     processingAvailable,
     processingStatus,
   } = useVectorStore();
+
+  // Documents hook for file upload handling
+  const documentsHook = useDocuments(providerVectorStore);
 
   // Essential state hooks
   const [isCreationMode, setIsCreationMode] = useState(true);
@@ -181,6 +187,7 @@ export default function AIFramesPage() {
     ...EMPTY_CHAPTER_FORM,
   }));
   const [selectedChapterFrameIds, setSelectedChapterFrameIds] = useState<string[]>([]);
+  const [pendingChapterFrames, setPendingChapterFrames] = useState<Record<string, AIFrame>>({});
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [documentManagerTab, setDocumentManagerTab] = useState("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
@@ -196,6 +203,8 @@ export default function AIFramesPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [graphResetKey, setGraphResetKey] = useState(0);
+  const [showChapterProcessing, setShowChapterProcessing] = useState(false);
+  const chapterProcessingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -237,6 +246,55 @@ export default function AIFramesPage() {
 
     initializeManagers();
   }, [providerVectorStore, vectorStoreInitialized]);
+
+  useEffect(() => {
+    setPendingChapterFrames((prev) => {
+      if (!prev || Object.keys(prev).length === 0) {
+        return prev;
+      }
+
+      const existingIds = new Set(unifiedStorage.frames.map((frame) => frame.id));
+      let changed = false;
+      const next: Record<string, AIFrame> = {};
+
+      Object.entries(prev).forEach(([id, frame]) => {
+        if (existingIds.has(id)) {
+          changed = true;
+          return;
+        }
+        next[id] = frame;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [unifiedStorage.frames]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleSaveSuccess = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.background && showChapterProcessing) {
+        setShowChapterProcessing(false);
+        if (chapterProcessingTimeoutRef.current) {
+          clearTimeout(chapterProcessingTimeoutRef.current);
+          chapterProcessingTimeoutRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener("unified-save-success", handleSaveSuccess as EventListener);
+
+    return () => {
+      window.removeEventListener("unified-save-success", handleSaveSuccess as EventListener);
+      if (chapterProcessingTimeoutRef.current) {
+        clearTimeout(chapterProcessingTimeoutRef.current);
+        chapterProcessingTimeoutRef.current = null;
+      }
+    };
+  }, [showChapterProcessing]);
 
   // FIXED: Enhanced VectorStore modal management for stability
   useEffect(() => {
@@ -405,6 +463,7 @@ export default function AIFramesPage() {
       await unifiedStorage.clearAll();
       setCurrentFrameIndex(0);
       setGraphResetKey((prev) => prev + 1);
+      setPendingChapterFrames({});
       console.log("🗑️ All frames cleared");
     } catch (error) {
       console.error("❌ Failed to clear AI Frames:", error);
@@ -542,6 +601,12 @@ export default function AIFramesPage() {
   const handleCreateFrameInline = useCallback(
     async (options: CreateFrameOptions = {}): Promise<AIFrame> => {
       const frame = handleCreateFrame({ ...options, selectFrame: false });
+      if (frame && frame.id) {
+        setPendingChapterFrames((prev) => ({
+          ...prev,
+          [frame.id]: frame,
+        }));
+      }
       return frame;
     },
     [handleCreateFrame]
@@ -552,6 +617,63 @@ export default function AIFramesPage() {
     setChapterFormData({ ...EMPTY_CHAPTER_FORM });
     setSelectedChapterFrameIds([]);
   }, []);
+
+  const determineChapterSequential = useCallback(
+    (chapter: Chapter | null): boolean => {
+      if (chapter?.linkSequentially === true) {
+        return true;
+      }
+      if (chapter?.linkSequentially === false) {
+        return false;
+      }
+      if (!chapter || !Array.isArray(chapter.frameIds) || chapter.frameIds.length < 2) {
+        return false;
+      }
+
+      const frameIds = chapter.frameIds.filter(Boolean);
+      if (frameIds.length < 2) {
+        return false;
+      }
+
+      const nodes = unifiedStorage.graphState?.nodes || [];
+      const edges = unifiedStorage.graphState?.edges || [];
+      if (!nodes.length || !edges.length) {
+        return false;
+      }
+
+      const nodeLookup = new Map<string, string>();
+      nodes.forEach((node: any) => {
+        if (node?.type === "aiframe") {
+          const frameId = node?.data?.frameId;
+          if (frameId && frameIds.includes(frameId)) {
+            nodeLookup.set(frameId, node.id);
+          }
+        }
+      });
+
+      if (nodeLookup.size < frameIds.length) {
+        return false;
+      }
+
+      for (let index = 0; index < frameIds.length - 1; index += 1) {
+        const sourceNodeId = nodeLookup.get(frameIds[index]);
+        const targetNodeId = nodeLookup.get(frameIds[index + 1]);
+        if (!sourceNodeId || !targetNodeId) {
+          return false;
+        }
+
+        const hasEdge = edges.some(
+          (edge: any) => edge.source === sourceNodeId && edge.target === targetNodeId
+        );
+        if (!hasEdge) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+    [unifiedStorage.graphState]
+  );
 
   const openCreateChapterDialog = useCallback(() => {
     resetChapterDialogState();
@@ -566,11 +688,15 @@ export default function AIFramesPage() {
         description: chapter.description || "",
         color: chapter.color || DEFAULT_CHAPTER_COLOR,
         conceptIds: chapter.conceptIds || [],
+        linkSequentially:
+          typeof chapter.linkSequentially === "boolean"
+            ? chapter.linkSequentially
+            : determineChapterSequential(chapter),
       });
       setSelectedChapterFrameIds(chapter.frameIds || []);
       setShowChapterDialog(true);
     },
-    []
+    [determineChapterSequential]
   );
 
   const handleChapterFrameSelection = useCallback((frameId: string, isSelected: boolean) => {
@@ -585,22 +711,37 @@ export default function AIFramesPage() {
     });
   }, []);
 
-  const selectAllChapterFrames = useCallback(() => {
-    setSelectedChapterFrameIds(
-      unifiedStorage.frames
-        .filter((frame) => {
-          if (editingChapter) {
-            return true;
-          }
-          return !frame.chapterId;
-        })
-        .map((frame) => frame.id)
-    );
-  }, [unifiedStorage.frames, editingChapter]);
-
   const deselectAllChapterFrames = useCallback(() => {
     setSelectedChapterFrameIds([]);
   }, []);
+
+  const getFramesSnapshot = useCallback((): UnifiedAIFrame[] => {
+    const frameMap = new Map<string, UnifiedAIFrame>();
+
+    unifiedStorage.frames.forEach((frame) => {
+      frameMap.set(frame.id, frame);
+    });
+
+    Object.values(pendingChapterFrames).forEach((frame) => {
+      if (frameMap.has(frame.id)) {
+        return;
+      }
+      const createdAt = frame.createdAt || new Date().toISOString();
+      const updatedAt = frame.updatedAt || createdAt;
+      frameMap.set(frame.id, {
+        ...frame,
+        metadata: {
+          version: "2.0",
+          createdAt,
+          updatedAt,
+          source: "ai-frames" as const,
+          lastSaved: "",
+        },
+      });
+    });
+
+    return Array.from(frameMap.values());
+  }, [pendingChapterFrames, unifiedStorage.frames]);
 
   const applyChapterAssignments = useCallback(
     (chapterId: string, frameIds: string[], frames: UnifiedAIFrame[]): UnifiedAIFrame[] => {
@@ -648,109 +789,29 @@ export default function AIFramesPage() {
     []
   );
 
-  const handleCreateChapter = useCallback(() => {
-    const trimmedTitle = chapterFormData.title.trim();
-    if (!trimmedTitle) {
+  const queueSequentialUnlink = useCallback((chapterId: string) => {
+    if (typeof window === "undefined" || !chapterId) {
       return;
     }
 
-    const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
-
-    const updatedFrames = applyChapterAssignments(
-      chapterId,
-      selectedChapterFrameIds,
-      unifiedStorage.frames
+    window.dispatchEvent(
+      new CustomEvent("unlink-chapter-frames-sequentially", {
+        detail: { chapterId },
+      })
     );
+  }, []);
 
-    const baseChapter: Chapter = {
-      id: chapterId,
-      title: trimmedTitle,
-      description: chapterFormData.description.trim(),
-      color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
-      conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
-      frameIds: [],
-      order: unifiedStorage.chapters.length,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
-    const syncedChapters = syncChapterFrames(chaptersWithNew, updatedFrames).map((chapter) =>
-      chapter.id === chapterId
-        ? {
-            ...chapter,
-            conceptIds: baseChapter.conceptIds,
-            color: baseChapter.color,
-            description: baseChapter.description,
-            createdAt: baseChapter.createdAt,
-            updatedAt: now,
-            order: baseChapter.order,
-          }
-        : chapter
-    );
-
-    unifiedStorage.updateFrames(updatedFrames);
-    unifiedStorage.updateChapters(syncedChapters);
-    setShowChapterDialog(false);
-    resetChapterDialogState();
-  }, [
-    chapterFormData,
-    selectedChapterFrameIds,
-    unifiedStorage.frames,
-    unifiedStorage.chapters,
-    applyChapterAssignments,
-    syncChapterFrames,
-    resetChapterDialogState,
-  ]);
-
-  const handleEditChapter = useCallback(() => {
-    if (!editingChapter) {
+  const queueSequentialLink = useCallback((chapterId: string, frameIds: string[]) => {
+    if (typeof window === "undefined" || !chapterId || frameIds.length < 2) {
       return;
     }
 
-    const trimmedTitle = chapterFormData.title.trim();
-    if (!trimmedTitle) {
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    const updatedFrames = applyChapterAssignments(
-      editingChapter.id,
-      selectedChapterFrameIds,
-      unifiedStorage.frames
+    window.dispatchEvent(
+      new CustomEvent("link-chapter-frames-sequentially", {
+        detail: { chapterId, frameIds, attempt: 0 },
+      })
     );
-
-    const updatedChapters = unifiedStorage.chapters.map((chapter) =>
-      chapter.id === editingChapter.id
-        ? {
-            ...chapter,
-            title: trimmedTitle,
-            description: chapterFormData.description.trim(),
-            color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
-            conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
-            updatedAt: now,
-          }
-        : chapter
-    );
-
-    const syncedChapters = syncChapterFrames(updatedChapters, updatedFrames);
-
-    unifiedStorage.updateFrames(updatedFrames);
-    unifiedStorage.updateChapters(syncedChapters);
-    setShowChapterDialog(false);
-    resetChapterDialogState();
-  }, [
-    editingChapter,
-    chapterFormData,
-    selectedChapterFrameIds,
-    unifiedStorage.frames,
-    unifiedStorage.chapters,
-    applyChapterAssignments,
-    syncChapterFrames,
-    resetChapterDialogState,
-  ]);
+  }, []);
 
   const handleDeleteChapter = useCallback(
     (chapterId: string) => {
@@ -891,6 +952,263 @@ export default function AIFramesPage() {
       })),
     [unifiedStorage.frames]
   );
+
+  const frameOrderLookup = useMemo(() => {
+    const lookup = new Map<string, number>();
+    framesWithOrder.forEach((frame) => {
+      lookup.set(frame.id, typeof frame.order === "number" ? frame.order : 0);
+    });
+
+    let fallbackOrder = framesWithOrder.length + 1;
+    Object.values(pendingChapterFrames).forEach((frame) => {
+      if (!lookup.has(frame.id)) {
+        const orderValue =
+          typeof frame.order === "number" ? frame.order : fallbackOrder;
+        lookup.set(frame.id, orderValue);
+        fallbackOrder += 1;
+      }
+    });
+
+    return lookup;
+  }, [framesWithOrder, pendingChapterFrames]);
+
+  const getOrderedFrameIds = useCallback(
+    (frameIds: string[]): string[] => {
+      const maxOrder = Number.MAX_SAFE_INTEGER;
+      return [...frameIds].sort((a, b) => {
+        const orderA = frameOrderLookup.get(a) ?? maxOrder;
+        const orderB = frameOrderLookup.get(b) ?? maxOrder;
+        if (orderA === orderB) {
+          return a.localeCompare(b);
+        }
+        return orderA - orderB;
+      });
+    },
+    [frameOrderLookup]
+  );
+
+  const framesForChapterDialog = useMemo<UnifiedAIFrame[]>(() => {
+    const existingIds = new Set(framesWithOrder.map((frame) => frame.id));
+    const additionalFrames = Object.values(pendingChapterFrames)
+      .filter((frame) => !existingIds.has(frame.id))
+      .map<UnifiedAIFrame>((frame) => {
+        const createdAt = frame.createdAt || new Date().toISOString();
+        const updatedAt = frame.updatedAt || createdAt;
+        return {
+          ...frame,
+          metadata: {
+            version: "2.0",
+            createdAt,
+            updatedAt,
+            source: "ai-frames" as const,
+            lastSaved: "",
+          },
+        };
+      });
+
+    return [...framesWithOrder, ...additionalFrames];
+  }, [framesWithOrder, pendingChapterFrames]);
+
+  const selectAllChapterFrames = useCallback(() => {
+    const framesToSelect = framesForChapterDialog.filter((frame) => {
+      if (editingChapter) {
+        return true;
+      }
+      return !frame.chapterId;
+    });
+    setSelectedChapterFrameIds(framesToSelect.map((frame) => frame.id));
+  }, [framesForChapterDialog, editingChapter]);
+
+  const handleCreateChapter = useCallback(() => {
+    const trimmedTitle = chapterFormData.title.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    setShowChapterProcessing(true);
+    if (chapterProcessingTimeoutRef.current) {
+      clearTimeout(chapterProcessingTimeoutRef.current);
+    }
+    chapterProcessingTimeoutRef.current = setTimeout(() => {
+      setShowChapterProcessing(false);
+      chapterProcessingTimeoutRef.current = null;
+    }, 30000);
+
+    const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
+    const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+
+    const frameSnapshot = getFramesSnapshot();
+    const updatedFrames = applyChapterAssignments(
+      chapterId,
+      orderedSelection,
+      frameSnapshot
+    );
+
+    const baseChapter: Chapter = {
+      id: chapterId,
+      title: trimmedTitle,
+      description: chapterFormData.description.trim(),
+      color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+      conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+      frameIds: orderedSelection,
+      order: unifiedStorage.chapters.length,
+      createdAt: now,
+      updatedAt: now,
+      linkSequentially: chapterFormData.linkSequentially,
+    };
+
+    const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
+    const framesWithAssignments = updatedFrames.map(frame =>
+      orderedSelection.includes(frame.id)
+        ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
+        : frame
+    );
+
+    const chaptersWithAssignments = syncChapterFrames(chaptersWithNew, framesWithAssignments).map((chapter) =>
+      chapter.id === chapterId
+        ? {
+            ...chapter,
+            conceptIds: baseChapter.conceptIds,
+            color: baseChapter.color,
+            description: baseChapter.description,
+            createdAt: baseChapter.createdAt,
+            updatedAt: now,
+            order: baseChapter.order,
+            frameIds: orderedSelection,
+            linkSequentially: baseChapter.linkSequentially,
+          }
+        : chapter
+    );
+
+    unifiedStorage.updateFrames(framesWithAssignments);
+    unifiedStorage.updateChapters(chaptersWithAssignments);
+    setPendingChapterFrames((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const next = { ...prev };
+      orderedSelection.forEach((id) => {
+        delete next[id];
+      });
+      return next;
+    });
+    setShowChapterDialog(false);
+    resetChapterDialogState();
+
+    queueSequentialUnlink(chapterId);
+    if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
+      setTimeout(() => queueSequentialLink(chapterId, orderedSelection), 300);
+    }
+  }, [
+    applyChapterAssignments,
+    chapterFormData.color,
+    chapterFormData.conceptIds,
+    chapterFormData.description,
+    chapterFormData.linkSequentially,
+    chapterFormData.title,
+    getFramesSnapshot,
+    getOrderedFrameIds,
+    queueSequentialLink,
+    queueSequentialUnlink,
+    resetChapterDialogState,
+    selectedChapterFrameIds,
+    syncChapterFrames,
+    unifiedStorage.chapters,
+    unifiedStorage.updateChapters,
+    unifiedStorage.updateFrames,
+  ]);
+
+  const handleEditChapter = useCallback(() => {
+    if (!editingChapter) {
+      return;
+    }
+
+    const trimmedTitle = chapterFormData.title.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    setShowChapterProcessing(true);
+    if (chapterProcessingTimeoutRef.current) {
+      clearTimeout(chapterProcessingTimeoutRef.current);
+    }
+    chapterProcessingTimeoutRef.current = setTimeout(() => {
+      setShowChapterProcessing(false);
+      chapterProcessingTimeoutRef.current = null;
+    }, 30000);
+
+    const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
+    const now = new Date().toISOString();
+
+    const frameSnapshot = getFramesSnapshot();
+    const updatedFrames = applyChapterAssignments(
+      editingChapter.id,
+      orderedSelection,
+      frameSnapshot
+    );
+
+    const updatedChapters = unifiedStorage.chapters.map((chapter) =>
+      chapter.id === editingChapter.id
+        ? {
+            ...chapter,
+            title: trimmedTitle,
+            description: chapterFormData.description.trim(),
+            color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+            conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+            frameIds: orderedSelection,
+            updatedAt: now,
+            linkSequentially: chapterFormData.linkSequentially,
+          }
+        : chapter
+    );
+
+    const framesWithAssignments = updatedFrames.map(frame =>
+      orderedSelection.includes(frame.id)
+        ? { ...frame, chapterId: editingChapter.id, parentFrameId: editingChapter.id }
+        : frame
+    );
+
+    const syncedChapters = syncChapterFrames(updatedChapters, framesWithAssignments);
+
+    unifiedStorage.updateFrames(framesWithAssignments);
+    unifiedStorage.updateChapters(syncedChapters);
+    setPendingChapterFrames((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const next = { ...prev };
+      orderedSelection.forEach((id) => {
+        delete next[id];
+      });
+      return next;
+    });
+    setShowChapterDialog(false);
+    resetChapterDialogState();
+
+    queueSequentialUnlink(editingChapter.id);
+    if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
+      setTimeout(() => queueSequentialLink(editingChapter.id, orderedSelection), 300);
+    }
+  }, [
+    applyChapterAssignments,
+    chapterFormData.color,
+    chapterFormData.conceptIds,
+    chapterFormData.description,
+    chapterFormData.linkSequentially,
+    chapterFormData.title,
+    editingChapter,
+    getFramesSnapshot,
+    getOrderedFrameIds,
+    queueSequentialLink,
+    queueSequentialUnlink,
+    resetChapterDialogState,
+    selectedChapterFrameIds,
+    syncChapterFrames,
+    unifiedStorage.chapters,
+    unifiedStorage.updateChapters,
+    unifiedStorage.updateFrames,
+  ]);
 
   const availableConcepts = useMemo(() => {
     const conceptSet = new Set<string>();
@@ -1106,6 +1424,27 @@ export default function AIFramesPage() {
   // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (
     <>
+      {/* Hidden file input for KB document uploads */}
+      <input
+        id="kb-file-upload"
+        type="file"
+        multiple
+        accept=".pdf,.docx,.txt,.md"
+        className="hidden"
+        onChange={async (e) => {
+          if (e.target.files) {
+            await documentsHook.handleFileUpload(e.target.files);
+
+            // Refresh documents list to show newly uploaded files
+            if (providerVectorStore) {
+              const allDocuments = await providerVectorStore.getAllDocuments();
+              setDocuments(allDocuments);
+            }
+
+            e.target.value = ""; // Reset input
+          }
+        }}
+      />
       <div className="min-h-screen flex flex-col pt-20">
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">
@@ -1125,26 +1464,15 @@ export default function AIFramesPage() {
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
               <KnowledgeBaseSection
                 documentStatus={{
-                  count: documents.length,
-                  totalSize: documents.reduce(
-                    (sum, doc) => sum + (doc.metadata?.filesize || 0),
-                    0
-                  ),
+                  count: documents.filter(aiFramesTabConfigs[0].filter).length,
+                  totalSize: documents
+                    .filter(aiFramesTabConfigs[0].filter)
+                    .reduce((sum, doc) => sum + (doc.metadata?.filesize || 0), 0),
                   vectorCount: 0,
                 }}
-                onUploadDocuments={() => {
-                  const input = document.createElement("input");
-                  input.type = "file";
-                  input.multiple = true;
-                  input.onchange = (e) => {
-                    const files = (e.target as HTMLInputElement).files;
-                    if (files) {
-                      console.log("Upload documents:", files);
-                      // Handle file upload here
-                    }
-                  };
-                  input.click();
-                }}
+                onUploadDocuments={() =>
+                  document.getElementById("kb-file-upload")?.click()
+                }
                 onManageKnowledge={() => {
                   console.log(
                     "Manage KB button clicked - opening Knowledge Base Manager"
@@ -1354,8 +1682,24 @@ export default function AIFramesPage() {
       </div>
 
       {/* Modals - PRESERVATION: Keep existing dialogs */}
+      <Dialog open={showChapterProcessing} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Applying chapter changes
+            </DialogTitle>
+            <DialogDescription>
+              Updating frame connections. This may take a few seconds.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-sm text-gray-600">
+            Please keep this page open while updates complete.
+          </div>
+        </DialogContent>
+      </Dialog>
       <VectorStoreInitModal
-        isOpen={showVectorStoreInitModal}
+       isOpen={showVectorStoreInitModal}
         progress={
           vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
         }
@@ -1419,7 +1763,7 @@ export default function AIFramesPage() {
         chapterFormData={chapterFormData}
         setChapterFormData={setChapterFormData}
         selectedFrameIds={selectedChapterFrameIds}
-        frames={framesWithOrder}
+        frames={framesForChapterDialog}
         availableConcepts={availableConcepts}
         onFrameSelection={handleChapterFrameSelection}
         onSelectAll={selectAllChapterFrames}
@@ -1438,14 +1782,38 @@ export default function AIFramesPage() {
       >
         <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
-              Knowledge Base Manager
-            </DialogTitle>
-            <DialogDescription>
-              Organized view of your documents by category. Search and manage
-              your knowledge base content.
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                  Knowledge Base Manager
+                </DialogTitle>
+                <DialogDescription>
+                  Organized view of your documents by category. Search and manage
+                  your knowledge base content.
+                </DialogDescription>
+              </div>
+
+              {/* Upload Button */}
+              <Button
+                onClick={() => document.getElementById("kb-file-upload")?.click()}
+                disabled={documentsHook.isUploading}
+                className="space-x-2"
+                size="sm"
+              >
+                {documentsHook.isUploading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    <span>Upload Files</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6">

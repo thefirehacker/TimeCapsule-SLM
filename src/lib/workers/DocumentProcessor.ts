@@ -220,7 +220,8 @@ export class DocumentProcessor {
         source: documentData.metadata?.source,
         description: documentData.metadata?.description,
         isGenerated: documentData.metadata?.isGenerated,
-        documentType: documentData.metadata?.documentType
+        documentType: documentData.metadata?.documentType,
+        pageCount: documentData.metadata?.pageCount
       }
     }));
     

@@ -55,7 +55,12 @@ export class UnifiedStorageManager {
   }
 
   // UNIFIED SAVE: Single method that saves to ALL storage layers with SAME format
-  async saveAll(frames: UnifiedAIFrame[], chapters: UnifiedChapter[], graphState: GraphState): Promise<boolean> {
+  async saveAll(
+    frames: UnifiedAIFrame[],
+    chapters: UnifiedChapter[],
+    graphState: GraphState,
+    options: { skipVectorStore?: boolean } = {}
+  ): Promise<boolean> {
     // PREVENT: Concurrent saves that cause conflicts
     if (this.isSaving) {
       console.log("⏳ Save already in progress, skipping...");
@@ -64,7 +69,10 @@ export class UnifiedStorageManager {
 
     try {
       this.isSaving = true;
-      console.log("💾 Starting unified save...");
+      const { skipVectorStore = false } = options;
+      console.log("💾 Starting unified save...", {
+        skipVectorStore,
+      });
 
       // STEP 1: Normalize frame data to unified format
       const unifiedFrames = this.normalizeFrames(frames);
@@ -73,12 +81,17 @@ export class UnifiedStorageManager {
       // STEP 2: Create complete app state
       const appState = this.createAppState(unifiedFrames, unifiedChapters, graphState);
       
-      // STEP 3: Save to ALL storage layers with SAME format
-      const results = await Promise.allSettled([
+      // STEP 3: Save to storage layers (optionally skip VectorStore for graph-only updates)
+      const saveTasks: Promise<void>[] = [
         this.saveToLocalStorage(appState),
-        this.saveToVectorStore(appState),
-        this.saveToIndexedDB(appState)
-      ]);
+        this.saveToIndexedDB(appState),
+      ];
+
+      if (!skipVectorStore) {
+        saveTasks.push(this.saveToVectorStore(appState));
+      }
+
+      const results = await Promise.allSettled(saveTasks);
 
       // STEP 4: Verify all saves succeeded
       const failures = results.filter(r => r.status === 'rejected');
@@ -118,27 +131,27 @@ export class UnifiedStorageManager {
 
       // PRIORITY 1: Try localStorage first (fastest)
       const localData = await this.loadFromLocalStorage();
-      if (localData && (localData.frames.length > 0 || localData.chapters.length > 0)) {
-        console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames`);
-        
+      if (localData && (localData.frames.length > 0 || localData.chapters.length > 0 || localData.graphState?.nodes?.length > 0)) {
+        console.log(`✅ Loaded from localStorage: ${localData.frames.length} frames, ${localData.graphState?.nodes?.length || 0} nodes`);
+
         // Loaded app state with graph
-        
+
         return localData;
       }
 
       // PRIORITY 2: Try VectorStore (if available)
       if (this.vectorStore) {
         const vectorData = await this.loadFromVectorStore();
-        if (vectorData && (vectorData.frames.length > 0 || vectorData.chapters.length > 0)) {
-          console.log(`✅ Loaded from VectorStore: ${vectorData.frames.length} frames`);
+        if (vectorData && (vectorData.frames.length > 0 || vectorData.chapters.length > 0 || vectorData.graphState?.nodes?.length > 0)) {
+          console.log(`✅ Loaded from VectorStore: ${vectorData.frames.length} frames, ${vectorData.graphState?.nodes?.length || 0} nodes`);
           return vectorData;
         }
       }
 
       // PRIORITY 3: Try IndexedDB (fallback)
       const indexedData = await this.loadFromIndexedDB();
-      if (indexedData && (indexedData.frames.length > 0 || indexedData.chapters.length > 0)) {
-        console.log(`✅ Loaded from IndexedDB: ${indexedData.frames.length} frames`);
+      if (indexedData && (indexedData.frames.length > 0 || indexedData.chapters.length > 0 || indexedData.graphState?.nodes?.length > 0)) {
+        console.log(`✅ Loaded from IndexedDB: ${indexedData.frames.length} frames, ${indexedData.graphState?.nodes?.length || 0} nodes`);
         return indexedData;
       }
 
@@ -157,7 +170,8 @@ export class UnifiedStorageManager {
       ...frame,
       aiConcepts: frame.aiConcepts && frame.aiConcepts.length > 0 ? frame.aiConcepts : (frame.conceptIds || []),
       conceptIds: frame.conceptIds || frame.aiConcepts || [],
-      chapterId: frame.chapterId || frame.parentFrameId,
+      // Respect explicit undefined for ungrouped frames - only use parentFrameId if chapterId is missing entirely
+      chapterId: frame.chapterId !== undefined ? frame.chapterId : (frame.parentFrameId || undefined),
       // DYNAMIC: Preserve ANY attachment structure without type restrictions
       attachment: frame.attachment ? {
         id: frame.attachment.id || `attachment-${Date.now()}`,
@@ -370,8 +384,8 @@ export class UnifiedStorageManager {
     }
   }
 
-  // VECTORSTORE: Load with consistent parsing
-  private async loadFromVectorStore(): Promise<{ frames: UnifiedAIFrame[]; graphState: GraphState } | null> {
+  // VECTOR STORE: Load with consistent parsing
+  private async loadFromVectorStore(): Promise<{ frames: UnifiedAIFrame[]; chapters: UnifiedChapter[]; graphState: GraphState } | null> {
     if (!this.vectorStore) return null;
 
     try {
@@ -389,20 +403,69 @@ export class UnifiedStorageManager {
       }
 
       const frames = frameDocuments.map((doc: any) => this.parseFrameFromDocument(doc));
-      const chapters = chapterDocument?.metadata?.chapters 
+      const chapters = chapterDocument?.metadata?.chapters
         ? this.normalizeChapters(chapterDocument.metadata.chapters)
         : [];
+
+      // CRITICAL FIX: Load graph state from IndexedDB/localStorage (VectorStore only stores documents)
+      let graphState: GraphState = { nodes: [], edges: [], selectedNodeId: null };
+
+      // Try IndexedDB first (most reliable)
+      const indexedDBData = await this.loadFromIndexedDB();
+      if (indexedDBData?.graphState) {
+        console.log('✅ Loaded graph state from IndexedDB');
+        graphState = indexedDBData.graphState;
+      } else {
+        // Fallback to localStorage
+        const localStorageData = await this.loadFromLocalStorage();
+        if (localStorageData?.graphState) {
+          console.log('✅ Loaded graph state from localStorage');
+          graphState = localStorageData.graphState;
+        } else {
+          console.log('📭 No saved graph state found');
+        }
+      }
 
       return {
         frames,
         chapters,
-        graphState: { nodes: [], edges: [], selectedNodeId: null } // TODO: Load graph state from VectorStore
+        graphState
       };
 
     } catch (error) {
       console.error("❌ Failed to load from VectorStore:", error);
       return null;
     }
+  }
+
+  // SANITIZATION: Remove functions from objects for IndexedDB compatibility
+  private sanitizeForIndexedDB(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeForIndexedDB(item));
+    }
+
+    // Handle objects
+    if (typeof obj === 'object') {
+      const sanitized: any = {};
+      for (const key in obj) {
+        const value = obj[key];
+        // Skip functions
+        if (typeof value === 'function') {
+          continue;
+        }
+        // Recursively sanitize nested objects
+        sanitized[key] = this.sanitizeForIndexedDB(value);
+      }
+      return sanitized;
+    }
+
+    // Return primitives as-is
+    return obj;
   }
 
   // INDEXEDDB: Simple implementation as backup storage
@@ -412,6 +475,9 @@ export class UnifiedStorageManager {
         console.log("📝 IndexedDB not available, skipping");
         return;
       }
+
+      // CRITICAL: Sanitize appState to remove functions before saving
+      const sanitizedAppState = this.sanitizeForIndexedDB(appState);
 
       // Create a simple key-value store in IndexedDB
       const dbRequest = indexedDB.open('ai-frames-unified', 1);
@@ -428,15 +494,56 @@ export class UnifiedStorageManager {
         dbRequest.onerror = () => reject(dbRequest.error);
       });
 
+      // Verify object store exists before creating transaction
+      if (!db.objectStoreNames.contains('appState')) {
+        console.warn("⚠️ IndexedDB 'appState' object store not found, closing and recreating database");
+        db.close();
+
+        // Delete and recreate the database
+        await new Promise<void>((resolve, reject) => {
+          const deleteRequest = indexedDB.deleteDatabase('ai-frames-unified');
+          deleteRequest.onsuccess = () => resolve();
+          deleteRequest.onerror = () => reject(deleteRequest.error);
+        });
+
+        // Recreate database with object store
+        const recreateRequest = indexedDB.open('ai-frames-unified', 1);
+        recreateRequest.onupgradeneeded = (event) => {
+          const newDb = (event.target as IDBOpenDBRequest).result;
+          if (!newDb.objectStoreNames.contains('appState')) {
+            newDb.createObjectStore('appState');
+          }
+        };
+
+        const newDb = await new Promise<IDBDatabase>((resolve, reject) => {
+          recreateRequest.onsuccess = () => resolve(recreateRequest.result);
+          recreateRequest.onerror = () => reject(recreateRequest.error);
+        });
+
+        const transaction = newDb.transaction(['appState'], 'readwrite');
+        const store = transaction.objectStore('appState');
+
+        await new Promise<void>((resolve, reject) => {
+          const request = store.put(sanitizedAppState, 'current');
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+
+        newDb.close();
+        console.log("✅ IndexedDB recreated and save completed");
+        return;
+      }
+
       const transaction = db.transaction(['appState'], 'readwrite');
       const store = transaction.objectStore('appState');
-      
+
       await new Promise<void>((resolve, reject) => {
-        const request = store.put(appState, 'current');
+        const request = store.put(sanitizedAppState, 'current');
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
 
+      db.close();
       console.log("✅ IndexedDB save completed");
     } catch (error) {
       console.warn("⚠️ IndexedDB save failed:", error);

@@ -1169,11 +1169,23 @@ Updated: ${new Date().toISOString()}`,
             idLength: connectionDoc.id.length
           });
         } else {
-          await vectorStore.deleteDocument(shortDocId); // Use same deterministic ID for deletion
-          console.log("🗑️ Connection document deleted:", {
-            connectionId: connection.id,
-            documentId: shortDocId
-          });
+          try {
+            await vectorStore.deleteDocument(shortDocId); // Use same deterministic ID for deletion
+            console.log("🗑️ Connection document deleted:", {
+              connectionId: connection.id,
+              documentId: shortDocId
+            });
+          } catch (error) {
+            const message = (error as Error)?.message || '';
+            if (message.includes('Document not found')) {
+              console.warn('⚠️ Connection document missing during deletion:', {
+                connectionId: connection.id,
+                documentId: shortDocId
+              });
+            } else {
+              throw error;
+            }
+          }
         }
       }
     } catch (error) {

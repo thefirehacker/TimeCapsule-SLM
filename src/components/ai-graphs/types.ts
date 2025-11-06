@@ -109,6 +109,7 @@ export interface ChapterNodeData extends Record<string, unknown> {
   conceptIds?: string[];
   order?: number;
   color?: string;
+  linkSequentially?: boolean;
   updatedAt?: string;
   onChapterUpdate?: (updates: {
     title?: string;
@@ -117,6 +118,7 @@ export interface ChapterNodeData extends Record<string, unknown> {
     conceptIds?: string[];
     order?: number;
     color?: string;
+    linkSequentially?: boolean;
   }) => void;
 }
 

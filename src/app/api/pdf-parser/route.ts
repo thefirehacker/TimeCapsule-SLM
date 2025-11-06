@@ -272,6 +272,7 @@ export async function POST(req: NextRequest) {
     const uploadedFiles = formData.getAll("FILE");
     let fileName = "";
     let parsedText = "";
+    let pageCount = 1;
 
     console.log(
       `📄 PDF Parser API: Found ${uploadedFiles.length} uploaded files`
@@ -316,18 +317,27 @@ export async function POST(req: NextRequest) {
           const PDFParser = require("pdf2json");
           const pdfParser = new PDFParser(null, 1);
 
+          // Calculate dynamic timeout based on file size
+          const fileSizeMB = fileBuffer.length / (1024 * 1024);
+          const dynamicTimeout = Math.max(30000, 30000 + (fileSizeMB * 3000)); // 30s base + 3s per MB
+          console.log(`📄 PDF size: ${fileSizeMB.toFixed(2)}MB, parsing timeout: ${(dynamicTimeout/1000).toFixed(0)}s`);
+
           // Parse PDF with pdf2json using Promise wrapper
           parsedText = await new Promise<string>((resolve, reject) => {
             const timeout = setTimeout(() => {
-              reject(new Error("PDF2JSON parsing timeout after 30 seconds"));
-            }, 30000);
+              reject(new Error(`PDF2JSON parsing timeout after ${(dynamicTimeout/1000).toFixed(0)} seconds`));
+            }, dynamicTimeout);
 
             pdfParser.on("pdfParser_dataReady", () => {
               clearTimeout(timeout);
-              
+
               // Extract text with table structure preservation
               const text = extractStructuredText(pdfParser) || "";
-              console.log(`📄 pdf2json extracted ${text.length} characters with table structure`);
+
+              // Get actual page count from pdf2json
+              pageCount = pdfParser.data?.Pages?.length || 1;
+
+              console.log(`📄 pdf2json extracted ${text.length} characters with table structure from ${pageCount} pages`);
               resolve(text);
             });
 
@@ -406,10 +416,13 @@ export async function POST(req: NextRequest) {
       return new NextResponse("No File Found", { status: 404 });
     }
 
-    const response = new NextResponse(parsedText);
-    response.headers.set("FileName", fileName);
+    const response = NextResponse.json({
+      text: parsedText,
+      pageCount: pageCount || 1,
+      fileName: fileName
+    });
     console.log(
-      `✅ PDF Parser API: Successfully processed file, returning ${parsedText.length} characters`
+      `✅ PDF Parser API: Successfully processed file, returning ${parsedText.length} characters from ${pageCount} pages`
     );
     return response;
   } catch (error) {

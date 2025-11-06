@@ -6,14 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PDFAttachmentNodeData } from "./types";
-import { 
-  File, 
-  Edit3, 
-  Save, 
-  X, 
+import { KBPDFSelector, KBPDFSelection } from "./KBPDFSelector";
+import { useVectorStore } from "@/components/providers/VectorStoreProvider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  File,
+  Edit3,
+  Save,
+  X,
   FileText,
   Link,
-  ExternalLink
+  ExternalLink,
+  Database
 } from "lucide-react";
 
 interface PDFAttachmentNodeProps extends NodeProps {
@@ -21,46 +31,113 @@ interface PDFAttachmentNodeProps extends NodeProps {
 }
 
 export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeProps) {
+  const { vectorStore } = useVectorStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<PDFAttachmentNodeData>(data);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Determine source type based on existing data
+  const initialSource = (data as any).kbDocumentId ? "kb" : "url";
+  const [pdfSource, setPdfSource] = useState<"url" | "kb">(initialSource);
+  const [kbSelection, setKBSelection] = useState<KBPDFSelection | null>(
+    (data as any).kbDocumentId ? {
+      kbDocumentId: (data as any).kbDocumentId,
+      filename: (data as any).filename || "",
+      title: data.title,
+      startPage: (data as any).startPage || 1,
+      endPage: (data as any).endPage || 1,
+      totalPages: (data as any).totalPages || 1,
+      filesize: (data as any).filesize || 0,
+      uploadedAt: (data as any).uploadedAt || new Date().toISOString()
+    } : null
+  );
+
   const handleSave = useCallback(async () => {
     setIsSaving(true);
-    
+
     try {
+      // Prepare updated data based on source type
+      let updatedNodeData: any;
+
+      if (pdfSource === "kb" && kbSelection) {
+        // KB PDF: Store KB reference data
+        updatedNodeData = {
+          type: "pdf-attachment",
+          id: data.id,
+          title: kbSelection.title,
+          kbDocumentId: kbSelection.kbDocumentId,
+          filename: kbSelection.filename,
+          startPage: kbSelection.startPage,
+          endPage: kbSelection.endPage,
+          totalPages: kbSelection.totalPages,
+          filesize: kbSelection.filesize,
+          uploadedAt: kbSelection.uploadedAt,
+          pages: `${kbSelection.startPage}-${kbSelection.endPage}`,
+          notes: editData.notes,
+          isAttached: data.isAttached,
+          attachedToFrameId: data.attachedToFrameId
+        };
+      } else {
+        // URL PDF: Keep traditional data only
+        updatedNodeData = {
+          type: "pdf-attachment",
+          id: data.id,
+          title: editData.title,
+          pdfUrl: editData.pdfUrl,
+          pages: editData.pages,
+          notes: editData.notes,
+          isAttached: data.isAttached,
+          attachedToFrameId: data.attachedToFrameId
+        };
+      }
+
       // Update the node data
-      Object.assign(data, editData);
-      
+      Object.assign(data, updatedNodeData);
+
       // CRITICAL FIX: Emit update-node-data event to persist changes in graph state
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('update-node-data', {
           detail: {
             nodeId: data.id,
-            newData: editData
+            newData: updatedNodeData
           }
         }));
-        
+
         console.log('🎯 PDF attachment data updated, triggering node data save:', {
           nodeId: data.id,
-          title: editData.title,
-          pdfUrl: editData.pdfUrl
+          title: updatedNodeData.title,
+          source: pdfSource,
+          ...(pdfSource === "kb" ? { kbDocumentId: updatedNodeData.kbDocumentId } : { pdfUrl: updatedNodeData.pdfUrl })
         });
       }
-      
+
       // If this attachment is connected to a frame, update the frame's attachment
       if (data.isAttached && data.attachedToFrameId) {
+        const attachmentType = pdfSource === "kb" ? "pdf-kb" : "pdf";
+        const attachmentData: any = pdfSource === "kb" ? {
+          kbDocumentId: kbSelection?.kbDocumentId,
+          filename: kbSelection?.filename,
+          title: kbSelection?.title,
+          startPage: kbSelection?.startPage,
+          endPage: kbSelection?.endPage,
+          pageCount: kbSelection ? (kbSelection.endPage - kbSelection.startPage + 1) : 0,
+          totalPages: kbSelection?.totalPages,
+          filesize: kbSelection?.filesize,
+          uploadedAt: kbSelection?.uploadedAt,
+          notes: editData.notes
+        } : {
+          title: editData.title,
+          pdfUrl: editData.pdfUrl,
+          pages: editData.pages,
+          notes: editData.notes
+        };
+
         const updatedAttachment = {
           id: data.id,
-          type: 'pdf' as const,
-          data: {
-            title: editData.title,
-            pdfUrl: editData.pdfUrl,
-            pages: editData.pages,
-            notes: editData.notes
-          }
+          type: attachmentType as const,
+          data: attachmentData
         };
-        
+
         // Emit event to update the connected frame
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('attachment-node-updated', {
@@ -70,32 +147,33 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
               nodeId: data.id
             }
           }));
-          
+
           // ENHANCED: Force immediate localStorage save for PDF content persistence
           window.dispatchEvent(new CustomEvent('force-save-frames', {
             detail: {
               reason: 'pdf-attachment-updated',
               frameId: data.attachedToFrameId,
-              attachmentType: 'pdf',
-              pdfUrl: editData.pdfUrl,
+              attachmentType,
+              source: pdfSource,
               timestamp: new Date().toISOString()
             }
           }));
         }
-        
+
         console.log('📡 PDF attachment updated, notifying connected frame:', {
           frameId: data.attachedToFrameId,
-          pdfUrl: editData.pdfUrl
+          type: attachmentType,
+          source: pdfSource
         });
       }
-      
+
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to save PDF attachment:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [data, editData]);
+  }, [data, editData, pdfSource, kbSelection]);
 
   const handleCancel = useCallback(() => {
     setEditData(data);
@@ -126,8 +204,8 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
               <div className="p-1 bg-blue-100 rounded">
                 <File className="h-4 w-4 text-blue-600" />
               </div>
-              <div>
-                <CardTitle className="text-sm font-medium">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-sm font-medium whitespace-normal break-words" title={data.title || "PDF Document"}>
                   {isEditing ? (
                     <Input
                       value={editData.title}
@@ -139,18 +217,24 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
                     data.title || "PDF Document"
                   )}
                 </CardTitle>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Badge variant="secondary" className="text-xs">
                     <FileText className="h-2 w-2 mr-1" />
                     PDF
                   </Badge>
+                  {(data as any).kbDocumentId && (
+                    <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                      <Database className="h-2 w-2 mr-1" />
+                      KB
+                    </Badge>
+                  )}
                   {data.isAttached && (
                     <Badge variant="default" className="text-xs bg-green-500">
                       <Link className="h-2 w-2 mr-1" />
                       Attached
                     </Badge>
                   )}
-                  {data.pages && (
+                  {data.pages && !((data as any).kbDocumentId) && (
                     <Badge variant="outline" className="text-xs">
                       Pages: {data.pages}
                     </Badge>
@@ -205,52 +289,127 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
             </div>
           )}
 
-          {/* PDF URL */}
-          <div>
-            <Label className="text-xs font-medium">PDF URL</Label>
-            {isEditing ? (
-              <Input
-                value={editData.pdfUrl}
-                onChange={(e) => setEditData({...editData, pdfUrl: e.target.value})}
-                className="mt-1 text-xs"
-                placeholder="https://example.com/document.pdf"
-              />
-            ) : (
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-gray-600 truncate flex-1">
-                  {data.pdfUrl || "No URL provided"}
-                </p>
-                {data.pdfUrl && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open(data.pdfUrl, '_blank')}
-                    className="h-6 w-6 p-0 ml-2"
-                    title="Open PDF"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Source Selector (only in edit mode) */}
+          {isEditing && (
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">PDF Source</Label>
+              <Select value={pdfSource} onValueChange={(value: "url" | "kb") => setPdfSource(value)}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="url">
+                    <div className="flex items-center gap-2">
+                      <ExternalLink className="h-3 w-3" />
+                      <span>URL</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="kb">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-3 w-3" />
+                      <span>Knowledge Base</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          {/* Pages */}
-          <div>
-            <Label className="text-xs font-medium">Pages</Label>
-            {isEditing ? (
-              <Input
-                value={editData.pages}
-                onChange={(e) => setEditData({...editData, pages: e.target.value})}
-                className="mt-1 text-xs"
-                placeholder="e.g., 1-10, 15, 20-25"
-              />
-            ) : (
-              <p className="text-xs text-gray-600 mt-1">
-                {data.pages || "All pages"}
-              </p>
-            )}
-          </div>
+          {/* KB PDF Selector (when source is KB) */}
+          {isEditing && pdfSource === "kb" && (
+            <KBPDFSelector
+              vectorStore={vectorStore}
+              onSelect={(selection) => {
+                setKBSelection(selection);
+                if (selection) {
+                  setEditData({
+                    ...editData,
+                    title: selection.title
+                  });
+                }
+              }}
+              initialSelection={kbSelection || undefined}
+            />
+          )}
+
+          {/* PDF URL (when source is URL) */}
+          {(pdfSource === "url" || !isEditing) && (
+            <div>
+              <Label className="text-xs font-medium">
+                {pdfSource === "kb" && (data as any).kbDocumentId ? "KB Document" : "PDF URL"}
+              </Label>
+              {isEditing ? (
+                <Input
+                  value={editData.pdfUrl}
+                  onChange={(e) => setEditData({...editData, pdfUrl: e.target.value})}
+                  className="mt-1 text-xs"
+                  placeholder="https://example.com/document.pdf"
+                />
+              ) : (
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-xs text-gray-600 truncate flex-1">
+                    {(data as any).kbDocumentId ? (
+                      <span className="flex items-center gap-1">
+                        <Database className="h-3 w-3" />
+                        {(data as any).filename || data.title}
+                      </span>
+                    ) : (
+                      data.pdfUrl || "No URL provided"
+                    )}
+                  </p>
+                  {data.pdfUrl && !((data as any).kbDocumentId) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(data.pdfUrl, '_blank')}
+                      className="h-6 w-6 p-0 ml-2"
+                      title="Open PDF"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Pages (only show for URL PDFs in edit mode, or for display) */}
+          {((pdfSource === "url" && isEditing) || (!isEditing && !((data as any).kbDocumentId))) && (
+            <div>
+              <Label className="text-xs font-medium">Pages</Label>
+              {isEditing ? (
+                <Input
+                  value={editData.pages}
+                  onChange={(e) => setEditData({...editData, pages: e.target.value})}
+                  className="mt-1 text-xs"
+                  placeholder="e.g., 1-10, 15, 20-25"
+                />
+              ) : (
+                <p className="text-xs text-gray-600 mt-1">
+                  {data.pages || "All pages"}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* KB Page Range Display (for KB PDFs not in edit mode) */}
+          {!isEditing && (data as any).kbDocumentId && (
+            <div className="text-xs text-gray-600 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Pages:</span>
+                <span>{(data as any).startPage}-{(data as any).endPage}</span>
+                <Badge variant="secondary" className="text-xs">
+                  {((data as any).endPage - (data as any).startPage + 1)} page(s)
+                </Badge>
+              </div>
+              {(data as any).filesize && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Size:</span>
+                  <span>{((data as any).filesize / (1024 * 1024)).toFixed(2)} MB</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           {isEditing ? (
