@@ -1169,21 +1169,40 @@ Updated: ${new Date().toISOString()}`,
             idLength: connectionDoc.id.length
           });
         } else {
-          try {
-            await vectorStore.deleteDocument(shortDocId); // Use same deterministic ID for deletion
-            console.log("🗑️ Connection document deleted:", {
-              connectionId: connection.id,
-              documentId: shortDocId
-            });
-          } catch (error) {
-            const message = (error as Error)?.message || '';
-            if (message.includes('Document not found')) {
-              console.warn('⚠️ Connection document missing during deletion:', {
+          // Retry deletion with delays to handle race condition where insertion is still in progress
+          let retries = 3;
+          let deleted = false;
+
+          while (retries > 0 && !deleted) {
+            try {
+              await vectorStore.deleteDocument(shortDocId); // Use same deterministic ID for deletion
+              console.log("🗑️ Connection document deleted:", {
                 connectionId: connection.id,
-                documentId: shortDocId
+                documentId: shortDocId,
+                retriesRemaining: retries - 1
               });
-            } else {
-              throw error;
+              deleted = true;
+            } catch (error) {
+              const message = (error as Error)?.message || '';
+              if (message.includes('Document not found') && retries > 1) {
+                // Document might still be inserting, wait and retry
+                console.log('⏳ Document not found, retrying...', {
+                  connectionId: connection.id,
+                  documentId: shortDocId,
+                  retriesRemaining: retries - 1
+                });
+                await new Promise(resolve => setTimeout(resolve, 50));
+                retries--;
+              } else if (message.includes('Document not found')) {
+                // Final retry failed, document likely never existed
+                console.warn('⚠️ Connection document missing during deletion:', {
+                  connectionId: connection.id,
+                  documentId: shortDocId
+                });
+                break;
+              } else {
+                throw error;
+              }
             }
           }
         }

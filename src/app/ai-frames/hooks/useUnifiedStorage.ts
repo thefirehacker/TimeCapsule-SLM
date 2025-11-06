@@ -565,19 +565,13 @@ export const useUnifiedStorage = ({
       return;
     }
     
-    // Normal save logic - can be overwritten
-    if (!backgroundSaveQueue.current.isProcessing) {
-      const resolvedFrames = ensureFramesNotEmpty(resolveFrames(safeFrames));
-      backgroundSaveQueue.current.pendingFrames = resolvedFrames;
-      backgroundSaveQueue.current.pendingChapters = safeChapters;
-      backgroundSaveQueue.current.pendingGraphState = graphState;
-      backgroundSaveQueue.current.pendingOptions = queueOptions;
-
-      framesRef.current = resolvedFrames;
-      if (!chaptersRef.current || chaptersRef.current.length === 0) {
-        chaptersRef.current = safeChapters;
-      }
-    }
+    // Normal save logic - always update pending data (newest data wins)
+    // Use resolved parameters from function arguments, not current refs
+    // This ensures data passed by caller is respected
+    backgroundSaveQueue.current.pendingFrames = safeFrames;
+    backgroundSaveQueue.current.pendingChapters = safeChapters;
+    backgroundSaveQueue.current.pendingGraphState = graphState;
+    backgroundSaveQueue.current.pendingOptions = queueOptions;
     
     // Don't start processing if already processing
     if (backgroundSaveQueue.current.isProcessing) {
@@ -1264,19 +1258,31 @@ export const useUnifiedStorage = ({
       // DYNAMIC: Handle any graph element changes (nodes, edges, concepts, chapters, etc.)
       if (elementType === 'node') {
         const newGraphState = { ...graphStateRef.current };
-        
+
         if (changeType === 'added' && elementData) {
           newGraphState.nodes = [...(newGraphState.nodes || []), elementData];
         } else if (changeType === 'removed' && elementId) {
           newGraphState.nodes = (newGraphState.nodes || []).filter(node => node.id !== elementId);
         } else if (changeType === 'updated' && elementId && elementData) {
-          newGraphState.nodes = (newGraphState.nodes || []).map(node => 
+          newGraphState.nodes = (newGraphState.nodes || []).map(node =>
             node.id === elementId ? { ...node, ...elementData } : node
           );
+        } else if (changeType === 'position') {
+          // CRITICAL FIX: Handle position changes
+          // Position event doesn't include node data, React Flow state already updated
+          // Use snapshot if provided, otherwise use current graphState
+          if (event.detail.nodesSnapshot) {
+            newGraphState.nodes = event.detail.nodesSnapshot;
+          }
+          // If no snapshot, graphStateRef already has updated positions
+          updateGraphState(newGraphState);
+          setHasUnsavedChanges(true);
+          queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
+          return;
         }
-        
+
         updateGraphState(newGraphState);
-        
+
         // CRITICAL FIX: Trigger immediate background save for graph elements
         setHasUnsavedChanges(true);
         queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
@@ -1359,8 +1365,10 @@ export const useUnifiedStorage = ({
       
       // OPTIMISTIC: Use background save instead of blocking save
       setHasUnsavedChanges(true);
-      
-      // CRITICAL FIX: Use priority mode for critical graph state changes to prevent overwrites
+
+      // Simple approach: Use frames as-is, trust handleFrameDeletionEvent to handle deletion
+      // Removed complex filtering logic that was causing resurrection bugs
+      // Reference implementation works this way successfully
       const isPriorityMode = (reason === 'node-drop-delayed' || reason === 'node-data-updated') && eventGraphState;
       queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateToUse, isPriorityMode);
     };
@@ -1401,14 +1409,18 @@ export const useUnifiedStorage = ({
       
       // Update frames state to remove deleted frames
       if (deletedFrameIds && deletedFrameIds.length > 0) {
-        const updatedFrames = frames.filter(frame => !deletedFrameIds.includes(frame.id));
+        const updatedFrames = framesRef.current.filter(frame => !deletedFrameIds.includes(frame.id));
+        framesRef.current = updatedFrames;
         setFrames(updatedFrames);
       } else if (frameId) {
-        const updatedFrames = frames.filter(frame => frame.id !== frameId);
+        const updatedFrames = framesRef.current.filter(frame => frame.id !== frameId);
+        framesRef.current = updatedFrames;
         setFrames(updatedFrames);
       }
-      
-      // OPTIMISTIC: Trigger immediate background save for frame deletion
+
+      // RESTORED: Trigger immediate background save for frame deletion
+      // This is safe now that duplicate force-save-frames listener has been removed
+      // Reference implementation uses this pattern successfully
       setHasUnsavedChanges(true);
       queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
     };
@@ -1590,22 +1602,8 @@ export const useUnifiedStorage = ({
     }
   };
 
-  // OPTIMISTIC: Add force-save-frames event listener with background saves
-  useEffect(() => {
-    const handleForceSave = () => {
-      // OPTIMISTIC: Use background save instead of blocking save
-      setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
-    };
-
-    // Add event listener for force-save-frames
-    window.addEventListener('force-save-frames', handleForceSave);
-    
-    // Cleanup on unmount
-    return () => {
-      window.removeEventListener('force-save-frames', handleForceSave);
-    };
-  }, [queueBackgroundSave]); // Include queueBackgroundSave dependency
+  // NOTE: Removed duplicate force-save-frames listener that was using stale graphStateRef
+  // The main event listener at line 1466 already handles force-save-frames correctly with fresh graph state
 
   return {
     // State

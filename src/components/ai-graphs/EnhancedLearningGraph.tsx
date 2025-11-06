@@ -90,7 +90,6 @@ export default function EnhancedLearningGraph({
   const lastEmissionRef = useRef<number>(0);
   const lastAppliedGraphState = useRef<string | null>(null);
   const chaptersRef = useRef<AiChapter[]>(chapters || []);
-  const viewportRestoredRef = useRef(false); // Track if viewport has been restored to prevent multiple runs
 
   // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
   const framesRef = useRef(frames);
@@ -151,12 +150,56 @@ export default function EnhancedLearningGraph({
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     // Call React Flow's built-in handler first
     onNodesChange(changes);
-    
-    // PERFORMANCE FIX: Only emit for meaningful changes, batch position changes
-    const meaningfulChanges = changes.filter(change => 
-      change.type === 'add' || change.type === 'remove'
-    );
-    
+
+    // Handle node deletions (type='remove')
+    const removedNodes = changes.filter(change => change.type === 'remove');
+    if (removedNodes.length > 0) {
+      // Remove connected edges for deleted nodes
+      removedNodes.forEach(change => {
+        const nodeId = (change as any).id;
+        const node = nodesRef.current.find(n => n.id === nodeId);
+
+        if (node) {
+          // Get all edges connected to this node
+          const connectedEdges = edgesRef.current.filter(
+            edge => edge.source === node.id || edge.target === node.id
+          );
+
+          // Remove connected edges
+          if (connectedEdges.length > 0) {
+            setEdges(eds => eds.filter(
+              edge => !connectedEdges.some(ce => ce.id === edge.id)
+            ));
+          }
+          // Note: Frame deletion event is dispatched by onEdgesDelete handler
+          // to avoid duplicate events
+        }
+      });
+
+      // Emit graph state change and force save after all deletions
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          // Capture fresh graph state immediately after deletion to ensure correct node/edge counts
+          // Use React Flow instance methods to get current state (not refs which may be stale)
+          const freshGraphState = {
+            nodes: reactFlowInstance?.getNodes() || [],
+            edges: reactFlowInstance?.getEdges() || [],
+            viewport: reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 },
+            selectedNodeId: selectedNodeRef.current
+          };
+
+          window.dispatchEvent(new CustomEvent('force-save-frames', {
+            detail: {
+              reason: 'nodes-deleted',
+              timestamp: Date.now(),
+              deletedNodeIds: removedNodes.map(c => (c as any).id),
+              graphState: freshGraphState  // Pass fresh state to prevent stale data in saves
+            }
+          }));
+        }
+      }, 100);
+    }
+
     // Debounce position changes to avoid excessive events during drag
     const positionChanges = changes.filter(change => change.type === 'position');
     if (positionChanges.length > 0) {
@@ -168,29 +211,14 @@ export default function EnhancedLearningGraph({
               elementType: 'node',
               changeType: 'position',
               elementCount: positionChanges.length,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              nodesSnapshot: nodesRef.current // Include current node positions for save
             }
           }));
         }
       }, 1000); // Only emit position events every 1 second
     }
-    
-    // Emit immediate events for remove only (add events have delayed save)
-    meaningfulChanges.forEach(change => {
-      if (typeof window !== 'undefined' && change.type === 'remove') {
-        const elementId = (change as any).id;
-        window.dispatchEvent(new CustomEvent('graph-element-changed', {
-          detail: {
-            elementType: 'node',
-            changeType: change.type,
-            elementId: elementId,
-            elementData: change,
-            timestamp: new Date().toISOString()
-          }
-        }));
-      }
-    });
-  }, [onNodesChange]);
+  }, [onNodesChange, setEdges]);
 
   // DYNAMIC: Universal handler for ANY edge changes (position, add, remove, etc.)
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
@@ -1494,38 +1522,18 @@ export default function EnhancedLearningGraph({
     return () => window.removeEventListener('graph-layout-applied', handleAutoLayoutApplied as EventListener);
   }, [initialGraphState, reactFlowInstance, setNodes, setEdges]);
 
-  // VIEWPORT RESTORATION: Restore saved viewport when graph loads (ONE TIME ONLY)
+  // VIEWPORT RESTORATION: Restore saved viewport when graph loads (simplified approach)
   useEffect(() => {
-    if (!reactFlowInstance) return;
+    if (!reactFlowInstance || !initialGraphState?.viewport) return;
 
-    // Skip if already restored - this prevents extra zooms while still waiting for nodes
-    if (viewportRestoredRef.current) return;
+    // Only restore on initial mount
+    const timeout = setTimeout(() => {
+      reactFlowInstance.setViewport(initialGraphState.viewport);
+      console.log('✅ Viewport restored:', initialGraphState.viewport);
+    }, 300);
 
-    // Wait for nodes to be ready before restoring viewport
-    // This ensures positions are applied before we set the viewport
-    if (initialGraphState?.viewport && nodes.length > 0) {
-      // Wait for nodes to render, then restore viewport
-      setTimeout(() => {
-        reactFlowInstance.setViewport(initialGraphState.viewport);
-        viewportRestoredRef.current = true; // Mark as restored to prevent re-runs
-        console.log('✅ Viewport restored:', initialGraphState.viewport);
-      }, 300);
-    } else if (!initialGraphState?.viewport && nodes.length > 0) {
-      // Fit view if no saved viewport (only when we have nodes)
-      setTimeout(() => {
-        reactFlowInstance.fitView({ padding: 0.1, duration: 500 });
-        viewportRestoredRef.current = true; // Mark as restored to prevent re-runs
-      }, 300);
-    }
-
-    // CRITICAL: Include nodes.length to wait for nodes to be ready
-    // But use viewportRestoredRef to prevent multiple runs (no extra zooms)
-  }, [reactFlowInstance, initialGraphState?.viewport, nodes.length]);
-
-  // Reset viewport restoration flag when graph state changes
-  useEffect(() => {
-    viewportRestoredRef.current = false;
-  }, [initialGraphState]);
+    return () => clearTimeout(timeout);
+  }, [reactFlowInstance, initialGraphState?.viewport]);
 
   // CRITICAL FIX: Sync existing nodes with updated frame data when frames prop changes
   useEffect(() => {
@@ -1938,155 +1946,6 @@ export default function EnhancedLearningGraph({
       });
     },
     [normalizeConceptValue, handleDetachConceptFromFrame, handleDetachConceptFromChapter, handleDetachContent, emitGraphStateChange]
-  );
-
-  // POSITION PERSISTENCE: Handle node drag stop to save positions
-  const handleNodeDragStop = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      // Update graph state with new node position
-      const updatedNodes = nodesRef.current.map(n =>
-        n.id === node.id ? { ...n, position: node.position } : n
-      );
-
-      const freshGraphState = {
-        nodes: updatedNodes,
-        edges: edgesRef.current,
-        selectedNodeId: selectedNodeRef.current,
-        viewport: reactFlowInstance?.getViewport()
-      };
-
-      // Emit change event for storage
-      emitGraphStateChange('node-dragged', {
-        nodeId: node.id,
-        position: node.position
-      }, freshGraphState);
-
-      // Trigger save
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('force-save-frames', {
-          detail: {
-            reason: 'node-position-changed',
-            timestamp: Date.now(),
-            graphState: freshGraphState
-          }
-        }));
-      }
-    },
-    [emitGraphStateChange, reactFlowInstance]
-  );
-
-  // ZOOM/PAN PERSISTENCE: Handle viewport movement end to save viewport state
-  const handleMoveEnd = useCallback(
-    (event?: MouseEvent | TouchEvent | null, viewport?: { x: number; y: number; zoom: number }) => {
-      if (!viewport) return;
-
-      const freshGraphState = {
-        nodes: nodesRef.current,
-        edges: edgesRef.current,
-        selectedNodeId: selectedNodeRef.current,
-        viewport: viewport
-      };
-
-      // Debounced emit to avoid excessive saves during smooth scrolling
-      setTimeout(() => {
-        emitGraphStateChange('viewport-changed', {
-          viewport
-        }, freshGraphState);
-
-        // Trigger save
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('force-save-frames', {
-            detail: {
-              reason: 'viewport-changed',
-              timestamp: Date.now(),
-              graphState: freshGraphState
-            }
-          }));
-        }
-      }, 300); // Debounce viewport saves
-    },
-    [emitGraphStateChange]
-  );
-
-  // DELETION: Handle explicit node deletion (Delete key press)
-  const handleNodesDelete = useCallback(
-    (nodesToDelete: Node[]) => {
-      nodesToDelete.forEach(node => {
-        // Get all edges connected to this node
-        const connectedEdges = edgesRef.current.filter(
-          edge => edge.source === node.id || edge.target === node.id
-        );
-
-        // Remove connected edges first
-        if (connectedEdges.length > 0) {
-          setEdges(eds => eds.filter(
-            edge => !connectedEdges.some(ce => ce.id === edge.id)
-          ));
-        }
-
-        // Handle frame node deletion
-        if (node.type === 'aiframe' && node.data?.frameId) {
-          // Emit frame deletion event
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
-              detail: {
-                frameId: node.data.frameId,
-                deletedFrameIds: [node.data.frameId]
-              }
-            }));
-          }
-        }
-
-        // Handle attachment node deletion
-        if (node.type?.includes('attachment') && node.data?.attachedToFrameId) {
-          handleDetachContent(node.data.attachedToFrameId as string);
-        }
-
-        // Handle concept node deletion
-        if (node.type === 'concept') {
-          handleConceptDelete(node.id);
-        }
-
-        // Handle chapter node deletion
-        if (node.type === 'chapter' && node.data?.id) {
-          // Update chapters array
-          if (onChaptersChange) {
-            const chapterIdToDelete = node.data.id;
-            const updatedChapters = chaptersRef.current.filter(
-              ch => ch.id !== chapterIdToDelete
-            );
-            onChaptersChange(updatedChapters);
-          }
-        }
-      });
-
-      // Emit graph state change with fresh state after all deletions
-      setTimeout(() => {
-        const freshGraphState = {
-          nodes: nodesRef.current,
-          edges: edgesRef.current,
-          selectedNodeId: selectedNodeRef.current,
-          viewport: reactFlowInstance?.getViewport()
-        };
-
-        emitGraphStateChange('nodes-deleted', {
-          deletedCount: nodesToDelete.length,
-          deletedNodeIds: nodesToDelete.map(n => n.id)
-        }, freshGraphState);
-
-        // Force save
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('force-save-frames', {
-            detail: {
-              reason: 'nodes-deleted',
-              timestamp: Date.now(),
-              graphState: freshGraphState
-            }
-          }));
-        }
-      }, 100);
-    },
-    [handleDetachContent, handleConceptDelete, onChaptersChange, emitGraphStateChange, reactFlowInstance, setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -2737,18 +2596,17 @@ export default function EnhancedLearningGraph({
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onEdgesDelete={onEdgesDelete}
-          onNodesDelete={handleNodesDelete}
           onConnect={onConnect}
           onInit={setReactFlowInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onNodeClick={handleNodeClick}
-          onNodeDragStop={handleNodeDragStop}
-          onMoveEnd={handleMoveEnd}
           nodeTypes={memoizedNodeTypes}
           nodesDraggable={nodesDraggable}
           nodesConnectable={nodesConnectable}
           elementsSelectable={elementsSelectable}
+          fitView
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
           attributionPosition="top-right"
           proOptions={{ hideAttribution: true }}
           minZoom={0.25}
