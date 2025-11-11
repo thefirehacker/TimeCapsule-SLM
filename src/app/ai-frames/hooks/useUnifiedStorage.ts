@@ -145,9 +145,110 @@ export const useUnifiedStorage = ({
   const deriveChaptersFromGraph = useCallback((existingChapters: UnifiedChapter[], framesForGraph: UnifiedAIFrame[], graphStateForDerive: GraphState): UnifiedChapter[] => {
     const nodes = graphStateForDerive?.nodes || [];
     const edges = graphStateForDerive?.edges || [];
+    void framesForGraph; // legacy parameter
+
     const chapterNodes = nodes.filter((node: any) => node?.type === 'chapter');
     if (!chapterNodes.length) {
       return existingChapters;
+    }
+
+    if (existingChapters.length > 0) {
+      const chapterNodeById = new Map<string, any>();
+      const nodeById = new Map<string, any>();
+      const chapterConceptMap = new Map<string, Set<string>>();
+
+      chapterNodes.forEach((node: any) => {
+        const chapterId = node?.data?.id || node.id;
+        if (chapterId) {
+          chapterNodeById.set(chapterId, node);
+        }
+      });
+
+      nodes.forEach((node: any) => {
+        nodeById.set(node.id, node);
+      });
+
+      const collectConcept = (chapterNodeId: string, conceptNode: any) => {
+        if (!conceptNode?.data) return;
+        const conceptValue = (conceptNode.data.concept || conceptNode.data.title || conceptNode.data.label || '').trim();
+        if (!conceptValue) return;
+        const set = chapterConceptMap.get(chapterNodeId) ?? new Set<string>();
+        set.add(conceptValue);
+        chapterConceptMap.set(chapterNodeId, set);
+      };
+
+      edges.forEach((edge: any) => {
+        const sourceNode = nodeById.get(edge.source);
+        const targetNode = nodeById.get(edge.target);
+        if (!sourceNode || !targetNode) return;
+
+        if (sourceNode.type === 'concept' && targetNode.type === 'chapter') {
+          const chapterId = targetNode.data?.id || targetNode.id;
+          collectConcept(chapterId, sourceNode);
+        }
+
+        if (sourceNode.type === 'chapter' && targetNode.type === 'concept') {
+          const chapterId = sourceNode.data?.id || sourceNode.id;
+          collectConcept(chapterId, targetNode);
+        }
+      });
+
+      return existingChapters.map((chapter) => {
+        const node = chapterNodeById.get(chapter.id);
+        if (!node) {
+          return chapter;
+        }
+
+        const nodeData = node.data || {};
+        const derivedConcepts = chapterConceptMap.get(chapter.id);
+        const mergedConceptIds = new Set<string>([
+          ...(chapter.conceptIds || []),
+          ...(Array.isArray(nodeData.conceptIds) ? nodeData.conceptIds : []),
+        ]);
+        derivedConcepts?.forEach((concept) => mergedConceptIds.add(concept));
+
+        const conceptIds = Array.from(mergedConceptIds).filter(Boolean).sort();
+        const nextLinkSequentially = typeof nodeData.linkSequentially === 'boolean'
+          ? nodeData.linkSequentially
+          : chapter.linkSequentially ?? false;
+
+        const updates: Partial<UnifiedChapter> = {};
+
+        if (nodeData.title && nodeData.title !== chapter.title) {
+          updates.title = nodeData.title;
+        }
+
+        if (nodeData.description !== undefined && nodeData.description !== chapter.description) {
+          updates.description = nodeData.description ?? '';
+        }
+
+        const resolvedColor = nodeData.color ?? chapter.color ?? DEFAULT_CHAPTER_COLOR;
+        if (resolvedColor !== (chapter.color ?? DEFAULT_CHAPTER_COLOR)) {
+          updates.color = resolvedColor;
+        }
+
+        if (JSON.stringify(conceptIds) !== JSON.stringify((chapter.conceptIds || []).slice().sort())) {
+          updates.conceptIds = conceptIds;
+        }
+
+        if ((chapter.linkSequentially ?? false) !== nextLinkSequentially) {
+          updates.linkSequentially = nextLinkSequentially;
+        }
+
+        if (typeof nodeData.order === 'number' && nodeData.order !== chapter.order) {
+          updates.order = nodeData.order;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return chapter;
+        }
+
+        return {
+          ...chapter,
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        };
+      });
     }
 
     const now = new Date().toISOString();
@@ -163,13 +264,9 @@ export const useUnifiedStorage = ({
       }
     });
 
-    const collectConcept = (chapterNodeId: string, conceptNode: any) => {
+    const collectConceptFallback = (chapterNodeId: string, conceptNode: any) => {
       if (!conceptNode?.data) return;
-      const conceptValue =
-        (conceptNode.data.concept ||
-          conceptNode.data.title ||
-          conceptNode.data.label ||
-          '').trim();
+      const conceptValue = (conceptNode.data.concept || conceptNode.data.title || conceptNode.data.label || '').trim();
       if (!conceptValue) return;
       const set = chapterConceptMap.get(chapterNodeId) ?? new Set<string>();
       set.add(conceptValue);
@@ -183,12 +280,12 @@ export const useUnifiedStorage = ({
 
       if (sourceNode.type === 'concept' && targetNode.type === 'chapter') {
         const chapterId = targetNode.data?.id || targetNode.id;
-        collectConcept(chapterId, sourceNode);
+        collectConceptFallback(chapterId, sourceNode);
       }
 
       if (sourceNode.type === 'chapter' && targetNode.type === 'concept') {
         const chapterId = sourceNode.data?.id || sourceNode.id;
-        collectConcept(chapterId, targetNode);
+        collectConceptFallback(chapterId, targetNode);
       }
     });
 
@@ -217,9 +314,7 @@ export const useUnifiedStorage = ({
       const conceptIdsFromData = Array.isArray(data.conceptIds) ? data.conceptIds.filter(Boolean) : [];
       const conceptIdsSet = new Set<string>(conceptIdsFromData);
       const conceptIdsFromEdges = chapterConceptMap.get(chapterId);
-      if (conceptIdsFromEdges) {
-        conceptIdsFromEdges.forEach((concept) => conceptIdsSet.add(concept));
-      }
+      conceptIdsFromEdges?.forEach((concept) => conceptIdsSet.add(concept));
       (previous?.conceptIds || []).forEach((concept) => conceptIdsSet.add(concept));
       const conceptIds = Array.from(conceptIdsSet).filter(Boolean);
 
@@ -524,11 +619,6 @@ export const useUnifiedStorage = ({
         let framesToSave = ensureFramesNotEmpty(resolveFrames(safeFrames));
         let chaptersToSave = resolveChapters(safeChapters);
 
-        const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, graphState);
-        if (derivedChapters.length) {
-          chaptersToSave = derivedChapters;
-        }
-
         const syncedFrames = syncFramesWithChapters(framesToSave, chaptersToSave, graphState);
         framesToSave = syncedFrames;
 
@@ -627,11 +717,6 @@ export const useUnifiedStorage = ({
         let framesToSave = ensureFramesNotEmpty(resolveFrames(latestFrames));
         let chaptersToSave = resolveChapters(latestChapters);
 
-        const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, latestGraphState);
-        if (derivedChapters.length) {
-          chaptersToSave = derivedChapters;
-        }
-
         const syncedFrames = syncFramesWithChapters(framesToSave, chaptersToSave, latestGraphState);
         framesToSave = syncedFrames;
 
@@ -695,7 +780,6 @@ export const useUnifiedStorage = ({
     }
   }, [
     generateStateHash,
-    deriveChaptersFromGraph,
     syncFramesWithChapters,
     areChaptersEqual,
     areFrameChapterAssignmentsEqual
@@ -721,11 +805,6 @@ export const useUnifiedStorage = ({
 
       let framesToSave = currentFrames;
       let chaptersToSave = chaptersRef.current;
-
-      const derivedChapters = deriveChaptersFromGraph(chaptersToSave, framesToSave, currentGraphState);
-      if (derivedChapters.length) {
-        chaptersToSave = derivedChapters;
-      }
 
       const syncedFrames = syncFramesWithChapters(framesToSave, chaptersToSave, currentGraphState);
       framesToSave = syncedFrames;
@@ -780,7 +859,6 @@ export const useUnifiedStorage = ({
     }
   }, [
     generateStateHash,
-    deriveChaptersFromGraph,
     syncFramesWithChapters,
     areChaptersEqual,
     areFrameChapterAssignmentsEqual
@@ -799,8 +877,18 @@ export const useUnifiedStorage = ({
         
         setFrames(data.frames);
         framesRef.current = data.frames;
-        setChapters(data.chapters || []);
-        chaptersRef.current = data.chapters || [];
+
+        let chaptersToLoad = Array.isArray(data.chapters) ? data.chapters : [];
+        const hasChapterNodes = Array.isArray(data.graphState?.nodes)
+          ? data.graphState.nodes.some((node: any) => node?.type === 'chapter')
+          : false;
+
+        if (chaptersToLoad.length === 0 && hasChapterNodes) {
+          chaptersToLoad = deriveChaptersFromGraph([], data.frames, data.graphState);
+        }
+
+        setChapters(chaptersToLoad);
+        chaptersRef.current = chaptersToLoad;
         
         // CRITICAL FIX: Deduplicate edges to prevent React key conflicts
         const deduplicatedGraphState = {
@@ -873,7 +961,7 @@ export const useUnifiedStorage = ({
         setGraphState(syncedGraphState);
         graphStateRef.current = syncedGraphState;
         
-        const newHash = generateStateHash(data.frames, data.chapters || [], data.graphState);
+        const newHash = generateStateHash(data.frames, chaptersToLoad, data.graphState);
         lastSaveHash.current = newHash;
         setHasUnsavedChanges(false);
         
@@ -985,17 +1073,35 @@ export const useUnifiedStorage = ({
     let graphStateChanged = false;
 
     if (currentGraphState?.nodes?.length) {
-      const nextNodes = currentGraphState.nodes.map((node: any) => {
+      const allowedChapterIds = new Set(
+        normalizedChapters
+          .map((chapter) => chapter.id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      );
+
+      const nextNodes: any[] = [];
+      const removedChapterIds: Set<string> = new Set();
+
+      currentGraphState.nodes.forEach((node: any) => {
         if (node?.type !== 'chapter') {
-          return node;
+          nextNodes.push(node);
+          return;
         }
 
         const nodeData = node.data || {};
         const chapterNodeId = nodeData.id || node.id;
-        const matchingChapter = normalizedChapters.find((chapter) => chapter.id === chapterNodeId);
 
+        if (!chapterNodeId || !allowedChapterIds.has(chapterNodeId)) {
+          graphStateChanged = true;
+          removedChapterIds.add(chapterNodeId || node.id);
+          return; // Drop the node entirely
+        }
+
+        const matchingChapter = normalizedChapters.find((chapter) => chapter.id === chapterNodeId);
         if (!matchingChapter) {
-          return node;
+          graphStateChanged = true;
+          removedChapterIds.add(chapterNodeId);
+          return;
         }
 
         const nextData = {
@@ -1008,6 +1114,7 @@ export const useUnifiedStorage = ({
           frameIds: matchingChapter.frameIds || [],
           order: matchingChapter.order,
           updatedAt: matchingChapter.updatedAt,
+          linkSequentially: matchingChapter.linkSequentially ?? false,
         };
 
         const existingFrameIds = Array.isArray(nodeData.frameIds) ? nodeData.frameIds : [];
@@ -1025,26 +1132,41 @@ export const useUnifiedStorage = ({
           nodeData.color !== nextData.color ||
           nodeData.order !== nextData.order ||
           !sameFrameIds ||
-          !sameConceptIds;
+          !sameConceptIds ||
+          (nodeData.linkSequentially ?? false) !== (nextData.linkSequentially ?? false);
 
-        if (!hasMetaChange) {
-          return node;
+        if (hasMetaChange) {
+          graphStateChanged = true;
+          nextNodes.push({
+            ...node,
+            data: nextData,
+          });
+        } else {
+          nextNodes.push(node);
         }
-
-        graphStateChanged = true;
-        return {
-          ...node,
-          data: nextData,
-        };
       });
 
       if (graphStateChanged) {
+        const nextNodeIds = new Set(nextNodes.map((node: any) => node.id));
+        const nextEdges = (currentGraphState.edges || []).filter(
+          (edge: any) => nextNodeIds.has(edge.source) && nextNodeIds.has(edge.target)
+        );
+
         graphStateWithChapterMeta = {
           ...currentGraphState,
           nodes: nextNodes,
+          edges: nextEdges,
         };
+
         setGraphState(graphStateWithChapterMeta);
         graphStateRef.current = graphStateWithChapterMeta;
+
+        if (removedChapterIds.size > 0) {
+          console.log('🧹 Pruned chapter nodes from graph state', {
+            removedChapterIds: Array.from(removedChapterIds),
+            remainingChapterNodes: nextNodes.filter((node: any) => node?.type === 'chapter').length
+          });
+        }
       }
     }
 

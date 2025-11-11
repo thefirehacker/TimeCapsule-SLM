@@ -1718,6 +1718,74 @@ useEffect(() => {
   };
 
 
+
+  // Ensure graph state drops chapters that no longer exist in canonical data
+  useEffect(() => {
+    if (!graphState?.nodes?.length) {
+      return;
+    }
+
+    const canonicalChapterIds = new Set(
+      (chapters || [])
+        .map((chapter) => chapter?.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    );
+
+    let nodesChanged = false;
+    const nextNodes = graphState.nodes.filter((node) => {
+      if (node.type === 'chapter') {
+        const nodeChapterId = (node.data as ChapterNodeData)?.id || node.id;
+        const keep =
+          canonicalChapterIds.size === 0
+            ? false
+            : nodeChapterId && canonicalChapterIds.has(nodeChapterId);
+
+        if (!keep) {
+          nodesChanged = true;
+        }
+        return keep;
+      }
+      return true;
+    });
+
+    if (!nodesChanged) {
+      return;
+    }
+
+    const nextNodeIds = new Set(nextNodes.map((node) => node.id));
+    const nextEdges = (graphState.edges || []).filter(
+      (edge) => nextNodeIds.has(edge.source) && nextNodeIds.has(edge.target)
+    );
+
+    const prunedState: GraphState = {
+      ...graphState,
+      nodes: nextNodes,
+      edges: nextEdges,
+      selectedNodeId: nextNodeIds.has(graphState.selectedNodeId || '')
+        ? graphState.selectedNodeId
+        : null,
+    };
+
+    setGraphState(prunedState);
+    setCurrentGraphStateRef(prunedState);
+
+    if (onGraphChange) {
+      onGraphChange(prunedState);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-pruned',
+            timestamp: Date.now(),
+            graphState: prunedState,
+          },
+        })
+      );
+    }
+  }, [graphState, chapters, onGraphChange]);
+
   return (
     <div className="h-full flex flex-col">
       {/* Fixed Header with Stats and Actions */}
