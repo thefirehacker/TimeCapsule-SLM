@@ -48,5 +48,5 @@ next-env.d.ts
 # temp 
 Test/temp/*
 
-#logs
-logs.md
+# #logs
+# logs.md

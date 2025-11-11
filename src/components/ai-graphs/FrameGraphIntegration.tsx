@@ -1169,21 +1169,40 @@ Updated: ${new Date().toISOString()}`,
             idLength: connectionDoc.id.length
           });
         } else {
-          try {
-            await vectorStore.deleteDocument(shortDocId); // Use same deterministic ID for deletion
-            console.log("🗑️ Connection document deleted:", {
-              connectionId: connection.id,
-              documentId: shortDocId
-            });
-          } catch (error) {
-            const message = (error as Error)?.message || '';
-            if (message.includes('Document not found')) {
-              console.warn('⚠️ Connection document missing during deletion:', {
+          // Retry deletion with delays to handle race condition where insertion is still in progress
+          let retries = 3;
+          let deleted = false;
+
+          while (retries > 0 && !deleted) {
+            try {
+              await vectorStore.deleteDocument(shortDocId); // Use same deterministic ID for deletion
+              console.log("🗑️ Connection document deleted:", {
                 connectionId: connection.id,
-                documentId: shortDocId
+                documentId: shortDocId,
+                retriesRemaining: retries - 1
               });
-            } else {
-              throw error;
+              deleted = true;
+            } catch (error) {
+              const message = (error as Error)?.message || '';
+              if (message.includes('Document not found') && retries > 1) {
+                // Document might still be inserting, wait and retry
+                console.log('⏳ Document not found, retrying...', {
+                  connectionId: connection.id,
+                  documentId: shortDocId,
+                  retriesRemaining: retries - 1
+                });
+                await new Promise(resolve => setTimeout(resolve, 50));
+                retries--;
+              } else if (message.includes('Document not found')) {
+                // Final retry failed, document likely never existed
+                console.warn('⚠️ Connection document missing during deletion:', {
+                  connectionId: connection.id,
+                  documentId: shortDocId
+                });
+                break;
+              } else {
+                throw error;
+              }
             }
           }
         }
@@ -1698,6 +1717,74 @@ useEffect(() => {
     }
   };
 
+
+
+  // Ensure graph state drops chapters that no longer exist in canonical data
+  useEffect(() => {
+    if (!graphState?.nodes?.length) {
+      return;
+    }
+
+    const canonicalChapterIds = new Set(
+      (chapters || [])
+        .map((chapter) => chapter?.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    );
+
+    let nodesChanged = false;
+    const nextNodes = graphState.nodes.filter((node) => {
+      if (node.type === 'chapter') {
+        const nodeChapterId = (node.data as ChapterNodeData)?.id || node.id;
+        const keep =
+          canonicalChapterIds.size === 0
+            ? false
+            : nodeChapterId && canonicalChapterIds.has(nodeChapterId);
+
+        if (!keep) {
+          nodesChanged = true;
+        }
+        return keep;
+      }
+      return true;
+    });
+
+    if (!nodesChanged) {
+      return;
+    }
+
+    const nextNodeIds = new Set(nextNodes.map((node) => node.id));
+    const nextEdges = (graphState.edges || []).filter(
+      (edge) => nextNodeIds.has(edge.source) && nextNodeIds.has(edge.target)
+    );
+
+    const prunedState: GraphState = {
+      ...graphState,
+      nodes: nextNodes,
+      edges: nextEdges,
+      selectedNodeId: nextNodeIds.has(graphState.selectedNodeId || '')
+        ? graphState.selectedNodeId
+        : null,
+    };
+
+    setGraphState(prunedState);
+    setCurrentGraphStateRef(prunedState);
+
+    if (onGraphChange) {
+      onGraphChange(prunedState);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('force-save-frames', {
+          detail: {
+            reason: 'chapter-pruned',
+            timestamp: Date.now(),
+            graphState: prunedState,
+          },
+        })
+      );
+    }
+  }, [graphState, chapters, onGraphChange]);
 
   return (
     <div className="h-full flex flex-col">

@@ -196,6 +196,26 @@ console.log("⚠️ RxDB conflict detected, skipping sync for frame:", frame.id)
 - **Error Handling**: Prevents flag from being stuck in true state
 - **Window Object**: Lightweight global state management
 
+### Chapter Deletion Issue Solved
+
+#### Problem
+Deleting a chapter node directly in the graph removed it visually, but the chapter reappeared after refresh and still showed up in the linear view. Logs showed `🧪 Graph merge from initialGraphState… appendedNodeIds` and every background save continued to report `chapterCount: 1`.
+
+#### Root Cause
+- Chapter nodes were deleted from React Flow, but we never removed the corresponding record from the canonical chapter list (`chaptersRef` / `unifiedStorage.chapters`).  
+- Because the chapter entry remained, background saves persisted it and React Flow’s merge effect rehydrated the node from `initialGraphState`, so the chapter returned in both graph and linear views.
+
+#### Fix
+1. **Graph-side removal** (`EnhancedLearningGraph.tsx`):
+   - The `handleNodesChange` handler now detects when a chapter node is removed.  
+   - It immediately removes the matching chapter from `chaptersRef`, clears any frames referencing it, and calls `onChaptersChange` / `onFramesChange`.  
+   - This keeps the canonical state in sync with what the user did in the graph.
+2. **Graph-state pruning** (`FrameGraphIntegration.tsx`):
+   - A `useEffect` watches `chapters` vs. `graphState` and prunes any chapter nodes whose IDs no longer exist (including when the list becomes empty).  
+   - The pruned state is written back to `graphState`, cached, and broadcast via `force-save-frames`, so background saves now report `chapterCount: 0` and the merge effect has nothing stale to rehydrate.
+
+Result: deleting a chapter in the graph removes it from both views immediately and it stays deleted after a refresh.
+
 ### Future Enhancements
 
 #### 1. Advanced Coordination
@@ -816,3 +836,11 @@ console.log(getVideoContent(frames[0]))
 2. **Batch Operations**: Optimize multiple attachment operations
 3. **Conflict Resolution**: Add user-facing conflict resolution for edge cases
 4. **Performance**: Optimize KB sync timing based on operation frequency
+
+# Features 
+✅ Frame Creation - Unaffected (uses normal framesRef.current)
+ ✅ Position Persistence - Unaffected (uses normal framesRef.current)✅ Edge Connections
+ - Unaffected (uses normal framesRef.current)
+ ✅ Chapter Management - Unaffected (uses normal framesRef.current)
+ ✅ Attachment Management - Unaffected (uses normal framesRef.current)
+ ✅ Auto-save - Unaffected (uses normal framesRef.current)
