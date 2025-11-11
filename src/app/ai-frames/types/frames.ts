@@ -1,4 +1,54 @@
 // AI Frames Core Types
+export type LearningPhase =
+  | "overview"
+  | "fundamentals"
+  | "deep-dive"
+  | "remediation";
+
+export type FrameMasteryState =
+  | "locked"
+  | "ready"
+  | "awaiting_quiz"
+  | "needs_remediation"
+  | "completed";
+
+export interface FrameQuizChoice {
+  id: string;
+  label: string;
+  isCorrect?: boolean;
+}
+
+export interface FrameQuizQuestion {
+  id: string;
+  prompt: string;
+  type: "single_choice" | "multi_choice" | "short_answer";
+  choices?: FrameQuizChoice[];
+  correctAnswers: string[];
+  explanation?: string;
+  visionReference?: string;
+}
+
+export interface FrameQuiz {
+  id: string;
+  difficulty: "checkpoint" | "remediation";
+  instructions: string;
+  questions: FrameQuizQuestion[];
+}
+
+export interface QuizAttempt {
+  attemptId: string;
+  frameId: string;
+  quizId: string;
+  submittedAt: string;
+  passed: boolean;
+  responses: Array<{
+    questionId: string;
+    userAnswer: string | string[];
+    correct: boolean;
+  }>;
+  remediationFrameId?: string;
+}
+
 export interface AIFrame {
   id: string;
   title: string;
@@ -21,6 +71,12 @@ export interface AIFrame {
   type: "frame" | "chapter" | "module";
   createdAt: string;
   updatedAt: string;
+  learningPhase?: LearningPhase;
+  checkpointQuiz?: FrameQuiz;
+  quizHistory?: QuizAttempt[];
+  masteryState?: FrameMasteryState;
+  masteryScore?: number;
+  remediationParentId?: string;
   attachment?: {
     id: string;
     type: string; // DYNAMIC: Support any attachment type (video, pdf, text, audio, AR, VR, etc.)
@@ -154,4 +210,6 @@ export const DEFAULT_FRAME: Partial<AIFrame> = {
   order: 0,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  learningPhase: "overview",
+  masteryState: "ready",
 };

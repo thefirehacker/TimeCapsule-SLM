@@ -52,6 +52,7 @@ import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
 import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
 import { ChapterDialog } from "@/components/ai-graphs/chapter-dialog";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
+import { AIFlowBuilderPanel } from "./components/AIFlowBuilderPanel";
 import {
   Dialog,
   DialogContent,
@@ -89,11 +90,14 @@ import {
   getTimeCapsuleCombinedData,
   setTimeCapsuleCombinedData,
   DEFAULT_FRAME,
+  exportFramesToJson,
+  importFramesFromJson,
 } from "./index";
 import type { Chapter } from "./types/frames";
 
 // UNIFIED: Replace old fragmented storage with unified system
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
+import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 
 interface FrameCreationData {
@@ -168,6 +172,12 @@ export default function AIFramesPage() {
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
   });
+
+  const flowBuilder = useAIFlowBuilder({
+    vectorStore: providerVectorStore,
+    vectorStoreInitialized,
+  });
+  const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(true);
 
   // Graph state management
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -610,6 +620,86 @@ export default function AIFramesPage() {
       return frame;
     },
     [handleCreateFrame]
+  );
+
+  const handleAcceptAIFrames = useCallback(
+    (frames: AIFrame[]) => {
+      if (!frames.length) return;
+
+      const existingMaxOrder = unifiedStorage.frames.reduce(
+        (max, frame) =>
+          typeof frame.order === "number"
+            ? Math.max(max, frame.order)
+            : max,
+        0
+      );
+
+      const timestamp = new Date().toISOString();
+      const normalized = frames.map((frame, index) => ({
+        ...frame,
+        order: existingMaxOrder + index + 1,
+        createdAt: frame.createdAt || timestamp,
+        updatedAt: timestamp,
+      }));
+
+      unifiedStorage.updateFrames([
+        ...unifiedStorage.frames,
+        ...normalized,
+      ]);
+    },
+    [unifiedStorage.frames, unifiedStorage.updateFrames]
+  );
+
+  const handleExportFrames = useCallback(() => {
+    try {
+      const payload = exportFramesToJson(unifiedStorage.frames);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ai-frames-${new Date().toISOString().split("T")[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (exportError) {
+      console.error("Failed to export AI Frames:", exportError);
+    }
+  }, [unifiedStorage.frames]);
+
+  const handleImportFramesFromFile = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text();
+        const importedFrames = importFramesFromJson(text);
+        if (!importedFrames.length) {
+          return;
+        }
+
+        const maxOrder = unifiedStorage.frames.reduce(
+          (max, frame) =>
+            typeof frame.order === "number"
+              ? Math.max(max, frame.order)
+              : max,
+          0
+        );
+
+        const timestamp = new Date().toISOString();
+        const normalized = importedFrames.map((frame, index) => ({
+          ...frame,
+          id: frame.id || generateFrameId(),
+          order: maxOrder + index + 1,
+          createdAt: frame.createdAt || timestamp,
+          updatedAt: timestamp,
+        }));
+
+        unifiedStorage.updateFrames([
+          ...unifiedStorage.frames,
+          ...normalized,
+        ]);
+      } catch (importError) {
+        console.error("Failed to import AI Frames:", importError);
+      }
+    },
+    [unifiedStorage.frames, unifiedStorage.updateFrames]
   );
 
   const resetChapterDialogState = useCallback(() => {
@@ -1445,7 +1535,34 @@ export default function AIFramesPage() {
           }
         }}
       />
-      <div className="min-h-screen flex flex-col pt-20">
+      <input
+        id="ai-frames-import"
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          await handleImportFramesFromFile(file);
+          event.target.value = "";
+        }}
+      />
+      <div className="min-h-screen flex flex-col gap-6 pt-20">
+        <AIFlowBuilderPanel
+          flowBuilder={flowBuilder}
+          onAcceptFrames={handleAcceptAIFrames}
+          isOpen={isFlowPanelOpen}
+          onToggle={() => setIsFlowPanelOpen(false)}
+        />
+        {!isFlowPanelOpen && (
+          <button
+            className="fixed bottom-6 right-6 z-40 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+            onClick={() => setIsFlowPanelOpen(true)}
+          >
+            <Bot className="h-4 w-4" />
+            Open Flow Builder
+          </button>
+        )}
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">
           {/* FIXED: Dual pane layout like Deep Research - sidebar + main content */}
@@ -1524,6 +1641,35 @@ export default function AIFramesPage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2 border-t border-gray-200 pt-4">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Import / Export
+                </h4>
+                <p className="text-xs text-gray-500">
+                  Backup your AI Frames or import flows from another workspace.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center gap-2"
+                  onClick={handleExportFrames}
+                >
+                  <Download className="h-4 w-4" />
+                  Export JSON
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center gap-2"
+                  onClick={() =>
+                    document.getElementById("ai-frames-import")?.click()
+                  }
+                >
+                  <Upload className="h-4 w-4" />
+                  Import JSON
+                </Button>
               </div>
 
               {/* Chapter Management */}

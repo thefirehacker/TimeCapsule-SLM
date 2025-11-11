@@ -254,7 +254,7 @@ export class UnifiedWebSearchService {
   /**
    * Configure Firecrawl API key
    */
-  configureFirecrawl(apiKey: string): void {
+  configureFirecrawl(apiKey: string | null): void {
     this.firecrawlService.setApiKey(apiKey);
   }
 

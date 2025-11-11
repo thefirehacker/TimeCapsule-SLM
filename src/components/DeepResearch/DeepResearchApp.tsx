@@ -133,13 +133,14 @@ export function DeepResearchComponent() {
 
   // Update unified web search service when API key changes
   useEffect(() => {
-    if (firecrawlApiKey) {
-      const unifiedService = getUnifiedWebSearchService();
-      unifiedService.configureFirecrawl(firecrawlApiKey);
-      setWebSearchStatus((prev) => ({ ...prev, configured: true }));
-    } else {
-      setWebSearchStatus((prev) => ({ ...prev, configured: false }));
-    }
+    const unifiedService = getUnifiedWebSearchService();
+    const sanitizedKey = firecrawlApiKey?.trim() || null;
+    unifiedService.configureFirecrawl(sanitizedKey);
+
+    setWebSearchStatus((prev) => ({
+      ...prev,
+      configured: Boolean(sanitizedKey),
+    }));
   }, [firecrawlApiKey]);
 
   // Monitor Xenova status and show modal accordingly

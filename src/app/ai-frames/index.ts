@@ -3,6 +3,12 @@
 // Types
 export type {
   AIFrame,
+  FrameQuiz,
+  FrameQuizQuestion,
+  FrameQuizChoice,
+  QuizAttempt,
+  LearningPhase,
+  FrameMasteryState,
   FrameValidationResult,
   FrameValidationOptions,
   FrameStorageState,
