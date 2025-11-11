@@ -22,6 +22,15 @@ Enable users (in dark mode UI) to “prompt and build full learning flows” (fr
    - System: For each frame in plan, generate `informationText`, `afterVideoText`, `aiConcepts`, and suggested attachments (video URL or PDF pages) grounded by citations.
 3) Vision-grounded Attachment Suggestions  
    - If user attaches images or PDFs with diagrams, vision model extracts key points to inform frame text and concept extraction.
+4) Bootstrapped Step‑by‑Step Learning (Explicit Vision)
+   - User uploads source material (papers, PDFs, images, links) and prompts:  
+     “Help me understand this step by step: start high‑level, then go deep. Do not advance without confirming I understand with a short quiz each step.”
+   - System behavior:  
+     - Generates a linear sequence of AI Frames that progress from overview → fundamentals → deep‑dive.  
+     - Each frame includes a “checkpoint” quiz (1–3 questions).  
+     - Advancement is gated by mastery; if incorrect, the system provides a simpler re‑explanation frame and retries.  
+     - Vision‑aware: when figures/screenshots are present, explanations and quizzes reference them explicitly (captions/regions).  
+     - The session is pausable/resumable; state persists in KB, including quiz history and remediation branches.
 
 ### Model Design (OpenRouter with ZDR)
 We will route to ZDR-compliant endpoints only. Exact pricing varies per provider; we’ll implement model routing with cost/quality tiers and allow per-request overrides.
@@ -48,6 +57,15 @@ Why this mix
 - Vision over PDFs/images → Gemini 2.5 Flash is the fastest strong VLM.
 - Keep embeddings local to preserve offline-first, reduce cost, and maintain latency guarantees.
 
+### Bootstrapped Learning — Explicit Requirements
+- Stepwise pedagogy: frames proceed from high‑level summaries to low‑level technical detail.
+- Mastery gating: each frame ends with a short quiz; user must pass before advancing.
+- Remediation: on incorrect answers, the system inserts one or more “remediation frames” with simpler explanations and a follow‑up quiz.
+- Pause/Resume: users can stop any time and resume at the last incomplete frame; prior answers are stored in KB.
+- Vision grounding: when images/figures are available, explanations and questions reference specific visual elements (e.g., “see the red box region”).
+- Source‑first: all content cites KB chunks and URLs; AI never invents citations.
+- User control: AI‑suggested frames are drafts (distinct color); users can accept/decline/edit at any step.
+
 ### Integration Approach (no code changes yet)
 1) Routing Layer (configuration only at first)
    - Add a model router config with tiers: planner, generator, vision; default order as above.
@@ -57,6 +75,7 @@ Why this mix
    - Planner: Returns strict JSON conforming to a minimal schema that maps to `AIFrame` and chapters (IDs, titles, goals, order; plus optional link suggestions). Include citations list referencing KB doc IDs.
    - Generator: Takes one planned frame + retrieved chunks; returns filled `informationText`, `afterVideoText`, `aiConcepts`, and attachment suggestions with rationale + sources.
    - Vision: Accepts image(s)/figure snapshots or PDF page renders; returns key points to merge into generator context.
+   - Checkpoint: Produces quiz items (MCQ/short‑answer) with correct answers, explanations, and retry hints; flags “requires_remediation” when mastery < threshold.
 3) Grounding with KB (local-first)
    - Reuse VectorStore semantic search to collect top-k chunks per task.
    - Pass citations (doc IDs + spans) to the LLM; require the LLM to echo citations in outputs.
@@ -113,6 +132,8 @@ Note: request body illustrates the ZDR intent; exact client to be added later.
 - Users can add/remove OpenRouter and Firecrawl keys; connect/disconnect AI.
 - AI-built frames are visually distinct, reviewable, and accept/decline‑able.
 - Users can update any existing or previously AI-built frames in subsequent turns.
+- Checkpoint quizzes are generated per frame; advancement requires mastery; remediation path works.
+- Sessions are pausable/resumable with saved quiz history and progress indicators.
 
 ### Risks & Mitigations
 - JSON adherence: use response_format where supported; otherwise add robust validators and self-correction prompts.

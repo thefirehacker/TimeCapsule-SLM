@@ -15,5 +15,9 @@
 - Add cost controls (defaults per route, user overrides, caps)
 - Privacy guardrail (ZDR enforced; redact sensitive fields pre-send)
 - Telemetry: token/latency per action for routing decisions
+- Add checkpoint quiz generation per frame with mastery gating
+- Add remediation path generation on incorrect answers (simpler frames + retry)
+- Persist quiz history and progress; implement pause/resume sessions
+- Add progress metrics (mastery %, frames completed) and lightweight analytics
 
 
