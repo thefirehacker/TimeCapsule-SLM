@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import {
   Card,
   CardHeader,
@@ -36,17 +37,19 @@ import {
   ShieldCheck,
   Key,
   Eye,
-  Upload,
   RefreshCcw,
   Check,
   Database,
   Globe,
   Trash2,
   X,
+  Download as DownloadIcon,
+  Plug,
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
+import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 
 interface AIFlowBuilderPanelProps {
   flowBuilder: UseAIFlowBuilderReturn;
@@ -82,6 +85,11 @@ export function AIFlowBuilderPanel({
     sessionState,
     progressMetrics,
     evaluateCheckpoint,
+    historySessions,
+    historyActions,
+    timelineSteps,
+    timelineExpandedSteps,
+    handleTimelineStepClick,
   } = flowBuilder;
 
   const [openRouterKey, setOpenRouterKey] = useState("");
@@ -92,6 +100,22 @@ export function AIFlowBuilderPanel({
 
   const openRouterState = aiProviders.openrouter.connectionState;
   const openRouterModels = aiProviders.openrouter.modelOptions;
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const selectedHistory = useMemo(
+    () => historySessions.find((session) => session.id === selectedHistoryId) || null,
+    [historySessions, selectedHistoryId]
+  );
+  const historyImportInputRef = useRef<HTMLInputElement | null>(null);
+  const [historyImportError, setHistoryImportError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (
+      selectedHistoryId &&
+      !historySessions.some((session) => session.id === selectedHistoryId)
+    ) {
+      setSelectedHistoryId(null);
+    }
+  }, [historySessions, selectedHistoryId]);
 
   if (!isOpen) {
     return null;
@@ -122,9 +146,47 @@ export function AIFlowBuilderPanel({
     resetPlan();
   };
 
-  const generatedCount = frameDrafts.filter(
-    (draft) => draft.status === "generated"
-  ).length;
+  const downloadJson = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportHistory = (sessionId?: string) => {
+    const payload = sessionId
+      ? historyActions.exportSession(sessionId)
+      : historyActions.exportAllSessions();
+    if (!payload) return;
+    const filename = sessionId
+      ? `ai-flow-session-${sessionId}.json`
+      : `ai-flow-history-${new Date().toISOString().split("T")[0]}.json`;
+    downloadJson(filename, payload);
+  };
+
+  const handleHistoryImportChange = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const success = historyActions.importSessions(text);
+      setHistoryImportError(
+        success ? null : "Failed to import history. Check the file format."
+      );
+    } catch (err) {
+      setHistoryImportError(
+        err instanceof Error ? err.message : "Failed to import history."
+      );
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const plannedCount = frameDrafts.length;
   const readyToAcceptCount = frameDrafts.filter(
     (draft) => draft.masteryState === "completed" && draft.status === "generated"
@@ -179,7 +241,7 @@ export function AIFlowBuilderPanel({
               <div>
                 <div className="flex items-center gap-2 text-slate-500 text-sm">
                   <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  OpenRouter ZDR · AI Flow Builder
+                  OpenRouter · AI Flow Builder
                 </div>
                 <CardTitle className="text-2xl font-semibold flex items-center gap-2">
                   <Bot className="h-6 w-6 text-emerald-500" />
@@ -222,7 +284,7 @@ export function AIFlowBuilderPanel({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="openrouter">
-                      OpenRouter · ZDR (Default)
+                      OpenRouter (Default)
                     </SelectItem>
                     <SelectItem value="ollama">Ollama · Local</SelectItem>
                   </SelectContent>
@@ -262,12 +324,18 @@ export function AIFlowBuilderPanel({
                   <Button
                     onClick={handleConnectOpenRouter}
                     disabled={!openRouterKey.trim() || openRouterState.connecting}
-                    variant="secondary"
+                    className="bg-emerald-500 text-white hover:bg-emerald-600"
                   >
                     {openRouterState.connecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Connecting
+                      </>
                     ) : (
-                      <Upload className="h-4 w-4" />
+                      <>
+                        <Plug className="h-4 w-4 mr-2" />
+                        Connect
+                      </>
                     )}
                   </Button>
                   {openRouterState.apiKeyPresent && (
@@ -447,6 +515,174 @@ export function AIFlowBuilderPanel({
                     : "All frames cleared"}
                 </p>
               </div>
+            </section>
+
+            {timelineSteps.length > 0 && (
+              <section className="space-y-3 bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-slate-900 font-semibold">Agent Timeline</h4>
+                    <p className="text-sm text-slate-500">
+                      Live view of orchestration steps from the DeepResearch stack
+                    </p>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+                    Live
+                  </Badge>
+                </div>
+                <ResearchSteps
+                  steps={timelineSteps}
+                  expandedSteps={timelineExpandedSteps}
+                  onStepClick={handleTimelineStepClick}
+                  className="border border-slate-200 rounded-2xl shadow-sm"
+                />
+              </section>
+            )}
+
+            <section className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-slate-900 font-semibold">Flow History</h4>
+                  <p className="text-sm text-slate-500">
+                    Saved agent outputs from recent sessions
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportHistory()}
+                    disabled={historySessions.length === 0}
+                  >
+                    <DownloadIcon className="h-4 w-4 mr-1" />
+                    Export All
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => historyImportInputRef.current?.click()}
+                  >
+                    Import
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500"
+                    onClick={historyActions.clearSessions}
+                    disabled={historySessions.length === 0}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              {historyImportError && (
+                <p className="text-sm text-red-500">{historyImportError}</p>
+              )}
+              <div className="space-y-2 max-h-60 overflow-auto">
+                {historySessions.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No AI Flow sessions saved yet. Once you run the flow builder,
+                    the planner/generator logs will appear here for export.
+                  </p>
+                ) : (
+                  historySessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {session.prompt.slice(0, 80)}
+                            {session.prompt.length > 80 ? "…" : ""}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(session.updatedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <Badge
+                          className={
+                            session.status === "completed"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : session.status === "failed"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-blue-100 text-blue-700"
+                          }
+                        >
+                          {session.status}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setSelectedHistoryId((prev) =>
+                              prev === session.id ? null : session.id
+                            )
+                          }
+                        >
+                          View Logs
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleExportHistory(session.id)}
+                        >
+                          Export
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500"
+                          onClick={() => historyActions.deleteSession(session.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {selectedHistory && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-60 overflow-auto space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Logs for {selectedHistory.prompt.slice(0, 40)}
+                      {selectedHistory.prompt.length > 40 ? "…" : ""}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedHistoryId(null)}
+                    >
+                      Hide
+                    </Button>
+                  </div>
+                  {selectedHistory.logs.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No agent logs recorded for this session.
+                    </p>
+                  ) : (
+                    selectedHistory.logs.slice(0, 20).map((log) => (
+                      <div
+                        key={log.id}
+                        className="rounded-lg border border-slate-200 bg-white p-2"
+                      >
+                        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                          <span className="font-semibold">
+                            {log.agent.toUpperCase()} · {log.role}
+                          </span>
+                          <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <pre className="whitespace-pre-wrap text-xs text-slate-700 max-h-32 overflow-auto">
+                          {log.content}
+                        </pre>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="space-y-3">
@@ -846,6 +1082,13 @@ export function AIFlowBuilderPanel({
         onConnect={aiProviders.ollama.connect}
         onTestConnection={aiProviders.ollama.testConnection}
         connectionState={aiProviders.ollama.connectionState}
+      />
+      <input
+        ref={historyImportInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={handleHistoryImportChange}
       />
     </>
   );

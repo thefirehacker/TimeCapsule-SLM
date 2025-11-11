@@ -24,6 +24,23 @@ import {
 } from "@/lib/UnifiedWebSearchService";
 import type { UseFirecrawlKeyReturn } from "./useFirecrawlKey";
 import type { AIProviderKey } from "./useAIProviders";
+import { createMultiAgentSystem } from "@/lib/multi-agent";
+import {
+  useResearchSteps,
+  ResearchStep,
+  AgentSubStep,
+  ProgressHistoryEntry,
+} from "@/components/DeepResearch/components/ResearchSteps";
+import {
+  useFlowHistory,
+  FlowHistorySession,
+} from "./useFlowHistory";
+import type {
+  FlowPlannerPlan,
+  FlowGeneratedFrame,
+} from "@/lib/multi-agent/interfaces/Context";
+import { FlowFramePlannerAgent } from "@/lib/multi-agent/agents/FlowFramePlannerAgent";
+import { FlowFrameGeneratorAgent } from "@/lib/multi-agent/agents/FlowFrameGeneratorAgent";
 
 interface KnowledgeCitation {
   label: string;
@@ -190,6 +207,17 @@ export interface UseAIFlowBuilderReturn {
     frameId: string,
     outcome: "pass" | "fail"
   ) => Promise<void>;
+  historySessions: FlowHistorySession[];
+  historyActions: {
+    deleteSession: (sessionId: string) => void;
+    clearSessions: () => void;
+    exportSession: (sessionId: string) => string | null;
+    exportAllSessions: () => string;
+    importSessions: (data: string) => boolean;
+  };
+  timelineSteps: ResearchStep[];
+  timelineExpandedSteps: Set<string>;
+  handleTimelineStepClick: (step: ResearchStep) => void;
 }
 
 const MAX_KB_RESULTS_FOR_PLAN = 8;
@@ -395,6 +423,98 @@ const normalizeCitations = (
     }));
 };
 
+const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
+  const chapterId = "flow_chapter";
+  return {
+    id: `flow_${Date.now()}`,
+    summary: plan.summary,
+    learningMode: plan.learningMode,
+    chapters: [
+      {
+        id: chapterId,
+        title: "AI Flow",
+        goal: plan.summary || "",
+        order: 0,
+        color: "#0284C7",
+        citations: [],
+        frames: plan.frames.map((frame, index) => ({
+          id: frame.id || `flow_frame_${index}`,
+          title: frame.title,
+          goal: frame.goal,
+          chapterId,
+          order: index,
+          aiConcepts: frame.aiConcepts || [],
+          citations: [],
+          attachmentSuggestions: [],
+          learningPhase: frame.phase,
+          requiresVision: frame.requiresVision,
+        })),
+      },
+    ],
+    sources: [],
+    createdAt: new Date().toISOString(),
+    model: "FlowFramePlanner",
+  };
+};
+
+const convertFlowFrameToDraft = (
+  frame: FlowGeneratedFrame,
+  index: number,
+  chapterId: string
+): FrameDraft => {
+  const baseAttachment = frame.attachment
+    ? {
+        id: frame.attachment.url || generateFrameId(),
+        type: frame.attachment.type,
+        source: "knowledge_base" as const,
+        referenceLabel: undefined,
+        description: frame.attachment.description,
+        url: frame.attachment.url,
+      }
+    : undefined;
+
+  const generated: GeneratedFrameContent = {
+    informationText: frame.informationText,
+    afterVideoText: frame.afterVideoText,
+    aiConcepts: frame.aiConcepts,
+    videoUrl: "",
+    attachment: baseAttachment,
+    attachments: baseAttachment ? [baseAttachment] : [],
+    summary: frame.summary,
+    durationInSeconds: frame.durationInSeconds,
+    checkpointQuiz: frame.checkpointQuiz,
+    recommendedResources: baseAttachment ? [baseAttachment] : [],
+  };
+
+  return {
+    id: frame.id || generateFrameId(),
+    title: frame.title,
+    goal: frame.goal,
+    chapterId,
+    chapterTitle:
+      frame.phase === "remediation"
+        ? "Remediation"
+        : frame.phase.replace(/-/g, " "),
+    order: index,
+    aiConcepts: frame.aiConcepts,
+    citations: [],
+    attachmentSuggestions: [],
+    learningPhase: frame.phase,
+    requiresVision: frame.requiresVision,
+    tempId: frame.id || generateFrameId(),
+    status: "generated",
+    generated,
+    provider: "openrouter",
+    model: "FlowFrameGenerator",
+    generatedAt: new Date().toISOString(),
+    error: null,
+    knowledgeContext: undefined,
+    checkpointQuiz: frame.checkpointQuiz,
+    quizHistory: [],
+    masteryState: index === 0 ? "ready" : "locked",
+  };
+};
+
 export function useAIFlowBuilder({
   vectorStore,
   vectorStoreInitialized,
@@ -405,6 +525,8 @@ export function useAIFlowBuilder({
     () => getUnifiedWebSearchService(),
     []
   );
+  const providerVectorStore =
+    vectorStore && vectorStoreInitialized ? vectorStore : null;
 
   const [prompt, setPrompt] = useState("");
   const [plan, setPlan] = useState<PlannerPlan | null>(null);
@@ -426,12 +548,31 @@ export function useAIFlowBuilder({
     remediationCount: 0,
     currentPhase: null,
   });
+  const researchStepsState = useResearchSteps();
+  const currentStepsRef = useRef<ResearchStep[]>([]);
+  useEffect(() => {
+    currentStepsRef.current = researchStepsState.steps;
+  }, [researchStepsState.steps]);
+
+  const {
+    sessions: historySessions,
+    startSession,
+    appendLog,
+    updateSession: updateHistorySession,
+    deleteSession: deleteHistorySession,
+    clearSessions: clearHistorySessions,
+    exportSession: exportHistorySession,
+    exportAllSessions: exportAllHistorySessions,
+    importSessions: importHistorySessions,
+  } = useFlowHistory();
 
   const knowledgeCacheRef = useRef<Map<string, KnowledgeContextResult>>(
     new Map()
   );
   const draftsOrderRef = useRef<string[]>([]);
   const lastPersistedSessionRef = useRef<string | null>(null);
+  const mainStepIdRef = useRef<string | null>(null);
+  const currentHistoryIdRef = useRef<string | null>(null);
 
   const calculateProgressMetrics = useCallback(
     (state: LearningSessionState | null): ProgressMetrics => {
@@ -503,7 +644,8 @@ export function useAIFlowBuilder({
       options: { persistKB?: boolean } = {}
     ) => {
       setSessionState(nextState);
-      setProgressMetrics(calculateProgressMetrics(nextState));
+      const metrics = calculateProgressMetrics(nextState);
+      setProgressMetrics(metrics);
 
       if (typeof window !== "undefined") {
         try {
@@ -516,11 +658,20 @@ export function useAIFlowBuilder({
         }
       }
 
+      if (currentHistoryIdRef.current) {
+        updateHistorySession(currentHistoryIdRef.current, {
+          masteryPercent: metrics.masteryPercent,
+          totalFrames: nextState.totalFrames,
+          status: metrics.masteryPercent >= 100 ? "completed" : "generating",
+          sessionSnapshot: nextState,
+        });
+      }
+
       if (options.persistKB) {
         await persistSessionToKnowledgeBase(nextState);
       }
     },
-    [calculateProgressMetrics, persistSessionToKnowledgeBase]
+    [calculateProgressMetrics, persistSessionToKnowledgeBase, updateHistorySession]
   );
 
   useEffect(() => {
@@ -537,6 +688,111 @@ export function useAIFlowBuilder({
     }
   }, [calculateProgressMetrics]);
 
+  const startTimeline = useCallback(
+    (query: string) => {
+      const id = `flow_builder_${Date.now()}`;
+      mainStepIdRef.current = id;
+      researchStepsState.clearSteps();
+      researchStepsState.addStep({
+        id,
+        type: "analysis",
+        status: "in_progress",
+        timestamp: Date.now(),
+        query,
+        reasoning: "AI Flow Builder orchestration",
+        subSteps: [],
+      });
+    },
+    [researchStepsState]
+  );
+
+  const finalizeTimeline = useCallback(
+    (
+      status: "completed" | "failed",
+      reasoning?: string,
+      subSteps?: AgentSubStep[]
+    ) => {
+      const id = mainStepIdRef.current;
+      if (!id) return;
+      const existing = currentStepsRef.current.find((step) => step.id === id);
+      if (!existing) return;
+      researchStepsState.updateStep(id, {
+        status,
+        duration: Date.now() - existing.timestamp,
+        reasoning: reasoning || existing.reasoning,
+        subSteps: subSteps || existing.subSteps,
+      });
+    },
+    [researchStepsState]
+  );
+
+  const deriveAgentType = useCallback(
+    (agentName: string): AgentSubStep["agentType"] => {
+      const normalized = agentName.toLowerCase();
+      if (normalized.includes("planner")) {
+        return "query_planner";
+      }
+      if (normalized.includes("inspector") || normalized.includes("data")) {
+        return "data_inspector";
+      }
+      if (normalized.includes("pattern") || normalized.includes("generator")) {
+        return "pattern_generator";
+      }
+      if (normalized.includes("extract") || normalized.includes("quiz")) {
+        return "extraction";
+      }
+      return "synthesis";
+    },
+    []
+  );
+
+  const updateSubStep = useCallback(
+    (
+      agentName: string,
+      updates: Partial<AgentSubStep> & {
+        progressHistory?: ProgressHistoryEntry[];
+      }
+    ) => {
+      const id = mainStepIdRef.current;
+      if (!id) return;
+      const existing = currentStepsRef.current.find((step) => step.id === id);
+      if (!existing) return;
+      const subSteps = existing.subSteps ? [...existing.subSteps] : [];
+      const index = subSteps.findIndex((sub) => sub.agentName === agentName);
+      if (index >= 0) {
+        const current = subSteps[index];
+        const mergedHistory = updates.progressHistory?.length
+          ? [
+              ...(current.progressHistory || []),
+              ...updates.progressHistory,
+            ]
+          : current.progressHistory;
+        subSteps[index] = {
+          ...current,
+          ...updates,
+          progressHistory: mergedHistory,
+        };
+      } else {
+        const baseHistory = updates.progressHistory?.length
+          ? [...updates.progressHistory]
+          : undefined;
+        subSteps.push({
+          id: `${agentName}_${Date.now()}`,
+          agentName,
+          agentType:
+            (updates.agentType as AgentSubStep["agentType"]) ||
+            deriveAgentType(agentName),
+          status: updates.status || "in_progress",
+          startTime: updates.startTime || Date.now(),
+          ...updates,
+          progressHistory: baseHistory,
+        } as AgentSubStep);
+      }
+      researchStepsState.updateStep(id, { subSteps });
+    },
+    [deriveAgentType, researchStepsState]
+  );
+
   const clearSessionState = useCallback(() => {
     setSessionState(null);
     setProgressMetrics({
@@ -548,6 +804,7 @@ export function useAIFlowBuilder({
     });
     draftsOrderRef.current = [];
     lastPersistedSessionRef.current = null;
+    currentHistoryIdRef.current = null;
     if (typeof window !== "undefined") {
       try {
         window.localStorage.removeItem(SESSION_STORAGE_KEY);
@@ -723,6 +980,144 @@ export function useAIFlowBuilder({
     [firecrawl.firecrawlState.configured, unifiedSearchService, webSearchEnabled]
   );
 
+  const formatLogContent = useCallback((input: any) => {
+    if (typeof input === "string") {
+      return input.slice(0, 4000);
+    }
+    try {
+      return JSON.stringify(input, null, 2).slice(0, 4000);
+    } catch {
+      return String(input).slice(0, 4000);
+    }
+  }, []);
+
+  const recordHistoryLog = useCallback(
+    (
+      agent: string,
+      role: "request" | "response" | "info" | "error",
+      content: any,
+      metadata?: Record<string, any>
+    ) => {
+      const sessionId = currentHistoryIdRef.current;
+      if (!sessionId) return;
+      appendLog(sessionId, {
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        timestamp: new Date().toISOString(),
+        agent,
+        role,
+        content: formatLogContent(content),
+        metadata,
+      });
+    },
+    [appendLog, formatLogContent]
+  );
+
+  const flowProgressCallback = useMemo(
+    () => ({
+      onAgentStart: async (
+        agentName: string,
+        agentType: string,
+        _input: any
+      ) => {
+        updateSubStep(agentName, {
+          agentName,
+          agentType: agentType as any,
+          status: "in_progress",
+          startTime: Date.now(),
+        });
+        recordHistoryLog(agentName, "info", `Agent ${agentName} started`, {
+          agentType,
+        });
+      },
+      onAgentProgress: async (
+        agentName: string,
+        progress: number,
+        stage?: string,
+        itemsProcessed?: number,
+        totalItems?: number
+      ) => {
+        const progressEntry: ProgressHistoryEntry = {
+          timestamp: Date.now(),
+          stage: stage || "progress",
+          progress,
+          itemsProcessed,
+          totalItems,
+        };
+        updateSubStep(agentName, {
+          progress,
+          stage,
+          itemsProcessed,
+          totalItems,
+          progressHistory: [progressEntry],
+        });
+        if (stage) {
+          recordHistoryLog(
+            agentName,
+            "info",
+            `${stage} (${progress.toFixed(0)}%)`,
+            {
+              progress,
+            }
+          );
+        }
+      },
+      onAgentThinking: async (agentName: string, thinking) => {
+        updateSubStep(agentName, {
+          thinking,
+        });
+        if (thinking?.summary || thinking?.thinkingContent) {
+          recordHistoryLog(
+            agentName,
+            "info",
+            thinking.summary || thinking.thinkingContent,
+            { phase: thinking.finalOutput ? "final" : "inference" }
+          );
+        }
+      },
+      onAgentComplete: async (
+        agentName: string,
+        output: any,
+        metrics?: any
+      ) => {
+        updateSubStep(agentName, {
+          status: "completed",
+          endTime: Date.now(),
+          duration: undefined,
+          output,
+          progress: 100,
+          progressHistory: [
+            {
+              timestamp: Date.now(),
+              stage: "completed",
+              progress: 100,
+            },
+          ],
+        });
+        recordHistoryLog(
+          agentName,
+          "response",
+          formatLogContent(output),
+          metrics ? { metrics } : undefined
+        );
+      },
+      onAgentError: async (agentName: string, error: string) => {
+        updateSubStep(agentName, {
+          status: "failed",
+          error,
+          progressHistory: [
+            {
+              timestamp: Date.now(),
+              stage: "error",
+              progress: 0,
+            },
+          ],
+        });
+        recordHistoryLog(agentName, "error", error);
+      },
+    }),
+    [recordHistoryLog, updateSubStep, formatLogContent]
+  );
+
   const parsePlannerResponse = useCallback(
     (raw: string): PlannerPlan => {
       const parsed = safeJsonParse<any>(raw);
@@ -814,119 +1209,152 @@ export function useAIFlowBuilder({
       return;
     }
 
+    const flowSessionId = `session_${Date.now()}`;
+    currentHistoryIdRef.current = flowSessionId;
+    startTimeline(prompt);
     setPlanning(true);
     setError(null);
+    startSession({
+      id: flowSessionId,
+      prompt,
+      totalFrames: 0,
+      snapshot: null,
+    });
 
     try {
-      const knowledge = await buildKnowledgeContext(
-        prompt,
-        MAX_KB_RESULTS_FOR_PLAN
-      );
-      const webContext = await fetchWebContext(prompt);
-      setContextPreview({ knowledge, web: webContext });
+      const llmBridge = async (llmPrompt: string) => {
+        const response = await aiProviders.callLLM({
+          prompt: llmPrompt,
+          preferProvider: "openrouter",
+          allowFallback: true,
+          tier: "generator",
+        });
+        return response.content;
+      };
 
-      const plannerMessages = [
+      const orchestrator = createMultiAgentSystem(
+        llmBridge,
+        flowProgressCallback,
+        providerVectorStore || undefined,
         {
-          role: "system" as const,
-          content: `${DEFAULT_SYSTEM_PROMPT}\n${STEPWISE_PLANNING_GUIDE}\nReturn JSON shaped like:\n${PLANNER_SCHEMA_DESCRIPTION}`,
-        },
-        {
-          role: "user" as const,
-          content: [
-            `User Goal:\n${prompt}`,
-            "Mode: Bootstrapped Step-by-Step Learning. Start with a high-level overview, move into fundamentals, and finish with a deep dive. Every frame must culminate in a checkpoint quiz opportunity.",
-            formatKnowledgeContext(knowledge),
-            formatWebContext(webContext),
-            "Instructions:",
-            "- Keep the flow between 3 and 10 frames.",
-            "- Do not advance phases unless the prior one prepares the learner.",
-            "- Mark frames that require figures/screenshots with requiresVision=true.",
-            "- Use provided citations only; do not invent IDs.",
-            "- Return JSON only.",
-          ].join("\n\n"),
-        },
-      ];
-
-      const fallbackPrompt = plannerMessages
-        .map((message) => `${message.role.toUpperCase()}:\n${message.content}`)
-        .join("\n\n");
-
-      const response = await aiProviders.callLLM({
-        tier: "planner",
-        prompt: fallbackPrompt,
-        messages: plannerMessages,
-        responseFormat: { type: "json_object" },
-        metadata: {
-          action: "ai_flow_planner",
-          knowledge_sources: knowledge.citations.length,
-        },
-        temperature: 0.2,
-      });
-
-      const parsedPlan = parsePlannerResponse(response.content);
-
-      const drafts: FrameDraft[] = parsedPlan.chapters.flatMap((chapter) =>
-        chapter.frames.map((frame) => ({
-          ...frame,
-          tempId: frame.id || generateFrameId(),
-          chapterId: chapter.id,
-          chapterTitle: chapter.title,
-          status: "planned" as FrameDraftStatus,
-          generated: undefined,
-          provider: undefined,
-          model: undefined,
-          generatedAt: undefined,
-          error: null,
-          knowledgeContext: undefined,
-          checkpointQuiz: undefined,
-          quizHistory: [],
-          masteryState: "locked",
-        }))
+          enableWebSearch: webSearchEnabled,
+          enableFlowAgents: true,
+          mode: "flow_builder",
+        }
       );
 
-      const orderedDrafts = drafts.map((draft, index) => ({
-        ...draft,
-        masteryState: index === 0 ? "ready" : "locked",
-      }));
+      await orchestrator.research(prompt);
+      const finalContext = orchestrator.getContext();
+      const subSteps = orchestrator.getAgentSubSteps();
+      let flowPlan = finalContext?.flowBuilder?.plan;
+      let flowFrames = finalContext?.flowBuilder?.generatedFrames || [];
 
-      draftsOrderRef.current = orderedDrafts.map((draft) => draft.tempId);
+      if (finalContext && (!flowPlan || flowFrames.length === 0)) {
+        recordHistoryLog(
+          "FlowFramePlanner",
+          "info",
+          "Multi-agent pipeline skipped FlowFramePlanner – running fallback planner."
+        );
+        const plannerAgent = new FlowFramePlannerAgent(
+          llmBridge,
+          flowProgressCallback
+        );
+        await plannerAgent.process(finalContext);
+        flowPlan = finalContext.flowBuilder?.plan;
+      }
+
+      if (finalContext && flowPlan && flowFrames.length === 0) {
+        recordHistoryLog(
+          "FlowFrameGenerator",
+          "info",
+          "Generating frames via fallback FlowFrameGenerator."
+        );
+        const generatorAgent = new FlowFrameGeneratorAgent(
+          llmBridge,
+          flowProgressCallback
+        );
+        await generatorAgent.process(finalContext);
+        flowFrames = finalContext.flowBuilder?.generatedFrames || [];
+      }
+
+      if (!flowPlan || flowFrames.length === 0) {
+        throw new Error(
+          "Flow agents did not produce a learning plan with frames."
+        );
+      }
+
+      const legacyPlan = convertFlowPlanToLegacyPlan(flowPlan);
+      const drafts = flowFrames.map((frame, index) =>
+        convertFlowFrameToDraft(frame, index, legacyPlan.chapters[0].id)
+      );
+
+      draftsOrderRef.current = drafts.map((draft) => draft.tempId);
 
       const session: LearningSessionState = {
-        id: `session_${Date.now()}`,
-        mode: "bootstrapped_stepwise",
+        id: flowSessionId,
+        mode: flowPlan.learningMode || "bootstrapped_stepwise",
         prompt,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        currentFrameId: orderedDrafts[0]?.tempId || null,
-        unlockedFrameIds: orderedDrafts[0] ? [orderedDrafts[0].tempId] : [],
+        currentFrameId: drafts[0]?.tempId || null,
+        unlockedFrameIds: drafts[0] ? [drafts[0].tempId] : [],
         completedFrameIds: [],
         quizHistory: {},
         remediationMap: {},
         masteryPercent: 0,
-        totalFrames: orderedDrafts.length,
+        totalFrames: drafts.length,
       };
 
       await persistSessionState(session, { persistKB: true });
+      updateHistorySession(flowSessionId, {
+        status: "generating",
+        totalFrames: drafts.length,
+        sessionSnapshot: session,
+      });
 
-      setPlan(parsedPlan);
-      setFrameDrafts(orderedDrafts);
+      setPlan(legacyPlan);
+      setFrameDrafts(drafts);
+      finalizeTimeline("completed", "Flow Builder orchestration complete", subSteps);
     } catch (plannerError) {
-      console.error("AI Flow planning failed:", plannerError);
+      console.error("AI Flow orchestration failed:", plannerError);
+      recordHistoryLog(
+        "system",
+        "error",
+        plannerError instanceof Error
+          ? plannerError.message
+          : String(plannerError)
+      );
+      finalizeTimeline(
+        "failed",
+        plannerError instanceof Error
+          ? plannerError.message
+          : "AI orchestration failed"
+      );
+      if (currentHistoryIdRef.current) {
+        updateHistorySession(currentHistoryIdRef.current, {
+          status: "failed",
+        });
+      }
       setError(
         plannerError instanceof Error
           ? plannerError.message
-          : "AI planning failed"
+          : "AI orchestration failed"
       );
     } finally {
       setPlanning(false);
     }
   }, [
     aiProviders,
-    buildKnowledgeContext,
-    fetchWebContext,
-    parsePlannerResponse,
+    finalizeTimeline,
+    flowProgressCallback,
     persistSessionState,
     prompt,
+    recordHistoryLog,
+    startSession,
+    startTimeline,
+    updateHistorySession,
+    providerVectorStore,
+    webSearchEnabled,
   ]);
 
   const updateDraftStatus = useCallback(
@@ -1017,6 +1445,10 @@ export function useAIFlowBuilder({
             },
           ];
 
+          recordHistoryLog("generator", "request", generatorMessages, {
+            frameId: draft.tempId,
+          });
+
           const fallbackPrompt = generatorMessages
             .map(
               (message) => `${message.role.toUpperCase()}:\n${message.content}`
@@ -1034,6 +1466,9 @@ export function useAIFlowBuilder({
               plan_id: plan.id,
             },
             temperature: 0.35,
+          });
+          recordHistoryLog("generator", "response", response.content, {
+            frameId: draft.tempId,
           });
 
           const parsed = safeJsonParse<any>(response.content);
@@ -1075,6 +1510,14 @@ export function useAIFlowBuilder({
             `Frame generation failed for ${draft.tempId}:`,
             generationError
           );
+          recordHistoryLog(
+            "generator",
+            "error",
+            generationError instanceof Error
+              ? generationError.message
+              : String(generationError),
+            { frameId: draft.tempId }
+          );
           updateDraftStatus(draft.tempId, {
             status: "error",
             error:
@@ -1095,6 +1538,7 @@ export function useAIFlowBuilder({
       plan,
       sessionState,
       updateDraftStatus,
+      recordHistoryLog,
     ]
   );
 
@@ -1175,6 +1619,10 @@ export function useAIFlowBuilder({
           },
         ];
 
+        recordHistoryLog("generator", "request", remediationMessages, {
+          frameId: parentDraft.tempId,
+          remediation: true,
+        });
         const fallbackPrompt = remediationMessages
           .map(
             (message) => `${message.role.toUpperCase()}:\n${message.content}`
@@ -1191,6 +1639,10 @@ export function useAIFlowBuilder({
             parent_frame_id: parentDraft.tempId,
           },
           temperature: 0.3,
+        });
+        recordHistoryLog("generator", "response", response.content, {
+          frameId: parentDraft.tempId,
+          remediation: true,
         });
 
         const parsed = safeJsonParse<any>(response.content);
@@ -1249,6 +1701,14 @@ export function useAIFlowBuilder({
         return remediationDraft;
       } catch (remediationError) {
         console.error("Remediation generation failed:", remediationError);
+        recordHistoryLog(
+          "generator",
+          "error",
+          remediationError instanceof Error
+            ? remediationError.message
+            : String(remediationError),
+          { frameId: parentDraft.tempId, remediation: true }
+        );
         setError(
           remediationError instanceof Error
             ? remediationError.message
@@ -1257,7 +1717,7 @@ export function useAIFlowBuilder({
         return null;
       }
     },
-    [aiProviders, buildKnowledgeContext, fetchWebContext]
+    [aiProviders, buildKnowledgeContext, fetchWebContext, recordHistoryLog]
   );
 
   const evaluateCheckpoint = useCallback(
@@ -1300,6 +1760,16 @@ export function useAIFlowBuilder({
           attempt.remediationFrameId = remediationDraft.tempId;
         }
       }
+
+      recordHistoryLog(
+        "quiz",
+        "info",
+        `Checkpoint ${outcome === "pass" ? "passed" : "failed"} for frame ${frameId}`,
+        {
+          frameId,
+          quizId: quiz.id,
+        }
+      );
 
       setFrameDrafts((prev) =>
         prev.map((draft) => {
@@ -1410,6 +1880,7 @@ export function useAIFlowBuilder({
       getNextSequentialDraftId,
       persistSessionState,
       sessionState,
+      recordHistoryLog,
     ]
   );
 
@@ -1532,5 +2003,16 @@ export function useAIFlowBuilder({
     sessionState,
     progressMetrics,
     evaluateCheckpoint,
+    historySessions,
+    historyActions: {
+      deleteSession: deleteHistorySession,
+      clearSessions: clearHistorySessions,
+      exportSession: exportHistorySession,
+      exportAllSessions: exportAllHistorySessions,
+      importSessions: importHistorySessions,
+    },
+    timelineSteps: researchStepsState.steps,
+    timelineExpandedSteps: researchStepsState.expandedSteps,
+    handleTimelineStepClick: researchStepsState.handleStepClick,
   };
 }

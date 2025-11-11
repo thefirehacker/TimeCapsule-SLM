@@ -146,6 +146,9 @@ export default function AIFramesPage() {
   // Authentication hooks
   const { data: session, status } = useSession();
   const router = useRouter();
+  const buildEnv =
+    process.env.NEXT_PUBLIC_BUILD_ENV || process.env.NEXT_BUILD_ENV || "local";
+  const requireAuth = buildEnv === "cloud";
 
   // Page analytics (must be called before any conditional returns)
   const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
@@ -177,7 +180,7 @@ export default function AIFramesPage() {
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
   });
-  const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(true);
+  const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(false);
 
   // Graph state management
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -226,16 +229,16 @@ export default function AIFramesPage() {
 
   // Authentication redirect effect
   useEffect(() => {
+    if (!requireAuth) return;
     if (status === "loading") return; // Still loading
 
     if (!session) {
-      // Redirect to sign-in with current URL as callback
       const currentUrl = encodeURIComponent(
         window.location.pathname + window.location.search
       );
       router.push(`/auth/signin?callbackUrl=${currentUrl}`);
     }
-  }, [session, status, router]);
+  }, [requireAuth, session, status, router]);
 
   // Initialize managers
   useEffect(() => {
@@ -1326,7 +1329,7 @@ export default function AIFramesPage() {
   // ============================================================================
 
   // Show loading while checking auth or redirecting
-  if (status === "loading" || !session) {
+  if (requireAuth && (status === "loading" || !session)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
