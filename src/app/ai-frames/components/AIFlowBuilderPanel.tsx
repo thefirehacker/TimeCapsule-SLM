@@ -105,6 +105,9 @@ export function AIFlowBuilderPanel({
   const [localToolCopyState, setLocalToolCopyState] = useState<
     "idle" | "copied"
   >("idle");
+  const [swePromptCopyState, setSwePromptCopyState] = useState<
+    "idle" | "copied"
+  >("idle");
   const [localBridgeBaseUrl, setLocalBridgeBaseUrl] = useState<string | null>(
     null
   );
@@ -141,11 +144,11 @@ export function AIFlowBuilderPanel({
     }
   }, []);
 
-  const localBridgeSpec = useMemo(() => {
-    const base = localBridgeBaseUrl || "/api/local/aiframes";
-    return JSON.stringify(
-      {
-        name: "aiFramesLocalBridge",
+const localBridgeSpec = useMemo(() => {
+  const base = localBridgeBaseUrl || "/api/local/aiframes";
+  return JSON.stringify(
+    {
+      name: "aiFramesLocalBridge",
         description:
           "Interact with the TimeCapsule AI Frames workspace when NEXT_BUILD_ENV=local. Use GET /state then POST /state with edits.",
         endpoints: [
@@ -166,13 +169,37 @@ export function AIFlowBuilderPanel({
       },
       null,
       2
-    );
-  }, [localBridgeBaseUrl]);
-  const resolvedLocalBridgeBase = localBridgeBaseUrl || "/api/local/aiframes";
+  );
+}, [localBridgeBaseUrl]);
+const resolvedLocalBridgeBase = localBridgeBaseUrl || "/api/local/aiframes";
 
-  if (!isOpen) {
-    return null;
-  }
+const swePromptTemplate = useMemo(() => {
+  const trimmedPrompt = prompt?.trim()
+    ? `\n\nUser Goal:\n"""${prompt.trim()}"""`
+    : "";
+  return [
+    "You are a Cursor/Codex SWE agent. Populate the TimeCapsule AI-Frames workspace for this repository.",
+    "",
+    "Instructions:",
+    "1. GET /api/local/aiframes/info to confirm the bridge contract (available only when NEXT_BUILD_ENV=local).",
+    "2. GET /api/local/aiframes/state to inspect the current frames, chapters, and graphState.",
+    "3. Design or update chapters and frames. Fill title, goal, informationText, afterVideoText, aiConcepts, order, and chapter assignments.",
+    "4. POST the entire updated snapshot back to /api/local/aiframes/state with { frames, chapters, graphState }.",
+    "5. Reply with a concise summary and remind the user to click “Pull from Local SWE.”",
+    trimmedPrompt,
+    "",
+    "Endpoints:",
+    `GET  ${resolvedLocalBridgeBase}/info`,
+    `GET  ${resolvedLocalBridgeBase}/state`,
+    `POST ${resolvedLocalBridgeBase}/state`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}, [prompt, resolvedLocalBridgeBase]);
+
+if (!isOpen) {
+  return null;
+}
 
   const handleConnectOpenRouter = async () => {
     if (!openRouterKey.trim()) return;
@@ -291,15 +318,25 @@ export function AIFlowBuilderPanel({
     </Badge>
   );
 
-  const handleCopyLocalBridgeSpec = async () => {
-    try {
-      await navigator.clipboard.writeText(localBridgeSpec);
-      setLocalToolCopyState("copied");
-      setTimeout(() => setLocalToolCopyState("idle"), 1800);
-    } catch (error) {
-      console.error("Failed to copy local bridge spec:", error);
-    }
-  };
+const handleCopyLocalBridgeSpec = async () => {
+  try {
+    await navigator.clipboard.writeText(localBridgeSpec);
+    setLocalToolCopyState("copied");
+    setTimeout(() => setLocalToolCopyState("idle"), 1800);
+  } catch (error) {
+    console.error("Failed to copy local bridge spec:", error);
+  }
+};
+
+const handleCopySwePrompt = async () => {
+  try {
+    await navigator.clipboard.writeText(swePromptTemplate);
+    setSwePromptCopyState("copied");
+    setTimeout(() => setSwePromptCopyState("idle"), 1800);
+  } catch (error) {
+    console.error("Failed to copy SWE prompt template:", error);
+  }
+};
 
   const masteryBadge = (state: string | undefined) => {
     const palette: Record<string, { label: string; className: string }> = {
@@ -458,6 +495,27 @@ export function AIFlowBuilderPanel({
                         ? "Copied tool spec"
                         : "Copy tool JSON"}
                     </Button>
+                    <div className="space-y-2 pt-3 border-t border-emerald-100 mt-3">
+                      <Label className="text-xs font-semibold text-slate-600">
+                        Ready-to-paste SWE prompt
+                      </Label>
+                      <Textarea
+                        readOnly
+                        value={swePromptTemplate}
+                        className="bg-slate-50 text-xs h-36 font-mono"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCopySwePrompt}
+                        className="w-fit"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        {swePromptCopyState === "copied"
+                          ? "Prompt copied"
+                          : "Copy prompt"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
