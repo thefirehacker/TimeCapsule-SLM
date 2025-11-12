@@ -719,7 +719,11 @@ export default function AIFramesPage() {
 
   const handleExportFrames = useCallback(() => {
     try {
-      const payload = exportFramesToJson(unifiedStorage.frames);
+      const payload = exportFramesToJson(
+        unifiedStorage.frames,
+        unifiedStorage.chapters,
+        unifiedStorage.graphState
+      );
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -730,14 +734,47 @@ export default function AIFramesPage() {
     } catch (exportError) {
       console.error("Failed to export AI Frames:", exportError);
     }
-  }, [unifiedStorage.frames]);
+  }, [unifiedStorage.frames, unifiedStorage.chapters, unifiedStorage.graphState]);
 
   const handleImportFramesFromFile = useCallback(
     async (file: File) => {
       try {
         const text = await file.text();
-        const importedFrames = importFramesFromJson(text);
-        if (!importedFrames.length) {
+        const importResult = importFramesFromJson(text);
+        const {
+          frames: importedFrames,
+          chapters: importedChapters,
+          graphState: importedGraphState,
+          metadata,
+        } = importResult;
+
+        if (!importedFrames.length && !importedChapters.length) {
+          console.warn("Import skipped: no frames or chapters found in file");
+          return;
+        }
+
+        const timestamp = new Date().toISOString();
+        const normalizedFrames = importedFrames.map((frame, index) => ({
+          ...frame,
+          id:
+            metadata.isFullExport && frame.id
+              ? frame.id
+              : generateFrameId(),
+          order:
+            typeof frame.order === "number" ? frame.order : index + 1,
+          createdAt: frame.createdAt || timestamp,
+          updatedAt:
+            metadata.isFullExport && frame.updatedAt
+              ? frame.updatedAt
+              : timestamp,
+        }));
+
+        if (metadata.isFullExport) {
+          unifiedStorage.updateFrames(normalizedFrames);
+          unifiedStorage.updateChapters(importedChapters);
+          if (importedGraphState) {
+            unifiedStorage.updateGraphState(importedGraphState);
+          }
           return;
         }
 
@@ -749,24 +786,28 @@ export default function AIFramesPage() {
           0
         );
 
-        const timestamp = new Date().toISOString();
-        const normalized = importedFrames.map((frame, index) => ({
+        const appendedFrames = normalizedFrames.map((frame, index) => ({
           ...frame,
-          id: frame.id || generateFrameId(),
           order: maxOrder + index + 1,
-          createdAt: frame.createdAt || timestamp,
           updatedAt: timestamp,
         }));
 
         unifiedStorage.updateFrames([
           ...unifiedStorage.frames,
-          ...normalized,
+          ...appendedFrames,
         ]);
       } catch (importError) {
         console.error("Failed to import AI Frames:", importError);
       }
     },
-    [unifiedStorage.frames, unifiedStorage.updateFrames]
+    [
+      unifiedStorage.frames,
+      unifiedStorage.chapters,
+      unifiedStorage.graphState,
+      unifiedStorage.updateFrames,
+      unifiedStorage.updateChapters,
+      unifiedStorage.updateGraphState,
+    ]
   );
 
   const resetChapterDialogState = useCallback(() => {
