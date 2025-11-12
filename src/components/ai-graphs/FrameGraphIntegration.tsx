@@ -440,6 +440,7 @@ export default function FrameGraphIntegration({
   const initializingRef = useRef(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastFrameIds, setLastFrameIds] = useState<string[]>([]);
+  const chapterLinkStateRef = useRef<Map<string, { signature: string; linked: boolean }>>(new Map());
 
   // CRITICAL FIX: Update graphState when initialGraphState changes (for restoration after refresh)
   useEffect(() => {
@@ -454,6 +455,60 @@ export default function FrameGraphIntegration({
     setCurrentGraphStateRef(initialGraphState);
   }, [initialGraphState]);
   const [lastFrameStates, setLastFrameStates] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const previous = chapterLinkStateRef.current;
+    const next = new Map<string, { signature: string; linked: boolean }>();
+
+    chapters.forEach(chapter => {
+      const frameIds = Array.isArray(chapter.frameIds)
+        ? chapter.frameIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+        : [];
+      const signature = frameIds.join("|");
+      const linked = !!chapter.linkSequentially;
+      next.set(chapter.id, { signature, linked });
+
+      const previousEntry = previous.get(chapter.id);
+      if (linked && frameIds.length > 1) {
+        const shouldLink =
+          !previousEntry ||
+          !previousEntry.linked ||
+          previousEntry.signature !== signature;
+        if (shouldLink) {
+          window.dispatchEvent(
+            new CustomEvent("link-chapter-frames-sequentially", {
+              detail: {
+                chapterId: chapter.id,
+                frameIds,
+              },
+            })
+          );
+        }
+      } else if (!linked && previousEntry?.linked) {
+        window.dispatchEvent(
+          new CustomEvent("unlink-chapter-frames-sequentially", {
+            detail: { chapterId: chapter.id },
+          })
+        );
+      }
+    });
+
+    previous.forEach((entry, chapterId) => {
+      if (!next.has(chapterId) && entry.linked) {
+        window.dispatchEvent(
+          new CustomEvent("unlink-chapter-frames-sequentially", {
+            detail: { chapterId },
+          })
+        );
+      }
+    });
+
+    chapterLinkStateRef.current = next;
+  }, [chapters]);
   
   // CRITICAL FIX: Add frame creation state to prevent deletion during creation
   const [isFrameCreationInProgress, setIsFrameCreationInProgress] = useState(false);

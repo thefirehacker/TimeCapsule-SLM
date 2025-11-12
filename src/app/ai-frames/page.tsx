@@ -179,6 +179,62 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const dispatchForceSave = useCallback(
+    (reason: string) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("force-save-frames", {
+          detail: {
+            reason,
+            timestamp: Date.now(),
+            graphState: unifiedStorage.graphState,
+          },
+        })
+      );
+    },
+    [unifiedStorage.graphState]
+  );
+
+  const broadcastChapterGraphSync = useCallback(
+    (chapter: Chapter, frameIds: string[]) => {
+      if (typeof window === "undefined" || !chapter?.id) {
+        return;
+      }
+
+      // Defer to next tick so we don't mutate graph state during render
+      const detail = {
+        chapterId: chapter.id,
+        frameIds,
+        chapter: {
+          id: chapter.id,
+          title: chapter.title,
+          description: chapter.description,
+          color: chapter.color,
+          conceptIds: chapter.conceptIds,
+          frameIds,
+          linkSequentially: chapter.linkSequentially,
+          order: chapter.order,
+        },
+      };
+
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("graph-chapter-sync", { detail }));
+        window.dispatchEvent(
+          new CustomEvent("chapter-frames-updated", {
+            detail: {
+              chapterId: chapter.id,
+              frameIds,
+            },
+          })
+        );
+      }, 0);
+    },
+    []
+  );
+
   const flowBuilder = useAIFlowBuilder({
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
@@ -299,11 +355,11 @@ export default function AIFramesPage() {
     const handleSaveSuccess = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (detail?.background && showChapterProcessing) {
-        setShowChapterProcessing(false);
         if (chapterProcessingTimeoutRef.current) {
           clearTimeout(chapterProcessingTimeoutRef.current);
           chapterProcessingTimeoutRef.current = null;
         }
+        setShowChapterProcessing(false);
       }
     };
 
@@ -778,6 +834,7 @@ export default function AIFramesPage() {
 
   const openCreateChapterDialog = useCallback(() => {
     resetChapterDialogState();
+    setPendingChapterFrames({});
     setShowChapterDialog(true);
   }, [resetChapterDialogState]);
 
@@ -1178,71 +1235,84 @@ export default function AIFramesPage() {
       chapterProcessingTimeoutRef.current = null;
     }, 30000);
 
-    const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
-    const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    try {
+      const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
+      const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const now = new Date().toISOString();
 
-    const frameSnapshot = getFramesSnapshot();
-    const updatedFrames = applyChapterAssignments(
-      chapterId,
-      orderedSelection,
-      frameSnapshot
-    );
+      const frameSnapshot = getFramesSnapshot();
+      const updatedFrames = applyChapterAssignments(
+        chapterId,
+        orderedSelection,
+        frameSnapshot
+      );
 
-    const baseChapter: Chapter = {
-      id: chapterId,
-      title: trimmedTitle,
-      description: chapterFormData.description.trim(),
-      color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
-      conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
-      frameIds: orderedSelection,
-      order: unifiedStorage.chapters.length,
-      createdAt: now,
-      updatedAt: now,
-      linkSequentially: chapterFormData.linkSequentially,
-    };
+      const baseChapter: Chapter = {
+        id: chapterId,
+        title: trimmedTitle,
+        description: chapterFormData.description.trim(),
+        color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+        conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+        frameIds: orderedSelection,
+        order: unifiedStorage.chapters.length,
+        createdAt: now,
+        updatedAt: now,
+        linkSequentially: chapterFormData.linkSequentially,
+      };
 
-    const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
-    const framesWithAssignments = updatedFrames.map(frame =>
-      orderedSelection.includes(frame.id)
-        ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
-        : frame
-    );
+      const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
+      const framesWithAssignments = updatedFrames.map(frame =>
+        orderedSelection.includes(frame.id)
+          ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
+          : frame
+      );
 
-    const chaptersWithAssignments = syncChapterFrames(chaptersWithNew, framesWithAssignments).map((chapter) =>
-      chapter.id === chapterId
-        ? {
-            ...chapter,
-            conceptIds: baseChapter.conceptIds,
-            color: baseChapter.color,
-            description: baseChapter.description,
-            createdAt: baseChapter.createdAt,
-            updatedAt: now,
-            order: baseChapter.order,
-            frameIds: orderedSelection,
-            linkSequentially: baseChapter.linkSequentially,
-          }
-        : chapter
-    );
+      const chaptersWithAssignments = syncChapterFrames(chaptersWithNew, framesWithAssignments).map(
+        (chapter) =>
+          chapter.id === chapterId
+            ? {
+                ...chapter,
+                conceptIds: baseChapter.conceptIds,
+                color: baseChapter.color,
+                description: baseChapter.description,
+                createdAt: baseChapter.createdAt,
+                updatedAt: now,
+                order: baseChapter.order,
+                frameIds: orderedSelection,
+                linkSequentially: baseChapter.linkSequentially,
+              }
+            : chapter
+      );
 
-    unifiedStorage.updateFrames(framesWithAssignments);
-    unifiedStorage.updateChapters(chaptersWithAssignments);
-    setPendingChapterFrames((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = { ...prev };
-      orderedSelection.forEach((id) => {
-        delete next[id];
+      unifiedStorage.updateFrames(framesWithAssignments);
+      unifiedStorage.updateChapters(chaptersWithAssignments);
+      setPendingChapterFrames((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = { ...prev };
+        orderedSelection.forEach((id) => {
+          delete next[id];
+        });
+        return next;
       });
-      return next;
-    });
-    setShowChapterDialog(false);
-    resetChapterDialogState();
+      setShowChapterDialog(false);
+      resetChapterDialogState();
 
-    queueSequentialUnlink(chapterId);
-    if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
-      setTimeout(() => queueSequentialLink(chapterId, orderedSelection), 300);
+      queueSequentialUnlink(chapterId);
+      if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
+        setTimeout(() => queueSequentialLink(chapterId, orderedSelection), 300);
+      }
+
+      broadcastChapterGraphSync(baseChapter, orderedSelection);
+      dispatchForceSave("chapter-created");
+    } catch (error) {
+      console.error("Failed to create chapter:", error);
+      if (chapterProcessingTimeoutRef.current) {
+        clearTimeout(chapterProcessingTimeoutRef.current);
+        chapterProcessingTimeoutRef.current = null;
+      }
+      setShowChapterProcessing(false);
     }
   }, [
     applyChapterAssignments,
@@ -1258,6 +1328,8 @@ export default function AIFramesPage() {
     resetChapterDialogState,
     selectedChapterFrameIds,
     syncChapterFrames,
+    dispatchForceSave,
+    broadcastChapterGraphSync,
     unifiedStorage.chapters,
     unifiedStorage.updateChapters,
     unifiedStorage.updateFrames,
@@ -1282,57 +1354,84 @@ export default function AIFramesPage() {
       chapterProcessingTimeoutRef.current = null;
     }, 30000);
 
-    const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
-    const now = new Date().toISOString();
+    try {
+      const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
+      const now = new Date().toISOString();
 
-    const frameSnapshot = getFramesSnapshot();
-    const updatedFrames = applyChapterAssignments(
-      editingChapter.id,
-      orderedSelection,
-      frameSnapshot
-    );
+      const frameSnapshot = getFramesSnapshot();
+      const updatedFrames = applyChapterAssignments(
+        editingChapter.id,
+        orderedSelection,
+        frameSnapshot
+      );
 
-    const updatedChapters = unifiedStorage.chapters.map((chapter) =>
-      chapter.id === editingChapter.id
-        ? {
-            ...chapter,
-            title: trimmedTitle,
-            description: chapterFormData.description.trim(),
-            color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
-            conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
-            frameIds: orderedSelection,
-            updatedAt: now,
-            linkSequentially: chapterFormData.linkSequentially,
-          }
-        : chapter
-    );
+      let updatedChapterRecord: Chapter | null = null;
+      const updatedChapters = unifiedStorage.chapters.map((chapter) =>
+        chapter.id === editingChapter.id
+          ? ((updatedChapterRecord = {
+              ...chapter,
+              title: trimmedTitle,
+              description: chapterFormData.description.trim(),
+              color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+              conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+              frameIds: orderedSelection,
+              updatedAt: now,
+              linkSequentially: chapterFormData.linkSequentially,
+            }),
+            updatedChapterRecord)
+          : chapter
+      );
 
-    const framesWithAssignments = updatedFrames.map(frame =>
-      orderedSelection.includes(frame.id)
-        ? { ...frame, chapterId: editingChapter.id, parentFrameId: editingChapter.id }
-        : frame
-    );
+      const framesWithAssignments = updatedFrames.map(frame =>
+        orderedSelection.includes(frame.id)
+          ? { ...frame, chapterId: editingChapter.id, parentFrameId: editingChapter.id }
+          : frame
+      );
 
-    const syncedChapters = syncChapterFrames(updatedChapters, framesWithAssignments);
+      const syncedChapters = syncChapterFrames(updatedChapters, framesWithAssignments);
 
-    unifiedStorage.updateFrames(framesWithAssignments);
-    unifiedStorage.updateChapters(syncedChapters);
-    setPendingChapterFrames((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = { ...prev };
-      orderedSelection.forEach((id) => {
-        delete next[id];
+      unifiedStorage.updateFrames(framesWithAssignments);
+      unifiedStorage.updateChapters(syncedChapters);
+      setPendingChapterFrames((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = { ...prev };
+        orderedSelection.forEach((id) => {
+          delete next[id];
+        });
+        return next;
       });
-      return next;
-    });
-    setShowChapterDialog(false);
-    resetChapterDialogState();
+      setShowChapterDialog(false);
+      resetChapterDialogState();
 
-    queueSequentialUnlink(editingChapter.id);
-    if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
-      setTimeout(() => queueSequentialLink(editingChapter.id, orderedSelection), 300);
+      queueSequentialUnlink(editingChapter.id);
+      if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
+        setTimeout(() => queueSequentialLink(editingChapter.id, orderedSelection), 300);
+      }
+
+      if (!updatedChapterRecord) {
+        updatedChapterRecord = {
+          ...editingChapter,
+          title: trimmedTitle,
+          description: chapterFormData.description.trim(),
+          color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+          conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+          frameIds: orderedSelection,
+          updatedAt: now,
+          linkSequentially: chapterFormData.linkSequentially,
+        };
+      }
+
+      broadcastChapterGraphSync(updatedChapterRecord, orderedSelection);
+      dispatchForceSave("chapter-updated");
+    } catch (error) {
+      console.error("Failed to update chapter:", error);
+      if (chapterProcessingTimeoutRef.current) {
+        clearTimeout(chapterProcessingTimeoutRef.current);
+        chapterProcessingTimeoutRef.current = null;
+      }
+      setShowChapterProcessing(false);
     }
   }, [
     applyChapterAssignments,
@@ -1349,6 +1448,8 @@ export default function AIFramesPage() {
     resetChapterDialogState,
     selectedChapterFrameIds,
     syncChapterFrames,
+    dispatchForceSave,
+    broadcastChapterGraphSync,
     unifiedStorage.chapters,
     unifiedStorage.updateChapters,
     unifiedStorage.updateFrames,
@@ -1990,11 +2091,15 @@ export default function AIFramesPage() {
         availableConcepts={availableConcepts}
         onFrameSelection={handleChapterFrameSelection}
         onSelectAll={selectAllChapterFrames}
-        onDeselectAll={deselectAllChapterFrames}
-        onCreateChapter={handleCreateChapter}
-        onEditChapter={handleEditChapter}
-        onCreateFrameInline={handleCreateFrameInline}
-      />
+          onDeselectAll={deselectAllChapterFrames}
+          onCreateChapter={handleCreateChapter}
+          onEditChapter={handleEditChapter}
+          onCreateFrameInline={handleCreateFrameInline}
+          onCancel={() => {
+            setPendingChapterFrames({});
+            dispatchForceSave("chapter-dialog-cancelled");
+          }}
+        />
       {showChunkView && chunkViewerDocument && currentChunk && (
         <ChunkViewerModal
           isOpen={showChunkView}

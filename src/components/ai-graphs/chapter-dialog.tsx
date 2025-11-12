@@ -70,6 +70,7 @@ interface ChapterDialogProps {
     goal?: string;
     chapterId?: string;
   }) => Promise<AIFrame | void> | AIFrame | void;
+  onCancel?: () => void;
 }
 
 const colorOptions = [
@@ -98,6 +99,7 @@ export function ChapterDialog({
   onCreateChapter,
   onEditChapter,
   onCreateFrameInline,
+  onCancel,
 }: ChapterDialogProps) {
   const isEditing = !!editingChapter;
 
@@ -498,7 +500,10 @@ export function ChapterDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                onCancel?.();
+                onOpenChange(false);
+              }}
             >
               <X className="h-4 w-4 mr-2" />
               Cancel
