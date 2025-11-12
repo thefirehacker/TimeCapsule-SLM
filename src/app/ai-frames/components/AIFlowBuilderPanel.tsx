@@ -45,11 +45,13 @@ import {
   X,
   Download as DownloadIcon,
   Plug,
+  Copy,
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
+import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
 
 interface AIFlowBuilderPanelProps {
   flowBuilder: UseAIFlowBuilderReturn;
@@ -100,6 +102,15 @@ export function AIFlowBuilderPanel({
   const [copyLogsState, setCopyLogsState] = useState<
     "idle" | "copied" | "error"
   >("idle");
+  const [localToolCopyState, setLocalToolCopyState] = useState<
+    "idle" | "copied"
+  >("idle");
+  const [localBridgeBaseUrl, setLocalBridgeBaseUrl] = useState<string | null>(
+    null
+  );
+  const buildEnv = getBuildEnv();
+  const localBridgeAvailable = isLocalBuildEnv();
+  const localBridgeActive = aiProviders.activeProvider === "local-bridge";
 
   const openRouterState = aiProviders.openrouter.connectionState;
   const openRouterModels = aiProviders.openrouter.modelOptions;
@@ -124,9 +135,44 @@ export function AIFlowBuilderPanel({
     setCopyLogsState("idle");
   }, [selectedHistoryId]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setLocalBridgeBaseUrl(`${window.location.origin}/api/local/aiframes`);
+    }
+  }, []);
+
   if (!isOpen) {
     return null;
   }
+
+  const localBridgeSpec = useMemo(() => {
+    const base = localBridgeBaseUrl || "/api/local/aiframes";
+    return JSON.stringify(
+      {
+        name: "aiFramesLocalBridge",
+        description:
+          "Interact with the TimeCapsule AI Frames workspace when NEXT_BUILD_ENV=local. Use GET /state then POST /state with edits.",
+        endpoints: [
+          { method: "GET", url: `${base}/info`, summary: "Bridge documentation" },
+          {
+            method: "GET",
+            url: `${base}/state`,
+            summary: "Fetch frames, chapters, and graphState snapshot.",
+          },
+          {
+            method: "POST",
+            url: `${base}/state`,
+            summary:
+              "Replace the snapshot with updated frames/chapters/graphState.",
+            body: "{ frames: AIFrame[], chapters: Chapter[], graphState: GraphState }",
+          },
+        ],
+      },
+      null,
+      2
+    );
+  }, [localBridgeBaseUrl]);
+  const resolvedLocalBridgeBase = localBridgeBaseUrl || "/api/local/aiframes";
 
   const handleConnectOpenRouter = async () => {
     if (!openRouterKey.trim()) return;
@@ -245,6 +291,16 @@ export function AIFlowBuilderPanel({
     </Badge>
   );
 
+  const handleCopyLocalBridgeSpec = async () => {
+    try {
+      await navigator.clipboard.writeText(localBridgeSpec);
+      setLocalToolCopyState("copied");
+      setTimeout(() => setLocalToolCopyState("idle"), 1800);
+    } catch (error) {
+      console.error("Failed to copy local bridge spec:", error);
+    }
+  };
+
   const masteryBadge = (state: string | undefined) => {
     const palette: Record<string, { label: string; className: string }> = {
       completed: {
@@ -317,7 +373,9 @@ export function AIFlowBuilderPanel({
                 <Select
                   value={aiProviders.activeProvider}
                   onValueChange={(value) =>
-                    aiProviders.setActiveProvider(value as "openrouter" | "ollama")
+                    aiProviders.setActiveProvider(
+                      value as "openrouter" | "ollama" | "local-bridge"
+                    )
                   }
                 >
                   <SelectTrigger className="bg-white border-slate-300">
@@ -328,6 +386,13 @@ export function AIFlowBuilderPanel({
                       OpenRouter (Default)
                     </SelectItem>
                     <SelectItem value="ollama">Ollama · Local</SelectItem>
+                    <SelectItem
+                      value="local-bridge"
+                      disabled={!localBridgeAvailable}
+                    >
+                      SWE Agent Bridge{" "}
+                      {!localBridgeAvailable ? "(local only)" : "(Dev)"}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="space-y-2">
@@ -339,8 +404,63 @@ export function AIFlowBuilderPanel({
                     <span>Ollama</span>
                     {providerStatusBadge(aiProviders.providerReady.ollama)}
                   </div>
+                  <div className="flex items-center justify-between text-sm text-slate-500">
+                    <span>Local SWE Bridge</span>
+                    {providerStatusBadge(
+                      aiProviders.providerReady["local-bridge"]
+                    )}
+                  </div>
+                  {!localBridgeAvailable && (
+                    <p className="text-xs text-slate-500">
+                      Enable by running the app with <code>NEXT_BUILD_ENV=local</code>.
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {localBridgeActive && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-emerald-800 font-semibold flex items-center gap-2">
+                      <Plug className="h-4 w-4" />
+                      Local SWE Bridge Enabled
+                    </Label>
+                    <Badge variant="outline" className="text-xs text-emerald-800">
+                      {buildEnv.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-emerald-900">
+                    Flow Builder is now waiting for Codex/Cursor to call the
+                    local endpoints. Use your SWE agent to{" "}
+                    <span className="font-semibold">GET</span>{" "}
+                    <code>/api/local/aiframes/state</code> and{" "}
+                    <span className="font-semibold">POST</span> updated frames
+                    back to the same route. Then click “Pull from Local SWE” in
+                    the main UI to hydrate the graph.
+                  </p>
+                  <div className="bg-white rounded-xl border border-emerald-100 p-3 text-xs text-slate-700 space-y-2">
+                    <div className="font-semibold text-slate-900">
+                      Available endpoints
+                    </div>
+                    <div className="flex flex-col gap-1 font-mono">
+                      <span>GET {resolvedLocalBridgeBase}/info</span>
+                      <span>GET {resolvedLocalBridgeBase}/state</span>
+                      <span>POST {resolvedLocalBridgeBase}/state</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="mt-2 w-fit"
+                      onClick={handleCopyLocalBridgeSpec}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      {localToolCopyState === "copied"
+                        ? "Copied tool spec"
+                        : "Copy tool JSON"}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
@@ -758,7 +878,7 @@ export function AIFlowBuilderPanel({
               <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={planFlow}
-                  disabled={planning || !prompt.trim()}
+                  disabled={planning || !prompt.trim() || localBridgeActive}
                   className="bg-emerald-500 text-white hover:bg-emerald-600"
                 >
                   {planning ? (
@@ -777,6 +897,7 @@ export function AIFlowBuilderPanel({
                   variant="secondary"
                   disabled={
                     generating ||
+                    localBridgeActive ||
                     !frameDrafts.some(
                       (draft) =>
                         draft.status === "planned" || draft.status === "error"
@@ -816,6 +937,13 @@ export function AIFlowBuilderPanel({
                   </Button>
                 )}
               </div>
+              {localBridgeActive && (
+                <p className="text-sm text-slate-600 bg-slate-100 border border-slate-200 rounded-xl p-3">
+                  SWE Bridge mode disables the built-in planner. Use Codex/Cursor
+                  with the local endpoints above, then press “Pull from Local SWE”
+                  inside the AI Frames workspace to ingest the generated frames.
+                </p>
+              )}
               {error && (
                 <p className="text-sm text-red-500 bg-red-50 p-2 rounded-lg border border-red-200">
                   {error}

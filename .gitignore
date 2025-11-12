@@ -47,6 +47,7 @@ next-env.d.ts
 
 # temp 
 Test/temp/*
+Temp/dev-aiframes-state.json
 
 # #logs
 # logs.md

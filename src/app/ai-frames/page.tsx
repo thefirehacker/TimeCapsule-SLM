@@ -37,6 +37,7 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  Plug,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -102,25 +103,7 @@ import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
 import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
-
-declare global {
-  interface Window {
-    __NEXT_BUILD_ENV__?: string;
-  }
-}
-
-const resolveBuildEnv = (): string => {
-  if (typeof window !== "undefined" && window.__NEXT_BUILD_ENV__) {
-    return window.__NEXT_BUILD_ENV__;
-  }
-  if (process.env.NEXT_PUBLIC_BUILD_ENV) {
-    return process.env.NEXT_PUBLIC_BUILD_ENV;
-  }
-  if (process.env.NEXT_BUILD_ENV) {
-    return process.env.NEXT_BUILD_ENV;
-  }
-  return "local";
-};
+import { getBuildEnv, isLocalBuildEnv } from "./utils/buildEnv";
 
 interface FrameCreationData {
   goal: string;
@@ -168,8 +151,9 @@ export default function AIFramesPage() {
   // Authentication hooks
   const { data: session, status } = useSession();
   const router = useRouter();
-  const buildEnv = resolveBuildEnv();
+  const buildEnv = getBuildEnv();
   const requireAuth = buildEnv === "cloud";
+  const localBridgeEnabled = isLocalBuildEnv();
 
   // Page analytics (must be called before any conditional returns)
   const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
@@ -215,6 +199,40 @@ export default function AIFramesPage() {
     },
     [unifiedStorage.graphState]
   );
+
+  const handlePullFromLocalBridge = useCallback(async () => {
+    if (!localBridgeEnabled) {
+      return;
+    }
+    try {
+      setLocalBridgeSyncState("syncing");
+      const response = await fetch("/api/local/aiframes/state");
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const data = await response.json();
+      if (Array.isArray(data.frames)) {
+        unifiedStorage.updateFrames(data.frames);
+      }
+      if (Array.isArray(data.chapters)) {
+        unifiedStorage.updateChapters(data.chapters);
+      }
+      if (data.graphState) {
+        unifiedStorage.updateGraphState(data.graphState);
+      }
+      setLocalBridgeSyncState("success");
+      setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
+    } catch (error) {
+      console.error("Failed to sync from local SWE bridge:", error);
+      setLocalBridgeSyncState("error");
+      setTimeout(() => setLocalBridgeSyncState("idle"), 3000);
+    }
+  }, [
+    localBridgeEnabled,
+    unifiedStorage.updateFrames,
+    unifiedStorage.updateChapters,
+    unifiedStorage.updateGraphState,
+  ]);
 
   const broadcastChapterGraphSync = useCallback(
     (chapter: Chapter, frameIds: string[]) => {
@@ -301,6 +319,18 @@ export default function AIFramesPage() {
     vectorStoreInitialized &&
     !vectorStoreInitializing &&
     providerVectorStore?.initialized !== false;
+  const [localBridgeSyncState, setLocalBridgeSyncState] = useState<
+    "idle" | "syncing" | "success" | "error"
+  >("idle");
+  const localBridgeCtaLabel =
+    localBridgeSyncState === "syncing"
+      ? "Syncing..."
+      : localBridgeSyncState === "success"
+      ? "Pulled!"
+      : localBridgeSyncState === "error"
+      ? "Retry pull"
+      : "Pull from Local SWE";
+  const localBridgeButtonDisabled = localBridgeSyncState === "syncing";
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -1775,6 +1805,16 @@ export default function AIFramesPage() {
           >
             <Bot className="h-4 w-4" />
             Open Flow Builder
+          </button>
+        )}
+        {localBridgeEnabled && (
+          <button
+            className="fixed bottom-6 left-6 z-40 bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+            onClick={handlePullFromLocalBridge}
+            disabled={localBridgeButtonDisabled}
+          >
+            <Plug className="h-4 w-4" />
+            {localBridgeCtaLabel}
           </button>
         )}
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}

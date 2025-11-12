@@ -1,5 +1,6 @@
 import { AIFrame, Chapter } from "../types/frames";
 import { GraphState } from "@/components/ai-graphs/types";
+import { isLocalBuildEnv } from "../utils/buildEnv";
 
 // DYNAMIC: Fully extensible frame data structure (future-proof for any attachment type)
 export interface UnifiedAIFrame extends Omit<AIFrame, 'attachment'> {
@@ -101,6 +102,7 @@ export class UnifiedStorageManager {
       }
 
       console.log("✅ Unified save completed successfully");
+      await this.syncLocalBridge(appState);
       
       // CRITICAL FIX: Emit save success event to prevent circular sync conflicts
       if (typeof window !== 'undefined') {
@@ -673,6 +675,30 @@ Chapter ${index + 1}: ${chapter.title}
     localStorage.removeItem('ai_frames_timecapsule');
     
     console.log("🧹 Storage cleanup completed");
+  }
+
+  private async syncLocalBridge(appState: UnifiedAppState): Promise<void> {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (!isLocalBuildEnv()) {
+      return;
+    }
+    if (typeof fetch === 'undefined') {
+      return;
+    }
+
+    try {
+      await fetch('/api/local/aiframes/state', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(appState)
+      });
+    } catch (error) {
+      console.warn('⚠️ Local SWE bridge sync failed:', error);
+    }
   }
 }
 

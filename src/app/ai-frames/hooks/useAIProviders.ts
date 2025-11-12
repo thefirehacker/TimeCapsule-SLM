@@ -12,8 +12,9 @@ import {
   UseOllamaConnectionReturn,
 } from "@/components/DeepResearch/hooks/useOllamaConnection";
 import { AIFlowModelTier } from "../lib/openRouterModels";
+import { isLocalBuildEnv } from "../utils/buildEnv";
 
-export type AIProviderKey = "openrouter" | "ollama";
+export type AIProviderKey = "openrouter" | "ollama" | "local-bridge";
 
 export interface AIProviderRequest {
   tier?: AIFlowModelTier;
@@ -70,13 +71,19 @@ export function useAIProviders(): UseAIProvidersReturn {
 
   const [activeProvider, setActiveProvider] =
     useState<AIProviderKey>("openrouter");
+  const localBridgeAvailable = isLocalBuildEnv();
 
   const providerReady = useMemo(
     () => ({
       openrouter: openrouter.connectionState.connected,
       ollama: ollama.connectionState.connected,
+      "local-bridge": localBridgeAvailable,
     }),
-    [openrouter.connectionState.connected, ollama.connectionState.connected]
+    [
+      openrouter.connectionState.connected,
+      ollama.connectionState.connected,
+      localBridgeAvailable,
+    ]
   );
 
   const ensureProviderReady = useCallback(
@@ -103,6 +110,12 @@ export function useAIProviders(): UseAIProvidersReturn {
       } = request;
 
       const preferredProvider = preferProvider || activeProvider;
+
+      if (preferredProvider === "local-bridge") {
+        throw new Error(
+          "Local SWE Bridge selected. Use /api/local/aiframes endpoints via Codex/Cursor to plan frames."
+        );
+      }
 
       const useOpenRouter =
         preferredProvider === "openrouter"
@@ -177,6 +190,7 @@ export function useAIProviders(): UseAIProvidersReturn {
       ollama,
       providerReady.openrouter,
       providerReady.ollama,
+      providerReady["local-bridge"],
     ]
   );
 
