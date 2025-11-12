@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DualPaneFrameView from "./DualPaneFrameView";
 import { GraphState } from "./types";
+import type { ChapterNodeData } from "./types";
 import type { Chapter } from "@/app/ai-frames/types/frames";
 import {
   Network,
@@ -61,7 +62,7 @@ interface FrameGraphIntegrationProps {
     goal?: string;
     chapterId?: string;
     selectFrame?: boolean;
-  }) => Promise<AIFrame | null | void> | AIFrame | null | void;
+  }) => Promise<AIFrame | void> | AIFrame | void;
   chapters: Chapter[];
   onChaptersChange?: (chapters: Chapter[]) => void;
   onTimeCapsuleUpdate?: (graphState: GraphState, chapters: Chapter[]) => void;
@@ -1285,28 +1286,33 @@ Updated: ${new Date().toISOString()}`,
   
   // CRITICAL FIX: Use ref to avoid infinite loop dependencies
   const lastSavedSnapshotRef = useRef<string>('');
+  const handleSaveGraphRef = useRef<((state?: GraphState) => Promise<void> | void) | null>(null);
 
-  // DRAGON SLAYER: Simplified state resolution - ONE strategy only
+  // DRAGON SLAYER: Simplified state resolution - prefer latest tracked state
   const getCurrentGraphState = useCallback(() => {
-    // CRITICAL FIX: Get fresh state from DualPaneFrameView if available
+    if (currentGraphStateRef && currentGraphStateRef.nodes && currentGraphStateRef.nodes.length > 0) {
+      return currentGraphStateRef;
+    }
+
     if (dualPaneStateRef.current) {
-      const freshState = dualPaneStateRef.current();
-      if (freshState && freshState.nodes && freshState.nodes.length > 0) {
-        return freshState;
+      const fallbackState = dualPaneStateRef.current();
+      if (fallbackState && fallbackState.nodes && fallbackState.nodes.length > 0) {
+        return fallbackState;
       }
     }
-    // Fallback to cached state reference
-    return currentGraphStateRef || { nodes: [], edges: [], selectedNodeId: null };
+
+    return { nodes: [], edges: [], selectedNodeId: null };
   }, [currentGraphStateRef]);
 
   // Auto-layout function using dagre
-  const organizeGraphLayout = useCallback(() => {
+  const organizeGraphLayout = useCallback((options: { autoSave?: boolean } = {}): GraphState | null => {
+    const { autoSave = true } = options;
     // Get current graph state
     const currentGraphState = getCurrentGraphState();
 
     if (!currentGraphState || !currentGraphState.nodes || currentGraphState.nodes.length === 0) {
       console.log('No graph nodes to organize');
-      return;
+      return null;
     }
 
     console.log('🎨 Auto-layout: Organizing graph with', currentGraphState.nodes.length, 'nodes');
@@ -1340,6 +1346,7 @@ Updated: ${new Date().toISOString()}`,
         detail: {
           reason: 'auto-layout-graph',
           timestamp: Date.now(),
+          graphState: newGraphState,
         },
       }));
     }
@@ -1360,6 +1367,14 @@ Updated: ${new Date().toISOString()}`,
         console.log('📡 Dispatched graph-layout-applied event');
       }
     }, 100); // Wait for state propagation
+
+    if (autoSave) {
+      setTimeout(() => {
+        handleSaveGraphRef.current?.(newGraphState);
+      }, 0);
+    }
+    
+    return newGraphState;
   }, [getCurrentGraphState, onGraphChange]);
 
   // DRAGON SLAYER: Ultra-lightweight state update with ZERO logging
@@ -1526,7 +1541,7 @@ useEffect(() => {
   }, [sessionInitialized, graphStorageManager]);
 
   // FIXED: Handle Save Graph with proper VectorStore sync
-  const handleSaveGraph = async () => {
+  const handleSaveGraph = async (overrideGraphState?: GraphState) => {
     try {
       // Prevent multiple save operations
       if (isAutoSaving) {
@@ -1539,7 +1554,7 @@ useEffect(() => {
       }
 
       // CRITICAL FIX: Get current graph state for frame merging
-      const currentGraphState = getCurrentGraphState();
+      const currentGraphState = overrideGraphState ?? getCurrentGraphState();
       
       // ENHANCED: Get current frames with latest attachment data
       let currentFrames: AIFrame[] = [];
@@ -1779,6 +1794,10 @@ useEffect(() => {
     }
   };
 
+  useEffect(() => {
+    handleSaveGraphRef.current = handleSaveGraph;
+  }, [handleSaveGraph]);
+
 
 
   // Ensure graph state drops chapters that no longer exist in canonical data
@@ -1901,7 +1920,9 @@ useEffect(() => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleSaveGraph}
+              onClick={() => {
+                void handleSaveGraph();
+              }}
               disabled={true}
               hidden
               className={`${hasUnsavedChanges ? 'text-blue-600 hover:text-blue-700' : 'text-gray-400'} transition-colors`}
@@ -1921,10 +1942,10 @@ useEffect(() => {
               size="sm"
               onClick={async () => {
                 try {
-                  organizeGraphLayout();
+                  const layoutedState = organizeGraphLayout({ autoSave: false });
                   // Wait a moment for state to update, then save
                   await new Promise(resolve => setTimeout(resolve, 100));
-                  await handleSaveGraph();
+                  await handleSaveGraph(layoutedState || undefined);
                 } catch (error) {
                   console.error("❌ Auto-layout failed:", error);
                 }

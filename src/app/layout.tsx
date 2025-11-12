@@ -122,6 +122,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const resolvedBuildEnv =
+    process.env.NEXT_BUILD_ENV ||
+    process.env.NEXT_PUBLIC_BUILD_ENV ||
+    "local";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -158,6 +163,13 @@ export default function RootLayout({
           rel="icon"
           href={`/favicon.ico?v=${Date.now()}`}
           type="image/x-icon"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__NEXT_BUILD_ENV__ = ${JSON.stringify(
+              resolvedBuildEnv
+            )};`,
+          }}
         />
       </head>
       <body className={`${poppins.className} antialiased`}>

@@ -103,6 +103,25 @@ import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
 
+declare global {
+  interface Window {
+    __NEXT_BUILD_ENV__?: string;
+  }
+}
+
+const resolveBuildEnv = (): string => {
+  if (typeof window !== "undefined" && window.__NEXT_BUILD_ENV__) {
+    return window.__NEXT_BUILD_ENV__;
+  }
+  if (process.env.NEXT_PUBLIC_BUILD_ENV) {
+    return process.env.NEXT_PUBLIC_BUILD_ENV;
+  }
+  if (process.env.NEXT_BUILD_ENV) {
+    return process.env.NEXT_BUILD_ENV;
+  }
+  return "local";
+};
+
 interface FrameCreationData {
   goal: string;
   videoUrl: string;
@@ -149,8 +168,7 @@ export default function AIFramesPage() {
   // Authentication hooks
   const { data: session, status } = useSession();
   const router = useRouter();
-  const buildEnv =
-    process.env.NEXT_PUBLIC_BUILD_ENV || process.env.NEXT_BUILD_ENV || "local";
+  const buildEnv = resolveBuildEnv();
   const requireAuth = buildEnv === "cloud";
 
   // Page analytics (must be called before any conditional returns)
