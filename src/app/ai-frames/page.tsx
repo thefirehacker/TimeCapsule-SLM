@@ -52,6 +52,7 @@ import { TimeCapsuleDialog } from "@/components/ui/timecapsule-dialog";
 import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
 import { ChapterDialog } from "@/components/ai-graphs/chapter-dialog";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
+import { AIFlowBuilderPanel } from "./components/AIFlowBuilderPanel";
 import {
   Dialog,
   DialogContent,
@@ -89,12 +90,16 @@ import {
   getTimeCapsuleCombinedData,
   setTimeCapsuleCombinedData,
   DEFAULT_FRAME,
+  exportFramesToJson,
+  importFramesFromJson,
 } from "./index";
 import type { Chapter } from "./types/frames";
 
 // UNIFIED: Replace old fragmented storage with unified system
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
+import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
+import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
 
 interface FrameCreationData {
   goal: string;
@@ -142,6 +147,9 @@ export default function AIFramesPage() {
   // Authentication hooks
   const { data: session, status } = useSession();
   const router = useRouter();
+  const buildEnv =
+    process.env.NEXT_PUBLIC_BUILD_ENV || process.env.NEXT_BUILD_ENV || "local";
+  const requireAuth = buildEnv === "cloud";
 
   // Page analytics (must be called before any conditional returns)
   const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
@@ -168,6 +176,12 @@ export default function AIFramesPage() {
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
   });
+
+  const flowBuilder = useAIFlowBuilder({
+    vectorStore: providerVectorStore,
+    vectorStoreInitialized,
+  });
+  const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(false);
 
   // Graph state management
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -196,15 +210,19 @@ export default function AIFramesPage() {
   const [showSemanticResults, setShowSemanticResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchThreshold, setSearchThreshold] = useState(0.1);
-  const [previewDocument, setPreviewDocument] = useState<any>(null);
-  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [currentChunk, setCurrentChunk] = useState<any>(null);
   const [showChunkView, setShowChunkView] = useState(false);
+  const [chunkViewerDocument, setChunkViewerDocument] = useState<any | null>(null);
+  const [chunkViewerChunks, setChunkViewerChunks] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [graphResetKey, setGraphResetKey] = useState(0);
   const [showChapterProcessing, setShowChapterProcessing] = useState(false);
   const chapterProcessingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const vectorStoreReady =
+    vectorStoreInitialized &&
+    !vectorStoreInitializing &&
+    providerVectorStore?.initialized !== false;
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -216,16 +234,16 @@ export default function AIFramesPage() {
 
   // Authentication redirect effect
   useEffect(() => {
+    if (!requireAuth) return;
     if (status === "loading") return; // Still loading
 
     if (!session) {
-      // Redirect to sign-in with current URL as callback
       const currentUrl = encodeURIComponent(
         window.location.pathname + window.location.search
       );
       router.push(`/auth/signin?callbackUrl=${currentUrl}`);
     }
-  }, [session, status, router]);
+  }, [requireAuth, session, status, router]);
 
   // Initialize managers
   useEffect(() => {
@@ -298,25 +316,13 @@ export default function AIFramesPage() {
 
   // FIXED: Enhanced VectorStore modal management for stability
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | null = null;
 
-    // Show modal only during initial loading (not during re-initialization)
-    if (
-      !vectorStoreInitialized &&
-      vectorStoreInitializing &&
-      !showVectorStoreInitModal
-    ) {
+    if (vectorStoreInitializing && !vectorStoreReady && !showVectorStoreInitModal) {
       setShowVectorStoreInitModal(true);
     }
 
-    // Hide modal when VectorStore is fully ready AND stable
-    if (
-      vectorStoreInitialized &&
-      !vectorStoreInitializing &&
-      providerVectorStore?.initialized !== false &&
-      showVectorStoreInitModal
-    ) {
-      // Longer delay to ensure VectorStore is stable before hiding modal
+    if (vectorStoreReady && showVectorStoreInitModal) {
       timeoutId = setTimeout(() => {
         setShowVectorStoreInitModal(false);
       }, 2000);
@@ -325,12 +331,7 @@ export default function AIFramesPage() {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [
-    vectorStoreInitialized,
-    vectorStoreInitializing,
-    providerVectorStore?.initialized,
-    showVectorStoreInitModal,
-  ]);
+  }, [vectorStoreInitializing, vectorStoreReady]);
 
   // CRITICAL FIX: Simplified, reliable loading logic
   useEffect(() => {
@@ -367,41 +368,27 @@ export default function AIFramesPage() {
   // Load documents when VectorStore is ready
   useEffect(() => {
     const loadDocuments = async () => {
-      // FIXED: Enhanced VectorStore readiness check to prevent "Vector Store not initialized" error
-      if (
-        vectorStoreInitialized &&
-        providerVectorStore &&
-        !vectorStoreInitializing
-      ) {
-        try {
-          // Additional safety check: verify VectorStore has initialized property
-          if (providerVectorStore.initialized === false) {
-            console.log(
-              "VectorStore not fully initialized yet, skipping document load"
-            );
-            return;
-          }
+      if (!vectorStoreReady || !providerVectorStore) {
+        return;
+      }
 
-          const allDocuments = await providerVectorStore.getAllDocuments();
-          setDocuments(allDocuments);
-        } catch (error) {
-          // FIXED: Handle "Vector Store not initialized" gracefully
-          if (
-            error instanceof Error &&
-            error.message.includes("Vector Store not initialized")
-          ) {
-            console.log(
-              "VectorStore still initializing, will retry when ready"
-            );
-          } else {
-            console.error("Failed to load documents:", error);
-          }
+      try {
+        const allDocuments = await providerVectorStore.getAllDocuments();
+        setDocuments(allDocuments);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Vector Store not initialized")
+        ) {
+          console.log("VectorStore still initializing, will retry when ready");
+        } else {
+          console.error("Failed to load documents:", error);
         }
       }
     };
 
     loadDocuments();
-  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore]);
+  }, [vectorStoreReady, providerVectorStore]);
 
   // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use (reduced logging frequency)
   useEffect(() => {
@@ -610,6 +597,86 @@ export default function AIFramesPage() {
       return frame;
     },
     [handleCreateFrame]
+  );
+
+  const handleAcceptAIFrames = useCallback(
+    (frames: AIFrame[]) => {
+      if (!frames.length) return;
+
+      const existingMaxOrder = unifiedStorage.frames.reduce(
+        (max, frame) =>
+          typeof frame.order === "number"
+            ? Math.max(max, frame.order)
+            : max,
+        0
+      );
+
+      const timestamp = new Date().toISOString();
+      const normalized = frames.map((frame, index) => ({
+        ...frame,
+        order: existingMaxOrder + index + 1,
+        createdAt: frame.createdAt || timestamp,
+        updatedAt: timestamp,
+      }));
+
+      unifiedStorage.updateFrames([
+        ...unifiedStorage.frames,
+        ...normalized,
+      ]);
+    },
+    [unifiedStorage.frames, unifiedStorage.updateFrames]
+  );
+
+  const handleExportFrames = useCallback(() => {
+    try {
+      const payload = exportFramesToJson(unifiedStorage.frames);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ai-frames-${new Date().toISOString().split("T")[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (exportError) {
+      console.error("Failed to export AI Frames:", exportError);
+    }
+  }, [unifiedStorage.frames]);
+
+  const handleImportFramesFromFile = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text();
+        const importedFrames = importFramesFromJson(text);
+        if (!importedFrames.length) {
+          return;
+        }
+
+        const maxOrder = unifiedStorage.frames.reduce(
+          (max, frame) =>
+            typeof frame.order === "number"
+              ? Math.max(max, frame.order)
+              : max,
+          0
+        );
+
+        const timestamp = new Date().toISOString();
+        const normalized = importedFrames.map((frame, index) => ({
+          ...frame,
+          id: frame.id || generateFrameId(),
+          order: maxOrder + index + 1,
+          createdAt: frame.createdAt || timestamp,
+          updatedAt: timestamp,
+        }));
+
+        unifiedStorage.updateFrames([
+          ...unifiedStorage.frames,
+          ...normalized,
+        ]);
+      } catch (importError) {
+        console.error("Failed to import AI Frames:", importError);
+      }
+    },
+    [unifiedStorage.frames, unifiedStorage.updateFrames]
   );
 
   const resetChapterDialogState = useCallback(() => {
@@ -876,36 +943,71 @@ export default function AIFramesPage() {
     setCurrentSemanticQuery("");
   }, []);
 
-  // Handle document preview
-  const handlePreviewDocument = useCallback(
-    async (docId: string) => {
+  const handleOpenDocumentChunks = useCallback(
+    async (
+      docId: string,
+      options: { document?: any | null; chunkId?: string } = {}
+    ) => {
       try {
-        const doc = documents.find((d) => d.id === docId);
-        if (doc) {
-          setPreviewDocument(doc);
-          setShowDocumentPreview(true);
+        let docData = options.document;
+        if (!docData || !Array.isArray(docData.chunks)) {
+          docData =
+            documents.find((doc) => doc.id === docId) ||
+            (providerVectorStore
+              ? await providerVectorStore.getDocument(docId)
+              : null);
         }
+
+        if (!docData) {
+          console.warn("Document not found in knowledge base:", docId);
+          return;
+        }
+
+        const chunks = Array.isArray(docData.chunks)
+          ? docData.chunks
+          : docData.content
+          ? [
+              {
+                id: `${docId}-full`,
+                content: docData.content,
+                startIndex: 0,
+                endIndex: docData.content.length,
+              },
+            ]
+          : [];
+
+        const selectedChunk =
+          (options.chunkId &&
+            chunks.find((chunk) => chunk.id === options.chunkId)) ||
+          (chunks.length
+            ? chunks[0]
+            : {
+                id: `${docId}-placeholder`,
+                content: docData.content || "No content available",
+                startIndex: 0,
+                endIndex: (docData.content || "").length,
+              });
+
+        setChunkViewerDocument(docData);
+        setChunkViewerChunks(chunks);
+        setCurrentChunk(selectedChunk);
+        setShowChunkView(true);
       } catch (error) {
-        console.error("Failed to preview document:", error);
+        console.error("Failed to open document chunks:", error);
       }
     },
-    [documents]
+    [documents, providerVectorStore]
   );
 
-  // Handle view chunk
-  const handleViewChunk = useCallback((searchResult: any, document: any) => {
-    const chunkData = {
-      content: searchResult?.chunk?.content || "No content available",
-      similarity: searchResult?.similarity || 0,
-      chunkIndex: searchResult?.chunk?.id || "unknown",
-      documentId: searchResult?.document?.id || "unknown",
-      document: searchResult?.document ||
-        document || { title: "Unknown Document" },
-    };
-
-    setCurrentChunk(chunkData);
-    setShowChunkView(true);
-  }, []);
+  const handleNavigateChunk = useCallback(
+    (chunkId: string) => {
+      const nextChunk = chunkViewerChunks.find((chunk) => chunk.id === chunkId);
+      if (nextChunk) {
+        setCurrentChunk(nextChunk);
+      }
+    },
+    [chunkViewerChunks]
+  );
 
   // Download document
   const downloadDocument = useCallback(
@@ -923,6 +1025,14 @@ export default function AIFramesPage() {
     },
     [documents]
   );
+
+  useEffect(() => {
+    if (!showChunkView) {
+      setChunkViewerDocument((prev) => (prev ? null : prev));
+      setChunkViewerChunks((prev) => (prev.length ? [] : prev));
+      setCurrentChunk((prev) => (prev ? null : prev));
+    }
+  }, [showChunkView]);
 
   // Delete document
   const deleteDocument = useCallback(
@@ -1236,7 +1346,7 @@ export default function AIFramesPage() {
   // ============================================================================
 
   // Show loading while checking auth or redirecting
-  if (status === "loading" || !session) {
+  if (requireAuth && (status === "loading" || !session)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -1445,7 +1555,34 @@ export default function AIFramesPage() {
           }
         }}
       />
-      <div className="min-h-screen flex flex-col pt-20">
+      <input
+        id="ai-frames-import"
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          await handleImportFramesFromFile(file);
+          event.target.value = "";
+        }}
+      />
+      <div className="min-h-screen flex flex-col gap-6 pt-20">
+        <AIFlowBuilderPanel
+          flowBuilder={flowBuilder}
+          onAcceptFrames={handleAcceptAIFrames}
+          isOpen={isFlowPanelOpen}
+          onToggle={() => setIsFlowPanelOpen(false)}
+        />
+        {!isFlowPanelOpen && (
+          <button
+            className="fixed bottom-6 right-6 z-40 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+            onClick={() => setIsFlowPanelOpen(true)}
+          >
+            <Bot className="h-4 w-4" />
+            Open Flow Builder
+          </button>
+        )}
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">
           {/* FIXED: Dual pane layout like Deep Research - sidebar + main content */}
@@ -1524,6 +1661,35 @@ export default function AIFramesPage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2 border-t border-gray-200 pt-4">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Import / Export
+                </h4>
+                <p className="text-xs text-gray-500">
+                  Backup your AI Frames or import flows from another workspace.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center gap-2"
+                  onClick={handleExportFrames}
+                >
+                  <Download className="h-4 w-4" />
+                  Export JSON
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center gap-2"
+                  onClick={() =>
+                    document.getElementById("ai-frames-import")?.click()
+                  }
+                >
+                  <Upload className="h-4 w-4" />
+                  Import JSON
+                </Button>
               </div>
 
               {/* Chapter Management */}
@@ -1698,29 +1864,30 @@ export default function AIFramesPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <VectorStoreInitModal
-       isOpen={showVectorStoreInitModal}
-        progress={
-          vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
-        }
-        status={
-          vectorStoreError
-            ? "error"
-            : vectorStoreInitialized &&
-                !vectorStoreInitializing &&
-                providerVectorStore?.initialized !== false
+      {(vectorStoreInitializing || showVectorStoreInitModal) && (
+        <VectorStoreInitModal
+          isOpen={showVectorStoreInitModal}
+          progress={
+            vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
+          }
+          status={
+            vectorStoreError
+              ? "error"
+              : vectorStoreReady
               ? "ready"
               : "initializing"
-        }
-        message={
-          vectorStoreError ||
-          (vectorStoreInitialized && !vectorStoreInitializing
-            ? "Knowledge Base ready!"
-            : vectorStoreInitializing
-              ? "Initializing Knowledge Base..."
-              : "Preparing Knowledge Base...")
-        }
-      />
+          }
+          message={
+            vectorStoreError ||
+            (vectorStoreReady
+              ? "Knowledge Base ready!"
+              : vectorStoreInitializing
+                ? "Initializing Knowledge Base..."
+                : "Preparing Knowledge Base...")
+          }
+          onClose={() => setShowVectorStoreInitModal(false)}
+        />
+      )}
       <BubblSpaceDialog
         isOpen={showBubblSpaceDialog}
         onClose={() => setShowBubblSpaceDialog(false)}
@@ -1772,6 +1939,16 @@ export default function AIFramesPage() {
         onEditChapter={handleEditChapter}
         onCreateFrameInline={handleCreateFrameInline}
       />
+      {showChunkView && chunkViewerDocument && currentChunk && (
+        <ChunkViewerModal
+          isOpen={showChunkView}
+          onClose={() => setShowChunkView(false)}
+          chunk={currentChunk}
+          document={chunkViewerDocument}
+          allChunks={chunkViewerChunks}
+          onNavigateChunk={handleNavigateChunk}
+        />
+      )}
 
       {/* Document Manager Modal - Complete Deep Research implementation */}
       <Dialog
@@ -2005,10 +2182,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >
@@ -2140,10 +2326,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >
@@ -2275,10 +2470,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >
@@ -2411,10 +2615,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >

@@ -1879,25 +1879,34 @@ export default function EnhancedLearningGraph({
             return true;
           }
 
+          const parentFrameStillExists = frameIds.has(parentFrameId);
+          if (!parentFrameStillExists) {
+            hasChanges = true;
+            return false;
+          }
+
           const attachmentNodeKey =
             node.id ||
             node.data?.id ||
             node.data?.attachmentId ||
             node.data?.attachment?.id;
-          const allowedAttachmentIds = parentFrameId ? frameAttachmentIds.get(parentFrameId) : undefined;
+          const allowedAttachmentIds = frameAttachmentIds.get(parentFrameId);
           const attachmentStillExists =
             !!allowedAttachmentIds &&
             attachmentNodeKey &&
             allowedAttachmentIds.has(attachmentNodeKey);
 
-          const shouldKeep =
-            frameIds.has(parentFrameId) &&
-            attachmentStillExists;
-
-          if (!shouldKeep) {
-            hasChanges = true;
+          if (attachmentStillExists) {
+            return true;
           }
-          return shouldKeep;
+
+          // OPTIMISTIC: If the node still believes it's attached, keep it until storage catches up.
+          if (node.data?.isAttached) {
+            return true;
+          }
+
+          hasChanges = true;
+          return false;
         }
 
         if (node.type === 'chapter') {

@@ -194,7 +194,14 @@ ${chunk.content}`;
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent
         className={cn(
           "w-[85vw] max-w-[85vw] max-h-[90vh] flex flex-col overflow-hidden",

@@ -467,13 +467,27 @@ export class FirecrawlService {
   /**
    * Set API key dynamically (useful for client-side configuration)
    */
-  setApiKey(apiKey: string): void {
-    this.apiKey = apiKey;
+  setApiKey(apiKey: string | null): void {
+    const sanitized = apiKey?.trim() || null;
+
+    if (!sanitized) {
+      this.apiKey = null;
+      this.isInitialized = false;
+      this.firecrawl = null;
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("firecrawl_api_key");
+      }
+
+      return;
+    }
+
+    this.apiKey = sanitized;
     this.isInitialized = false;
     this.firecrawl = null;
 
     if (typeof window !== "undefined") {
-      localStorage.setItem("firecrawl_api_key", apiKey);
+      localStorage.setItem("firecrawl_api_key", sanitized);
     }
   }
 

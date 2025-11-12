@@ -198,6 +198,12 @@ export interface ResearchContext {
     executive: string;
     keyFindings: string[];
   };
+
+  // Flow Builder specific state
+  flowBuilder?: {
+    plan?: FlowPlannerPlan;
+    generatedFrames?: FlowGeneratedFrame[];
+  };
   
   // Debug information for testing and development
   debugInfo?: {
@@ -210,6 +216,47 @@ export interface ResearchContext {
   
   // Rerun metadata for feedback-based corrections
   rerunMetadata?: RerunMetadata;
+}
+
+export interface FlowPlannerPlan {
+  summary: string;
+  learningMode: 'bootstrapped_stepwise' | 'freeform';
+  frames: FlowPlannedFrame[];
+}
+
+export interface FlowPlannedFrame {
+  id: string;
+  title: string;
+  goal: string;
+  phase: 'overview' | 'fundamentals' | 'deep-dive' | 'remediation';
+  requiresVision?: boolean;
+  aiConcepts?: string[];
+  checkpoints?: string[];
+}
+
+export interface FlowGeneratedFrame extends FlowPlannedFrame {
+  informationText: string;
+  afterVideoText: string;
+  aiConcepts: string[];
+  attachment?: {
+    type: string;
+    description: string;
+    url?: string;
+  };
+  checkpointQuiz?: {
+    id: string;
+    instructions: string;
+    questions: Array<{
+      id: string;
+      prompt: string;
+      type: 'single_choice' | 'multi_choice' | 'short_answer';
+      choices?: Array<{ id: string; label: string; isCorrect?: boolean }>;
+      correctAnswers: string[];
+      explanation?: string;
+    }>;
+  };
+  durationInSeconds?: number;
+  summary?: string;
 }
 
 export interface AgentMessage {
