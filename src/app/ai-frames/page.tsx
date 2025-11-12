@@ -220,6 +220,11 @@ export default function AIFramesPage() {
       if (data.graphState) {
         unifiedStorage.updateGraphState(data.graphState);
       }
+      const latestStamp =
+        data?.metadata?.lastUpdated || new Date().toISOString();
+      localBridgeRemoteStampRef.current = latestStamp;
+      localBridgeLastPulledRef.current = latestStamp;
+      setLocalBridgeHasPendingData(false);
       setLocalBridgeSyncState("success");
       setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
     } catch (error) {
@@ -322,6 +327,10 @@ export default function AIFramesPage() {
   const [localBridgeSyncState, setLocalBridgeSyncState] = useState<
     "idle" | "syncing" | "success" | "error"
   >("idle");
+  const [localBridgeHasPendingData, setLocalBridgeHasPendingData] =
+    useState(false);
+  const localBridgeRemoteStampRef = useRef<string | null>(null);
+  const localBridgeLastPulledRef = useRef<string | null>(null);
   const localBridgeCtaLabel =
     localBridgeSyncState === "syncing"
       ? "Syncing..."
@@ -440,6 +449,67 @@ export default function AIFramesPage() {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [vectorStoreInitializing, vectorStoreReady]);
+
+  useEffect(() => {
+    if (!localBridgeEnabled) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/local/aiframes/state", {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        const updatedStamp: string | undefined = data?.metadata?.lastUpdated;
+        if (!updatedStamp) {
+          return;
+        }
+
+        if (!localBridgeRemoteStampRef.current) {
+          localBridgeRemoteStampRef.current = updatedStamp;
+          if (!localBridgeLastPulledRef.current) {
+            localBridgeLastPulledRef.current = updatedStamp;
+          }
+          return;
+        }
+
+        const incoming = Date.parse(updatedStamp);
+        const currentRemote = Date.parse(
+          localBridgeRemoteStampRef.current || ""
+        );
+
+        if (incoming > currentRemote) {
+          localBridgeRemoteStampRef.current = updatedStamp;
+          const lastPulled = Date.parse(
+            localBridgeLastPulledRef.current || ""
+          );
+          if (
+            localBridgeLastPulledRef.current &&
+            incoming > lastPulled &&
+            !cancelled
+          ) {
+            setLocalBridgeHasPendingData(true);
+          }
+        }
+      } catch (error) {
+        console.warn("Local SWE bridge poll failed:", error);
+      }
+    };
+
+    const interval = setInterval(poll, 8000);
+    poll();
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [localBridgeEnabled]);
 
   // CRITICAL FIX: Simplified, reliable loading logic
   useEffect(() => {
@@ -1798,24 +1868,62 @@ export default function AIFramesPage() {
           isOpen={isFlowPanelOpen}
           onToggle={() => setIsFlowPanelOpen(false)}
         />
-        {!isFlowPanelOpen && (
-          <button
-            className="fixed bottom-6 right-6 z-40 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
-            onClick={() => setIsFlowPanelOpen(true)}
-          >
-            <Bot className="h-4 w-4" />
-            Open Flow Builder
-          </button>
+        {(localBridgeEnabled || !isFlowPanelOpen) && (
+          <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+            {!isFlowPanelOpen && (
+              <button
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+                onClick={() => setIsFlowPanelOpen(true)}
+              >
+                <Bot className="h-4 w-4" />
+                Open Flow Builder
+              </button>
+            )}
+            {localBridgeEnabled && (
+              <button
+                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2"
+                onClick={handlePullFromLocalBridge}
+                disabled={localBridgeButtonDisabled}
+              >
+                <Plug className="h-4 w-4" />
+                {localBridgeCtaLabel}
+              </button>
+            )}
+          </div>
         )}
-        {localBridgeEnabled && (
-          <button
-            className="fixed bottom-6 left-6 z-40 bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
-            onClick={handlePullFromLocalBridge}
-            disabled={localBridgeButtonDisabled}
-          >
-            <Plug className="h-4 w-4" />
-            {localBridgeCtaLabel}
-          </button>
+        {localBridgeEnabled && localBridgeHasPendingData && (
+          <div className="fixed top-24 right-6 z-40 w-full max-w-sm bg-white/95 border border-slate-200 rounded-2xl shadow-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">
+                SWE agent uploaded new frames
+              </p>
+              <span className="text-xs text-emerald-600 font-semibold">
+                Live Bridge
+              </span>
+            </div>
+            <p className="text-sm text-slate-600">
+              Click pull to sync the latest plan from Codex/Cursor into this workspace.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                className="bg-emerald-500 text-white hover:bg-emerald-600"
+                onClick={() => {
+                  setLocalBridgeHasPendingData(false);
+                  void handlePullFromLocalBridge();
+                }}
+              >
+                Pull & Sync
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setLocalBridgeHasPendingData(false)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
         )}
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">

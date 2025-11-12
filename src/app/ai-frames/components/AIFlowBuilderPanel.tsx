@@ -141,10 +141,6 @@ export function AIFlowBuilderPanel({
     }
   }, []);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const localBridgeSpec = useMemo(() => {
     const base = localBridgeBaseUrl || "/api/local/aiframes";
     return JSON.stringify(
@@ -173,6 +169,10 @@ export function AIFlowBuilderPanel({
     );
   }, [localBridgeBaseUrl]);
   const resolvedLocalBridgeBase = localBridgeBaseUrl || "/api/local/aiframes";
+
+  if (!isOpen) {
+    return null;
+  }
 
   const handleConnectOpenRouter = async () => {
     if (!openRouterKey.trim()) return;
