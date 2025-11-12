@@ -14,6 +14,7 @@ import {
   Layers,
   Save,
   Zap,
+  ChevronRight,
 } from "lucide-react";
 import dagre from "@dagrejs/dagre";
 // import { debugFrames, debugStorage } from '@/lib/debugUtils'; // Disabled to prevent spam
@@ -67,6 +68,9 @@ interface FrameGraphIntegrationProps {
   graphStorageManager?: any; // Add graphStorageManager prop
   initialGraphState?: GraphState; // CRITICAL FIX: Add initialGraphState prop to restore standalone attachments
   onGraphChange?: (graphState: GraphState) => void; // CRITICAL FIX: Add graph state change callback
+  onViewModeChange?: (mode: "graph" | "split" | "linear") => void;
+  sidebarCollapsed?: boolean;
+  onShowSidebar?: () => void;
 }
 
 // Add debounce utility
@@ -411,6 +415,9 @@ export default function FrameGraphIntegration({
   graphStorageManager,
   initialGraphState,
   onGraphChange,
+  onViewModeChange,
+  sidebarCollapsed = false,
+  onShowSidebar,
 }: FrameGraphIntegrationProps) {
   
   // Debug: Track when frames prop changes (DISABLED to prevent spam)
@@ -433,6 +440,7 @@ export default function FrameGraphIntegration({
   const initializingRef = useRef(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastFrameIds, setLastFrameIds] = useState<string[]>([]);
+  const chapterLinkStateRef = useRef<Map<string, { signature: string; linked: boolean }>>(new Map());
 
   // CRITICAL FIX: Update graphState when initialGraphState changes (for restoration after refresh)
   useEffect(() => {
@@ -447,6 +455,60 @@ export default function FrameGraphIntegration({
     setCurrentGraphStateRef(initialGraphState);
   }, [initialGraphState]);
   const [lastFrameStates, setLastFrameStates] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const previous = chapterLinkStateRef.current;
+    const next = new Map<string, { signature: string; linked: boolean }>();
+
+    chapters.forEach(chapter => {
+      const frameIds = Array.isArray(chapter.frameIds)
+        ? chapter.frameIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+        : [];
+      const signature = frameIds.join("|");
+      const linked = !!chapter.linkSequentially;
+      next.set(chapter.id, { signature, linked });
+
+      const previousEntry = previous.get(chapter.id);
+      if (linked && frameIds.length > 1) {
+        const shouldLink =
+          !previousEntry ||
+          !previousEntry.linked ||
+          previousEntry.signature !== signature;
+        if (shouldLink) {
+          window.dispatchEvent(
+            new CustomEvent("link-chapter-frames-sequentially", {
+              detail: {
+                chapterId: chapter.id,
+                frameIds,
+              },
+            })
+          );
+        }
+      } else if (!linked && previousEntry?.linked) {
+        window.dispatchEvent(
+          new CustomEvent("unlink-chapter-frames-sequentially", {
+            detail: { chapterId: chapter.id },
+          })
+        );
+      }
+    });
+
+    previous.forEach((entry, chapterId) => {
+      if (!next.has(chapterId) && entry.linked) {
+        window.dispatchEvent(
+          new CustomEvent("unlink-chapter-frames-sequentially", {
+            detail: { chapterId },
+          })
+        );
+      }
+    });
+
+    chapterLinkStateRef.current = next;
+  }, [chapters]);
   
   // CRITICAL FIX: Add frame creation state to prevent deletion during creation
   const [isFrameCreationInProgress, setIsFrameCreationInProgress] = useState(false);
@@ -1793,6 +1855,17 @@ useEffect(() => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
+              {sidebarCollapsed && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={onShowSidebar}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                  Show tools
+                </Button>
+              )}
               <Network className="h-5 w-5 text-purple-600" />
               <h2 className="text-lg font-semibold">Dual-Pane AI Frames</h2>
               {/* Real-time sync indicator */}
@@ -1881,6 +1954,7 @@ useEffect(() => {
           onGetCurrentState={dualPaneStateRef}
           onGraphStateUpdate={handleGraphStateUpdate}
           initialGraphState={graphState} // CRITICAL FIX: Pass initial graph state to restore standalone attachments
+          onViewModeChange={onViewModeChange}
         />
       </div>
     </div>

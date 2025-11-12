@@ -1677,18 +1677,36 @@ export const useUnifiedStorage = ({
   // OPTIMISTIC: Add background save for new frames
   useEffect(() => {
     const handleNewFrameCreated = () => {
-      // Trigger background save for new frames to prevent data loss
-      if (autoSaveEnabledRef.current && hasUnsavedChanges) {
-        setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateRef.current);
+      if (!autoSaveEnabledRef.current) {
+        return;
       }
+
+      requestAnimationFrame(() => {
+        const frameCount = framesRef.current.length;
+        if (frameCount === 0) {
+          return;
+        }
+        setHasUnsavedChanges(true);
+        queueBackgroundSave(
+          framesRef.current,
+          chaptersRef.current,
+          graphStateRef.current
+        );
+      });
     };
-    
-    if (typeof window !== 'undefined') {
-      window.addEventListener('graph-frame-added', handleNewFrameCreated as EventListener);
-      return () => window.removeEventListener('graph-frame-added', handleNewFrameCreated as EventListener);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener(
+        "graph-frame-added",
+        handleNewFrameCreated as EventListener
+      );
+      return () =>
+        window.removeEventListener(
+          "graph-frame-added",
+          handleNewFrameCreated as EventListener
+        );
     }
-  }, [queueBackgroundSave, autoSaveEnabledRef.current, hasUnsavedChanges]);
+  }, [queueBackgroundSave]);
 
 
   // AUTO-SAVE CONTROLS

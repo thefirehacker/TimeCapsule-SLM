@@ -35,6 +35,8 @@ import {
   X,
   Loader2,
   Zap,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -177,11 +179,69 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const dispatchForceSave = useCallback(
+    (reason: string) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("force-save-frames", {
+          detail: {
+            reason,
+            timestamp: Date.now(),
+            graphState: unifiedStorage.graphState,
+          },
+        })
+      );
+    },
+    [unifiedStorage.graphState]
+  );
+
+  const broadcastChapterGraphSync = useCallback(
+    (chapter: Chapter, frameIds: string[]) => {
+      if (typeof window === "undefined" || !chapter?.id) {
+        return;
+      }
+
+      // Defer to next tick so we don't mutate graph state during render
+      const detail = {
+        chapterId: chapter.id,
+        frameIds,
+        chapter: {
+          id: chapter.id,
+          title: chapter.title,
+          description: chapter.description,
+          color: chapter.color,
+          conceptIds: chapter.conceptIds,
+          frameIds,
+          linkSequentially: chapter.linkSequentially,
+          order: chapter.order,
+        },
+      };
+
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("graph-chapter-sync", { detail }));
+        window.dispatchEvent(
+          new CustomEvent("chapter-frames-updated", {
+            detail: {
+              chapterId: chapter.id,
+              frameIds,
+            },
+          })
+        );
+      }, 0);
+    },
+    []
+  );
+
   const flowBuilder = useAIFlowBuilder({
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
   });
   const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarManualOverride, setSidebarManualOverride] = useState(false);
 
   // Graph state management
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -295,11 +355,11 @@ export default function AIFramesPage() {
     const handleSaveSuccess = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (detail?.background && showChapterProcessing) {
-        setShowChapterProcessing(false);
         if (chapterProcessingTimeoutRef.current) {
           clearTimeout(chapterProcessingTimeoutRef.current);
           chapterProcessingTimeoutRef.current = null;
         }
+        setShowChapterProcessing(false);
       }
     };
 
@@ -508,6 +568,36 @@ export default function AIFramesPage() {
       return false;
     }
   }, [unifiedStorage]);
+
+  const handleSidebarHide = useCallback(() => {
+    setSidebarCollapsed(true);
+    setSidebarManualOverride(true);
+  }, []);
+
+  const handleSidebarShow = useCallback(() => {
+    setSidebarCollapsed(false);
+    setSidebarManualOverride(true);
+  }, []);
+
+  const handleViewModeChange = useCallback(
+    (mode: "graph" | "split" | "linear") => {
+      if (mode === "linear") {
+        setSidebarCollapsed(false);
+        setSidebarManualOverride(false);
+        return;
+      }
+      if (mode === "split") {
+        if (!sidebarManualOverride) {
+          setSidebarCollapsed(true);
+        }
+        return;
+      }
+      if (!sidebarManualOverride) {
+        setSidebarCollapsed(false);
+      }
+    },
+    [sidebarManualOverride]
+  );
 
   // Handle frames change
   const handleFramesChange = useCallback(
@@ -744,6 +834,7 @@ export default function AIFramesPage() {
 
   const openCreateChapterDialog = useCallback(() => {
     resetChapterDialogState();
+    setPendingChapterFrames({});
     setShowChapterDialog(true);
   }, [resetChapterDialogState]);
 
@@ -1144,71 +1235,84 @@ export default function AIFramesPage() {
       chapterProcessingTimeoutRef.current = null;
     }, 30000);
 
-    const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
-    const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    try {
+      const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
+      const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const now = new Date().toISOString();
 
-    const frameSnapshot = getFramesSnapshot();
-    const updatedFrames = applyChapterAssignments(
-      chapterId,
-      orderedSelection,
-      frameSnapshot
-    );
+      const frameSnapshot = getFramesSnapshot();
+      const updatedFrames = applyChapterAssignments(
+        chapterId,
+        orderedSelection,
+        frameSnapshot
+      );
 
-    const baseChapter: Chapter = {
-      id: chapterId,
-      title: trimmedTitle,
-      description: chapterFormData.description.trim(),
-      color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
-      conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
-      frameIds: orderedSelection,
-      order: unifiedStorage.chapters.length,
-      createdAt: now,
-      updatedAt: now,
-      linkSequentially: chapterFormData.linkSequentially,
-    };
+      const baseChapter: Chapter = {
+        id: chapterId,
+        title: trimmedTitle,
+        description: chapterFormData.description.trim(),
+        color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+        conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+        frameIds: orderedSelection,
+        order: unifiedStorage.chapters.length,
+        createdAt: now,
+        updatedAt: now,
+        linkSequentially: chapterFormData.linkSequentially,
+      };
 
-    const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
-    const framesWithAssignments = updatedFrames.map(frame =>
-      orderedSelection.includes(frame.id)
-        ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
-        : frame
-    );
+      const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
+      const framesWithAssignments = updatedFrames.map(frame =>
+        orderedSelection.includes(frame.id)
+          ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
+          : frame
+      );
 
-    const chaptersWithAssignments = syncChapterFrames(chaptersWithNew, framesWithAssignments).map((chapter) =>
-      chapter.id === chapterId
-        ? {
-            ...chapter,
-            conceptIds: baseChapter.conceptIds,
-            color: baseChapter.color,
-            description: baseChapter.description,
-            createdAt: baseChapter.createdAt,
-            updatedAt: now,
-            order: baseChapter.order,
-            frameIds: orderedSelection,
-            linkSequentially: baseChapter.linkSequentially,
-          }
-        : chapter
-    );
+      const chaptersWithAssignments = syncChapterFrames(chaptersWithNew, framesWithAssignments).map(
+        (chapter) =>
+          chapter.id === chapterId
+            ? {
+                ...chapter,
+                conceptIds: baseChapter.conceptIds,
+                color: baseChapter.color,
+                description: baseChapter.description,
+                createdAt: baseChapter.createdAt,
+                updatedAt: now,
+                order: baseChapter.order,
+                frameIds: orderedSelection,
+                linkSequentially: baseChapter.linkSequentially,
+              }
+            : chapter
+      );
 
-    unifiedStorage.updateFrames(framesWithAssignments);
-    unifiedStorage.updateChapters(chaptersWithAssignments);
-    setPendingChapterFrames((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = { ...prev };
-      orderedSelection.forEach((id) => {
-        delete next[id];
+      unifiedStorage.updateFrames(framesWithAssignments);
+      unifiedStorage.updateChapters(chaptersWithAssignments);
+      setPendingChapterFrames((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = { ...prev };
+        orderedSelection.forEach((id) => {
+          delete next[id];
+        });
+        return next;
       });
-      return next;
-    });
-    setShowChapterDialog(false);
-    resetChapterDialogState();
+      setShowChapterDialog(false);
+      resetChapterDialogState();
 
-    queueSequentialUnlink(chapterId);
-    if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
-      setTimeout(() => queueSequentialLink(chapterId, orderedSelection), 300);
+      queueSequentialUnlink(chapterId);
+      if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
+        setTimeout(() => queueSequentialLink(chapterId, orderedSelection), 300);
+      }
+
+      broadcastChapterGraphSync(baseChapter, orderedSelection);
+      dispatchForceSave("chapter-created");
+    } catch (error) {
+      console.error("Failed to create chapter:", error);
+      if (chapterProcessingTimeoutRef.current) {
+        clearTimeout(chapterProcessingTimeoutRef.current);
+        chapterProcessingTimeoutRef.current = null;
+      }
+      setShowChapterProcessing(false);
     }
   }, [
     applyChapterAssignments,
@@ -1224,6 +1328,8 @@ export default function AIFramesPage() {
     resetChapterDialogState,
     selectedChapterFrameIds,
     syncChapterFrames,
+    dispatchForceSave,
+    broadcastChapterGraphSync,
     unifiedStorage.chapters,
     unifiedStorage.updateChapters,
     unifiedStorage.updateFrames,
@@ -1248,57 +1354,84 @@ export default function AIFramesPage() {
       chapterProcessingTimeoutRef.current = null;
     }, 30000);
 
-    const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
-    const now = new Date().toISOString();
+    try {
+      const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
+      const now = new Date().toISOString();
 
-    const frameSnapshot = getFramesSnapshot();
-    const updatedFrames = applyChapterAssignments(
-      editingChapter.id,
-      orderedSelection,
-      frameSnapshot
-    );
+      const frameSnapshot = getFramesSnapshot();
+      const updatedFrames = applyChapterAssignments(
+        editingChapter.id,
+        orderedSelection,
+        frameSnapshot
+      );
 
-    const updatedChapters = unifiedStorage.chapters.map((chapter) =>
-      chapter.id === editingChapter.id
-        ? {
-            ...chapter,
-            title: trimmedTitle,
-            description: chapterFormData.description.trim(),
-            color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
-            conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
-            frameIds: orderedSelection,
-            updatedAt: now,
-            linkSequentially: chapterFormData.linkSequentially,
-          }
-        : chapter
-    );
+      let updatedChapterRecord: Chapter | null = null;
+      const updatedChapters = unifiedStorage.chapters.map((chapter) =>
+        chapter.id === editingChapter.id
+          ? ((updatedChapterRecord = {
+              ...chapter,
+              title: trimmedTitle,
+              description: chapterFormData.description.trim(),
+              color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+              conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+              frameIds: orderedSelection,
+              updatedAt: now,
+              linkSequentially: chapterFormData.linkSequentially,
+            }),
+            updatedChapterRecord)
+          : chapter
+      );
 
-    const framesWithAssignments = updatedFrames.map(frame =>
-      orderedSelection.includes(frame.id)
-        ? { ...frame, chapterId: editingChapter.id, parentFrameId: editingChapter.id }
-        : frame
-    );
+      const framesWithAssignments = updatedFrames.map(frame =>
+        orderedSelection.includes(frame.id)
+          ? { ...frame, chapterId: editingChapter.id, parentFrameId: editingChapter.id }
+          : frame
+      );
 
-    const syncedChapters = syncChapterFrames(updatedChapters, framesWithAssignments);
+      const syncedChapters = syncChapterFrames(updatedChapters, framesWithAssignments);
 
-    unifiedStorage.updateFrames(framesWithAssignments);
-    unifiedStorage.updateChapters(syncedChapters);
-    setPendingChapterFrames((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = { ...prev };
-      orderedSelection.forEach((id) => {
-        delete next[id];
+      unifiedStorage.updateFrames(framesWithAssignments);
+      unifiedStorage.updateChapters(syncedChapters);
+      setPendingChapterFrames((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = { ...prev };
+        orderedSelection.forEach((id) => {
+          delete next[id];
+        });
+        return next;
       });
-      return next;
-    });
-    setShowChapterDialog(false);
-    resetChapterDialogState();
+      setShowChapterDialog(false);
+      resetChapterDialogState();
 
-    queueSequentialUnlink(editingChapter.id);
-    if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
-      setTimeout(() => queueSequentialLink(editingChapter.id, orderedSelection), 300);
+      queueSequentialUnlink(editingChapter.id);
+      if (chapterFormData.linkSequentially && orderedSelection.length > 1) {
+        setTimeout(() => queueSequentialLink(editingChapter.id, orderedSelection), 300);
+      }
+
+      if (!updatedChapterRecord) {
+        updatedChapterRecord = {
+          ...editingChapter,
+          title: trimmedTitle,
+          description: chapterFormData.description.trim(),
+          color: chapterFormData.color || DEFAULT_CHAPTER_COLOR,
+          conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
+          frameIds: orderedSelection,
+          updatedAt: now,
+          linkSequentially: chapterFormData.linkSequentially,
+        };
+      }
+
+      broadcastChapterGraphSync(updatedChapterRecord, orderedSelection);
+      dispatchForceSave("chapter-updated");
+    } catch (error) {
+      console.error("Failed to update chapter:", error);
+      if (chapterProcessingTimeoutRef.current) {
+        clearTimeout(chapterProcessingTimeoutRef.current);
+        chapterProcessingTimeoutRef.current = null;
+      }
+      setShowChapterProcessing(false);
     }
   }, [
     applyChapterAssignments,
@@ -1315,6 +1448,8 @@ export default function AIFramesPage() {
     resetChapterDialogState,
     selectedChapterFrameIds,
     syncChapterFrames,
+    dispatchForceSave,
+    broadcastChapterGraphSync,
     unifiedStorage.chapters,
     unifiedStorage.updateChapters,
     unifiedStorage.updateFrames,
@@ -1586,17 +1721,34 @@ export default function AIFramesPage() {
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">
           {/* FIXED: Dual pane layout like Deep Research - sidebar + main content */}
-          <div className="flex-1 flex min-h-0">
+          <div className="flex-1 flex min-h-0 relative">
             {/* Left Sidebar - Knowledge Base Section like Deep Research */}
-            <div className="w-80 bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  AI-Frames
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Interactive AI learning platform
-                </p>
-              </div>
+            <div
+              className={`relative flex-shrink-0 transition-all duration-300 ${
+                sidebarCollapsed ? "w-0" : "w-80"
+              }`}
+            >
+              {!sidebarCollapsed && (
+                <div className="bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto h-full">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        AI-Frames
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Interactive AI learning platform
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-500 hover:text-gray-900"
+                      onClick={handleSidebarHide}
+                      title="Hide knowledge tools panel"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
 
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
               <KnowledgeBaseSection
@@ -1777,26 +1929,28 @@ export default function AIFramesPage() {
                 )}
               </div>
 
-              {/* Danger Zone */}
-              <div className="space-y-2 border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-medium text-gray-700">
-                  Danger Zone
-                </h4>
-                <p className="text-xs text-gray-500">
-                  Remove every AI Frame, chapter, and graph connection from this space.
-                </p>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => {
-                    setShowClearConfirm(true);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete All AI Frames
-                </Button>
-              </div>
+                  {/* Danger Zone */}
+                  <div className="space-y-2 border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Danger Zone
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Remove every AI Frame, chapter, and graph connection from this space.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full flex items-center justify-center gap-2"
+                      onClick={() => {
+                        setShowClearConfirm(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete All AI Frames
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Main Content Area - Graph Integration */}
@@ -1826,6 +1980,9 @@ export default function AIFramesPage() {
                   onGraphChange={handleGraphStateUpdate}
                   initialGraphState={unifiedStorage.graphState}
                   graphStorageManager={graphStorageManagerRef.current}
+                  onViewModeChange={handleViewModeChange}
+                  sidebarCollapsed={sidebarCollapsed}
+                  onShowSidebar={handleSidebarShow}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
@@ -1934,11 +2091,15 @@ export default function AIFramesPage() {
         availableConcepts={availableConcepts}
         onFrameSelection={handleChapterFrameSelection}
         onSelectAll={selectAllChapterFrames}
-        onDeselectAll={deselectAllChapterFrames}
-        onCreateChapter={handleCreateChapter}
-        onEditChapter={handleEditChapter}
-        onCreateFrameInline={handleCreateFrameInline}
-      />
+          onDeselectAll={deselectAllChapterFrames}
+          onCreateChapter={handleCreateChapter}
+          onEditChapter={handleEditChapter}
+          onCreateFrameInline={handleCreateFrameInline}
+          onCancel={() => {
+            setPendingChapterFrames({});
+            dispatchForceSave("chapter-dialog-cancelled");
+          }}
+        />
       {showChunkView && chunkViewerDocument && currentChunk && (
         <ChunkViewerModal
           isOpen={showChunkView}

@@ -155,6 +155,7 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
       <Handle 
         type="target" 
         position={Position.Top} 
+        id="chapter-frame-in"
         style={{
           width: '24px',
           height: '24px',
@@ -382,6 +383,7 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
       <Handle 
         type="source" 
         position={Position.Bottom} 
+        id="frame-sequence-out"
         style={{
           width: '24px',
           height: '24px',
