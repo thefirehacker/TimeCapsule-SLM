@@ -101,7 +101,6 @@ export default function EnhancedLearningGraph({
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [frameGraphMapping, setFrameGraphMapping] = useState<FrameGraphMapping[]>([]);
-  const [previousNodes, setPreviousNodes] = useState<Node[]>([]);
   const lastEmissionRef = useRef<number>(0);
   const lastAppliedGraphState = useRef<string | null>(null);
   const chaptersRef = useRef<AiChapter[]>(chapters || []);
@@ -122,6 +121,7 @@ export default function EnhancedLearningGraph({
   const selectedNodeRef = useRef(selectedNode);
   const boundChapterUpdateHandlers = useRef<Set<string>>(new Set());
   const initialGraphStateRef = useRef(initialGraphState);
+  const pendingFrameIdsRef = useRef<Set<string>>(new Set());
   const pendingAttachmentNodeIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -133,6 +133,47 @@ export default function EnhancedLearningGraph({
   useEffect(() => {
     initialGraphStateRef.current = initialGraphState;
   }, [initialGraphState]);
+
+  useEffect(() => {
+    if (!Array.isArray(frames) || frames.length === 0) {
+      return;
+    }
+    const pending = pendingFrameIdsRef.current;
+    frames.forEach((frame: any) => {
+      if (frame?.id) {
+        pending.delete(frame.id);
+      }
+    });
+  }, [frames]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handleFrameAdded = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const newFrame =
+        detail.newFrame || detail.frame || { id: detail.frameId };
+      const frameId = newFrame?.id;
+      if (!frameId) {
+        return;
+      }
+      pendingFrameIdsRef.current.add(frameId);
+      setTimeout(() => {
+        pendingFrameIdsRef.current.delete(frameId);
+      }, 4000);
+    };
+    window.addEventListener(
+      "graph-frame-added",
+      handleFrameAdded as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "graph-frame-added",
+        handleFrameAdded as EventListener
+      );
+    };
+  }, []);
 
   // CRITICAL FIX: Add mutex to prevent concurrent frame creation
   const isCreatingFrame = useRef(false);
@@ -174,88 +215,7 @@ export default function EnhancedLearningGraph({
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     // Call React Flow's built-in handler first
     onNodesChange(changes);
-
-    // Handle node deletions (type='remove')
-    const removedNodes = changes.filter(change => change.type === 'remove');
-    if (removedNodes.length > 0) {
-      // Remove connected edges for deleted nodes
-      removedNodes.forEach(change => {
-        const nodeId = (change as any).id;
-        const node = nodesRef.current.find(n => n.id === nodeId);
-
-        if (node) {
-          if (node.type === 'chapter') {
-            const chapterId = (node.data as ChapterNodeData)?.id || node.id;
-            if (chapterId) {
-              const currentChapters = chaptersRef.current || chapters || [];
-              const filteredChapters = currentChapters.filter(chapter => chapter.id !== chapterId);
-              if (filteredChapters.length !== currentChapters.length) {
-                chaptersRef.current = filteredChapters;
-                onChaptersChange?.(filteredChapters);
-              }
-
-              const currentFrames = framesRef.current || [];
-              let framesChanged = false;
-              const updatedFrames = currentFrames.map(frame => {
-                if (frame.chapterId === chapterId || frame.parentFrameId === chapterId) {
-                  framesChanged = true;
-                  return {
-                    ...frame,
-                    chapterId: undefined,
-                    parentFrameId: undefined,
-                    updatedAt: new Date().toISOString()
-                  };
-                }
-                return frame;
-              });
-
-              if (framesChanged && onFramesChange) {
-                framesRef.current = updatedFrames;
-                onFramesChange(updatedFrames);
-              }
-            }
-          }
-
-          // Get all edges connected to this node
-          const connectedEdges = edgesRef.current.filter(
-            edge => edge.source === node.id || edge.target === node.id
-          );
-
-          // Remove connected edges
-          if (connectedEdges.length > 0) {
-            setEdges(eds => eds.filter(
-              edge => !connectedEdges.some(ce => ce.id === edge.id)
-            ));
-          }
-          // Note: Frame deletion event is dispatched by onEdgesDelete handler
-          // to avoid duplicate events
-        }
-      });
-
-      // Emit graph state change and force save after all deletions
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          // Capture fresh graph state immediately after deletion to ensure correct node/edge counts
-          // Use React Flow instance methods to get current state (not refs which may be stale)
-          const freshGraphState = {
-            nodes: reactFlowInstance?.getNodes() || [],
-            edges: reactFlowInstance?.getEdges() || [],
-            viewport: reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 },
-            selectedNodeId: selectedNodeRef.current
-          };
-
-          window.dispatchEvent(new CustomEvent('force-save-frames', {
-            detail: {
-              reason: 'nodes-deleted',
-              timestamp: Date.now(),
-              deletedNodeIds: removedNodes.map(c => (c as any).id),
-              graphState: freshGraphState  // Pass fresh state to prevent stale data in saves
-            }
-          }));
-        }
-      }, 100);
-    }
-
+    
     // Debounce position changes to avoid excessive events during drag
     const positionChanges = changes.filter(change => change.type === 'position');
     if (positionChanges.length > 0) {
@@ -274,7 +234,92 @@ export default function EnhancedLearningGraph({
         }
       }, 1000); // Only emit position events every 1 second
     }
-  }, [onNodesChange, setEdges, chapters, onChaptersChange, onFramesChange]);
+  }, [onNodesChange]);
+
+  const handleNodesDelete = useCallback((deletedNodes: Node[]) => {
+    if (!deletedNodes || deletedNodes.length === 0) {
+      return;
+    }
+
+    const nodeIds = new Set(deletedNodes.map((node) => node.id));
+    if (nodeIds.size > 0) {
+      setEdges((eds) =>
+        eds.filter(
+          (edge) => !nodeIds.has(edge.source) && !nodeIds.has(edge.target)
+        )
+      );
+    }
+
+    deletedNodes.forEach((node) => {
+      if (node.type === "chapter") {
+        const chapterId = (node.data as ChapterNodeData)?.id || node.id;
+        if (!chapterId) {
+          return;
+        }
+
+        const currentChapters = chaptersRef.current || chapters || [];
+        const filteredChapters = currentChapters.filter(
+          (chapter) => chapter.id !== chapterId
+        );
+        if (filteredChapters.length !== currentChapters.length) {
+          chaptersRef.current = filteredChapters;
+          onChaptersChange?.(filteredChapters);
+        }
+
+        const currentFrames = framesRef.current || [];
+        let framesChanged = false;
+        const updatedFrames = currentFrames.map((frame) => {
+          if (
+            frame.chapterId === chapterId ||
+            frame.parentFrameId === chapterId
+          ) {
+            framesChanged = true;
+            return {
+              ...frame,
+              chapterId: undefined,
+              parentFrameId: undefined,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return frame;
+        });
+
+        if (framesChanged && onFramesChange) {
+          framesRef.current = updatedFrames;
+          onFramesChange(updatedFrames);
+        }
+      } else if (node.type === "aiframe" && node.data?.frameId) {
+        const frameId = node.data.frameId;
+        if (pendingFrameIdsRef.current.has(frameId)) {
+          return;
+        }
+
+        const framesReady =
+          Array.isArray(framesRef.current) && framesRef.current.length > 0;
+
+        if (!framesReady) {
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          const stillExists = Array.isArray(framesRef.current)
+            ? framesRef.current.some((frame) => frame.id === frameId)
+            : false;
+
+          if (!stillExists && typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("graph-frame-deleted", {
+                detail: {
+                  frameId,
+                  deletedFrameIds: [frameId],
+                },
+              })
+            );
+          }
+        });
+      }
+    });
+  }, [chapters, onChaptersChange, onFramesChange, setEdges]);
 
   // DYNAMIC: Universal handler for ANY edge changes (position, add, remove, etc.)
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
@@ -1721,47 +1766,6 @@ export default function EnhancedLearningGraph({
       return needsUpdate ? nextNodes : currentNodes;
     });
   }, [frames, chapters, handleConceptUpdate, handleConceptDelete, setNodes]);
-
-  // REAL-TIME SYNC: Handle node deletion
-  useEffect(() => {
-    if (previousNodes.length > 0) {
-      const deletedNodes = previousNodes.filter(prevNode => 
-        !nodes.some(currentNode => currentNode.id === prevNode.id)
-      );
-
-      if (deletedNodes.length > 0) {
-
-        // Handle AI frame node deletions - FIXED TO PRESERVE FRAME DATA
-        const deletedAIFrameNodes = deletedNodes.filter(node => 
-          node.type === 'aiframe' && node.data?.frameId
-        );
-
-        if (deletedAIFrameNodes.length > 0) {
-          const deletedFrameIds = deletedAIFrameNodes.map(node => node.data.frameId);
-          // Silently handle node removal - frames preserved
-
-          // Delete frames when nodes are removed
-          // This allows users to properly delete frames from the graph
-
-          // Emit frame deletion event to remove frame data
-          deletedFrameIds.forEach(frameId => {
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
-                detail: {
-                  frameId,
-                  deletedFrameIds: [frameId]
-                }
-              }));
-            }
-          });
-
-          // Frame deletion complete
-        }
-      }
-    }
-
-    setPreviousNodes(nodes);
-  }, [nodes, frames]);
 
   // CRITICAL FIX: Ensure initialGraphState nodes are properly displayed
   useEffect(() => {
@@ -3592,6 +3596,7 @@ export default function EnhancedLearningGraph({
           nodes={nodes}
           edges={edges}
           onNodesChange={handleNodesChange}
+          onNodesDelete={handleNodesDelete}
           onEdgesChange={handleEdgesChange}
           onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
