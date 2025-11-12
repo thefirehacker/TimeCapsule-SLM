@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +82,7 @@ interface DualPaneFrameViewProps {
   initialGraphState?: GraphState; // CRITICAL FIX: Re-add initialGraphState prop to restore standalone attachments
   chapters?: Chapter[];
   onChaptersChange?: (chapters: Chapter[]) => void;
+  onViewModeChange?: (mode: "graph" | "split" | "linear") => void;
 }
 
 export default function DualPaneFrameView({
@@ -97,6 +98,7 @@ export default function DualPaneFrameView({
   onGraphStateUpdate,
   chapters = [],
   onChaptersChange,
+  onViewModeChange,
 }: DualPaneFrameViewProps) {
   const [graphState, setGraphState] = useState<GraphState>(
     initialGraphState || {
@@ -137,10 +139,77 @@ export default function DualPaneFrameView({
     return fallback;
   };
   const [viewMode, setViewMode] = useState<"graph" | "split" | "linear">(computeInitialViewMode);
+  const [splitRatio, setSplitRatio] = useState(0.5);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const initialViewReportedRef = useRef(false);
   const [selectedNodeFrameId, setSelectedNodeFrameId] = useState<string | null>(null);
 
   // REMOVED: useEffect that was breaking sync system
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'connected' | 'disconnected'>>({});
+
+  const updateViewMode = useCallback(
+    (mode: "graph" | "split" | "linear") => {
+      setViewMode(mode);
+      onViewModeChange?.(mode);
+    },
+    [onViewModeChange]
+  );
+
+  useEffect(() => {
+    if (initialViewReportedRef.current) {
+      return;
+    }
+    onViewModeChange?.(viewMode);
+    initialViewReportedRef.current = true;
+  }, [viewMode, onViewModeChange]);
+
+  const handleSplitterMouseDown = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) {
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!containerRef.current) {
+        return;
+      }
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width === 0) {
+        return;
+      }
+      const min = rect.width * 0.2;
+      const max = rect.width * 0.8;
+      const offset = Math.min(Math.max(event.clientX - rect.left, min), max);
+      const ratio = Number((offset / rect.width).toFixed(3));
+      setSplitRatio(ratio);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "col-resize";
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+    };
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (viewMode !== "split" && isResizing) {
+      setIsResizing(false);
+      document.body.style.cursor = "";
+    }
+  }, [viewMode, isResizing]);
 
   useEffect(() => {
     if (!frames.length) {
@@ -1243,7 +1312,7 @@ export default function DualPaneFrameView({
       <Button
         variant={viewMode === "graph" ? "default" : "ghost"}
         size="sm"
-        onClick={() => setViewMode("graph")}
+        onClick={() => updateViewMode("graph")}
         className="h-7 px-2"
         title="Maximize graph view"
       >
@@ -1253,7 +1322,7 @@ export default function DualPaneFrameView({
       <Button
         variant={viewMode === "split" ? "default" : "ghost"}
         size="sm"
-        onClick={() => setViewMode("split")}
+        onClick={() => updateViewMode("split")}
         className="h-7 px-2"
         title="Show split view"
       >
@@ -1263,7 +1332,7 @@ export default function DualPaneFrameView({
       <Button
         variant={viewMode === "linear" ? "default" : "ghost"}
         size="sm"
-        onClick={() => setViewMode("linear")}
+        onClick={() => updateViewMode("linear")}
         className="h-7 px-2"
         title="Maximize linear view"
       >
@@ -1296,23 +1365,57 @@ export default function DualPaneFrameView({
 
   const graphPaneClasses =
     viewMode === "graph"
-      ? "w-full"
+      ? "w-full flex flex-col h-full transition-[flex-basis] duration-300"
       : viewMode === "split"
-        ? "w-1/2"
+        ? "flex flex-col h-full transition-[flex-basis] duration-300"
         : "w-0 hidden lg:flex";
 
   const linearPaneClasses =
     viewMode === "linear"
-      ? "w-full"
+      ? "w-full flex flex-col h-full transition-[flex-basis] duration-300"
       : viewMode === "split"
-        ? "w-1/2"
+        ? "flex flex-col h-full transition-[flex-basis] duration-300"
         : "hidden";
 
+  const graphPaneStyle =
+    viewMode === "split"
+      ? {
+          flexBasis: `${(splitRatio * 100).toFixed(2)}%`,
+          minWidth: `${(splitRatio * 100).toFixed(2)}%`,
+          maxWidth: `${(splitRatio * 100).toFixed(2)}%`,
+        }
+      : undefined;
+  const linearPaneStyle =
+    viewMode === "split"
+      ? {
+          flexBasis: `${((1 - splitRatio) * 100).toFixed(2)}%`,
+          minWidth: `${((1 - splitRatio) * 100).toFixed(2)}%`,
+          maxWidth: `${((1 - splitRatio) * 100).toFixed(2)}%`,
+        }
+      : undefined;
+
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative" ref={containerRef}>
+      {viewMode === "split" && (
+        <button
+          type="button"
+          onMouseDown={handleSplitterMouseDown}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize split view"
+          className={`absolute top-0 bottom-0 z-20 w-2 border-l border-r border-gray-200 bg-white/60 dark:bg-slate-800/40 cursor-col-resize transition-colors duration-200 ${isResizing ? "bg-purple-100 dark:bg-purple-900/30" : ""}`}
+          style={{
+            left: `${splitRatio * 100}%`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <span className="sr-only">Resize split view</span>
+          <div className="w-px h-full mx-auto bg-gray-300 dark:bg-slate-600" />
+        </button>
+      )}
       {/* LEFT PANE: Graph View */}
       {viewMode !== "linear" && (
-      <div className={`${graphPaneClasses} border-r border-gray-200 dark:border-gray-700 transition-all duration-300`}>
+      <div className={`${graphPaneClasses} border-r border-gray-200 dark:border-gray-700`} style={graphPaneStyle}>
         <div className="h-full flex flex-col">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
@@ -1350,7 +1453,7 @@ export default function DualPaneFrameView({
 
       {/* RIGHT PANE: Linear View */}
       {viewMode !== "graph" && (
-        <div className={`${linearPaneClasses} flex flex-col`}>
+        <div className={`${linearPaneClasses}`} style={linearPaneStyle}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">

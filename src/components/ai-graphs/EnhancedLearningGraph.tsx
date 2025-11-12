@@ -3055,7 +3055,7 @@ export default function EnhancedLearningGraph({
   const memoizedNodeTypes = useMemo(() => enhancedNodeTypes, []);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-full min-h-full w-full">
       <EnhancedSidebar />
       <div className="flex-1" ref={reactFlowWrapper}>
         <ReactFlow

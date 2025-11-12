@@ -5,7 +5,15 @@
 
 ### **Solving Open Learning with a Complete AI-Powered Platform for Research, Creativity, and Collaboration**
 
-The Ultimate AI-Powered Research & Learning Platform
+AI Frames bootstraps learning. It connects everything in one flow — data, ideas, video, notes, docs, PDFs — so you can go from prompt to structured learning paths instantly. Grounded by your Knowledge Base, AI builds and updates frames step‑by‑step with citations, quizzes, and mastery checks.
+
+#### Why AI Frames
+- Connect everything in one flow: video, PDFs, notes, and more
+- Prompt → AI builds frames, chapters, and attachments
+- Grounded by your KB (local-first VectorStore) with citations
+- Vision or text-only modes; OpenRouter-first with Ollama fallback
+- Accept/decline AI suggestions and iterate across turns
+- Checkpoint quizzes, remediation, and pause/resume
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.3.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)

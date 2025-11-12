@@ -35,6 +35,8 @@ import {
   X,
   Loader2,
   Zap,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -182,6 +184,8 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
   const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarManualOverride, setSidebarManualOverride] = useState(false);
 
   // Graph state management
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -508,6 +512,36 @@ export default function AIFramesPage() {
       return false;
     }
   }, [unifiedStorage]);
+
+  const handleSidebarHide = useCallback(() => {
+    setSidebarCollapsed(true);
+    setSidebarManualOverride(true);
+  }, []);
+
+  const handleSidebarShow = useCallback(() => {
+    setSidebarCollapsed(false);
+    setSidebarManualOverride(true);
+  }, []);
+
+  const handleViewModeChange = useCallback(
+    (mode: "graph" | "split" | "linear") => {
+      if (mode === "linear") {
+        setSidebarCollapsed(false);
+        setSidebarManualOverride(false);
+        return;
+      }
+      if (mode === "split") {
+        if (!sidebarManualOverride) {
+          setSidebarCollapsed(true);
+        }
+        return;
+      }
+      if (!sidebarManualOverride) {
+        setSidebarCollapsed(false);
+      }
+    },
+    [sidebarManualOverride]
+  );
 
   // Handle frames change
   const handleFramesChange = useCallback(
@@ -1586,17 +1620,34 @@ export default function AIFramesPage() {
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">
           {/* FIXED: Dual pane layout like Deep Research - sidebar + main content */}
-          <div className="flex-1 flex min-h-0">
+          <div className="flex-1 flex min-h-0 relative">
             {/* Left Sidebar - Knowledge Base Section like Deep Research */}
-            <div className="w-80 bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  AI-Frames
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Interactive AI learning platform
-                </p>
-              </div>
+            <div
+              className={`relative flex-shrink-0 transition-all duration-300 ${
+                sidebarCollapsed ? "w-0" : "w-80"
+              }`}
+            >
+              {!sidebarCollapsed && (
+                <div className="bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto h-full">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        AI-Frames
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Interactive AI learning platform
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-500 hover:text-gray-900"
+                      onClick={handleSidebarHide}
+                      title="Hide knowledge tools panel"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
 
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
               <KnowledgeBaseSection
@@ -1777,26 +1828,28 @@ export default function AIFramesPage() {
                 )}
               </div>
 
-              {/* Danger Zone */}
-              <div className="space-y-2 border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-medium text-gray-700">
-                  Danger Zone
-                </h4>
-                <p className="text-xs text-gray-500">
-                  Remove every AI Frame, chapter, and graph connection from this space.
-                </p>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => {
-                    setShowClearConfirm(true);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete All AI Frames
-                </Button>
-              </div>
+                  {/* Danger Zone */}
+                  <div className="space-y-2 border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Danger Zone
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Remove every AI Frame, chapter, and graph connection from this space.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full flex items-center justify-center gap-2"
+                      onClick={() => {
+                        setShowClearConfirm(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete All AI Frames
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Main Content Area - Graph Integration */}
@@ -1826,6 +1879,9 @@ export default function AIFramesPage() {
                   onGraphChange={handleGraphStateUpdate}
                   initialGraphState={unifiedStorage.graphState}
                   graphStorageManager={graphStorageManagerRef.current}
+                  onViewModeChange={handleViewModeChange}
+                  sidebarCollapsed={sidebarCollapsed}
+                  onShowSidebar={handleSidebarShow}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">

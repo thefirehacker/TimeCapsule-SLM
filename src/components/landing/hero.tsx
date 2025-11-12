@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Sparkles,
   Zap,
-  LogIn,
   Brain,
   Users,
   Globe,
@@ -22,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedGroup } from "@/components/ui/animated-group";
-import { signIn } from "next-auth/react";
 
 const transitionVariants = {
   item: {
@@ -104,22 +102,19 @@ export function HeroSection() {
               {/* Main Heading */}
               <AnimatedGroup variants={transitionVariants} className="mb-8">
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white leading-tight mb-6">
-                  TimeCapsule-SLM
+                  AI Frames bootstraps learning
                 </h1>
 
                 <div className="mb-6">
                   <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    Solving Open Learning
+                    Connect everything in one flow
                   </h2>
                   <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-400">
-                    Complete AI-Powered Platform for Research, Creativity, and
-                    Collaboration
+                    Connect data, ideas, video, notes, docs, and PDFs into one seamless flow. Prompt once — AI builds and updates your frames with citations and mastery checks.
                   </p>
                 </div>
 
-                <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
-                  AI Frames: Your complete platform for annotation, learning, research, and workflow management with AI-powered intelligence.
-                </p>
+                
               </AnimatedGroup>
 
               {/* CTA Buttons */}
@@ -149,28 +144,6 @@ export function HeroSection() {
                       <Zap className="w-5 h-5 mr-2" />
                       Try AI-Frames
                     </Link>
-                  </Button>
-
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="outline"
-                    className="px-8 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    <Link href="/ai-frames">
-                      <span>Try AI-Frames</span>
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Link>
-                  </Button>
-
-                  <Button
-                    onClick={() => signIn()}
-                    size="lg"
-                    variant="ghost"
-                    className="px-8 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  >
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Sign In
                   </Button>
                 </div>
               </AnimatedGroup>
