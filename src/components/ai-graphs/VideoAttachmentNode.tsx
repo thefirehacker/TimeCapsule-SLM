@@ -21,7 +21,7 @@ interface VideoAttachmentNodeProps extends NodeProps {
   data: VideoAttachmentNodeData;
 }
 
-export default function VideoAttachmentNode({ data, selected }: VideoAttachmentNodeProps) {
+export default function VideoAttachmentNode({ id: nodeId, data, selected }: VideoAttachmentNodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<VideoAttachmentNodeData>(data);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,7 +37,7 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('update-node-data', {
           detail: {
-            nodeId: data.id,
+            nodeId: nodeId,
             newData: editData
           }
         }));
@@ -52,7 +52,7 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
       // If this attachment is connected to a frame, update the frame's attachment
       if (data.isAttached && data.attachedToFrameId) {
         const updatedAttachment = {
-          id: data.id,
+          id: nodeId,
           type: 'video' as const,
           data: {
             title: editData.title,
@@ -69,7 +69,7 @@ export default function VideoAttachmentNode({ data, selected }: VideoAttachmentN
             detail: {
               frameId: data.attachedToFrameId,
               attachment: updatedAttachment,
-              nodeId: data.id
+              nodeId
             }
           }));
         }

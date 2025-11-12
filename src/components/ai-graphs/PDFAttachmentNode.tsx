@@ -30,7 +30,7 @@ interface PDFAttachmentNodeProps extends NodeProps {
   data: PDFAttachmentNodeData;
 }
 
-export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeProps) {
+export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAttachmentNodeProps) {
   const { vectorStore } = useVectorStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<PDFAttachmentNodeData>(data);
@@ -63,7 +63,7 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
         // KB PDF: Store KB reference data
         updatedNodeData = {
           type: "pdf-attachment",
-          id: data.id,
+          id: nodeId,
           title: kbSelection.title,
           kbDocumentId: kbSelection.kbDocumentId,
           filename: kbSelection.filename,
@@ -81,7 +81,7 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
         // URL PDF: Keep traditional data only
         updatedNodeData = {
           type: "pdf-attachment",
-          id: data.id,
+          id: nodeId,
           title: editData.title,
           pdfUrl: editData.pdfUrl,
           pages: editData.pages,
@@ -98,7 +98,7 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('update-node-data', {
           detail: {
-            nodeId: data.id,
+            nodeId: nodeId,
             newData: updatedNodeData
           }
         }));
@@ -133,7 +133,7 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
         };
 
         const updatedAttachment = {
-          id: data.id,
+          id: nodeId,
           type: attachmentType as const,
           data: attachmentData
         };
@@ -144,7 +144,7 @@ export default function PDFAttachmentNode({ data, selected }: PDFAttachmentNodeP
             detail: {
               frameId: data.attachedToFrameId,
               attachment: updatedAttachment,
-              nodeId: data.id
+              nodeId
             }
           }));
 

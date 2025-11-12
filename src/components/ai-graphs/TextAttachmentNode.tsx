@@ -20,7 +20,7 @@ interface TextAttachmentNodeProps extends NodeProps {
   data: TextAttachmentNodeData;
 }
 
-export default function TextAttachmentNode({ data, selected }: TextAttachmentNodeProps) {
+export default function TextAttachmentNode({ id: nodeId, data, selected }: TextAttachmentNodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<TextAttachmentNodeData>(data);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,11 +37,10 @@ export default function TextAttachmentNode({ data, selected }: TextAttachmentNod
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('update-node-data', {
           detail: {
-            nodeId: data.id,
+            nodeId: nodeId,
             newData: {
               ...data,
               ...editData,
-              // CRITICAL: Preserve connection state when updating text content
               isAttached: data.isAttached,
               attachedToFrameId: data.attachedToFrameId
             }
@@ -52,7 +51,7 @@ export default function TextAttachmentNode({ data, selected }: TextAttachmentNod
       // If this attachment is connected to a frame, update the frame's attachment
       if (data.isAttached && data.attachedToFrameId) {
         const updatedAttachment = {
-          id: data.id,
+          id: nodeId,
           type: 'text' as const,
           data: {
             title: editData.title,
@@ -67,7 +66,7 @@ export default function TextAttachmentNode({ data, selected }: TextAttachmentNod
             detail: {
               frameId: data.attachedToFrameId,
               attachment: updatedAttachment,
-              nodeId: data.id
+              nodeId
             }
           }));
           

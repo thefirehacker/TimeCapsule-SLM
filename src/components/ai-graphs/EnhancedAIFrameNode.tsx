@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,20 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<AIFrameNodeData>(data);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setEditData(prev => {
+      if (prev.attachment === data.attachment) {
+        return prev;
+      }
+      return { ...prev, attachment: data.attachment };
+    });
+  }, [data.attachment]);
+
+  const handleStartEditing = useCallback(() => {
+    setEditData({ ...data });
+    setIsEditing(true);
+  }, [data]);
 
   const handleSave = useCallback(async () => {
     console.log('🎯 SAVE ATTEMPT:', {
@@ -96,7 +110,7 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
   }, [data, editData]);
 
   const handleCancel = useCallback(() => {
-    setEditData(data);
+    setEditData({ ...data });
     setIsEditing(false);
   }, [data]);
 
@@ -229,7 +243,7 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleStartEditing}
                   className="h-6 w-6 p-0"
                   title="Edit frame"
                 >

@@ -99,6 +99,7 @@ import type { Chapter } from "./types/frames";
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
 import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
+import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
 
 interface FrameCreationData {
   goal: string;
@@ -209,15 +210,19 @@ export default function AIFramesPage() {
   const [showSemanticResults, setShowSemanticResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchThreshold, setSearchThreshold] = useState(0.1);
-  const [previewDocument, setPreviewDocument] = useState<any>(null);
-  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [currentChunk, setCurrentChunk] = useState<any>(null);
   const [showChunkView, setShowChunkView] = useState(false);
+  const [chunkViewerDocument, setChunkViewerDocument] = useState<any | null>(null);
+  const [chunkViewerChunks, setChunkViewerChunks] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [graphResetKey, setGraphResetKey] = useState(0);
   const [showChapterProcessing, setShowChapterProcessing] = useState(false);
   const chapterProcessingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const vectorStoreReady =
+    vectorStoreInitialized &&
+    !vectorStoreInitializing &&
+    providerVectorStore?.initialized !== false;
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -311,25 +316,13 @@ export default function AIFramesPage() {
 
   // FIXED: Enhanced VectorStore modal management for stability
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | null = null;
 
-    // Show modal only during initial loading (not during re-initialization)
-    if (
-      !vectorStoreInitialized &&
-      vectorStoreInitializing &&
-      !showVectorStoreInitModal
-    ) {
+    if (vectorStoreInitializing && !vectorStoreReady && !showVectorStoreInitModal) {
       setShowVectorStoreInitModal(true);
     }
 
-    // Hide modal when VectorStore is fully ready AND stable
-    if (
-      vectorStoreInitialized &&
-      !vectorStoreInitializing &&
-      providerVectorStore?.initialized !== false &&
-      showVectorStoreInitModal
-    ) {
-      // Longer delay to ensure VectorStore is stable before hiding modal
+    if (vectorStoreReady && showVectorStoreInitModal) {
       timeoutId = setTimeout(() => {
         setShowVectorStoreInitModal(false);
       }, 2000);
@@ -338,12 +331,7 @@ export default function AIFramesPage() {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [
-    vectorStoreInitialized,
-    vectorStoreInitializing,
-    providerVectorStore?.initialized,
-    showVectorStoreInitModal,
-  ]);
+  }, [vectorStoreInitializing, vectorStoreReady]);
 
   // CRITICAL FIX: Simplified, reliable loading logic
   useEffect(() => {
@@ -380,41 +368,27 @@ export default function AIFramesPage() {
   // Load documents when VectorStore is ready
   useEffect(() => {
     const loadDocuments = async () => {
-      // FIXED: Enhanced VectorStore readiness check to prevent "Vector Store not initialized" error
-      if (
-        vectorStoreInitialized &&
-        providerVectorStore &&
-        !vectorStoreInitializing
-      ) {
-        try {
-          // Additional safety check: verify VectorStore has initialized property
-          if (providerVectorStore.initialized === false) {
-            console.log(
-              "VectorStore not fully initialized yet, skipping document load"
-            );
-            return;
-          }
+      if (!vectorStoreReady || !providerVectorStore) {
+        return;
+      }
 
-          const allDocuments = await providerVectorStore.getAllDocuments();
-          setDocuments(allDocuments);
-        } catch (error) {
-          // FIXED: Handle "Vector Store not initialized" gracefully
-          if (
-            error instanceof Error &&
-            error.message.includes("Vector Store not initialized")
-          ) {
-            console.log(
-              "VectorStore still initializing, will retry when ready"
-            );
-          } else {
-            console.error("Failed to load documents:", error);
-          }
+      try {
+        const allDocuments = await providerVectorStore.getAllDocuments();
+        setDocuments(allDocuments);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Vector Store not initialized")
+        ) {
+          console.log("VectorStore still initializing, will retry when ready");
+        } else {
+          console.error("Failed to load documents:", error);
         }
       }
     };
 
     loadDocuments();
-  }, [vectorStoreInitialized, vectorStoreInitializing, providerVectorStore]);
+  }, [vectorStoreReady, providerVectorStore]);
 
   // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use (reduced logging frequency)
   useEffect(() => {
@@ -969,36 +943,71 @@ export default function AIFramesPage() {
     setCurrentSemanticQuery("");
   }, []);
 
-  // Handle document preview
-  const handlePreviewDocument = useCallback(
-    async (docId: string) => {
+  const handleOpenDocumentChunks = useCallback(
+    async (
+      docId: string,
+      options: { document?: any | null; chunkId?: string } = {}
+    ) => {
       try {
-        const doc = documents.find((d) => d.id === docId);
-        if (doc) {
-          setPreviewDocument(doc);
-          setShowDocumentPreview(true);
+        let docData = options.document;
+        if (!docData || !Array.isArray(docData.chunks)) {
+          docData =
+            documents.find((doc) => doc.id === docId) ||
+            (providerVectorStore
+              ? await providerVectorStore.getDocument(docId)
+              : null);
         }
+
+        if (!docData) {
+          console.warn("Document not found in knowledge base:", docId);
+          return;
+        }
+
+        const chunks = Array.isArray(docData.chunks)
+          ? docData.chunks
+          : docData.content
+          ? [
+              {
+                id: `${docId}-full`,
+                content: docData.content,
+                startIndex: 0,
+                endIndex: docData.content.length,
+              },
+            ]
+          : [];
+
+        const selectedChunk =
+          (options.chunkId &&
+            chunks.find((chunk) => chunk.id === options.chunkId)) ||
+          (chunks.length
+            ? chunks[0]
+            : {
+                id: `${docId}-placeholder`,
+                content: docData.content || "No content available",
+                startIndex: 0,
+                endIndex: (docData.content || "").length,
+              });
+
+        setChunkViewerDocument(docData);
+        setChunkViewerChunks(chunks);
+        setCurrentChunk(selectedChunk);
+        setShowChunkView(true);
       } catch (error) {
-        console.error("Failed to preview document:", error);
+        console.error("Failed to open document chunks:", error);
       }
     },
-    [documents]
+    [documents, providerVectorStore]
   );
 
-  // Handle view chunk
-  const handleViewChunk = useCallback((searchResult: any, document: any) => {
-    const chunkData = {
-      content: searchResult?.chunk?.content || "No content available",
-      similarity: searchResult?.similarity || 0,
-      chunkIndex: searchResult?.chunk?.id || "unknown",
-      documentId: searchResult?.document?.id || "unknown",
-      document: searchResult?.document ||
-        document || { title: "Unknown Document" },
-    };
-
-    setCurrentChunk(chunkData);
-    setShowChunkView(true);
-  }, []);
+  const handleNavigateChunk = useCallback(
+    (chunkId: string) => {
+      const nextChunk = chunkViewerChunks.find((chunk) => chunk.id === chunkId);
+      if (nextChunk) {
+        setCurrentChunk(nextChunk);
+      }
+    },
+    [chunkViewerChunks]
+  );
 
   // Download document
   const downloadDocument = useCallback(
@@ -1016,6 +1025,14 @@ export default function AIFramesPage() {
     },
     [documents]
   );
+
+  useEffect(() => {
+    if (!showChunkView) {
+      setChunkViewerDocument((prev) => (prev ? null : prev));
+      setChunkViewerChunks((prev) => (prev.length ? [] : prev));
+      setCurrentChunk((prev) => (prev ? null : prev));
+    }
+  }, [showChunkView]);
 
   // Delete document
   const deleteDocument = useCallback(
@@ -1847,29 +1864,30 @@ export default function AIFramesPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <VectorStoreInitModal
-       isOpen={showVectorStoreInitModal}
-        progress={
-          vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
-        }
-        status={
-          vectorStoreError
-            ? "error"
-            : vectorStoreInitialized &&
-                !vectorStoreInitializing &&
-                providerVectorStore?.initialized !== false
+      {(vectorStoreInitializing || showVectorStoreInitModal) && (
+        <VectorStoreInitModal
+          isOpen={showVectorStoreInitModal}
+          progress={
+            vectorStoreInitializing ? 50 : vectorStoreInitialized ? 100 : 0
+          }
+          status={
+            vectorStoreError
+              ? "error"
+              : vectorStoreReady
               ? "ready"
               : "initializing"
-        }
-        message={
-          vectorStoreError ||
-          (vectorStoreInitialized && !vectorStoreInitializing
-            ? "Knowledge Base ready!"
-            : vectorStoreInitializing
-              ? "Initializing Knowledge Base..."
-              : "Preparing Knowledge Base...")
-        }
-      />
+          }
+          message={
+            vectorStoreError ||
+            (vectorStoreReady
+              ? "Knowledge Base ready!"
+              : vectorStoreInitializing
+                ? "Initializing Knowledge Base..."
+                : "Preparing Knowledge Base...")
+          }
+          onClose={() => setShowVectorStoreInitModal(false)}
+        />
+      )}
       <BubblSpaceDialog
         isOpen={showBubblSpaceDialog}
         onClose={() => setShowBubblSpaceDialog(false)}
@@ -1921,6 +1939,16 @@ export default function AIFramesPage() {
         onEditChapter={handleEditChapter}
         onCreateFrameInline={handleCreateFrameInline}
       />
+      {showChunkView && chunkViewerDocument && currentChunk && (
+        <ChunkViewerModal
+          isOpen={showChunkView}
+          onClose={() => setShowChunkView(false)}
+          chunk={currentChunk}
+          document={chunkViewerDocument}
+          allChunks={chunkViewerChunks}
+          onNavigateChunk={handleNavigateChunk}
+        />
+      )}
 
       {/* Document Manager Modal - Complete Deep Research implementation */}
       <Dialog
@@ -2154,10 +2182,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >
@@ -2289,10 +2326,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >
@@ -2424,10 +2470,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >
@@ -2560,10 +2615,19 @@ export default function AIFramesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handlePreviewDocument(
+                                        handleOpenDocumentChunks(
                                           showSemanticResults
                                             ? doc.document?.id || doc.id
-                                            : doc.id
+                                            : doc.id,
+                                          {
+                                            document: showSemanticResults
+                                              ? doc.document
+                                              : doc,
+                                            chunkId:
+                                              showSemanticResults && doc.chunk
+                                                ? doc.chunk.id
+                                                : undefined,
+                                          }
                                         )
                                       }
                                     >

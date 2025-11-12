@@ -97,6 +97,9 @@ export function AIFlowBuilderPanel({
     firecrawl.firecrawlState.apiKey || ""
   );
   const [ollamaModalOpen, setOllamaModalOpen] = useState(false);
+  const [copyLogsState, setCopyLogsState] = useState<
+    "idle" | "copied" | "error"
+  >("idle");
 
   const openRouterState = aiProviders.openrouter.connectionState;
   const openRouterModels = aiProviders.openrouter.modelOptions;
@@ -116,6 +119,10 @@ export function AIFlowBuilderPanel({
       setSelectedHistoryId(null);
     }
   }, [historySessions, selectedHistoryId]);
+
+  useEffect(() => {
+    setCopyLogsState("idle");
+  }, [selectedHistoryId]);
 
   if (!isOpen) {
     return null;
@@ -184,6 +191,40 @@ export function AIFlowBuilderPanel({
       );
     } finally {
       event.target.value = "";
+    }
+  };
+
+  const handleCopySelectedLogs = async () => {
+    if (!selectedHistory || selectedHistory.logs.length === 0) {
+      return;
+    }
+    const formatted = selectedHistory.logs
+      .slice()
+      .reverse()
+      .map(
+        (log) =>
+          `[${new Date(log.timestamp).toLocaleString()}] ${log.agent.toUpperCase()} · ${log.role.toUpperCase()}\n${log.content}`
+      )
+      .join("\n\n");
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(formatted);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = formatted;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopyLogsState("copied");
+      setTimeout(() => setCopyLogsState("idle"), 2000);
+    } catch (error) {
+      console.error("Failed to copy logs:", error);
+      setCopyLogsState("error");
     }
   };
 
@@ -651,14 +692,32 @@ export function AIFlowBuilderPanel({
                       Logs for {selectedHistory.prompt.slice(0, 40)}
                       {selectedHistory.prompt.length > 40 ? "…" : ""}
                     </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedHistoryId(null)}
-                    >
-                      Hide
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopySelectedLogs}
+                        disabled={selectedHistory.logs.length === 0}
+                      >
+                        Copy logs
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedHistoryId(null)}
+                      >
+                        Hide
+                      </Button>
+                    </div>
                   </div>
+                  {copyLogsState === "copied" && (
+                    <p className="text-xs text-emerald-600">Copied to clipboard.</p>
+                  )}
+                  {copyLogsState === "error" && (
+                    <p className="text-xs text-red-500">
+                      Unable to copy logs. Please try again.
+                    </p>
+                  )}
                   {selectedHistory.logs.length === 0 ? (
                     <p className="text-sm text-slate-500">
                       No agent logs recorded for this session.

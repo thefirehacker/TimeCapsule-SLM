@@ -158,9 +158,13 @@ function AgentSubStepCard({
   const [showOutput, setShowOutput] = useState(false);
   const [showProgressHistory, setShowProgressHistory] = useState(false);
 
-  const IconComponent = AgentIcons[subStep.agentType];
-  const iconColor = AgentColors[subStep.agentType];
-  const bgColor = AgentBgColors[subStep.agentType];
+  const IconComponent =
+    AgentIcons[subStep.agentType] || Sparkles;
+  const iconColor =
+    AgentColors[subStep.agentType] || "text-slate-400";
+  const bgColor =
+    AgentBgColors[subStep.agentType] ||
+    "bg-slate-50 border-slate-200";
   
   // Stabilize agent display name to prevent mid-execution changes
   const getStableAgentName = () => {

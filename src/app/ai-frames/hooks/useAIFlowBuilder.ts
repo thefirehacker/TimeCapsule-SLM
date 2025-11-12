@@ -38,6 +38,8 @@ import {
 import type {
   FlowPlannerPlan,
   FlowGeneratedFrame,
+  ChunkData,
+  ResearchContext,
 } from "@/lib/multi-agent/interfaces/Context";
 import { FlowFramePlannerAgent } from "@/lib/multi-agent/agents/FlowFramePlannerAgent";
 import { FlowFrameGeneratorAgent } from "@/lib/multi-agent/agents/FlowFrameGeneratorAgent";
@@ -513,6 +515,35 @@ const convertFlowFrameToDraft = (
     quizHistory: [],
     masteryState: index === 0 ? "ready" : "locked",
   };
+};
+
+const injectKnowledgeIntoContext = (
+  context: ResearchContext | null,
+  knowledge: KnowledgeContextResult
+): boolean => {
+  if (!context || !knowledge.snippets.length) {
+    return false;
+  }
+
+  const chunkPayload: ChunkData[] = knowledge.snippets.map((snippet, index) => ({
+    id: snippet.id,
+    text: snippet.content,
+    source: snippet.title || snippet.source,
+    similarity: snippet.similarity,
+    metadata: {
+      docId: snippet.docId,
+      source: snippet.source,
+      referenceLabel: knowledge.citations[index]?.label,
+    },
+  }));
+
+  context.ragResults = context.ragResults || {
+    chunks: [],
+    summary: "",
+  };
+  context.ragResults.chunks = chunkPayload;
+  context.ragResults.summary = knowledge.text.slice(0, 600);
+  return true;
 };
 
 export function useAIFlowBuilder({
@@ -1255,6 +1286,20 @@ export function useAIFlowBuilder({
           "info",
           "Multi-agent pipeline skipped FlowFramePlanner – running fallback planner."
         );
+
+        if (!finalContext.ragResults?.chunks?.length) {
+          const fallbackKnowledge = await buildKnowledgeContext(
+            prompt,
+            MAX_KB_RESULTS_FOR_PLAN
+          );
+          if (injectKnowledgeIntoContext(finalContext, fallbackKnowledge)) {
+            setContextPreview((prev) => ({
+              knowledge: fallbackKnowledge,
+              web: prev?.web || null,
+            }));
+          }
+        }
+
         const plannerAgent = new FlowFramePlannerAgent(
           llmBridge,
           flowProgressCallback
@@ -1345,6 +1390,7 @@ export function useAIFlowBuilder({
     }
   }, [
     aiProviders,
+    buildKnowledgeContext,
     finalizeTimeline,
     flowProgressCallback,
     persistSessionState,
