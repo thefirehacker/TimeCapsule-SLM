@@ -689,13 +689,33 @@ Chapter ${index + 1}: ${chapter.title}
     }
 
     try {
-      await fetch('/api/local/aiframes/state', {
+      const response = await fetch('/api/local/aiframes/state', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(appState)
       });
+
+      if (response.ok) {
+        let savedAt: string | undefined;
+        try {
+          const result = await response.json();
+          savedAt = result?.savedAt;
+        } catch {
+          savedAt = undefined;
+        }
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('local-bridge-synced', {
+              detail: {
+                savedAt: savedAt || new Date().toISOString(),
+              },
+            })
+          );
+        }
+      }
     } catch (error) {
       console.warn('⚠️ Local SWE bridge sync failed:', error);
     }

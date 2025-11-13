@@ -69,9 +69,11 @@ export function useAIProviders(): UseAIProvidersReturn {
   const openrouter = useOpenRouterConnection();
   const ollama = useOllamaConnection();
 
-  const [activeProvider, setActiveProvider] =
-    useState<AIProviderKey>("openrouter");
   const localBridgeAvailable = isLocalBuildEnv();
+  const [activeProvider, setActiveProvider] =
+    useState<AIProviderKey>(
+      localBridgeAvailable ? "local-bridge" : "openrouter"
+    );
 
   const providerReady = useMemo(
     () => ({

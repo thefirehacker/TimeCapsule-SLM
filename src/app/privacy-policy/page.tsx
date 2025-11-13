@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+const LAST_UPDATED = "November 13, 2025";
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -12,7 +14,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: {LAST_UPDATED}
           </p>
         </div>
 
@@ -23,8 +25,9 @@ export default function PrivacyPolicyPage() {
               1. Overview
             </h2>
             <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
-              TimeCapsule respects your privacy and provides data control
-              tailored to three modes of usage:
+              TimeCapsule AI-Frames is a knowledge-to-action platform that lets
+              you connect everything in one flow. We respect your privacy and
+              provide data control tailored to three modes of usage:
             </p>
             <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2 ml-4">
               <li>
@@ -34,8 +37,8 @@ export default function PrivacyPolicyPage() {
                 <strong>External API usage:</strong> With your own API keys
               </li>
               <li>
-                <strong>Cloud-based usage:</strong> Through purchased credits
-                (hosted processing)
+                <strong>Subscription usage:</strong> Hosted processing with
+                shared AI-Frames/KBase collaboration
               </li>
             </ul>
           </section>
@@ -85,7 +88,7 @@ export default function PrivacyPolicyPage() {
 
               <div>
                 <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-3">
-                  2.3 Credit-Based Users
+                  2.3 Subscription Users
                 </h3>
                 <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2 ml-4">
                   <li>
@@ -97,8 +100,36 @@ export default function PrivacyPolicyPage() {
                     accounting, debugging, or improving user experience.
                   </li>
                   <li>
-                    All data is automatically deleted from our servers after 30
-                    days.
+                    We retain subscription data only as long as required to
+                    deliver shared AI-Frames, Knowledge Base access, billing, or
+                    legal compliance.
+                  </li>
+                  <li>
+                    We retain only the information required to provide access to
+                    AI-Frames services, shared workspaces, and collaboration
+                    features.
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-3">
+                  2.4 Shared AI-Frames & Knowledge Bases
+                </h3>
+                <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                  <li>
+                    Sharing features let you invite collaborators to specific
+                    frames, chapters, or Knowledge Base entries. We store the
+                    minimum access metadata necessary to route those
+                    invitations.
+                  </li>
+                  <li>
+                    Shared content inherits your existing privacy settings and
+                    can be revoked at any time from the workspace settings.
+                  </li>
+                  <li>
+                    Access logs and sharing metadata are removed when you revoke
+                    sharing or delete the asset.
                   </li>
                 </ul>
               </div>
@@ -130,8 +161,8 @@ export default function PrivacyPolicyPage() {
             </h2>
             <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-2 ml-4">
               <li>
-                To provide requested services (AI generation, document
-                interaction)
+                To provide requested services (AI-Frames generation, document
+                interaction, shared workspace notifications)
               </li>
               <li>To personalize your experience and provide support</li>
               <li>
@@ -207,8 +238,8 @@ export default function PrivacyPolicyPage() {
                 explicitly uploaded for collaboration or sharing
               </li>
               <li>
-                <strong>All server data:</strong> Automatically deleted after 30
-                days
+                <strong>Subscription data:</strong> Retained only as long as
+                needed to provide collaboration, billing, or legal compliance.
               </li>
             </ul>
           </section>

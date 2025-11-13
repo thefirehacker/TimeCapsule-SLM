@@ -178,12 +178,17 @@ const swePromptTemplate = useMemo(() => {
     ? `\n\nUser Goal:\n"""${prompt.trim()}"""`
     : "";
   return [
-    "You are a Cursor/Codex SWE agent. Populate the TimeCapsule AI-Frames workspace for this repository.",
+    "You are a SWE agent operating inside this repo. Populate the TimeCapsule AI-Frames workspace without creating scripts or CLIs.",
     "",
-    "Instructions:",
-    "1. GET /api/local/aiframes/info to confirm the bridge contract (available only when NEXT_BUILD_ENV=local).",
+    "Rules:",
+    "- Use HTTP calls only. DO NOT scaffold local scripts, CLIs, or polling loops.",
+    "- Treat /api/local/aiframes endpoints as your only tool surface (available when NEXT_BUILD_ENV=local).",
+    "- Preserve existing frame IDs unless you intentionally replace them.",
+    "",
+    "Workflow:",
+    "1. GET /api/local/aiframes/info to confirm the bridge contract.",
     "2. GET /api/local/aiframes/state to inspect the current frames, chapters, and graphState.",
-    "3. Design or update chapters and frames. Fill title, goal, informationText, afterVideoText, aiConcepts, order, and chapter assignments.",
+    "3. Design or update chapters (title, description, color, order, frameIds) and frames (title, goal, informationText, afterVideoText, aiConcepts, attachments, chapterId, order).",
     "4. POST the entire updated snapshot back to /api/local/aiframes/state with { frames, chapters, graphState }.",
     "5. Reply with a concise summary and remind the user to click “Pull from Local SWE.”",
     trimmedPrompt,
@@ -375,7 +380,7 @@ const handleCopySwePrompt = async () => {
               <div>
                 <div className="flex items-center gap-2 text-slate-500 text-sm">
                   <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  OpenRouter · AI Flow Builder
+                  AI Flow Builder
                 </div>
                 <CardTitle className="text-2xl font-semibold flex items-center gap-2">
                   <Bot className="h-6 w-6 text-emerald-500" />
@@ -401,7 +406,7 @@ const handleCopySwePrompt = async () => {
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-slate-700 font-medium">
-                    Active Provider
+                    Action Provider (default: SWE bridge)
                   </Label>
                   {providerStatusBadge(
                     aiProviders.providerReady[aiProviders.activeProvider]
@@ -452,6 +457,9 @@ const handleCopySwePrompt = async () => {
                       Enable by running the app with <code>NEXT_BUILD_ENV=local</code>.
                     </p>
                   )}
+                  <p className="text-xs text-slate-500">
+                    Works with Cursor, Codex, and Claude Code when the SWE bridge is active.
+                  </p>
                 </div>
               </div>
 
@@ -466,14 +474,21 @@ const handleCopySwePrompt = async () => {
                       {buildEnv.toUpperCase()}
                     </Badge>
                   </div>
-                  <p className="text-sm text-emerald-900">
-                    Flow Builder is now waiting for Codex/Cursor to call the
-                    local endpoints. Use your SWE agent to{" "}
-                    <span className="font-semibold">GET</span>{" "}
-                    <code>/api/local/aiframes/state</code> and{" "}
-                    <span className="font-semibold">POST</span> updated frames
-                    back to the same route. Then click “Pull from Local SWE” in
-                    the main UI to hydrate the graph.
+                  <p className="text-sm text-emerald-900 space-y-2">
+                    <span className="block">
+                      <strong>First-time setup:</strong> Copy the prompt +
+                      tool JSON below and hand them to Cursor/Codex/Claude Code.
+                      Once connected, the SWE agent autowrites your AI-Frames plan by
+                      calling the endpoints listed here.
+                    </span>
+                    <span className="block">
+                      <strong>Workflow:</strong> agent calls{" "}
+                      <code>GET /api/local/aiframes/state</code> to read the graph,
+                      modifies `frames/chapters/graphState`, then{" "}
+                      <code>POST /api/local/aiframes/state</code> with the full payload.
+                      After it confirms success, hit “Pull from Local SWE” in this UI
+                      to ingest the new plan.
+                    </span>
                   </p>
                   <div className="bg-white rounded-xl border border-emerald-100 p-3 text-xs text-slate-700 space-y-2">
                     <div className="font-semibold text-slate-900">

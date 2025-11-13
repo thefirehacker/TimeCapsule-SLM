@@ -45,6 +45,7 @@ const features = [
       "📚 Learning Platform - Interactive AI-driven learning",
       "🔬 Deep Research Tool - Multi-agent collaboration",
       "⚙️ Workflow Manager - AI-powered automation",
+      "🤖 SWE Agent Bridge - Drive AI-Frames locally via Cursor/Codex/Claude Code",
     ],
     href: "/ai-frames",
     buttonText: "Explore AI-Frames",

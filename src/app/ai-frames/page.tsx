@@ -451,6 +451,33 @@ export default function AIFramesPage() {
   }, [vectorStoreInitializing, vectorStoreReady]);
 
   useEffect(() => {
+    if (!localBridgeEnabled || typeof window === "undefined") {
+      return;
+    }
+
+    const handleLocalBridgeSynced = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      const savedAt: string =
+        detail?.savedAt || new Date().toISOString();
+      localBridgeRemoteStampRef.current = savedAt;
+      localBridgeLastPulledRef.current = savedAt;
+      setLocalBridgeHasPendingData(false);
+    };
+
+    window.addEventListener(
+      "local-bridge-synced",
+      handleLocalBridgeSynced as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "local-bridge-synced",
+        handleLocalBridgeSynced as EventListener
+      );
+    };
+  }, [localBridgeEnabled]);
+
+  useEffect(() => {
     if (!localBridgeEnabled) {
       return;
     }
