@@ -102,7 +102,7 @@ export function HeroSection() {
               {/* Main Heading */}
               <AnimatedGroup variants={transitionVariants} className="mb-8">
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white leading-tight mb-6">
-                  AI Frames bootstraps learning
+                  AI‑Frames: Knowledge‑to‑Action Platform
                 </h1>
 
                 <div className="mb-6">
@@ -110,7 +110,10 @@ export function HeroSection() {
                     Connect everything in one flow
                   </h2>
                   <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-400">
-                    Connect data, ideas, video, notes, docs, and PDFs into one seamless flow. Prompt once — AI builds and updates your frames with citations and mastery checks.
+                    Annotate • Learn • Research • Build • Automate—with citations and mastery checks.
+                  </p>
+                  <p className="text-lg text-gray-600 dark:text-gray-400 mt-4">
+                    Running locally? Flip on the SWE Agent Bridge and your Cursor, Codex, or Claude Code helper will fetch our REST endpoints and fill in the chapters/frames for you—no scripts, just a pull‑to‑sync button.
                   </p>
                 </div>
 

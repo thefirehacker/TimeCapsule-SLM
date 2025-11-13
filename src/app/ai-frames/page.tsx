@@ -37,6 +37,7 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  Plug,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -102,25 +103,7 @@ import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
 import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
-
-declare global {
-  interface Window {
-    __NEXT_BUILD_ENV__?: string;
-  }
-}
-
-const resolveBuildEnv = (): string => {
-  if (typeof window !== "undefined" && window.__NEXT_BUILD_ENV__) {
-    return window.__NEXT_BUILD_ENV__;
-  }
-  if (process.env.NEXT_PUBLIC_BUILD_ENV) {
-    return process.env.NEXT_PUBLIC_BUILD_ENV;
-  }
-  if (process.env.NEXT_BUILD_ENV) {
-    return process.env.NEXT_BUILD_ENV;
-  }
-  return "local";
-};
+import { getBuildEnv, isLocalBuildEnv } from "./utils/buildEnv";
 
 interface FrameCreationData {
   goal: string;
@@ -168,8 +151,9 @@ export default function AIFramesPage() {
   // Authentication hooks
   const { data: session, status } = useSession();
   const router = useRouter();
-  const buildEnv = resolveBuildEnv();
+  const buildEnv = getBuildEnv();
   const requireAuth = buildEnv === "cloud";
+  const localBridgeEnabled = isLocalBuildEnv();
 
   // Page analytics (must be called before any conditional returns)
   const pageAnalytics = usePageAnalytics("AI-Frames", "learning");
@@ -197,6 +181,26 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const workspaceStats = useMemo(() => {
+    const frames = unifiedStorage.frames;
+    const chapters = unifiedStorage.chapters;
+    const totalConcepts = frames.reduce(
+      (acc, frame) => acc + (frame.aiConcepts?.length || 0),
+      0
+    );
+    const masteredFrames = frames.reduce(
+      (acc, frame) => acc + (frame.masteryState === "completed" ? 1 : 0),
+      0
+    );
+
+    return {
+      frames: frames.length,
+      masteredFrames,
+      chapters: chapters.length,
+      concepts: totalConcepts,
+    };
+  }, [unifiedStorage.frames, unifiedStorage.chapters]);
+
   const dispatchForceSave = useCallback(
     (reason: string) => {
       if (typeof window === "undefined") {
@@ -215,6 +219,54 @@ export default function AIFramesPage() {
     },
     [unifiedStorage.graphState]
   );
+
+  const handlePullFromLocalBridge = useCallback(async () => {
+    if (!localBridgeEnabled) {
+      return;
+    }
+    try {
+      setLocalBridgeSyncState("syncing");
+      const response = await fetch("/api/local/aiframes/state");
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const data = await response.json();
+      if (Array.isArray(data.frames)) {
+        unifiedStorage.updateFrames(data.frames);
+      }
+      if (Array.isArray(data.chapters)) {
+        unifiedStorage.updateChapters(data.chapters);
+      }
+      if (data.graphState) {
+        unifiedStorage.updateGraphState(data.graphState);
+      }
+      const latestStamp =
+        data?.metadata?.lastUpdated || new Date().toISOString();
+      localBridgeRemoteStampRef.current = latestStamp;
+      localBridgeLastPulledRef.current = latestStamp;
+      setLocalBridgeHasPendingData(false);
+      setLocalBridgeSyncState("success");
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("auto-layout-requested", {
+            detail: { source: "local-bridge" },
+          })
+        );
+      }
+
+      setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
+    } catch (error) {
+      console.error("Failed to sync from local SWE bridge:", error);
+      setLocalBridgeSyncState("error");
+      setTimeout(() => setLocalBridgeSyncState("idle"), 3000);
+    }
+  }, [
+    localBridgeEnabled,
+    unifiedStorage.updateFrames,
+    unifiedStorage.updateChapters,
+    unifiedStorage.updateGraphState,
+  ]);
 
   const broadcastChapterGraphSync = useCallback(
     (chapter: Chapter, frameIds: string[]) => {
@@ -301,6 +353,22 @@ export default function AIFramesPage() {
     vectorStoreInitialized &&
     !vectorStoreInitializing &&
     providerVectorStore?.initialized !== false;
+  const [localBridgeSyncState, setLocalBridgeSyncState] = useState<
+    "idle" | "syncing" | "success" | "error"
+  >("idle");
+  const [localBridgeHasPendingData, setLocalBridgeHasPendingData] =
+    useState(false);
+  const localBridgeRemoteStampRef = useRef<string | null>(null);
+  const localBridgeLastPulledRef = useRef<string | null>(null);
+  const localBridgeCtaLabel =
+    localBridgeSyncState === "syncing"
+      ? "Syncing..."
+      : localBridgeSyncState === "success"
+      ? "Pulled!"
+      : localBridgeSyncState === "error"
+      ? "Retry pull"
+      : "Pull from Local SWE";
+  const localBridgeButtonDisabled = localBridgeSyncState === "syncing";
 
   // Ref hooks
   const metadataManagerRef = useRef<MetadataManager | null>(null);
@@ -410,6 +478,94 @@ export default function AIFramesPage() {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [vectorStoreInitializing, vectorStoreReady]);
+
+  useEffect(() => {
+    if (!localBridgeEnabled || typeof window === "undefined") {
+      return;
+    }
+
+    const handleLocalBridgeSynced = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      const savedAt: string =
+        detail?.savedAt || new Date().toISOString();
+      localBridgeRemoteStampRef.current = savedAt;
+      localBridgeLastPulledRef.current = savedAt;
+      setLocalBridgeHasPendingData(false);
+    };
+
+    window.addEventListener(
+      "local-bridge-synced",
+      handleLocalBridgeSynced as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "local-bridge-synced",
+        handleLocalBridgeSynced as EventListener
+      );
+    };
+  }, [localBridgeEnabled]);
+
+  useEffect(() => {
+    if (!localBridgeEnabled) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/local/aiframes/state", {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        const updatedStamp: string | undefined = data?.metadata?.lastUpdated;
+        if (!updatedStamp) {
+          return;
+        }
+
+        if (!localBridgeRemoteStampRef.current) {
+          localBridgeRemoteStampRef.current = updatedStamp;
+          if (!localBridgeLastPulledRef.current) {
+            localBridgeLastPulledRef.current = updatedStamp;
+          }
+          return;
+        }
+
+        const incoming = Date.parse(updatedStamp);
+        const currentRemote = Date.parse(
+          localBridgeRemoteStampRef.current || ""
+        );
+
+        if (incoming > currentRemote) {
+          localBridgeRemoteStampRef.current = updatedStamp;
+          const lastPulled = Date.parse(
+            localBridgeLastPulledRef.current || ""
+          );
+          if (
+            localBridgeLastPulledRef.current &&
+            incoming > lastPulled &&
+            !cancelled
+          ) {
+            setLocalBridgeHasPendingData(true);
+          }
+        }
+      } catch (error) {
+        console.warn("Local SWE bridge poll failed:", error);
+      }
+    };
+
+    const interval = setInterval(poll, 8000);
+    poll();
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [localBridgeEnabled]);
 
   // CRITICAL FIX: Simplified, reliable loading logic
   useEffect(() => {
@@ -1767,15 +1923,64 @@ export default function AIFramesPage() {
           onAcceptFrames={handleAcceptAIFrames}
           isOpen={isFlowPanelOpen}
           onToggle={() => setIsFlowPanelOpen(false)}
+          workspaceStats={workspaceStats}
         />
-        {!isFlowPanelOpen && (
-          <button
-            className="fixed bottom-6 right-6 z-40 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
-            onClick={() => setIsFlowPanelOpen(true)}
-          >
-            <Bot className="h-4 w-4" />
-            Open Flow Builder
-          </button>
+        {(localBridgeEnabled || !isFlowPanelOpen) && (
+          <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+            {!isFlowPanelOpen && (
+              <button
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+                onClick={() => setIsFlowPanelOpen(true)}
+              >
+                <Bot className="h-4 w-4" />
+                Open Flow Builder
+              </button>
+            )}
+            {localBridgeEnabled && (
+              <button
+                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2"
+                onClick={handlePullFromLocalBridge}
+                disabled={localBridgeButtonDisabled}
+              >
+                <Plug className="h-4 w-4" />
+                {localBridgeCtaLabel}
+              </button>
+            )}
+          </div>
+        )}
+        {localBridgeEnabled && localBridgeHasPendingData && (
+          <div className="fixed top-24 right-6 z-40 w-full max-w-sm bg-white/95 border border-slate-200 rounded-2xl shadow-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">
+                SWE agent uploaded new frames
+              </p>
+              <span className="text-xs text-emerald-600 font-semibold">
+                Live Bridge
+              </span>
+            </div>
+            <p className="text-sm text-slate-600">
+              Click pull to sync the latest plan from Codex/Cursor into this workspace.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                className="bg-emerald-500 text-white hover:bg-emerald-600"
+                onClick={() => {
+                  setLocalBridgeHasPendingData(false);
+                  void handlePullFromLocalBridge();
+                }}
+              >
+                Pull & Sync
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setLocalBridgeHasPendingData(false)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
         )}
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
         <div className="flex-1 overflow-hidden">

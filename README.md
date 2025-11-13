@@ -1,19 +1,30 @@
 <div align="center">
-    <img src="https://mybubblpublic.s3.ap-south-1.amazonaws.com/TimeCapsule_03.png" alt="TimeCapsule-SLM Logo" width="180" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
 
-# 🚀 TimeCapsuleSLM
+# 🚀 TimeCapsule AI-Frames
 
-### **Solving Open Learning with a Complete AI-Powered Platform for Research, Creativity, and Collaboration**
+### **Connect everything in one flow**
 
-AI Frames bootstraps learning. It connects everything in one flow — data, ideas, video, notes, docs, PDFs — so you can go from prompt to structured learning paths instantly. Grounded by your Knowledge Base, AI builds and updates frames step‑by‑step with citations, quizzes, and mastery checks.
+AI‑Frames: Knowledge‑to‑Action Platform. Annotate • Learn • Research • Build • Automate—with citations and mastery checks.
 
-#### Why AI Frames
-- Connect everything in one flow: video, PDFs, notes, and more
-- Prompt → AI builds frames, chapters, and attachments
-- Grounded by your KB (local-first VectorStore) with citations
-- Vision or text-only modes; OpenRouter-first with Ollama fallback
-- Accept/decline AI suggestions and iterate across turns
-- Checkpoint quizzes, remediation, and pause/resume
+#### ✨ Why AI Frames
+
+| Feature | Description |
+|---------|-------------|
+| 🔗 **Unified Flow** | Connect everything in one flow: video, PDFs, notes, and more |
+| ⚡ **AI-Powered** | Prompt → AI builds frames, chapters, and attachments |
+| 📚 **Knowledge Grounded** | Grounded by your KB (local-first VectorStore) with citations |
+| 🎯 **Flexible Modes** | Vision or text-only modes; OpenRouter-first with Ollama fallback |
+| 🔄 **Iterative** | Accept/decline AI suggestions and iterate across turns |
+| ✅ **Mastery Checks** | Checkpoint quizzes, remediation, and pause/resume |
+| 🤖 **SWE Bridge** | Run locally and hand control to Cursor, Codex, or Claude Code |
+
+[//]: # (SWE Bridge Intro)
+
+#### 🤖 SWE Agent Bridge (Local Dev)
+- When `NEXT_BUILD_ENV=local`, AI-Frames exposes REST endpoints (`/api/local/aiframes/*`) plus a copyable prompt so Cursor, Codex, or Claude Code can automate chapter/frame creation.
+- The Flow Builder shows a ready-to-paste SWE prompt (and tool schema) whenever you switch the provider to “SWE Agent Bridge (Dev)”.
+- Agents must use HTTP only—no scripts/CLIs. They `GET /state`, modify `frames/chapters/graphState`, then `POST /state` so you can click **Pull from Local SWE** and ingest the plan.
+- Need a prompt template? See [`Prompts/SWE_Agent_Prompt.md`](Prompts/SWE_Agent_Prompt.md) or copy the live version in the Flow Builder sidebar.
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.3.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -204,7 +215,7 @@ TimeCapsuleSLM revolutionizes education by providing powerful tools for both tea
 ### **Supported Models**
 
 - **🟢 Gemma 3n**: Google's latest open model for research and learning
-- **🟡 Quen**: Advanced reasoning and problem-solving capabilities
+- **🟡 Qwen**: Advanced reasoning and problem-solving capabilities
 - **🔵 Ollama Models**: Local deployment of various open-source models
 
 ### **Agentic Features**

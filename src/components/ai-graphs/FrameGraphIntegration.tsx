@@ -1361,7 +1361,8 @@ Updated: ${new Date().toISOString()}`,
             reason: 'auto-layout',
             nodeCount: layoutedNodes.length,
             timestamp: Date.now(),
-            graphState: newGraphState
+            graphState: newGraphState,
+            forceFitView: true,
           }
         }));
         console.log('📡 Dispatched graph-layout-applied event');
@@ -1396,6 +1397,24 @@ Updated: ${new Date().toISOString()}`,
   useEffect(() => {
     lastSavedSnapshotRef.current = lastSavedSnapshot;
   }, [lastSavedSnapshot]);
+
+  useEffect(() => {
+    const handleAutoLayoutRequest = () => {
+      organizeGraphLayout({ autoSave: true });
+    };
+
+    window.addEventListener(
+      'auto-layout-requested',
+      handleAutoLayoutRequest as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        'auto-layout-requested',
+        handleAutoLayoutRequest as EventListener
+      );
+    };
+  }, [organizeGraphLayout]);
   
   // Initialize saved snapshot when frames are first loaded
   useEffect(() => {
