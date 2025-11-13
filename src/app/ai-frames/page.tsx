@@ -181,6 +181,26 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const workspaceStats = useMemo(() => {
+    const frames = unifiedStorage.frames;
+    const chapters = unifiedStorage.chapters;
+    const totalConcepts = frames.reduce(
+      (acc, frame) => acc + (frame.aiConcepts?.length || 0),
+      0
+    );
+    const masteredFrames = frames.reduce(
+      (acc, frame) => acc + (frame.masteryState === "completed" ? 1 : 0),
+      0
+    );
+
+    return {
+      frames: frames.length,
+      masteredFrames,
+      chapters: chapters.length,
+      concepts: totalConcepts,
+    };
+  }, [unifiedStorage.frames, unifiedStorage.chapters]);
+
   const dispatchForceSave = useCallback(
     (reason: string) => {
       if (typeof window === "undefined") {
@@ -226,6 +246,15 @@ export default function AIFramesPage() {
       localBridgeLastPulledRef.current = latestStamp;
       setLocalBridgeHasPendingData(false);
       setLocalBridgeSyncState("success");
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("auto-layout-requested", {
+            detail: { source: "local-bridge" },
+          })
+        );
+      }
+
       setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
     } catch (error) {
       console.error("Failed to sync from local SWE bridge:", error);
@@ -1894,6 +1923,7 @@ export default function AIFramesPage() {
           onAcceptFrames={handleAcceptAIFrames}
           isOpen={isFlowPanelOpen}
           onToggle={() => setIsFlowPanelOpen(false)}
+          workspaceStats={workspaceStats}
         />
         {(localBridgeEnabled || !isFlowPanelOpen) && (
           <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">

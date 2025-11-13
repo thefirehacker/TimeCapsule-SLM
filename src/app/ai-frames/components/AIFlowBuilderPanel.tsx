@@ -53,11 +53,19 @@ import { OllamaConnectionModal } from "@/components/DeepResearch/components/Olla
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
 
+interface WorkspaceStats {
+  frames: number;
+  masteredFrames: number;
+  chapters: number;
+  concepts: number;
+}
+
 interface AIFlowBuilderPanelProps {
   flowBuilder: UseAIFlowBuilderReturn;
   onAcceptFrames: (frames: AIFrame[]) => void;
   isOpen: boolean;
   onToggle: () => void;
+  workspaceStats: WorkspaceStats;
 }
 
 export function AIFlowBuilderPanel({
@@ -65,6 +73,7 @@ export function AIFlowBuilderPanel({
   onAcceptFrames,
   isOpen,
   onToggle,
+  workspaceStats,
 }: AIFlowBuilderPanelProps) {
   const {
     prompt,
@@ -310,6 +319,7 @@ if (!isOpen) {
   const readyToAcceptCount = frameDrafts.filter(
     (draft) => draft.masteryState === "completed" && draft.status === "generated"
   ).length;
+  const hasDraftMetrics = !localBridgeActive && plannedCount > 0;
   const currentFrameId = sessionState?.id ? sessionState.currentFrameId : null;
 
   const providerStatusBadge = (connected: boolean) => (
@@ -1065,21 +1075,49 @@ const handleCopySwePrompt = async () => {
               )}
 
             <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-wide text-slate-500">
-                    Draft Status
+              {localBridgeActive && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 space-y-2">
+                  <p className="font-semibold">
+                    SWE Agent Bridge is controlling the Flow Builder.
                   </p>
-                  <p className="text-slate-900 text-lg font-semibold">
-                    {readyToAcceptCount}/{plannedCount} frames mastered
+                  <p>
+                    Copy the prompt + tool JSON into Cursor/Codex/Claude Code,
+                    let it call the endpoints shown above, then press “Pull from
+                    Local SWE.” Workspace stats below update the moment frames
+                    land in AI-Frames.
                   </p>
                 </div>
-                {readyToAcceptCount > 0 && (
-                  <Badge className="bg-blue-100 text-blue-700">
-                    Ready for sync
-                  </Badge>
-                )}
-              </div>
+              )}
+              {hasDraftMetrics ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-slate-500">
+                      Draft Status
+                    </p>
+                    <p className="text-slate-900 text-lg font-semibold">
+                      {readyToAcceptCount}/{plannedCount} frames mastered
+                    </p>
+                  </div>
+                  {readyToAcceptCount > 0 && (
+                    <Badge className="bg-blue-100 text-blue-700">
+                      Ready for sync
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
+                  <p className="text-sm uppercase tracking-wide text-slate-500">
+                    Workspace status
+                  </p>
+                  <div className="text-slate-900 text-lg font-semibold">
+                    {workspaceStats.frames} frames · {workspaceStats.chapters} chapters ·{" "}
+                    {workspaceStats.concepts} concepts
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {workspaceStats.masteredFrames} frames marked as mastered in the current graph.
+                  </p>
+                </div>
+              )}
 
               {!plan && (
                 <div className="p-6 rounded-2xl border border-dashed border-slate-300 text-center bg-white">

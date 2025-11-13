@@ -2054,7 +2054,11 @@ export default function EnhancedLearningGraph({
 
       // Animate viewport to show new layout after a brief delay
       // BUT: Skip if we're restoring a saved viewport
-      if (reactFlowInstance && !initialGraphState?.viewport) {
+      const shouldFitView =
+        reactFlowInstance &&
+        (event.detail?.forceFitView === true || !initialGraphState?.viewport);
+
+      if (shouldFitView) {
         setTimeout(() => {
           reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
           console.log('✅ Auto-layout viewport updated');
