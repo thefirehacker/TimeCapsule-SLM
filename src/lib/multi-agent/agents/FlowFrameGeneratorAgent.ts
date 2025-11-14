@@ -33,6 +33,33 @@ interface GeneratorResponse {
   summary?: string;
 }
 
+const GENERATOR_SCHEMA_DESCRIPTION = `{
+  "informationText": "Detailed explanation in markdown-friendly text",
+  "afterVideoText": "Reflection or practice instructions",
+  "aiConcepts": ["concept"],
+  "attachment": {
+    "type": "video|image|pdf|text",
+    "description": "How the learner should use it",
+    "url": "https://..."
+  },
+  "checkpointQuiz": {
+    "id": "frame_quiz",
+    "instructions": "How to answer",
+    "questions": [
+      {
+        "id": "q1",
+        "prompt": "Question stem",
+        "type": "single_choice|multi_choice|short_answer",
+        "choices": [{"id": "A","label": "Option","isCorrect": true}],
+        "correctAnswers": ["A"],
+        "explanation": "Why it is correct"
+      }
+    ]
+  },
+  "durationInSeconds": 420,
+  "summary": "One-sentence recap"
+}`;
+
 export class FlowFrameGeneratorAgent extends BaseAgent {
   readonly name = "FlowFrameGenerator";
   readonly description =
@@ -70,8 +97,29 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
       );
 
       const prompt = this.buildFramePrompt(context, framePlan);
-      const llmResponse = await this.llm(prompt);
-      const parsed = parseJsonWithResilience<GeneratorResponse>(llmResponse);
+      const llmResponse = await this.llm(prompt, {
+        tierHint: "generator",
+      });
+
+      let parsed: GeneratorResponse | null = null;
+      try {
+        parsed = parseJsonWithResilience<GeneratorResponse>(llmResponse);
+      } catch (error) {
+        console.warn(
+          `FlowFrameGeneratorAgent: failed to parse generator response for frame ${framePlan.id}`,
+          error
+        );
+      }
+
+      if (!parsed?.informationText) {
+        await this.progressCallback?.onAgentProgress(
+          this.name,
+          Math.min(progress + 2, 98),
+          `Reformatting structured output for "${framePlan.title}"`
+        );
+        parsed = await this.repairFrameResponse(framePlan, llmResponse);
+      }
+
       if (!parsed?.informationText) {
         throw new Error(
           `FlowFrameGeneratorAgent failed to generate content for frame ${framePlan.id}`
@@ -163,5 +211,39 @@ Return JSON only:
         return `[KB ${idx + 1}] Source: ${chunk.source}\n${text}`;
       })
       .join("\n\n");
+  }
+
+  private async repairFrameResponse(
+    framePlan: FlowPlannedFrame,
+    flawedResponse: string
+  ): Promise<GeneratorResponse | null> {
+    const repairPrompt = `
+The previous attempt to generate this frame did not return valid JSON.
+
+FRAME BLUEPRINT:
+${JSON.stringify(framePlan, null, 2)}
+
+INVALID OUTPUT:
+${flawedResponse}
+
+Reformat that answer into STRICT JSON that satisfies this schema:
+${GENERATOR_SCHEMA_DESCRIPTION}
+
+Do not include markdown fences or commentary—respond with JSON only.
+`.trim();
+
+    try {
+      const repairResponse = await this.llm(repairPrompt, {
+        tierHint: "generator",
+        temperature: 0.2,
+      });
+      return parseJsonWithResilience<GeneratorResponse>(repairResponse);
+    } catch (error) {
+      console.error(
+        `FlowFrameGeneratorAgent: JSON repair failed for frame ${framePlan.id}`,
+        error
+      );
+      return null;
+    }
   }
 }

@@ -1,7 +1,18 @@
 // Web Worker for document chunking and embedding generation
 // This runs in a separate thread to avoid blocking the main UI
 
-import { pipeline } from '@xenova/transformers';
+import { pipeline, env } from '@xenova/transformers';
+import {
+  LOCAL_EMBEDDING_MODEL_ID,
+  CLIENT_EMBEDDINGS_BASE_PATH,
+  CLIENT_ONNX_RUNTIME_PATH,
+} from "@/lib/transformers/modelConfig";
+
+env.allowLocalModels = true;
+env.allowRemoteModels = false;
+env.useBrowserCache = false;
+env.localModelPath = CLIENT_EMBEDDINGS_BASE_PATH;
+env.backends.onnx.wasmPaths = CLIENT_ONNX_RUNTIME_PATH;
 
 // Worker message types
 export interface WorkerMessage {
@@ -23,14 +34,14 @@ class EmbeddingWorker {
       console.log('🔧 Web Worker: Initializing embedding pipeline...');
       
       // Initialize the embedding pipeline in the worker
-      this.pipeline = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5', {
+      this.pipeline = await pipeline('feature-extraction', LOCAL_EMBEDDING_MODEL_ID, {
         quantized: true,
         progress_callback: (progress: any) => {
           self.postMessage({
             type: 'progress',
             data: {
-              status: 'downloading',
-              message: `Downloading model: ${progress.name || 'unknown'}`,
+              status: 'initializing',
+              message: `Preparing model: ${progress.name || 'bundle'}`,
               progress: progress.progress || 0
             }
           } as WorkerResponse);

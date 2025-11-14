@@ -91,6 +91,16 @@ export interface UseOpenRouterConnectionReturn {
   setVisionMode: (mode: VisionMode) => void;
   sendChatRequest: (request: OpenRouterChatRequest) => Promise<OpenRouterChatResult>;
   clearStoredKey: () => void;
+  resolveModelId: (
+    tier: AIFlowModelTier,
+    explicitId?: string
+  ) => string;
+  getModelCapabilities: (
+    modelId?: string
+  ) => {
+    supportsJSON?: boolean;
+    supportsVision?: boolean;
+  };
 }
 
 const INITIAL_MODEL_SELECTIONS: Record<AIFlowModelTier, string> = {
@@ -323,6 +333,37 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
     [connectionState.modelSelections, connectionState.visionMode]
   );
 
+  const getModelCapabilities = useCallback(
+    (modelId?: string) => {
+      if (!modelId) return {};
+      const staticOption = findModelOptionById(modelId);
+      const remoteOption = connectionState.remoteModels.find(
+        (model) => model.id === modelId
+      );
+      const remoteCapabilities = (remoteOption?.capabilities ||
+        {}) as Record<string, any>;
+
+      const supportsJSON =
+        typeof staticOption?.supportsJSON === "boolean"
+          ? staticOption.supportsJSON
+          : typeof remoteCapabilities?.json === "boolean"
+          ? remoteCapabilities.json
+          : typeof remoteCapabilities?.response_format?.json === "boolean"
+          ? remoteCapabilities.response_format.json
+          : undefined;
+
+      const supportsVision =
+        typeof staticOption?.supportsVision === "boolean"
+          ? staticOption.supportsVision
+          : typeof remoteCapabilities?.vision === "boolean"
+          ? remoteCapabilities.vision
+          : undefined;
+
+      return { supportsJSON, supportsVision };
+    },
+    [connectionState.remoteModels]
+  );
+
   const normalizeContent = (content: any): string => {
     if (typeof content === "string") {
       return content;
@@ -467,5 +508,7 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
     setVisionMode,
     sendChatRequest,
     clearStoredKey,
+    resolveModelId,
+    getModelCapabilities,
   };
 }

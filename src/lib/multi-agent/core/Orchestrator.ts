@@ -15,7 +15,15 @@ import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtra
 import type { ExecutionPlan, PlanStep } from '../agents/PlanningAgent';
 import { UserFeedback } from '../interfaces/Feedback';
 
-export type LLMFunction = (prompt: string) => Promise<string>;
+export interface AgentLLMOptions {
+  agent?: string;
+  tierHint?: string;
+  temperature?: number;
+  maxTokens?: number;
+  metadata?: Record<string, any>;
+}
+
+export type LLMFunction = (prompt: string, options?: AgentLLMOptions) => Promise<string>;
 
 export class Orchestrator {
   private registry: AgentRegistry;
