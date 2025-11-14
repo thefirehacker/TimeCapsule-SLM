@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { createHash, randomBytes } from "crypto";
 import { getUserByEmail, setVerificationToken } from "@/lib/auth/auth";
 import VerificationEmailTemplate from "@/components/email/VerificationEmailTemplate";
+import { getResendClient } from "@/lib/email/resendClient";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = getResendClient();
 const VERIFICATION_TOKEN_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 export async function POST(request: NextRequest) {
@@ -37,6 +37,16 @@ export async function POST(request: NextRequest) {
 
     // Construct verification URL
     const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify?token=${verificationToken}&redirect=${redirect}`;
+
+    if (!resend) {
+      console.info(
+        "Skipping verification email send: RESEND_API_KEY not set (local mode)."
+      );
+      return NextResponse.json({
+        message:
+          "Verification email skipped because email delivery is disabled in local mode.",
+      });
+    }
 
     try {
       // Send verification email

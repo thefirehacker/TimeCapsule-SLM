@@ -2,7 +2,9 @@
 
 import { promises as fs } from "fs";
 import { v4 as uuidv4 } from "uuid";
-import pdfParse from "pdf-parse";
+// Import directly from the library implementation to avoid the debug harness
+// in node_modules/pdf-parse/index.js that reads ./test/data/05-versions-space.pdf.
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import { extractStructuredTextFromPdfData } from "./structuredText";
 import { loadPdfParser } from "./loadPdfParser";
 import {
