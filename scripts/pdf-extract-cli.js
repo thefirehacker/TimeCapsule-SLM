@@ -1,41 +1,30 @@
-interface TextItem {
-  str: string;
-  width?: number;
-  transform: number[];
-}
+"use strict";
 
-interface PageData {
-  getTextContent: (
-    options: Record<string, boolean>
-  ) => Promise<{ items: TextItem[] }>;
-}
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
-const SAME_LINE_Y_TOLERANCE = 2; // roughly 2 units difference counts as same line
-const SPACE_GAP_MULTIPLIER = 0.6; // heuristically insert space when gap is 60% of avg char width
+const SAME_LINE_Y_TOLERANCE = 2;
+const SPACE_GAP_MULTIPLIER = 0.6;
 
-export function smartPageRenderer(pageData: PageData): Promise<string> {
+function smartPageRenderer(pageData) {
   return pageData
     .getTextContent({
-      normalizeWhitespace: true,
+      normalizeWhitespace: false,
       disableCombineTextItems: false,
     })
     .then(({ items }) => {
-      let lastY: number | null = null;
-      let lastX: number | null = null;
+      let lastY = null;
+      let lastX = null;
       let currentLine = "";
-      const lines: string[] = [];
+      const lines = [];
 
-      for (const item of items) {
-        if (!item) continue;
-        const text = item?.str ?? "";
-        if (!text) continue;
-
+      for (const item of items || []) {
+        if (!item || !item.str) continue;
         const transform = Array.isArray(item.transform)
           ? item.transform
           : [1, 0, 0, 1, 0, 0];
-
-        const y = Math.round(transform[5] ?? 0);
-        const x = transform[4] ?? 0;
+        const y = Math.round(transform[5] || 0);
+        const x = transform[4] || 0;
+        const text = item.str;
 
         const avgCharWidth =
           item.width && text.length
@@ -64,7 +53,7 @@ export function smartPageRenderer(pageData: PageData): Promise<string> {
 
         currentLine += text;
         lastY = y;
-        lastX = x + (item.width ?? avgCharWidth * text.length);
+        lastX = x + (item.width || avgCharWidth * text.length);
       }
 
       if (currentLine.trim()) {
@@ -73,16 +62,40 @@ export function smartPageRenderer(pageData: PageData): Promise<string> {
         lines.push(currentLine);
       }
 
-      const combined = lines
+      return lines
         .join("\n")
         .replace(/\u00a0/g, " ")
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\n{3,}/g, "\n\n")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]{2,})([a-z]+)/g, "$1 $2")
         .trim();
-
-      return combined.replace(/([a-z])([A-Z])/g, "$1 $2").replace(
-        /([A-Z]{2,})([a-z]+)/g,
-        "$1 $2"
-      );
     });
 }
+
+async function main() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
+  }
+
+  const buffer = Buffer.concat(chunks);
+
+  try {
+    const result = await pdfParse(buffer, {
+      pagerender: smartPageRenderer,
+      max: 0,
+    });
+    process.stdout.write(
+      JSON.stringify({
+        text: result.text || "",
+        numpages: result.numpages || 1,
+      })
+    );
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+main();
