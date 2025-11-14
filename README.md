@@ -253,6 +253,7 @@ TimeCapsuleSLM revolutionizes education by providing powerful tools for both tea
 
 ### Prerequisites
 
+- **Git LFS installed and initialized** (`git-lfs` package installed and `git lfs install` run once on your machine)
 - Ollama for local AI models
 - Node.js 18+
 - npm, yarn, pnpm, or bun
@@ -260,6 +261,10 @@ TimeCapsuleSLM revolutionizes education by providing powerful tools for both tea
 ### Installation
 
 ```bash
+# (One-time) ensure Git LFS is installed and initialized on your machine
+# Install git-lfs via your package manager, then run:
+git lfs install
+
 # Clone the repository
 git clone https://github.com/thefirehacker/TimeCapsule-SLM.git
 cd TimeCapsule-SLM
@@ -290,6 +295,8 @@ bun dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ### Environment Variables
+
+_For cloud CI/CD deployments, authentication-related environment variables are **required**. For local development with `NEXT_BUILD_ENV=local`, most of these can be left unset or use safe defaults._
 
 Create a `.env.local` file with the following variables:
 
@@ -427,6 +434,13 @@ git push origin feature/amazing-feature
 
 # Create a Pull Request
 ```
+
+### **Model Assets & Embeddings (for Contributors)**
+
+- Make sure you have **Git LFS installed locally** and have run `git lfs install` at least once on your development machine; otherwise you'll only see tiny pointer files instead of the actual model assets.
+- Large model and ONNX assets (including embedding models) are tracked via **Git LFS**, so after a normal clone + install you **should not need to manually download model binaries**.
+- Embedding assets are prepared automatically as part of the **build pipeline**, so `npm run build` / `pnpm build` will ensure the required embedding files are in place.
+- Any `onnxruntime-web` `curl` commands you see in internal feature docs (e.g. `server-upload-feature.md`) are kept only as a **fallback for debugging asset/CDN issues**, not as the standard setup path.
 
 ### **Code Style**
 

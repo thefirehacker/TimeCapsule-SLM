@@ -11,6 +11,7 @@ import {
   plainTextToStructured,
   stripStructureMarkers,
 } from "../textCleanup";
+import { smartPageRenderer } from "./renderSmartPage";
 
 export interface ParsedPdfResult {
   plainText: string;
@@ -34,7 +35,10 @@ async function tryParseWithPdfParse(
   buffer: Buffer
 ): Promise<ParsedPdfResult | null> {
   try {
-    const parsed = await pdfParse(buffer);
+    const parsed = await pdfParse(buffer, {
+      pagerender: smartPageRenderer as any,
+      max: 0,
+    });
     const normalizedText = normalizePlainText(parsed.text || "");
     const structuredText = plainTextToStructured(normalizedText);
     return {
