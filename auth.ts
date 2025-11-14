@@ -11,6 +11,7 @@ import {
   getUserById,
   updateUserLoginInfo,
 } from "./src/lib/auth/auth";
+import { isLocalServerEnv } from "./src/lib/env";
 
 // Extend NextAuth types for custom session properties
 declare module "next-auth" {
@@ -56,7 +57,20 @@ declare module "next-auth/jwt" {
 }
 
 // Ensure AUTH_SECRET is available
-const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+const authSecret =
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  (isLocalServerEnv() ? "local-development-secret" : undefined);
+
+if (
+  authSecret === "local-development-secret" &&
+  isLocalServerEnv() &&
+  process.env.NODE_ENV !== "production"
+) {
+  console.warn(
+    "Using fallback NextAuth secret for local development. Do not use this in production."
+  );
+}
 if (!authSecret) {
   console.error("🚨 AUTH_SECRET Environment Variable Debug:", {
     AUTH_SECRET: process.env.AUTH_SECRET ? "SET" : "NOT_SET",

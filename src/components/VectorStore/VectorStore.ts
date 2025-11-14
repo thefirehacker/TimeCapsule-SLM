@@ -11,9 +11,10 @@ import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
-import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument } from '../../lib/workers/DocumentProcessor';
-import { getRAGTracker } from '../../lib/RAGTracker';
-import { RAGDocument } from '../../types/rag';
+import { getDocumentProcessor, type ProcessingProgress, type ProcessedDocument } from "../../lib/workers/DocumentProcessor";
+import { getRAGTracker } from "../../lib/RAGTracker";
+import { RAGDocument } from "../../types/rag";
+import { OriginalAssetStore } from "@/lib/storage/OriginalAssetStore";
 
 // Document type enum
 export type DocumentType = 'userdocs' | 'virtual-docs' | 'ai-frames' | 'timecapsule' | 'bubblspace';
@@ -26,7 +27,7 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Document schema for RxDB
 const documentSchema = {
-  version: 3, // Incremented from 2 to add pageCount field for PDF metadata
+  version: 5, // v5 normalizes chunk metadata + asset references
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -73,7 +74,15 @@ const documentSchema = {
         estimatedDuration: { type: 'number' },
         fullObject: { type: 'string' },
         // PDF-specific metadata
-        pageCount: { type: 'number' }
+        pageCount: { type: 'number' },
+        // Asset metadata
+        originalAssetId: { type: ['string', 'null'] },
+        hasOriginalAsset: { type: 'boolean' },
+        hasImageAssets: { type: 'boolean' },
+        previewAssetIds: {
+          type: 'array',
+          items: { type: 'string' }
+        }
       }
     },
     chunks: {
@@ -84,7 +93,13 @@ const documentSchema = {
           id: { type: 'string' },
           content: { type: 'string' },
           startIndex: { type: 'number' },
-          endIndex: { type: 'number' }
+          endIndex: { type: 'number' },
+          pageNumber: { type: ['number', 'null'] },
+          sectionTitle: { type: ['string', 'null'] },
+          markers: {
+            type: 'array',
+            items: { type: 'string' }
+          }
         }
       }
     },
@@ -135,12 +150,20 @@ export interface DocumentData {
     fullObject?: string;
     // PDF-specific metadata
     pageCount?: number;
+    // Asset metadata
+    originalAssetId?: string | null;
+    hasOriginalAsset?: boolean;
+    hasImageAssets?: boolean;
+    previewAssetIds?: string[];
   };
   chunks: Array<{
     id: string;
     content: string;
     startIndex: number;
     endIndex: number;
+    pageNumber?: number | null;
+    sectionTitle?: string | null;
+    markers?: string[];
   }>;
   vectors: Array<{
     chunkId: string;
@@ -176,11 +199,15 @@ export class VectorStore {
   private isInitialized = false;
   private readonly CHUNK_SIZE = 1000;
   private readonly CHUNK_OVERLAP = 200;
+  private processorInitPromise: Promise<void> | null = null;
+  private readonly autoPreloadEmbeddings =
+    process.env.NEXT_PUBLIC_PRELOAD_EMBEDDINGS === "true";
+  private originalAssetStore: OriginalAssetStore | null = null;
   
   // Private properties for status tracking
   private _processorAvailable = false;
   private _downloadProgress = 0;
-  private _downloadStatus = 'unknown';
+  private _downloadStatus = 'idle';
 
   // Operation queue and locking for concurrent operations
   private operationQueue: Map<string, Promise<any>> = new Map();
@@ -198,6 +225,57 @@ export class VectorStore {
   constructor() {
     console.log('🗂️ VectorStore constructor called');
     console.log('🔍 RAG Tracker initialized for VectorStore');
+    if (typeof window !== "undefined" && typeof indexedDB !== "undefined") {
+      this.originalAssetStore = new OriginalAssetStore();
+    }
+  }
+
+  async importProcessedDocument(
+    processedDoc: DocumentData,
+    originalFile?: File
+  ): Promise<string> {
+    if (!this.isInitialized) {
+      throw new Error("Vector Store not initialized");
+    }
+
+    const normalizedChunks = processedDoc.chunks.map((chunk, index) => ({
+      id: chunk.id || `chunk_${processedDoc.id}_${index}`,
+      content: chunk.content,
+      startIndex: chunk.startIndex,
+      endIndex: chunk.endIndex,
+      pageNumber: typeof chunk.pageNumber === "number" ? chunk.pageNumber : null,
+      sectionTitle:
+        typeof chunk.sectionTitle === "string" ? chunk.sectionTitle : null,
+      markers: Array.isArray(chunk.markers) ? chunk.markers : [],
+    }));
+
+    let originalAssetId = processedDoc.metadata.originalAssetId ?? null;
+    if (!originalAssetId && originalFile && this.originalAssetStore) {
+      originalAssetId = await this.originalAssetStore.saveAsset(
+        processedDoc.id,
+        originalFile,
+        {
+          mimeType:
+            originalFile.type || processedDoc.metadata.filetype || "application/octet-stream",
+          type: "file",
+        }
+      );
+    }
+
+    const metadata = {
+      ...processedDoc.metadata,
+      originalAssetId,
+      hasOriginalAsset: Boolean(originalAssetId),
+    };
+
+    await this.documentsCollection.documents.insert({
+      ...processedDoc,
+      metadata,
+      chunks: normalizedChunks,
+      vectors: processedDoc.vectors,
+    });
+
+    return processedDoc.id;
   }
 
   // Operation queue methods for handling concurrent operations
@@ -261,53 +339,16 @@ export class VectorStore {
       console.log('🗂️ Initializing RxDB Vector Store...');
 
       // Initialize document processor (Web Worker) and START IMMEDIATE XENOVA DOWNLOAD
-      console.log('🤖 Loading document processor and starting immediate Xenova download...');
+      console.log('🤖 Loading document processor...');
       this.documentProcessor = getDocumentProcessor();
       
-      // FIXED: Start immediate background download with cache detection
-      console.log('🧠 Starting immediate background Xenova download...');
-      this._processorAvailable = false;
-      this._downloadProgress = 0;
-      this._downloadStatus = 'downloading';
-      
-      // Track initialization time to detect cache vs download
-      const startTime = performance.now();
-      
-      // Start background initialization immediately (non-blocking)
-      this.startImmediateBackgroundDownload()
-        .then(() => {
-          const endTime = performance.now();
-          const initDuration = endTime - startTime;
-          
-          // FIXED: Detect cache vs download based on initialization time
-          const wasFromCache = initDuration < 2000; // Less than 2 seconds = cache
-          
-          if (wasFromCache) {
-            console.log('✅ Xenova model loaded from cache - all features ready');
-          } else {
-            console.log('✅ Xenova model downloaded and cached - all features ready');
-          }
-          
-          this._processorAvailable = true;
-          this._downloadProgress = 100;
-          this._downloadStatus = 'ready';
-          
-          console.log('🔍 Status set to ready. Full status:', {
-            isInitialized: this.isInitialized,
-            downloadStatus: this._downloadStatus,
-            hasDocumentProcessor: !!this.documentProcessor,
-            processorAvailable: this._processorAvailable,
-            processingAvailable: this.processingAvailable,
-            loadedFromCache: wasFromCache,
-            initDuration: Math.round(initDuration) + 'ms'
-          });
-        })
-        .catch((error: any) => {
-          console.error('❌ Xenova download failed:', error);
-          this._processorAvailable = false;
-          this._downloadProgress = 0;
-          this._downloadStatus = 'error';
-        });
+      if (this.autoPreloadEmbeddings) {
+        console.log('🧠 Auto-preloading embeddings (NEXT_PUBLIC_PRELOAD_EMBEDDINGS=true)...');
+        this.startProcessorInitialization();
+      } else {
+        console.log('⏸️ Skipping automatic embedding download; will initialize when first needed.');
+        this._downloadStatus = 'idle';
+      }
 
       // Create RxDB database with validation wrapper (continues immediately)
       console.log('📚 Creating RxDB database...');
@@ -391,6 +432,45 @@ export class VectorStore {
                     pageCount: oldDoc.metadata.pageCount
                   }
                 };
+              },
+              // Migration from version 3 to version 4 - add asset metadata + preview fields
+              4: function(oldDoc: any) {
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    hasOriginalAsset: Boolean(oldDoc.metadata?.originalAssetId),
+                    hasImageAssets: oldDoc.metadata?.hasImageAssets ?? false,
+                    previewAssetIds: oldDoc.metadata?.previewAssetIds || []
+                  }
+                };
+              },
+              // Migration from version 4 to version 5 - normalize chunk metadata
+              5: function(oldDoc: any) {
+                const normalizedChunks = Array.isArray(oldDoc.chunks)
+                  ? oldDoc.chunks.map((chunk: any) => ({
+                      ...chunk,
+                      pageNumber:
+                        typeof chunk.pageNumber === "number" ? chunk.pageNumber : null,
+                      sectionTitle:
+                        typeof chunk.sectionTitle === "string"
+                          ? chunk.sectionTitle
+                          : undefined,
+                      markers: Array.isArray(chunk.markers) ? chunk.markers : []
+                    }))
+                  : [];
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    hasOriginalAsset: Boolean(oldDoc.metadata?.originalAssetId),
+                    hasImageAssets: oldDoc.metadata?.hasImageAssets ?? false,
+                    previewAssetIds: Array.isArray(oldDoc.metadata?.previewAssetIds)
+                      ? oldDoc.metadata.previewAssetIds
+                      : []
+                  },
+                  chunks: normalizedChunks
+                };
               }
             }
           }
@@ -467,20 +547,59 @@ export class VectorStore {
                     }
                   };
                 },
-                // Migration from version 2 to version 3 - add pageCount field for PDF documents
-                3: function(oldDoc: any) {
-                  return {
-                    ...oldDoc,
-                    metadata: {
-                      ...oldDoc.metadata,
-                      // Preserve existing pageCount if it was somehow stored, otherwise use undefined
-                      // New PDFs will have actual pageCount, existing PDFs will need re-upload
-                      pageCount: oldDoc.metadata.pageCount
-                    }
-                  };
-                }
+              // Migration from version 2 to version 3 - add pageCount field for PDF documents
+              3: function(oldDoc: any) {
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    // Preserve existing pageCount if it was somehow stored, otherwise use undefined
+                    // New PDFs will have actual pageCount, existing PDFs will need re-upload
+                    pageCount: oldDoc.metadata.pageCount
+                  }
+                };
+              },
+              // Migration from version 3 to version 4 - asset metadata
+              4: function(oldDoc: any) {
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    hasOriginalAsset: Boolean(oldDoc.metadata?.originalAssetId),
+                    hasImageAssets: oldDoc.metadata?.hasImageAssets ?? false,
+                    previewAssetIds: oldDoc.metadata?.previewAssetIds || []
+                  }
+                };
+              },
+              // Migration from version 4 to version 5 - normalize chunk metadata
+              5: function(oldDoc: any) {
+                const normalizedChunks = Array.isArray(oldDoc.chunks)
+                  ? oldDoc.chunks.map((chunk: any) => ({
+                      ...chunk,
+                      pageNumber:
+                        typeof chunk.pageNumber === "number" ? chunk.pageNumber : null,
+                      sectionTitle:
+                        typeof chunk.sectionTitle === "string"
+                          ? chunk.sectionTitle
+                          : undefined,
+                      markers: Array.isArray(chunk.markers) ? chunk.markers : []
+                    }))
+                  : [];
+                return {
+                  ...oldDoc,
+                  metadata: {
+                    ...oldDoc.metadata,
+                    hasOriginalAsset: Boolean(oldDoc.metadata?.originalAssetId),
+                    hasImageAssets: oldDoc.metadata?.hasImageAssets ?? false,
+                    previewAssetIds: Array.isArray(oldDoc.metadata?.previewAssetIds)
+                      ? oldDoc.metadata.previewAssetIds
+                      : []
+                  },
+                  chunks: normalizedChunks
+                };
               }
             }
+          }
           });
           
           console.log('✅ Database recreated with new schema');
@@ -558,6 +677,8 @@ export class VectorStore {
       }
     };
 
+    await this.ensureProcessorReady();
+
     return new Promise((resolve, reject) => {
       // Use Web Worker to process document
       this.documentProcessor.processDocument(
@@ -575,25 +696,45 @@ export class VectorStore {
             const chunks = processedDoc.chunks.map((chunk, index) => {
               const chunkRandom = Math.random().toString(36).substring(2, 8);
               const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              const startIndex =
+                typeof chunk.startIndex === "number" ? chunk.startIndex : index * 500;
+              const endIndex =
+                typeof chunk.endIndex === "number"
+                  ? chunk.endIndex
+                  : startIndex + chunk.content.length;
               return {
                 id: uniqueId,
                 content: chunk.content,
-                startIndex: index * 500, // Approximate start based on chunk index
-                endIndex: (index * 500) + chunk.content.length
+                startIndex,
+                endIndex,
+                pageNumber:
+                  typeof chunk.pageNumber === "number" ? chunk.pageNumber : null,
+                sectionTitle:
+                  typeof chunk.sectionTitle === "string"
+                    ? chunk.sectionTitle
+                    : null,
+                markers: Array.isArray(chunk.markers) ? chunk.markers : [],
               };
             });
 
-             // Convert to our DocumentData format
-             const documentData: DocumentData = {
-               id: processedDoc.id,
-               title: processedDoc.title,
-               content: processedDoc.content,
-               metadata: processedDoc.metadata,
-               chunks: chunks,
-               vectors: processedDoc.vectors.map((embedding, index) => ({
-                 chunkId: chunks[index].id,
-                 embedding: embedding
-               }))
+            const metadata = {
+              ...processedDoc.metadata,
+              hasOriginalAsset: false,
+              hasImageAssets: false,
+              previewAssetIds: processedDoc.metadata?.previewAssetIds || []
+            };
+
+            // Convert to our DocumentData format
+            const documentData: DocumentData = {
+              id: processedDoc.id,
+              title: processedDoc.title,
+              content: processedDoc.content,
+              metadata,
+              chunks: chunks,
+              vectors: processedDoc.vectors.map((embedding, index) => ({
+                chunkId: chunks[index].id,
+                embedding: embedding
+              }))
              };
 
             // Insert into RxDB
@@ -607,9 +748,14 @@ export class VectorStore {
             }
 
             resolve(docId);
-          } catch (error) {
-            console.error('❌ Failed to store processed document:', error);
-            reject(error);
+          } catch (error: any) {
+            const errorMessage = error?.message || String(error);
+            const errorCode = error?.code || error?.name || 'unknown';
+            const errorStatus = error?.parameters?.writeError?.status;
+            console.error(
+              `❌ Failed to store processed document (code: ${errorCode}, status: ${errorStatus ?? 'n/a'}): ${errorMessage}`
+            );
+            reject(error instanceof Error ? error : new Error(errorMessage));
           }
         },
         // Error callback
@@ -669,6 +815,8 @@ export class VectorStore {
       }
     };
 
+    await this.ensureProcessorReady();
+
     return new Promise((resolve, reject) => {
       // Use Web Worker to process document
       this.documentProcessor.processDocument(
@@ -686,20 +834,41 @@ export class VectorStore {
             const chunks = processedDoc.chunks.map((chunk, index) => {
               const chunkRandom = Math.random().toString(36).substring(2, 8);
               const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              const startIndex =
+                typeof chunk.startIndex === "number" ? chunk.startIndex : index * 500;
+              const endIndex =
+                typeof chunk.endIndex === "number"
+                  ? chunk.endIndex
+                  : startIndex + chunk.content.length;
               return {
                 id: uniqueId,
                 content: chunk.content,
-                startIndex: index * 500, // Approximate start based on chunk index
-                endIndex: (index * 500) + chunk.content.length
+                startIndex,
+                endIndex,
+                pageNumber:
+                  typeof chunk.pageNumber === "number" ? chunk.pageNumber : null,
+                sectionTitle:
+                  typeof chunk.sectionTitle === "string"
+                    ? chunk.sectionTitle
+                    : null,
+                markers: Array.isArray(chunk.markers) ? chunk.markers : [],
               };
             });
+
+            const metadata = {
+              ...processedDoc.metadata,
+              originalAssetId: processedDoc.metadata?.originalAssetId ?? null,
+              hasOriginalAsset: Boolean(processedDoc.metadata?.originalAssetId),
+              hasImageAssets: processedDoc.metadata?.hasImageAssets ?? false,
+              previewAssetIds: processedDoc.metadata?.previewAssetIds || []
+            };
 
             // Convert to our DocumentData format
             const documentData: DocumentData = {
               id: processedDoc.id,
               title: processedDoc.title,
               content: processedDoc.content,
-              metadata: processedDoc.metadata,
+              metadata,
               chunks: chunks,
               vectors: processedDoc.vectors.map((embedding, index) => ({
                 chunkId: chunks[index].id,
@@ -713,9 +882,14 @@ export class VectorStore {
             console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
             
             resolve(docId);
-          } catch (error) {
-            console.error('❌ Failed to store processed virtual document:', error);
-            reject(error);
+          } catch (error: any) {
+            const errorMessage = error?.message || String(error);
+            const errorCode = error?.code || error?.name || 'unknown';
+            const errorStatus = error?.parameters?.writeError?.status;
+            console.error(
+              `❌ Failed to store processed virtual document (code: ${errorCode}, status: ${errorStatus ?? 'n/a'}): ${errorMessage}`
+            );
+            reject(error instanceof Error ? error : new Error(errorMessage));
           }
         },
         // Error callback
@@ -771,6 +945,8 @@ export class VectorStore {
       }
     };
 
+    await this.ensureProcessorReady();
+
     return new Promise((resolve, reject) => {
       // Use Web Worker to process document
       this.documentProcessor.processDocument(
@@ -788,20 +964,40 @@ export class VectorStore {
             const chunks = processedDoc.chunks.map((chunk, index) => {
               const chunkRandom = Math.random().toString(36).substring(2, 8);
               const uniqueId = `chunk_${processedDoc.id}_${chunkTimestamp}_${index}_${chunkRandom}`;
+              const startIndex =
+                typeof chunk.startIndex === "number" ? chunk.startIndex : index * 500;
+              const endIndex =
+                typeof chunk.endIndex === "number"
+                  ? chunk.endIndex
+                  : startIndex + chunk.content.length;
               return {
                 id: uniqueId,
                 content: chunk.content,
-                startIndex: index * 500, // Approximate start based on chunk index
-                endIndex: (index * 500) + chunk.content.length
+                startIndex,
+                endIndex,
+                pageNumber:
+                  typeof chunk.pageNumber === "number" ? chunk.pageNumber : null,
+                sectionTitle:
+                  typeof chunk.sectionTitle === "string"
+                    ? chunk.sectionTitle
+                    : null,
+                markers: Array.isArray(chunk.markers) ? chunk.markers : [],
               };
             });
+
+            const metadata = {
+              ...processedDoc.metadata,
+              hasOriginalAsset: false,
+              hasImageAssets: false,
+              previewAssetIds: processedDoc.metadata?.previewAssetIds || []
+            };
 
             // Convert to our DocumentData format
             const documentData: DocumentData = {
               id: processedDoc.id,
               title: processedDoc.title,
               content: processedDoc.content,
-              metadata: processedDoc.metadata,
+              metadata,
               chunks: chunks,
               vectors: processedDoc.vectors.map((embedding, index) => ({
                 chunkId: chunks[index].id,
@@ -815,9 +1011,14 @@ export class VectorStore {
             console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
             
             resolve(docId);
-          } catch (error) {
-            console.error('❌ Failed to store processed generated document:', error);
-            reject(error);
+          } catch (error: any) {
+            const errorMessage = error?.message || String(error);
+            const errorCode = error?.code || error?.name || 'unknown';
+            const errorStatus = error?.parameters?.writeError?.status;
+            console.error(
+              `❌ Failed to store processed generated document (code: ${errorCode}, status: ${errorStatus ?? 'n/a'}): ${errorMessage}`
+            );
+            reject(error instanceof Error ? error : new Error(errorMessage));
           }
         },
         // Error callback
@@ -986,6 +1187,49 @@ export class VectorStore {
     }
   }
 
+  async getOriginalDocumentBlob(id: string): Promise<Blob | null> {
+    if (!this.originalAssetStore) return null;
+    try {
+      const doc = await this.getDocument(id);
+      if (!doc) return null;
+      const assetId = doc.metadata?.originalAssetId || doc.id;
+      if (!assetId) return null;
+      const asset = await this.originalAssetStore.getAsset(assetId);
+      return asset?.blob || null;
+    } catch (error) {
+      console.warn('Failed to read original document blob:', error);
+      return null;
+    }
+  }
+
+  async getOriginalDocumentObjectUrl(id: string): Promise<string | null> {
+    const blob = await this.getOriginalDocumentBlob(id);
+    if (!blob) return null;
+    return URL.createObjectURL(blob);
+  }
+
+  async getChunkOrigin(docId: string, chunkId: string): Promise<{
+    documentId: string;
+    documentTitle: string;
+    pageNumber: number | null;
+    sectionTitle: string | null;
+    startIndex: number;
+    endIndex: number;
+  } | null> {
+    const doc = await this.getDocument(docId);
+    if (!doc) return null;
+    const chunk = doc.chunks.find((entry) => entry.id === chunkId);
+    if (!chunk) return null;
+    return {
+      documentId: doc.id,
+      documentTitle: doc.title,
+      pageNumber: chunk.pageNumber ?? null,
+      sectionTitle: chunk.sectionTitle ?? null,
+      startIndex: chunk.startIndex,
+      endIndex: chunk.endIndex,
+    };
+  }
+
   async deleteDocument(id: string): Promise<void> {
     if (!this.isInitialized) {
       throw new Error('Vector Store not initialized');
@@ -1011,6 +1255,7 @@ export class VectorStore {
         const doc = await this.getLatestDocumentRevision(id);
         
         if (doc) {
+          const docData = doc.toJSON();
           // Get current revision for debugging
           const currentRevision = doc._rev;
           console.log(`📋 Document ${id} found with revision: ${currentRevision}`);
@@ -1018,6 +1263,10 @@ export class VectorStore {
           // Attempt deletion with proper error handling
           await doc.remove();
           console.log(`✅ Document deleted successfully: ${id}`);
+          const assetId = docData.metadata?.originalAssetId || docData.id;
+          if (assetId && this.originalAssetStore) {
+            await this.originalAssetStore.deleteAsset(assetId);
+          }
           return; // Success, exit retry loop
           
         } else {
@@ -2110,21 +2359,65 @@ export class VectorStore {
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Start immediate background Xenova download - non-blocking
-    private async startImmediateBackgroundDownload(): Promise<void> {
+    // Initialize embeddings pipeline when needed
+    private startProcessorInitialization(): Promise<void> {
+      if (!this.documentProcessor) {
+        this.documentProcessor = getDocumentProcessor();
+      }
+
+      if (this.processorInitPromise) {
+        return this.processorInitPromise;
+      }
+
+      this._processorAvailable = false;
+      this._downloadProgress = 0;
+      this._downloadStatus = 'downloading';
+
+      const startTime = typeof performance !== 'undefined' ? performance.now() : 0;
+
+      this.processorInitPromise = this.initializeProcessorPipeline()
+        .then(() => {
+          const endTime = typeof performance !== 'undefined' ? performance.now() : startTime;
+          const initDuration = endTime - startTime;
+          const wasFromCache = initDuration < 2000;
+          if (wasFromCache) {
+            console.log('✅ Xenova model loaded from cache - all features ready');
+          } else {
+            console.log('✅ Xenova model downloaded and cached - all features ready');
+          }
+          this._processorAvailable = true;
+          this._downloadProgress = 100;
+          this._downloadStatus = 'ready';
+        })
+        .catch((error: any) => {
+          console.error('❌ Xenova download failed:', error);
+          this._processorAvailable = false;
+          this._downloadProgress = 0;
+          this._downloadStatus = 'error';
+          throw error;
+        })
+        .finally(() => {
+          this.processorInitPromise = null;
+        });
+
+      return this.processorInitPromise;
+    }
+
+    private async ensureProcessorReady(): Promise<void> {
+      if (this._processorAvailable) {
+        return;
+      }
+      await this.startProcessorInitialization();
+    }
+
+    private async initializeProcessorPipeline(): Promise<void> {
       if (!this.documentProcessor) {
         throw new Error('Document processor not available');
       }
-
-      console.log('🧠 Starting immediate Xenova download in background...');
-      
-      // Initialize web worker first (lightweight)
+      console.log('🧠 Starting processor pipeline initialization...');
       await this.initializeWebWorker();
-      
-      // Then start Xenova download immediately (heavy lifting)
       await this.initializeXenovaService();
-      
-      console.log('✅ Immediate background download completed');
+      console.log('✅ Processor pipeline ready');
     }
 
     // Initialize web worker (lightweight, fast)
@@ -2153,7 +2446,7 @@ export class VectorStore {
     // Initialize Xenova embedding service (heavy, but immediate)
     private async initializeXenovaService(): Promise<void> {
       try {
-        console.log('🧠 Starting Xenova embedding service download...');
+        console.log('🧠 Initializing Xenova embedding service (bundled assets, lazy)');
         
         // This will trigger immediate download of Xenova transformers
         // The EmbeddingService will handle the actual download

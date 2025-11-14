@@ -168,9 +168,6 @@ export default function AIFramesPage() {
     processingStatus,
   } = useVectorStore();
 
-  // Documents hook for file upload handling
-  const documentsHook = useDocuments(providerVectorStore);
-
   // Essential state hooks
   const [isCreationMode, setIsCreationMode] = useState(true);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
@@ -308,6 +305,79 @@ export default function AIFramesPage() {
   const flowBuilder = useAIFlowBuilder({
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
+  });
+
+  const fileToDataUrl = useCallback((file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read image for OCR"));
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const canUseVisionUploads =
+    flowBuilder.aiProviders.providerReady.openrouter &&
+    flowBuilder.aiProviders.openrouter.connectionState.visionMode === "vision";
+
+  const describeImageWithVision = useCallback(
+    async (file: File) => {
+      if (!canUseVisionUploads) {
+        throw new Error(
+          "Vision model not available. Enable OpenRouter vision mode in AI Controls to upload images."
+        );
+      }
+      const dataUrl = await fileToDataUrl(file);
+      const response = await flowBuilder.aiProviders.callLLM({
+        tier: "vision",
+        prompt: "Extract the textual and diagrammatic information from this study artifact.",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an OCR specialist. Return a concise JSON object with fields text, keywords, and diagramSummary describing the uploaded learning resource. Text should capture readable phrases exactly as shown. Diagram summary should describe shapes or flows if present.",
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `File name: ${file.name}\nDescribe any equations, code, or numbered steps so they can be searched inside the knowledge base.`,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: dataUrl,
+                },
+              },
+            ],
+          },
+        ],
+        responseFormat: { type: "json_object" },
+        metadata: { action: "kb_image_ingest", filename: file.name },
+      });
+
+      try {
+        const parsed = JSON.parse(response.content);
+        const body = [
+          parsed.text,
+          parsed.diagramSummary ? `Diagram: ${parsed.diagramSummary}` : null,
+          Array.isArray(parsed.keywords) && parsed.keywords.length
+            ? `Keywords: ${parsed.keywords.join(", ")}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        return body || response.content;
+      } catch {
+        return response.content;
+      }
+    },
+    [canUseVisionUploads, fileToDataUrl, flowBuilder.aiProviders]
+  );
+
+  const documentsHook = useDocuments(providerVectorStore, {
+    analyzeImage: canUseVisionUploads ? describeImageWithVision : undefined,
   });
   const [isFlowPanelOpen, setIsFlowPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -2269,7 +2339,18 @@ export default function AIFramesPage() {
       </div>
 
       {/* Modals - PRESERVATION: Keep existing dialogs */}
-      <Dialog open={showChapterProcessing} onOpenChange={() => {}}>
+      <Dialog
+        open={showChapterProcessing}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (chapterProcessingTimeoutRef.current) {
+              clearTimeout(chapterProcessingTimeoutRef.current);
+              chapterProcessingTimeoutRef.current = null;
+            }
+            setShowChapterProcessing(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

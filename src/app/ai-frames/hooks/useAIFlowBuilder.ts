@@ -25,6 +25,7 @@ import {
 import type { UseFirecrawlKeyReturn } from "./useFirecrawlKey";
 import type { AIProviderKey } from "./useAIProviders";
 import { createMultiAgentSystem } from "@/lib/multi-agent";
+import type { AgentLLMOptions } from "@/lib/multi-agent/core/Orchestrator";
 import {
   useResearchSteps,
   ResearchStep,
@@ -43,6 +44,7 @@ import type {
 } from "@/lib/multi-agent/interfaces/Context";
 import { FlowFramePlannerAgent } from "@/lib/multi-agent/agents/FlowFramePlannerAgent";
 import { FlowFrameGeneratorAgent } from "@/lib/multi-agent/agents/FlowFrameGeneratorAgent";
+import type { AIFlowModelTier } from "../lib/openRouterModels";
 
 interface KnowledgeCitation {
   label: string;
@@ -117,6 +119,34 @@ interface PlannerPlan {
   model?: string;
   learningMode?: "bootstrapped_stepwise" | "freeform";
 }
+
+const AGENT_TIER_HINTS: Record<string, AIFlowModelTier> = {
+  queryplanner: "planner",
+  datainspector: "planner",
+  planningagent: "planner",
+  flowframeplanner: "planner",
+  synthesiscoordinator: "planner",
+  webssearchagent: "generator",
+  patterngenerator: "generator",
+  extractor: "generator",
+  flowframegenerator: "generator",
+  synthesizer: "generator",
+  responseformatter: "fallback",
+};
+
+const isModelTier = (value?: string): value is AIFlowModelTier =>
+  value === "planner" ||
+  value === "generator" ||
+  value === "vision" ||
+  value === "fallback";
+
+const resolveAgentTier = (options?: AgentLLMOptions): AIFlowModelTier => {
+  if (options?.tierHint && isModelTier(options.tierHint)) {
+    return options.tierHint;
+  }
+  const key = options?.agent?.toLowerCase() || "";
+  return AGENT_TIER_HINTS[key] || "generator";
+};
 
 type FrameDraftStatus = "planned" | "generating" | "generated" | "error";
 
@@ -1253,12 +1283,25 @@ export function useAIFlowBuilder({
     });
 
     try {
-      const llmBridge = async (llmPrompt: string) => {
+      const llmBridge = async (
+        llmPrompt: string,
+        options?: AgentLLMOptions
+      ) => {
+        const tier = resolveAgentTier(options);
         const response = await aiProviders.callLLM({
           prompt: llmPrompt,
           preferProvider: "openrouter",
           allowFallback: true,
-          tier: "generator",
+          tier,
+          temperature:
+            options?.temperature ??
+            (tier === "planner" ? 0.2 : tier === "vision" ? 0.25 : 0.35),
+          maxTokens: options?.maxTokens,
+          metadata: {
+            agent: options?.agent,
+            tierHint: options?.tierHint,
+            mode: "flow_builder",
+          },
         });
         return response.content;
       };

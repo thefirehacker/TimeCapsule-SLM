@@ -1,30 +1,44 @@
 import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
 import { updateCheckoutUserInfo } from "@/lib/razorpay/dynamodb-payments";
+import { isLocalServerEnv } from "@/lib/env";
 
-// Validate Razorpay credentials
-const validateRazorpayCredentials = () => {
+const getRazorpayClient = (): Razorpay | null => {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
   if (!keyId || !keySecret) {
+    if (isLocalServerEnv()) {
+      console.warn(
+        "Razorpay credentials are not configured. Payment APIs are disabled in local mode."
+      );
+      return null;
+    }
+
     throw new Error(
       "Razorpay credentials are not configured. Please check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables."
     );
   }
 
-  return { keyId, keySecret };
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret,
+  });
 };
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate credentials first
-    validateRazorpayCredentials();
+    const razorpay = getRazorpayClient();
+
+    if (!razorpay) {
+      return NextResponse.json(
+        {
+          error: "Payment service disabled in local mode",
+          code: "LOCAL_MODE_PAYMENT_DISABLED",
+        },
+        { status: 200 }
+      );
+    }
 
     const body = await request.json();
 

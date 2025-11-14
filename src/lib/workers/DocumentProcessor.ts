@@ -24,6 +24,11 @@ export interface ProcessedDocument {
     startIndex: number;
     endIndex: number;
     wordCount: number;
+    hasOverlap?: boolean;
+    isTableRow?: boolean;
+    pageNumber?: number | null;
+    sectionTitle?: string | null;
+    markers?: string[];
   }>;
   vectors: number[][];
 }

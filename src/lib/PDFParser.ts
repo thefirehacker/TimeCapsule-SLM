@@ -245,20 +245,26 @@ export class PDFParser {
    * Clean and normalize extracted text
    */
   private cleanText(text: string): string {
-    return (
-      text
-        // Remove excessive whitespace
-        .replace(/\s+/g, " ")
-        // Remove excessive newlines
-        .replace(/\n\s*\n\s*\n/g, "\n\n")
-        // Fix common PDF extraction issues
-        .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between camelCase
-        .replace(/([.!?])([A-Z])/g, "$1 $2") // Add space after punctuation
-        // Remove control characters
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
-        // Trim whitespace
-        .trim()
-    );
+    const normalized = text
+      .replace(/\r\n/g, "\n")
+      .replace(/\f/g, "\n")
+      .replace(/\u00A0/g, " ")
+      .replace(/[^\S\n]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/<([A-Z_]+:[^>]+)>/g, (_, inner) => `<${inner.replace(/\s+/g, "")}>`)
+      .replace(/-{5,}Page\s*\(\d+\)\s*Break-{5,}/g, "\n")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/([.!?])([A-Z])/g, "$1 $2")
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+    return this.collapseLetterSpacing(normalized).trim();
+  }
+
+  private collapseLetterSpacing(text: string): string {
+    return text.replace(/\b(?:[A-Za-z]\s){3,}[A-Za-z]\b/g, (match) => {
+      const collapsed = match.replace(/\s+/g, "");
+      return collapsed.length >= 4 ? collapsed : match;
+    });
   }
 
   /**

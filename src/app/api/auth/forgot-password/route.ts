@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { createHash, randomBytes } from "crypto";
 import { getUserByEmail } from "@/lib/auth/auth";
 import { docClient } from "@/lib/aws/dynamodb";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import PasswordResetTemplate from "@/components/email/PasswordResetTemplate";
+import { getResendClient } from "@/lib/email/resendClient";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = getResendClient();
 const RESET_TOKEN_EXPIRY = 3600000; // 1 hour in milliseconds
 
 export async function POST(request: NextRequest) {
@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
 
     // Construct reset URL
     const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${resetToken}`;
+
+    if (!resend) {
+      console.info(
+        "Skipping password reset email: RESEND_API_KEY not set (local mode)."
+      );
+      return NextResponse.json({
+        message:
+          "Password reset email skipped because email delivery is disabled in local mode.",
+      });
+    }
 
     try {
       // Send reset email using the new template

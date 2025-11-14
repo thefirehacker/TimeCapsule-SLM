@@ -5,7 +5,7 @@
  */
 
 // Core imports
-import { Orchestrator } from './core/Orchestrator';
+import { Orchestrator, AgentLLMOptions } from './core/Orchestrator';
 import { AgentRegistry } from './core/AgentRegistry';
 import { MessageBus } from './core/MessageBus';
 
@@ -71,7 +71,7 @@ export interface MultiAgentConfig {
 }
 
 export function createMultiAgentSystem(
-  llm: (prompt: string) => Promise<string>,
+  llm: (prompt: string, options?: AgentLLMOptions) => Promise<string>,
   progressCallback?: import("./interfaces/AgentProgress").AgentProgressCallback,
   vectorStore?: import("../../components/VectorStore/VectorStore").VectorStore,
   config: MultiAgentConfig = {}
@@ -79,6 +79,12 @@ export function createMultiAgentSystem(
   // Create core components
   const registry = new AgentRegistry();
   const messageBus = new MessageBus();
+
+  const bindLLM =
+    (agentName: string) =>
+    (prompt: string, options?: AgentLLMOptions): Promise<string> => {
+      return llm(prompt, { agent: agentName, ...options });
+    };
   
   // Build list of available agents based on configuration - DataAnalyzer bypassed
   const availableAgents = ['QueryPlanner', 'DataInspector', 'PatternGenerator', 'Extractor', 'SynthesisCoordinator', 'ResponseFormatter'];
@@ -91,15 +97,15 @@ export function createMultiAgentSystem(
   }
   
   // Register all agents in new intelligent architecture order
-  registry.register(new QueryPlannerAgent(llm, progressCallback));
-  registry.register(new DataInspectorAgent(llm, progressCallback)); // Magic document filtering with progress reporting
-  registry.register(new PlanningAgent(llm, availableAgents, progressCallback)); // NEW: Intelligent execution strategy with available agents and progress tracking
-  registry.register(new PatternGeneratorAgent(llm, progressCallback, vectorStore));
-  registry.register(new ExtractionAgent(llm, progressCallback));
+  registry.register(new QueryPlannerAgent(bindLLM('QueryPlanner'), progressCallback));
+  registry.register(new DataInspectorAgent(bindLLM('DataInspector'), progressCallback)); // Magic document filtering with progress reporting
+  registry.register(new PlanningAgent(bindLLM('PlanningAgent'), availableAgents, progressCallback)); // NEW: Intelligent execution strategy with available agents and progress tracking
+  registry.register(new PatternGeneratorAgent(bindLLM('PatternGenerator'), progressCallback, vectorStore));
+  registry.register(new ExtractionAgent(bindLLM('Extractor'), progressCallback));
   
   // Only register WebSearchAgent if web search is enabled
   if (config?.enableWebSearch !== false) { // Default to enabled unless explicitly disabled
-    registry.register(new WebSearchAgent(llm, vectorStore, config, progressCallback)); // Knowledge base expansion with config
+    registry.register(new WebSearchAgent(bindLLM('WebSearchAgent'), vectorStore, config, progressCallback)); // Knowledge base expansion with config
   }
   // Disable configuration logging to prevent spam
   // console.log('🌐 WebSearchAgent disabled by configuration');
@@ -107,15 +113,15 @@ export function createMultiAgentSystem(
   // Register new multi-synthesis agents - DataAnalysisAgent bypassed
   // BYPASSED: DataAnalysisAgent due to catastrophic filtering bug that removes all relevant data
   // registry.register(new DataAnalysisAgent(llm)); // Clean and categorize data
-  registry.register(new SynthesisCoordinator(llm, progressCallback)); // Coordinate synthesis pipeline (works with raw extracted data)
+  registry.register(new SynthesisCoordinator(bindLLM('SynthesisCoordinator'), progressCallback)); // Coordinate synthesis pipeline (works with raw extracted data)
   
   // Keep original SynthesisAgent as fallback for now
-  registry.register(new SynthesisAgent(llm, progressCallback));
-  registry.register(new ResponseFormatterAgent(llm, progressCallback)); // Ensure direct question answering with good formatting
+  registry.register(new SynthesisAgent(bindLLM('Synthesizer'), progressCallback));
+  registry.register(new ResponseFormatterAgent(bindLLM('ResponseFormatter'), progressCallback)); // Ensure direct question answering with good formatting
 
   if (config?.enableFlowAgents) {
-    registry.register(new FlowFramePlannerAgent(llm, progressCallback));
-    registry.register(new FlowFrameGeneratorAgent(llm, progressCallback));
+    registry.register(new FlowFramePlannerAgent(bindLLM('FlowFramePlanner'), progressCallback));
+    registry.register(new FlowFrameGeneratorAgent(bindLLM('FlowFrameGenerator'), progressCallback));
   }
   
   // Create orchestrator with progress callback, config, and vectorStore

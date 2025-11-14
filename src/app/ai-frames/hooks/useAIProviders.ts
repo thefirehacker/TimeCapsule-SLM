@@ -27,6 +27,7 @@ export interface AIProviderRequest {
   allowFallback?: boolean;
   temperature?: number;
   maxTokens?: number;
+  modelId?: string;
 }
 
 export interface AIProviderResponse {
@@ -68,6 +69,16 @@ const buildMessagesFromPrompt = (
 export function useAIProviders(): UseAIProvidersReturn {
   const openrouter = useOpenRouterConnection();
   const ollama = useOllamaConnection();
+  const {
+    connectionState: openRouterState,
+    sendChatRequest: sendOpenRouterChat,
+    resolveModelId,
+    getModelCapabilities,
+  } = openrouter;
+  const {
+    connectionState: ollamaState,
+    generateContent: generateOllamaContent,
+  } = ollama;
 
   const localBridgeAvailable = isLocalBuildEnv();
   const [activeProvider, setActiveProvider] =
@@ -77,13 +88,13 @@ export function useAIProviders(): UseAIProvidersReturn {
 
   const providerReady = useMemo(
     () => ({
-      openrouter: openrouter.connectionState.connected,
-      ollama: ollama.connectionState.connected,
+      openrouter: openRouterState.connected,
+      ollama: ollamaState.connected,
       "local-bridge": localBridgeAvailable,
     }),
     [
-      openrouter.connectionState.connected,
-      ollama.connectionState.connected,
+      openRouterState.connected,
+      ollamaState.connected,
       localBridgeAvailable,
     ]
   );
@@ -109,6 +120,7 @@ export function useAIProviders(): UseAIProvidersReturn {
         allowFallback = true,
         temperature,
         maxTokens,
+        modelId,
       } = request;
 
       const preferredProvider = preferProvider || activeProvider;
@@ -124,18 +136,31 @@ export function useAIProviders(): UseAIProvidersReturn {
           ? providerReady.openrouter
           : !providerReady[preferredProvider] && providerReady.openrouter;
 
-      if (useOpenRouter && openrouter.connectionState.connected) {
+      if (useOpenRouter && openRouterState.connected) {
+        const resolvedModelId = resolveModelId(tier, modelId);
+        const capabilities = getModelCapabilities(resolvedModelId);
+        const canEnforceJson =
+          !!responseFormat && capabilities.supportsJSON !== false;
+
         const chatRequest: OpenRouterChatRequest = {
           messages:
             messages || buildMessagesFromPrompt(prompt, systemPrompt),
           modelTier: tier,
+          modelId: resolvedModelId,
           temperature,
           maxTokens,
-          responseFormat,
           metadata,
         };
 
-        const result = await openrouter.sendChatRequest(chatRequest);
+        if (canEnforceJson) {
+          chatRequest.responseFormat = responseFormat;
+        } else if (responseFormat && capabilities.supportsJSON === false) {
+          console.warn(
+            `Structured output disabled: model ${resolvedModelId} does not support response_format JSON.`
+          );
+        }
+
+        const result = await sendOpenRouterChat(chatRequest);
 
         return {
           provider: "openrouter",
@@ -148,7 +173,7 @@ export function useAIProviders(): UseAIProvidersReturn {
 
       if (
         (preferredProvider === "ollama" || allowFallback) &&
-        ollama.connectionState.connected
+        ollamaState.connected
       ) {
         const flattenedPrompt = messages
           ? messages
@@ -173,7 +198,7 @@ export function useAIProviders(): UseAIProvidersReturn {
             ? `${systemPrompt}\n\nUser:\n${prompt}`
             : flattenedPrompt;
 
-        const content = await ollama.generateContent(finalPrompt);
+        const content = await generateOllamaContent(finalPrompt);
         return {
           provider: "ollama",
           content,
@@ -188,11 +213,15 @@ export function useAIProviders(): UseAIProvidersReturn {
     },
     [
       activeProvider,
-      openrouter,
-      ollama,
       providerReady.openrouter,
       providerReady.ollama,
       providerReady["local-bridge"],
+      openRouterState.connected,
+      ollamaState.connected,
+      sendOpenRouterChat,
+      generateOllamaContent,
+      resolveModelId,
+      getModelCapabilities,
     ]
   );
 

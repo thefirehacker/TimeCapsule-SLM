@@ -5,6 +5,11 @@
  */
 
 import { pipeline, env } from '@xenova/transformers';
+import {
+  LOCAL_EMBEDDING_MODEL_ID,
+  CLIENT_EMBEDDINGS_BASE_PATH,
+  CLIENT_ONNX_RUNTIME_PATH,
+} from "@/lib/transformers/modelConfig";
 
 export interface EmbeddingProgress {
   message: string;
@@ -21,18 +26,13 @@ class EmbeddingService {
   private initializationPromise: Promise<void> | null = null;
 
   private constructor() {
-    // Configure Xenova environment for CDN loading and caching
-    env.allowLocalModels = false; // Don't try to load from local server
-    env.allowRemoteModels = true; // Allow loading from Hugging Face CDN
-    env.useBrowserCache = true; // Use browser's built-in caching
-    
-    // Set the proper CDN base URL to ensure it doesn't try localhost
-    env.backends.onnx.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';
-    
-    // Optional: Set custom remote URL for models (defaults to HF Hub which is correct)
-    // env.remoteURL = 'https://huggingface.co/';
-    
-    console.log('🧠 Xenova environment configured for CDN loading');
+    // Configure Xenova to load models and ONNX runtime from bundled assets
+    env.allowLocalModels = true;
+    env.allowRemoteModels = false;
+    env.useBrowserCache = false;
+    env.localModelPath = CLIENT_EMBEDDINGS_BASE_PATH;
+    env.backends.onnx.wasmPaths = CLIENT_ONNX_RUNTIME_PATH;
+    console.log("🧠 Xenova environment configured for bundled embeddings");
   }
 
   static getInstance(): EmbeddingService {
@@ -80,72 +80,38 @@ class EmbeddingService {
         progress: 20
       });
 
-      // Load the embedding model with enhanced CDN loading
-      console.log('📦 Loading Xenova/bge-small-en-v1.5 model from Hugging Face CDN...');
+      console.log(`📦 Loading bundled model: ${LOCAL_EMBEDDING_MODEL_ID}`);
       
       onProgress?.({
         message: 'Loading from browser cache...',
         progress: 30
       });
 
-      let downloadDetected = false;
-      
       // Track progress efficiently with throttling
       let lastProgressReport = 0;
       let progressCounter = 0;
       
       // Use pipeline with optimized progress tracking
-      this.model = await pipeline(
-        'feature-extraction',
-        'Xenova/bge-small-en-v1.5',
-        {
-          // Remove cache_dir to let the browser handle caching naturally
-          progress_callback: (progress: any) => {
-            progressCounter++;
-            const now = Date.now();
-            
-            // Throttle progress reports to every 500ms to prevent performance issues
-            if (now - lastProgressReport < 500) {
-              return;
-            }
-            lastProgressReport = now;
-            
-            if (progress.status === 'downloading') {
-              downloadDetected = true;
-              // Fix progress calculation - progress.progress is already 0-1, don't multiply by 100
-              const normalizedProgress = Math.min(Math.max(progress.progress || 0, 0), 1); // Clamp 0-1
-              const downloadProgress = Math.round(30 + normalizedProgress * 60); // Scale to 30-90%
-              
-              onProgress?.({
-                message: `Downloading from CDN: ${progress.file} (${Math.round(normalizedProgress * 100)}%)`,
-                progress: downloadProgress
-              });
-              console.log(`📊 CDN download: ${progress.file} - ${Math.round(normalizedProgress * 100)}%`);
-            } else if (progress.status === 'ready') {
-              onProgress?.({
-                message: 'Model loaded successfully',
-                progress: 95
-              });
-              console.log('✅ Model loaded successfully');
-            } else if (progress.status === 'progress') {
-              // Fix progress calculation here too
-              const normalizedProgress = Math.min(Math.max(progress.progress || 0, 0), 1);
-              const downloadProgress = Math.round(30 + normalizedProgress * 60);
-              onProgress?.({
-                message: `Loading model: ${Math.round(normalizedProgress * 100)}%`,
-                progress: downloadProgress
-              });
-            }
+      this.model = await pipeline("feature-extraction", LOCAL_EMBEDDING_MODEL_ID, {
+        progress_callback: (progress: any) => {
+          progressCounter++;
+          const now = Date.now();
+          if (now - lastProgressReport < 500) {
+            return;
           }
-        }
-      );
+          lastProgressReport = now;
 
-      // FIXED: Detect if download actually occurred vs cache load
-      if (downloadDetected) {
-        console.log('📦 Model downloaded from CDN and cached');
-      } else {
-        console.log('✅ Model loaded from cache instantly');
-      }
+          if (progress.status === "ready") {
+            onProgress?.({
+              message: "Model loaded successfully",
+              progress: 95,
+            });
+            console.log("✅ Model loaded successfully");
+          }
+        },
+      });
+
+      console.log("✅ Model loaded from bundled assets");
 
       onProgress?.({
         message: 'Embedding model ready',

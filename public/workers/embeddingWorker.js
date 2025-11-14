@@ -134,6 +134,25 @@ async function processDocument(documentData) {
   };
 }
 
+function collapseSpacedLetters(text) {
+  return text.replace(/\b(?:[A-Za-z]\s){3,}[A-Za-z]\b/g, (match) => {
+    const collapsed = match.replace(/\s+/g, '');
+    return collapsed.length >= 4 ? collapsed : match;
+  });
+}
+
+function sanitizeChunkContent(text) {
+  if (!text) return '';
+  let cleaned = text
+    .replace(/-{5,}Page\s*\(\d+\)\s*Break-{5,}/gi, '')
+    .replace(/\s{3,}/g, '  ')
+    .replace(/\b(here\s+){3,}here\b/gi, 'here')
+    .replace(/<([A-Z_]+:[^>]+)>/g, (_, inner) => `<${inner.replace(/\s+/g, '')}>`)
+    .trim();
+  cleaned = collapseSpacedLetters(cleaned);
+  return cleaned;
+}
+
 // Chunk text into smaller pieces - Table-aware chunking with word overlap and memory safety
 async function chunkText(text, options = {}) {
   const wordsPerChunk = options.wordsPerChunk || 250;
@@ -178,16 +197,24 @@ async function chunkText(text, options = {}) {
           while (currentPosition < words.length && chunkIndex < maxChunks) {
             const endPosition = Math.min(currentPosition + wordsPerChunk, words.length);
             const chunkWords = words.slice(currentPosition, endPosition);
-            const chunkContent = chunkWords.join(' ');
+            let chunkContent = chunkWords.join(' ');
+            chunkContent = sanitizeChunkContent(chunkContent);
+            if (!chunkContent) {
+              currentPosition += stepSize;
+              continue;
+            }
             
             chunks.push({
               index: chunkIndex,
-              content: chunkContent.trim(),
+              content: chunkContent,
               startIndex: totalCharPosition,
               endIndex: totalCharPosition + chunkContent.length,
               wordCount: chunkWords.length,
               hasOverlap: chunkIndex > 0 && overlapWords > 0,
-              isTableRow: false // Treat oversized table rows as text
+              isTableRow: false,
+              pageNumber: segment.pageNumber || null,
+              sectionTitle: segment.sectionTitle || null,
+              markers: segment.markers || []
             });
             
             chunkIndex++;
@@ -198,15 +225,21 @@ async function chunkText(text, options = {}) {
           }
         } else {
           // Normal-sized table row
-          chunks.push({
-            index: chunkIndex,
-            content: trimmedLine,
-            startIndex: totalCharPosition,
-            endIndex: totalCharPosition + trimmedLine.length,
-            wordCount: wordCount,
-            hasOverlap: false,
-            isTableRow: true
-          });
+          const sanitizedLine = sanitizeChunkContent(trimmedLine);
+          if (sanitizedLine.length > 0) {
+            chunks.push({
+              index: chunkIndex,
+              content: sanitizedLine,
+              startIndex: totalCharPosition,
+              endIndex: totalCharPosition + sanitizedLine.length,
+              wordCount: sanitizedLine.split(/\s+/).length,
+              hasOverlap: false,
+              isTableRow: true,
+              pageNumber: segment.pageNumber || null,
+              sectionTitle: segment.sectionTitle || null,
+              markers: segment.markers || []
+            });
+          }
           
           chunkIndex++;
           totalCharPosition += trimmedLine.length + 1; // +1 for newline
@@ -232,16 +265,24 @@ async function chunkText(text, options = {}) {
       while (currentPosition < words.length && chunkIndex < maxChunks) {
         const endPosition = Math.min(currentPosition + wordsPerChunk, words.length);
         const chunkWords = words.slice(currentPosition, endPosition);
-        const chunkContent = chunkWords.join(' ');
+        let chunkContent = chunkWords.join(' ');
+        chunkContent = sanitizeChunkContent(chunkContent);
+        if (!chunkContent) {
+          currentPosition += stepSize;
+          continue;
+        }
         
         chunks.push({
           index: chunkIndex,
-          content: chunkContent.trim(),
+          content: chunkContent,
           startIndex: totalCharPosition,
           endIndex: totalCharPosition + chunkContent.length,
           wordCount: chunkWords.length,
           hasOverlap: chunkIndex > 0 && overlapWords > 0,
-          isTableRow: false
+          isTableRow: false,
+          pageNumber: segment.pageNumber || null,
+          sectionTitle: segment.sectionTitle || null,
+          markers: segment.markers || []
         });
         
         chunkIndex++;
@@ -296,53 +337,70 @@ async function chunkText(text, options = {}) {
 function detectTableSegments(text) {
   const lines = text.split('\n');
   const segments = [];
-  let currentSegment = {
-    type: 'text',
+  const MIN_TABLE_ROWS = 3;
+  const MAX_SINGLE_CHUNK_SIZE = 2000;
+  const pageBreakRegex = /^-+Page \((\d+)\) Break-+$/i;
+
+  let consecutiveTableRows = 0;
+  let inStructuralTable = false;
+  let currentSection = null;
+  let currentPage = 1;
+
+  const createSegment = (type = 'text') => ({
+    type,
     content: '',
     lines: [],
-    markers: []
+    markers: [],
+    pageNumber: currentPage,
+    sectionTitle: currentSection
+  });
+
+  let currentSegment = createSegment('text');
+
+  const pushSegment = () => {
+    if (currentSegment.content.trim().length === 0) return;
+    if (currentSegment.type === 'text' && currentSegment.content.length > MAX_SINGLE_CHUNK_SIZE) {
+      const words = currentSegment.content.split(/\s+/);
+      const midPoint = Math.floor(words.length / 2);
+      const firstHalf = words.slice(0, midPoint).join(' ');
+      const secondHalf = words.slice(midPoint).join(' ');
+      segments.push({ ...currentSegment, content: firstHalf });
+      segments.push({ ...currentSegment, content: secondHalf });
+    } else {
+      segments.push({ ...currentSegment });
+    }
   };
-  
-  // Track consecutive table rows to identify actual tables
-  let consecutiveTableRows = 0;
-  const MIN_TABLE_ROWS = 3; // Need at least 3 rows to consider it a table
-  const MAX_SINGLE_CHUNK_SIZE = 2000; // Character limit for single chunks
-  
-  // Track structural markers
-  let inStructuralTable = false;
-  let inStructuralSection = false;
-  let currentSection = null;
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+
+    if (pageBreakRegex.test(line)) {
+      const match = line.match(pageBreakRegex);
+      if (match) {
+        pushSegment();
+        currentPage = Number(match[1]) + 1;
+        currentSegment = createSegment('text');
+        continue;
+      }
+    }
     
-    // Check for structural markers first
     if (line.startsWith('<START_TABLE>')) {
       inStructuralTable = true;
-      // Finish current segment if it has content
-      if (currentSegment.content.trim().length > 0) {
-        segments.push({...currentSegment});
-        currentSegment = { type: 'table', content: '', lines: [], markers: ['START_TABLE'] };
-      } else {
-        currentSegment.type = 'table';
-        currentSegment.markers.push('START_TABLE');
-      }
+      pushSegment();
+      currentSegment = createSegment('table');
+      currentSegment.markers.push('START_TABLE');
       continue;
     }
     
     if (line.startsWith('<END_TABLE>')) {
       inStructuralTable = false;
-      // Add table segment
-      if (currentSegment.content.trim().length > 0) {
-        currentSegment.markers.push('END_TABLE');
-        segments.push({...currentSegment});
-        currentSegment = { type: 'text', content: '', lines: [], markers: [] };
-      }
+      currentSegment.markers.push('END_TABLE');
+      pushSegment();
+      currentSegment = createSegment('text');
       continue;
     }
     
     if (line.startsWith('<TABLE_ROW>') || line.startsWith('<TABLE_HEADER>')) {
-      // This is a marked table row
       currentSegment.lines.push(line);
       currentSegment.content += (currentSegment.content ? '\n' : '') + line;
       currentSegment.markers.push(line.startsWith('<TABLE_ROW>') ? 'TABLE_ROW' : 'TABLE_HEADER');
@@ -353,8 +411,10 @@ function detectTableSegments(text) {
       const sectionMatch = line.match(/<START_SECTION:([^>]+)>/);
       if (sectionMatch) {
         currentSection = sectionMatch[1];
-        currentSegment.markers.push('START_SECTION');
       }
+      pushSegment();
+      currentSegment = createSegment('text');
+      currentSegment.markers.push('START_SECTION');
       currentSegment.content += (currentSegment.content ? '\n' : '') + line;
       currentSegment.lines.push(line);
       continue;
@@ -372,106 +432,65 @@ function detectTableSegments(text) {
         line.startsWith('<START_MEASUREMENT_DATA>') || line.startsWith('<END_MEASUREMENT_DATA>') ||
         line.startsWith('<START_LIST>') || line.startsWith('<END_LIST>') || 
         line.startsWith('<LIST_ITEM>')) {
-      // Preserve other structural markers
       currentSegment.content += (currentSegment.content ? '\n' : '') + line;
       currentSegment.lines.push(line);
-      currentSegment.markers.push(line.match(/<([^>]+)>/)[1]);
-      continue;
-    }
-    
-    // Skip empty lines
-    if (line.length === 0) {
-      consecutiveTableRows = 0;
-      if (currentSegment.content.trim().length > 0) {
-        currentSegment.content += '\n';
+      const markerName = line.match(/<([^>]+)>/);
+      if (markerName) {
+        currentSegment.markers.push(markerName[1]);
       }
       continue;
     }
     
-    // If we're inside a structural table, treat all content as table
+    if (line.length === 0) {
+      consecutiveTableRows = 0;
+      continue;
+    }
+    
     if (inStructuralTable) {
       currentSegment.content += (currentSegment.content ? '\n' : '') + line;
       currentSegment.lines.push(line);
       continue;
     }
     
-    // More selective table row detection - must have clean pipe separators and multiple columns
     const pipeCount = (line.match(/\s\|\s/g) || []).length;
-    const hasTableStructure = pipeCount >= 2 && line.length < 200; // Reasonable row length
-    const isTableRow = hasTableStructure && !line.includes('here here here'); // Exclude garbage repetition
+    const isTableRow = pipeCount >= 2 && line.length < 200 && !line.includes('here here here');
     
     if (isTableRow) {
       consecutiveTableRows++;
-      
-      // Only treat as table if we have enough consecutive rows
       if (consecutiveTableRows >= MIN_TABLE_ROWS) {
-        // If we were building a text segment, finish it
-        if (currentSegment.type === 'text' && currentSegment.content.trim().length > 0) {
-          // Split large text segments to prevent massive chunks
-          if (currentSegment.content.length > MAX_SINGLE_CHUNK_SIZE) {
-            const words = currentSegment.content.split(/\s+/);
-            const midPoint = Math.floor(words.length / 2);
-            const firstHalf = words.slice(0, midPoint).join(' ');
-            const secondHalf = words.slice(midPoint).join(' ');
-            
-            segments.push({ type: 'text', content: firstHalf, lines: firstHalf.split('\n') });
-            segments.push({ type: 'text', content: secondHalf, lines: secondHalf.split('\n') });
-          } else {
-            segments.push({...currentSegment});
-          }
-          currentSegment = { type: 'table', content: '', lines: [] };
+        if (currentSegment.type === 'text') {
+          pushSegment();
+          currentSegment = createSegment('table');
         } else if (currentSegment.type !== 'table') {
-          currentSegment = { type: 'table', content: '', lines: [] };
+          currentSegment = createSegment('table');
         }
-        
-        // Add table row
         currentSegment.content += (currentSegment.content ? '\n' : '') + line;
         currentSegment.lines.push(line);
       } else {
-        // Not enough consecutive rows yet, treat as text
         currentSegment.content += (currentSegment.content ? '\n' : '') + line;
         currentSegment.lines.push(line);
       }
     } else {
-      // Regular text line - reset table counter
       consecutiveTableRows = 0;
-      
-      if (currentSegment.type === 'table' && currentSegment.content.trim().length > 0) {
-        segments.push({...currentSegment});
-        currentSegment = { type: 'text', content: '', lines: [] };
+      if (currentSegment.type === 'table') {
+        pushSegment();
+        currentSegment = createSegment('text');
       } else if (currentSegment.type !== 'text') {
-        currentSegment = { type: 'text', content: '', lines: [] };
+        currentSegment = createSegment('text');
       }
-      
-      // Add text line
       currentSegment.content += (currentSegment.content ? '\n' : '') + line;
       currentSegment.lines.push(line);
     }
   }
   
-  // Add the last segment, but split if too large
-  if (currentSegment.content.trim().length > 0) {
-    if (currentSegment.type === 'text' && currentSegment.content.length > MAX_SINGLE_CHUNK_SIZE) {
-      const words = currentSegment.content.split(/\s+/);
-      const midPoint = Math.floor(words.length / 2);
-      const firstHalf = words.slice(0, midPoint).join(' ');
-      const secondHalf = words.slice(midPoint).join(' ');
-      
-      segments.push({ type: 'text', content: firstHalf, lines: firstHalf.split('\n') });
-      segments.push({ type: 'text', content: secondHalf, lines: secondHalf.split('\n') });
-    } else {
-      segments.push(currentSegment);
-    }
-  }
+  pushSegment();
   
-  // Fallback: If we have too few segments for the content size, force text segmentation
   if (segments.length <= 2 && text.length > MAX_SINGLE_CHUNK_SIZE * 2) {
     console.warn('⚠️ Fallback: Splitting large content into text segments');
-    return [{ type: 'text', content: text, lines: text.split('\n') }];
+    return [{ type: 'text', content: text, lines: text.split('\n'), pageNumber: 1, markers: [], sectionTitle: null }];
   }
   
   console.log(`📊 Text segmentation: ${segments.filter(s => s.type === 'text').length} text segments, ${segments.filter(s => s.type === 'table').length} table segments`);
-  
   return segments;
 }
 

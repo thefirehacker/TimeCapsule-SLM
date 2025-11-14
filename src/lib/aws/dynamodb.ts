@@ -1,5 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { isLocalServerEnv } from "@/lib/env";
 
 // Global DynamoDB client cache for performance
 declare global {
@@ -28,16 +29,28 @@ const initializeDynamoDBClients = () => {
       const region = process.env.AWS_REGION || process.env.REGION_AWS || "ap-south-1";
 
       if (!accessKeyId || !secretAccessKey) {
-        throw new Error(`Missing AWS credentials for DynamoDB`);
+        if (isLocalServerEnv()) {
+          console.warn(
+            "AWS credentials not found. Falling back to local-only DynamoDB client."
+          );
+        } else {
+          throw new Error(`Missing AWS credentials for DynamoDB`);
+        }
       }
 
       // Initialize the DynamoDB client
       const dynamoClient = new DynamoDBClient({
         region: region,
-        credentials: {
-          accessKeyId: accessKeyId,
-          secretAccessKey: secretAccessKey,
-        },
+        credentials:
+          accessKeyId && secretAccessKey
+            ? {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+              }
+            : {
+                accessKeyId: "LOCAL_DEV_KEY",
+                secretAccessKey: "LOCAL_DEV_SECRET",
+              },
       });
 
       // Create a document client for easier data handling
@@ -57,7 +70,13 @@ const initializeDynamoDBClients = () => {
 
       // Fallback initialization
       console.warn("Using fallback DynamoDB client - authentication may fail");
-      const fallbackClient = new DynamoDBClient({ region: "us-east-1" });
+      const fallbackClient = new DynamoDBClient({
+        region: "us-east-1",
+        credentials: {
+          accessKeyId: "LOCAL_DEV_KEY",
+          secretAccessKey: "LOCAL_DEV_SECRET",
+        },
+      });
       const fallbackDocClient = DynamoDBDocumentClient.from(fallbackClient, {
         marshallOptions: { removeUndefinedValues: true },
       });

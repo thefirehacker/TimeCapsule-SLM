@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import ContactConfirmationEmail from "@/components/email/ContactConfirmationEmail";
 import ContactAdminNotificationEmail from "@/components/email/ContactAdminNotificationEmail";
 import { saveContactToDynamoDB, ContactFormData } from "@/lib/contact/contact";
+import { getResendClient } from "@/lib/email/resendClient";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = getResendClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,6 +42,18 @@ export async function POST(request: NextRequest) {
         { error: "Failed to save contact information" },
         { status: 500 }
       );
+    }
+
+    if (!resend) {
+      console.info(
+        "Skipping contact emails: RESEND_API_KEY not set (local mode)."
+      );
+      return NextResponse.json({
+        success: true,
+        message:
+          "Contact saved locally. Email notifications are disabled in local mode.",
+        contactId: contactRecord.contactUserId,
+      });
     }
 
     // Send confirmation email to user
