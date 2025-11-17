@@ -83,6 +83,13 @@ frontend:
         - echo "✅ === Diagnostics complete, starting build ==="
         - echo "🏗️ Starting Next.js build..."
         - npm run build
+        - echo "🧹 Cleaning up large files to reduce build output size..."
+        - rm -rf public/embeddings/onnx/*.onnx
+        - rm -rf public/onnxruntime-web/*.wasm
+        - rm -f node_modules/@swc/core-linux-x64-gnu/swc.linux-x64-gnu.node || true
+        - rm -f node_modules/@swc/core-linux-x64-musl/swc.linux-x64-musl.node || true
+        - echo "📊 Build output size after cleanup:"
+        - du -sh .next
         - echo "✅ Build completed successfully!"
     postBuild:
       commands:
