@@ -93,6 +93,7 @@ class EmbeddingService {
       
       // Use pipeline with optimized progress tracking
       this.model = await pipeline("feature-extraction", LOCAL_EMBEDDING_MODEL_ID, {
+        quantized: false,
         progress_callback: (progress: any) => {
           progressCounter++;
           const now = Date.now();

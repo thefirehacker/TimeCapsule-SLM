@@ -86,9 +86,7 @@ frontend:
         - echo "🧹 Cleaning up large files to reduce build output size..."
         - echo "🗑️ Removing .next/cache (build cache - not needed for deployment)..."
         - rm -rf .next/cache
-        - echo "🗑️ Removing unused model variants (keeping only root model.onnx)..."
-        - rm -rf public/embeddings/bge-small-en-v1.5/onnx/
-        - echo "✅ Kept bge-small-en-v1.5/model.onnx, removed 438MB of unused model variants"
+        - echo "ℹ️ Model cleanup done in repo (only onnx/model.onnx kept, 64MB FP16)"
         - echo "🗑️ Removing public WASM files (already bundled in .next)..."
         - rm -rf public/onnxruntime-web/*.wasm
         - echo "🗑️ Removing unnecessary SWC binaries..."

@@ -35,7 +35,7 @@ class EmbeddingWorker {
       
       // Initialize the embedding pipeline in the worker
       this.pipeline = await pipeline('feature-extraction', LOCAL_EMBEDDING_MODEL_ID, {
-        quantized: true,
+        quantized: false,
         progress_callback: (progress: any) => {
           self.postMessage({
             type: 'progress',
