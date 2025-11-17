@@ -83,7 +83,10 @@ export async function generateServerEmbeddings(
   if (!embeddingPipeline) {
     embeddingPipeline = await pipeline(
       "feature-extraction",
-      LOCAL_EMBEDDING_MODEL_ID
+      LOCAL_EMBEDDING_MODEL_ID,
+      {
+        quantized: false,
+      }
     );
   }
   const activePipeline = embeddingPipeline;
