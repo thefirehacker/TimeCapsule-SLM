@@ -1,5 +1,6 @@
 "use server";
 
+import fs from "fs";
 import path from "path";
 import type { FeatureExtractionPipeline } from "@xenova/transformers";
 import { LOCAL_EMBEDDING_MODEL_ID } from "@/lib/transformers/modelConfig";
@@ -29,11 +30,7 @@ async function loadTransformers() {
         "public/embeddings"
       );
 
-      const wasmDir = path.join(
-        process.cwd(),
-        "public",
-        "onnxruntime-web"
-      ) + path.sep;
+      const wasmDir = resolveWasmDirectory();
       module.env.backends.onnx.wasm.wasmPaths = wasmDir;
       module.env.backends.onnx.wasm.numThreads = 1;
       module.env.backends.onnx.wasm.proxy = false;
@@ -42,6 +39,26 @@ async function loadTransformers() {
     });
   }
   return transformersModulePromise;
+}
+
+function resolveWasmDirectory(): string {
+  const ensureTrailingSlash = (dir: string) =>
+    dir.endsWith(path.sep) ? dir : dir + path.sep;
+
+  const candidates = [
+    path.join(process.cwd(), "public", "onnxruntime-web"),
+    path.join(process.cwd(), "node_modules", "onnxruntime-web", "dist"),
+  ];
+
+  for (const dir of candidates) {
+    const wasmPath = path.join(dir, "ort-wasm-simd.wasm");
+    if (fs.existsSync(wasmPath)) {
+      return ensureTrailingSlash(dir);
+    }
+  }
+
+  // Fall back to public path even if missing; ONNX runtime will throw a clearer error.
+  return ensureTrailingSlash(candidates[0]);
 }
 
 export async function generateServerEmbeddings(
