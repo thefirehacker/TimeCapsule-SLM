@@ -2,7 +2,6 @@
 
 ## Blocking Fixes
 - [ ] Investigate and resolve the “Maximum update depth exceeded” loop triggered by the Frame Generation dialog (runs immediately after synthesis). Ensure the dialog only sets state once per orchestration run.
-- [ ] Expose Knowledge Base tools to the SWE bridge so Cursor can pull RAG and pattern-search snippets before POSTing updated `/api/local/aiframes/state`. Build two local-only endpoints (`/api/local/aiframes/kb/rag`, `/api/local/aiframes/kb/pattern`) and update the prompt contract to tell SWE to use them.
 - [ ] Add a deterministic state machine for the AI Build orchestrator. Lock the agent order (Discover/DataInspector → PatternGenerator → Extraction → Synthesis → Response) and validate each stage before the next tool can run. If a stage fails validation, surface a recovery prompt instead of letting the pipeline continue.
 - [ ] Give DataInspector budget-aware chunking and a strict JSON schema so it reliably produces the seed snippets for PatternGenerator (short windows, timeouts, retries, cached classifications).
 

@@ -28,6 +28,18 @@ async function loadTransformers() {
         process.cwd(),
         "public/embeddings"
       );
+
+      const wasmDir = path.join(process.cwd(), "public/onnxruntime-web");
+      module.env.backends.onnx.wasm.wasmPaths = {
+        "ort-wasm-simd": path.join(wasmDir, "ort-wasm-simd.wasm"),
+        "ort-wasm-simd-threaded": path.join(
+          wasmDir,
+          "ort-wasm-simd-threaded.wasm"
+        ),
+        "ort-wasm-threaded": path.join(wasmDir, "ort-wasm-threaded.wasm"),
+        "ort-wasm": path.join(wasmDir, "ort-wasm.wasm"),
+      };
+
       return module;
     });
   }

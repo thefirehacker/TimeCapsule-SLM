@@ -39,6 +39,7 @@ import {
 import type {
   FlowPlannerPlan,
   FlowGeneratedFrame,
+  FlowPlannedFrame,
   ChunkData,
   ResearchContext,
 } from "@/lib/multi-agent/interfaces/Context";
@@ -456,20 +457,69 @@ const normalizeCitations = (
 };
 
 const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
-  const chapterId = "flow_chapter";
-  return {
-    id: `flow_${Date.now()}`,
-    summary: plan.summary,
-    learningMode: plan.learningMode,
-    chapters: [
-      {
+  const phaseMeta: Record<
+    FlowPlannedFrame["phase"],
+    { title: string; color: string; description: string; order: number }
+  > = {
+    overview: {
+      title: "Orientation",
+      color: "#0EA5E9",
+      description: "Set context and highlight the learner journey.",
+      order: 0,
+    },
+    fundamentals: {
+      title: "Build the Experience",
+      color: "#A855F7",
+      description: "Cover the foundational steps and workflows.",
+      order: 1,
+    },
+    "deep-dive": {
+      title: "Launch + Iterate",
+      color: "#F97316",
+      description: "Advanced mastery and iteration tactics.",
+      order: 2,
+    },
+    remediation: {
+      title: "Remediation",
+      color: "#EF4444",
+      description: "Address common failure points and recovery patterns.",
+      order: 3,
+    },
+  };
+
+  const phaseOrder: FlowPlannedFrame["phase"][] = [
+    "overview",
+    "fundamentals",
+    "deep-dive",
+    "remediation",
+  ];
+
+  const framesByPhase = new Map<
+    FlowPlannedFrame["phase"],
+    FlowPlannedFrame[]
+  >();
+  plan.frames.forEach((frame, index) => {
+    const phase = frame.phase || "overview";
+    if (!framesByPhase.has(phase)) {
+      framesByPhase.set(phase, []);
+    }
+    framesByPhase.get(phase)!.push({ ...frame, id: frame.id || `flow_frame_${index}` });
+  });
+
+  const chapters = phaseOrder
+    .filter((phase) => framesByPhase.has(phase))
+    .map((phase) => {
+      const meta = phaseMeta[phase];
+      const frames = framesByPhase.get(phase)!;
+      const chapterId = `flow_${phase}`;
+      return {
         id: chapterId,
-        title: "AI Flow",
-        goal: plan.summary || "",
-        order: 0,
-        color: "#0284C7",
+        title: meta.title,
+        goal: meta.description,
+        order: meta.order,
+        color: meta.color,
         citations: [],
-        frames: plan.frames.map((frame, index) => ({
+        frames: frames.map((frame, index) => ({
           id: frame.id || `flow_frame_${index}`,
           title: frame.title,
           goal: frame.goal,
@@ -481,8 +531,38 @@ const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
           learningPhase: frame.phase,
           requiresVision: frame.requiresVision,
         })),
-      },
-    ],
+      };
+    });
+
+  // Fallback: ensure at least one chapter
+  if (chapters.length === 0) {
+    chapters.push({
+      id: "flow_overview",
+      title: "AI Flow",
+      goal: plan.summary || "",
+      order: 0,
+      color: "#0284C7",
+      citations: [],
+      frames: plan.frames.map((frame, index) => ({
+        id: frame.id || `flow_frame_${index}`,
+        title: frame.title,
+        goal: frame.goal,
+        chapterId: "flow_overview",
+        order: index,
+        aiConcepts: frame.aiConcepts || [],
+        citations: [],
+        attachmentSuggestions: [],
+        learningPhase: frame.phase,
+        requiresVision: frame.requiresVision,
+      })),
+    });
+  }
+
+  return {
+    id: `flow_${Date.now()}`,
+    summary: plan.summary,
+    learningMode: plan.learningMode,
+    chapters,
     sources: [],
     createdAt: new Date().toISOString(),
     model: "FlowFramePlanner",
@@ -1372,8 +1452,20 @@ export function useAIFlowBuilder({
       }
 
       const legacyPlan = convertFlowPlanToLegacyPlan(flowPlan);
+      const chapterLookup = new Map<string, string>();
+      legacyPlan.chapters.forEach((chapter) => {
+        chapter.frames.forEach((frame) => {
+          chapterLookup.set(frame.id, chapter.id);
+        });
+      });
+      const fallbackChapterId =
+        legacyPlan.chapters[0]?.id || "flow_overview";
       const drafts = flowFrames.map((frame, index) =>
-        convertFlowFrameToDraft(frame, index, legacyPlan.chapters[0].id)
+        convertFlowFrameToDraft(
+          frame,
+          index,
+          chapterLookup.get(frame.id) || fallbackChapterId
+        )
       );
 
       draftsOrderRef.current = drafts.map((draft) => draft.tempId);
