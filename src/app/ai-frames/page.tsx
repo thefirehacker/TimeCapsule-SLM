@@ -147,7 +147,10 @@ const EXPORT_BRAND_URL = "https://timecapsule.bubblspace.com";
 type PrintableFrameSummary = {
   title: string;
   goal?: string;
+  context?: string;
+  takeaways?: string;
   notes?: string;
+  concepts?: string[];
 };
 
 type PrintableChapterSummary = {
@@ -187,16 +190,69 @@ const truncateText = (value: string, limit = 420): string => {
   return `${value.slice(0, limit).trim()}…`;
 };
 
-const renderFrameBadge = (frame: PrintableFrameSummary, index: number) => {
-  const goal = frame.goal ? `<p class="frame-goal">${escapeHtml(truncateText(frame.goal, 260))}</p>` : "";
-  const notes = frame.notes ? `<p class="frame-notes">${escapeHtml(truncateText(frame.notes, 200))}</p>` : "";
+const renderFrameSection = (
+  label: string,
+  content?: string,
+  placeholder = "Not provided yet."
+) => {
+  if (!content) {
+    return `
+      <div class="frame-section muted">
+        <p class="frame-section-label">${escapeHtml(label)}</p>
+        <p class="frame-section-placeholder">${escapeHtml(placeholder)}</p>
+      </div>
+    `;
+  }
+
   return `
-    <div class="frame-card">
-      <p class="frame-index">Frame ${index + 1}</p>
-      <h4>${escapeHtml(frame.title || `Frame ${index + 1}`)}</h4>
-      ${goal}
-      ${notes}
+    <div class="frame-section">
+      <p class="frame-section-label">${escapeHtml(label)}</p>
+      <p class="frame-section-text">${escapeHtml(truncateText(content, 800))}</p>
     </div>
+  `;
+};
+
+const renderFrameContentBlock = (frame: PrintableFrameSummary, index: number) => {
+  const conceptsMarkup =
+    frame.concepts && frame.concepts.length
+      ? `<div class="frame-concepts">
+          ${frame.concepts
+            .map(
+              (concept) =>
+                `<span class="frame-concept-pill">${escapeHtml(
+                  truncateText(concept, 80)
+                )}</span>`
+            )
+            .join("")}
+        </div>`
+      : "";
+
+  const notesSection = frame.notes
+    ? `
+      <div class="frame-section">
+        <p class="frame-section-label">Notes & References</p>
+        <p class="frame-section-text">${escapeHtml(truncateText(frame.notes, 600))}</p>
+      </div>
+    `
+    : "";
+
+  return `
+    <article class="frame-block">
+      <header class="frame-block-header">
+        <div>
+          <p class="frame-index">Frame ${index + 1}</p>
+          <h3>${escapeHtml(frame.title || `Frame ${index + 1}`)}</h3>
+        </div>
+      </header>
+      <div class="frame-block-body">
+        ${renderFrameSection("Learning Goal", frame.goal)}
+        ${renderFrameSection("Context & Background", frame.context)}
+        ${renderFrameSection("Key Takeaways", frame.takeaways)}
+        ${notesSection}
+        ${conceptsMarkup}
+      </div>
+      <footer class="frame-block-footer">${EXPORT_BRAND_URL}</footer>
+    </article>
   `;
 };
 
@@ -235,7 +291,9 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
             const framesMarkup =
               chapter.frames.length > 0
                 ? chapter.frames
-                    .map((frame, frameIndex) => renderFrameBadge(frame, frameIndex))
+                    .map((frame, frameIndex) =>
+                      renderFrameContentBlock(frame, frameIndex)
+                    )
                     .join("")
                 : `<p class="chapter-empty">No frames assigned to this chapter yet.</p>`;
             return `
@@ -250,9 +308,7 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
                   </div>
                   <span class="chapter-count">${chapter.frames.length} frame${chapter.frames.length === 1 ? "" : "s"}</span>
                 </header>
-                <div class="chapter-frames">
-                  ${framesMarkup}
-                </div>
+                ${framesMarkup}
                 <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
               </section>
             `;
@@ -268,9 +324,9 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
           <p class="standalone-subtitle">
             Frames that have not yet been assigned to a chapter.
           </p>
-          <div class="chapter-frames">
-            ${payload.standaloneFrames.map((frame, index) => renderFrameBadge(frame, index)).join("")}
-          </div>
+          ${payload.standaloneFrames
+          .map((frame, index) => renderFrameContentBlock(frame, index))
+            .join("")}
           <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
         </section>
       `;
@@ -434,19 +490,21 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
             font-weight: 600;
             color: #0f172a;
           }
-          .chapter-frames {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
-          }
-          .frame-card {
+          .frame-block + .frame-block { margin-top: 1.25rem; }
+          .frame-block {
             border: 1px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 1rem;
-            background: #f9fafb;
+            border-radius: 1.3rem;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, #f9fafb, #ffffff);
             display: flex;
             flex-direction: column;
-            gap: 0.45rem;
+            gap: 0.8rem;
+          }
+          .frame-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
           }
           .frame-index {
             font-size: 0.75rem;
@@ -454,17 +512,68 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
             letter-spacing: 0.3em;
             color: #94a3b8;
           }
-          .frame-goal {
-            font-size: 0.9rem;
+          .frame-block-header h3 {
+            font-size: 1.4rem;
             color: #0f172a;
+            margin-top: 0.2rem;
           }
-          .frame-notes {
-            font-size: 0.85rem;
-            color: #64748b;
-          }
-          .chapter-empty {
-            font-size: 0.95rem;
+          .frame-focus-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
             color: #94a3b8;
+          }
+          .frame-block-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+          .frame-section {
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.9rem;
+            background: #fff;
+          }
+          .frame-section.muted {
+            background: #fafafa;
+            border-style: dashed;
+            color: #94a3b8;
+          }
+          .frame-section-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+          }
+          .frame-section-text {
+            font-size: 0.95rem;
+            color: #0f172a;
+            line-height: 1.4;
+          }
+          .frame-section-placeholder {
+            font-size: 0.9rem;
+            font-style: italic;
+            color: #9ca3af;
+          }
+          .frame-concepts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.4rem;
+          }
+          .frame-concept-pill {
+            padding: 0.2rem 0.6rem;
+            font-size: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
+          }
+          .frame-block-footer {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-align: right;
           }
           .graph-page h2 {
             font-size: 2rem;
@@ -494,6 +603,15 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
           }
           .graph-arrow {
             color: #94a3b8;
+          }
+          @media print {
+            body {
+              background: #ffffff !important;
+              color: #0f172a;
+            }
+            .page {
+              box-shadow: none;
+            }
           }
         </style>
       </head>
@@ -536,21 +654,64 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
 };
 
 const openPrintPreview = (html: string) => {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined" || typeof document === "undefined") {
     return;
   }
-  const printWindow = window.open("", "_blank", "popup=yes");
-  if (!printWindow) {
-    console.error("Unable to open print preview window");
+
+  const blob = new Blob([html], { type: "text/html" });
+  const popupUrl = URL.createObjectURL(blob);
+  const popupWindow = window.open(popupUrl, "_blank", "noopener,noreferrer");
+
+  if (popupWindow) {
+    const handlePopupLoad = () => {
+      try {
+        popupWindow.focus();
+        popupWindow.print();
+      } finally {
+        popupWindow.removeEventListener("load", handlePopupLoad);
+        URL.revokeObjectURL(popupUrl);
+      }
+    };
+    popupWindow.addEventListener("load", handlePopupLoad, { once: true });
     return;
   }
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-  }, 500);
+
+  URL.revokeObjectURL(popupUrl);
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    iframe.removeEventListener("load", handleLoad);
+    if (iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe);
+    }
+  };
+
+  const handleLoad = () => {
+    try {
+      const contentWindow = iframe.contentWindow;
+      if (contentWindow) {
+        contentWindow.focus();
+        contentWindow.print();
+      } else {
+        console.error("Printable iframe window unavailable");
+      }
+    } finally {
+      cleanup();
+    }
+  };
+
+  iframe.addEventListener("load", handleLoad, { once: true });
+  iframe.srcdoc = html;
 };
 
 // Main component with dramatically reduced size
@@ -635,13 +796,21 @@ export default function AIFramesPage() {
   const framesByChapter = useMemo(() => {
     const map = new Map<string, UnifiedAIFrame[]>();
     unifiedStorage.frames.forEach((frame) => {
-      const key = frame.chapterId || "__standalone__";
+      const key = frame.chapterId || frame.parentFrameId || "__standalone__";
       if (!map.has(key)) {
         map.set(key, []);
       }
       map.get(key)!.push(frame);
     });
     return map;
+  }, [unifiedStorage.frames]);
+
+  const frameLookup = useMemo(() => {
+    const lookup = new Map<string, UnifiedAIFrame>();
+    unifiedStorage.frames.forEach((frame) => {
+      lookup.set(frame.id, frame);
+    });
+    return lookup;
   }, [unifiedStorage.frames]);
 
   const standaloneFrames = useMemo(() => {
@@ -1786,20 +1955,41 @@ export default function AIFramesPage() {
     );
     const printableChapters: PrintableChapterSummary[] = orderedChapters.map(
       (chapter, index) => {
-        const framesForChapter = [
-          ...(framesByChapter.get(chapter.id) || []),
-        ].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const mergedFramesMap = new Map<string, UnifiedAIFrame>();
+        unifiedStorage.frames.forEach((frame) => {
+          const belongsToChapter =
+            frame.chapterId === chapter.id ||
+            frame.parentFrameId === chapter.id ||
+            (chapter.frameIds?.includes(frame.id) ?? false);
+          if (belongsToChapter) {
+            mergedFramesMap.set(frame.id, frame);
+          }
+        });
+        const mergedFrames = Array.from(mergedFramesMap.values()).sort(
+          (a, b) => {
+            const posA = chapter.frameIds?.indexOf(a.id) ?? -1;
+            const posB = chapter.frameIds?.indexOf(b.id) ?? -1;
+            const orderA = a.order ?? (posA >= 0 ? posA : Number.MAX_SAFE_INTEGER);
+            const orderB = b.order ?? (posB >= 0 ? posB : Number.MAX_SAFE_INTEGER);
+            return orderA - orderB;
+          }
+        );
         return {
           title: chapter.title || `Chapter ${index + 1}`,
           description: chapter.description,
-          frames: framesForChapter.map((frame) => ({
+          frames: mergedFrames.map((frame) => ({
             title: frame.title || "Untitled frame",
             goal:
               frame.goal ||
               frame.informationText ||
               frame.afterVideoText ||
               "",
+            context: frame.informationText,
+            takeaways: frame.afterVideoText,
             notes: frame.notes,
+            concepts: frame.conceptIds?.length
+              ? frame.conceptIds
+              : frame.aiConcepts || [],
           })),
           index: index + 1,
         };
@@ -1810,7 +2000,12 @@ export default function AIFramesPage() {
         title: frame.title || "Untitled frame",
         goal:
           frame.goal || frame.informationText || frame.afterVideoText || "",
+        context: frame.informationText,
+        takeaways: frame.afterVideoText,
         notes: frame.notes,
+        concepts: frame.conceptIds?.length
+          ? frame.conceptIds
+          : frame.aiConcepts || [],
       })
     );
     const graphState = unifiedStorage.graphState;
@@ -1840,6 +2035,16 @@ export default function AIFramesPage() {
       graphEdges,
       generatedAt: timestamp.toLocaleString(),
     });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[AI Frames] Export payload", {
+        chapters: printableChapters.length,
+        chapterFrames: printableChapters.map((chapter) => ({
+          title: chapter.title,
+          frames: chapter.frames.length,
+        })),
+        standaloneFrames: printableStandalone.length,
+      });
+    }
 
     openPrintPreview(exportHtml);
     setExportDialogOpen(false);
@@ -1847,6 +2052,7 @@ export default function AIFramesPage() {
     exportForm,
     framesByChapter,
     standaloneFrames,
+    frameLookup,
     unifiedStorage.chapters,
     unifiedStorage.graphState,
     workspaceStats.chapters,
