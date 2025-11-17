@@ -11,16 +11,30 @@
   - Amplify build hooks (amplify.yml) run git lfs install + git lfs pull before
     npm ci, so the heavyweight model files are pulled down during CI/CD.
 
-  Despite the above, Amplify’s runtime is still throwing ENOENT: '/tmp/app/
-  public/onnxruntime-webort-wasm-simd.wasm'. That path is missing a slash
-  between onnxruntime-web and ort-*.wasm, which means Next is stripping or
-  concatenating incorrectly when resolving the public asset location. Next
-  step: adjust the server-side loader to use path.join(process.cwd(), "public",
-  "onnxruntime-web") (with a trailing slash or path.resolve) before assigning
-  to module.env.backends.onnx.wasm.wasmPaths, and re-deploy so the Lambda looks
-  under .../public/onnxruntime-web/ort-wasm-simd.wasm instead of the broken
-  concatenation.
+Despite the above, Amplify’s runtime is still throwing ENOENT: '/tmp/app/
+ public/onnxruntime-webort-wasm-simd.wasm'. That path is missing a slash
+ between onnxruntime-web and ort-*.wasm, which means Next is stripping or
+ concatenating incorrectly when resolving the public asset location.  
+✅ Fix attempt #1: force `module.env.backends.onnx.wasm.wasmPaths` to use
+`path.join(process.cwd(), "public", "onnxruntime-web") + "/"` so the slash
+sticks around inside Xenova.
 
+ **New failure mode (2025-01-13)**  
+ Even after forcing a trailing slash, the Lambda now returns:
+ 
+ ```
+ {"error":"no available backend found. ERR: [wasm] RuntimeError: Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 76 65 72 73 @+0). Build with -sASSERTIONS for more info."}
+ ```
+ 
+That indicates the WASM loader is reading a non-binary payload (likely HTML or a
+missing file).
+
+✅ Fix attempt #2 (current): `src/lib/server/embedding.ts` now resolves the ONNX
+runtime directory dynamically. It prefers `public/onnxruntime-web/`, but if that
+path is missing/bad it automatically falls back to
+`node_modules/onnxruntime-web/dist`, and it always appends a trailing slash when
+assigning `module.env.backends.onnx.wasm.wasmPaths`. This means Amplify can load
+the bundled `.wasm` files from node_modules even if `/public` gets mangled.
   [#43](https://github.com/thefirehacker/TimeCapsule-SLM/issues/43)2150-08b6897e84c01d2b.js:1  POST https://timecapsule.bubblspace.com/api/kb/upload 500 (Internal Server Error)
 (anonymous) @ 2150-08b6897e84c01d2b.js:1
 onChange @ page-5b0f252fd0c0ddc4.js:1
