@@ -4,6 +4,10 @@ frontend:
     preBuild:
       commands:
         - echo "📦 Installing Git LFS..."
+        - curl -L https://github.com/git-lfs/git-lfs/releases/download/v3.7.1/git-lfs-linux-amd64-v3.7.1.tar.gz | tar -xz
+        - cd git-lfs-3.7.1
+        - sudo ./install.sh
+        - cd ..
         - git lfs install
         - git lfs pull
         - echo "📦 Installing dependencies..."
