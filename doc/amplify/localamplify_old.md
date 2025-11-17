@@ -3,9 +3,6 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "📦 Installing Git LFS..."
-        - git lfs install
-        - git lfs pull
         - echo "📦 Installing dependencies..."
         - npm ci --cache .npm --prefer-offline
         - echo "🔧 Node.js version:"
@@ -60,26 +57,9 @@ frontend:
         - echo "RAZORPAY_KEY_SECRET=$RAZORPAY_KEY_SECRET" >> .env.production
         - echo "RAZORPAY_WEBHOOK_SECRET=$RAZORPAY_WEBHOOK_SECRET" >> .env.production
         - echo "NEXT_PUBLIC_FIRECRAWL_API_KEY=%NEXT_PUBLIC_FIRECRAWL_API_KEY" >> .env.production
-        - echo "NEXT_BUILD_ENV=$NEXT_BUILD_ENV" >> .env.production
         - echo "✅ Environment variables written to .env.production"
         - echo "🔍 Verifying .env.production contents:"
         - cat .env.production
-        - echo "🔍 === Checking ONNX model files ==="
-        - ls -lh public/embeddings/ || echo "❌ public/embeddings/ not found"
-        - ls -lh public/embeddings/onnx/ || echo "❌ public/embeddings/onnx/ not found"
-        - file public/embeddings/onnx/model.onnx || echo "❌ model.onnx not found"
-        - file public/embeddings/onnx/model_quantized.onnx || echo "ℹ️ model_quantized.onnx not found (may be optional)"
-        - echo "📄 First line of model.onnx:"
-        - head -n 1 public/embeddings/onnx/model.onnx || echo "❌ Can't read model.onnx"
-        - echo "🔍 === Checking WASM files ==="
-        - ls -lh public/onnxruntime-web/ || echo "❌ public/onnxruntime-web/ not found"
-        - file public/onnxruntime-web/ort-wasm-simd.wasm || echo "❌ ort-wasm-simd.wasm not found"
-        - echo "📄 First 4 bytes of ort-wasm-simd.wasm (should be 00 61 73 6d):"
-        - xxd -l 4 public/onnxruntime-web/ort-wasm-simd.wasm || echo "❌ Can't read WASM file"
-        - echo "🔍 === Checking node_modules fallback ==="
-        - ls -lh node_modules/onnxruntime-web/dist/ || echo "❌ node_modules/onnxruntime-web/dist/ not found"
-        - file node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm || echo "❌ fallback WASM not found"
-        - echo "✅ === Diagnostics complete, starting build ==="
         - echo "🏗️ Starting Next.js build..."
         - npm run build
         - echo "✅ Build completed successfully!"
