@@ -20,6 +20,10 @@ import { AgentProgressCallback } from "../interfaces/AgentProgress";
 import { FeedbackAwareAgent } from "./FeedbackAwareAgent";
 import { UserFeedback, FeedbackValidation, CorrectionResult } from "../interfaces/Feedback";
 
+const MAX_MULTI_DOC_SAMPLES = 6;
+const MAX_CHUNKS_PER_DOCUMENT = 4;
+const MAX_CHUNK_CHARACTERS = 500;
+
 export class DataInspectorAgent extends FeedbackAwareAgent {
   readonly name = "DataInspector";
   readonly description =
@@ -356,9 +360,20 @@ export class DataInspectorAgent extends FeedbackAwareAgent {
 
     return Object.entries(groups).map(([docId, chunks]) => ({
       documentId: docId,
-      chunks: chunks,
+      chunks: chunks.slice(0, MAX_CHUNKS_PER_DOCUMENT),
       metadata: chunks[0]?.metadata || {}  // 🔥 PRESERVE DOCUMENT METADATA: Extract from first chunk (all chunks from same document have same metadata)
     }));
+  }
+
+  private formatChunkPreview(text: string | undefined, maxChars: number = MAX_CHUNK_CHARACTERS): string {
+    if (!text) {
+      return "";
+    }
+    const collapsed = text.replace(/\s+/g, " ").trim();
+    if (collapsed.length <= maxChars) {
+      return collapsed;
+    }
+    return `${collapsed.slice(0, maxChars)}…`;
   }
 
   private async performMultiDocumentAnalysis(
@@ -368,21 +383,30 @@ export class DataInspectorAgent extends FeedbackAwareAgent {
     console.log(
       `🔍 Multi-document analysis: ${documentGroups.length} documents detected`
     );
+    const groupsForPrompt =
+      documentGroups.length > MAX_MULTI_DOC_SAMPLES
+        ? documentGroups.slice(0, MAX_MULTI_DOC_SAMPLES)
+        : documentGroups;
+    if (groupsForPrompt.length < documentGroups.length) {
+      console.log(
+        `⚖️ DataInspector: limiting multi-document sample to ${groupsForPrompt.length}/${documentGroups.length} documents to stay within token budget`
+      );
+    }
 
     const prompt = `I need to analyze multiple documents and understand their relationships to answer the user's query intelligently.
 
 USER QUERY: "${context.query}"
 
-DOCUMENTS DETECTED: ${documentGroups.length}
+DOCUMENTS DETECTED: ${groupsForPrompt.length}
 
-${documentGroups
+${groupsForPrompt
   .map(
     (group, i) => `
 --- DOCUMENT ${i + 1}: ${group.documentId} ---
 Sample content from ${group.chunks.length} chunks:
 ${group.chunks
   .slice(0, 2)
-  .map((chunk: any) => chunk.text.substring(0, 300))
+  .map((chunk: any) => this.formatChunkPreview(chunk.text))
   .join("\n\n")}
 `
   )
@@ -422,7 +446,7 @@ CRITICAL RULES:
         await this.updateContextFromMultiDocumentInspection(
           context,
           response,
-          documentGroups
+          groupsForPrompt
         );
 
       // 🎯 ENHANCED FIX: Extract intelligence from stored concept synthesis (before filtering)
@@ -445,7 +469,7 @@ CRITICAL RULES:
     context: ResearchContext,
     documentGroup: any
   ): Promise<void> {
-    const samples = documentGroup.chunks.slice(0, 3);
+    const samples = documentGroup.chunks.slice(0, MAX_CHUNKS_PER_DOCUMENT);
 
     // Include source type information
     const samplesWithType = samples.map((chunk: any) => {
@@ -479,7 +503,7 @@ ${samplesWithType
   .map(
     (item: any, i: number) => `
 --- Source ${i + 1} (${item.sourceType}) ---
-${item.chunk.text}
+${this.formatChunkPreview(item.chunk.text)}
 `
   )
   .join("\n")}

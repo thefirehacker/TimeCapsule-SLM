@@ -15,6 +15,14 @@ import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtra
 import type { ExecutionPlan, PlanStep } from '../agents/PlanningAgent';
 import { UserFeedback } from '../interfaces/Feedback';
 
+type OrchestratorMode = "research" | "flow_builder";
+
+interface OrchestratorConfig {
+  enableWebSearch?: boolean;
+  enableRAGSearch?: boolean;
+  mode?: OrchestratorMode;
+}
+
 export interface AgentLLMOptions {
   agent?: string;
   tierHint?: string;
@@ -56,7 +64,7 @@ export class Orchestrator {
     messageBus: MessageBus,
     llm: LLMFunction,
     progressCallback?: AgentProgressCallback,
-    config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean },
+    config?: OrchestratorConfig,
     vectorStore?: import('@/components/VectorStore/VectorStore').VectorStore
   ) {
     this.registry = registry;
@@ -66,12 +74,17 @@ export class Orchestrator {
     this.progressTracker = new AgentProgressTracker(progressCallback);
     this.config = config;
     this.vectorStore = vectorStore;
+    if (config?.mode) {
+      this.flowMode = config.mode;
+    }
     
     // Note: createProgressProxy() will be called on first agent execution
   }
   
-  private config?: { enableWebSearch?: boolean; enableRAGSearch?: boolean };
+  private config?: OrchestratorConfig;
   private vectorStore?: import('@/components/VectorStore/VectorStore').VectorStore;
+  private flowMode: OrchestratorMode = "research";
+  private readonly flowPipelineOrder = ['DataInspector', 'PatternGenerator', 'Extractor', 'SynthesisCoordinator', 'ResponseFormatter'];
   
   /**
    * 🎯 Get next step from execution plan with comprehensive pipeline view
@@ -1559,6 +1572,14 @@ NEXT_GOAL: [final goal achieved]`;
         suggestion: 'Call DataInspector before proceeding'
       };
     }
+
+    // FLOW BUILDER MODE: enforce deterministic sequencing regardless of LLM planning
+    if (this.config?.mode === 'flow_builder') {
+      const pipelineValidation = this.validateFlowPipeline(normalizedToolName, context);
+      if (!pipelineValidation.allowed) {
+        return pipelineValidation;
+      }
+    }
     
     // RULE 3: Plan-aware validation (intelligent sequencing)
     if (executionPlan && executionPlan.steps && executionPlan.steps.length > 0) {
@@ -1567,6 +1588,58 @@ NEXT_GOAL: [final goal achieved]`;
     
     // RULE 4: Intelligent fallback validation (when no plan exists)
     return this.validateWithIntelligentDefaults(normalizedToolName, context, calledAgents);
+  }
+
+  private validateFlowPipeline(toolName: string, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+    const stageIndex = this.flowPipelineOrder.indexOf(toolName);
+    if (stageIndex === -1) {
+      return { allowed: true, reason: 'Not part of constrained flow pipeline' };
+    }
+
+    const unmetPrerequisite = this.flowPipelineOrder
+      .slice(0, stageIndex)
+      .find((agent) => !this.calledAgents.has(agent));
+
+    if (unmetPrerequisite) {
+      return {
+        allowed: false,
+        reason: `Critical prerequisite required: ${unmetPrerequisite} must run before ${toolName}`,
+        suggestion: `Call ${unmetPrerequisite} before ${toolName}`,
+      };
+    }
+
+    if (toolName === 'Extractor') {
+      const hasPatterns = Array.isArray(context.patterns) && context.patterns.length > 0;
+      if (!hasPatterns) {
+        return {
+          allowed: false,
+          reason: 'PatternGenerator must produce structured patterns before Extraction runs',
+          suggestion: 'Call PatternGenerator and ensure patterns exist before extracting facts',
+        };
+      }
+    }
+
+    if (toolName === 'SynthesisCoordinator' || toolName === 'Synthesizer') {
+      if (!this.hasExtractedData(context)) {
+        return {
+          allowed: false,
+          reason: 'Extraction must produce facts before synthesis can start',
+          suggestion: 'Run Extraction to gather facts before SynthesisCoordinator',
+        };
+      }
+    }
+
+    if (toolName === 'ResponseFormatter') {
+      if (!this.hasSynthesisDraft(context)) {
+        return {
+          allowed: false,
+          reason: 'ResponseFormatter needs a synthesized draft to format',
+          suggestion: 'Call SynthesisCoordinator before ResponseFormatter',
+        };
+      }
+    }
+
+    return { allowed: true, reason: 'Flow pipeline order satisfied' };
   }
   
   /**
@@ -2602,6 +2675,11 @@ NEXT_GOAL: [final goal achieved]`;
     }
     
     return false;
+  }
+  
+  private hasSynthesisDraft(context: ResearchContext): boolean {
+    const draft = context.synthesis?.answer || '';
+    return draft.trim().length > 0;
   }
   
   /**
