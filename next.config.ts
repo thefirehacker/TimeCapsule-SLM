@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       "./node_modules/pdf-parse/index.js",
       "./node_modules/pdf-parse/lib/pdf-parse.js",
       "./node_modules/pdf-parse/lib/pdf.js/v1.10.100/**",
+      "./node_modules/node-ensure/**",
     ],
   },
   // Disable TypeScript errors in build for Amplify
