@@ -31,6 +31,7 @@ import {
   Package,
   Search,
   Download,
+  Printer,
   Trash2,
   X,
   Loader2,
@@ -141,6 +142,417 @@ const EMPTY_CHAPTER_FORM: {
   linkSequentially: false,
 };
 
+const EXPORT_BRAND_URL = "https://timecapsule.bubblspace.com";
+
+type PrintableFrameSummary = {
+  title: string;
+  goal?: string;
+  notes?: string;
+};
+
+type PrintableChapterSummary = {
+  title: string;
+  description?: string;
+  frames: PrintableFrameSummary[];
+  index: number;
+};
+
+interface FramesExportPayload {
+  title: string;
+  subtitle: string;
+  stats: {
+    frames: number;
+    chapters: number;
+    concepts: number;
+  };
+  chapters: PrintableChapterSummary[];
+  standaloneFrames: PrintableFrameSummary[];
+  includeGraph: boolean;
+  graphEdges: Array<{ source: string; target: string }>;
+  generatedAt: string;
+}
+
+const escapeHtml = (value?: string | null): string => {
+  if (!value) return "";
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const truncateText = (value: string, limit = 420): string => {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit).trim()}…`;
+};
+
+const renderFrameBadge = (frame: PrintableFrameSummary, index: number) => {
+  const goal = frame.goal ? `<p class="frame-goal">${escapeHtml(truncateText(frame.goal, 260))}</p>` : "";
+  const notes = frame.notes ? `<p class="frame-notes">${escapeHtml(truncateText(frame.notes, 200))}</p>` : "";
+  return `
+    <div class="frame-card">
+      <p class="frame-index">Frame ${index + 1}</p>
+      <h4>${escapeHtml(frame.title || `Frame ${index + 1}`)}</h4>
+      ${goal}
+      ${notes}
+    </div>
+  `;
+};
+
+const generateFramesExportHtml = (payload: FramesExportPayload): string => {
+  const overviewCards = payload.chapters
+    .map(
+      (chapter) => `
+        <div class="overview-card">
+          <p class="overview-label">Chapter ${chapter.index}</p>
+          <h3>${escapeHtml(chapter.title)}</h3>
+          <p class="overview-description">
+            ${escapeHtml(chapter.description || "No description provided.")}
+          </p>
+          <p class="overview-meta">${chapter.frames.length} frame${chapter.frames.length === 1 ? "" : "s"}</p>
+        </div>
+      `
+    )
+    .join("");
+
+  const overviewSection =
+    payload.chapters.length > 0
+      ? `<div class="overview-grid">${overviewCards}</div>`
+      : `<p class="chapter-empty">No chapters available yet. Start by creating your first chapter.</p>`;
+
+  const chapterPages =
+    payload.chapters.length === 0
+      ? `
+        <section class="page chapter-page">
+          <h2>No chapters defined</h2>
+          <p class="chapter-empty">Create chapters and frames to populate this export.</p>
+          <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
+        </section>
+      `
+      : payload.chapters
+          .map((chapter) => {
+            const framesMarkup =
+              chapter.frames.length > 0
+                ? chapter.frames
+                    .map((frame, frameIndex) => renderFrameBadge(frame, frameIndex))
+                    .join("")
+                : `<p class="chapter-empty">No frames assigned to this chapter yet.</p>`;
+            return `
+              <section class="page chapter-page">
+                <header class="chapter-header">
+                  <div>
+                    <p class="chapter-label">Chapter ${chapter.index}</p>
+                    <h2>${escapeHtml(chapter.title)}</h2>
+                    <p class="chapter-description">
+                      ${escapeHtml(chapter.description || "This chapter does not have a description yet.")}
+                    </p>
+                  </div>
+                  <span class="chapter-count">${chapter.frames.length} frame${chapter.frames.length === 1 ? "" : "s"}</span>
+                </header>
+                <div class="chapter-frames">
+                  ${framesMarkup}
+                </div>
+                <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
+              </section>
+            `;
+          })
+          .join("");
+
+  const standaloneSection =
+    payload.standaloneFrames.length === 0
+      ? ""
+      : `
+        <section class="page standalone-page">
+          <h2>Standalone Frames</h2>
+          <p class="standalone-subtitle">
+            Frames that have not yet been assigned to a chapter.
+          </p>
+          <div class="chapter-frames">
+            ${payload.standaloneFrames.map((frame, index) => renderFrameBadge(frame, index)).join("")}
+          </div>
+          <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
+        </section>
+      `;
+
+  const graphSection =
+    payload.includeGraph && payload.graphEdges.length > 0
+      ? `
+        <section class="page graph-page">
+          <h2>Graph Overview</h2>
+          <p class="graph-subtitle">Relationships between frames and chapters at export time.</p>
+          <div class="graph-list">
+            ${payload.graphEdges
+              .map(
+                (edge, idx) => `
+                  <div class="graph-row">
+                    <span class="graph-index">${idx + 1}.</span>
+                    <span class="graph-source">${escapeHtml(edge.source)}</span>
+                    <span class="graph-arrow">→</span>
+                    <span class="graph-target">${escapeHtml(edge.target)}</span>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+          <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
+        </section>
+      `
+      : "";
+
+  return `
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(payload.title)}</title>
+        <style>
+          *, *::before, *::after { box-sizing: border-box; }
+          body {
+            margin: 0;
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+          }
+          .page {
+            width: 8.27in;
+            min-height: 11.69in;
+            padding: 1.1in;
+            margin: 0 auto;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+          }
+          .page + .page {
+            page-break-before: always;
+          }
+          h1, h2, h3, h4 {
+            margin: 0;
+            color: #0f172a;
+          }
+          p {
+            margin: 0;
+            color: #475569;
+            line-height: 1.5;
+          }
+          .cover {
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+            gap: 1.5rem;
+          }
+          .cover-badge {
+            text-transform: uppercase;
+            letter-spacing: 0.4em;
+            font-size: 0.75rem;
+            color: #94a3b8;
+          }
+          .cover h1 {
+            font-size: 2.75rem;
+            line-height: 1.2;
+          }
+          .cover-stats {
+            display: flex;
+            gap: 2.5rem;
+            margin-top: 1.5rem;
+          }
+          .cover-stats div {
+            text-align: center;
+          }
+          .cover-stats p:first-child {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #0f172a;
+          }
+          .cover-stats p:last-child {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+          }
+          .page-footer {
+            margin-top: auto;
+            font-size: 0.8rem;
+            text-align: center;
+            color: #94a3b8;
+          }
+          .overview-page h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+          }
+          .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+          }
+          .overview-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1.1rem;
+            background: #f8fafc;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+          .overview-label {
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.3em;
+            color: #94a3b8;
+          }
+          .overview-description {
+            font-size: 0.95rem;
+          }
+          .overview-meta {
+            margin-top: auto;
+            font-weight: 600;
+            color: #0f172a;
+          }
+          .chapter-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 1.5rem;
+            align-items: flex-start;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+          }
+          .chapter-label {
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.4em;
+            color: #94a3b8;
+            margin-bottom: 0.35rem;
+          }
+          .chapter-description {
+            margin-top: 0.75rem;
+            font-size: 1rem;
+            color: #475569;
+          }
+          .chapter-count {
+            font-weight: 600;
+            color: #0f172a;
+          }
+          .chapter-frames {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+          }
+          .frame-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            background: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+          }
+          .frame-index {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #94a3b8;
+          }
+          .frame-goal {
+            font-size: 0.9rem;
+            color: #0f172a;
+          }
+          .frame-notes {
+            font-size: 0.85rem;
+            color: #64748b;
+          }
+          .chapter-empty {
+            font-size: 0.95rem;
+            color: #94a3b8;
+          }
+          .graph-page h2 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+          }
+          .graph-list {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+          }
+          .graph-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            color: #0f172a;
+          }
+          .graph-index {
+            font-weight: 600;
+            color: #94a3b8;
+            width: 2rem;
+          }
+          .graph-source,
+          .graph-target {
+            font-weight: 600;
+          }
+          .graph-arrow {
+            color: #94a3b8;
+          }
+        </style>
+      </head>
+      <body>
+        <section class="page cover">
+          <p class="cover-badge">TimeCapsule · AI Frames Export</p>
+          <h1>${escapeHtml(payload.title)}</h1>
+          <p>${escapeHtml(payload.subtitle)}</p>
+          <div class="cover-stats">
+            <div>
+              <p>${payload.stats.chapters}</p>
+              <p>Chapters</p>
+            </div>
+            <div>
+              <p>${payload.stats.frames}</p>
+              <p>Frames</p>
+            </div>
+            <div>
+              <p>${payload.stats.concepts}</p>
+              <p>Concepts</p>
+            </div>
+          </div>
+          <p class="overview-description" style="margin-top: 1.5rem;">
+            Generated on ${escapeHtml(payload.generatedAt)} · ${EXPORT_BRAND_URL}
+          </p>
+        </section>
+
+        <section class="page overview-page">
+          <h2>Chapter Overview</h2>
+          ${overviewSection}
+          <footer class="page-footer">${EXPORT_BRAND_URL}</footer>
+        </section>
+
+        ${chapterPages}
+        ${standaloneSection}
+        ${graphSection}
+      </body>
+    </html>
+  `;
+};
+
+const openPrintPreview = (html: string) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const printWindow = window.open("", "_blank", "popup=yes");
+  if (!printWindow) {
+    console.error("Unable to open print preview window");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 500);
+};
+
 // Main component with dramatically reduced size
 export default function AIFramesPage() {
   // ============================================================================
@@ -178,6 +590,28 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const [showDocumentManager, setShowDocumentManager] = useState(false);
+  const [documentManagerTab, setDocumentManagerTab] = useState("user");
+  const [documentSearchQuery, setDocumentSearchQuery] = useState("");
+  const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
+  const [currentSemanticQuery, setCurrentSemanticQuery] = useState("");
+  const [showSemanticResults, setShowSemanticResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchThreshold, setSearchThreshold] = useState(0.1);
+  const [currentChunk, setCurrentChunk] = useState<any>(null);
+  const [showChunkView, setShowChunkView] = useState(false);
+  const [chunkViewerDocument, setChunkViewerDocument] = useState<any | null>(null);
+  const [chunkViewerChunks, setChunkViewerChunks] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [graphResetKey, setGraphResetKey] = useState(0);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportForm, setExportForm] = useState({
+    title: "",
+    subtitle: "",
+    includeGraph: false,
+  });
+
   const workspaceStats = useMemo(() => {
     const frames = unifiedStorage.frames;
     const chapters = unifiedStorage.chapters;
@@ -197,6 +631,36 @@ export default function AIFramesPage() {
       concepts: totalConcepts,
     };
   }, [unifiedStorage.frames, unifiedStorage.chapters]);
+
+  const framesByChapter = useMemo(() => {
+    const map = new Map<string, UnifiedAIFrame[]>();
+    unifiedStorage.frames.forEach((frame) => {
+      const key = frame.chapterId || "__standalone__";
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(frame);
+    });
+    return map;
+  }, [unifiedStorage.frames]);
+
+  const standaloneFrames = useMemo(() => {
+    return framesByChapter.get("__standalone__") || [];
+  }, [framesByChapter]);
+
+  useEffect(() => {
+    if (exportDialogOpen) {
+      setExportForm((prev) => ({
+        title:
+          prev.title ||
+          `AI Frames Lesson Plan (${new Date().toLocaleDateString()})`,
+        subtitle:
+          prev.subtitle ||
+          `Frames: ${workspaceStats.frames} · Chapters: ${workspaceStats.chapters}`,
+        includeGraph: prev.includeGraph,
+      }));
+    }
+  }, [exportDialogOpen, workspaceStats.frames, workspaceStats.chapters]);
 
   const dispatchForceSave = useCallback(
     (reason: string) => {
@@ -402,21 +866,7 @@ export default function AIFramesPage() {
   }));
   const [selectedChapterFrameIds, setSelectedChapterFrameIds] = useState<string[]>([]);
   const [pendingChapterFrames, setPendingChapterFrames] = useState<Record<string, AIFrame>>({});
-  const [showDocumentManager, setShowDocumentManager] = useState(false);
-  const [documentManagerTab, setDocumentManagerTab] = useState("user");
-  const [documentSearchQuery, setDocumentSearchQuery] = useState("");
-  const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
-  const [currentSemanticQuery, setCurrentSemanticQuery] = useState("");
-  const [showSemanticResults, setShowSemanticResults] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchThreshold, setSearchThreshold] = useState(0.1);
-  const [currentChunk, setCurrentChunk] = useState<any>(null);
-  const [showChunkView, setShowChunkView] = useState(false);
-  const [chunkViewerDocument, setChunkViewerDocument] = useState<any | null>(null);
-  const [chunkViewerChunks, setChunkViewerChunks] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [graphResetKey, setGraphResetKey] = useState(0);
+
   const [showChapterProcessing, setShowChapterProcessing] = useState(false);
   const chapterProcessingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const vectorStoreReady =
@@ -1319,6 +1769,92 @@ export default function AIFramesPage() {
     setCurrentSemanticQuery("");
   }, []);
 
+  const handleOpenExportDialog = useCallback(() => {
+    setExportDialogOpen(true);
+  }, []);
+
+  const handleExportPDF = useCallback(() => {
+    const timestamp = new Date();
+    const title =
+      exportForm.title.trim() ||
+      `AI Frames Lesson Plan (${timestamp.toLocaleDateString()})`;
+    const subtitle =
+      exportForm.subtitle.trim() ||
+      `Frames: ${workspaceStats.frames} · Chapters: ${workspaceStats.chapters}`;
+    const orderedChapters = [...unifiedStorage.chapters].sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    );
+    const printableChapters: PrintableChapterSummary[] = orderedChapters.map(
+      (chapter, index) => {
+        const framesForChapter = [
+          ...(framesByChapter.get(chapter.id) || []),
+        ].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        return {
+          title: chapter.title || `Chapter ${index + 1}`,
+          description: chapter.description,
+          frames: framesForChapter.map((frame) => ({
+            title: frame.title || "Untitled frame",
+            goal:
+              frame.goal ||
+              frame.informationText ||
+              frame.afterVideoText ||
+              "",
+            notes: frame.notes,
+          })),
+          index: index + 1,
+        };
+      }
+    );
+    const printableStandalone: PrintableFrameSummary[] = standaloneFrames.map(
+      (frame) => ({
+        title: frame.title || "Untitled frame",
+        goal:
+          frame.goal || frame.informationText || frame.afterVideoText || "",
+        notes: frame.notes,
+      })
+    );
+    const graphState = unifiedStorage.graphState;
+    const nodeLabelLookup =
+      graphState?.nodes?.reduce<Record<string, string>>((acc, node) => {
+        acc[node.id] =
+          node.data?.title || node.data?.label || node.id || "Untitled";
+        return acc;
+      }, {}) || {};
+    const graphEdges =
+      graphState?.edges?.map((edge) => ({
+        source: nodeLabelLookup[edge.source] || edge.source,
+        target: nodeLabelLookup[edge.target] || edge.target,
+      })) || [];
+
+    const exportHtml = generateFramesExportHtml({
+      title,
+      subtitle,
+      stats: {
+        frames: workspaceStats.frames,
+        chapters: workspaceStats.chapters,
+        concepts: workspaceStats.concepts,
+      },
+      chapters: printableChapters,
+      standaloneFrames: printableStandalone,
+      includeGraph: exportForm.includeGraph,
+      graphEdges,
+      generatedAt: timestamp.toLocaleString(),
+    });
+
+    openPrintPreview(exportHtml);
+    setExportDialogOpen(false);
+  }, [
+    exportForm,
+    framesByChapter,
+    standaloneFrames,
+    unifiedStorage.chapters,
+    unifiedStorage.graphState,
+    workspaceStats.chapters,
+    workspaceStats.concepts,
+    workspaceStats.frames,
+  ]);
+
+
   const handleOpenDocumentChunks = useCallback(
     async (
       docId: string,
@@ -1954,6 +2490,7 @@ export default function AIFramesPage() {
   // Main render - SIMPLIFIED: Only FrameGraphIntegration with built-in Save Graph functionality
   return (
     <>
+      <div>
       {/* Hidden file input for KB document uploads */}
       <input
         id="kb-file-upload"
@@ -2149,33 +2686,55 @@ export default function AIFramesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-medium text-gray-700">
-                  Import / Export
-                </h4>
-                <p className="text-xs text-gray-500">
-                  Backup your AI Frames or import flows from another workspace.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full flex items-center gap-2"
-                  onClick={handleExportFrames}
-                >
-                  <Download className="h-4 w-4" />
-                  Export JSON
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full flex items-center gap-2"
-                  onClick={() =>
-                    document.getElementById("ai-frames-import")?.click()
-                  }
-                >
-                  <Upload className="h-4 w-4" />
-                  Import JSON
-                </Button>
+              <div className="space-y-3 border-t border-gray-200 pt-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700">
+                    Import / Export
+                  </h4>
+                  <p className="text-xs text-gray-500">
+                    Backup your AI Frames workspace, share flows with teammates, or plan future sync services.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center gap-2"
+                    onClick={() =>
+                      document.getElementById("ai-frames-import")?.click()
+                    }
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import JSON
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center gap-2"
+                    onClick={handleExportFrames}
+                  >
+                    <Download className="h-4 w-4" />
+                    Export JSON
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center gap-2"
+                    onClick={handleOpenExportDialog}
+                  >
+                    <Printer className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full flex items-center gap-2 text-gray-400"
+                    disabled
+                  >
+                    <Plug className="h-4 w-4" />
+                    Timecapsule sync (coming soon)
+                  </Button>
+                </div>
               </div>
 
               {/* Chapter Management */}
@@ -2445,6 +3004,71 @@ export default function AIFramesPage() {
             dispatchForceSave("chapter-dialog-cancelled");
           }}
         />
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-4 w-4" /> Export AI Frames PDF
+            </DialogTitle>
+            <DialogDescription>
+              Customize the cover page and optionally include a graph summary before printing or saving as PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="export-title">Cover Title</Label>
+              <Input
+                id="export-title"
+                value={exportForm.title}
+                onChange={(event) =>
+                  setExportForm((prev) => ({
+                    ...prev,
+                    title: event.target.value,
+                  }))
+                }
+                placeholder="AI Frames Lesson Plan"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="export-subtitle">Subtitle</Label>
+              <Input
+                id="export-subtitle"
+                value={exportForm.subtitle}
+                onChange={(event) =>
+                  setExportForm((prev) => ({
+                    ...prev,
+                    subtitle: event.target.value,
+                  }))
+                }
+                placeholder="Generated from the Knowledge Base"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="export-include-graph"
+                type="checkbox"
+                checked={exportForm.includeGraph}
+                onChange={(event) =>
+                  setExportForm((prev) => ({
+                    ...prev,
+                    includeGraph: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4"
+              />
+              <Label htmlFor="export-include-graph" className="text-sm">
+                Include graph overview page
+              </Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setExportDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleExportPDF}>Generate PDF</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {showChunkView && chunkViewerDocument && currentChunk && (
         <ChunkViewerModal
           isOpen={showChunkView}
@@ -2455,6 +3079,8 @@ export default function AIFramesPage() {
           onNavigateChunk={handleNavigateChunk}
         />
       )}
+
+      </div>
 
       {/* Document Manager Modal - Complete Deep Research implementation */}
       {showDocumentManager && (

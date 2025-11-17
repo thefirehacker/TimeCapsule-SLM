@@ -94,7 +94,7 @@ export function chunkStructuredText(
     }
   }
 
-  return mergeSmallChunks(chunks);
+  return compactChunks(chunks);
 }
 
 interface Segment {
@@ -219,7 +219,7 @@ function pushSegment(segment: Segment, segments: Segment[]) {
   }
 }
 
-function mergeSmallChunks(chunks: ChunkResult[]): ChunkResult[] {
+function compactChunks(chunks: ChunkResult[]): ChunkResult[] {
   const MIN_CHUNK_CHAR_LENGTH = 250;
   if (chunks.length === 0) return [];
 
