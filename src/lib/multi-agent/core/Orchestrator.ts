@@ -1542,7 +1542,7 @@ NEXT_GOAL: [final goal achieved]`;
   /**
    * 🧠 PLAN-AWARE SEQUENCING VALIDATION - Replaces rigid hardcoded rules
    */
-  private validateAgentExecution(toolName: string, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+  private validateAgentExecution(toolName: string, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string; requiredAgent?: string } {
     const normalizedToolName = this.normalizeToolName(toolName);
     const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
     const calledAgents = Array.from(this.calledAgents);
@@ -1569,7 +1569,8 @@ NEXT_GOAL: [final goal achieved]`;
       return {
         allowed: false,
         reason: 'DataInspector must be called first to analyze and filter documents',
-        suggestion: 'Call DataInspector before proceeding'
+        suggestion: 'Call DataInspector before proceeding',
+        requiredAgent: 'DataInspector'
       };
     }
 
@@ -1590,7 +1591,7 @@ NEXT_GOAL: [final goal achieved]`;
     return this.validateWithIntelligentDefaults(normalizedToolName, context, calledAgents);
   }
 
-  private validateFlowPipeline(toolName: string, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+  private validateFlowPipeline(toolName: string, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string; requiredAgent?: string } {
     const stageIndex = this.flowPipelineOrder.indexOf(toolName);
     if (stageIndex === -1) {
       return { allowed: true, reason: 'Not part of constrained flow pipeline' };
@@ -1605,6 +1606,7 @@ NEXT_GOAL: [final goal achieved]`;
         allowed: false,
         reason: `Critical prerequisite required: ${unmetPrerequisite} must run before ${toolName}`,
         suggestion: `Call ${unmetPrerequisite} before ${toolName}`,
+        requiredAgent: unmetPrerequisite,
       };
     }
 
@@ -1615,6 +1617,7 @@ NEXT_GOAL: [final goal achieved]`;
           allowed: false,
           reason: 'PatternGenerator must produce structured patterns before Extraction runs',
           suggestion: 'Call PatternGenerator and ensure patterns exist before extracting facts',
+          requiredAgent: 'PatternGenerator',
         };
       }
     }
@@ -1635,6 +1638,7 @@ NEXT_GOAL: [final goal achieved]`;
           allowed: false,
           reason: 'ResponseFormatter needs a synthesized draft to format',
           suggestion: 'Call SynthesisCoordinator before ResponseFormatter',
+          requiredAgent: 'SynthesisCoordinator',
         };
       }
     }
@@ -1645,7 +1649,7 @@ NEXT_GOAL: [final goal achieved]`;
   /**
    * 🤖 Validate intelligent additions to execution plan (agents not explicitly planned)
    */
-  private validateIntelligentAddition(toolName: string, plan: ExecutionPlan, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+  private validateIntelligentAddition(toolName: string, plan: ExecutionPlan, context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string; requiredAgent?: string } {
     const calledAgents = Array.from(this.calledAgents);
     
     console.log(`🧠 Validating intelligent addition: ${toolName}`);
@@ -1672,7 +1676,8 @@ NEXT_GOAL: [final goal achieved]`;
         return { 
           allowed: false, 
           reason: 'PatternGenerator must run before Extractor to create extraction patterns',
-          suggestion: 'Call PatternGenerator first to generate extraction patterns'
+          suggestion: 'Call PatternGenerator first to generate extraction patterns',
+          requiredAgent: 'PatternGenerator'
         };
       }
       
@@ -1914,7 +1919,7 @@ NEXT_GOAL: [final goal achieved]`;
   /**
    * 📋 Validate agent execution against PlanningAgent's execution plan
    */
-  private validateAgainstExecutionPlan(toolName: string, plan: ExecutionPlan, calledAgents: string[], context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string } {
+  private validateAgainstExecutionPlan(toolName: string, plan: ExecutionPlan, calledAgents: string[], context: ResearchContext): { allowed: boolean; reason: string; suggestion?: string; requiredAgent?: string } {
     // Find the agent's position in the execution plan
     const agentStepIndex = plan.steps.findIndex((step: PlanStep) => 
       this.normalizeToolName(step.agent) === toolName
@@ -1940,7 +1945,8 @@ NEXT_GOAL: [final goal achieved]`;
       return {
         allowed: false,
         reason: `Critical prerequisite required: ${this.normalizeToolName(nextRequired.agent)} must run before ${toolName}`,
-        suggestion: `${nextRequired.agent} is essential for ${toolName} - ${nextRequired.action}`
+        suggestion: `${nextRequired.agent} is essential for ${toolName} - ${nextRequired.action}`,
+        requiredAgent: this.normalizeToolName(nextRequired.agent)
       };
     }
     
@@ -1960,7 +1966,7 @@ NEXT_GOAL: [final goal achieved]`;
   /**
    * 🤖 Intelligent validation when no execution plan exists
    */
-  private validateWithIntelligentDefaults(toolName: string, context: ResearchContext, calledAgents: string[]): { allowed: boolean; reason: string; suggestion?: string } {
+  private validateWithIntelligentDefaults(toolName: string, context: ResearchContext, calledAgents: string[]): { allowed: boolean; reason: string; suggestion?: string; requiredAgent?: string } {
     // Smart dependency validation based on data availability and agent purpose
     
     // PatternGenerator: Works better with document analysis but not strictly required
@@ -1995,11 +2001,12 @@ NEXT_GOAL: [final goal achieved]`;
             };
           } else if (!calledAgents.includes('PatternGenerator')) {
             // No data extracted yet
-            return {
-              allowed: false,
-              reason: 'No extracted data available for synthesis',
-              suggestion: 'Call PatternGenerator first (with integrated extraction), then SynthesisCoordinator directly (DataAnalyzer bypassed)'
-            };
+        return {
+          allowed: false,
+          reason: 'No extracted data available for synthesis',
+          suggestion: 'Call PatternGenerator first (with integrated extraction), then SynthesisCoordinator directly (DataAnalyzer bypassed)',
+          requiredAgent: 'PatternGenerator'
+        };
           }
         }
       }
@@ -2018,7 +2025,8 @@ NEXT_GOAL: [final goal achieved]`;
         return {
           allowed: false,
           reason: 'No extracted data available for synthesis',
-          suggestion: 'Call PatternGenerator first (with integrated extraction) to extract relevant information'
+          suggestion: 'Call PatternGenerator first (with integrated extraction) to extract relevant information',
+          requiredAgent: 'PatternGenerator'
         };
       }
       
@@ -2068,20 +2076,24 @@ NEXT_GOAL: [final goal achieved]`;
       if (validation.suggestion) {
         console.warn(`💡 Suggestion: ${validation.suggestion}`);
       }
-      
-      // 🔧 FIX: For DataInspector requirement, guide instead of throwing error
-      if (validation.reason.includes('DataInspector must be called first')) {
-        console.log(`🔄 Redirecting to DataInspector first as required by pipeline`);
-        // Execute DataInspector first, then RETURN to let Master LLM decide next step
-        await this.executeToolCall('DataInspector', context);
-        // DON'T automatically continue with the originally requested agent
-        // Let the Master LLM decide the next step based on DataInspector results
-        console.log(`✅ DataInspector completed, returning control to Master LLM for next decision`);
-        return; // Exit here, don't execute the originally requested agent
-      } else {
-        // For other validation failures, still throw error
-        throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
+
+      if (validation.requiredAgent) {
+        const requiredAgent = this.normalizeToolName(validation.requiredAgent);
+        if (requiredAgent === normalizedToolName) {
+          throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
+        }
+        if (this.calledAgents.has(requiredAgent)) {
+          console.log(`⚠️ Required agent ${requiredAgent} already executed but validation still failing`);
+        } else {
+          console.log(`🔄 Auto-enforcing pipeline: running ${requiredAgent} before ${normalizedToolName}`);
+          await this.executeToolCall(requiredAgent, context);
+          console.log(`✅ ${requiredAgent} completed - re-evaluating ${normalizedToolName}`);
+          return await this.executeToolCall(normalizedToolName, context);
+        }
       }
+      
+      // For remaining validation failures, surface explicit error
+      throw new Error(`Plan-aware sequencing violation: ${validation.reason}`);
     }
     
     console.log(`✅ Agent execution validated: ${validation.reason}`);
