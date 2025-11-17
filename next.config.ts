@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/kb/upload": [
+      "./node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm",
+      "./node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
+      "./node_modules/onnxruntime-web/dist/ort-wasm-threaded.wasm",
+      "./node_modules/onnxruntime-web/dist/ort-wasm.wasm",
+    ],
+  },
   // Disable TypeScript errors in build for Amplify
   typescript: {
     ignoreBuildErrors: true,
