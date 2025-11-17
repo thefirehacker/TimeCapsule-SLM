@@ -4,7 +4,7 @@ frontend:
     preBuild:
       commands:
         - echo "📦 Installing Git LFS..."
-        - yum install -y git-lfs || (echo "yum failed, trying apt-get..." && apt-get update && apt-get install -y git-lfs)
+        - sudo yum install -y git-lfs
         - git lfs install
         - git lfs pull
         - echo "📦 Installing dependencies..."
