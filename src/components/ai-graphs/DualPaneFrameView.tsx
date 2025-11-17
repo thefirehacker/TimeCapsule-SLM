@@ -2104,6 +2104,47 @@ export default function DualPaneFrameView({
               </div>
             )}
           </ScrollArea>
+
+          {hasFrames && (
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 flex-wrap">
+                  <span className="font-medium">Continue in</span>
+                  <Badge variant="outline" className="text-xs px-3 py-1">
+                    {chapterNavInfo.chapterTitle}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={navigateToPreviousFrame}
+                    disabled={navigationState.isAtFirst}
+                    title="Previous frame in sequence"
+                  >
+                    <SkipBack className="h-4 w-4" />
+                  </Button>
+                  <div className="flex flex-col items-center min-w-[110px]">
+                    <Badge variant="default">
+                      {chapterNavInfo.position} of {chapterNavInfo.total}
+                    </Badge>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      linear sequence
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={navigateToNextFrame}
+                    disabled={navigationState.isAtLast}
+                    title="Next frame in sequence"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

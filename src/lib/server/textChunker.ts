@@ -94,7 +94,7 @@ export function chunkStructuredText(
     }
   }
 
-  return chunks;
+  return compactChunks(chunks);
 }
 
 interface Segment {
@@ -217,4 +217,48 @@ function pushSegment(segment: Segment, segments: Segment[]) {
   } else {
     segments.push(segment);
   }
+}
+
+function compactChunks(chunks: ChunkResult[]): ChunkResult[] {
+  const MIN_CHUNK_CHAR_LENGTH = 250;
+  if (chunks.length === 0) return [];
+
+  const merged: ChunkResult[] = [];
+  let pending: ChunkResult | null = null;
+
+  const appendChunk = (target: ChunkResult, addition: ChunkResult) => {
+    target.content = [target.content, addition.content].filter(Boolean).join("\n\n");
+    target.endIndex = addition.endIndex;
+    target.pageNumber = addition.pageNumber ?? target.pageNumber ?? null;
+    target.sectionTitle = addition.sectionTitle ?? target.sectionTitle ?? null;
+    const mergedMarkers = new Set([
+      ...(target.markers || []),
+      ...(addition.markers || []),
+    ]);
+    target.markers = Array.from(mergedMarkers);
+  };
+
+  for (const chunk of chunks) {
+    if (!pending) {
+      pending = { ...chunk };
+      continue;
+    }
+
+    if (
+      pending.content.length < MIN_CHUNK_CHAR_LENGTH ||
+      chunk.content.length < MIN_CHUNK_CHAR_LENGTH
+    ) {
+      appendChunk(pending, chunk);
+      continue;
+    }
+
+    merged.push(pending);
+    pending = { ...chunk };
+  }
+
+  if (pending) {
+    merged.push(pending);
+  }
+
+  return merged;
 }

@@ -1,0 +1,1412 @@
+{
+  "frames": [
+    {
+      "id": "frame_1762986772045_ddp_overview_intro",
+      "title": "What is Distributed Data Parallel (DDP)?",
+      "goal": "Understand the fundamental concept of DDP and why it's essential for multi-GPU training",
+      "informationText": "Distributed Data Parallel (DDP) is PyTorch's recommended approach for multi-GPU training. Unlike DataParallel, DDP spawns separate processes for each GPU, eliminating Python GIL bottlenecks. Each process maintains its own model replica and optimizer, and gradients are synchronized via efficient collective communication primitives (like AllReduce) after each backward pass. This makes DDP significantly faster and more scalable than DataParallel, especially for large models and high-bandwidth interconnects.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 600,
+      "afterVideoText": "Key takeaway: DDP uses process-based parallelism where each GPU runs in its own process, enabling true parallel execution and efficient gradient synchronization.",
+      "aiConcepts": [
+        "distributed training",
+        "multi-GPU",
+        "process parallelism",
+        "gradient synchronization"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_overview",
+      "chapterId": "chapter_ddp_overview",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045406Z",
+      "updatedAt": "2025-11-13T04:02:52.045409Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045410Z",
+        "updatedAt": "2025-11-13T04:02:52.045411Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045412Z"
+      }
+    },
+    {
+      "id": "frame_1762986772046_ddp_overview_architecture",
+      "title": "DDP Architecture and Process Model",
+      "goal": "Learn how DDP processes communicate and coordinate during training",
+      "informationText": "DDP follows a master-worker architecture. Process rank 0 acts as the master, while all processes (ranks 0-N) are workers. Each process: (1) loads a subset of data via a DistributedSampler, (2) performs forward pass independently, (3) computes gradients locally, (4) synchronizes gradients using AllReduce (typically via NCCL backend), and (5) updates parameters identically. The process group manages communication topology. DDP uses a 'replicate' strategy where model parameters are identical across processes, and only gradients need synchronization.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 720,
+      "afterVideoText": "Remember: All processes maintain identical model parameters. DDP only synchronizes gradients, not parameters, making it communication-efficient.",
+      "aiConcepts": [
+        "process group",
+        "rank",
+        "AllReduce",
+        "NCCL",
+        "DistributedSampler"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 2,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_overview",
+      "chapterId": "chapter_ddp_overview",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045414Z",
+      "updatedAt": "2025-11-13T04:02:52.045415Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045416Z",
+        "updatedAt": "2025-11-13T04:02:52.045417Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045418Z"
+      }
+    },
+    {
+      "id": "frame_1762986772047_ddp_setup_environment",
+      "title": "Environment Setup for DDP",
+      "goal": "Configure your environment with proper CUDA, PyTorch, and distributed training dependencies",
+      "informationText": "Before using DDP, ensure: (1) PyTorch >= 1.6.0 with CUDA support, (2) Multiple GPUs visible via `nvidia-smi`, (3) NCCL backend installed (comes with PyTorch CUDA builds), (4) Proper network configuration for multi-node setups. For single-node multi-GPU, no special network setup needed. Verify with `torch.cuda.device_count()` and `torch.distributed.is_available()`. Set environment variables like `MASTER_ADDR` and `MASTER_PORT` for multi-node training.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 480,
+      "afterVideoText": "Pro tip: Use `torch.distributed.is_nccl_available()` to verify NCCL backend before initializing process groups.",
+      "aiConcepts": [
+        "CUDA",
+        "NCCL",
+        "environment setup",
+        "multi-GPU",
+        "PyTorch installation"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_setup",
+      "chapterId": "chapter_ddp_setup",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045422Z",
+      "updatedAt": "2025-11-13T04:02:52.045423Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045424Z",
+        "updatedAt": "2025-11-13T04:02:52.045425Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045425Z"
+      }
+    },
+    {
+      "id": "frame_1762986772048_ddp_setup_init",
+      "title": "Initializing the Process Group",
+      "goal": "Learn how to initialize DDP process groups using init_process_group",
+      "informationText": "Process group initialization is the first step in DDP. Use `torch.distributed.init_process_group()` with backend='nccl' for GPU training. Key parameters: backend (nccl/gloo), init_method (URL or 'env://'), world_size (total processes), rank (current process ID). For single-node, use 'env://' which reads MASTER_ADDR and MASTER_PORT. Each process must call init_process_group with the same arguments. After initialization, set the default CUDA device with `torch.cuda.set_device(rank)` to bind each process to its GPU.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 600,
+      "afterVideoText": "Critical: All processes must call init_process_group with identical arguments, or initialization will hang or fail.",
+      "aiConcepts": [
+        "init_process_group",
+        "backend",
+        "world_size",
+        "rank",
+        "MASTER_ADDR"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 2,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_setup",
+      "chapterId": "chapter_ddp_setup",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045428Z",
+      "updatedAt": "2025-11-13T04:02:52.045428Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045429Z",
+        "updatedAt": "2025-11-13T04:02:52.045430Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045431Z"
+      }
+    },
+    {
+      "id": "frame_1762986772049_ddp_setup_model",
+      "title": "Wrapping Model with DDP",
+      "goal": "Convert your PyTorch model into a DDP-wrapped model ready for distributed training",
+      "informationText": "After process group initialization, wrap your model with `torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])`. The model should already be moved to the correct GPU. DDP automatically: (1) broadcasts initial parameters from rank 0, (2) registers hooks for gradient synchronization, (3) handles gradient reduction during backward pass. Use `find_unused_parameters=True` if your model has unused parameters (slower). For models with static graphs, leave it False for better performance. Always create optimizer AFTER wrapping with DDP.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 540,
+      "afterVideoText": "Best practice: Create optimizer after DDP wrapping, and ensure model is on the correct device before wrapping.",
+      "aiConcepts": [
+        "DistributedDataParallel",
+        "device_ids",
+        "find_unused_parameters",
+        "model wrapping"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 3,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_setup",
+      "chapterId": "chapter_ddp_setup",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045433Z",
+      "updatedAt": "2025-11-13T04:02:52.045433Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045434Z",
+        "updatedAt": "2025-11-13T04:02:52.045435Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045436Z"
+      }
+    },
+    {
+      "id": "frame_1762986772050_ddp_gradients_computation",
+      "title": "Gradient Computation Per Process",
+      "goal": "Understand how each DDP process computes gradients independently",
+      "informationText": "During training, each DDP process operates independently on its data shard. The forward pass computes activations using local model parameters (identical across processes). The backward pass computes gradients w.r.t. the local loss. These gradients differ across processes because each sees different data. For a batch size B with N processes, each process computes gradients on B/N samples. These local gradients are what need synchronization - they represent the contribution of each process's data subset to the overall gradient.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 600,
+      "afterVideoText": "Key insight: Gradients are computed locally per process, but they must be aggregated to form the true gradient over the full dataset.",
+      "aiConcepts": [
+        "backward pass",
+        "local gradients",
+        "data sharding",
+        "gradient computation"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_gradients",
+      "chapterId": "chapter_ddp_gradients",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045440Z",
+      "updatedAt": "2025-11-13T04:02:52.045441Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045441Z",
+        "updatedAt": "2025-11-13T04:02:52.045442Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045443Z"
+      }
+    },
+    {
+      "id": "frame_1762986772051_ddp_allreduce",
+      "title": "AllReduce: Gradient Synchronization Mechanism",
+      "goal": "Master the AllReduce operation that synchronizes gradients across all processes",
+      "informationText": "AllReduce is the core communication primitive in DDP. After backward pass, DDP automatically triggers AllReduce on all parameter gradients. AllReduce performs: (1) Reduce - sum gradients from all processes, (2) Broadcast - distribute the summed gradient to all processes. Result: every process gets the average gradient (sum/N). DDP uses bucket-based AllReduce for efficiency - gradients are grouped into buckets and synchronized in parallel. The bucket size balances communication overhead vs memory. NCCL backend optimizes AllReduce using ring or tree algorithms depending on topology.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 720,
+      "afterVideoText": "Remember: AllReduce makes all processes have identical averaged gradients, enabling identical parameter updates across all replicas.",
+      "aiConcepts": [
+        "AllReduce",
+        "gradient synchronization",
+        "bucket-based",
+        "NCCL",
+        "ring algorithm"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 2,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_gradients",
+      "chapterId": "chapter_ddp_gradients",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045445Z",
+      "updatedAt": "2025-11-13T04:02:52.045446Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045446Z",
+        "updatedAt": "2025-11-13T04:02:52.045447Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045448Z"
+      }
+    },
+    {
+      "id": "frame_1762986772052_ddp_gradient_hooks",
+      "title": "DDP Hooks and Synchronization Timing",
+      "goal": "Understand when and how DDP hooks trigger gradient synchronization",
+      "informationText": "DDP registers autograd hooks on model parameters during wrapping. These hooks fire during backward pass: (1) When a parameter's gradient is ready, the hook is called, (2) Gradients are accumulated in buckets, (3) When a bucket is full (or backward completes), AllReduce is triggered for that bucket, (4) The synchronized gradient replaces the local gradient. This happens automatically - you don't call sync explicitly. The synchronization is overlapped with computation when possible (next bucket's backward while current bucket AllReduces). This pipelining improves efficiency.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 660,
+      "afterVideoText": "Pro tip: DDP handles synchronization automatically via hooks. You just call loss.backward() and optimizer.step() as normal.",
+      "aiConcepts": [
+        "autograd hooks",
+        "bucket synchronization",
+        "gradient hooks",
+        "pipelining"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 3,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_gradients",
+      "chapterId": "chapter_ddp_gradients",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045451Z",
+      "updatedAt": "2025-11-13T04:02:52.045452Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045453Z",
+        "updatedAt": "2025-11-13T04:02:52.045454Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045455Z"
+      }
+    },
+    {
+      "id": "frame_1762986772053_ddp_gradient_accumulation",
+      "title": "Gradient Accumulation for Large Effective Batch Sizes",
+      "goal": "Use gradient accumulation to train with large effective batch sizes without OOM errors",
+      "informationText": "Gradient accumulation allows training with large effective batch sizes when GPU memory is limited. Instead of synchronizing after each mini-batch, accumulate gradients over N steps before calling optimizer.step(). Process: (1) Forward/backward on batch 1 (no optimizer.step), (2) Repeat for batches 2...N, (3) After N batches, gradients are averaged (divide by N), (4) Call optimizer.step() once. Effective batch size = local_batch_size \u00d7 num_processes \u00d7 accumulation_steps. Important: Scale learning rate proportionally, or use gradient scaling. DDP still synchronizes each backward, but optimizer updates less frequently.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 600,
+      "afterVideoText": "Remember: Scale your learning rate when using gradient accumulation to maintain equivalent training dynamics.",
+      "aiConcepts": [
+        "gradient accumulation",
+        "effective batch size",
+        "memory optimization",
+        "learning rate scaling"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_optimization",
+      "chapterId": "chapter_ddp_optimization",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045459Z",
+      "updatedAt": "2025-11-13T04:02:52.045459Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045460Z",
+        "updatedAt": "2025-11-13T04:02:52.045461Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045462Z"
+      }
+    },
+    {
+      "id": "frame_1762986772054_ddp_mixed_precision",
+      "title": "Mixed Precision Training with DDP",
+      "goal": "Combine DDP with AMP (Automatic Mixed Precision) for faster training and lower memory",
+      "informationText": "Mixed precision training uses FP16 for forward/backward and FP32 for optimizer updates, reducing memory and speeding up training. With DDP: (1) Wrap model with DDP first, (2) Create GradScaler for loss scaling, (3) Use autocast context for forward pass, (4) Scale loss before backward, (5) Unscale gradients before optimizer.step(). DDP works seamlessly with AMP - gradients are synchronized in FP16, then unscaled. The GradScaler handles overflow detection. Use `torch.cuda.amp.GradScaler()` and `torch.cuda.amp.autocast()`. This can 2x training speed and halve memory usage.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 660,
+      "afterVideoText": "Best practice: Always unscale gradients before optimizer.step() when using AMP with DDP to avoid NaN issues.",
+      "aiConcepts": [
+        "mixed precision",
+        "AMP",
+        "FP16",
+        "GradScaler",
+        "autocast"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 2,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_optimization",
+      "chapterId": "chapter_ddp_optimization",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045464Z",
+      "updatedAt": "2025-11-13T04:02:52.045465Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045465Z",
+        "updatedAt": "2025-11-13T04:02:52.045466Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045467Z"
+      }
+    },
+    {
+      "id": "frame_1762986772055_ddp_gradient_checkpointing",
+      "title": "DDP with Gradient Checkpointing",
+      "goal": "Combine DDP with gradient checkpointing to train larger models",
+      "informationText": "Gradient checkpointing trades computation for memory by recomputing activations during backward instead of storing them. With DDP: (1) Apply checkpointing to model blocks (e.g., `gradient_checkpointing=True` in transformers), (2) DDP synchronization still works correctly, (3) Memory savings can be 50-80%, enabling larger models/batches. The trade-off: ~20% slower training due to recomputation. Use `torch.utils.checkpoint.checkpoint()` or model-specific checkpointing. DDP's gradient hooks still fire correctly - checkpointing only affects forward pass memory, not gradient sync.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 540,
+      "afterVideoText": "Tip: Gradient checkpointing + DDP + mixed precision is a powerful combination for training very large models.",
+      "aiConcepts": [
+        "gradient checkpointing",
+        "memory optimization",
+        "activation recomputation",
+        "large models"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 3,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_optimization",
+      "chapterId": "chapter_ddp_optimization",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045469Z",
+      "updatedAt": "2025-11-13T04:02:52.045469Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045470Z",
+        "updatedAt": "2025-11-13T04:02:52.045471Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045472Z"
+      }
+    },
+    {
+      "id": "frame_1762986772056_ddp_common_errors",
+      "title": "Common DDP Errors and Debugging Strategies",
+      "goal": "Identify and fix the most common DDP errors",
+      "informationText": "Common DDP issues: (1) 'NCCL timeout' - processes can't communicate (check network, firewalls, MASTER_ADDR/PORT), (2) 'Address already in use' - MASTER_PORT conflict, use different port, (3) 'Mismatched tensor shapes' - different batch sizes per process (use DistributedSampler), (4) 'Hanging on init' - processes initialized with different args, (5) 'CUDA out of memory' - reduce batch size or use gradient accumulation. Debug: Add logging with rank checks, use `torch.distributed.barrier()` to sync debugging, check process group with `torch.distributed.get_world_size()`. Always test with 2 GPUs first.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 720,
+      "afterVideoText": "Debugging tip: Use rank-based logging (only log from rank 0) to avoid log spam and identify process-specific issues.",
+      "aiConcepts": [
+        "NCCL timeout",
+        "debugging",
+        "error handling",
+        "DistributedSampler",
+        "barrier"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_failure",
+      "chapterId": "chapter_ddp_failure",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045476Z",
+      "updatedAt": "2025-11-13T04:02:52.045477Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045477Z",
+        "updatedAt": "2025-11-13T04:02:52.045478Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045479Z"
+      }
+    },
+    {
+      "id": "frame_1762986772057_ddp_process_failure",
+      "title": "Handling Process Failures and Recovery",
+      "goal": "Implement robust error handling and recovery mechanisms for DDP training",
+      "informationText": "DDP training can fail if any process crashes. Strategies: (1) Use try-except around training loop, catch exceptions and call `torch.distributed.destroy_process_group()` for cleanup, (2) Implement checkpointing - save model/optimizer state periodically (only rank 0 needs to save), (3) Use timeout in init_process_group (timeout parameter) to detect deadlocks, (4) Monitor process health - use heartbeats or check process status, (5) For multi-node, implement retry logic and process restart. Best practice: Save checkpoints frequently, especially for long training runs. On restart, load checkpoint and resume from same epoch/step.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 660,
+      "afterVideoText": "Critical: Always save checkpoints from rank 0 only to avoid race conditions and ensure consistent state.",
+      "aiConcepts": [
+        "process failure",
+        "checkpointing",
+        "recovery",
+        "error handling",
+        "timeout"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 2,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_failure",
+      "chapterId": "chapter_ddp_failure",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045481Z",
+      "updatedAt": "2025-11-13T04:02:52.045482Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045482Z",
+        "updatedAt": "2025-11-13T04:02:52.045483Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045484Z"
+      }
+    },
+    {
+      "id": "frame_1762986772058_ddp_monitoring",
+      "title": "Monitoring and Logging in Distributed Training",
+      "goal": "Set up effective monitoring and logging for DDP training runs",
+      "informationText": "Monitoring DDP training requires special considerations: (1) Log only from rank 0 to avoid duplicate logs, use `if rank == 0:` guards, (2) Aggregate metrics across processes - use `torch.distributed.all_reduce()` to sum/average metrics before logging, (3) Use distributed-aware logging libraries (e.g., wandb, tensorboard with rank filtering), (4) Monitor GPU utilization per process with `nvidia-smi` or `torch.cuda.memory_allocated()`, (5) Track communication time vs computation time to identify bottlenecks. Use `torch.distributed.barrier()` to sync timing measurements. Log learning rate, loss, and metrics consistently across all processes.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 600,
+      "afterVideoText": "Pro tip: Use `torch.distributed.all_reduce()` to aggregate metrics before logging to get true distributed training metrics.",
+      "aiConcepts": [
+        "monitoring",
+        "logging",
+        "metrics aggregation",
+        "GPU utilization",
+        "barrier"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 3,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_ddp_failure",
+      "chapterId": "chapter_ddp_failure",
+      "type": "frame",
+      "createdAt": "2025-11-13T04:02:52.045486Z",
+      "updatedAt": "2025-11-13T04:02:52.045487Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-13T04:02:52.045487Z",
+        "updatedAt": "2025-11-13T04:02:52.045488Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-13T04:02:52.045489Z"
+      }
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_ddp_overview",
+      "title": "DDP Overview",
+      "description": "Introduction to Distributed Data Parallel training, its architecture, and fundamental concepts",
+      "color": "#3B82F6",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1762986772045_ddp_overview_intro",
+        "frame_1762986772046_ddp_overview_architecture"
+      ],
+      "order": 0,
+      "createdAt": "2025-11-13T04:02:52.045419Z",
+      "updatedAt": "2025-11-13T04:02:52.045420Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_ddp_setup",
+      "title": "Setup",
+      "description": "Environment configuration, process group initialization, and model wrapping for DDP",
+      "color": "#10B981",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1762986772047_ddp_setup_environment",
+        "frame_1762986772048_ddp_setup_init",
+        "frame_1762986772049_ddp_setup_model"
+      ],
+      "order": 1,
+      "createdAt": "2025-11-13T04:02:52.045437Z",
+      "updatedAt": "2025-11-13T04:02:52.045438Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_ddp_gradients",
+      "title": "Gradient Sync Internals",
+      "description": "Deep dive into how gradients are computed, synchronized via AllReduce, and managed through DDP hooks",
+      "color": "#8B5CF6",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1762986772050_ddp_gradients_computation",
+        "frame_1762986772051_ddp_allreduce",
+        "frame_1762986772052_ddp_gradient_hooks"
+      ],
+      "order": 2,
+      "createdAt": "2025-11-13T04:02:52.045456Z",
+      "updatedAt": "2025-11-13T04:02:52.045457Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_ddp_optimization",
+      "title": "Optimization Tricks",
+      "description": "Advanced techniques: gradient accumulation, mixed precision training, and gradient checkpointing with DDP",
+      "color": "#F59E0B",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1762986772053_ddp_gradient_accumulation",
+        "frame_1762986772054_ddp_mixed_precision",
+        "frame_1762986772055_ddp_gradient_checkpointing"
+      ],
+      "order": 3,
+      "createdAt": "2025-11-13T04:02:52.045473Z",
+      "updatedAt": "2025-11-13T04:02:52.045474Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_ddp_failure",
+      "title": "Failure Handling",
+      "description": "Debugging common errors, handling process failures, and implementing robust monitoring for DDP training",
+      "color": "#EF4444",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1762986772056_ddp_common_errors",
+        "frame_1762986772057_ddp_process_failure",
+        "frame_1762986772058_ddp_monitoring"
+      ],
+      "order": 4,
+      "createdAt": "2025-11-13T04:02:52.045490Z",
+      "updatedAt": "2025-11-13T04:02:52.045491Z",
+      "linkSequentially": true
+    }
+  ],
+  "graphState": {
+    "nodes": [
+      {
+        "id": "chapter_ddp_overview",
+        "type": "chapter",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_ddp_overview",
+          "title": "DDP Overview",
+          "description": "Introduction to Distributed Data Parallel training, its architecture, and fundamental concepts",
+          "frameIds": [
+            "frame_1762986772045_ddp_overview_intro",
+            "frame_1762986772046_ddp_overview_architecture"
+          ],
+          "conceptIds": [],
+          "order": 0,
+          "color": "#3B82F6",
+          "linkSequentially": true
+        }
+      },
+      {
+        "id": "node_frame_1762986772045_ddp_overview_intro_0",
+        "type": "aiframe",
+        "position": {
+          "x": -400,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772045_ddp_overview_intro",
+          "title": "What is Distributed Data Parallel (DDP)?",
+          "goal": "Understand the fundamental concept of DDP and why it's essential for multi-GPU training",
+          "informationText": "Distributed Data Parallel (DDP) is PyTorch's recommended approach for multi-GPU training. Unlike DataParallel, DDP spawns separate processes for each GPU, eliminating Python GIL bottlenecks. Each process maintains its own model replica and optimizer, and gradients are synchronized via efficient collective communication primitives (like AllReduce) after each backward pass. This makes DDP significantly faster and more scalable than DataParallel, especially for large models and high-bandwidth interconnects.",
+          "afterVideoText": "Key takeaway: DDP uses process-based parallelism where each GPU runs in its own process, enabling true parallel execution and efficient gradient synchronization.",
+          "aiConcepts": [
+            "distributed training",
+            "multi-GPU",
+            "process parallelism",
+            "gradient synchronization"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045409Z",
+          "chapterId": "chapter_ddp_overview",
+          "parentFrameId": "chapter_ddp_overview"
+        }
+      },
+      {
+        "id": "node_frame_1762986772046_ddp_overview_architecture_1",
+        "type": "aiframe",
+        "position": {
+          "x": 100,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772046_ddp_overview_architecture",
+          "title": "DDP Architecture and Process Model",
+          "goal": "Learn how DDP processes communicate and coordinate during training",
+          "informationText": "DDP follows a master-worker architecture. Process rank 0 acts as the master, while all processes (ranks 0-N) are workers. Each process: (1) loads a subset of data via a DistributedSampler, (2) performs forward pass independently, (3) computes gradients locally, (4) synchronizes gradients using AllReduce (typically via NCCL backend), and (5) updates parameters identically. The process group manages communication topology. DDP uses a 'replicate' strategy where model parameters are identical across processes, and only gradients need synchronization.",
+          "afterVideoText": "Remember: All processes maintain identical model parameters. DDP only synchronizes gradients, not parameters, making it communication-efficient.",
+          "aiConcepts": [
+            "process group",
+            "rank",
+            "AllReduce",
+            "NCCL",
+            "DistributedSampler"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045415Z",
+          "chapterId": "chapter_ddp_overview",
+          "parentFrameId": "chapter_ddp_overview"
+        }
+      },
+      {
+        "id": "chapter_ddp_setup",
+        "type": "chapter",
+        "position": {
+          "x": 500,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_ddp_setup",
+          "title": "Setup",
+          "description": "Environment configuration, process group initialization, and model wrapping for DDP",
+          "frameIds": [
+            "frame_1762986772047_ddp_setup_environment",
+            "frame_1762986772048_ddp_setup_init",
+            "frame_1762986772049_ddp_setup_model"
+          ],
+          "conceptIds": [],
+          "order": 1,
+          "color": "#10B981",
+          "linkSequentially": true
+        }
+      },
+      {
+        "id": "node_frame_1762986772047_ddp_setup_environment_0",
+        "type": "aiframe",
+        "position": {
+          "x": 0,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772047_ddp_setup_environment",
+          "title": "Environment Setup for DDP",
+          "goal": "Configure your environment with proper CUDA, PyTorch, and distributed training dependencies",
+          "informationText": "Before using DDP, ensure: (1) PyTorch >= 1.6.0 with CUDA support, (2) Multiple GPUs visible via `nvidia-smi`, (3) NCCL backend installed (comes with PyTorch CUDA builds), (4) Proper network configuration for multi-node setups. For single-node multi-GPU, no special network setup needed. Verify with `torch.cuda.device_count()` and `torch.distributed.is_available()`. Set environment variables like `MASTER_ADDR` and `MASTER_PORT` for multi-node training.",
+          "afterVideoText": "Pro tip: Use `torch.distributed.is_nccl_available()` to verify NCCL backend before initializing process groups.",
+          "aiConcepts": [
+            "CUDA",
+            "NCCL",
+            "environment setup",
+            "multi-GPU",
+            "PyTorch installation"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045423Z",
+          "chapterId": "chapter_ddp_setup",
+          "parentFrameId": "chapter_ddp_setup"
+        }
+      },
+      {
+        "id": "node_frame_1762986772048_ddp_setup_init_1",
+        "type": "aiframe",
+        "position": {
+          "x": 500,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772048_ddp_setup_init",
+          "title": "Initializing the Process Group",
+          "goal": "Learn how to initialize DDP process groups using init_process_group",
+          "informationText": "Process group initialization is the first step in DDP. Use `torch.distributed.init_process_group()` with backend='nccl' for GPU training. Key parameters: backend (nccl/gloo), init_method (URL or 'env://'), world_size (total processes), rank (current process ID). For single-node, use 'env://' which reads MASTER_ADDR and MASTER_PORT. Each process must call init_process_group with the same arguments. After initialization, set the default CUDA device with `torch.cuda.set_device(rank)` to bind each process to its GPU.",
+          "afterVideoText": "Critical: All processes must call init_process_group with identical arguments, or initialization will hang or fail.",
+          "aiConcepts": [
+            "init_process_group",
+            "backend",
+            "world_size",
+            "rank",
+            "MASTER_ADDR"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045428Z",
+          "chapterId": "chapter_ddp_setup",
+          "parentFrameId": "chapter_ddp_setup"
+        }
+      },
+      {
+        "id": "node_frame_1762986772049_ddp_setup_model_2",
+        "type": "aiframe",
+        "position": {
+          "x": 1000,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772049_ddp_setup_model",
+          "title": "Wrapping Model with DDP",
+          "goal": "Convert your PyTorch model into a DDP-wrapped model ready for distributed training",
+          "informationText": "After process group initialization, wrap your model with `torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])`. The model should already be moved to the correct GPU. DDP automatically: (1) broadcasts initial parameters from rank 0, (2) registers hooks for gradient synchronization, (3) handles gradient reduction during backward pass. Use `find_unused_parameters=True` if your model has unused parameters (slower). For models with static graphs, leave it False for better performance. Always create optimizer AFTER wrapping with DDP.",
+          "afterVideoText": "Best practice: Create optimizer after DDP wrapping, and ensure model is on the correct device before wrapping.",
+          "aiConcepts": [
+            "DistributedDataParallel",
+            "device_ids",
+            "find_unused_parameters",
+            "model wrapping"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045433Z",
+          "chapterId": "chapter_ddp_setup",
+          "parentFrameId": "chapter_ddp_setup"
+        }
+      },
+      {
+        "id": "chapter_ddp_gradients",
+        "type": "chapter",
+        "position": {
+          "x": 900,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_ddp_gradients",
+          "title": "Gradient Sync Internals",
+          "description": "Deep dive into how gradients are computed, synchronized via AllReduce, and managed through DDP hooks",
+          "frameIds": [
+            "frame_1762986772050_ddp_gradients_computation",
+            "frame_1762986772051_ddp_allreduce",
+            "frame_1762986772052_ddp_gradient_hooks"
+          ],
+          "conceptIds": [],
+          "order": 2,
+          "color": "#8B5CF6",
+          "linkSequentially": true
+        }
+      },
+      {
+        "id": "node_frame_1762986772050_ddp_gradients_computation_0",
+        "type": "aiframe",
+        "position": {
+          "x": 400,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772050_ddp_gradients_computation",
+          "title": "Gradient Computation Per Process",
+          "goal": "Understand how each DDP process computes gradients independently",
+          "informationText": "During training, each DDP process operates independently on its data shard. The forward pass computes activations using local model parameters (identical across processes). The backward pass computes gradients w.r.t. the local loss. These gradients differ across processes because each sees different data. For a batch size B with N processes, each process computes gradients on B/N samples. These local gradients are what need synchronization - they represent the contribution of each process's data subset to the overall gradient.",
+          "afterVideoText": "Key insight: Gradients are computed locally per process, but they must be aggregated to form the true gradient over the full dataset.",
+          "aiConcepts": [
+            "backward pass",
+            "local gradients",
+            "data sharding",
+            "gradient computation"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045441Z",
+          "chapterId": "chapter_ddp_gradients",
+          "parentFrameId": "chapter_ddp_gradients"
+        }
+      },
+      {
+        "id": "node_frame_1762986772051_ddp_allreduce_1",
+        "type": "aiframe",
+        "position": {
+          "x": 900,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772051_ddp_allreduce",
+          "title": "AllReduce: Gradient Synchronization Mechanism",
+          "goal": "Master the AllReduce operation that synchronizes gradients across all processes",
+          "informationText": "AllReduce is the core communication primitive in DDP. After backward pass, DDP automatically triggers AllReduce on all parameter gradients. AllReduce performs: (1) Reduce - sum gradients from all processes, (2) Broadcast - distribute the summed gradient to all processes. Result: every process gets the average gradient (sum/N). DDP uses bucket-based AllReduce for efficiency - gradients are grouped into buckets and synchronized in parallel. The bucket size balances communication overhead vs memory. NCCL backend optimizes AllReduce using ring or tree algorithms depending on topology.",
+          "afterVideoText": "Remember: AllReduce makes all processes have identical averaged gradients, enabling identical parameter updates across all replicas.",
+          "aiConcepts": [
+            "AllReduce",
+            "gradient synchronization",
+            "bucket-based",
+            "NCCL",
+            "ring algorithm"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045446Z",
+          "chapterId": "chapter_ddp_gradients",
+          "parentFrameId": "chapter_ddp_gradients"
+        }
+      },
+      {
+        "id": "node_frame_1762986772052_ddp_gradient_hooks_2",
+        "type": "aiframe",
+        "position": {
+          "x": 1400,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772052_ddp_gradient_hooks",
+          "title": "DDP Hooks and Synchronization Timing",
+          "goal": "Understand when and how DDP hooks trigger gradient synchronization",
+          "informationText": "DDP registers autograd hooks on model parameters during wrapping. These hooks fire during backward pass: (1) When a parameter's gradient is ready, the hook is called, (2) Gradients are accumulated in buckets, (3) When a bucket is full (or backward completes), AllReduce is triggered for that bucket, (4) The synchronized gradient replaces the local gradient. This happens automatically - you don't call sync explicitly. The synchronization is overlapped with computation when possible (next bucket's backward while current bucket AllReduces). This pipelining improves efficiency.",
+          "afterVideoText": "Pro tip: DDP handles synchronization automatically via hooks. You just call loss.backward() and optimizer.step() as normal.",
+          "aiConcepts": [
+            "autograd hooks",
+            "bucket synchronization",
+            "gradient hooks",
+            "pipelining"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045452Z",
+          "chapterId": "chapter_ddp_gradients",
+          "parentFrameId": "chapter_ddp_gradients"
+        }
+      },
+      {
+        "id": "chapter_ddp_optimization",
+        "type": "chapter",
+        "position": {
+          "x": 1300,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_ddp_optimization",
+          "title": "Optimization Tricks",
+          "description": "Advanced techniques: gradient accumulation, mixed precision training, and gradient checkpointing with DDP",
+          "frameIds": [
+            "frame_1762986772053_ddp_gradient_accumulation",
+            "frame_1762986772054_ddp_mixed_precision",
+            "frame_1762986772055_ddp_gradient_checkpointing"
+          ],
+          "conceptIds": [],
+          "order": 3,
+          "color": "#F59E0B",
+          "linkSequentially": true
+        }
+      },
+      {
+        "id": "node_frame_1762986772053_ddp_gradient_accumulation_0",
+        "type": "aiframe",
+        "position": {
+          "x": 800,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772053_ddp_gradient_accumulation",
+          "title": "Gradient Accumulation for Large Effective Batch Sizes",
+          "goal": "Use gradient accumulation to train with large effective batch sizes without OOM errors",
+          "informationText": "Gradient accumulation allows training with large effective batch sizes when GPU memory is limited. Instead of synchronizing after each mini-batch, accumulate gradients over N steps before calling optimizer.step(). Process: (1) Forward/backward on batch 1 (no optimizer.step), (2) Repeat for batches 2...N, (3) After N batches, gradients are averaged (divide by N), (4) Call optimizer.step() once. Effective batch size = local_batch_size \u00d7 num_processes \u00d7 accumulation_steps. Important: Scale learning rate proportionally, or use gradient scaling. DDP still synchronizes each backward, but optimizer updates less frequently.",
+          "afterVideoText": "Remember: Scale your learning rate when using gradient accumulation to maintain equivalent training dynamics.",
+          "aiConcepts": [
+            "gradient accumulation",
+            "effective batch size",
+            "memory optimization",
+            "learning rate scaling"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045459Z",
+          "chapterId": "chapter_ddp_optimization",
+          "parentFrameId": "chapter_ddp_optimization"
+        }
+      },
+      {
+        "id": "node_frame_1762986772054_ddp_mixed_precision_1",
+        "type": "aiframe",
+        "position": {
+          "x": 1300,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772054_ddp_mixed_precision",
+          "title": "Mixed Precision Training with DDP",
+          "goal": "Combine DDP with AMP (Automatic Mixed Precision) for faster training and lower memory",
+          "informationText": "Mixed precision training uses FP16 for forward/backward and FP32 for optimizer updates, reducing memory and speeding up training. With DDP: (1) Wrap model with DDP first, (2) Create GradScaler for loss scaling, (3) Use autocast context for forward pass, (4) Scale loss before backward, (5) Unscale gradients before optimizer.step(). DDP works seamlessly with AMP - gradients are synchronized in FP16, then unscaled. The GradScaler handles overflow detection. Use `torch.cuda.amp.GradScaler()` and `torch.cuda.amp.autocast()`. This can 2x training speed and halve memory usage.",
+          "afterVideoText": "Best practice: Always unscale gradients before optimizer.step() when using AMP with DDP to avoid NaN issues.",
+          "aiConcepts": [
+            "mixed precision",
+            "AMP",
+            "FP16",
+            "GradScaler",
+            "autocast"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045465Z",
+          "chapterId": "chapter_ddp_optimization",
+          "parentFrameId": "chapter_ddp_optimization"
+        }
+      },
+      {
+        "id": "node_frame_1762986772055_ddp_gradient_checkpointing_2",
+        "type": "aiframe",
+        "position": {
+          "x": 1800,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772055_ddp_gradient_checkpointing",
+          "title": "DDP with Gradient Checkpointing",
+          "goal": "Combine DDP with gradient checkpointing to train larger models",
+          "informationText": "Gradient checkpointing trades computation for memory by recomputing activations during backward instead of storing them. With DDP: (1) Apply checkpointing to model blocks (e.g., `gradient_checkpointing=True` in transformers), (2) DDP synchronization still works correctly, (3) Memory savings can be 50-80%, enabling larger models/batches. The trade-off: ~20% slower training due to recomputation. Use `torch.utils.checkpoint.checkpoint()` or model-specific checkpointing. DDP's gradient hooks still fire correctly - checkpointing only affects forward pass memory, not gradient sync.",
+          "afterVideoText": "Tip: Gradient checkpointing + DDP + mixed precision is a powerful combination for training very large models.",
+          "aiConcepts": [
+            "gradient checkpointing",
+            "memory optimization",
+            "activation recomputation",
+            "large models"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045469Z",
+          "chapterId": "chapter_ddp_optimization",
+          "parentFrameId": "chapter_ddp_optimization"
+        }
+      },
+      {
+        "id": "chapter_ddp_failure",
+        "type": "chapter",
+        "position": {
+          "x": 1700,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_ddp_failure",
+          "title": "Failure Handling",
+          "description": "Debugging common errors, handling process failures, and implementing robust monitoring for DDP training",
+          "frameIds": [
+            "frame_1762986772056_ddp_common_errors",
+            "frame_1762986772057_ddp_process_failure",
+            "frame_1762986772058_ddp_monitoring"
+          ],
+          "conceptIds": [],
+          "order": 4,
+          "color": "#EF4444",
+          "linkSequentially": true
+        }
+      },
+      {
+        "id": "node_frame_1762986772056_ddp_common_errors_0",
+        "type": "aiframe",
+        "position": {
+          "x": 1200,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772056_ddp_common_errors",
+          "title": "Common DDP Errors and Debugging Strategies",
+          "goal": "Identify and fix the most common DDP errors",
+          "informationText": "Common DDP issues: (1) 'NCCL timeout' - processes can't communicate (check network, firewalls, MASTER_ADDR/PORT), (2) 'Address already in use' - MASTER_PORT conflict, use different port, (3) 'Mismatched tensor shapes' - different batch sizes per process (use DistributedSampler), (4) 'Hanging on init' - processes initialized with different args, (5) 'CUDA out of memory' - reduce batch size or use gradient accumulation. Debug: Add logging with rank checks, use `torch.distributed.barrier()` to sync debugging, check process group with `torch.distributed.get_world_size()`. Always test with 2 GPUs first.",
+          "afterVideoText": "Debugging tip: Use rank-based logging (only log from rank 0) to avoid log spam and identify process-specific issues.",
+          "aiConcepts": [
+            "NCCL timeout",
+            "debugging",
+            "error handling",
+            "DistributedSampler",
+            "barrier"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045477Z",
+          "chapterId": "chapter_ddp_failure",
+          "parentFrameId": "chapter_ddp_failure"
+        }
+      },
+      {
+        "id": "node_frame_1762986772057_ddp_process_failure_1",
+        "type": "aiframe",
+        "position": {
+          "x": 1700,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772057_ddp_process_failure",
+          "title": "Handling Process Failures and Recovery",
+          "goal": "Implement robust error handling and recovery mechanisms for DDP training",
+          "informationText": "DDP training can fail if any process crashes. Strategies: (1) Use try-except around training loop, catch exceptions and call `torch.distributed.destroy_process_group()` for cleanup, (2) Implement checkpointing - save model/optimizer state periodically (only rank 0 needs to save), (3) Use timeout in init_process_group (timeout parameter) to detect deadlocks, (4) Monitor process health - use heartbeats or check process status, (5) For multi-node, implement retry logic and process restart. Best practice: Save checkpoints frequently, especially for long training runs. On restart, load checkpoint and resume from same epoch/step.",
+          "afterVideoText": "Critical: Always save checkpoints from rank 0 only to avoid race conditions and ensure consistent state.",
+          "aiConcepts": [
+            "process failure",
+            "checkpointing",
+            "recovery",
+            "error handling",
+            "timeout"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045482Z",
+          "chapterId": "chapter_ddp_failure",
+          "parentFrameId": "chapter_ddp_failure"
+        }
+      },
+      {
+        "id": "node_frame_1762986772058_ddp_monitoring_2",
+        "type": "aiframe",
+        "position": {
+          "x": 2200,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1762986772058_ddp_monitoring",
+          "title": "Monitoring and Logging in Distributed Training",
+          "goal": "Set up effective monitoring and logging for DDP training runs",
+          "informationText": "Monitoring DDP training requires special considerations: (1) Log only from rank 0 to avoid duplicate logs, use `if rank == 0:` guards, (2) Aggregate metrics across processes - use `torch.distributed.all_reduce()` to sum/average metrics before logging, (3) Use distributed-aware logging libraries (e.g., wandb, tensorboard with rank filtering), (4) Monitor GPU utilization per process with `nvidia-smi` or `torch.cuda.memory_allocated()`, (5) Track communication time vs computation time to identify bottlenecks. Use `torch.distributed.barrier()` to sync timing measurements. Log learning rate, loss, and metrics consistently across all processes.",
+          "afterVideoText": "Pro tip: Use `torch.distributed.all_reduce()` to aggregate metrics before logging to get true distributed training metrics.",
+          "aiConcepts": [
+            "monitoring",
+            "logging",
+            "metrics aggregation",
+            "GPU utilization",
+            "barrier"
+          ],
+          "isGenerated": false,
+          "updatedAt": "2025-11-13T04:02:52.045487Z",
+          "chapterId": "chapter_ddp_failure",
+          "parentFrameId": "chapter_ddp_failure"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_chapter_chapter_ddp_overview_node_frame_1762986772045_ddp_overview_intro_0",
+        "source": "chapter_ddp_overview",
+        "target": "node_frame_1762986772045_ddp_overview_intro_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_overview"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_overview_node_frame_1762986772046_ddp_overview_architecture_1",
+        "source": "chapter_ddp_overview",
+        "target": "node_frame_1762986772046_ddp_overview_architecture_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_overview"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_setup_node_frame_1762986772047_ddp_setup_environment_0",
+        "source": "chapter_ddp_setup",
+        "target": "node_frame_1762986772047_ddp_setup_environment_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10B981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10B981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_setup"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_setup_node_frame_1762986772048_ddp_setup_init_1",
+        "source": "chapter_ddp_setup",
+        "target": "node_frame_1762986772048_ddp_setup_init_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10B981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10B981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_setup"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_setup_node_frame_1762986772049_ddp_setup_model_2",
+        "source": "chapter_ddp_setup",
+        "target": "node_frame_1762986772049_ddp_setup_model_2",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10B981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10B981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_setup"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_gradients_node_frame_1762986772050_ddp_gradients_computation_0",
+        "source": "chapter_ddp_gradients",
+        "target": "node_frame_1762986772050_ddp_gradients_computation_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#8B5CF6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#8B5CF6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_gradients"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_gradients_node_frame_1762986772051_ddp_allreduce_1",
+        "source": "chapter_ddp_gradients",
+        "target": "node_frame_1762986772051_ddp_allreduce_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#8B5CF6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#8B5CF6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_gradients"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_gradients_node_frame_1762986772052_ddp_gradient_hooks_2",
+        "source": "chapter_ddp_gradients",
+        "target": "node_frame_1762986772052_ddp_gradient_hooks_2",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#8B5CF6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#8B5CF6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_gradients"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_optimization_node_frame_1762986772053_ddp_gradient_accumulation_0",
+        "source": "chapter_ddp_optimization",
+        "target": "node_frame_1762986772053_ddp_gradient_accumulation_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#F59E0B",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#F59E0B",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_optimization"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_optimization_node_frame_1762986772054_ddp_mixed_precision_1",
+        "source": "chapter_ddp_optimization",
+        "target": "node_frame_1762986772054_ddp_mixed_precision_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#F59E0B",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#F59E0B",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_optimization"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_optimization_node_frame_1762986772055_ddp_gradient_checkpointing_2",
+        "source": "chapter_ddp_optimization",
+        "target": "node_frame_1762986772055_ddp_gradient_checkpointing_2",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#F59E0B",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#F59E0B",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_optimization"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_failure_node_frame_1762986772056_ddp_common_errors_0",
+        "source": "chapter_ddp_failure",
+        "target": "node_frame_1762986772056_ddp_common_errors_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#EF4444",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#EF4444",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_failure"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_failure_node_frame_1762986772057_ddp_process_failure_1",
+        "source": "chapter_ddp_failure",
+        "target": "node_frame_1762986772057_ddp_process_failure_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#EF4444",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#EF4444",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_failure"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_ddp_failure_node_frame_1762986772058_ddp_monitoring_2",
+        "source": "chapter_ddp_failure",
+        "target": "node_frame_1762986772058_ddp_monitoring_2",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#EF4444",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#EF4444",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_ddp_failure"
+        }
+      }
+    ],
+    "selectedNodeId": null
+  }
+}
