@@ -52,13 +52,27 @@ function resolveWasmDirectory(): string {
 
   for (const dir of candidates) {
     const wasmPath = path.join(dir, "ort-wasm-simd.wasm");
-    if (fs.existsSync(wasmPath)) {
+    if (isValidWasmFile(wasmPath)) {
       return ensureTrailingSlash(dir);
     }
   }
 
   // Fall back to public path even if missing; ONNX runtime will throw a clearer error.
   return ensureTrailingSlash(candidates[0]);
+}
+
+function isValidWasmFile(filePath: string): boolean {
+  if (!fs.existsSync(filePath)) return false;
+  try {
+    const fd = fs.openSync(filePath, "r");
+    const header = Buffer.alloc(4);
+    fs.readSync(fd, header, 0, 4, 0);
+    fs.closeSync(fd);
+    return header.equals(Buffer.from([0x00, 0x61, 0x73, 0x6d]));
+  } catch (error) {
+    console.warn(`⚠️ Unable to validate wasm file at ${filePath}:`, error);
+    return false;
+  }
 }
 
 export async function generateServerEmbeddings(
