@@ -1,10 +1,10 @@
 "use server";
 
 import path from "path";
-import type { Pipeline } from "@xenova/transformers";
+import type { FeatureExtractionPipeline } from "@xenova/transformers";
 import { LOCAL_EMBEDDING_MODEL_ID } from "@/lib/transformers/modelConfig";
 
-let embeddingPipeline: Pipeline | null = null;
+let embeddingPipeline: FeatureExtractionPipeline | null = null;
 let transformersModulePromise:
   | Promise<typeof import("@xenova/transformers")>
   | null = null;
@@ -30,15 +30,9 @@ async function loadTransformers() {
       );
 
       const wasmDir = path.join(process.cwd(), "public/onnxruntime-web");
-      module.env.backends.onnx.wasm.wasmPaths = {
-        "ort-wasm-simd": path.join(wasmDir, "ort-wasm-simd.wasm"),
-        "ort-wasm-simd-threaded": path.join(
-          wasmDir,
-          "ort-wasm-simd-threaded.wasm"
-        ),
-        "ort-wasm-threaded": path.join(wasmDir, "ort-wasm-threaded.wasm"),
-        "ort-wasm": path.join(wasmDir, "ort-wasm.wasm"),
-      };
+      module.env.backends.onnx.wasm.wasmPaths = wasmDir;
+      module.env.backends.onnx.wasm.numThreads = 1;
+      module.env.backends.onnx.wasm.proxy = false;
 
       return module;
     });
@@ -57,10 +51,14 @@ export async function generateServerEmbeddings(
       LOCAL_EMBEDDING_MODEL_ID
     );
   }
+  const activePipeline = embeddingPipeline;
+  if (!activePipeline) {
+    throw new Error("Embedding pipeline failed to initialize.");
+  }
 
   const embeddings: number[][] = [];
   for (const text of texts) {
-    const output: any = await embeddingPipeline(text, {
+    const output: any = await activePipeline(text, {
       pooling: "mean",
       normalize: true,
     });

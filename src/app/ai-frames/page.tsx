@@ -1024,20 +1024,6 @@ export default function AIFramesPage() {
     return framesByChapter.get("__standalone__") || [];
   }, [framesByChapter]);
 
-  useEffect(() => {
-    if (exportDialogOpen) {
-      setExportForm((prev) => ({
-        title:
-          prev.title ||
-          `AI Frames Lesson Plan (${new Date().toLocaleDateString()})`,
-        subtitle:
-          prev.subtitle ||
-          `Frames: ${workspaceStats.frames} · Chapters: ${workspaceStats.chapters}`,
-        includeGraph: prev.includeGraph,
-      }));
-    }
-  }, [exportDialogOpen, workspaceStats.frames, workspaceStats.chapters]);
-
   const dispatchForceSave = useCallback(
     (reason: string) => {
       if (typeof window === "undefined") {
@@ -2146,8 +2132,24 @@ export default function AIFramesPage() {
   }, []);
 
   const handleOpenExportDialog = useCallback(() => {
+    const defaultTitle = `AI Frames Lesson Plan (${new Date().toLocaleDateString()})`;
+    const defaultSubtitle = `Frames: ${workspaceStats.frames} · Chapters: ${workspaceStats.chapters}`;
+
+    setExportForm((prev) => {
+      const nextTitle = prev.title || defaultTitle;
+      const nextSubtitle = prev.subtitle || defaultSubtitle;
+      if (prev.title === nextTitle && prev.subtitle === nextSubtitle) {
+        return prev;
+      }
+      return {
+        ...prev,
+        title: nextTitle,
+        subtitle: nextSubtitle,
+      };
+    });
+
     setExportDialogOpen(true);
-  }, []);
+  }, [workspaceStats.frames, workspaceStats.chapters]);
 
   const handleExportPDF = useCallback(() => {
     const timestamp = new Date();

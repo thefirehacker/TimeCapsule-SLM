@@ -1,7 +1,7 @@
 # Todo List 
 
 ## Part A – Frame Creation Stability
-- [ ] Fix the “Maximum update depth exceeded” loop in the Frame Generation dialog (only set dialog state once per run).
+- [ ] Fix the “Maximum update depth exceeded” loop in the Frame Creation modal that appears right after synthesis: the dialog currently reinitializes form state while `showChapterProcessing` is toggling, so React keeps re-rendering `DialogPrimitive.Overlay`. We need to make this modal idempotent (set state once when new frames arrive, never inside render).
 
 ## Part B – Planner & Flow Agents
 - [ ] Rewrite the Flow Planner pipeline to produce SWE-quality frame JSON (phase-aware chapters, attachment metadata, graph edges).
