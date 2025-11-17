@@ -58,16 +58,4 @@ const nextConfig: NextConfig = {
   // serverExternalPackages: [],
 };
 
-if (!nextConfig.experimental) {
-  nextConfig.experimental = {};
-}
-(nextConfig.experimental as any).outputFileTracingIncludes = {
-  "/api/kb/upload": [
-    "./node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm",
-    "./node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
-    "./node_modules/onnxruntime-web/dist/ort-wasm-threaded.wasm",
-    "./node_modules/onnxruntime-web/dist/ort-wasm.wasm",
-  ],
-};
-
 export default nextConfig;
