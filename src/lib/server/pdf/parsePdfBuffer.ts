@@ -22,11 +22,16 @@ export async function parsePdfBuffer(
   buffer: Buffer,
   options: { timeoutMs?: number } = {}
 ): Promise<ParsedPdfResult> {
+  const bufferSizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
+  console.log(`📄 PDF Parser: Starting extraction for buffer of size ${bufferSizeMB} MB`);
+  
   const pdfResult = await tryParseWithPdfCli(buffer);
   if (pdfResult) {
+    console.log(`✅ PDF Parser: Using pdf-parse CLI (high quality) - extracted ${pdfResult.plainText.length} chars from ${pdfResult.pageCount} pages`);
     return pdfResult;
   }
 
+  console.warn(`⚠️ PDF Parser: pdf-parse CLI failed, falling back to pdf2json (may have lower quality)`);
   return parseWithPdf2Json(buffer, options);
 }
 
@@ -34,6 +39,7 @@ async function tryParseWithPdfCli(
   buffer: Buffer
 ): Promise<ParsedPdfResult | null> {
   const scriptPath = await ensurePdfCliScript();
+  console.log(`🔧 PDF Parser: Attempting pdf-parse CLI with script at: ${scriptPath}`);
 
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [scriptPath], {
@@ -47,16 +53,22 @@ async function tryParseWithPdfCli(
     child.stderr.on("data", (chunk) => stderrChunks.push(chunk));
 
     child.on("error", (error) => {
-      console.warn("pdf-parse CLI failed to spawn:", error);
+      console.warn("❌ PDF Parser: pdf-parse CLI failed to spawn:", {
+        error: error.message,
+        code: (error as any).code,
+        syscall: (error as any).syscall,
+        path: (error as any).path,
+        scriptPath
+      });
       resolve(null);
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
+        const stderr = Buffer.concat(stderrChunks).toString();
         console.warn(
-          "pdf-parse CLI exited with code",
-          code,
-          Buffer.concat(stderrChunks).toString()
+          `❌ PDF Parser: pdf-parse CLI exited with code ${code}`,
+          { stderr: stderr.substring(0, 500), scriptPath }
         );
         resolve(null);
         return;
@@ -65,13 +77,18 @@ async function tryParseWithPdfCli(
       try {
         const payload = JSON.parse(Buffer.concat(stdoutChunks).toString());
         const plainText = normalizePlainText(payload.text || "");
+        const pageCount = payload.numpages || 1;
+        console.log(`✅ PDF Parser: pdf-parse CLI succeeded - ${plainText.length} chars, ${pageCount} pages`);
         resolve({
           plainText,
           structuredText: plainTextToStructured(plainText),
-          pageCount: payload.numpages || 1,
+          pageCount,
         });
       } catch (error) {
-        console.warn("Failed to parse pdf-parse CLI output:", error);
+        console.warn("❌ PDF Parser: Failed to parse pdf-parse CLI output:", {
+          error: error instanceof Error ? error.message : String(error),
+          stdout: Buffer.concat(stdoutChunks).toString().substring(0, 200)
+        });
         resolve(null);
       }
     });
@@ -173,6 +190,7 @@ async function ensurePdfCliScript(): Promise<string> {
   const repoScript = path.join(process.cwd(), "scripts/pdf-extract-cli.js");
   try {
     await fs.access(repoScript);
+    console.log(`♻️ PDF Parser: Using repo pdf-parse CLI script at: ${repoScript}`);
     return repoScript;
   } catch {
     const tempPath = path.join(
@@ -181,10 +199,22 @@ async function ensurePdfCliScript(): Promise<string> {
     );
     try {
       await fs.access(tempPath);
+      console.log(`♻️ PDF Parser: Reusing existing temp pdf-parse CLI script at: ${tempPath}`);
       return tempPath;
     } catch {
-      await fs.writeFile(tempPath, FALLBACK_CLI_SOURCE, "utf8");
-      return tempPath;
+      console.log(`📝 PDF Parser: Creating new pdf-parse CLI script at: ${tempPath}`);
+      try {
+        await fs.writeFile(tempPath, FALLBACK_CLI_SOURCE, "utf8");
+        console.log(`✅ PDF Parser: Successfully created CLI script`);
+        return tempPath;
+      } catch (error) {
+        console.error(`❌ PDF Parser: Failed to create CLI script:`, {
+          error: error instanceof Error ? error.message : String(error),
+          tempPath,
+          tmpdir: os.tmpdir()
+        });
+        throw error;
+      }
     }
   }
 }
@@ -193,10 +223,23 @@ async function parseWithPdf2Json(
   buffer: Buffer,
   options: { timeoutMs?: number }
 ): Promise<ParsedPdfResult> {
+  console.log(`📦 PDF Parser: Using pdf2json fallback parser`);
+  
   const fileId = uuidv4();
   const tempDir = process.env.TEMP || process.env.TMP || "/tmp";
   const tempPath = `${tempDir}/${fileId}.pdf`;
-  await fs.writeFile(tempPath, buffer);
+  
+  try {
+    await fs.writeFile(tempPath, buffer);
+    console.log(`📁 PDF Parser: Created temp PDF at: ${tempPath}`);
+  } catch (error) {
+    console.error(`❌ PDF Parser: Failed to write temp PDF file:`, {
+      error: error instanceof Error ? error.message : String(error),
+      tempDir,
+      tempPath
+    });
+    throw error;
+  }
 
   const timeoutMs =
     options.timeoutMs ?? Math.max(30000, 30000 + (buffer.length / (1024 * 1024)) * 3000);
@@ -226,6 +269,7 @@ async function parseWithPdf2Json(
 
     const pageCount = pdfParser.data?.Pages?.length || 1;
     const plainText = normalizePlainText(stripStructureMarkers(structuredText));
+    console.log(`✅ PDF Parser: pdf2json completed - ${plainText.length} chars from ${pageCount} pages`);
     return { plainText, structuredText, pageCount };
   } finally {
     try {
