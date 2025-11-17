@@ -94,8 +94,8 @@ frontend:
         - echo "🗑️ Removing unnecessary SWC binaries..."
         - rm -rf node_modules/@swc/core-linux-x64-gnu || true
         - rm -rf node_modules/@swc/core-linux-x64-musl || true
-        - echo "🗑️ Removing onnxruntime-node (server-side, not used in serverless)..."
-        - rm -rf node_modules/onnxruntime-node || true
+        - echo "ℹ️ Keeping onnxruntime-node (required by Xenova transformers)"
+        # - rm -rf node_modules/onnxruntime-node || true  # Commented out - Xenova needs this
         - echo "📊 Build output sizes after cleanup:"
         - du -sh .next public node_modules
         - echo "📊 Total deployment size (should be under 220MB):"
