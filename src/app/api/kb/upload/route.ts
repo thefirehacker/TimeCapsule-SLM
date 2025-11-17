@@ -3,9 +3,11 @@ import { ingestDocumentBuffer } from "@/lib/server/documentIngestion";
 import type { DocumentType } from "@/components/VectorStore/VectorStore";
 
 export async function POST(req: NextRequest) {
+  console.log("🚨🚨🚨 UPLOAD API CALLED - CHECK CLOUDWATCH FOR THIS LINE 🚨🚨🚨");
   try {
     const formData = await req.formData();
     const file = formData.get("file");
+    console.log(`📁 File received: ${file instanceof File ? file.name : 'NO FILE'} (${file instanceof File ? file.size : 0} bytes)`);
     if (!(file instanceof File)) {
       return NextResponse.json(
         { error: "Missing 'file' field in multipart payload." },
