@@ -29,13 +29,40 @@ sticks around inside Xenova.
 That indicates the WASM loader is reading a non-binary payload (likely HTML or a
 missing file).
 
-✅ Fix attempt #2 (current): `src/lib/server/embedding.ts` now resolves the ONNX
+✅ Fix attempt #2: `src/lib/server/embedding.ts` now resolves the ONNX
 runtime directory dynamically. It prefers `public/onnxruntime-web/`, but if that
 path is missing/bad it automatically falls back to
 `node_modules/onnxruntime-web/dist`, and it always appends a trailing slash when
 assigning `module.env.backends.onnx.wasm.wasmPaths`. This means Amplify can load
 the bundled `.wasm` files from node_modules even if `/public` gets mangled.
-  [#43](https://github.com/thefirehacker/TimeCapsule-SLM/issues/43)2150-08b6897e84c01d2b.js:1  POST https://timecapsule.bubblspace.com/api/kb/upload 500 (Internal Server Error)
+
+**New failure mode (2025-01-17)**
+Error changed to:
+```
+{"error":"Can't create a session"}
+```
+
+This indicates WASM files loaded successfully, but ONNX session creation failed.
+
+**Root cause discovered:** `next.config.ts` had `outputFileTracingIncludes` 
+defined in BOTH the top-level (correct) AND the `experimental` section (wrong).
+Next.js 15.3.5 logs showed:
+```
+⚠ `experimental.outputFileTracingIncludes` has been moved to `outputFileTracingIncludes`
+```
+
+This meant the WASM bundling configuration was being ignored, so the Lambda 
+didn't contain the required `.wasm` files from `node_modules/onnxruntime-web/dist/`.
+
+✅ **Fix attempt #3 (current):** Removed the duplicate `experimental.outputFileTracingIncludes` 
+block from `next.config.ts` (lines 61-71). Now only the top-level config remains, 
+which Next.js 15+ recognizes. This ensures `node_modules/onnxruntime-web/dist/*.wasm` 
+files are properly bundled into the Lambda, allowing the fallback in `embedding.ts` 
+to find real WASM binaries (not LFS pointers).
+
+Error log from previous attempt:
+```
+2150-08b6897e84c01d2b.js:1  POST https://timecapsule.bubblspace.com/api/kb/upload 500 (Internal Server Error)
 (anonymous) @ 2150-08b6897e84c01d2b.js:1
 onChange @ page-5b0f252fd0c0ddc4.js:1
 iX @ 4bd1b696-148e447745c159fa.js:1
