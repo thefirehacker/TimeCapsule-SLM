@@ -151,6 +151,7 @@ type PrintableFrameSummary = {
   takeaways?: string;
   notes?: string;
   concepts?: string[];
+  attachments?: PrintableAttachmentSummary[];
 };
 
 type PrintableChapterSummary = {
@@ -174,6 +175,14 @@ interface FramesExportPayload {
   graphEdges: Array<{ source: string; target: string }>;
   generatedAt: string;
 }
+
+type PrintableAttachmentSummary = {
+  title: string;
+  type?: string;
+  source?: string;
+  description?: string;
+  excerpt?: string;
+};
 
 const escapeHtml = (value?: string | null): string => {
   if (!value) return "";
@@ -227,6 +236,47 @@ const renderFrameContentBlock = (frame: PrintableFrameSummary, index: number) =>
         </div>`
       : "";
 
+  const attachmentsMarkup =
+    frame.attachments && frame.attachments.length
+      ? `<div class="frame-attachments">
+          <p class="frame-section-label attachments-label">Resources & Attachments</p>
+          <div class="attachment-grid">
+            ${frame.attachments
+              .map(
+                (attachment) => `
+                <div class="attachment-card">
+                  <div class="attachment-icon">
+                    ${(attachment.type || "DOC")
+                      .slice(0, 3)
+                      .toUpperCase()}
+                  </div>
+                  <div class="attachment-body">
+                    <p class="attachment-title">${escapeHtml(
+                      truncateText(attachment.title, 60)
+                    )}</p>
+                    <p class="attachment-meta">${escapeHtml(
+                      [
+                        attachment.type || "Document",
+                        attachment.source || "Knowledge Base",
+                      ].join(" · ")
+                    )}</p>
+                    <p class="attachment-description">${escapeHtml(
+                      truncateText(
+                        attachment.excerpt ||
+                          attachment.description ||
+                          "Reference included with this frame.",
+                        120
+                      )
+                    )}</p>
+                  </div>
+                </div>
+              `
+              )
+              .join("")}
+          </div>
+        </div>`
+      : "";
+
   const notesSection = frame.notes
     ? `
       <div class="frame-section">
@@ -250,6 +300,7 @@ const renderFrameContentBlock = (frame: PrintableFrameSummary, index: number) =>
         ${renderFrameSection("Key Takeaways", frame.takeaways)}
         ${notesSection}
         ${conceptsMarkup}
+        ${attachmentsMarkup}
       </div>
       <footer class="frame-block-footer">${EXPORT_BRAND_URL}</footer>
     </article>
@@ -546,6 +597,9 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
             color: #94a3b8;
             margin-bottom: 0.4rem;
           }
+          .attachments-label {
+            margin-bottom: 0.6rem;
+          }
           .frame-section-text {
             font-size: 0.95rem;
             color: #0f172a;
@@ -569,6 +623,56 @@ const generateFramesExportHtml = (payload: FramesExportPayload): string => {
             border-radius: 999px;
             background: #eef2ff;
             color: #3730a3;
+          }
+          .frame-attachments {
+            margin-top: 0.75rem;
+          }
+          .attachment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.6rem;
+          }
+          .attachment-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.75rem;
+            background: #ffffff;
+            box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+          }
+          .attachment-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 0.8rem;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .attachment-body {
+            flex: 1;
+          }
+          .attachment-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #0f172a;
+            margin-bottom: 0.2rem;
+          }
+          .attachment-meta {
+            font-size: 0.72rem;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 0.2rem;
+          }
+          .attachment-description {
+            font-size: 0.8rem;
+            color: #475569;
+            line-height: 1.35;
           }
           .frame-block-footer {
             font-size: 0.75rem;
@@ -812,6 +916,109 @@ export default function AIFramesPage() {
     });
     return lookup;
   }, [unifiedStorage.frames]);
+
+  const extractFrameAttachments = useCallback(
+    (frame: UnifiedAIFrame): PrintableAttachmentSummary[] => {
+      if (!frame) {
+        return [];
+      }
+
+      const attachments: PrintableAttachmentSummary[] = [];
+
+      if (Array.isArray(frame.documents) && frame.documents.length > 0) {
+        attachments.push(
+          ...frame.documents
+            .map((doc: any) => {
+              const meta = doc?.metadata || {};
+              const primaryTitle =
+                doc?.name || meta.filename || doc?.title || "Attachment";
+              const docType = doc?.type || meta.filetype || meta.docType;
+              const sourceLabel = meta.source || doc?.source || "Knowledge Base";
+
+              const excerptCandidate =
+                (typeof doc?.content === "string" && doc?.content) ||
+                (typeof doc?.preview === "string" && doc?.preview) ||
+                (typeof doc?.summary === "string" && doc?.summary) ||
+                (typeof meta.summary === "string" && meta.summary) ||
+                (typeof doc?.notes === "string" && doc?.notes) ||
+                undefined;
+
+              const description =
+                doc?.description ||
+                meta.description ||
+                (excerptCandidate ? undefined : doc?.url);
+
+              return {
+                title: primaryTitle,
+                type: docType,
+                source: sourceLabel,
+                description: description,
+                excerpt: excerptCandidate,
+              };
+            })
+            .filter(
+              (attachment) =>
+                attachment.title || attachment.description || attachment.excerpt
+            )
+            .map((attachment) => ({
+              ...attachment,
+              excerpt: attachment.excerpt
+                ? truncateText(attachment.excerpt, 400)
+                : undefined,
+              description: attachment.description
+                ? truncateText(String(attachment.description), 160)
+                : undefined,
+            }))
+        );
+      }
+
+      if (frame.attachment) {
+        const attachmentType = frame.attachment.type || "attachment";
+        const data = frame.attachment.data || {};
+        const attachmentTitle =
+          data.title || data.filename || frame.attachment.type.toUpperCase();
+
+        let attachmentSource = "Attachment";
+        if (attachmentType === "pdf-kb") {
+          attachmentSource = "Knowledge Base";
+        } else if (attachmentType.startsWith("pdf")) {
+          attachmentSource = "PDF";
+        } else if (attachmentType === "text") {
+          attachmentSource = "Text Snippet";
+        } else if (attachmentType === "video") {
+          attachmentSource = "Video Clip";
+        }
+
+        const attachmentDescription =
+          data.pages ||
+          data.pageCount ||
+          data.notes ||
+          data.description ||
+          data.pdfUrl ||
+          undefined;
+
+        const attachmentExcerpt =
+          data.notes ||
+          data.summary ||
+          (typeof data.content === "string" ? data.content : undefined);
+
+        attachments.push({
+          title: attachmentTitle,
+          type: attachmentType,
+          source: attachmentSource,
+          description: attachmentDescription
+            ? truncateText(String(attachmentDescription), 160)
+            : undefined,
+          excerpt: attachmentExcerpt
+            ? truncateText(String(attachmentExcerpt), 400)
+            : undefined,
+        });
+      }
+
+      return attachments;
+    },
+    []
+  );
 
   const standaloneFrames = useMemo(() => {
     return framesByChapter.get("__standalone__") || [];
@@ -1990,6 +2197,7 @@ export default function AIFramesPage() {
             concepts: frame.conceptIds?.length
               ? frame.conceptIds
               : frame.aiConcepts || [],
+            attachments: extractFrameAttachments(frame),
           })),
           index: index + 1,
         };
@@ -2006,6 +2214,7 @@ export default function AIFramesPage() {
         concepts: frame.conceptIds?.length
           ? frame.conceptIds
           : frame.aiConcepts || [],
+        attachments: extractFrameAttachments(frame),
       })
     );
     const graphState = unifiedStorage.graphState;
@@ -2053,6 +2262,7 @@ export default function AIFramesPage() {
     framesByChapter,
     standaloneFrames,
     frameLookup,
+    extractFrameAttachments,
     unifiedStorage.chapters,
     unifiedStorage.graphState,
     workspaceStats.chapters,
