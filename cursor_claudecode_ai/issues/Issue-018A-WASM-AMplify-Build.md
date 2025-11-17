@@ -54,11 +54,48 @@ Next.js 15.3.5 logs showed:
 This meant the WASM bundling configuration was being ignored, so the Lambda 
 didn't contain the required `.wasm` files from `node_modules/onnxruntime-web/dist/`.
 
-✅ **Fix attempt #3 (current):** Removed the duplicate `experimental.outputFileTracingIncludes` 
+✅ **Fix attempt #3:** Removed the duplicate `experimental.outputFileTracingIncludes` 
 block from `next.config.ts` (lines 61-71). Now only the top-level config remains, 
 which Next.js 15+ recognizes. This ensures `node_modules/onnxruntime-web/dist/*.wasm` 
 files are properly bundled into the Lambda, allowing the fallback in `embedding.ts` 
 to find real WASM binaries (not LFS pointers).
+
+**Still failing with "Can't create a session" (2025-01-17)**
+
+**Root cause #2 discovered:** Git LFS was never actually working on Amplify. Build logs 
+showed:
+```
+git: 'lfs' is not a git command. See 'git --help'.
+```
+
+This meant all files in `public/embeddings/` (model `.onnx` files) and 
+`public/onnxruntime-web/` (WASM files) were Git LFS **pointer files** (text starting 
+with `version https://git-lfs...`) instead of actual binaries. The "magic word" and 
+"Can't create a session" errors were caused by trying to load these text pointers as 
+binary files.
+
+The issue was identical to https://github.com/aws-amplify/amplify-hosting/issues/3486 
+– Amplify's build image doesn't have Git LFS pre-installed, and the packagecloud 
+installation script method fails.
+
+✅ **Fix attempt #4 (current):** Updated `amplify.yml` to install Git LFS from the 
+official binary release (v3.7.1) before running `git lfs pull`. This is the method 
+confirmed working by the AWS Amplify team in the GitHub issue above.
+
+Installation commands added to preBuild phase:
+```yaml
+- curl -L https://github.com/git-lfs/git-lfs/releases/download/v3.7.1/git-lfs-linux-amd64-v3.7.1.tar.gz | tar -xz
+- cd git-lfs-3.7.1
+- sudo ./install.sh
+- cd ..
+- git lfs install
+- git lfs pull
+```
+
+This ensures real binary files are pulled for both ONNX models and WASM runtime files, 
+allowing the Lambda to properly load them for KB upload functionality.
+
+Reference: https://github.com/git-lfs/git-lfs#from-binary
 
 Error log from previous attempt:
 ```
