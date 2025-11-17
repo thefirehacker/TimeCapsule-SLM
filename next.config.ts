@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
       "./node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
       "./node_modules/onnxruntime-web/dist/ort-wasm-threaded.wasm",
       "./node_modules/onnxruntime-web/dist/ort-wasm.wasm",
+      "./scripts/pdf-extract-cli.js",
+      "./node_modules/pdf-parse/lib/pdf-parse.js",
+      "./node_modules/pdfjs-dist/**",
     ],
   },
   // Disable TypeScript errors in build for Amplify
