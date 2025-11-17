@@ -250,7 +250,11 @@ export class UnifiedStorageManager {
       })),
       graphState 
     });
-    return btoa(dataString).slice(0, 16); // Simple checksum
+    const base64 =
+      typeof window === "undefined"
+        ? Buffer.from(dataString, "utf-8").toString("base64")
+        : window.btoa(unescape(encodeURIComponent(dataString)));
+    return base64.slice(0, 16); // Simple checksum
   }
 
   // LOCALSTORAGE: Save with unified format

@@ -2457,13 +2457,14 @@ export default function AIFramesPage() {
       )}
 
       {/* Document Manager Modal - Complete Deep Research implementation */}
-      <Dialog
-        open={showDocumentManager}
-        onOpenChange={(open) => {
-          if (!open) setShowDocumentManager(false);
-        }}
-      >
-        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+      {showDocumentManager && (
+        <Dialog
+          open={showDocumentManager}
+          onOpenChange={(open) => {
+            if (!open) setShowDocumentManager(false);
+          }}
+        >
+          <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 p-6 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -3206,8 +3207,9 @@ export default function AIFramesPage() {
               Close
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
         <DialogContent className="sm:max-w-md">
