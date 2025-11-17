@@ -29,7 +29,11 @@ async function loadTransformers() {
         "public/embeddings"
       );
 
-      const wasmDir = path.join(process.cwd(), "public/onnxruntime-web");
+      const wasmDir = path.join(
+        process.cwd(),
+        "public",
+        "onnxruntime-web"
+      ) + path.sep;
       module.env.backends.onnx.wasm.wasmPaths = wasmDir;
       module.env.backends.onnx.wasm.numThreads = 1;
       module.env.backends.onnx.wasm.proxy = false;
