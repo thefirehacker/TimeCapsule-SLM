@@ -84,26 +84,40 @@ frontend:
         - echo "🏗️ Starting Next.js build..."
         - npm run build
         - echo "🧹 Cleaning up large files to reduce build output size..."
-        - rm -rf public/embeddings/onnx/*.onnx
+        - echo "🗑️ Removing .next/cache (build cache - not needed for deployment)..."
+        - rm -rf .next/cache
+        - echo "🗑️ Removing unused model variants (keeping only root model.onnx)..."
+        - rm -rf public/embeddings/bge-small-en-v1.5/onnx/
+        - echo "✅ Kept bge-small-en-v1.5/model.onnx, removed 438MB of unused model variants"
+        - echo "🗑️ Removing public WASM files (already bundled in .next)..."
         - rm -rf public/onnxruntime-web/*.wasm
-        - rm -f node_modules/@swc/core-linux-x64-gnu/swc.linux-x64-gnu.node || true
-        - rm -f node_modules/@swc/core-linux-x64-musl/swc.linux-x64-musl.node || true
-        - echo "📊 Build output size after cleanup:"
-        - du -sh .next
+        - echo "🗑️ Removing unnecessary SWC binaries..."
+        - rm -rf node_modules/@swc/core-linux-x64-gnu || true
+        - rm -rf node_modules/@swc/core-linux-x64-musl || true
+        - echo "🗑️ Removing onnxruntime-node (server-side, not used in serverless)..."
+        - rm -rf node_modules/onnxruntime-node || true
+        - echo "📊 Build output sizes after cleanup:"
+        - du -sh .next public node_modules
+        - echo "📊 Total deployment size (should be under 220MB):"
+        - du -ch .next public node_modules | grep total
         - echo "✅ Build completed successfully!"
     postBuild:
       commands:
         - echo "📊 Post-build optimizations..."
+        - echo "🔍 Moving .env.production into .next for deployment..."
+        - cp .env.production .next/.env.production
         - echo "🔍 Checking build output..."
         - ls -la .next/
         - echo "🔍 Verifying .env.production exists in build output:"
-        - ls -la .env.production || echo "⚠️ .env.production not found"
+        - ls -la .next/.env.production || echo "⚠️ .env.production not found"
         - echo "✅ Build artifacts created successfully"
   artifacts:
     baseDirectory: .next
     files:
       - "**/*"
-      - ".env.production"
+    exclude:
+      - "cache/**/*"
+      - "node_modules/**/*"
   cache:
     paths:
       - node_modules/**/*
