@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import type { ChangeEvent } from "react";
 import {
   Card,
@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
+import type { AIFlowModelTier } from "../lib/openRouterModels";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
@@ -210,6 +211,16 @@ const swePromptTemplate = useMemo(() => {
     .filter(Boolean)
     .join("\n");
 }, [prompt, resolvedLocalBridgeBase]);
+
+const handleProviderChange = useCallback((value: string) => {
+  aiProviders.setActiveProvider(
+    value as "openrouter" | "ollama" | "local-bridge"
+  );
+}, [aiProviders]);
+
+const handleModelChange = useCallback((tier: AIFlowModelTier) => (value: string) => {
+  aiProviders.openrouter.updateModelSelection(tier, value);
+}, [aiProviders]);
 
 if (!isOpen) {
   return null;
@@ -424,11 +435,7 @@ const handleCopySwePrompt = async () => {
                 </div>
                 <Select
                   value={aiProviders.activeProvider}
-                  onValueChange={(value) =>
-                    aiProviders.setActiveProvider(
-                      value as "openrouter" | "ollama" | "local-bridge"
-                    )
-                  }
+                  onValueChange={handleProviderChange}
                 >
                   <SelectTrigger className="bg-white border-slate-300">
                     <SelectValue placeholder="Select provider" />
@@ -604,12 +611,7 @@ const handleCopySwePrompt = async () => {
                       </Label>
                       <Select
                         value={openRouterState.modelSelections[tier]}
-                        onValueChange={(value) =>
-                          aiProviders.openrouter.updateModelSelection(
-                            tier,
-                            value
-                          )
-                        }
+                        onValueChange={handleModelChange(tier)}
                       >
                         <SelectTrigger className="bg-white border-slate-300 h-9">
                           <SelectValue placeholder="Select model" />
@@ -1227,82 +1229,6 @@ const handleCopySwePrompt = async () => {
                                     <p className="text-red-500 text-xs">
                                       {draft.error}
                                     </p>
-                                  )}
-                                  {draft.generated?.checkpointQuiz && (
-                                    <div className="mt-3 space-y-2 bg-white border border-slate-200 rounded-xl p-3">
-                                      <div className="flex items-center justify-between">
-                                        <p className="text-sm font-semibold text-slate-800">
-                                          Checkpoint Quiz
-                                        </p>
-                                        <Badge className="bg-slate-100 text-slate-700">
-                                          {
-                                            draft.generated.checkpointQuiz.questions
-                                              .length
-                                          }{" "}
-                                          questions
-                                        </Badge>
-                                      </div>
-                                      <div className="space-y-2">
-                                        {draft.generated.checkpointQuiz.questions
-                                          .slice(0, 2)
-                                          .map((question) => (
-                                            <div
-                                              key={question.id}
-                                              className="text-xs text-slate-600"
-                                            >
-                                              <p className="font-medium text-slate-800">
-                                                • {question.prompt}
-                                              </p>
-                                              {question.visionReference && (
-                                                <p className="text-[11px] text-purple-600">
-                                                  Vision cue: {question.visionReference}
-                                                </p>
-                                              )}
-                                            </div>
-                                          ))}
-                                      </div>
-                                      {draft.quizHistory.length > 0 && (
-                                        <p className="text-[11px] text-slate-500">
-                                          Last attempt:{" "}
-                                          {draft.quizHistory[draft.quizHistory.length - 1]
-                                            .passed
-                                            ? "Passed"
-                                            : "Needs remediation"}{" "}
-                                          ·{" "}
-                                          {new Date(
-                                            draft.quizHistory[draft.quizHistory.length - 1]
-                                              .submittedAt
-                                          ).toLocaleTimeString()}
-                                        </p>
-                                      )}
-                                      <div className="flex flex-wrap gap-2">
-                                        <Button
-                                          size="sm"
-                                          className="bg-emerald-500 text-white hover:bg-emerald-600"
-                                          disabled={
-                                            draft.masteryState !== "awaiting_quiz" &&
-                                            draft.masteryState !== "ready"
-                                          }
-                                          onClick={() =>
-                                            void evaluateCheckpoint(draft.tempId, "pass")
-                                          }
-                                        >
-                                          <Check className="h-4 w-4 mr-1" />
-                                          Mark Mastered
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="border-red-300 text-red-600 hover:bg-red-50"
-                                          onClick={() =>
-                                            void evaluateCheckpoint(draft.tempId, "fail")
-                                          }
-                                        >
-                                          <RefreshCcw className="h-4 w-4 mr-1" />
-                                          Needs Remediation
-                                        </Button>
-                                      </div>
-                                    </div>
                                   )}
                                 </div>
                                 <div className="flex flex-wrap gap-2">

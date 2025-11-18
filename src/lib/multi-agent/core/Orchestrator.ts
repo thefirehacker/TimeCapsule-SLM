@@ -858,7 +858,7 @@ export class Orchestrator {
     // }
     
     let iterationCount = 0;
-    const maxIterations = 15; // Increased to handle skipped agents gracefully
+    const maxIterations = 60; // Increased for comprehensive AI frame generation with thorough agent pipeline
     let currentGoal = `Answer the user's query: "${context.query}"`;
     
     while (iterationCount < maxIterations) {
