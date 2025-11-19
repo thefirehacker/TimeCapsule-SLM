@@ -1245,3 +1245,29 @@ Benefit: Agents iterate within context until goal achieved
 5. **Phase 2 Implementation (Week 3)**: Pattern quality & fast-paths
 
 **Critical Success Factor**: Phase 0 (micro-sessions) must be implemented first. Without it, agents can't iterate/learn within context, making all other optimizations less effective.
+
+
+# Dual Frame maximum depth issue 
+Your analysis is correct, but here's the full scope:
+
+REMOVE THESE EVENTS (they cause loops):
+- frame-edited
+- frames-reordered  
+- graph-frame-edited
+
+THREE components need fixing (not just two):
+- EnhancedLearningGraph
+- DualPaneFrameView
+- FrameGraphIntegration (you missed this one)
+
+MIGRATION PLAN:
+1. Add prop-only paths alongside events (both work)
+2. Test chapter creation/editing
+3. Remove event listeners
+4. Remove event dispatchers
+5. Add mount gate for remaining events
+
+KILLER BUG: Dialog mounting during VectorStore init triggers the loop.
+FIX: Gate all dispatchEvent calls until after full mount completes.
+
+TEST: 20 consecutive reloads, multi-tab editing, edit→reload→edit

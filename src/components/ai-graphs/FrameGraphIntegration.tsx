@@ -1473,91 +1473,9 @@ useEffect(() => {
     return () => window.removeEventListener('kb-frames-loaded', handleKBFramesLoaded as EventListener);
   }, []);
 
-  // REAL-TIME SYNC: Enhanced drag and drop handler
-  useEffect(() => {
-    const handleGraphFrameAdded = (event: CustomEvent) => {
-      const { newFrame, totalFrames } = event.detail;
-      // console.log('🎯 REAL-TIME: Graph frame added event received:', {
-      //   frameId: newFrame.id,
-      //   title: newFrame.title,
-      //   totalFrames
-      // });
-
-      // Immediately sync to Knowledge Base (async to prevent UI blocking)
-      setTimeout(() => syncFrameToKnowledgeBase(newFrame), 100);
-      
-      // Save to storage (DISABLED to prevent spam)
-      // if (graphStorageManager && sessionInitialized) {
-      //   autoSaveFrame(newFrame.id, newFrame);
-      // }
-    };
-
-    const handleGraphFrameDeleted = (event: CustomEvent) => {
-      const { frameId } = event.detail;
-      // 
-
-      // Remove from Knowledge Base
-      removeFrameFromKnowledgeBase(frameId);
-    };
-
-    const handleGraphFrameEdited = (event: CustomEvent) => {
-      const { frameId, updatedFrame } = event.detail;
-      // console.log('✏️ REAL-TIME: Graph frame edited event received:', { 
-      //   frameId, 
-      //   title: updatedFrame.title 
-      // });
-
-      // Immediately sync the updated frame to Knowledge Base
-      if (updatedFrame) {
-        const frameWithTimestamp = {
-          ...updatedFrame,
-          updatedAt: new Date().toISOString()
-        };
-        // Use setTimeout with debouncing to prevent blocking the UI and rapid calls
-        setTimeout(() => syncFrameToKnowledgeBase(frameWithTimestamp), 100);
-      }
-    };
-
-    const handleConnectionAdded = (event: CustomEvent) => {
-      const { connection, sourceNode, targetNode, timestamp } = event.detail;
-      // console.log('🔗 REAL-TIME: Connection added event received:', {
-      //   connectionId: connection.id,
-      //   sourceNodeId: sourceNode?.id,
-      //   targetNodeId: targetNode?.id,
-      //   timestamp
-      // });
-
-      // Update connection status in Knowledge Base
-      updateConnectionStatus(connection, sourceNode, targetNode, 'connected');
-    };
-
-    const handleConnectionRemoved = (event: CustomEvent) => {
-      const { connection, sourceNode, targetNode, timestamp } = event.detail;
-      // console.log('🗑️ REAL-TIME: Connection removed event received:', {
-      //   connectionId: connection.id,
-      //   sourceNodeId: sourceNode?.id,
-      //   targetNodeId: targetNode?.id,
-      //   timestamp
-      // });
-
-      // Update connection status in Knowledge Base
-      updateConnectionStatus(connection, sourceNode, targetNode, 'disconnected');
-    };
-
-    window.addEventListener('graph-frame-added', handleGraphFrameAdded as EventListener);
-    window.addEventListener('graph-frame-deleted', handleGraphFrameDeleted as EventListener);
-    window.addEventListener('graph-frame-edited', handleGraphFrameEdited as EventListener);
-    window.addEventListener('graph-connection-added', handleConnectionAdded as EventListener);
-    window.addEventListener('graph-connection-removed', handleConnectionRemoved as EventListener);
-
-    return () => {
-      window.removeEventListener('graph-frame-added', handleGraphFrameAdded as EventListener);
-      window.removeEventListener('graph-frame-deleted', handleGraphFrameDeleted as EventListener);
-      window.removeEventListener('graph-frame-edited', handleGraphFrameEdited as EventListener);
-      window.removeEventListener('graph-connection-added', handleConnectionAdded as EventListener);
-      window.removeEventListener('graph-connection-removed', handleConnectionRemoved as EventListener);
-    };
-  }, [sessionInitialized, graphStorageManager]);
+  // REMOVED: Event listeners for frame/connection events that caused circular loops
+  // KB sync should happen through proper callbacks from parent component
+  // Graph operations are now handled via unidirectional data flow
 
   // FIXED: Handle Save Graph with proper VectorStore sync
   const handleSaveGraph = async (overrideGraphState?: GraphState) => {

@@ -224,7 +224,7 @@ export function parseJsonWithResilience(text: string): any {
 
     cleanText = stripNonJsonCodeBlocks(cleanText);
 
-    // Handle ```json fenced blocks first
+    // Handle ```json fenced blocks first (strip fences, ignore code keywords)
     const fencedJson = cleanText.match(/```json([\s\S]*?)```/i);
     if (fencedJson) {
       try {
@@ -235,38 +235,24 @@ export function parseJsonWithResilience(text: string): any {
       }
     }
 
-    // Try to parse from first JSON object occurrence
-    const objectCandidate = extractFirstJsonObject(cleanText);
-    if (objectCandidate) {
+    const jsonBody = extractFirstJsonObject(cleanText);
+    if (jsonBody) {
       try {
-        return JSON.parse(cleanJsonText(objectCandidate));
+        return JSON.parse(cleanJsonText(jsonBody));
       } catch (objectError) {
         console.error('🔍 Object extraction failed:', objectError);
-        console.error('🔍 Problematic JSON text:', objectCandidate.substring(0, 200) + '...');
+        console.error('🔍 Problematic JSON text:', jsonBody.substring(0, 200) + '...');
       }
     }
 
-    // Try to find JSON object
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        let jsonText = jsonMatch[0];
-        jsonText = cleanJsonText(jsonText);
-        return JSON.parse(jsonText);
-      } catch (secondError) {
-        console.error('🔍 JSON extraction failed:', secondError);
-        console.error('🔍 Problematic JSON text:', jsonMatch[0].substring(0, 200) + '...');
-      }
-    }
-    
-    // Last resort: try to parse as array only if response starts with array
     const trimmed = cleanText.trim();
     if (trimmed.startsWith('[')) {
       try {
-        const arrayMatch = trimmed.match(/\[[\s\S]*?\]/);
-        const arrayText = arrayMatch ? cleanJsonText(arrayMatch[0]) : cleanJsonText(trimmed);
-        const parsed = JSON.parse(arrayText);
-        return Array.isArray(parsed) ? parsed : [parsed]; // Return as array
+        const arrayMatch = extractFirstJsonArray(trimmed);
+        if (arrayMatch) {
+          const parsed = JSON.parse(cleanJsonText(arrayMatch));
+          return Array.isArray(parsed) ? parsed : [parsed];
+        }
       } catch (thirdError) {
         console.error('🔍 Array extraction failed:', thirdError);
         console.error('🔍 Problematic array text:', trimmed.substring(0, 200) + '...');
@@ -334,7 +320,14 @@ function cleanJsonText(jsonText: string): string {
 
 function stripNonJsonCodeBlocks(text: string): string {
   // Remove fenced code blocks that are not marked as JSON
-  return text.replace(/```(?!json)[\s\S]*?```/gi, '');
+  let cleaned = text.replace(/```(?!json)[\s\S]*?```/gi, '');
+  // Remove ```json fences but keep inner content
+  cleaned = cleaned.replace(/```json/gi, '');
+  cleaned = cleaned.replace(/```/g, '');
+  // Remove inline array/code prefixes before JSON
+  cleaned = cleaned.replace(/^\s*\[[^\]]*\]\s*/g, '');
+  cleaned = cleaned.replace(/^\s*['"`][^'"`]+['"`]\s*/g, '');
+  return cleaned;
 }
 
 function extractFirstJsonObject(text: string): string | null {
@@ -374,6 +367,46 @@ function extractFirstJsonObject(text: string): string | null {
     }
   }
   
+  return null;
+}
+
+function extractFirstJsonArray(text: string): string | null {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (start === -1) {
+      if (char === '[') {
+        start = i;
+        depth = 1;
+      }
+      continue;
+    }
+
+    if (char === '"' && !escape) {
+      inString = !inString;
+    }
+
+    escape = char === '\\' ? !escape : false;
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === '[') {
+      depth++;
+    } else if (char === ']') {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
   return null;
 }
 

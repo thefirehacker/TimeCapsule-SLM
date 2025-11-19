@@ -389,11 +389,38 @@ export class DataInspectorAgent extends FeedbackAwareAgent {
       groups[docId].push(chunk);
     });
 
-    return Object.entries(groups).map(([docId, chunks]) => ({
-      documentId: docId,
-      chunks: chunks.slice(0, MAX_CHUNKS_PER_DOCUMENT),
-      metadata: chunks[0]?.metadata || {}  // 🔥 PRESERVE DOCUMENT METADATA: Extract from first chunk (all chunks from same document have same metadata)
-    }));
+    return Object.entries(groups).map(([docId, chunks]) => {
+      const metadata = chunks[0]?.metadata || {};
+      
+      // 🔥 FIX: Extract filename from various sources
+      let filename = metadata.filename || metadata.name || metadata.title;
+      
+      // Fallback: extract from source path
+      if (!filename || filename === 'unknown') {
+        const source = chunks[0]?.source || chunks[0]?.sourceDocument || docId;
+        // Extract filename from path: "path/to/file.pdf" -> "file.pdf"
+        const pathMatch = source.match(/([^\/\\]+)$/);
+        if (pathMatch) {
+          filename = pathMatch[1];
+        }
+      }
+      
+      // Fallback: extract from documentId
+      if (!filename || filename === 'unknown') {
+        filename = docId;
+      }
+      
+      return {
+        documentId: docId,
+        chunks: chunks.slice(0, MAX_CHUNKS_PER_DOCUMENT),
+        metadata: {
+          ...metadata,
+          filename: filename, // Ensure filename is always set
+          name: filename,
+          title: metadata.title || filename,
+        }
+      };
+    });
   }
 
   private formatChunkPreview(text: string | undefined, maxChars: number = MAX_CHUNK_CHARACTERS): string {
@@ -957,167 +984,51 @@ Provide specific, actionable insights that will guide intelligent extraction and
       }
     );
 
-    const intelligentPrompt = `You are an intelligent document analyzer specializing in semantic concept understanding. Perform multi-intelligence analysis using concept mapping rather than surface-level word matching.
+    // 🔥 SIMPLIFIED PROMPT: Reduced complexity for reliable JSON parsing
+    const intelligentPrompt = `Analyze this document and determine its relevance to the query.
 
-DOCUMENT ${docNumber} METADATA:
+DOCUMENT METADATA:
 Filename: ${documentFilename}
 Source: ${documentSource}
-${documentUrl ? `URL: ${documentUrl}` : ""}
 
-DOCUMENT ${docNumber} SAMPLE CONTENT:
+DOCUMENT CONTENT (sample):
 ${sampleContent}
 
-STEP 1: Multi-Intelligence Document Analysis
-Extract comprehensive information from this document:
+USER QUERY: "${query}"
 
-TOPICS: List all topics, subjects, domains, and fields covered (broad and specific)
-PEOPLE: List all people mentioned (authors, researchers, subjects, references)  
-METHODS: List all techniques, algorithms, approaches, methodologies described
-CONCEPTS: List all key ideas, principles, theories, frameworks discussed
-DATA: List all datasets, experiments, results, metrics, findings mentioned
-PERFORMANCE_INDICATORS: List any performance metrics, timing data, optimization results, benchmarks, speeds, efficiencies
+ANALYSIS REQUIRED:
+1. What type of document is this? (tutorial, research paper, API docs, blog post, etc.)
+2. What is the PRIMARY subject/entity this document is about?
+3. Is this document relevant to the user's query? Consider:
+   - Does the document's subject match the query's subject?
+   - Does the document contain information the query is seeking?
+   - Are they in the same domain/context?
+4. Brief explanation of relevance (max 200 chars)
 
-STEP 2: Document Classification & Entity Resolution
-TYPE: [what kind of document this is]
-MAIN_ENTITY: [primary person/organization/subject this document is about]
+EXTRACT KEY TERMS (if document is relevant):
+List important methods, concepts, and terms from the document.
+Format each category as comma-separated or newline-separated list:
 
-STEP 3: Entity Filtering & Semantic Analysis  
-USER_QUERY: "${query}"
+METHODS:
+[list methods, techniques, functions, algorithms - one per line]
 
-⚠️ DUAL REQUIREMENT: Entity Alignment + Concept Alignment (BOTH must pass)
+CONCEPTS:
+[list key concepts, ideas, frameworks - one per line]
 
-STEP 3A: ENTITY ALIGNMENT CHECK
-- Extract query entity: Who/what is the query asking about? (possessive patterns like "X's work")  
-- Extract document entity: Who/what is document about? (filename + content analysis)
-- Entity match required: Query entity must match document entity
+PEOPLE:
+[list authors, researchers mentioned - one per line]
 
-STEP 3B: CONCEPT ALIGNMENT CHECK  
-- Extract query concepts: What information is needed? (analyze technical terms and intent)
-- Extract document concepts: What information does document provide?
-- Concept match required: Document must contain the type of information query seeks
+DATA_TYPES:
+[list datasets, data structures, metrics - one per line]
 
-STEP 3C: CONCEPT SYNTHESIS (Semantic Intelligence Snapshot)
-- Define query concepts in document context: What do the query terms mean specifically in this document?
-- Create semantic concept mappings: How do document concepts relate to query concepts?
-- Generate insight synthesis: What is the core understanding that connects query intent with document content?
-- This provides downstream agents with semantic intelligence about concept relationships
+RESPOND IN SIMPLE FORMAT (NO nested objects, keep it flat and parseable):
 
-🎯 COMBINED DECISION: Document is RELEVANT only if BOTH entity AND concept alignment pass
-1. **Query Concept Extraction**: Break down the query into semantic concepts
-   - Identify core concepts beyond surface words
-   - Map technical terms to their broader meanings dynamically based on context
-   - Extract intent patterns (ranking queries, comparison queries, specific attribute queries)
+TYPE: [document type - single line]
+MAIN_ENTITY: [primary subject - single line, max 80 chars]
+RELEVANT: [YES or NO]
+REASON: [brief explanation - max 200 chars]
 
-2. **Document Concept Extraction**: Identify what semantic concepts this document covers
-   - Technical capabilities and performance aspects
-   - Methodologies and optimization techniques  
-   - Experimental results and benchmarking data
-   - Training processes and efficiency metrics
-
-3. **Semantic Concept Mapping**: Match query concepts with document concepts
-   - Does document content semantically align with query concepts?
-   - Are the underlying technical domains related?
-   - Does document provide the type of information query seeks?
-
-4. **Entity Resolution**: Resolve entities using multiple signals
-   - Extract entities from filename metadata (author indicators)
-   - Check content attribution and authorship
-   - Consider document provenance and source
-
-SEMANTIC RELEVANCE ANALYSIS:
-Query: "${query}"
-
-QUERY CONCEPT ANALYSIS:
-- Break down query terms into semantic concepts dynamically
-- Identify what type of information is being requested
-- Extract entity references and their context (possessive forms, attribution)
-
-DOCUMENT CONCEPT ANALYSIS: 
-- What core concepts and themes does this document cover?
-- What methodologies, techniques, and results does it contain?
-- How does the document's content relate to the query's conceptual intent?
-
-SEMANTIC MATCHING:
-- Concept alignment: Do document concepts semantically match query concepts?
-- Information type match: Does document provide the type of data query seeks?
-- Entity match: Does document entity/author align with query entity (using filename, content attribution)?
-
-HOLISTIC RELEVANCE DECISION:
-Consider ALL signals together:
-- Semantic concept overlap between query and document
-- Document's ability to answer the query type
-- Entity/authorship alignment from multiple sources
-- Content depth and relevance to query intent
-
-OUTPUT FORMAT:
-Respond **only** with valid JSON matching this structure (no surrounding markdown):
-{
-  "documentType": "Educational Tutorial",
-  "mainEntity": "PyTorch Distributed Data Parallel (DDP)",
-  "isRelevant": true,
-  "relevanceReason": "Explain why the document answers the query.",
-  "conceptSynthesis": "Short synthesis aligning query and document concepts.",
-  "topics": ["Distributed training", "PyTorch"],
-  "people": ["Hugging Face"],
-  "methods": ["DDP"],
-  "concepts": ["gradient synchronization"],
-  "dataPoints": ["batch size handling"],
-  "performanceIndicators": ["all_reduce timing"],
-  "queryConcepts": ["lesson plan", "DDP fundamentals"],
-  "documentConcepts": ["tutorial modules", "multi-GPU training"],
-  "entityAlignment": {
-    "queryEntity": "DDP",
-    "documentEntity": "PyTorch DDP",
-    "match": true
-  },
-  "conceptAlignment": {
-    "queryConcepts": ["lesson plan"],
-    "documentConcepts": ["educational tutorial"],
-    "match": true
-  }
-}
-Do not include explanations outside of this JSON.
-
-🔍 SEMANTIC VERIFICATION (Critical for Small LLMs):
-
-STEP 4A: DOMAIN VERIFICATION
-Query domain: [Extract semantic domain - gaming/research/education/tech/blog]
-Document domain: [Extract semantic domain from content and metadata]
-Domain match: [YES/NO - Do they represent the same semantic field?]
-
-STEP 4B: ENTITY RELATIONSHIP VERIFICATION  
-Query requests content from: [Extract person/entity name from query]
-Document authored by/about: [Extract person/entity from filename and content]
-Entity relationship: [YES/NO - Is this the exact same entity?]
-
-STEP 4C: CONTEXT VALIDATION
-Shared words: [List words that appear in both query and document]
-Context analysis: [For each shared word, does it mean the same thing in both contexts?]
-Example: "speed" in gaming context vs "speed" in testing context = DIFFERENT
-Context validation: [YES/NO - Do shared words have same meaning in both contexts?]
-
-⚠️ MANDATORY DECISION LOGIC:
-1. DOMAIN VERIFICATION: Query and document must be in same semantic domain
-2. ENTITY ALIGNMENT: Extract entity from query → Document MUST be about same entity (check filename/content)
-3. CONCEPT ALIGNMENT: Extract concepts from query → Document MUST contain relevant concept data
-4. CONTEXT VALIDATION: Shared words must mean the same thing in both contexts
-5. ALL REQUIRED: Document passes ONLY if ALL checks pass
-
-ENHANCED DECISION MATRIX:
-- Domain match + Entity match + Concept match + Context valid = YES
-- Any single check fails = NO (prevents false positives from word overlap)
-
-Respond in exact format:
-TYPE: [document type]
-MAIN_ENTITY: [main subject]
-QUERY_DOMAIN: [extracted query semantic domain]
-DOCUMENT_DOMAIN: [extracted document semantic domain]
-DOMAIN_MATCH: [YES/NO]
-ENTITY_RELATIONSHIP: [YES/NO]
-CONTEXT_VALIDATION: [YES/NO]
-RELEVANT: [YES only if ALL verification checks pass, NO if any fails]  
-REASON: [MANDATORY FORMAT: "DOMAIN: [domain analysis]. ENTITY: [entity analysis]. CONTEXT: [context analysis]. RESULT: [Final decision]"]
-CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this document context]`;
+[Then list the extracted terms in the format shown above]`;
 
     try {
       // 🐛 DEBUG: Log the full prompt being sent to LLM
@@ -1250,16 +1161,6 @@ CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this 
         isRelevant: isRelevant,
         reasoning: reasoning,
         conceptSynthesis: this.conceptSynthesis,
-        topics,
-        methods,
-        concepts,
-        dataPoints,
-        people,
-        performanceIndicators,
-        queryConcepts,
-        documentConcepts,
-        entityAlignment,
-        conceptAlignment
       };
     } catch (error) {
       console.warn(
@@ -1330,24 +1231,35 @@ CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this 
 
     // 🔥 SPECIAL HANDLING FOR MAIN_ENTITY: Stop extraction at next keyword to prevent capturing entire response
     if (key === "MAIN_ENTITY") {
-      // Look for MAIN_ENTITY and stop at RELEVANT: or newline
       const entityPatterns = [
-        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*RELEVANT:|$)/i, // Stop at RELEVANT: or end
-        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*YES\s*REASON:|$)/i, // Stop at YES REASON:
-        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*NO\s*REASON:|$)/i, // Stop at NO REASON:
-        /MAIN_ENTITY:\s*([^\n]+?)(?:\n|$)/i, // Stop at newline as fallback
+        // Match until we hit known delimiters or step markers
+        /MAIN_ENTITY:\s*"?([^"\n]+?)"?\s*(?:---|STEP|RELEVANT|YES|NO|QUERY_DOMAIN|DOCUMENT_DOMAIN|$)/i,
+        // Fallback: match quoted content
+        /MAIN_ENTITY:\s*"([^"]+)"/i,
+        // Fallback: match up to delimiter words
+        /MAIN_ENTITY:\s*([^:\n]+?)(?:\s*(?:RELEVANT|REASON|QUERY|DOCUMENT|STEP):|$)/i,
+        // Final fallback: match to newline but clean aggressively
+        /MAIN_ENTITY:\s*([^\n]+)/i,
       ];
 
       for (const pattern of entityPatterns) {
         const match = cleanResponse.match(pattern);
         if (match && match[1].trim()) {
           let entity = match[1].trim();
-          // Remove any trailing keywords that might have been captured
-          entity = entity.replace(/\s*(RELEVANT|YES|NO|REASON).*$/i, "").trim();
-          console.log(`🎯 DataInspector: Extracted MAIN_ENTITY: "${entity}"`);
-          return entity;
+          // Aggressively clean trailing junk
+          entity = entity.replace(/\s*(---|STEP \d+|RELEVANT|YES|NO|REASON|QUERY|DOCUMENT).*$/i, '').trim();
+          entity = entity.replace(/^["'\s]+|["'\s]+$/g, ''); // Remove quotes and whitespace
+          
+          // Validate entity doesn't look like junk
+          if (entity.length > 3 && entity.length < 200 && !entity.includes('RELEVANT') && !entity.includes('STEP')) {
+            console.log(`🎯 DataInspector: Extracted MAIN_ENTITY: "${entity}"`);
+            return entity;
+          }
         }
       }
+      
+      console.warn(`⚠️ MAIN_ENTITY parsing failed for all patterns`);
+      return "Unknown Entity";
     }
 
     // 🔥 SPECIAL HANDLING FOR RELEVANT: Extract just YES or NO without trailing REASON
@@ -2335,20 +2247,38 @@ Return just the role: source, target, or reference`;
       );
 
       // Keep the minimal metadata-only approach if VectorStore not available
-      const documentGroups = documentMetadata.map((docMeta, index) => ({
-        documentId: docMeta.metadata?.documentId || docMeta.id,
-        chunks: [
-          {
-            id: docMeta.id,
-            text: `Document: ${documentSources[index]} (metadata only - VectorStore unavailable)`,
-            source: documentSources[index],
-            similarity: 1.0,
-            metadata: docMeta.metadata,
-            sourceDocument: documentSources[index],
-            sourceType: "document" as const,
-          },
-        ],
-      }));
+      const documentGroups = documentMetadata.map((docMeta, index) => {
+        const filename = docMeta.metadata?.filename ||
+                        docMeta.metadata?.name ||
+                        docMeta.metadata?.title ||
+                        documentSources[index];
+        
+        return {
+          documentId: docMeta.metadata?.documentId || docMeta.id,
+          chunks: [
+            {
+              id: docMeta.id,
+              text: `Document: ${documentSources[index]} (metadata only - VectorStore unavailable)`,
+              source: documentSources[index],
+              similarity: 1.0,
+              metadata: {
+                ...docMeta.metadata,
+                filename: filename,
+                name: filename
+              },
+              sourceDocument: documentSources[index],
+              sourceType: "document" as const,
+            },
+          ],
+          metadata: {
+            ...docMeta.metadata,
+            filename: filename,
+            name: filename,
+            title: docMeta.metadata?.title || filename,
+            source: documentSources[index]
+          }
+        };
+      });
 
       await this.performMultiDocumentAnalysis(context, documentGroups);
       return;
@@ -2376,6 +2306,7 @@ Return just the role: source, target, or reference`;
         sourceDocument: string;
         sourceType: "rag" | "document";
       }>;
+      metadata?: any; // 🔥 Added metadata property for filename preservation
     }> = [];
 
     // 🔄 FIXED: Sample chunks from ALL documents, let LLM decide relevance based on real content
@@ -2465,9 +2396,22 @@ Return just the role: source, target, or reference`;
             sourceType: "rag" as const, // Use 'rag' as valid sourceType for ChunkData
           }));
 
+          // 🔥 FIX: Preserve filename metadata at documentGroup level
+          const filename = docMeta.metadata?.filename ||
+                          docMeta.metadata?.name ||
+                          docMeta.metadata?.title ||
+                          documentSource;
+          
           documentGroups.push({
             documentId: documentId,
             chunks: formattedChunks,
+            metadata: {
+              ...docMeta.metadata,
+              filename: filename,
+              name: filename,
+              title: docMeta.metadata?.title || filename,
+              source: documentSource
+            }
           });
 
           console.log(
@@ -2478,6 +2422,11 @@ Return just the role: source, target, or reference`;
             `⚠️ Document "${documentSource}" has no chunks available`
           );
           // Add minimal placeholder if document exists but has no chunks
+          const filename = docMeta.metadata?.filename ||
+                          docMeta.metadata?.name ||
+                          docMeta.metadata?.title ||
+                          documentSource;
+          
           documentGroups.push({
             documentId: documentId,
             chunks: [
@@ -2486,11 +2435,22 @@ Return just the role: source, target, or reference`;
                 text: `Document: ${documentSource} (no chunks available)`,
                 source: documentSource,
                 similarity: 1.0,
-                metadata: docMeta.metadata,
+                metadata: {
+                  ...docMeta.metadata,
+                  filename: filename,
+                  name: filename
+                },
                 sourceDocument: documentSource,
                 sourceType: "document" as const,
               },
             ],
+            metadata: {
+              ...docMeta.metadata,
+              filename: filename,
+              name: filename,
+              title: docMeta.metadata?.title || filename,
+              source: documentSource
+            }
           });
         }
       } catch (error) {
@@ -2932,15 +2892,15 @@ ${documentSummary}
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        const trimmed = line.trim().toLowerCase();
+        
+        // Remove markdown formatting first
+        const cleanLine = line.replace(/\*\*/g, '').trim();
+        const lowerLine = cleanLine.toLowerCase();
 
-        // Check if this line starts a new category
-        if (
-          trimmed.startsWith("methods:") ||
-          trimmed.startsWith("concepts:") ||
-          trimmed.startsWith("people:") ||
-          trimmed.startsWith("data:")
-        ) {
+        // Check if this line starts a new category (handle various formats)
+        const categoryMatch = lowerLine.match(/^(methods|concepts|people|data|data_types|datasets):/i);
+
+        if (categoryMatch) {
           // Save previous category if exists
           if (currentCategory && collectedContent.length > 0) {
             this.saveParsedCategory(
@@ -2950,22 +2910,31 @@ ${documentSummary}
             );
           }
 
-          // Start new category
-          if (trimmed.startsWith("methods:")) currentCategory = "methods";
-          else if (trimmed.startsWith("concepts:"))
-            currentCategory = "concepts";
-          else if (trimmed.startsWith("people:")) currentCategory = "people";
-          else if (trimmed.startsWith("data:")) currentCategory = "data";
+          // Start new category - normalize to expected names
+          const rawCategory = categoryMatch[1].toLowerCase();
+          if (rawCategory === 'methods') currentCategory = "methods";
+          else if (rawCategory === 'concepts') currentCategory = "concepts";
+          else if (rawCategory === 'people') currentCategory = "people";
+          else if (rawCategory === 'data' || rawCategory === 'data_types' || rawCategory === 'datasets') {
+            currentCategory = "data";
+          }
 
-          // Extract content after colon (might be empty if content is on next line)
-          const colonIndex = line.indexOf(":");
-          const terms = line.substring(colonIndex + 1).trim();
-          console.log(`🔍 Parsing ${currentCategory} line: "${terms}"`);
-
-          collectedContent = terms ? [terms] : [];
+          // Extract content after colon
+          const colonIndex = cleanLine.indexOf(":");
+          const terms = cleanLine.substring(colonIndex + 1).trim();
+          
+          // Handle list items starting with - or *
+          const cleanTerms = terms.replace(/^[-*]\s*/, '').trim();
+          
+          console.log(`🔍 Parsing ${currentCategory} line: "${cleanTerms}"`);
+          collectedContent = cleanTerms ? [cleanTerms] : [];
+          
         } else if (currentCategory && line.trim()) {
-          // This is continuation content for current category
-          collectedContent.push(line.trim());
+          // This is continuation content - clean list markers
+          const cleanContinuation = line.trim().replace(/^[-*]\s*/, '').trim();
+          if (cleanContinuation) {
+            collectedContent.push(cleanContinuation);
+          }
         }
       }
 
@@ -2996,24 +2965,30 @@ ${documentSummary}
       !content.toLowerCase().includes("not found") &&
       !content.toLowerCase().includes("no relevant") &&
       !content.toLowerCase().includes("[") && // Filter out bracketed error messages
-      content.length < 500
+      content.length < 2000 // Increased limit for proper parsing
     ) {
-      // Error messages tend to be long
-
+      // 🔥 FIX: Split by BOTH commas AND newlines to handle bulleted lists
+      // LLM returns "- method1\n- method2" but we were only splitting by comma
       const items = content
-        .split(",")
+        .split(/[,\n]/) // Split by comma OR newline
         .map((t) => t.trim())
+        .map((t) => t.replace(/^[-*•]\s*/, '').trim()) // Remove list markers
+        .map((t) => t.replace(/^\d+\.\s*/, '').trim()) // Remove numbered list markers
         .filter(
           (t) =>
-            t.length > 0 &&
+            t.length > 2 && // Must have at least 3 chars
             t.toLowerCase() !== "none" &&
             !t.toLowerCase().includes("no specific") &&
-            !t.toLowerCase().includes("not found")
+            !t.toLowerCase().includes("not found") &&
+            !t.toLowerCase().includes("not mentioned") &&
+            !t.match(/^[:\-\s]+$/) // Filter out just punctuation/whitespace
         );
 
       if (items.length > 0) {
         insights[category] = items;
-        console.log(`✅ Parsed ${category}:`, insights[category]);
+        console.log(`✅ Parsed ${category}: ${items.length} items`, items.slice(0, 3));
+      } else {
+        console.warn(`⚠️ No valid items parsed for ${category} from content: "${content.substring(0, 100)}"`);
       }
     }
   }
@@ -3450,43 +3425,83 @@ Extract the most relevant and specific terms for this query:`;
   /**
    * 🧠 SEMANTIC RELATIONSHIP ANALYSIS: Final intelligence-based decision
    * Uses all collected data to make a comprehensive semantic relevance judgment
+   * 
+   * 🔥 FIX: Trust LLM's "YES" decisions - only override on clear mismatches
    */
   private performSemanticRelationshipAnalysis(context: any): { isRelevant: boolean; reason: string } {
     const { query, document, initialAnalysis } = context;
     
-    // Extract key elements from query and document for comparison
+    // 🎯 TRUST THE LLM: If LLM says document is relevant, trust it unless semantic score is very low
+    if (initialAnalysis.relevant) {
+      console.log(`✅ LLM classified document as RELEVANT - validating with semantic analysis`);
+      
+      // Extract key elements from query and document for comparison
+      const queryElements = this.extractSemanticElements(query);
+      const docElements = this.extractSemanticElements(
+        `${document.mainEntity} ${document.entities} ${document.contentType} ${document.type}`
+      );
+      
+      // Check semantic alignment between query intent and document content
+      const entityAlignment = this.checkSemanticEntityAlignment(queryElements, docElements, document);
+      const contentAlignment = this.checkSemanticContentAlignment(query, document);
+      const purposeAlignment = this.checkSemanticPurposeAlignment(query, document);
+      
+      // Combine all semantic signals for validation
+      const semanticScore = (entityAlignment.score + contentAlignment.score + purposeAlignment.score) / 3;
+      
+      // 🔥 TRUST LLM: Only reject if semantic score is VERY low (< 0.3), indicating clear mismatch
+      const rejectThreshold = 0.3;
+      
+      if (semanticScore < rejectThreshold) {
+        const mismatches = [
+          entityAlignment.score < 0.3 ? 'entity mismatch' : '',
+          contentAlignment.score < 0.3 ? 'content mismatch' : '',
+          purposeAlignment.score < 0.3 ? 'purpose mismatch' : ''
+        ].filter(m => m).join(', ');
+        
+        console.warn(`⚠️ LLM said YES but semantic score is very low (${Math.round(semanticScore * 100)}%) - overriding to REJECT`);
+        
+        return {
+          isRelevant: false,
+          reason: `LLM override - semantic mismatch (${Math.round(semanticScore * 100)}%): ${mismatches}`
+        };
+      } else {
+        console.log(`✅ LLM decision validated - semantic score acceptable (${Math.round(semanticScore * 100)}%)`);
+        return {
+          isRelevant: true,
+          reason: `LLM decision trusted (semantic validation: ${Math.round(semanticScore * 100)}%) - ${initialAnalysis.reasoning.substring(0, 100)}`
+        };
+      }
+    }
+    
+    // 🔍 LLM said NO or uncertain - use semantic analysis to decide
+    console.log(`🔍 LLM classified document as NOT RELEVANT - double-checking with semantic analysis`);
+    
     const queryElements = this.extractSemanticElements(query);
     const docElements = this.extractSemanticElements(
       `${document.mainEntity} ${document.entities} ${document.contentType} ${document.type}`
     );
     
-    // Check semantic alignment between query intent and document content
     const entityAlignment = this.checkSemanticEntityAlignment(queryElements, docElements, document);
     const contentAlignment = this.checkSemanticContentAlignment(query, document);
     const purposeAlignment = this.checkSemanticPurposeAlignment(query, document);
     
-    // Combine all semantic signals for final decision
     const semanticScore = (entityAlignment.score + contentAlignment.score + purposeAlignment.score) / 3;
-    const confidenceThreshold = 0.7;
+    const acceptThreshold = 0.7;
     
-    // Make final decision based on semantic analysis
-    if (semanticScore >= confidenceThreshold) {
+    if (semanticScore >= acceptThreshold) {
+      console.log(`✅ Semantic analysis says YES (${Math.round(semanticScore * 100)}%) - overriding LLM rejection`);
       const reasons = [entityAlignment.reason, contentAlignment.reason, purposeAlignment.reason]
         .filter(r => r).join('; ');
       return {
         isRelevant: true,
-        reason: `Semantic alignment confirmed (${Math.round(semanticScore * 100)}%): ${reasons}`
+        reason: `Semantic override (${Math.round(semanticScore * 100)}%): ${reasons}`
       };
     } else {
-      const mismatches = [
-        entityAlignment.score < 0.5 ? 'entity mismatch' : '',
-        contentAlignment.score < 0.5 ? 'content mismatch' : '',
-        purposeAlignment.score < 0.5 ? 'purpose mismatch' : ''
-      ].filter(m => m).join(', ');
-      
+      console.log(`❌ Both LLM and semantic analysis say NO - rejecting document`);
       return {
         isRelevant: false,
-        reason: `Semantic analysis override (${Math.round(semanticScore * 100)}%): ${mismatches}`
+        reason: `LLM + semantic analysis rejected (${Math.round(semanticScore * 100)}%)`
       };
     }
   }

@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ import {
   Download as DownloadIcon,
   Plug,
   Copy,
+  AlertTriangle,
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
@@ -67,6 +69,8 @@ interface AIFlowBuilderPanelProps {
   isOpen: boolean;
   onToggle: () => void;
   workspaceStats: WorkspaceStats;
+  knowledgeBaseUnavailable?: boolean;
+  knowledgeBaseUnavailableMessage?: string | null;
 }
 
 export function AIFlowBuilderPanel({
@@ -75,6 +79,8 @@ export function AIFlowBuilderPanel({
   isOpen,
   onToggle,
   workspaceStats,
+  knowledgeBaseUnavailable = false,
+  knowledgeBaseUnavailableMessage,
 }: AIFlowBuilderPanelProps) {
   const {
     prompt,
@@ -212,24 +218,40 @@ const swePromptTemplate = useMemo(() => {
     .join("\n");
 }, [prompt, resolvedLocalBridgeBase]);
 
-const handleProviderChange = useCallback((value: string) => {
-  aiProviders.setActiveProvider(
-    value as "openrouter" | "ollama" | "local-bridge"
-  );
+// 🔥 FIX: Use ref to avoid recreating callbacks when aiProviders object changes
+const aiProvidersRef = useRef(aiProviders);
+useEffect(() => {
+  aiProvidersRef.current = aiProviders;
 }, [aiProviders]);
 
-const modelChangeHandlers = useMemo<
-  Record<AIFlowModelTier, (value: string) => void>
->(() => ({
-  planner: (value: string) =>
-    aiProviders.openrouter.updateModelSelection("planner", value),
-  generator: (value: string) =>
-    aiProviders.openrouter.updateModelSelection("generator", value),
-  vision: (value: string) =>
-    aiProviders.openrouter.updateModelSelection("vision", value),
-  fallback: (value: string) =>
-    aiProviders.openrouter.updateModelSelection("fallback", value),
-}), [aiProviders]);
+const handleProviderChange = useCallback((value: string) => {
+  aiProvidersRef.current.setActiveProvider(
+    value as "openrouter" | "ollama" | "local-bridge"
+  );
+}, []);
+
+const handlePlannerModelChange = useCallback((value: string) => {
+  aiProvidersRef.current.openrouter.updateModelSelection("planner", value);
+}, []);
+
+const handleGeneratorModelChange = useCallback((value: string) => {
+  aiProvidersRef.current.openrouter.updateModelSelection("generator", value);
+}, []);
+
+const handleVisionModelChange = useCallback((value: string) => {
+  aiProvidersRef.current.openrouter.updateModelSelection("vision", value);
+}, []);
+
+const handleFallbackModelChange = useCallback((value: string) => {
+  aiProvidersRef.current.openrouter.updateModelSelection("fallback", value);
+}, []);
+
+const modelChangeHandlers = useMemo(() => ({
+  planner: handlePlannerModelChange,
+  generator: handleGeneratorModelChange,
+  vision: handleVisionModelChange,
+  fallback: handleFallbackModelChange,
+}), [handlePlannerModelChange, handleGeneratorModelChange, handleVisionModelChange, handleFallbackModelChange]);
 
 if (!isOpen) {
   return null;
@@ -432,6 +454,25 @@ const handleCopySwePrompt = async () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {knowledgeBaseUnavailable && (
+              <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-900">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 mt-0.5 text-red-600" />
+                  <div>
+                    <AlertTitle className="text-red-900">KB unavailable</AlertTitle>
+                    <AlertDescription className="text-red-800">
+                      Knowledge Base grounding is temporarily offline. Flow Builder will still run,
+                      but generations may not reference your stored documents.
+                      {knowledgeBaseUnavailableMessage && (
+                        <span className="block mt-1 text-red-700">
+                          Details: {knowledgeBaseUnavailableMessage}
+                        </span>
+                      )}
+                    </AlertDescription>
+                  </div>
+                </div>
+              </Alert>
+            )}
             <section className="grid lg:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">

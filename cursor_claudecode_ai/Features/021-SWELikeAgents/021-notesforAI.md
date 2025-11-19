@@ -6,6 +6,37 @@
 
 ---
 
+## 🔄 Latest Progress (2025-11-18)
+
+- AI Flow Builder now gates rendering on unified readiness flags and shows a placeholder until both VectorStore and unified storage report ready.
+- DataInspector prompt + parser support the structured JSON path for future-proof extraction (although outputs are still empty downstream).
+- VectorStore persistence accepts virtual docs even while the client-side DocumentProcessor is offline.
+- Select triggers + dialog overlays were refactored with memoized handlers/forward refs to minimize render loops.
+
+## ⚠️ Fresh Issues Observed on Reload
+
+- VectorStore initialization keeps re-running; the init modal reopens repeatedly and eventually throws "Maximum update depth exceeded" (logs: `Test/temp/logs.md`).
+- Structured JSON fields from DataInspector are still not propagating into `context.sharedKnowledge`, so PatternGenerator/Extractor/Synthesis never receive usable hints.
+- Unified storage readiness stays false for empty accounts, so Flow Builder never renders without manually clearing storage.
+- Modal/select stack may still loop if VectorStore init fails; need to retest once provider stability is fixed.
+
+## 🎯 Immediate Next Steps
+
+1. **VectorStore initialization loop** – Ensure `initializationAttempted` resets only after success, stop re-invoking `initializeVectorStore()` every render, and auto-close `VectorStoreInitModal` when `vectorStoreInitialized` is true (suppress repeats after failure).
+2. **Data extraction reliability** – Confirm `DataInspectorAgent` actually populates structured JSON fields, pipe them to `context.sharedKnowledge`, and require `hasExtractedData` to be true before Synthesis runs.
+3. **Unified storage fallback** – Flip `flowPanelReady` to true once unified storage load completes even with zero frames/chapters so the Flow Builder UI renders for new users.
+4. **Modal/Select crash verification** – After fixing the provider loop, retest for the depth error and inspect `showVectorStoreInitModal` and Select Trigger handlers if it persists.
+
+---
+
+## 🔍 Recent Debugging Notes
+
+- **Graph view stabilized**: `EnhancedLearningGraph` now routes `onFramesChange`, `onChaptersChange`, and `onGraphChange` through ref-backed helpers and debounced setters. ReactFlow’s StoreUpdater only flips props on the first render, so the “Maximum update depth exceeded” error from the graph pane is resolved.
+- **Dual-pane still loops**: `DualPaneFrameView` re-registers its `frames-reordered`/`frame-edited` listeners on every render (effect depends on the `frames` array). Those handlers immediately call `setGraphState`, which triggers another render, re-running the effect, etc. The Radix `ScrollArea` logs the depth error because it keeps receiving new refs during this loop.
+- **Next fix for dual-pane**: Limit the listener effect dependencies to stable refs (`graphState`, `onFrameIndexChange`, `onGraphStateUpdate`), keep all frame mutations going through the ref-backed `invokeFramesChange`, and remove any remaining frame updates inside event handlers (only local graph state should change). Once that effect stops re-running, repeated reloads should no longer trigger the Radix scroll error and all three views (graph, linear, dual) can coexist.
+
+---
+
 ## 🚨 CRITICAL BLOCKERS (Must Fix Before Phase 0 Testing)
 
 ### **Priority 1: Data Extraction Pipeline Completely Broken**

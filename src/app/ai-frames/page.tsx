@@ -1146,6 +1146,13 @@ export default function AIFramesPage() {
     flowBuilder.aiProviders.providerReady.openrouter &&
     flowBuilder.aiProviders.openrouter.connectionState.visionMode === "vision";
 
+  const knowledgeBaseErrorMessage = vectorStoreError || unifiedStorage.error || null;
+  const knowledgeBaseUnavailable = Boolean(knowledgeBaseErrorMessage);
+
+  const flowPanelReady =
+    (vectorStoreInitialized && !vectorStoreInitializing && !unifiedStorage.isLoading) ||
+    knowledgeBaseUnavailable;
+
   const describeImageWithVision = useCallback(
     async (file: File) => {
       if (!canUseVisionUploads) {
@@ -1350,16 +1357,17 @@ export default function AIFramesPage() {
       setShowVectorStoreInitModal(true);
     }
 
-    if (vectorStoreReady && showVectorStoreInitModal) {
+    if ((vectorStoreReady || vectorStoreError) && showVectorStoreInitModal) {
+      const delay = vectorStoreError ? 0 : 2000;
       timeoutId = setTimeout(() => {
         setShowVectorStoreInitModal(false);
-      }, 2000);
+      }, delay);
     }
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [vectorStoreInitializing, vectorStoreReady]);
+  }, [vectorStoreInitializing, vectorStoreReady, vectorStoreError, showVectorStoreInitModal]);
 
   useEffect(() => {
     if (!localBridgeEnabled || typeof window === "undefined") {
@@ -2943,13 +2951,27 @@ export default function AIFramesPage() {
         }}
       />
       <div className="min-h-screen flex flex-col gap-6 pt-20">
-        <AIFlowBuilderPanel
-          flowBuilder={flowBuilder}
-          onAcceptFrames={handleAcceptAIFrames}
-          isOpen={isFlowPanelOpen}
-          onToggle={() => setIsFlowPanelOpen(false)}
-          workspaceStats={workspaceStats}
-        />
+        {flowPanelReady ? (
+          <AIFlowBuilderPanel
+            flowBuilder={flowBuilder}
+            onAcceptFrames={handleAcceptAIFrames}
+            isOpen={isFlowPanelOpen}
+            onToggle={() => setIsFlowPanelOpen(false)}
+            workspaceStats={workspaceStats}
+            knowledgeBaseUnavailable={knowledgeBaseUnavailable}
+            knowledgeBaseUnavailableMessage={knowledgeBaseErrorMessage}
+          />
+        ) : (
+          <div className="min-h-[32rem] rounded-3xl border border-slate-200 bg-white/70 flex flex-col items-center justify-center gap-4 text-center text-slate-500">
+            <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+            <div>
+              <p className="font-semibold text-slate-700">Preparing AI Flow Builder…</p>
+              <p className="text-sm text-slate-500">
+                Loading unified storage and Knowledge Base snapshots.
+              </p>
+            </div>
+          </div>
+        )}
         {(localBridgeEnabled || !isFlowPanelOpen) && (
           <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
             {!isFlowPanelOpen && (
