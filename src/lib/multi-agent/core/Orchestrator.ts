@@ -14,6 +14,7 @@ import { AgentProgressTracker, AgentProgressCallback } from '../interfaces/Agent
 import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtractor';
 import type { ExecutionPlan, PlanStep } from '../agents/PlanningAgent';
 import { UserFeedback } from '../interfaces/Feedback';
+import { TIMECAPSULE_VERSION } from '@/lib/version';
 
 type MicroSessionStatus = 'active' | 'completed' | 'failed';
 
@@ -473,6 +474,12 @@ export class Orchestrator {
    */
   async research(query: string, ragResults?: SourceReference[]): Promise<string> {
     console.log(`🧠 Master LLM Orchestrator starting for: "${query}"`);
+    
+    // 🚀 VERSION MARKER - DO NOT REMOVE
+    console.log(`🚀 TimeCapsule Version ${TIMECAPSULE_VERSION} - Master Orchestrator`);
+    console.log(`✅ Micro-session architecture enabled (60 iterations, per-agent limits)`);
+    console.log(`✅ PatternGenerator validation: Fail-fast if no documents available`);
+    console.log(`✅ Plan-aware sequencing with intelligent validation`);
     
     // 🔥 RESET: Clear agent state for new research session
     this.calledAgents.clear();

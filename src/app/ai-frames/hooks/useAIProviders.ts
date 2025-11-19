@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   useOpenRouterConnection,
   OpenRouterChatMessage,
@@ -183,9 +183,11 @@ export function useAIProviders(): UseAIProvidersReturn {
                 }
                 if (Array.isArray(msg.content)) {
                   return `${msg.role.toUpperCase()}: ${msg.content
-                    .map((part) =>
-                      typeof part === "string" ? part : part.text || ""
-                    )
+                    .map((part) => {
+                      if (typeof part === "string") return part;
+                      if (part.type === "text") return part.text;
+                      return ""; // image_url parts have no text
+                    })
                     .join(" ")}`;
                 }
                 return "";
@@ -225,13 +227,30 @@ export function useAIProviders(): UseAIProvidersReturn {
     ]
   );
 
-  return {
-    activeProvider,
-    setActiveProvider,
-    openrouter,
-    ollama,
-    providerReady,
-    callLLM,
-    ensureProviderReady,
-  };
+  // 🔥 FIX: Add defensive logging to track when aiProviders object changes
+  useEffect(() => {
+    console.log('🔄 aiProviders object updated');
+  }, [activeProvider, openrouter, ollama, providerReady, callLLM, ensureProviderReady]);
+
+  // 🔥 FIX: Memoize return object to prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      activeProvider,
+      setActiveProvider,
+      openrouter,
+      ollama,
+      providerReady,
+      callLLM,
+      ensureProviderReady,
+    }),
+    [
+      activeProvider,
+      setActiveProvider,
+      openrouter,
+      ollama,
+      providerReady,
+      callLLM,
+      ensureProviderReady,
+    ]
+  );
 }

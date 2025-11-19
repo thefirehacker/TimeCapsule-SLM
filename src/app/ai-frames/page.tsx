@@ -84,6 +84,7 @@ import { debugFrames, debugStorage, debugSync } from "@/lib/debugUtils";
 import Link from "next/link";
 import Image from "next/image";
 import SignInButton from "@/components/ui/sign-in";
+import { TIMECAPSULE_VERSION } from "@/lib/version";
 
 // Import NEW MODULAR COMPONENTS
 import {
@@ -2316,7 +2317,7 @@ export default function AIFramesPage() {
 
         const selectedChunk =
           (options.chunkId &&
-            chunks.find((chunk) => chunk.id === options.chunkId)) ||
+            chunks.find((chunk: any) => chunk.id === options.chunkId)) ||
           (chunks.length
             ? chunks[0]
             : {
@@ -2366,9 +2367,9 @@ export default function AIFramesPage() {
 
   useEffect(() => {
     if (!showChunkView) {
-      setChunkViewerDocument((prev) => (prev ? null : prev));
-      setChunkViewerChunks((prev) => (prev.length ? [] : prev));
-      setCurrentChunk((prev) => (prev ? null : prev));
+      setChunkViewerDocument((prev: any) => (prev ? null : prev));
+      setChunkViewerChunks((prev: any) => (prev.length ? [] : prev));
+      setCurrentChunk((prev: any) => (prev ? null : prev));
     }
   }, [showChunkView]);
 
@@ -3049,6 +3050,9 @@ export default function AIFramesPage() {
                       <p className="text-sm text-gray-600">
                         Interactive AI learning platform
                       </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Version {TIMECAPSULE_VERSION}
+                      </p>
                     </div>
                     <Button
                       variant="ghost"
@@ -3427,7 +3431,7 @@ export default function AIFramesPage() {
             resetChapterDialogState();
           }
         }}
-        editingChapter={editingChapter}
+        editingChapter={editingChapter ? { ...editingChapter, description: editingChapter.description || '' } as any : null}
         chapterFormData={chapterFormData}
         setChapterFormData={setChapterFormData}
         selectedFrameIds={selectedChapterFrameIds}

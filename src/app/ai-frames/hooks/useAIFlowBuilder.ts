@@ -26,6 +26,7 @@ import type { UseFirecrawlKeyReturn } from "./useFirecrawlKey";
 import type { AIProviderKey } from "./useAIProviders";
 import { createMultiAgentSystem } from "@/lib/multi-agent";
 import type { AgentLLMOptions } from "@/lib/multi-agent/core/Orchestrator";
+import { TIMECAPSULE_VERSION } from "@/lib/version";
 import {
   useResearchSteps,
   ResearchStep,
@@ -190,7 +191,7 @@ interface ContextPreview {
 
 interface LearningSessionState {
   id: string;
-  mode: "bootstrapped_stepwise";
+  mode: "bootstrapped_stepwise" | "freeform";
   prompt: string;
   createdAt: string;
   updatedAt: string;
@@ -577,7 +578,7 @@ const convertFlowFrameToDraft = (
   const baseAttachment = frame.attachment
     ? {
         id: frame.attachment.url || generateFrameId(),
-        type: frame.attachment.type,
+        type: (frame.attachment.type as "video" | "image" | "text" | "pdf") || "text",
         source: "knowledge_base" as const,
         referenceLabel: undefined,
         description: frame.attachment.description,
@@ -594,7 +595,10 @@ const convertFlowFrameToDraft = (
     attachments: baseAttachment ? [baseAttachment] : [],
     summary: frame.summary,
     durationInSeconds: frame.durationInSeconds,
-    checkpointQuiz: frame.checkpointQuiz,
+    checkpointQuiz: frame.checkpointQuiz ? {
+      ...frame.checkpointQuiz,
+      difficulty: "checkpoint" as const,
+    } : undefined,
     recommendedResources: baseAttachment ? [baseAttachment] : [],
   };
 
@@ -621,7 +625,10 @@ const convertFlowFrameToDraft = (
     generatedAt: new Date().toISOString(),
     error: null,
     knowledgeContext: undefined,
-    checkpointQuiz: frame.checkpointQuiz,
+    checkpointQuiz: frame.checkpointQuiz ? {
+      ...frame.checkpointQuiz,
+      difficulty: "checkpoint" as const,
+    } : undefined,
     quizHistory: [],
     masteryState: index === 0 ? "ready" : "locked",
   };
@@ -1202,7 +1209,7 @@ export function useAIFlowBuilder({
           );
         }
       },
-      onAgentThinking: async (agentName: string, thinking) => {
+      onAgentThinking: async (agentName: string, thinking: any) => {
         updateSubStep(agentName, {
           thinking,
         });
@@ -1344,11 +1351,65 @@ export function useAIFlowBuilder({
     []
   );
 
+  // 🔬 DEBUG CHECKPOINT: Export frames for inspection
+  const exportFramesDebugData = useCallback((frames: any[], checkpoint: string) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `debug-frames-${checkpoint}-${timestamp}.json`;
+    
+    const debugData = {
+      checkpoint,
+      timestamp: new Date().toISOString(),
+      version: TIMECAPSULE_VERSION,
+      frameCount: frames.length,
+      frames: frames.map((frame, idx) => ({
+        index: idx,
+        id: frame?.id || 'UNDEFINED',
+        title: frame?.title || 'UNDEFINED',
+        goal: frame?.goal || 'UNDEFINED',
+        informationText: frame?.informationText || 'UNDEFINED',
+        learningPhase: frame?.learningPhase || 'UNDEFINED',
+        order: frame?.order ?? 'UNDEFINED',
+        type: frame?.type || 'UNDEFINED',
+        isGenerated: frame?.isGenerated,
+        hasUndefinedFields: !frame || !frame.id || !frame.title || !frame.informationText,
+        allFields: frame, // Full frame object for deep inspection
+      })),
+      validation: {
+        undefinedFrames: frames.filter(f => !f || !f.id).length,
+        missingTitle: frames.filter(f => f && !f.title).length,
+        missingInformationText: frames.filter(f => f && !f.informationText).length,
+        missingLearningPhase: frames.filter(f => f && !f.learningPhase).length,
+      }
+    };
+    
+    // Export to file
+    const blob = new Blob([JSON.stringify(debugData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    console.log(`🔬 DEBUG CHECKPOINT: Exported ${frames.length} frames to ${filename}`);
+    console.log(`⚠️ Validation warnings:`, debugData.validation);
+    
+    return debugData;
+  }, []);
+
   const planFlow = useCallback(async () => {
     if (!prompt.trim()) {
       setError("Enter a prompt before running AI Build Flow.");
       return;
     }
+
+    // 🚀 VERSION MARKER - DO NOT REMOVE
+    console.log(`🚀 TimeCapsule Version ${TIMECAPSULE_VERSION} - AI Flow Builder Starting`);
+    console.log(`✅ Fix 1: DataInspector trust LLM decisions (semantic override fix)`);
+    console.log(`✅ Fix 2: PatternGenerator fail-fast validation (no garbage extraction)`);
+    console.log(`✅ Fix 3: SelectTrigger infinite re-render fix (stable callbacks + stable values)`);
+    console.log(`✅ Fix 4: DataInspector parsing improvements (methods, filename, JSON)`);
+    console.log(`✅ Fix 5: Multi-line list parsing (preserve newlines in methods/concepts)`);
 
     const flowSessionId = `session_${Date.now()}`;
     currentHistoryIdRef.current = flowSessionId;
@@ -1443,6 +1504,38 @@ export function useAIFlowBuilder({
         );
         await generatorAgent.process(finalContext);
         flowFrames = finalContext.flowBuilder?.generatedFrames || [];
+      }
+
+      // 🔬 DEBUG CHECKPOINT: Export frames before pushing to UI
+      if (flowFrames.length > 0) {
+        const debugData = exportFramesDebugData(flowFrames, 'flowframegenerator');
+        
+        // Log critical warnings
+        if (debugData.validation.undefinedFrames > 0) {
+          console.error(`🚨 CRITICAL: ${debugData.validation.undefinedFrames} undefined frames detected!`);
+        }
+        if (debugData.validation.missingTitle > 0) {
+          console.warn(`⚠️ WARNING: ${debugData.validation.missingTitle} frames missing title`);
+        }
+        if (debugData.validation.missingInformationText > 0) {
+          console.warn(`⚠️ WARNING: ${debugData.validation.missingInformationText} frames missing informationText`);
+        }
+        
+        // Filter out undefined/malformed frames to prevent UI crash
+        const validFrames = flowFrames.filter(frame => {
+          if (!frame) {
+            console.error('🚨 Filtered out undefined frame');
+            return false;
+          }
+          if (!frame.id || !frame.title || !frame.informationText) {
+            console.error(`🚨 Filtered out malformed frame:`, { id: frame.id, title: frame.title });
+            return false;
+          }
+          return true;
+        });
+        
+        console.log(`✅ Filtered frames: ${flowFrames.length} → ${validFrames.length} valid`);
+        flowFrames = validFrames;
       }
 
       if (!flowPlan || flowFrames.length === 0) {

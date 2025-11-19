@@ -55,6 +55,7 @@ import type { AIFlowModelTier } from "../lib/openRouterModels";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
+import { TIMECAPSULE_VERSION } from "@/lib/version";
 
 interface WorkspaceStats {
   frames: number;
@@ -218,33 +219,28 @@ const swePromptTemplate = useMemo(() => {
     .join("\n");
 }, [prompt, resolvedLocalBridgeBase]);
 
-// 🔥 FIX: Use ref to avoid recreating callbacks when aiProviders object changes
-const aiProvidersRef = useRef(aiProviders);
-useEffect(() => {
-  aiProvidersRef.current = aiProviders;
-}, [aiProviders]);
-
+// 🔥 FIX: aiProviders is now memoized upstream, so callbacks can use it directly
 const handleProviderChange = useCallback((value: string) => {
-  aiProvidersRef.current.setActiveProvider(
+  aiProviders.setActiveProvider(
     value as "openrouter" | "ollama" | "local-bridge"
   );
-}, []);
+}, [aiProviders]);
 
 const handlePlannerModelChange = useCallback((value: string) => {
-  aiProvidersRef.current.openrouter.updateModelSelection("planner", value);
-}, []);
+  aiProviders.openrouter.updateModelSelection("planner", value);
+}, [aiProviders]);
 
 const handleGeneratorModelChange = useCallback((value: string) => {
-  aiProvidersRef.current.openrouter.updateModelSelection("generator", value);
-}, []);
+  aiProviders.openrouter.updateModelSelection("generator", value);
+}, [aiProviders]);
 
 const handleVisionModelChange = useCallback((value: string) => {
-  aiProvidersRef.current.openrouter.updateModelSelection("vision", value);
-}, []);
+  aiProviders.openrouter.updateModelSelection("vision", value);
+}, [aiProviders]);
 
 const handleFallbackModelChange = useCallback((value: string) => {
-  aiProvidersRef.current.openrouter.updateModelSelection("fallback", value);
-}, []);
+  aiProviders.openrouter.updateModelSelection("fallback", value);
+}, [aiProviders]);
 
 const modelChangeHandlers = useMemo(() => ({
   planner: handlePlannerModelChange,
@@ -252,6 +248,73 @@ const modelChangeHandlers = useMemo(() => ({
   vision: handleVisionModelChange,
   fallback: handleFallbackModelChange,
 }), [handlePlannerModelChange, handleGeneratorModelChange, handleVisionModelChange, handleFallbackModelChange]);
+
+// 🧪 TEST PATH ONLY: Does NOT use agent pipeline
+const handleTestPseudoFrames = useCallback(() => {
+  console.log('🧪 TEST: Creating pseudo frames (no agents)');
+  console.log(`🚀 Version ${TIMECAPSULE_VERSION} - Test Mode`);
+  
+  const now = new Date().toISOString();
+  const pseudoFrames: AIFrame[] = [
+    {
+      id: 'test-1',
+      title: 'Test Frame 1',
+      goal: 'Verify SelectTrigger fix works',
+      informationText: 'This is a pseudo frame to verify the SelectTrigger infinite loop is resolved. If you can see this without console errors, the fix is working!',
+      videoUrl: '',
+      startTime: 0,
+      duration: 0,
+      afterVideoText: '',
+      aiConcepts: ['SelectTrigger', 'React', 'Testing'],
+      order: 0,
+      type: 'frame' as const,
+      createdAt: now,
+      updatedAt: now,
+      learningPhase: 'overview' as const,
+      chapterId: 'test-chapter',
+      isGenerated: true,
+    },
+    {
+      id: 'test-2',
+      title: 'Test Frame 2',
+      goal: 'Check UI stability',
+      informationText: 'Second test frame. The Select dropdowns above should work without causing re-renders.',
+      videoUrl: '',
+      startTime: 0,
+      duration: 0,
+      afterVideoText: '',
+      aiConcepts: ['UI', 'Stability'],
+      order: 1,
+      type: 'frame' as const,
+      createdAt: now,
+      updatedAt: now,
+      learningPhase: 'fundamentals' as const,
+      chapterId: 'test-chapter',
+      isGenerated: true,
+    },
+    {
+      id: 'test-3',
+      title: 'Test Frame 3',
+      goal: 'Confirm success',
+      informationText: 'Three frames loaded successfully. Check console - there should be NO "Maximum update depth exceeded" error!',
+      videoUrl: '',
+      startTime: 0,
+      duration: 0,
+      afterVideoText: '',
+      aiConcepts: ['Success', 'Verification'],
+      order: 2,
+      type: 'frame' as const,
+      createdAt: now,
+      updatedAt: now,
+      learningPhase: 'deep-dive' as const,
+      chapterId: 'test-chapter',
+      isGenerated: true,
+    },
+  ];
+  
+  console.log('✅ TEST: Accepting pseudo frames');
+  onAcceptFrames(pseudoFrames);
+}, [onAcceptFrames]);
 
 if (!isOpen) {
   return null;
@@ -1027,6 +1090,16 @@ const handleCopySwePrompt = async () => {
                       AI Build Flow
                     </>
                   )}
+                </Button>
+                {/* 🧪 NEW: Test button for SelectTrigger verification */}
+                <Button
+                  onClick={handleTestPseudoFrames}
+                  variant="outline"
+                  size="sm"
+                  className="border-purple-400 text-purple-700"
+                  title="Test: Creates pseudo frames without agents"
+                >
+                  🧪 Test
                 </Button>
                 <Button
                   variant="secondary"

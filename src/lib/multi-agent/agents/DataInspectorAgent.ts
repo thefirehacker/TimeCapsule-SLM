@@ -19,6 +19,7 @@ import { VectorStore } from "@/components/VectorStore/VectorStore";
 import { AgentProgressCallback } from "../interfaces/AgentProgress";
 import { FeedbackAwareAgent } from "./FeedbackAwareAgent";
 import { UserFeedback, FeedbackValidation, CorrectionResult } from "../interfaces/Feedback";
+import { TIMECAPSULE_VERSION } from "@/lib/version";
 
 const MAX_MULTI_DOC_SAMPLES = 6;
 const MAX_CHUNKS_PER_DOCUMENT = 4;
@@ -92,6 +93,13 @@ export class DataInspectorAgent extends FeedbackAwareAgent {
   }
 
   async processNormally(context: ResearchContext): Promise<ResearchContext> {
+    // 🚀 VERSION MARKER - DO NOT REMOVE
+    console.log(`🚀 TimeCapsule Version ${TIMECAPSULE_VERSION} - DataInspector Agent (Root Cause Fixes Applied)`);
+    console.log(`✅ Fix 1: Format-agnostic technical terms parsing (newlines + commas)`);
+    console.log(`✅ Fix 2: Filename metadata preservation from VectorStore`);
+    console.log(`✅ Fix 3: Simplified JSON prompt structure`);
+    console.log(`✅ Fix 4: Preserve newlines in multi-line lists (methods/concepts parsing)`);
+    
     // Report start of processing with clear user-friendly message
     await this.progressCallback?.onAgentProgress?.(
       this.name,
@@ -2903,10 +2911,11 @@ ${documentSummary}
         if (categoryMatch) {
           // Save previous category if exists
           if (currentCategory && collectedContent.length > 0) {
+            // 🔥 FIX: Join with newlines to preserve list structure for saveParsedCategory splitting
             this.saveParsedCategory(
               insights,
               currentCategory,
-              collectedContent.join(" ")
+              collectedContent.join("\n")
             );
           }
 
@@ -2940,10 +2949,11 @@ ${documentSummary}
 
       // Save last category
       if (currentCategory && collectedContent.length > 0) {
+        // 🔥 FIX: Join with newlines to preserve list structure for saveParsedCategory splitting
         this.saveParsedCategory(
           insights,
           currentCategory,
-          collectedContent.join(" ")
+          collectedContent.join("\n")
         );
       }
     } catch (error) {
