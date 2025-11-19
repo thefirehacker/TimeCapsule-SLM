@@ -1,9 +1,15 @@
 # Issue 021: SWE-Like Agent Performance & Efficiency
 
-**Status**: Draft  
+**Status**: In Progress  
 **Priority**: Critical  
 **Created**: 2025-11-18  
 **Goal**: Reduce AI Flow Builder agent tool calls from 60+ to ~20-40 (matching SWE-bench/Cursor Auto-Dev standards) while maintaining or improving output quality
+
+## Implementation Update (2025-02-18)
+
+- ✅ Added micro-session orchestration inside `src/lib/multi-agent/core/Orchestrator.ts`, allowing PatternGenerator/Extractor/DataInspector to iterate up to 3/3/2 times per focused sub-task while keeping global caps.
+- ✅ Reduced master loop to 30 iterations, introduced consecutive-agent guards, and auto-progresses to the next pipeline stage when the same tool is requested repeatedly (e.g., QueryPlanner loops now terminate).
+- ✅ Completion detection now checks analysis → pattern → extraction → synthesis outputs before exiting, preventing the orchestrator from spinning once lessons are fully generated.
 
 ---
 
@@ -1239,4 +1245,3 @@ Benefit: Agents iterate within context until goal achieved
 5. **Phase 2 Implementation (Week 3)**: Pattern quality & fast-paths
 
 **Critical Success Factor**: Phase 0 (micro-sessions) must be implemented first. Without it, agents can't iterate/learn within context, making all other optimizations less effective.
-

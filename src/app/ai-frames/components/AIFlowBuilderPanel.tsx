@@ -218,9 +218,18 @@ const handleProviderChange = useCallback((value: string) => {
   );
 }, [aiProviders]);
 
-const handleModelChange = useCallback((tier: AIFlowModelTier) => (value: string) => {
-  aiProviders.openrouter.updateModelSelection(tier, value);
-}, [aiProviders]);
+const modelChangeHandlers = useMemo<
+  Record<AIFlowModelTier, (value: string) => void>
+>(() => ({
+  planner: (value: string) =>
+    aiProviders.openrouter.updateModelSelection("planner", value),
+  generator: (value: string) =>
+    aiProviders.openrouter.updateModelSelection("generator", value),
+  vision: (value: string) =>
+    aiProviders.openrouter.updateModelSelection("vision", value),
+  fallback: (value: string) =>
+    aiProviders.openrouter.updateModelSelection("fallback", value),
+}), [aiProviders]);
 
 if (!isOpen) {
   return null;
@@ -611,7 +620,7 @@ const handleCopySwePrompt = async () => {
                       </Label>
                       <Select
                         value={openRouterState.modelSelections[tier]}
-                        onValueChange={handleModelChange(tier)}
+                        onValueChange={modelChangeHandlers[tier]}
                       >
                         <SelectTrigger className="bg-white border-slate-300 h-9">
                           <SelectValue placeholder="Select model" />

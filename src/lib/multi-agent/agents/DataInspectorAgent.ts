@@ -24,6 +24,37 @@ const MAX_MULTI_DOC_SAMPLES = 6;
 const MAX_CHUNKS_PER_DOCUMENT = 4;
 const MAX_CHUNK_CHARACTERS = 500;
 
+interface AlignmentInfo {
+  queryEntity?: string;
+  documentEntity?: string;
+  match?: boolean;
+}
+
+interface ConceptAlignmentInfo {
+  queryConcepts?: string[];
+  documentConcepts?: string[];
+  match?: boolean;
+}
+
+interface StructuredInspectorResponse {
+  documentType?: string;
+  mainEntity?: string;
+  isRelevant?: boolean;
+  relevanceReason?: string;
+  reasoning?: string;
+  conceptSynthesis?: string;
+  topics?: string[];
+  people?: string[];
+  methods?: string[];
+  concepts?: string[];
+  dataPoints?: string[];
+  performanceIndicators?: string[];
+  queryConcepts?: string[];
+  documentConcepts?: string[];
+  entityAlignment?: AlignmentInfo;
+  conceptAlignment?: ConceptAlignmentInfo;
+}
+
 export class DataInspectorAgent extends FeedbackAwareAgent {
   readonly name = "DataInspector";
   readonly description =
@@ -1018,6 +1049,37 @@ Consider ALL signals together:
 - Entity/authorship alignment from multiple sources
 - Content depth and relevance to query intent
 
+OUTPUT FORMAT:
+Respond **only** with valid JSON matching this structure:
+```json
+{
+  "documentType": "Educational Tutorial",
+  "mainEntity": "PyTorch Distributed Data Parallel (DDP)",
+  "isRelevant": true,
+  "relevanceReason": "Explain why the document answers the query.",
+  "conceptSynthesis": "Short synthesis aligning query and document concepts.",
+  "topics": ["Distributed training", "PyTorch"],
+  "people": ["Hugging Face"],
+  "methods": ["DDP"],
+  "concepts": ["gradient synchronization"],
+  "dataPoints": ["batch size handling"],
+  "performanceIndicators": ["all_reduce timing"],
+  "queryConcepts": ["lesson plan", "DDP fundamentals"],
+  "documentConcepts": ["tutorial modules", "multi-GPU training"],
+  "entityAlignment": {
+    "queryEntity": "DDP",
+    "documentEntity": "PyTorch DDP",
+    "match": true
+  },
+  "conceptAlignment": {
+    "queryConcepts": ["lesson plan"],
+    "documentConcepts": ["educational tutorial"],
+    "match": true
+  }
+}
+```
+Do not include explanations outside of this JSON.
+
 🔍 SEMANTIC VERIFICATION (Critical for Small LLMs):
 
 STEP 4A: DOMAIN VERIFICATION
@@ -1079,12 +1141,48 @@ CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this 
         response.substring(0, 500) + "..."
       );
 
-      // Parse the enhanced response
-      const docType = this.extractValue(response, 'TYPE') || 'Unknown Document';
-      let mainEntity = this.extractValue(response, 'MAIN_ENTITY') || 'Unknown Entity';
-      const relevantText = this.extractValue(response, 'RELEVANT') || 'NO';
-      const reasoning = this.extractValue(response, 'REASON') || 'No reasoning provided';
-      const conceptSynthesis = this.extractValue(response, 'CONCEPT_SYNTHESIS') || 'No concept synthesis available';
+      const structured = this.parseStructuredAnalysis(response);
+      if (!structured) {
+        console.warn(`⚠️ DataInspector: Structured JSON missing or invalid, falling back to regex extraction`);
+      }
+
+      const docType =
+        structured?.documentType?.trim() ||
+        this.extractValue(response, "TYPE") ||
+        "Unknown Document";
+      let mainEntity =
+        structured?.mainEntity?.trim() ||
+        this.extractValue(response, "MAIN_ENTITY") ||
+        "Unknown Entity";
+      const reasoning =
+        structured?.relevanceReason?.trim() ||
+        structured?.reasoning?.trim() ||
+        this.extractValue(response, "REASON") ||
+        "No reasoning provided";
+      const conceptSynthesis =
+        structured?.conceptSynthesis?.trim() ||
+        this.extractValue(response, "CONCEPT_SYNTHESIS") ||
+        "No concept synthesis available";
+      const relevantText =
+        structured?.isRelevant !== undefined
+          ? structured.isRelevant
+            ? "YES"
+            : "NO"
+          : this.extractValue(response, "RELEVANT") || "NO";
+      const topics = this.normalizeStringArray(structured?.topics);
+      const methods = this.normalizeStringArray(structured?.methods);
+      const concepts = this.normalizeStringArray(structured?.concepts);
+      const dataPoints = this.normalizeStringArray(structured?.dataPoints);
+      const people = this.normalizeStringArray(structured?.people);
+      const performanceIndicators = this.normalizeStringArray(
+        structured?.performanceIndicators
+      );
+      const queryConcepts = this.normalizeStringArray(structured?.queryConcepts);
+      const documentConcepts = this.normalizeStringArray(
+        structured?.documentConcepts
+      );
+      const entityAlignment = structured?.entityAlignment;
+      const conceptAlignment = structured?.conceptAlignment;
       
       // Store reasoning and concept synthesis for use in extractSpecificInsights
       this.reasoning = reasoning;
@@ -1142,7 +1240,9 @@ CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this 
       });
       
       // 🔥 PURE LLM DECISION: Extract clean LLM response without entity contamination
-      const isRelevant = relevantText.trim().toUpperCase() === 'YES' || relevantText.trim().toUpperCase().startsWith('YES');
+      const isRelevant =
+        structured?.isRelevant ??
+        relevantText.trim().toUpperCase().startsWith("YES");
       
       console.log(`🔍 COMPREHENSIVE ANALYSIS: Query="${query}", Entity="${mainEntity}" → Result: ${isRelevant}`);
       
@@ -1151,7 +1251,17 @@ CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this 
         primaryEntity: mainEntity,
         isRelevant: isRelevant,
         reasoning: reasoning,
-        conceptSynthesis: this.conceptSynthesis
+        conceptSynthesis: this.conceptSynthesis,
+        topics,
+        methods,
+        concepts,
+        dataPoints,
+        people,
+        performanceIndicators,
+        queryConcepts,
+        documentConcepts,
+        entityAlignment,
+        conceptAlignment
       };
     } catch (error) {
       console.warn(
@@ -1180,6 +1290,28 @@ CONCEPT_SYNTHESIS: [semantic concept mapping - what query concepts mean in this 
     };
 
     return typoMap[key.toUpperCase()] || key;
+  }
+
+  private parseStructuredAnalysis(response: string): StructuredInspectorResponse | null {
+    try {
+      const parsed = parseJsonWithResilience(response);
+      if (parsed && typeof parsed === "object") {
+        return parsed as StructuredInspectorResponse;
+      }
+    } catch (error) {
+      console.warn("⚠️ DataInspector: Failed to parse structured JSON response:", error);
+    }
+    return null;
+  }
+
+  private normalizeStringArray(value: any): string[] | undefined {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const normalized = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry ?? "").trim()))
+      .filter((entry) => entry.length > 0);
+    return normalized.length > 0 ? normalized : undefined;
   }
 
   /**

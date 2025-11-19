@@ -4,6 +4,7 @@ import React from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -78,6 +79,9 @@ export default function VectorStoreInitModal({
             <Shield className="w-6 h-6 text-blue-500" />
             Secure Knowledge Base
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {getStatusMessage()}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center space-y-6 py-6">

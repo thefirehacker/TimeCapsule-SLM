@@ -767,6 +767,10 @@ export class VectorStore {
     });
   }
 
+  private async storeDocumentRecord(document: DocumentData): Promise<void> {
+    await this.documentsCollection.documents.insert(document);
+  }
+
   /**
    * Add a virtual document from web search results
    */
@@ -780,46 +784,62 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Enhanced ready state management
-    const downloadStatus = this._downloadStatus;
-    
-    if (downloadStatus === 'downloading') {
-      throw new Error('AI models are still downloading in the background. Please wait a moment and try again.');
-    } else if (downloadStatus === 'error') {
-      throw new Error('AI model download failed. Document processing requires AI processing capabilities.');
-    } else if (!this.documentProcessor || !this._processorAvailable) {
-      throw new Error('Document processing is unavailable. Please refresh the page and try again.');
+    const docId = `virtual_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    const baseMetadata = {
+      filename: title,
+      filesize: content.length,
+      filetype: 'text/html',
+      uploadedAt: new Date().toISOString(),
+      source: 'websearch',
+      description: `Web search result: ${title}`,
+      isGenerated: false,
+      documentType: 'virtual-docs' as DocumentType,
+      url: url
+    };
+
+    if (!this.documentProcessor || !this._processorAvailable) {
+      console.warn('⚠️ Document processor unavailable - storing virtual document without embeddings');
+      const simpleDoc: DocumentData = {
+        id: docId,
+        title,
+        content,
+        metadata: {
+          ...baseMetadata,
+          hasOriginalAsset: false,
+          hasImageAssets: false,
+          previewAssetIds: []
+        },
+        chunks: [
+          {
+            id: `chunk_${docId}_0`,
+            content,
+            startIndex: 0,
+            endIndex: content.length,
+            pageNumber: null,
+            sectionTitle: null,
+            markers: []
+          }
+        ],
+        vectors: []
+      };
+      await this.storeDocumentRecord(simpleDoc);
+      return docId;
     }
 
     console.log(`📄 Processing virtual document: ${title} from ${url}`);
     console.log(`📄 Content length: ${content.length} characters`);
     
-    // Generate document ID with virtual prefix
-    const docId = `virtual_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-
-    // Prepare document data for Web Worker
     const documentData = {
       id: docId,
       title: title,
       content: content,
-      metadata: {
-        filename: title,
-        filesize: content.length,
-        filetype: 'text/html',
-        uploadedAt: new Date().toISOString(),
-        source: 'websearch',
-        description: `Web search result: ${title}`,
-        isGenerated: false,
-        documentType: 'virtual-docs' as DocumentType,
-        url: url
-      }
+      metadata: baseMetadata
     };
 
     await this.ensureProcessorReady();
 
     return new Promise((resolve, reject) => {
-      // Use Web Worker to process document
-      this.documentProcessor.processDocument(
+      this.documentProcessor!.processDocument(
         documentData,
         // Progress callback
         (progress: ProcessingProgress) => {
@@ -863,8 +883,7 @@ export class VectorStore {
               previewAssetIds: processedDoc.metadata?.previewAssetIds || []
             };
 
-            // Convert to our DocumentData format
-            const documentData: DocumentData = {
+            const documentRecord: DocumentData = {
               id: processedDoc.id,
               title: processedDoc.title,
               content: processedDoc.content,
@@ -876,8 +895,7 @@ export class VectorStore {
               }))
             };
 
-            // Insert into RxDB
-            await this.documentsCollection.documents.insert(documentData);
+            await this.storeDocumentRecord(documentRecord);
             console.log(`✅ Virtual document stored with ID: ${docId}`);
             console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
             

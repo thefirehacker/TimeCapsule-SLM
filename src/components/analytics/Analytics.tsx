@@ -7,8 +7,11 @@ import { CookieConsent, useCookieConsent } from '../ui/cookie-consent';
 
 export function Analytics() {
   const pathname = usePathname();
-  const { preferences, hasConsent, updatePreferences, canUseAnalytics } = useCookieConsent();
+  const { preferences, hasConsent, updatePreferences, analytics: analyticsConsent } = useCookieConsent();
   const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
+  
+  // Extract canUse from analytics consent object
+  const canUseAnalytics = analyticsConsent.canUse;
 
   // Initialize analytics when consent is given
   useEffect(() => {
@@ -106,8 +109,11 @@ function getPageMetadata(pathname: string) {
 
 // Enhanced analytics hook with consent awareness
 export function usePageAnalytics(pageName: string, category: string) {
-  const { canUseAnalytics, preferences } = useCookieConsent();
+  const { analytics: analyticsConsent, preferences } = useCookieConsent();
   const [isReady, setIsReady] = useState(false);
+  
+  // Extract canUse from analytics consent object
+  const canUseAnalytics = analyticsConsent.canUse;
 
   useEffect(() => {
     setIsReady(canUseAnalytics && analytics.isReady());
