@@ -562,12 +562,32 @@ export class UnifiedStorageManager {
         return null;
       }
 
-      const dbRequest = indexedDB.open('ai-frames-unified', 1);
-      const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        dbRequest.onsuccess = () => resolve(dbRequest.result);
-        dbRequest.onerror = () => reject(dbRequest.error);
-        dbRequest.onupgradeneeded = () => reject(new Error('Database not found'));
-      });
+      const openDatabase = (version?: number) =>
+        new Promise<IDBDatabase>((resolve, reject) => {
+          const request =
+            typeof version === "number"
+              ? indexedDB.open("ai-frames-unified", version)
+              : indexedDB.open("ai-frames-unified");
+
+          request.onupgradeneeded = (event) => {
+            const db =
+              request.result || (event.target as IDBOpenDBRequest).result;
+            if (!db.objectStoreNames.contains('appState')) {
+              db.createObjectStore('appState');
+            }
+          };
+
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+
+      let db = await openDatabase();
+
+      if (!db.objectStoreNames.contains('appState')) {
+        const nextVersion = (db.version || 1) + 1;
+        db.close();
+        db = await openDatabase(nextVersion);
+      }
 
       const transaction = db.transaction(['appState'], 'readonly');
       const store = transaction.objectStore('appState');
@@ -579,12 +599,16 @@ export class UnifiedStorageManager {
       });
 
       if (appState) {
-        return {
+        const result = {
           frames: appState.frames,
           chapters: appState.chapters || [],
-          graphState: appState.graphState
+          graphState: appState.graphState,
         };
+        db.close();
+        return result;
       }
+
+      db.close();
       
       return null;
     } catch (error) {

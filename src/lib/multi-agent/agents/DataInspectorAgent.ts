@@ -1050,8 +1050,7 @@ Consider ALL signals together:
 - Content depth and relevance to query intent
 
 OUTPUT FORMAT:
-Respond **only** with valid JSON matching this structure:
-```json
+Respond **only** with valid JSON matching this structure (no surrounding markdown):
 {
   "documentType": "Educational Tutorial",
   "mainEntity": "PyTorch Distributed Data Parallel (DDP)",
@@ -1077,7 +1076,6 @@ Respond **only** with valid JSON matching this structure:
     "match": true
   }
 }
-```
 Do not include explanations outside of this JSON.
 
 🔍 SEMANTIC VERIFICATION (Critical for Small LLMs):

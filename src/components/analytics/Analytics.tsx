@@ -92,6 +92,7 @@ function getPageMetadata(pathname: string) {
     '/': { title: 'Homepage', category: 'landing', type: 'marketing' },
     '/deep-research': { title: 'DeepResearch-TimeCapsule', category: 'research', type: 'application' },
     '/ai-frames': { title: 'AI-Frames', category: 'learning', type: 'interactive' },
+    '/contact': { title: 'Contact Us', category: 'info', type: 'static' },
     '/auth/signin': { title: 'Sign In', category: 'auth', type: 'authentication' },
     '/auth/error': { title: 'Auth Error', category: 'auth', type: 'error' },
     '/about': { title: 'About Us', category: 'info', type: 'static' },
