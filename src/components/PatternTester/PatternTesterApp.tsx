@@ -702,13 +702,17 @@ User prompt: ${promptText}`;
       id: "documents",
       label: "Documents",
       icon: FileText,
-      filter: (doc: any) => doc.metadata?.documentType !== "ai_generated",
+      filter: (doc: any) =>
+        doc.metadata?.documentType !== "ai_generated" &&
+        doc.metadata?.documentType !== "flow-session",
     },
     {
       id: "ai_generated",
       label: "AI Generated",
       icon: Bot,
-      filter: (doc: any) => doc.metadata?.documentType === "ai_generated",
+      filter: (doc: any) =>
+        doc.metadata?.documentType === "ai_generated" &&
+        doc.metadata?.documentType !== "flow-session",
     },
   ];
 

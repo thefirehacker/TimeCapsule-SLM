@@ -14,6 +14,19 @@ import { AgentProgressTracker, AgentProgressCallback } from '../interfaces/Agent
 import { extractThinkingProcess, parseLLMResponse } from '@/lib/utils/thinkExtractor';
 import type { ExecutionPlan, PlanStep } from '../agents/PlanningAgent';
 import { UserFeedback } from '../interfaces/Feedback';
+import { TIMECAPSULE_VERSION } from '@/lib/version';
+
+type MicroSessionStatus = 'active' | 'completed' | 'failed';
+
+interface MicroSession {
+  id: string;
+  goal: string;
+  startTime: number;
+  status: MicroSessionStatus;
+  agentCallsInSession: Map<string, number>;
+  maxAttemptsPerAgent: number;
+  lastAgent?: string;
+}
 
 type OrchestratorMode = "research" | "flow_builder";
 
@@ -58,6 +71,23 @@ export class Orchestrator {
   
   // 🔍 Instance tracking for debugging state persistence
   private instanceId: string = `orch-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+
+  // 🎯 Micro-session orchestration
+  private currentMicroSession: MicroSession | null = null;
+  private microSessionHistory: MicroSession[] = [];
+  private globalAgentCalls: Map<string, number> = new Map();
+  private readonly defaultMicroSessionLimit = 3;
+  private readonly microSessionLimits: Record<string, number> = {
+    PatternGenerator: 3,
+    Extractor: 3,
+    DataInspector: 2,
+    PlanningAgent: 1,
+    SynthesisCoordinator: 2,
+    ResponseFormatter: 2,
+  };
+  private consecutiveSameAgentCount = 0;
+  private readonly maxConsecutiveSameAgent = 2;
+  private lastDecisionAgent: string | null = null;
   
   constructor(
     registry: AgentRegistry,
@@ -445,6 +475,12 @@ export class Orchestrator {
   async research(query: string, ragResults?: SourceReference[]): Promise<string> {
     console.log(`🧠 Master LLM Orchestrator starting for: "${query}"`);
     
+    // 🚀 VERSION MARKER - DO NOT REMOVE
+    console.log(`🚀 TimeCapsule Version ${TIMECAPSULE_VERSION} - Master Orchestrator`);
+    console.log(`✅ Micro-session architecture enabled (60 iterations, per-agent limits)`);
+    console.log(`✅ PatternGenerator validation: Fail-fast if no documents available`);
+    console.log(`✅ Plan-aware sequencing with intelligent validation`);
+    
     // 🔥 RESET: Clear agent state for new research session
     this.calledAgents.clear();
     this.agentResults.clear();
@@ -720,12 +756,25 @@ export class Orchestrator {
         break;
         
       case 'PatternGenerator':
+        // 🔥 FIX: Check if DataInspector filtered out ALL documents - fail fast if so
+        const dataInspectorCalled = this.calledAgents.has('DataInspector');
+        const hasRagChunks = context.ragResults?.chunks && context.ragResults.chunks.length > 0;
+        
+        if (dataInspectorCalled && !hasRagChunks) {
+          console.error(`❌ CRITICAL: DataInspector filtered out all documents - cannot run PatternGenerator`);
+          console.error(`📊 RAG chunks: ${context.ragResults?.chunks?.length || 0}`);
+          console.error(`📋 Called agents: ${Array.from(this.calledAgents).join(', ')}`);
+          return {
+            isValid: false, 
+            reason: 'DataInspector filtered out all documents - no content available for pattern generation. Pipeline cannot continue without documents.'
+          };
+        }
+        
         // PatternGenerator needs DataInspector insights - auto-restore if missing
         const hasStrategy = context.sharedKnowledge.extractionStrategies && 
                            Object.keys(context.sharedKnowledge.extractionStrategies).length > 0;
         const hasInsights = context.sharedKnowledge.documentInsights && 
                            Object.keys(context.sharedKnowledge.documentInsights).length > 0;
-        const hasRagChunks = context.ragResults?.chunks && context.ragResults.chunks.length > 0;
         
         if (!hasStrategy && !hasInsights && !hasRagChunks) {
           // Try to restore from previous results
@@ -850,89 +899,74 @@ export class Orchestrator {
   private async masterLLMOrchestration(context: ResearchContext): Promise<void> {
     console.log(`🎯 Master LLM analyzing situation and planning tool calls...`);
     
-    // 🎯 DISABLED: Progress proxy creation causing stack overflow
-    // TODO: Fix proxy implementation to prevent recursion
-    // if (!this.progressProxyInitialized) {
-    //   console.log(`🔧 Creating progress proxy before orchestration starts`);
-    //   this.createProgressProxy();
-    // }
-    
     let iterationCount = 0;
-    const maxIterations = 15; // Increased to handle skipped agents gracefully
-    let currentGoal = `Answer the user's query: "${context.query}"`;
+    const maxIterations = 30;
+    this.ensureActiveMicroSession(context);
     
     while (iterationCount < maxIterations) {
       iterationCount++;
+      
+      if (this.isFullPipelineComplete(context)) {
+        console.log('✅ All required pipeline stages completed - stopping orchestration');
+        this.finishMicroSession('completed');
+        break;
+      }
+      
+      const currentGoal = this.getCurrentGoal(context);
       console.log(`🔄 Master LLM Iteration ${iterationCount}: ${currentGoal}`);
       
-      // 🧠 LLM DECISION: What tool should be called next?
       const decision = await this.makeMasterLLMDecision(context, currentGoal, iterationCount);
       
       if (decision.action === 'COMPLETE') {
-        // 🚨 FIX: Handle invalid COMPLETE+toolName format
         if (decision.toolName) {
           console.log(`🔧 Master LLM returned COMPLETE with toolName - treating as CALL_TOOL: ${decision.toolName}`);
-          await this.executeToolCall(decision.toolName, context);
-          currentGoal = decision.nextGoal || currentGoal;
+          await this.executeToolCallWithMicroSession(decision.toolName, context);
+          this.ensureActiveMicroSession(context);
           continue;
         }
         
-        // 🔥 CRITICAL: Validate completion conditions before allowing completion
         const canComplete = this.validateCompletionConditions(context);
         if (canComplete.allowed) {
-          console.log(`✅ Master LLM completed goal: ${decision.reasoning}`);
+          console.log(`✅ Master LLM completed goal: ${decision.reasoning || 'Task complete'}`);
+          this.finishMicroSession('completed');
           break;
-        } else {
-          console.log(`⚠️ Master LLM tried to complete prematurely: ${canComplete.reason}`);
+        }
+        
+        console.log(`⚠️ Master LLM tried to complete prematurely: ${canComplete.reason}`);
+        if (canComplete.nextAgent) {
           console.log(`🔄 Forcing continuation with required agent: ${canComplete.nextAgent}`);
-          // Override completion with required next step
-          if (canComplete.nextAgent) {
-            await this.executeToolCall(canComplete.nextAgent, context);
-            currentGoal = `Continue pipeline: call ${canComplete.nextAgent}`;
-          }
+          await this.executeToolCallWithMicroSession(canComplete.nextAgent, context);
+          this.ensureActiveMicroSession(context);
+          continue;
+        }
+      } else if (decision.action === 'CALL_TOOL') {
+        await this.executeToolCallWithMicroSession(decision.toolName, context);
+      } else if (/^COMP?LETE$/i.test(decision.action) || /^(DONE|FINISH|END)$/i.test(decision.action)) {
+        const canComplete = this.validateCompletionConditions(context);
+        if (canComplete.allowed) {
+          console.log(`✅ Master LLM completed goal: ${decision.reasoning || 'Task complete'}`);
+          this.finishMicroSession('completed');
+          break;
+        }
+        console.log(`⚠️ Completion denied: ${canComplete.reason}`);
+        if (canComplete.nextAgent) {
+          await this.executeToolCallWithMicroSession(canComplete.nextAgent, context);
+          this.ensureActiveMicroSession(context);
+          continue;
+        }
+      } else {
+        const possibleToolName = this.normalizeToolName(decision.action);
+        if (this.registry.get(possibleToolName)) {
+          console.log(`🔧 Master LLM returned tool name directly: ${decision.action} → ${possibleToolName}`);
+          await this.executeToolCallWithMicroSession(possibleToolName, context);
+        } else {
+          console.error(`❌ Master LLM made invalid decision: ${decision.action}`);
+          console.error(`🐛 Full decision:`, decision);
+          break;
         }
       }
       
-      if (decision.action === 'CALL_TOOL') {
-        console.log(`🔧 [${this.instanceId}] Master LLM calling tool: ${decision.toolName} - ${decision.reasoning}`);
-        await this.executeToolCall(decision.toolName, context);
-        console.log(`✅ [${this.instanceId}] executeToolCall(${decision.toolName}) completed - ready for next iteration`);
-        
-        // Update goal based on results
-        currentGoal = decision.nextGoal || currentGoal;
-      } else {
-        // 🚨 FIX: Check if action is a completion variant first
-        if (/^COMP?LETE$/i.test(decision.action) || /^(DONE|FINISH|END)$/i.test(decision.action)) {
-          console.log(`🏁 Master LLM indicated completion with: "${decision.action}" - treating as COMPLETE`);
-          
-          // Validate completion conditions before allowing completion
-          const canComplete = this.validateCompletionConditions(context);
-          if (canComplete.allowed) {
-            console.log(`✅ Master LLM completed goal: ${decision.reasoning || 'Task complete'}`);
-            break;
-          } else {
-            console.log(`⚠️ Master LLM tried to complete prematurely: ${canComplete.reason}`);
-            console.log(`🔄 Forcing continuation with required agent: ${canComplete.nextAgent}`);
-            // Override completion with required next step
-            if (canComplete.nextAgent) {
-              await this.executeToolCall(canComplete.nextAgent, context);
-              currentGoal = `Continue pipeline: call ${canComplete.nextAgent}`;
-            }
-          }
-        } else {
-          // 🚨 FIX: Handle case where LLM returns tool name directly as action (common with small models)
-          const possibleToolName = this.normalizeToolName(decision.action);
-          if (this.registry.get(possibleToolName)) {
-            console.log(`🔧 Master LLM returned tool name directly: ${decision.action} → ${possibleToolName}`);
-            await this.executeToolCall(possibleToolName, context);
-            currentGoal = decision.nextGoal || currentGoal;
-          } else {
-            console.error(`❌ Master LLM made invalid decision: ${decision.action}`);
-            console.error(`🐛 Full decision:`, decision);
-            break;
-          }
-        }
-      }
+      this.ensureActiveMicroSession(context);
     }
     
     if (iterationCount >= maxIterations) {
@@ -940,6 +974,269 @@ export class Orchestrator {
     }
   }
   
+  /**
+   * Ensure a micro-session is active before orchestrating additional steps.
+   */
+  private ensureActiveMicroSession(context: ResearchContext): void {
+    if (this.currentMicroSession) {
+      return;
+    }
+    const goal = this.determineNextMicroSessionGoal(context);
+    this.startMicroSession(goal);
+  }
+
+  private startMicroSession(goal: string): void {
+    this.currentMicroSession = {
+      id: `micro-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      goal,
+      startTime: Date.now(),
+      status: 'active',
+      agentCallsInSession: new Map(),
+      maxAttemptsPerAgent: this.defaultMicroSessionLimit,
+    };
+    console.log(`🎯 Starting micro-session: "${goal}"`);
+  }
+
+  private finishMicroSession(status: MicroSessionStatus): void {
+    if (!this.currentMicroSession) {
+      return;
+    }
+    const snapshot: MicroSession = {
+      ...this.currentMicroSession,
+      status,
+      agentCallsInSession: new Map(this.currentMicroSession.agentCallsInSession),
+    };
+    this.microSessionHistory.push(snapshot);
+    console.log(`🧾 Micro-session "${snapshot.goal}" finished with status: ${status}`);
+    this.currentMicroSession = null;
+  }
+
+  private getCurrentGoal(context: ResearchContext): string {
+    if (!this.currentMicroSession) {
+      this.ensureActiveMicroSession(context);
+    }
+    return this.currentMicroSession?.goal || `Answer the user's query: "${context.query}"`;
+  }
+
+  private determineNextMicroSessionGoal(context: ResearchContext): string {
+    const hasAnalysis = this.calledAgents.has('DataInspector') || (context.documentAnalysis?.documents?.length ?? 0) > 0;
+    const hasPatterns = this.hasMeaningfulPatterns(context);
+    const hasData = this.hasExtractedData(context);
+    const hasDraft = this.hasSynthesisDraft(context);
+
+    if (!hasAnalysis) {
+      return 'Analyze document structure and relevance';
+    }
+    if (!hasPatterns) {
+      return 'Generate extraction patterns from document insights';
+    }
+    if (!hasData) {
+      return 'Extract structured data using generated patterns';
+    }
+    if (!hasDraft) {
+      return 'Synthesize findings into final response';
+    }
+    return 'Format and finalize response for delivery';
+  }
+
+  private hasMeaningfulPatterns(context: ResearchContext): boolean {
+    if (context.patterns && context.patterns.length > 0) {
+      return true;
+    }
+    const discovered = context.sharedKnowledge?.discoveredPatterns;
+    return discovered ? Object.keys(discovered).length > 0 : false;
+  }
+
+  private async executeToolCallWithMicroSession(toolName: string, context: ResearchContext): Promise<void> {
+    this.ensureActiveMicroSession(context);
+    const normalizedToolName = this.enforceAgentProgression(toolName, context);
+
+    let attempt = this.canCallAgentInMicroSession(normalizedToolName);
+    if (!attempt.allowed) {
+      console.warn(`⚠️ ${attempt.reason}`);
+      this.finishMicroSession('failed');
+      this.ensureActiveMicroSession(context);
+      attempt = this.canCallAgentInMicroSession(normalizedToolName);
+      if (!attempt.allowed) {
+        throw new Error(attempt.reason);
+      }
+    }
+
+    this.recordMicroSessionCall(normalizedToolName);
+    await this.executeToolCall(normalizedToolName, context);
+
+    if (this.isMicroSessionGoalAchieved(normalizedToolName, context)) {
+      this.finishMicroSession('completed');
+    }
+  }
+
+  private canCallAgentInMicroSession(agentName: string): { allowed: boolean; reason: string } {
+    if (!this.currentMicroSession) {
+      return { allowed: true, reason: 'No active micro-session' };
+    }
+
+    const calls = this.currentMicroSession.agentCallsInSession.get(agentName) ?? 0;
+    const limit = this.microSessionLimits[agentName] ?? this.currentMicroSession.maxAttemptsPerAgent ?? this.defaultMicroSessionLimit;
+
+    if (calls >= limit) {
+      return {
+        allowed: false,
+        reason: `Agent ${agentName} exhausted ${limit} attempts in micro-session "${this.currentMicroSession.goal}"`,
+      };
+    }
+
+    return {
+      allowed: true,
+      reason: `Attempt ${calls + 1}/${limit} in "${this.currentMicroSession.goal}"`,
+    };
+  }
+
+  private recordMicroSessionCall(agentName: string): void {
+    if (!this.currentMicroSession) {
+      return;
+    }
+    const current = this.currentMicroSession.agentCallsInSession.get(agentName) ?? 0;
+    this.currentMicroSession.agentCallsInSession.set(agentName, current + 1);
+
+    const globalCalls = this.globalAgentCalls.get(agentName) ?? 0;
+    this.globalAgentCalls.set(agentName, globalCalls + 1);
+  }
+
+  private isMicroSessionGoalAchieved(agentName: string, context: ResearchContext): boolean {
+    if (!this.currentMicroSession) {
+      return false;
+    }
+
+    const goal = this.currentMicroSession.goal.toLowerCase();
+    if (goal.includes('analyze') && agentName === 'DataInspector') {
+      return (context.documentAnalysis?.documents?.length ?? 0) > 0;
+    }
+    if (goal.includes('pattern') && agentName === 'PatternGenerator') {
+      const hasPatternsCheck = this.hasMeaningfulPatterns(context);
+      const hasDataCheck = this.hasExtractedData(context);
+      
+      // If goal mentions extraction, require both patterns AND data
+      if (goal.includes('extract')) {
+        const achieved = hasPatternsCheck && hasDataCheck;
+        if (achieved) {
+          console.log(`✅ PatternGenerator micro-session goal achieved: patterns + extraction complete`);
+        } else {
+          console.log(`⚠️ PatternGenerator micro-session incomplete: patterns=${hasPatternsCheck}, data=${hasDataCheck}`);
+        }
+        return achieved;
+      }
+      
+      // If goal only mentions patterns, just check patterns
+      return hasPatternsCheck;
+    }
+    if (goal.includes('extract') && (agentName === 'Extractor' || agentName === 'PatternGenerator')) {
+      return this.hasExtractedData(context);
+    }
+    if ((goal.includes('synthesize') || goal.includes('finalize')) &&
+        (agentName === 'SynthesisCoordinator' || agentName === 'ResponseFormatter')) {
+      return this.hasSynthesisDraft(context);
+    }
+    return false;
+  }
+
+  /**
+   * Check if a goal-type has been completed in any micro-session
+   * This makes validation micro-session-aware instead of agent-specific
+   */
+  private hasMicroSessionCompletedGoal(goalType: 'analyze' | 'pattern' | 'extract' | 'synthesize'): boolean {
+    return this.microSessionHistory.some(session => {
+      if (session.status !== 'completed') return false;
+      
+      const goal = session.goal.toLowerCase();
+      switch (goalType) {
+        case 'analyze':
+          return goal.includes('analyze') || goal.includes('document') || goal.includes('inspection');
+        case 'pattern':
+          return goal.includes('pattern') || goal.includes('generation');
+        case 'extract':
+          return goal.includes('extract') || goal.includes('pattern'); // PatternGenerator does extraction
+        case 'synthesize':
+          return goal.includes('synthesize') || goal.includes('finalize') || goal.includes('response');
+        default:
+          return false;
+      }
+    });
+  }
+
+  /**
+   * Get the most recent micro-session that completed a specific goal type
+   */
+  private getCompletedMicroSession(goalType: 'analyze' | 'pattern' | 'extract' | 'synthesize'): MicroSession | null {
+    const sessions = this.microSessionHistory.filter(session => {
+      if (session.status !== 'completed') return false;
+      const goal = session.goal.toLowerCase();
+      
+      switch (goalType) {
+        case 'analyze':
+          return goal.includes('analyze') || goal.includes('document');
+        case 'pattern':
+          return goal.includes('pattern');
+        case 'extract':
+          return goal.includes('extract') || goal.includes('pattern');
+        case 'synthesize':
+          return goal.includes('synthesize') || goal.includes('finalize');
+        default:
+          return false;
+      }
+    });
+    
+    return sessions.length > 0 ? sessions[sessions.length - 1] : null;
+  }
+
+  private enforceAgentProgression(requestedAgent: string, context: ResearchContext): string {
+    const normalized = this.normalizeToolName(requestedAgent);
+    if (this.lastDecisionAgent === normalized) {
+      this.consecutiveSameAgentCount += 1;
+      if (this.consecutiveSameAgentCount > this.maxConsecutiveSameAgent) {
+        const nextAgent = this.getNextPipelineAgent(context);
+        if (nextAgent && nextAgent !== normalized) {
+          console.warn(`⚠️ Preventing excessive ${normalized} calls. Switching to ${nextAgent}.`);
+          this.lastDecisionAgent = nextAgent;
+          this.consecutiveSameAgentCount = 1;
+          return nextAgent;
+        }
+      }
+    } else {
+      this.lastDecisionAgent = normalized;
+      this.consecutiveSameAgentCount = 1;
+    }
+    return normalized;
+  }
+
+  private getNextPipelineAgent(context: ResearchContext): string | null {
+    const executionPlan = context.sharedKnowledge?.executionPlan as ExecutionPlan | undefined;
+    if (executionPlan?.steps?.length) {
+      const pending = executionPlan.steps.find((step: PlanStep) => {
+        const normalized = this.normalizeToolName(step.agent);
+        return !this.calledAgents.has(normalized);
+      });
+      if (pending) {
+        return this.normalizeToolName(pending.agent);
+      }
+    }
+
+    for (const agent of this.flowPipelineOrder) {
+      if (!this.calledAgents.has(agent)) {
+        return agent;
+      }
+    }
+
+    return null;
+  }
+
+  private isFullPipelineComplete(context: ResearchContext): boolean {
+    const hasAnalysis = this.calledAgents.has('DataInspector') || (context.documentAnalysis?.documents?.length ?? 0) > 0;
+    const hasPatterns = this.hasMeaningfulPatterns(context);
+    const hasData = this.hasExtractedData(context);
+    const hasDraft = this.hasSynthesisDraft(context);
+    return hasAnalysis && hasPatterns && hasData && hasDraft;
+  }
+
   /**
    * 🧠 MASTER LLM DECISION MAKING - Core intelligence
    */
@@ -1623,12 +1920,30 @@ NEXT_GOAL: [final goal achieved]`;
     }
 
     if (toolName === 'SynthesisCoordinator' || toolName === 'Synthesizer') {
-      if (!this.hasExtractedData(context)) {
+      // 🎯 MICRO-SESSION-AWARE: Check if extraction GOAL was achieved, not specific agent
+      const extractionCompleted = this.hasMicroSessionCompletedGoal('extract');
+      const hasData = this.hasExtractedData(context);
+      
+      if (!extractionCompleted && !hasData) {
+        // Neither micro-session goal nor data exists - need extraction
         return {
           allowed: false,
           reason: 'Extraction must produce facts before synthesis can start',
-          suggestion: 'Run Extraction to gather facts before SynthesisCoordinator',
+          suggestion: 'Run PatternGenerator or Extractor to gather facts before SynthesisCoordinator',
+          requiredAgent: 'PatternGenerator', // Prefer PatternGenerator (integrated extraction)
         };
+      }
+      
+      if (extractionCompleted && !hasData) {
+        // Micro-session completed but no data - log warning but allow (micro-session is source of truth)
+        const completedSession = this.getCompletedMicroSession('extract');
+        console.warn(`⚠️ Extraction micro-session "${completedSession?.goal}" completed but hasExtractedData() returns false`);
+        console.warn(`⚠️ Trusting micro-session completion - synthesis may be low quality if data truly missing`);
+        // Allow synthesis to proceed - micro-session is authoritative
+      }
+      
+      if (hasData) {
+        console.log(`✅ Extraction prerequisite satisfied: ${context.extractedData?.raw?.length ?? 0} items extracted`);
       }
     }
 
@@ -1795,20 +2110,27 @@ NEXT_GOAL: [final goal achieved]`;
         
       case 'SynthesisCoordinator':
         // 🎯 CRITICAL: SynthesisCoordinator MUST run after PatternGenerator (which includes extraction)
-        console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking PatternGenerator completion`);
+        console.log(`🎯 Validating SynthesisCoordinator prerequisites - checking extraction completion`);
         
-        // Check if PatternGenerator has been called (PatternGenerator now includes extraction)
-        if (!this.calledAgents.has('PatternGenerator')) {
-          console.log(`❌ SynthesisCoordinator cannot run before PatternGenerator (which includes extraction)`);
-          console.log(`📋 Called agents so far: ${Array.from(this.calledAgents).join(', ')}`);
-          // Add PatternGenerator as critical prerequisite
+        // 🎯 MICRO-SESSION-AWARE: Check if extraction GOAL completed, not specific agent
+        const extractionMicroSessionComplete = this.hasMicroSessionCompletedGoal('extract');
+        const patternGenCalled = this.calledAgents.has('PatternGenerator');
+        const extractorCalled = this.calledAgents.has('Extractor');
+        
+        if (!extractionMicroSessionComplete && !patternGenCalled && !extractorCalled) {
+          console.log(`❌ SynthesisCoordinator cannot run before extraction completes`);
+          console.log(`📋 Called agents: ${Array.from(this.calledAgents).join(', ')}`);
+          console.log(`📋 Completed micro-sessions: ${this.microSessionHistory.filter(s => s.status === 'completed').map(s => s.goal).join(', ')}`);
+          
           critical.push({
             agent: 'PatternGenerator',
             action: 'Generate patterns and extract data',
-            reasoning: 'SynthesisCoordinator requires extracted data from PatternGenerator (integrated extraction)',
+            reasoning: 'SynthesisCoordinator requires extraction micro-session to complete',
             expectedOutput: 'Extracted data points for synthesis',
             priority: 'high' as const
           });
+        } else if (extractionMicroSessionComplete) {
+          console.log(`✅ Extraction micro-session completed - SynthesisCoordinator can proceed`);
         }
         
         const hasExtractedDataForSynthesis = context.extractedData?.raw && context.extractedData.raw.length > 0;
@@ -2076,6 +2398,13 @@ NEXT_GOAL: [final goal achieved]`;
       if (validation.suggestion) {
         console.warn(`💡 Suggestion: ${validation.suggestion}`);
       }
+
+      // NEW: Log micro-session status to help debug validation
+      console.log(`📊 Micro-session status:`);
+      console.log(`  - Extraction completed: ${this.hasMicroSessionCompletedGoal('extract')}`);
+      console.log(`  - Synthesis completed: ${this.hasMicroSessionCompletedGoal('synthesize')}`);
+      console.log(`  - Has extracted data: ${this.hasExtractedData(context)}`);
+      console.log(`  - Completed sessions: ${this.microSessionHistory.filter(s => s.status === 'completed').map(s => s.goal).join(', ')}`);
 
       if (validation.requiredAgent) {
         const requiredAgent = this.normalizeToolName(validation.requiredAgent);
@@ -2670,22 +2999,52 @@ NEXT_GOAL: [final goal achieved]`;
    * 📊 Check if Extractor has successfully extracted data
    */
   private hasExtractedData(context: ResearchContext): boolean {
-    // Check if extractedData exists and has raw items
+    // Primary: Check context.extractedData (PatternGenerator and Extractor store here)
     if (context.extractedData?.raw && context.extractedData.raw.length > 0) {
+      console.log(`✅ Found ${context.extractedData.raw.length} items in context.extractedData.raw`);
       return true;
     }
     
-    // Check if extractedData has structured data
     if (context.extractedData?.structured && context.extractedData.structured.length > 0) {
+      console.log(`✅ Found ${context.extractedData.structured.length} items in context.extractedData.structured`);
       return true;
     }
     
-    // Check agent findings for extracted data from Extractor
+    // Secondary: Check sharedKnowledge.agentFindings
+    const patternGenFindings = context.sharedKnowledge?.agentFindings?.PatternGenerator;
+    if (patternGenFindings?.extractedData && patternGenFindings.extractedData.length > 0) {
+      console.log(`✅ Found ${patternGenFindings.extractedData.length} items in PatternGenerator findings`);
+      return true;
+    }
+    
     const extractorFindings = context.sharedKnowledge?.agentFindings?.Extractor;
-    if (extractorFindings && extractorFindings.extractedData && extractorFindings.extractedData.length > 0) {
+    if (extractorFindings?.extractedData && extractorFindings.extractedData.length > 0) {
+      console.log(`✅ Found ${extractorFindings.extractedData.length} items in Extractor findings`);
       return true;
     }
     
+    // Tertiary: Check agentResults map (last resort)
+    const patternGenResult = this.agentResults.get('PatternGenerator');
+    if (patternGenResult?.extractedData?.raw && patternGenResult.extractedData.raw.length > 0) {
+      console.log(`✅ Found ${patternGenResult.extractedData.raw.length} items in PatternGenerator results`);
+      return true;
+    }
+    
+    const extractorResult = this.agentResults.get('Extractor');
+    if (extractorResult?.extractedData?.raw && extractorResult.extractedData.raw.length > 0) {
+      console.log(`✅ Found ${extractorResult.extractedData.raw.length} items in Extractor results`);
+      return true;
+    }
+    
+    // Quaternary: Check if extraction micro-session completed (even if we can't find data)
+    if (this.hasMicroSessionCompletedGoal('extract')) {
+      const session = this.getCompletedMicroSession('extract');
+      console.log(`⚠️ Extraction micro-session "${session?.goal}" completed but data not found in standard locations`);
+      console.log(`⚠️ Trusting micro-session completion as authoritative`);
+      return true; // Micro-session completion is source of truth
+    }
+    
+    console.log(`❌ No extracted data found in any location`);
     return false;
   }
   

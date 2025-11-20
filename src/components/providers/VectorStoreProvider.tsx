@@ -88,6 +88,13 @@ export function VectorStoreProvider({ children }: VectorStoreProviderProps) {
       // Set the singleton instance
       setVectorStore(singletonVectorStore);
       setIsInitialized(true);
+      initializationAttempted.current = false;
+      
+      // Expose VectorStore globally for testing and browser automation
+      if (typeof window !== 'undefined') {
+        (window as any).vectorStore = singletonVectorStore;
+        console.log('🔧 VectorStore exposed globally on window.vectorStore for testing');
+      }
       
       // Update status periodically
       updateStatus();

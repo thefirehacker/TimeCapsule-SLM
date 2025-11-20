@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import type { ChangeEvent } from "react";
 import {
   Card,
@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,14 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Bot,
   Loader2,
   Wand2,
@@ -46,12 +55,15 @@ import {
   Download as DownloadIcon,
   Plug,
   Copy,
+  AlertTriangle,
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
+import type { AIFlowModelTier } from "../lib/openRouterModels";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
+import { TIMECAPSULE_VERSION } from "@/lib/version";
 
 interface WorkspaceStats {
   frames: number;
@@ -66,6 +78,8 @@ interface AIFlowBuilderPanelProps {
   isOpen: boolean;
   onToggle: () => void;
   workspaceStats: WorkspaceStats;
+  knowledgeBaseUnavailable?: boolean;
+  knowledgeBaseUnavailableMessage?: string | null;
 }
 
 export function AIFlowBuilderPanel({
@@ -74,6 +88,8 @@ export function AIFlowBuilderPanel({
   isOpen,
   onToggle,
   workspaceStats,
+  knowledgeBaseUnavailable = false,
+  knowledgeBaseUnavailableMessage,
 }: AIFlowBuilderPanelProps) {
   const {
     prompt,
@@ -101,6 +117,14 @@ export function AIFlowBuilderPanel({
     timelineSteps,
     timelineExpandedSteps,
     handleTimelineStepClick,
+    // Session Management
+    activeSessionId,
+    sessions,
+    createNewSession,
+    saveCurrentSession,
+    switchSession,
+    renameSession,
+    deleteSession,
   } = flowBuilder;
 
   const [openRouterKey, setOpenRouterKey] = useState("");
@@ -120,6 +144,9 @@ export function AIFlowBuilderPanel({
   const [localBridgeBaseUrl, setLocalBridgeBaseUrl] = useState<string | null>(
     null
   );
+  const [clearLogsDialogOpen, setClearLogsDialogOpen] = useState(false);
+  const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
   const buildEnv = getBuildEnv();
   const localBridgeAvailable = isLocalBuildEnv();
   const localBridgeActive = aiProviders.activeProvider === "local-bridge";
@@ -210,6 +237,103 @@ const swePromptTemplate = useMemo(() => {
     .filter(Boolean)
     .join("\n");
 }, [prompt, resolvedLocalBridgeBase]);
+
+// 🔥 FIX: aiProviders is now memoized upstream, so callbacks can use it directly
+const handleProviderChange = useCallback((value: string) => {
+  aiProviders.setActiveProvider(
+    value as "openrouter" | "ollama" | "local-bridge"
+  );
+}, [aiProviders]);
+
+const handlePlannerModelChange = useCallback((value: string) => {
+  aiProviders.openrouter.updateModelSelection("planner", value);
+}, [aiProviders]);
+
+const handleGeneratorModelChange = useCallback((value: string) => {
+  aiProviders.openrouter.updateModelSelection("generator", value);
+}, [aiProviders]);
+
+const handleVisionModelChange = useCallback((value: string) => {
+  aiProviders.openrouter.updateModelSelection("vision", value);
+}, [aiProviders]);
+
+const handleFallbackModelChange = useCallback((value: string) => {
+  aiProviders.openrouter.updateModelSelection("fallback", value);
+}, [aiProviders]);
+
+const modelChangeHandlers = useMemo(() => ({
+  planner: handlePlannerModelChange,
+  generator: handleGeneratorModelChange,
+  vision: handleVisionModelChange,
+  fallback: handleFallbackModelChange,
+}), [handlePlannerModelChange, handleGeneratorModelChange, handleVisionModelChange, handleFallbackModelChange]);
+
+// 🧪 TEST PATH ONLY: Does NOT use agent pipeline
+const handleTestPseudoFrames = useCallback(() => {
+  console.log('🧪 TEST: Creating pseudo frames (no agents)');
+  console.log(`🚀 Version ${TIMECAPSULE_VERSION} - Test Mode`);
+  
+  const now = new Date().toISOString();
+  const pseudoFrames: AIFrame[] = [
+    {
+      id: 'test-1',
+      title: 'Test Frame 1',
+      goal: 'Verify SelectTrigger fix works',
+      informationText: 'This is a pseudo frame to verify the SelectTrigger infinite loop is resolved. If you can see this without console errors, the fix is working!',
+      videoUrl: '',
+      startTime: 0,
+      duration: 0,
+      afterVideoText: '',
+      aiConcepts: ['SelectTrigger', 'React', 'Testing'],
+      order: 0,
+      type: 'frame' as const,
+      createdAt: now,
+      updatedAt: now,
+      learningPhase: 'overview' as const,
+      chapterId: 'test-chapter',
+      isGenerated: true,
+    },
+    {
+      id: 'test-2',
+      title: 'Test Frame 2',
+      goal: 'Check UI stability',
+      informationText: 'Second test frame. The Select dropdowns above should work without causing re-renders.',
+      videoUrl: '',
+      startTime: 0,
+      duration: 0,
+      afterVideoText: '',
+      aiConcepts: ['UI', 'Stability'],
+      order: 1,
+      type: 'frame' as const,
+      createdAt: now,
+      updatedAt: now,
+      learningPhase: 'fundamentals' as const,
+      chapterId: 'test-chapter',
+      isGenerated: true,
+    },
+    {
+      id: 'test-3',
+      title: 'Test Frame 3',
+      goal: 'Confirm success',
+      informationText: 'Three frames loaded successfully. Check console - there should be NO "Maximum update depth exceeded" error!',
+      videoUrl: '',
+      startTime: 0,
+      duration: 0,
+      afterVideoText: '',
+      aiConcepts: ['Success', 'Verification'],
+      order: 2,
+      type: 'frame' as const,
+      createdAt: now,
+      updatedAt: now,
+      learningPhase: 'deep-dive' as const,
+      chapterId: 'test-chapter',
+      isGenerated: true,
+    },
+  ];
+  
+  console.log('✅ TEST: Accepting pseudo frames');
+  onAcceptFrames(pseudoFrames);
+}, [onAcceptFrames]);
 
 if (!isOpen) {
   return null;
@@ -412,6 +536,25 @@ const handleCopySwePrompt = async () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {knowledgeBaseUnavailable && (
+              <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-900">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 mt-0.5 text-red-600" />
+                  <div>
+                    <AlertTitle className="text-red-900">KB unavailable</AlertTitle>
+                    <AlertDescription className="text-red-800">
+                      Knowledge Base grounding is temporarily offline. Flow Builder will still run,
+                      but generations may not reference your stored documents.
+                      {knowledgeBaseUnavailableMessage && (
+                        <span className="block mt-1 text-red-700">
+                          Details: {knowledgeBaseUnavailableMessage}
+                        </span>
+                      )}
+                    </AlertDescription>
+                  </div>
+                </div>
+              </Alert>
+            )}
             <section className="grid lg:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
@@ -424,11 +567,7 @@ const handleCopySwePrompt = async () => {
                 </div>
                 <Select
                   value={aiProviders.activeProvider}
-                  onValueChange={(value) =>
-                    aiProviders.setActiveProvider(
-                      value as "openrouter" | "ollama" | "local-bridge"
-                    )
-                  }
+                  onValueChange={handleProviderChange}
                 >
                   <SelectTrigger className="bg-white border-slate-300">
                     <SelectValue placeholder="Select provider" />
@@ -604,12 +743,7 @@ const handleCopySwePrompt = async () => {
                       </Label>
                       <Select
                         value={openRouterState.modelSelections[tier]}
-                        onValueChange={(value) =>
-                          aiProviders.openrouter.updateModelSelection(
-                            tier,
-                            value
-                          )
-                        }
+                        onValueChange={modelChangeHandlers[tier]}
                       >
                         <SelectTrigger className="bg-white border-slate-300 h-9">
                           <SelectValue placeholder="Select model" />
@@ -783,169 +917,164 @@ const handleCopySwePrompt = async () => {
               </section>
             )}
 
-            <section className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+            <section id="flow-sessions-section" className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-slate-900 font-semibold">Flow History</h4>
+                  <h4 className="text-slate-900 font-semibold">Flow Sessions</h4>
                   <p className="text-sm text-slate-500">
-                    Saved agent outputs from recent sessions
+                    Manage all your frame creation sessions (AI Flow, SWE Bridge, Manual)
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    onClick={() => handleExportHistory()}
-                    disabled={historySessions.length === 0}
+                    onClick={() => createNewSession("manual")}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
-                    <DownloadIcon className="h-4 w-4 mr-1" />
-                    Export All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => historyImportInputRef.current?.click()}
-                  >
-                    Import
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500"
-                    onClick={historyActions.clearSessions}
-                    disabled={historySessions.length === 0}
-                  >
-                    Clear
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    New Manual Session
                   </Button>
                 </div>
               </div>
-              {historyImportError && (
-                <p className="text-sm text-red-500">{historyImportError}</p>
-              )}
-              <div className="space-y-2 max-h-60 overflow-auto">
-                {historySessions.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    No AI Flow sessions saved yet. Once you run the flow builder,
-                    the planner/generator logs will appear here for export.
-                  </p>
+              
+              <div className="space-y-2 max-h-96 overflow-auto">
+                {sessions.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-300 text-center bg-slate-50">
+                    <Bot className="h-8 w-8 mx-auto text-slate-400 mb-2" />
+                    <p className="text-sm text-slate-600 font-medium">No sessions yet</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Create a manual session or run AI Flow Builder to get started
+                    </p>
+                  </div>
                 ) : (
-                  historySessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2"
+                  sessions.map((session) => {
+                    const isActive = session.id === activeSessionId;
+                    const sourceIcon = session.source === "ai-flow" ? "🤖" : session.source === "swe-bridge" ? "🔌" : "✏️";
+                    const sourceBadges = [];
+                    if (session.frameSources.manual > 0) sourceBadges.push("Manual");
+                    if (session.frameSources["ai-flow"] > 0) sourceBadges.push("AI");
+                    if (session.frameSources["swe-bridge"] > 0) sourceBadges.push("SWE");
+                    
+                    return (
+                      <div
+                        key={session.id}
+                        className={`rounded-xl border p-3 flex flex-col gap-2 transition-all ${
+                          isActive
+                            ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                            : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{sourceIcon}</span>
+                              <input
+                                type="text"
+                                value={session.name}
+                                onChange={(e) => renameSession(session.id, e.target.value)}
+                                className="font-semibold text-slate-900 bg-transparent border-none outline-none focus:underline flex-1 min-w-0"
+                                placeholder="Session name..."
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-xs text-slate-500">
+                                {new Date(session.updatedAt).toLocaleString()}
+                              </p>
+                              <Badge variant="outline" className="text-xs">
+                                {session.frameCount} frames ({session.acceptedFrameCount} accepted)
+                              </Badge>
+                              {sourceBadges.length > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {sourceBadges.join(" + ")}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {isActive && (
+                              <Badge className="bg-emerald-500 text-white">Active</Badge>
+                            )}
+                            <Badge
+                              className={
+                                session.status === "completed"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : session.status === "generating"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-slate-100 text-slate-700"
+                              }
+                            >
+                              {session.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {!isActive && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => switchSession(session.id)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                              Load Session
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              setSessionToDelete({ id: session.id, name: session.name });
+                              setDeleteSessionDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              
+              {/* Legacy Flow History (kept for logs) */}
+              {historySessions.length > 0 && (
+                <details className="mt-4">
+                  <summary className="text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 flex items-center justify-between">
+                    <span>Legacy Flow Logs ({historySessions.length})</span>
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+                      onClick={() => setClearLogsDialogOpen(true)}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {session.prompt.slice(0, 80)}
-                            {session.prompt.length > 80 ? "…" : ""}
+                      <Trash2 className="h-3 w-3 mr-2" />
+                      Clear All Legacy Logs
+                    </Button>
+                    <div className="space-y-2 max-h-40 overflow-auto">
+                      {historySessions.map((session) => (
+                        <div
+                          key={session.id}
+                          className="rounded-lg border border-slate-200 bg-white p-2 text-xs"
+                        >
+                          <p className="font-medium text-slate-800 truncate">
+                            {session.prompt}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-slate-500">
                             {new Date(session.updatedAt).toLocaleString()}
                           </p>
                         </div>
-                        <Badge
-                          className={
-                            session.status === "completed"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : session.status === "failed"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-blue-100 text-blue-700"
-                          }
-                        >
-                          {session.status}
-                        </Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setSelectedHistoryId((prev) =>
-                              prev === session.id ? null : session.id
-                            )
-                          }
-                        >
-                          View Logs
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleExportHistory(session.id)}
-                        >
-                          Export
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-500"
-                          onClick={() => historyActions.deleteSession(session.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {selectedHistory && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-60 overflow-auto space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-800">
-                      Logs for {selectedHistory.prompt.slice(0, 40)}
-                      {selectedHistory.prompt.length > 40 ? "…" : ""}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopySelectedLogs}
-                        disabled={selectedHistory.logs.length === 0}
-                      >
-                        Copy logs
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedHistoryId(null)}
-                      >
-                        Hide
-                      </Button>
+                      ))}
                     </div>
                   </div>
-                  {copyLogsState === "copied" && (
-                    <p className="text-xs text-emerald-600">Copied to clipboard.</p>
-                  )}
-                  {copyLogsState === "error" && (
-                    <p className="text-xs text-red-500">
-                      Unable to copy logs. Please try again.
-                    </p>
-                  )}
-                  {selectedHistory.logs.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No agent logs recorded for this session.
-                    </p>
-                  ) : (
-                    selectedHistory.logs.slice(0, 20).map((log) => (
-                      <div
-                        key={log.id}
-                        className="rounded-lg border border-slate-200 bg-white p-2"
-                      >
-                        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                          <span className="font-semibold">
-                            {log.agent.toUpperCase()} · {log.role}
-                          </span>
-                          <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                        <pre className="whitespace-pre-wrap text-xs text-slate-700 max-h-32 overflow-auto">
-                          {log.content}
-                        </pre>
-                      </div>
-                    ))
-                  )}
-                </div>
+                </details>
               )}
             </section>
+            
 
             <section className="space-y-3">
               <Label className="text-slate-700 flex items-center gap-2 text-sm uppercase tracking-wide">
@@ -975,6 +1104,16 @@ const handleCopySwePrompt = async () => {
                       AI Build Flow
                     </>
                   )}
+                </Button>
+                {/* 🧪 NEW: Test button for SelectTrigger verification */}
+                <Button
+                  onClick={handleTestPseudoFrames}
+                  variant="outline"
+                  size="sm"
+                  className="border-purple-400 text-purple-700"
+                  title="Test: Creates pseudo frames without agents"
+                >
+                  🧪 Test
                 </Button>
                 <Button
                   variant="secondary"
@@ -1133,6 +1272,32 @@ const handleCopySwePrompt = async () => {
 
               {plan && (
                 <div className="space-y-4">
+                  {/* Accept All Button */}
+                  {frameDrafts.some((draft) => draft.status === "generated") && (
+                    <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-emerald-200 bg-emerald-50">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          Ready to accept {frameDrafts.filter((d) => d.status === "generated").length} generated frames
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          Accept all frames at once or review them individually below
+                        </p>
+                      </div>
+                      <Button
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        onClick={() => {
+                          const generatedIds = frameDrafts
+                            .filter((draft) => draft.status === "generated")
+                            .map((draft) => draft.tempId);
+                          generatedIds.forEach((id) => handleAcceptFrame(id));
+                        }}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Accept All Frames
+                      </Button>
+                    </div>
+                  )}
+
                   {plan.chapters.map((chapter) => {
                     const chapterFrames = frameDrafts.filter(
                       (draft) => draft.chapterId === chapter.id
@@ -1155,215 +1320,178 @@ const handleCopySwePrompt = async () => {
                             {chapterFrames.length} frames
                           </Badge>
                         </div>
-                        <div className="space-y-3">
+                        <Accordion type="multiple" className="space-y-3">
                           {chapterFrames.map((draft, index) => {
                             const displayOrder =
                               typeof draft.order === "number"
                                 ? draft.order + 1
                                 : index + 1;
                             return (
-                              <div
+                              <AccordionItem
                                 key={draft.tempId}
-                                className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3"
+                                value={draft.tempId}
+                                className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden"
                               >
-                                <div className="flex items-start justify-between gap-4">
-                                  <div>
-                                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                                      Frame {displayOrder}
-                                    </p>
-                                    <h4 className="text-lg font-semibold text-slate-900">
-                                      {draft.title}
-                                    </h4>
-                                    <p className="text-slate-500 text-sm">
-                                      {draft.goal}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    <Badge
-                                      className={`${
-                                        draft.status === "generated"
-                                          ? "bg-emerald-100 text-emerald-700"
-                                          : draft.status === "generating"
-                                          ? "bg-amber-100 text-amber-700"
-                                          : draft.status === "error"
-                                          ? "bg-red-100 text-red-700"
-                                          : "bg-slate-100 text-slate-700"
-                                      }`}
-                                    >
-                                      {draft.status}
-                                    </Badge>
-                                    {masteryBadge(draft.masteryState)}
-                                    {draft.requiresVision && (
-                                      <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1">
-                                        <Eye className="h-3 w-3" />
-                                        Vision
+                                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-100">
+                                  <div className="flex items-start justify-between gap-4 w-full">
+                                    <div className="text-left">
+                                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        Frame {displayOrder}
+                                      </p>
+                                      <h4 className="text-lg font-semibold text-slate-900">
+                                        {draft.title}
+                                      </h4>
+                                      <p className="text-slate-500 text-sm">
+                                        {draft.goal}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                      <Badge
+                                        className={`${
+                                          draft.status === "generated"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : draft.status === "generating"
+                                            ? "bg-amber-100 text-amber-700"
+                                            : draft.status === "error"
+                                            ? "bg-red-100 text-red-700"
+                                            : "bg-slate-100 text-slate-700"
+                                        }`}
+                                      >
+                                        {draft.status}
                                       </Badge>
+                                      {masteryBadge(draft.masteryState)}
+                                      {draft.requiresVision && (
+                                        <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1">
+                                          <Eye className="h-3 w-3" />
+                                          Vision
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pb-4 space-y-3">
+                                  <div className="text-sm text-slate-600 space-y-3">
+                                    {draft.generated ? (
+                                      <>
+                                        {/* Full Information Text */}
+                                        <div className="p-3 bg-white rounded-lg border border-slate-200">
+                                          <p className="font-semibold text-slate-900 mb-2">Learning Content:</p>
+                                          <div className="text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                                            {draft.generated.informationText}
+                                          </div>
+                                        </div>
+
+                                        {/* AI Concepts */}
+                                        <div>
+                                          <p className="font-semibold text-slate-900 mb-2 text-xs">Key Concepts:</p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {draft.generated.aiConcepts.map((concept) => (
+                                              <Badge
+                                                key={concept}
+                                                className="bg-white text-slate-700 border border-slate-200"
+                                              >
+                                                {concept}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Checkpoint Quiz Preview */}
+                                        {draft.generated.checkpointQuiz && (
+                                          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                            <p className="font-semibold text-slate-900 mb-2 text-sm flex items-center gap-2">
+                                              <Brain className="h-4 w-4 text-amber-600" />
+                                              Checkpoint Quiz (for learners):
+                                            </p>
+                                            <div className="space-y-2 text-xs">
+                                              {draft.generated.checkpointQuiz.questions.map((q, qIdx) => (
+                                                <div key={qIdx} className="p-2 bg-white rounded border border-amber-100">
+                                                  <p className="font-medium text-slate-800 mb-1">
+                                                    Q{qIdx + 1}: {q.prompt}
+                                                  </p>
+                                                  <p className="text-slate-500 italic">
+                                                    Type: {q.type}
+                                                    {q.choices && ` (${q.choices.length} options)`}
+                                                  </p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <p className="italic text-slate-400">
+                                        Waiting for generation...
+                                      </p>
+                                    )}
+                                    {draft.error && (
+                                      <p className="text-red-500 text-xs">
+                                        {draft.error}
+                                      </p>
                                     )}
                                   </div>
-                                </div>
-                                <div className="text-sm text-slate-600 space-y-2">
-                                  {draft.generated ? (
-                                    <>
-                                      <p className="line-clamp-3">
-                                        {draft.generated.informationText}
-                                      </p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {draft.generated.aiConcepts.map((concept) => (
-                                          <Badge
-                                            key={concept}
-                                            className="bg-white text-slate-700 border border-slate-200"
-                                          >
-                                            {concept}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <p className="italic text-slate-400">
-                                      Waiting for generation...
-                                    </p>
-                                  )}
-                                  {draft.error && (
-                                    <p className="text-red-500 text-xs">
-                                      {draft.error}
-                                    </p>
-                                  )}
-                                  {draft.generated?.checkpointQuiz && (
-                                    <div className="mt-3 space-y-2 bg-white border border-slate-200 rounded-xl p-3">
-                                      <div className="flex items-center justify-between">
-                                        <p className="text-sm font-semibold text-slate-800">
-                                          Checkpoint Quiz
-                                        </p>
-                                        <Badge className="bg-slate-100 text-slate-700">
-                                          {
-                                            draft.generated.checkpointQuiz.questions
-                                              .length
-                                          }{" "}
-                                          questions
-                                        </Badge>
-                                      </div>
-                                      <div className="space-y-2">
-                                        {draft.generated.checkpointQuiz.questions
-                                          .slice(0, 2)
-                                          .map((question) => (
-                                            <div
-                                              key={question.id}
-                                              className="text-xs text-slate-600"
-                                            >
-                                              <p className="font-medium text-slate-800">
-                                                • {question.prompt}
-                                              </p>
-                                              {question.visionReference && (
-                                                <p className="text-[11px] text-purple-600">
-                                                  Vision cue: {question.visionReference}
-                                                </p>
-                                              )}
-                                            </div>
-                                          ))}
-                                      </div>
-                                      {draft.quizHistory.length > 0 && (
-                                        <p className="text-[11px] text-slate-500">
-                                          Last attempt:{" "}
-                                          {draft.quizHistory[draft.quizHistory.length - 1]
-                                            .passed
-                                            ? "Passed"
-                                            : "Needs remediation"}{" "}
-                                          ·{" "}
-                                          {new Date(
-                                            draft.quizHistory[draft.quizHistory.length - 1]
-                                              .submittedAt
-                                          ).toLocaleTimeString()}
-                                        </p>
-                                      )}
-                                      <div className="flex flex-wrap gap-2">
-                                        <Button
-                                          size="sm"
-                                          className="bg-emerald-500 text-white hover:bg-emerald-600"
-                                          disabled={
-                                            draft.masteryState !== "awaiting_quiz" &&
-                                            draft.masteryState !== "ready"
-                                          }
-                                          onClick={() =>
-                                            void evaluateCheckpoint(draft.tempId, "pass")
-                                          }
-                                        >
-                                          <Check className="h-4 w-4 mr-1" />
-                                          Mark Mastered
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="border-red-300 text-red-600 hover:bg-red-50"
-                                          onClick={() =>
-                                            void evaluateCheckpoint(draft.tempId, "fail")
-                                          }
-                                        >
-                                          <RefreshCcw className="h-4 w-4 mr-1" />
-                                          Needs Remediation
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {draft.status === "planned" && (
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      disabled={draft.masteryState === "locked"}
-                                      title={
-                                        draft.masteryState === "locked"
-                                          ? "Complete earlier checkpoints to unlock this frame."
-                                          : "Generate AI content"
-                                      }
-                                      onClick={() =>
-                                        void generateFrameDrafts([draft.tempId])
-                                      }
-                                    >
-                                      <Brain className="h-4 w-4 mr-1" />
-                                      Generate
-                                    </Button>
-                                  )}
-                                  {draft.status === "generated" && (
-                                    <>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200">
+                                    {draft.status === "planned" && (
                                       <Button
                                         size="sm"
-                                        className="bg-blue-500 text-white hover:bg-blue-600"
-                                        disabled={draft.masteryState !== "completed"}
-                                        onClick={() => handleAcceptFrame(draft.tempId)}
-                                      >
-                                        <Check className="h-4 w-4 mr-1" />
-                                        Accept
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-slate-300 text-slate-700"
+                                        variant="secondary"
+                                        disabled={draft.masteryState === "locked"}
+                                        title={
+                                          draft.masteryState === "locked"
+                                            ? "Complete earlier checkpoints to unlock this frame."
+                                            : "Generate AI content"
+                                        }
                                         onClick={() =>
                                           void generateFrameDrafts([draft.tempId])
                                         }
                                       >
-                                        <RefreshCcw className="h-4 w-4 mr-1" />
-                                        Regenerate
+                                        <Brain className="h-4 w-4 mr-1" />
+                                        Generate
                                       </Button>
-                                    </>
-                                  )}
-                                  {draft.status === "error" && (
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() =>
-                                        void generateFrameDrafts([draft.tempId])
-                                      }
-                                    >
-                                      Retry
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
+                                    )}
+                                    {draft.status === "generated" && (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          className="bg-blue-500 text-white hover:bg-blue-600"
+                                          onClick={() => handleAcceptFrame(draft.tempId)}
+                                          title="Accept this frame and add it to your workspace"
+                                        >
+                                          <Check className="h-4 w-4 mr-1" />
+                                          Accept
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="border-slate-300 text-slate-700"
+                                          onClick={() =>
+                                            void generateFrameDrafts([draft.tempId])
+                                          }
+                                        >
+                                          <RefreshCcw className="h-4 w-4 mr-1" />
+                                          Regenerate
+                                        </Button>
+                                      </>
+                                    )}
+                                    {draft.status === "error" && (
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() =>
+                                          void generateFrameDrafts([draft.tempId])
+                                        }
+                                      >
+                                        Retry
+                                      </Button>
+                                    )}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
                             );
                           })}
-                        </div>
+                        </Accordion>
                       </div>
                     );
                   })}
@@ -1381,6 +1509,69 @@ const handleCopySwePrompt = async () => {
         onTestConnection={aiProviders.ollama.testConnection}
         connectionState={aiProviders.ollama.connectionState}
       />
+      
+      {/* Clear Legacy Logs Confirmation Dialog */}
+      <Dialog open={clearLogsDialogOpen} onOpenChange={setClearLogsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>localhost:3000 says</DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="py-4">
+            Clear all {historySessions.length} legacy flow logs? This cannot be undone.
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setClearLogsDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                historyActions.clearSessions();
+                setClearLogsDialogOpen(false);
+              }}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Session Confirmation Dialog */}
+      <Dialog open={deleteSessionDialogOpen} onOpenChange={setDeleteSessionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>localhost:3000 says</DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="py-4">
+            {sessionToDelete && `Delete session "${sessionToDelete.name}"?`}
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteSessionDialogOpen(false);
+                setSessionToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (sessionToDelete) {
+                  deleteSession(sessionToDelete.id);
+                  setDeleteSessionDialogOpen(false);
+                  setSessionToDelete(null);
+                }
+              }}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <input
         ref={historyImportInputRef}
         type="file"

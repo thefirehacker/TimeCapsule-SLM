@@ -30,6 +30,14 @@ import ChapterNode from "./ChapterNode";
 import EnhancedSidebar from "./EnhancedSidebar";
 import type { Chapter as AiChapter } from "@/app/ai-frames/types/frames";
 
+// Extended Edge type with all ReactFlow properties
+type ExtendedEdge = Edge & {
+  sourceHandle?: string;
+  targetHandle?: string;
+  markerEnd?: any;
+  data?: any;
+};
+
 import {
   NodeData,
   AIFrameNodeData,
@@ -106,6 +114,22 @@ export default function EnhancedLearningGraph({
   const chaptersRef = useRef<AiChapter[]>(chapters || []);
   const isFilteringNodesRef = useRef<boolean>(false);
 
+  // CRITICAL FIX: Stabilize ReactFlow callbacks to prevent infinite re-renders
+  const onNodesChangeRef = useRef(onNodesChange);
+  const onEdgesChangeRef = useRef(onEdgesChange);
+  const setNodesRef = useRef(setNodes);
+  const setEdgesRef = useRef(setEdges);
+
+  useEffect(() => {
+    onNodesChangeRef.current = onNodesChange;
+    onEdgesChangeRef.current = onEdgesChange;
+  }, [onNodesChange, onEdgesChange]);
+
+  useEffect(() => {
+    setNodesRef.current = setNodes;
+    setEdgesRef.current = setEdges;
+  }, [setNodes, setEdges]);
+
   // CRITICAL FIX: Add ref to track current frames and prevent stale closure issues
   const framesRef = useRef(frames);
   useEffect(() => {
@@ -123,6 +147,20 @@ export default function EnhancedLearningGraph({
   const initialGraphStateRef = useRef(initialGraphState);
   const pendingFrameIdsRef = useRef<Set<string>>(new Set());
   const pendingAttachmentNodeIdsRef = useRef<Set<string>>(new Set());
+  const recentlyDeletedFrameIdsRef = useRef<Set<string>>(new Set()); // Track deleted frames to prevent re-merge
+  const onFramesChangeRef = useRef(onFramesChange);
+  const onChaptersChangeRef = useRef(onChaptersChange);
+  const onGraphChangeRef = useRef(onGraphChange);
+  const debugPropsRef = useRef({
+    nodes,
+    edges,
+    handleNodesChange: null as null | typeof handleNodesChange,
+    handleEdgesChange: null as null | typeof handleEdgesChange,
+    handleNodesDelete: null as null | typeof handleNodesDelete,
+    onConnect: null as null | typeof onConnect,
+    onEdgesDelete: null as null | typeof onEdgesDelete,
+    onDrop: null as null | typeof onDrop,
+  });
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -133,6 +171,30 @@ export default function EnhancedLearningGraph({
   useEffect(() => {
     initialGraphStateRef.current = initialGraphState;
   }, [initialGraphState]);
+
+  useEffect(() => {
+    onFramesChangeRef.current = onFramesChange;
+  }, [onFramesChange]);
+
+  useEffect(() => {
+    onChaptersChangeRef.current = onChaptersChange;
+  }, [onChaptersChange]);
+
+  useEffect(() => {
+    onGraphChangeRef.current = onGraphChange;
+  }, [onGraphChange]);
+
+  const invokeOnFramesChange = useCallback((updatedFrames: any[]) => {
+    onFramesChangeRef.current?.(updatedFrames);
+  }, []);
+
+  const invokeOnChaptersChange = useCallback((updatedChapters: AiChapter[]) => {
+    onChaptersChangeRef.current?.(updatedChapters);
+  }, []);
+
+  const invokeOnGraphChange = useCallback((state: GraphState) => {
+    onGraphChangeRef.current?.(state);
+  }, []);
 
   useEffect(() => {
     if (!Array.isArray(frames) || frames.length === 0) {
@@ -163,16 +225,8 @@ export default function EnhancedLearningGraph({
         pendingFrameIdsRef.current.delete(frameId);
       }, 4000);
     };
-    window.addEventListener(
-      "graph-frame-added",
-      handleFrameAdded as EventListener
-    );
-    return () => {
-      window.removeEventListener(
-        "graph-frame-added",
-        handleFrameAdded as EventListener
-      );
-    };
+    // REMOVED: Event listener for graph-frame-added
+    // EnhancedLearningGraph should rely on props/callbacks, not window events
   }, []);
 
   // CRITICAL FIX: Add mutex to prevent concurrent frame creation
@@ -214,7 +268,7 @@ export default function EnhancedLearningGraph({
   // DYNAMIC: Universal handler for ANY node changes (position, add, remove, select, etc.)
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     // Call React Flow's built-in handler first
-    onNodesChange(changes);
+    onNodesChangeRef.current(changes);
     
     // Debounce position changes to avoid excessive events during drag
     const positionChanges = changes.filter(change => change.type === 'position');
@@ -234,7 +288,7 @@ export default function EnhancedLearningGraph({
         }
       }, 1000); // Only emit position events every 1 second
     }
-  }, [onNodesChange]);
+  }, []); // ✅ No dependencies - stable callback
 
   const handleNodesDelete = useCallback((deletedNodes: Node[]) => {
     if (!deletedNodes || deletedNodes.length === 0) {
@@ -243,7 +297,7 @@ export default function EnhancedLearningGraph({
 
     const nodeIds = new Set(deletedNodes.map((node) => node.id));
     if (nodeIds.size > 0) {
-      setEdges((eds) =>
+      setEdgesRef.current((eds) =>
         eds.filter(
           (edge) => !nodeIds.has(edge.source) && !nodeIds.has(edge.target)
         )
@@ -257,13 +311,13 @@ export default function EnhancedLearningGraph({
           return;
         }
 
-        const currentChapters = chaptersRef.current || chapters || [];
+        const currentChapters = chaptersRef.current || [];
         const filteredChapters = currentChapters.filter(
           (chapter) => chapter.id !== chapterId
         );
         if (filteredChapters.length !== currentChapters.length) {
           chaptersRef.current = filteredChapters;
-          onChaptersChange?.(filteredChapters);
+          invokeOnChaptersChange(filteredChapters);
         }
 
         const currentFrames = framesRef.current || [];
@@ -284,47 +338,81 @@ export default function EnhancedLearningGraph({
           return frame;
         });
 
-        if (framesChanged && onFramesChange) {
+        if (framesChanged) {
           framesRef.current = updatedFrames;
-          onFramesChange(updatedFrames);
+          invokeOnFramesChange(updatedFrames);
         }
       } else if (node.type === "aiframe" && node.data?.frameId) {
-        const frameId = node.data.frameId;
+        const frameId = String(node.data.frameId);
+        
+        // Skip if frame is pending creation
         if (pendingFrameIdsRef.current.has(frameId)) {
           return;
         }
 
-        const framesReady =
-          Array.isArray(framesRef.current) && framesRef.current.length > 0;
+        const currentFrames = framesRef.current || [];
+        const framesReady = Array.isArray(currentFrames) && currentFrames.length > 0;
 
         if (!framesReady) {
           return;
         }
 
-        requestAnimationFrame(() => {
-          const stillExists = Array.isArray(framesRef.current)
-            ? framesRef.current.some((frame) => frame.id === frameId)
-            : false;
-
-          if (!stillExists && typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("graph-frame-deleted", {
+        // Filter out the deleted frame
+        const filteredFrames = currentFrames.filter(
+          (frame) => frame.id !== frameId
+        );
+        
+        // Only proceed if frame was actually removed
+        if (filteredFrames.length !== currentFrames.length) {
+          // CRITICAL FIX: Track deleted frame to prevent re-merge
+          recentlyDeletedFrameIdsRef.current.add(frameId);
+          
+          // Clear tracking after delay to allow props to sync
+          setTimeout(() => {
+            recentlyDeletedFrameIdsRef.current.delete(frameId);
+          }, 2000);
+          
+          // Handle any frames that reference this frame as parent
+          let framesChanged = false;
+          const updatedFrames = filteredFrames.map((frame) => {
+            if (frame.parentFrameId === frameId) {
+              framesChanged = true;
+              return {
+                ...frame,
+                parentFrameId: undefined,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return frame;
+          });
+          
+          // Update ref
+          framesRef.current = framesChanged ? updatedFrames : filteredFrames;
+          
+          // Notify parent component with updated frames
+          invokeOnFramesChange(framesChanged ? updatedFrames : filteredFrames);
+          
+          // CRITICAL FIX: Delay save trigger to allow React to update framesRef.current
+          // Wait 500ms for React state to propagate before triggering background save
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
                 detail: {
-                  frameId,
-                  deletedFrameIds: [frameId],
-                },
-              })
-            );
-          }
-        });
+                  frameId: frameId,
+                  deletedFrameIds: [frameId]
+                }
+              }));
+            }
+          }, 500);
+        }
       }
     });
-  }, [chapters, onChaptersChange, onFramesChange, setEdges]);
+  }, [invokeOnChaptersChange, invokeOnFramesChange]); // ✅ Removed setEdges
 
   // DYNAMIC: Universal handler for ANY edge changes (position, add, remove, etc.)
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     // Call React Flow's built-in handler first
-    onEdgesChange(changes);
+    onEdgesChangeRef.current(changes);
     
     // CRITICAL FIX: Emit graph state changed for ALL edge modifications
     const meaningfulChanges = changes.filter(change => 
@@ -353,7 +441,7 @@ export default function EnhancedLearningGraph({
         }));
       });
     }
-  }, [onEdgesChange, nodes, edges, selectedNode]);
+  }, [emitGraphStateChange]); // ✅ Removed onEdgesChange dependency
 
   // Handle frame updates from enhanced AI frame nodes
   const handleFrameUpdate = useCallback((frameId: string, updatedData: any) => {
@@ -379,20 +467,19 @@ export default function EnhancedLearningGraph({
     }
 
     // CRITICAL FIX: Only update if we have safe data to prevent corruption
-    if (Object.keys(safeUpdatedData).length > 0 && onFramesChange) {
+    if (Object.keys(safeUpdatedData).length > 0) {
       // CRITICAL FIX: Use framesRef.current instead of stale frames prop to prevent empty array corruption
       const currentFrames = framesRef.current;
       const updatedFrames = currentFrames.map(frame =>
         frame.id === frameId ? { ...frame, ...safeUpdatedData, updatedAt: new Date().toISOString() } : frame
       );
 
-      onFramesChange(updatedFrames);
-      
+      invokeOnFramesChange(updatedFrames);
     }
     
     // CRITICAL FIX: Also update the graph node data to keep it in sync (with safe data only)
     if (Object.keys(safeUpdatedData).length > 0) {
-      setNodes(nds => nds.map(node => {
+      setNodesRef.current(nds => nds.map(node => {
         if (node.data.frameId === frameId) {
           return {
             ...node,
@@ -406,28 +493,26 @@ export default function EnhancedLearningGraph({
         return node;
       }));
     }
-  }, [onFramesChange]); // Remove frames dependency to prevent stale closures
+  }, [invokeOnFramesChange]); // Remove frames dependency to prevent stale closures
 
   // Handle content attachment to frames
   const handleAttachContent = useCallback((frameId: string, attachment: FrameAttachment) => {
     // Update the frame in the frames array
-    if (onFramesChange) {
-      // CRITICAL FIX: Use framesRef.current instead of stale frames prop for attachments
-      const currentFrames = framesRef.current;
-      const updatedFrames = currentFrames.map(frame => 
-        frame.id === frameId ? { 
-          ...frame, 
-          attachment,
-          // DYNAMIC: Update all attachment data properties without hardcoding
-          updatedAt: new Date().toISOString()
-        } : frame
-      );
+    // CRITICAL FIX: Use framesRef.current instead of stale frames prop for attachments
+    const currentFrames = framesRef.current;
+    const updatedFrames = currentFrames.map(frame => 
+      frame.id === frameId ? { 
+        ...frame, 
+        attachment,
+        // DYNAMIC: Update all attachment data properties without hardcoding
+        updatedAt: new Date().toISOString()
+      } : frame
+    );
 
-      onFramesChange(updatedFrames);
-    }
+    invokeOnFramesChange(updatedFrames);
 
     // Update the graph node
-    setNodes(nds => nds.map(node => {
+    setNodesRef.current(nds => nds.map(node => {
       if (node.data.frameId === frameId) {
         return {
           ...node,
@@ -444,29 +529,27 @@ export default function EnhancedLearningGraph({
 
     // OPTIMISTIC: Background save will handle persistence automatically
     // No need for force save since optimistic updates are now implemented
-  }, [onFramesChange]);
+  }, [invokeOnFramesChange]);
 
   // Handle content detachment from frames
   const handleDetachContent = useCallback((frameId: string) => {
     
     
     // Update the frame in the frames array
-    if (onFramesChange) {
-      // CRITICAL FIX: Use framesRef.current instead of stale frames prop for detachment
-      const currentFrames = framesRef.current;
-      const updatedFrames = currentFrames.map(frame => 
-        frame.id === frameId ? { 
-          ...frame, 
-          attachment: undefined,
-          // DYNAMIC: Update timestamp
-          updatedAt: new Date().toISOString()
-        } : frame
-      );
-      onFramesChange(updatedFrames);
-    }
+    // CRITICAL FIX: Use framesRef.current instead of stale frames prop for detachment
+    const currentFrames = framesRef.current;
+    const updatedFrames = currentFrames.map(frame => 
+      frame.id === frameId ? { 
+        ...frame, 
+        attachment: undefined,
+        // DYNAMIC: Update timestamp
+        updatedAt: new Date().toISOString()
+      } : frame
+    );
+    invokeOnFramesChange(updatedFrames);
 
     // Update the graph node
-    setNodes(nds => nds.map(node => {
+    setNodesRef.current(nds => nds.map(node => {
       if (node.data.frameId === frameId) {
         return {
           ...node,
@@ -495,7 +578,7 @@ export default function EnhancedLearningGraph({
         }
       }));
     }
-  }, [onFramesChange]);
+  }, [invokeOnFramesChange]);
 
   const handleChapterUpdate = useCallback((chapterNodeId: string, updates: ChapterNodeUpdates) => {
     if (!updates) {
@@ -533,7 +616,7 @@ export default function EnhancedLearningGraph({
     let didUpdate = false;
     let resolvedChapterId: string | null = null;
 
-    setNodes(currentNodes => {
+    setNodesRef.current(currentNodes => {
       const nextNodes = currentNodes.map(node => {
         if (node.type !== 'chapter') {
           return node;
@@ -603,7 +686,7 @@ export default function EnhancedLearningGraph({
       }
     }
 
-    if (didUpdate && onChaptersChange) {
+    if (didUpdate) {
       const targetChapterId = resolvedChapterId ?? chapterNodeId;
       const currentChapters = chaptersRef.current || [];
       const timestamp = new Date().toISOString();
@@ -649,7 +732,7 @@ export default function EnhancedLearningGraph({
       }
 
       chaptersRef.current = nextChapters;
-      onChaptersChange(nextChapters);
+      invokeOnChaptersChange(nextChapters);
     }
 
     if (didUpdate && updatedNodes) {
@@ -669,7 +752,7 @@ export default function EnhancedLearningGraph({
         }));
       }
     }
-  }, [emitGraphStateChange, onChaptersChange, setNodes]);
+  }, [emitGraphStateChange, invokeOnChaptersChange, setNodes]);
 
   useEffect(() => {
     if (!Array.isArray(chapters)) {
@@ -1060,8 +1143,8 @@ export default function EnhancedLearningGraph({
 
     const seenMembershipKeys = new Set<string>();
 
-    (currentEdges || []).forEach(edge => {
-      const relationship = (edge.data as any)?.relationship;
+    (currentEdges || []).forEach((edge: ExtendedEdge) => {
+      const relationship = edge.data?.relationship;
       if (relationship === 'chapter-membership') {
         const key = `${edge.source}->${edge.target}`;
         if (requiredMembership.has(key)) {
@@ -1291,7 +1374,7 @@ export default function EnhancedLearningGraph({
   }, []);
 
   const handleAttachConceptToFrame = useCallback((frameId: string, conceptValue: string) => {
-    if (!conceptValue || !onFramesChange) {
+    if (!conceptValue) {
       return;
     }
 
@@ -1312,11 +1395,11 @@ export default function EnhancedLearningGraph({
       };
     });
 
-    onFramesChange(updatedFrames);
-  }, [onFramesChange]);
+    invokeOnFramesChange(updatedFrames);
+  }, [invokeOnFramesChange]);
 
   const handleDetachConceptFromFrame = useCallback((frameId: string, conceptValue: string) => {
-    if (!onFramesChange || !conceptValue) {
+    if (!conceptValue) {
       return;
     }
 
@@ -1337,13 +1420,13 @@ export default function EnhancedLearningGraph({
       };
     });
 
-    onFramesChange(updatedFrames);
-  }, [onFramesChange]);
+    invokeOnFramesChange(updatedFrames);
+  }, [invokeOnFramesChange]);
 
   // Handle concept attachment to chapters
   const ensureChapterRecord = useCallback(
     (chapterId: string): { chapter: AiChapter; index: number } | null => {
-      const existingChapters = chaptersRef.current || chapters || [];
+      const existingChapters = chaptersRef.current || [];
       const existingIndex = existingChapters.findIndex(chapter => chapter.id === chapterId);
       if (existingIndex !== -1) {
         return { chapter: existingChapters[existingIndex], index: existingIndex };
@@ -1382,14 +1465,14 @@ export default function EnhancedLearningGraph({
 
       const nextChapters = [...existingChapters, newChapter];
       chaptersRef.current = nextChapters;
-      onChaptersChange?.(nextChapters);
+      invokeOnChaptersChange(nextChapters);
       return { chapter: newChapter, index: nextChapters.length - 1 };
     },
-    [chapters, nodesRef, onChaptersChange]
+    [invokeOnChaptersChange]
   );
 
   const handleAttachConceptToChapter = useCallback((chapterId: string, conceptValue: string) => {
-    if (!conceptValue || !onChaptersChange) {
+    if (!conceptValue) {
       return;
     }
 
@@ -1399,7 +1482,7 @@ export default function EnhancedLearningGraph({
     }
 
     const { chapter, index } = record;
-    const currentChapters = chaptersRef.current || chapters || [];
+    const currentChapters = chaptersRef.current || [];
     const existingConcepts = Array.isArray(chapter.conceptIds) ? chapter.conceptIds : [];
 
     if (existingConcepts.includes(conceptValue)) {
@@ -1414,12 +1497,12 @@ export default function EnhancedLearningGraph({
     };
 
     chaptersRef.current = nextChapters;
-    onChaptersChange(nextChapters);
-  }, [chapters, onChaptersChange, ensureChapterRecord]);
+    invokeOnChaptersChange(nextChapters);
+  }, [invokeOnChaptersChange, ensureChapterRecord]);
 
   // Handle concept detachment from chapters
   const handleDetachConceptFromChapter = useCallback((chapterId: string, conceptValue: string) => {
-    if (!onChaptersChange || !conceptValue) {
+    if (!conceptValue) {
       return;
     }
 
@@ -1429,7 +1512,7 @@ export default function EnhancedLearningGraph({
     }
 
     const { chapter, index } = record;
-    const currentChapters = chaptersRef.current || chapters || [];
+    const currentChapters = chaptersRef.current || [];
     const remainingConcepts = (chapter.conceptIds || []).filter(
       (concept) => concept !== conceptValue
     );
@@ -1442,11 +1525,11 @@ export default function EnhancedLearningGraph({
     };
 
     chaptersRef.current = nextChapters;
-    onChaptersChange(nextChapters);
-  }, [chapters, onChaptersChange, ensureChapterRecord]);
+    invokeOnChaptersChange(nextChapters);
+  }, [invokeOnChaptersChange, ensureChapterRecord]);
 
   const handleAttachFrameToChapter = useCallback((chapterId: string, frameId: string) => {
-    if (!chapterId || !frameId || !onChaptersChange) {
+    if (!chapterId || !frameId) {
       return;
     }
 
@@ -1456,7 +1539,7 @@ export default function EnhancedLearningGraph({
     }
 
     const { chapter, index: chapterIndex } = record;
-    const currentChapters = chaptersRef.current || chapters || [];
+    const currentChapters = chaptersRef.current || [];
     const existingFrameIds = Array.isArray(chapter.frameIds) ? chapter.frameIds : [];
     if (existingFrameIds.includes(frameId)) {
       return;
@@ -1472,23 +1555,21 @@ export default function EnhancedLearningGraph({
     const nextChapters = [...(chaptersRef.current || currentChapters)];
     nextChapters[chapterIndex] = updatedChapter;
     chaptersRef.current = nextChapters;
-    onChaptersChange(nextChapters);
+    invokeOnChaptersChange(nextChapters);
 
-    if (onFramesChange) {
-      const updatedFrames = framesRef.current.map(frame => {
-        if (frame.id === frameId) {
-          return {
-            ...frame,
-            chapterId,
-            parentFrameId: chapterId,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return frame;
-      });
-      framesRef.current = updatedFrames;
-      onFramesChange(updatedFrames);
-    }
+    const updatedFrames = framesRef.current.map(frame => {
+      if (frame.id === frameId) {
+        return {
+          ...frame,
+          chapterId,
+          parentFrameId: chapterId,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return frame;
+    });
+    framesRef.current = updatedFrames;
+    invokeOnFramesChange(updatedFrames);
 
     setNodes(currentNodes =>
       currentNodes.map(node => {
@@ -1505,10 +1586,10 @@ export default function EnhancedLearningGraph({
         return node;
       })
     );
-  }, [chapters, onChaptersChange, onFramesChange, ensureChapterRecord]);
+  }, [invokeOnChaptersChange, invokeOnFramesChange, ensureChapterRecord]);
 
   const handleDetachFrameFromChapter = useCallback((chapterId: string, frameId: string) => {
-    if (!chapterId || !frameId || !onChaptersChange) {
+    if (!chapterId || !frameId) {
       return;
     }
 
@@ -1518,7 +1599,7 @@ export default function EnhancedLearningGraph({
     }
 
     const { chapter, index: chapterIndex } = record;
-    const currentChapters = chaptersRef.current || chapters || [];
+    const currentChapters = chaptersRef.current || [];
     const existingFrameIds = Array.isArray(chapter.frameIds) ? chapter.frameIds : [];
     if (!existingFrameIds.includes(frameId)) {
       return;
@@ -1534,23 +1615,21 @@ export default function EnhancedLearningGraph({
     const nextChapters = [...(chaptersRef.current || currentChapters)];
     nextChapters[chapterIndex] = updatedChapter;
     chaptersRef.current = nextChapters;
-    onChaptersChange(nextChapters);
+    invokeOnChaptersChange(nextChapters);
 
-    if (onFramesChange) {
-      const updatedFrames = framesRef.current.map(frame => {
-        if (frame.id === frameId && frame.chapterId === chapterId) {
-          return {
-            ...frame,
-            chapterId: undefined,
-            parentFrameId: undefined,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return frame;
-      });
-      framesRef.current = updatedFrames;
-      onFramesChange(updatedFrames);
-    }
+    const updatedFrames = framesRef.current.map(frame => {
+      if (frame.id === frameId && frame.chapterId === chapterId) {
+        return {
+          ...frame,
+          chapterId: undefined,
+          parentFrameId: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return frame;
+    });
+    framesRef.current = updatedFrames;
+    invokeOnFramesChange(updatedFrames);
 
     setNodes(currentNodes =>
       currentNodes.map(node => {
@@ -1567,11 +1646,11 @@ export default function EnhancedLearningGraph({
         return node;
       })
     );
-  }, [chapters, onChaptersChange, onFramesChange, ensureChapterRecord]);
+  }, [invokeOnChaptersChange, invokeOnFramesChange, ensureChapterRecord]);
 
   // Handle concept updates (edit name/description)
   const handleConceptUpdate = useCallback((nodeId: string, updates: { concept: string; description?: string }) => {
-    const conceptNode = nodes.find(n => n.id === nodeId);
+    const conceptNode = nodesRef.current.find(n => n.id === nodeId);
     if (!conceptNode || conceptNode.type !== 'concept') {
       return;
     }
@@ -1583,7 +1662,7 @@ export default function EnhancedLearningGraph({
     let updatedNodes: any[] = [];
 
     // Update the concept node in the graph
-    setNodes((nds) => {
+    setNodesRef.current((nds) => {
       updatedNodes = nds.map((node) => {
         if (node.id === nodeId) {
           return {
@@ -1601,8 +1680,9 @@ export default function EnhancedLearningGraph({
     });
 
     // If concept name changed, update all references in frames and chapters
-    if (conceptNameChanged && onFramesChange) {
-      const updatedFrames = frames.map((frame) => {
+    if (conceptNameChanged) {
+      const currentFrames = framesRef.current;
+      const updatedFrames = currentFrames.map((frame) => {
         const hasOldConcept = frame.conceptIds?.includes(oldConceptName) || frame.aiConcepts?.includes(oldConceptName);
 
         if (hasOldConcept) {
@@ -1616,12 +1696,13 @@ export default function EnhancedLearningGraph({
         return frame;
       });
 
-      onFramesChange(updatedFrames);
+      invokeOnFramesChange(updatedFrames);
     }
 
     // Update concept references in chapters
-    if (conceptNameChanged && onChaptersChange && chapters) {
-      const updatedChapters = chapters.map((chapter) => {
+    if (conceptNameChanged) {
+      const currentChapters = chaptersRef.current || [];
+      const updatedChapters = currentChapters.map((chapter) => {
         const hasOldConcept = chapter.conceptIds?.includes(oldConceptName);
 
         if (hasOldConcept) {
@@ -1634,7 +1715,7 @@ export default function EnhancedLearningGraph({
         return chapter;
       });
 
-      onChaptersChange(updatedChapters);
+      invokeOnChaptersChange(updatedChapters);
     }
 
     // CRITICAL FIX: Emit graph state change and force save to ensure concept name is saved
@@ -1657,11 +1738,11 @@ export default function EnhancedLearningGraph({
         }));
       }
     }, 50); // Small delay to ensure refs are updated
-  }, [nodes, frames, chapters, onFramesChange, onChaptersChange, emitGraphStateChange, setNodes]);
+  }, [invokeOnFramesChange, invokeOnChaptersChange, emitGraphStateChange, setNodes]);
 
   // Handle concept deletion
   const handleConceptDelete = useCallback((nodeId: string) => {
-    const conceptNode = nodes.find(n => n.id === nodeId);
+    const conceptNode = nodesRef.current.find(n => n.id === nodeId);
     if (!conceptNode || conceptNode.type !== 'concept') {
       return;
     }
@@ -1669,8 +1750,9 @@ export default function EnhancedLearningGraph({
     const conceptName = conceptNode.data?.concept;
 
     // Remove concept from all frames
-    if (conceptName && onFramesChange) {
-      const updatedFrames = frames.map((frame) => {
+    if (conceptName) {
+      const currentFrames = framesRef.current;
+      const updatedFrames = currentFrames.map((frame) => {
         const hasThisConcept = frame.conceptIds?.includes(conceptName) || frame.aiConcepts?.includes(conceptName);
 
         if (hasThisConcept) {
@@ -1684,12 +1766,13 @@ export default function EnhancedLearningGraph({
         return frame;
       });
 
-      onFramesChange(updatedFrames);
+      invokeOnFramesChange(updatedFrames);
     }
 
     // Remove concept from all chapters
-    if (conceptName && onChaptersChange && chapters) {
-      const updatedChapters = chapters.map((chapter) => {
+    if (conceptName) {
+      const currentChapters = chaptersRef.current || [];
+      const updatedChapters = currentChapters.map((chapter) => {
         const hasThisConcept = chapter.conceptIds?.includes(conceptName);
 
         if (hasThisConcept) {
@@ -1702,11 +1785,11 @@ export default function EnhancedLearningGraph({
         return chapter;
       });
 
-      onChaptersChange(updatedChapters);
+      invokeOnChaptersChange(updatedChapters);
     }
 
     // Remove the node from the graph
-    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setNodesRef.current((nds) => nds.filter((node) => node.id !== nodeId));
 
     // CRITICAL FIX: Emit graph state change and force save to ensure concept deletion is saved
     setTimeout(() => {
@@ -1728,7 +1811,7 @@ export default function EnhancedLearningGraph({
         }));
       }
     }, 50); // Small delay to ensure refs are updated
-  }, [nodes, frames, chapters, onFramesChange, onChaptersChange, emitGraphStateChange, setNodes]);
+  }, [invokeOnFramesChange, invokeOnChaptersChange, emitGraphStateChange, setNodes]);
 
   // REAL-TIME SYNC: Update concept nodes with latest frames/chapters data
   useEffect(() => {
@@ -1819,6 +1902,13 @@ export default function EnhancedLearningGraph({
       const filteredLoadedNodes = loadedNodes.filter(node => {
         if (node.type === 'aiframe' && node.data?.frameId) {
           const frameId = node.data.frameId;
+          
+          // CRITICAL FIX: Skip recently deleted frames to prevent re-merge
+          if (recentlyDeletedFrameIdsRef.current.has(frameId)) {
+            skippedFrameIds.add(frameId);
+            return false;
+          }
+          
           if (!currentFrameIds.has(frameId)) {
             skippedFrameIds.add(frameId);
             return false;
@@ -2327,7 +2417,7 @@ export default function EnhancedLearningGraph({
       if (
         !attachmentKey ||
         attachmentKeySet.has(attachmentKey) ||
-        pendingAttachmentIds.has(attachment.id)
+        pendingAttachmentNodeIdsRef.current.has(attachment.id)
       ) {
         return;
       }
@@ -2441,7 +2531,7 @@ export default function EnhancedLearningGraph({
       let edgesMutated = false;
 
       if (baseEdges.length > 0) {
-        const filteredEdges = baseEdges.filter(edge => {
+        const filteredEdges = baseEdges.filter((edge: ExtendedEdge) => {
           const keepEdge =
             updatedNodeIds.has(edge.source) &&
             updatedNodeIds.has(edge.target);
@@ -2571,6 +2661,7 @@ export default function EnhancedLearningGraph({
   // Handle connections with attachment logic
   const onConnect = useCallback(
     (params: Connection) => {
+      console.log('🔗 onConnect triggered:', { source: params.source, target: params.target, sourceHandle: params.sourceHandle, targetHandle: params.targetHandle });
       const currentNodes = nodesRef.current;
       const currentEdges = edgesRef.current;
 
@@ -2697,7 +2788,7 @@ export default function EnhancedLearningGraph({
           handleAttachContent(targetNode.data.frameId, attachment);
           
           // Update source node as attached
-          setNodes(nds => nds.map(node => {
+          setNodesRef.current(nds => nds.map(node => {
             if (node.id === sourceNode.id) {
               // DRAGON SLAYER: Silent node attachment
               return {
@@ -2743,7 +2834,7 @@ export default function EnhancedLearningGraph({
       };
       
       // CRITICAL FIX: Prevent duplicate edges by checking if edge already exists
-      setEdges((eds) => {
+      setEdgesRef.current((eds) => {
         const existingEdge = eds.find(e => e.id === edge.id);
         if (existingEdge) {
           console.log('🔄 Edge already exists, skipping duplicate:', edge.id);
@@ -2754,6 +2845,7 @@ export default function EnhancedLearningGraph({
       
       // Emit connection event for real-time sync
       if (typeof window !== 'undefined') {
+        console.log('📤 Emitting graph-connection-added event:', { edgeId: edge.id, source: edge.source, target: edge.target });
         window.dispatchEvent(new CustomEvent('graph-connection-added', {
             detail: {
               connection: edge,
@@ -2798,6 +2890,7 @@ export default function EnhancedLearningGraph({
             }
           }
 
+          console.log('📤 Emitting graph-state-changed event (edge-added):', { edgeId: edge.id, totalEdges: nextEdges.length });
           emitGraphStateChange('edge-added', {
             edgeData: edge
           }, {
@@ -2826,7 +2919,7 @@ export default function EnhancedLearningGraph({
             handleDetachContent(targetNode.data.frameId);
             
             // Update source node as detached
-            setNodes(nds => nds.map(node => {
+            setNodesRef.current(nds => nds.map(node => {
               if (node.id === sourceNode.id) {
                 // DRAGON SLAYER: Silent node detachment
                 return { ...node, data: { ...node.data, isAttached: false, attachedToFrameId: undefined } };
@@ -3008,17 +3101,17 @@ export default function EnhancedLearningGraph({
               isAttached: false,
             };
             
-          case "concept":
-            return {
-              type: "concept",
-              concept: "New Concept",
-              description: "Concept description",
-              relatedFrameId: "",
-              onConceptUpdate: handleConceptUpdate,
-              onConceptDelete: handleConceptDelete,
-              frames: frames,
-              chapters: chapters,
-            };
+      case "concept":
+        return {
+          type: "concept",
+          concept: "New Concept",
+          description: "Concept description",
+          relatedFrameId: "",
+          onConceptUpdate: handleConceptUpdate,
+          onConceptDelete: handleConceptDelete,
+          frames: framesRef.current,
+          chapters: chaptersRef.current,
+        };
             
           case "chapter":
             return {
@@ -3045,11 +3138,21 @@ export default function EnhancedLearningGraph({
         data: newNodeData,
       };
 
+      // ✅ NEW: Ensure manual session exists when dropping AI Frame
+      if (type === 'aiframe') {
+        if (typeof window !== 'undefined') {
+          console.log("🎯 Dispatching ensure-manual-session event for frame drop");
+          window.dispatchEvent(new CustomEvent('ensure-manual-session', {
+            detail: { source: 'frame-drop', nodeId }
+          }));
+        }
+      }
+
       if (type === 'chapter') {
         boundChapterUpdateHandlers.current.add(nodeId);
-        const existingChapters = chaptersRef.current || chapters || [];
+        const existingChapters = chaptersRef.current || [];
         const hasRecord = existingChapters.some(chapter => chapter.id === nodeId);
-        if (!hasRecord && onChaptersChange) {
+        if (!hasRecord) {
           const now = new Date().toISOString();
           const chapterData = newNodeData as ChapterNodeData;
           const nextChapters = [
@@ -3072,11 +3175,11 @@ export default function EnhancedLearningGraph({
             } as AiChapter,
           ];
           chaptersRef.current = nextChapters;
-          onChaptersChange(nextChapters);
+          invokeOnChaptersChange(nextChapters);
         }
       }
 
-      setNodes((nds) => nds.concat(newNode));
+      setNodesRef.current((nds) => nds.concat(newNode));
 
       // CRITICAL FIX: Emit save events for ALL node types (OUTSIDE setNodes to avoid React error)
       if (typeof window !== 'undefined') {
@@ -3101,7 +3204,7 @@ export default function EnhancedLearningGraph({
       }
       
       // If it's an AI frame node, sync with frames array
-      if (type === "aiframe" && onFramesChange) {
+      if (type === "aiframe") {
         
         // CRITICAL FIX: Prevent concurrent frame creation
         if (isCreatingFrame.current) {
@@ -3156,27 +3259,21 @@ export default function EnhancedLearningGraph({
             const updatedFrames = [...currentFrames, newFrame];
             
             // CRITICAL FIX: Call onFramesChange immediately to sync to unified storage
-            onFramesChange(updatedFrames);
+            invokeOnFramesChange(updatedFrames);
             
-            // CRITICAL FIX: Emit immediate save event for new frame
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('graph-frame-added', {
-                detail: {
-                  newFrame,
-                  totalFrames: updatedFrames.length
-                }
-              }));
-              
-              // OPTIMISTIC: Background save will handle persistence automatically
-              // Still emit graph state change for proper sync
-              setTimeout(() => {
-                emitGraphStateChange('frame-created', {
-                  frameId: newFrame.id,
-                  frameTitle: newFrame.title,
-                  totalFrames: updatedFrames.length
-                });
-              }, 200); // SPECS COMPLIANT: Debounced timing for unified save
-            }
+            // REMOVED: graph-frame-added event dispatch
+            // Frame addition is already handled by invokeOnFramesChange callback above
+            // No need for redundant event that causes circular loops
+            
+            // OPTIMISTIC: Background save will handle persistence automatically
+            // Still emit graph state change for proper sync
+            setTimeout(() => {
+              emitGraphStateChange('frame-created', {
+                frameId: newFrame.id,
+                frameTitle: newFrame.title,
+                totalFrames: updatedFrames.length
+              });
+            }, 200); // SPECS COMPLIANT: Debounced timing for unified save
           }
         } finally {
           // Reset mutex after a short delay
@@ -3186,30 +3283,23 @@ export default function EnhancedLearningGraph({
         }
       }
     },
-    [reactFlowInstance, onFramesChange, handleFrameUpdate, handleAttachContent, handleDetachContent, handleConceptUpdate, handleConceptDelete, frames, chapters]
+    [reactFlowInstance, handleFrameUpdate, handleAttachContent, handleDetachContent, handleConceptUpdate, handleConceptDelete, handleChapterUpdate, emitGraphStateChange, invokeOnChaptersChange, invokeOnFramesChange]
   );
 
   // Handle node selection and emit events for Frame Navigation sync
   const handleNodeClick = useCallback((_event: any, node: any) => {
     setSelectedNode(node.id);
     
-    // If it's an AI frame node, emit event to sync with Frame Navigation
-    if (node.data?.type === 'aiframe' && node.data?.frameId) {
-      // CRITICAL FIX: Use ref to get current frames
-      const currentFrames = framesRef.current;
-      const frameIndex = currentFrames.findIndex(frame => frame.id === node.data.frameId);
-      if (frameIndex !== -1) {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('graph-frame-selected', {
-            detail: {
-              frameId: node.data.frameId,
-              frameIndex,
-              nodeId: node.id
-            }
-          }));
-        }
-      }
-    }
+    // REMOVED: graph-frame-selected event dispatch
+    // Node selection is already handled through React Flow's selection state
+    // Parent components should use onFrameIndexChange callback if they need to know about selection
+    // if (node.data?.type === 'aiframe' && node.data?.frameId) {
+    //   const currentFrames = framesRef.current;
+    //   const frameIndex = currentFrames.findIndex(frame => frame.id === node.data.frameId);
+    //   if (frameIndex !== -1) {
+    //     // Removed event dispatch - use callbacks instead
+    //   }
+    // }
   }, []);
 
   useEffect(() => {
@@ -3560,14 +3650,14 @@ export default function EnhancedLearningGraph({
     return (newGraphState: GraphState) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        onGraphChange?.(newGraphState); // CRITICAL FIX: Use optional chaining to prevent undefined invocation
+        invokeOnGraphChange(newGraphState); // Use ref-backed handler
       }, 500); // Debounce to 500ms for better performance
     };
-  }, [onGraphChange]);
+  }, [invokeOnGraphChange]);
 
   // Update graph state when nodes/edges change
   useEffect(() => {
-    if (onGraphChange) {
+    if (onGraphChangeRef.current) {
       const newGraphState: GraphState = {
         nodes,
         edges,
@@ -3582,7 +3672,7 @@ export default function EnhancedLearningGraph({
     // Events are now only emitted on specific user actions (drag, connect, delete, etc.)
     // This prevents the feedback loop: emit event → storage update → re-render → emit event
     
-  }, [nodes, edges, selectedNode, debouncedGraphChange, onGraphChange]);
+  }, [nodes, edges, selectedNode, debouncedGraphChange]);
   
   // PERFORMANCE: Add React Flow performance optimizations
   const nodesDraggable = true;
@@ -3591,6 +3681,34 @@ export default function EnhancedLearningGraph({
   
   // PERFORMANCE: Memoize node types to prevent recreating on every render
   const memoizedNodeTypes = useMemo(() => enhancedNodeTypes, []);
+
+  useEffect(() => {
+    const prev = debugPropsRef.current;
+    const changes = {
+      nodesChanged: prev.nodes !== nodes,
+      edgesChanged: prev.edges !== edges,
+      handleNodesChangeChanged: prev.handleNodesChange !== handleNodesChange,
+      handleEdgesChangeChanged: prev.handleEdgesChange !== handleEdgesChange,
+      handleNodesDeleteChanged: prev.handleNodesDelete !== handleNodesDelete,
+      onConnectChanged: prev.onConnect !== onConnect,
+      onEdgesDeleteChanged: prev.onEdgesDelete !== onEdgesDelete,
+      onDropChanged: prev.onDrop !== onDrop,
+    };
+    if (Object.values(changes).some(Boolean)) {
+      console.log("🐛 EnhancedLearningGraph prop diff", JSON.stringify(changes));
+    }
+    debugPropsRef.current = {
+      nodes,
+      edges,
+      handleNodesChange,
+      handleEdgesChange,
+      handleNodesDelete,
+      onConnect,
+      onEdgesDelete,
+      onDrop,
+    };
+    console.count("EnhancedLearningGraph rerender");
+  }, [nodes, edges, handleNodesChange, handleEdgesChange, handleNodesDelete, onConnect, onEdgesDelete, onDrop]);
 
   return (
     <div className="flex h-full min-h-full w-full">

@@ -1,12 +1,6 @@
 "use client";
 
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React, { useEffect } from "react";
 import { Loader2, Database, Shield, CheckCircle } from "lucide-react";
 
 interface VectorStoreInitModalProps {
@@ -63,30 +57,60 @@ export default function VectorStoreInitModal({
     return null;
   };
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose?.();
-        }
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vector-store-modal-title"
+        className="w-full max-w-md rounded-lg border bg-background p-6 shadow-2xl"
+      >
+        <div className="flex items-center justify-between pb-2">
+          <div className="flex items-center gap-3">
             <Shield className="w-6 h-6 text-blue-500" />
-            Secure Knowledge Base
-          </DialogTitle>
-        </DialogHeader>
+            <div>
+              <p
+                id="vector-store-modal-title"
+                className="text-lg font-semibold text-foreground"
+              >
+                Secure Knowledge Base
+              </p>
+              <p className="sr-only">{getStatusMessage()}</p>
+            </div>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-1 text-gray-500 hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              aria-label="Close"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
+        </div>
 
         <div className="flex flex-col items-center space-y-6 py-6">
-          {/* Status Icon */}
           <div className="flex items-center justify-center">
             {getStatusIcon()}
           </div>
 
-          {/* Status Message */}
           <div className="text-center space-y-2">
             <p className="text-lg font-medium text-gray-800 dark:text-gray-200">
               {getStatusMessage()}
@@ -98,7 +122,6 @@ export default function VectorStoreInitModal({
             )}
           </div>
 
-          {/* Progress Bar */}
           {progress > 0 && progress < 100 && status !== "ready" && (
             <div className="w-full max-w-sm">
               <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -110,7 +133,6 @@ export default function VectorStoreInitModal({
             </div>
           )}
 
-          {/* Security Notice */}
           <div className="text-center text-sm text-gray-500 dark:text-gray-400 max-w-sm">
             <div className="flex items-center justify-center gap-2 mb-1">
               <Shield className="w-4 h-4" />
@@ -122,7 +144,6 @@ export default function VectorStoreInitModal({
             </p>
           </div>
 
-          {/* Loading States */}
           {status === "initializing" && (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex space-x-1">
@@ -157,7 +178,7 @@ export default function VectorStoreInitModal({
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

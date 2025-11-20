@@ -57,6 +57,7 @@ import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
 import { ChapterDialog } from "@/components/ai-graphs/chapter-dialog";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
 import { AIFlowBuilderPanel } from "./components/AIFlowBuilderPanel";
+import { SessionContinuationDialog } from "./components/SessionContinuationDialog";
 import {
   Dialog,
   DialogContent,
@@ -84,6 +85,7 @@ import { debugFrames, debugStorage, debugSync } from "@/lib/debugUtils";
 import Link from "next/link";
 import Image from "next/image";
 import SignInButton from "@/components/ui/sign-in";
+import { TIMECAPSULE_VERSION } from "@/lib/version";
 
 // Import NEW MODULAR COMPONENTS
 import {
@@ -877,6 +879,15 @@ export default function AIFramesPage() {
     includeGraph: false,
   });
 
+  // ✅ NEW: Session continuation dialog state
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [sessionDialogConfig, setSessionDialogConfig] = useState<{
+    type: "ai-flow" | "swe-bridge" | "manual";
+    currentSessionName?: string;
+    onContinue: () => void;
+    onCreateNew: () => void;
+  } | null>(null);
+
   const workspaceStats = useMemo(() => {
     const frames = unifiedStorage.frames;
     const chapters = unifiedStorage.chapters;
@@ -1054,6 +1065,92 @@ export default function AIFramesPage() {
         throw new Error(await response.text());
       }
       const data = await response.json();
+
+      // ✅ NEW: Session dialog logic for SWE Bridge sync
+      if (Array.isArray(data.frames) && data.frames.length > 0) {
+        const hasActiveSession = flowBuilder.activeSessionId;
+        const activeSession = flowBuilder.sessions.find(
+          (s) => s.id === flowBuilder.activeSessionId
+        );
+        const activeSource = activeSession?.source;
+
+        // If no session or session is not SWE Bridge, show dialog
+        if (!hasActiveSession || activeSource !== "swe-bridge") {
+          console.log("🔔 Showing session dialog for SWE Bridge sync");
+          setSessionDialogConfig({
+            type: "swe-bridge",
+            currentSessionName: activeSession?.name,
+            onContinue: async () => {
+              console.log("✅ Continuing with existing session for SWE Bridge");
+              // Use existing session - sync frames from SWE Bridge
+              if (Array.isArray(data.frames)) {
+                unifiedStorage.updateFrames(data.frames);
+              }
+              if (Array.isArray(data.chapters)) {
+                unifiedStorage.updateChapters(data.chapters);
+              }
+              if (data.graphState) {
+                unifiedStorage.updateGraphState(data.graphState);
+              }
+              const latestStamp =
+                data?.metadata?.lastUpdated || new Date().toISOString();
+              localBridgeRemoteStampRef.current = latestStamp;
+              localBridgeLastPulledRef.current = latestStamp;
+              setLocalBridgeHasPendingData(false);
+              setLocalBridgeSyncState("success");
+
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("auto-layout-requested", {
+                    detail: { source: "local-bridge" },
+                  })
+                );
+              }
+
+              setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
+            },
+            onCreateNew: async () => {
+              console.log("🆕 Creating new SWE Bridge session");
+              // Create new SWE Bridge session
+              flowBuilder.createNewSession(
+                "swe-bridge",
+                `SWE Sync ${new Date().toLocaleString()}`
+              );
+
+              // Then sync frames from SWE Bridge
+              if (Array.isArray(data.frames)) {
+                unifiedStorage.updateFrames(data.frames);
+              }
+              if (Array.isArray(data.chapters)) {
+                unifiedStorage.updateChapters(data.chapters);
+              }
+              if (data.graphState) {
+                unifiedStorage.updateGraphState(data.graphState);
+              }
+              const latestStamp =
+                data?.metadata?.lastUpdated || new Date().toISOString();
+              localBridgeRemoteStampRef.current = latestStamp;
+              localBridgeLastPulledRef.current = latestStamp;
+              setLocalBridgeHasPendingData(false);
+              setLocalBridgeSyncState("success");
+
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("auto-layout-requested", {
+                    detail: { source: "local-bridge" },
+                  })
+                );
+              }
+
+              setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
+            },
+          });
+          setShowSessionDialog(true);
+          return; // Wait for user choice
+        }
+      }
+
+      // Normal sync flow (no frames or already has SWE Bridge session)
       if (Array.isArray(data.frames)) {
         unifiedStorage.updateFrames(data.frames);
       }
@@ -1084,11 +1181,15 @@ export default function AIFramesPage() {
       setLocalBridgeSyncState("error");
       setTimeout(() => setLocalBridgeSyncState("idle"), 3000);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     localBridgeEnabled,
     unifiedStorage.updateFrames,
     unifiedStorage.updateChapters,
     unifiedStorage.updateGraphState,
+    // flowBuilder is used but not in deps - it's accessed via closure and is stable
+    setSessionDialogConfig,
+    setShowSessionDialog,
   ]);
 
   const broadcastChapterGraphSync = useCallback(
@@ -1133,6 +1234,15 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  // Debug: Log session state changes
+  useEffect(() => {
+    console.log(`🔍 [PAGE-RENDER] Active session changed:`, {
+      activeSessionId: flowBuilder.activeSessionId,
+      sessionsCount: flowBuilder.sessions.length,
+      sessionsList: flowBuilder.sessions.map(s => ({ id: s.id, name: s.name, source: s.source }))
+    });
+  }, [flowBuilder.activeSessionId, flowBuilder.sessions]);
+
   const fileToDataUrl = useCallback((file: File) => {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -1145,6 +1255,13 @@ export default function AIFramesPage() {
   const canUseVisionUploads =
     flowBuilder.aiProviders.providerReady.openrouter &&
     flowBuilder.aiProviders.openrouter.connectionState.visionMode === "vision";
+
+  const knowledgeBaseErrorMessage = vectorStoreError || unifiedStorage.error || null;
+  const knowledgeBaseUnavailable = Boolean(knowledgeBaseErrorMessage);
+
+  const flowPanelReady =
+    (vectorStoreInitialized && !vectorStoreInitializing && !unifiedStorage.isLoading) ||
+    knowledgeBaseUnavailable;
 
   const describeImageWithVision = useCallback(
     async (file: File) => {
@@ -1350,16 +1467,17 @@ export default function AIFramesPage() {
       setShowVectorStoreInitModal(true);
     }
 
-    if (vectorStoreReady && showVectorStoreInitModal) {
+    if ((vectorStoreReady || vectorStoreError) && showVectorStoreInitModal) {
+      const delay = vectorStoreError ? 0 : 2000;
       timeoutId = setTimeout(() => {
         setShowVectorStoreInitModal(false);
-      }, 2000);
+      }, delay);
     }
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [vectorStoreInitializing, vectorStoreReady]);
+  }, [vectorStoreInitializing, vectorStoreReady, vectorStoreError, showVectorStoreInitModal]);
 
   useEffect(() => {
     if (!localBridgeEnabled || typeof window === "undefined") {
@@ -1665,8 +1783,14 @@ export default function AIFramesPage() {
       }));
 
       unifiedStorage.updateFrames(convertedFrames);
+      
+      // Sync deletions to active session
+      if (flowBuilder.syncFrameDeletions && flowBuilder.frameDrafts.length > 0) {
+        const currentFrameIds = new Set(convertedFrames.map(f => f.id));
+        flowBuilder.syncFrameDeletions(currentFrameIds);
+      }
     },
-    [unifiedStorage]
+    [unifiedStorage, flowBuilder]
   );
 
   const handleCreateFrame = useCallback(
@@ -1679,6 +1803,21 @@ export default function AIFramesPage() {
       const nextOrder = existingOrders.length
         ? Math.max(...existingOrders) + 1
         : 1;
+
+      // Auto-create manual session if needed
+      let sessionForFrame: string | null = flowBuilder.activeSessionId;
+      console.log(`📊 [PAGE] Before session check - activeSessionId: ${flowBuilder.activeSessionId}, sessions count: ${flowBuilder.sessions.length}`);
+      
+      if (!flowBuilder.activeSessionId || 
+          (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
+        console.log("🆕 [PAGE] Auto-creating manual session for manual frame creation");
+        const newSession = flowBuilder.createNewSession("manual", "Manual Session");
+        sessionForFrame = newSession.id;
+        console.log(`✅ [PAGE] Created session ${sessionForFrame}`);
+        console.log(`📋 [PAGE] Sessions array now:`, flowBuilder.sessions.map(s => ({ id: s.id, name: s.name })));
+      } else {
+        console.log(`✓ [PAGE] Using existing session: ${sessionForFrame}`);
+      }
 
       const fallbackIndex = unifiedStorage.frames.length + 1;
       const newFrame: AIFrame = {
@@ -1711,6 +1850,12 @@ export default function AIFramesPage() {
       const updatedFrames = [...unifiedStorage.frames, newFrame];
       unifiedStorage.updateFrames(updatedFrames);
 
+      // Sync frame to active session (use sessionForFrame which has the just-created session ID)
+      if (sessionForFrame && flowBuilder.syncFrameToSession) {
+        console.log(`🔄 Syncing frame ${newFrame.id} to session ${sessionForFrame}`);
+        flowBuilder.syncFrameToSession(newFrame);
+      }
+
       if (selectFrame) {
         const newIndex = updatedFrames.findIndex((frame) => frame.id === newFrame.id);
         if (newIndex >= 0) {
@@ -1728,7 +1873,7 @@ export default function AIFramesPage() {
 
       return newFrame;
     },
-    [setCurrentFrameIndex, unifiedStorage.frames, unifiedStorage.updateFrames]
+    [setCurrentFrameIndex, unifiedStorage.frames, unifiedStorage.updateFrames, flowBuilder]
   );
 
   const handleCreateFrameInline = useCallback(
@@ -1744,6 +1889,61 @@ export default function AIFramesPage() {
     },
     [handleCreateFrame]
   );
+
+  // ✅ NEW: Helper to ensure a manual session exists for frame drops
+  const ensureManualSession = useCallback(() => {
+    console.log("🔍 Checking for manual session...", {
+      activeSessionId: flowBuilder.activeSessionId,
+      sessionsCount: flowBuilder.sessions.length,
+    });
+
+    // If no active session OR active session is not manual, create one
+    if (
+      !flowBuilder.activeSessionId ||
+      flowBuilder.sessions.find((s) => s.id === flowBuilder.activeSessionId)?.source !== "manual"
+    ) {
+      console.log("🆕 Auto-creating manual session for frame drop");
+      const newSession = flowBuilder.createNewSession("manual", "Manual Session");
+      console.log("✅ Manual session created:", newSession.id);
+      return newSession.id;
+    }
+
+    console.log("✅ Using existing manual session:", flowBuilder.activeSessionId);
+    return flowBuilder.activeSessionId;
+  }, [flowBuilder]);
+
+  // ✅ NEW: Event listener for ensuring manual session on frame drop
+  useEffect(() => {
+    const handleEnsureManualSession = () => {
+      ensureManualSession();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("ensure-manual-session", handleEnsureManualSession);
+      return () => window.removeEventListener("ensure-manual-session", handleEnsureManualSession);
+    }
+  }, [ensureManualSession]);
+
+  // ✅ NEW: Event listener for AI Flow session continuation dialog
+  useEffect(() => {
+    const handleAIFlowSessionCheck = (event: any) => {
+      const { currentSession, onContinue, onCreateNew } = event.detail;
+      console.log("🔔 Received AI Flow session check event", { currentSession });
+
+      setSessionDialogConfig({
+        type: "ai-flow",
+        currentSessionName: currentSession?.name,
+        onContinue,
+        onCreateNew,
+      });
+      setShowSessionDialog(true);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
+      return () => window.removeEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
+    }
+  }, [setSessionDialogConfig, setShowSessionDialog]);
 
   const handleAcceptAIFrames = useCallback(
     (frames: AIFrame[]) => {
@@ -2308,7 +2508,7 @@ export default function AIFramesPage() {
 
         const selectedChunk =
           (options.chunkId &&
-            chunks.find((chunk) => chunk.id === options.chunkId)) ||
+            chunks.find((chunk: any) => chunk.id === options.chunkId)) ||
           (chunks.length
             ? chunks[0]
             : {
@@ -2358,9 +2558,9 @@ export default function AIFramesPage() {
 
   useEffect(() => {
     if (!showChunkView) {
-      setChunkViewerDocument((prev) => (prev ? null : prev));
-      setChunkViewerChunks((prev) => (prev.length ? [] : prev));
-      setCurrentChunk((prev) => (prev ? null : prev));
+      setChunkViewerDocument((prev: any) => (prev ? null : prev));
+      setChunkViewerChunks((prev: any) => (prev.length ? [] : prev));
+      setCurrentChunk((prev: any) => (prev ? null : prev));
     }
   }, [showChunkView]);
 
@@ -2765,7 +2965,8 @@ export default function AIFramesPage() {
           doc.metadata.source === "aiframes_import" ||
           doc.metadata.source === "aiframes_combined" ||
           doc.title.toLowerCase().includes("timecapsule") ||
-          doc.metadata.isGenerated === true
+          doc.metadata.isGenerated === true ||
+          doc.metadata.documentType === "flow-session"
         );
       },
     },
@@ -2776,7 +2977,8 @@ export default function AIFramesPage() {
       filter: (doc: any) => {
         return (
           doc.metadata.source === "ai-frames" ||
-          doc.title.toLowerCase().includes("ai-frame")
+          doc.title.toLowerCase().includes("ai-frame") ||
+          doc.metadata.documentType === "flow-session"
         );
       },
     },
@@ -2943,13 +3145,27 @@ export default function AIFramesPage() {
         }}
       />
       <div className="min-h-screen flex flex-col gap-6 pt-20">
-        <AIFlowBuilderPanel
-          flowBuilder={flowBuilder}
-          onAcceptFrames={handleAcceptAIFrames}
-          isOpen={isFlowPanelOpen}
-          onToggle={() => setIsFlowPanelOpen(false)}
-          workspaceStats={workspaceStats}
-        />
+        {flowPanelReady ? (
+          <AIFlowBuilderPanel
+            flowBuilder={flowBuilder}
+            onAcceptFrames={handleAcceptAIFrames}
+            isOpen={isFlowPanelOpen}
+            onToggle={() => setIsFlowPanelOpen(false)}
+            workspaceStats={workspaceStats}
+            knowledgeBaseUnavailable={knowledgeBaseUnavailable}
+            knowledgeBaseUnavailableMessage={knowledgeBaseErrorMessage}
+          />
+        ) : (
+          <div className="min-h-[32rem] rounded-3xl border border-slate-200 bg-white/70 flex flex-col items-center justify-center gap-4 text-center text-slate-500">
+            <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+            <div>
+              <p className="font-semibold text-slate-700">Preparing AI Flow Builder…</p>
+              <p className="text-sm text-slate-500">
+                Loading unified storage and Knowledge Base snapshots.
+              </p>
+            </div>
+          </div>
+        )}
         {(localBridgeEnabled || !isFlowPanelOpen) && (
           <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
             {!isFlowPanelOpen && (
@@ -3027,6 +3243,9 @@ export default function AIFramesPage() {
                       <p className="text-sm text-gray-600">
                         Interactive AI learning platform
                       </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Version {TIMECAPSULE_VERSION}
+                      </p>
                     </div>
                     <Button
                       variant="ghost"
@@ -3100,6 +3319,55 @@ export default function AIFramesPage() {
                         Saved
                       </Badge>
                     )}
+                  </div>
+                  
+                  {/* Active Session Display */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 font-medium">Active Session:</span>
+                      </div>
+                      {flowBuilder.activeSessionId ? (
+                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm">
+                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "ai-flow" ? "🤖" :
+                               flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "swe-bridge" ? "🔌" : "✏️"}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.name || "Unknown"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.frameCount || 0} frames
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                          <p className="text-xs text-gray-500 text-center">No active session</p>
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setIsFlowPanelOpen(true);
+                          // Scroll to Flow Sessions section after panel opens
+                          setTimeout(() => {
+                            const flowSessionsSection = document.getElementById('flow-sessions-section');
+                            if (flowSessionsSection) {
+                              flowSessionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            } else {
+                              console.warn('⚠️ Flow sessions section not found');
+                            }
+                          }, 300);
+                        }}
+                      >
+                        <Bot className="h-4 w-4 mr-2" />
+                        Manage Sessions
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3405,7 +3673,7 @@ export default function AIFramesPage() {
             resetChapterDialogState();
           }
         }}
-        editingChapter={editingChapter}
+        editingChapter={editingChapter ? { ...editingChapter, description: editingChapter.description || '' } as any : null}
         chapterFormData={chapterFormData}
         setChapterFormData={setChapterFormData}
         selectedFrameIds={selectedChapterFrameIds}
@@ -3422,6 +3690,27 @@ export default function AIFramesPage() {
             dispatchForceSave("chapter-dialog-cancelled");
           }}
         />
+      {/* ✅ NEW: Session Continuation Dialog */}
+      {showSessionDialog && sessionDialogConfig && (
+        <SessionContinuationDialog
+          open={showSessionDialog}
+          onOpenChange={setShowSessionDialog}
+          currentSessionName={
+            sessionDialogConfig.currentSessionName ||
+            flowBuilder.sessions.find((s) => s.id === flowBuilder.activeSessionId)?.name ||
+            "Current Session"
+          }
+          actionType={sessionDialogConfig.type}
+          onContinue={() => {
+            sessionDialogConfig.onContinue();
+            setShowSessionDialog(false);
+          }}
+          onCreateNew={() => {
+            sessionDialogConfig.onCreateNew();
+            setShowSessionDialog(false);
+          }}
+        />
+      )}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

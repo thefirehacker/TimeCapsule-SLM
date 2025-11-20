@@ -46,8 +46,9 @@ next-env.d.ts
 
 
 # temp 
-Test/temp/*
-Temp/dev-aiframes-state.json
+# Test/temp/*
+Delete/*
+Delete/AIbuilderLogs_*.json
 
 # #logs
 # logs.md

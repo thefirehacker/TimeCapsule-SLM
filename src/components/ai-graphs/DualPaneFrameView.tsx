@@ -144,6 +144,27 @@ export default function DualPaneFrameView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const initialViewReportedRef = useRef(false);
   const [selectedNodeFrameId, setSelectedNodeFrameId] = useState<string | null>(null);
+  const onFramesChangeRef = useRef(onFramesChange);
+  const isMountedRef = useRef(false);
+  const hasResetEditStateRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    onFramesChangeRef.current = onFramesChange;
+  }, [onFramesChange]);
+
+  const invokeFramesChange = useCallback((updatedFrames: AIFrame[], reason: string = "dual-pane") => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("🌀 DualPane invokeFramesChange", { reason, count: updatedFrames.length });
+    }
+    onFramesChangeRef.current?.(updatedFrames);
+  }, []);
 
   // REMOVED: useEffect that was breaking sync system
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'connected' | 'disconnected'>>({});
@@ -216,16 +237,25 @@ export default function DualPaneFrameView({
       if (currentFrameIndex !== 0) {
         onFrameIndexChange(0);
       }
-      setEditingFrameId(null);
-      setEditData({});
+      // Only reset edit state once when transitioning to empty
+      if (!hasResetEditStateRef.current) {
+        setEditingFrameId(null);
+        setEditData({});
+        hasResetEditStateRef.current = true;
+      }
       return;
+    } else {
+      // Reset flag when frames exist so we can reset again when cleared
+      hasResetEditStateRef.current = false;
     }
 
     if (currentFrameIndex < 0 || currentFrameIndex >= frames.length) {
       const clamped = currentFrameIndex < 0 ? 0 : frames.length - 1;
-      onFrameIndexChange(clamped);
+      if (clamped !== currentFrameIndex) {
+        onFrameIndexChange(clamped);
+      }
     }
-  }, [frames.length, frames, currentFrameIndex, onFrameIndexChange]);
+  }, [frames.length, currentFrameIndex, onFrameIndexChange]);
 
   // Get current frame safely
   const clampedFrameIndex = useMemo(() => {
@@ -352,186 +382,9 @@ export default function DualPaneFrameView({
     }
   }, [currentFrame, currentFrameIndex, graphState.nodes, selectedNodeFrameId, recentSaveTimestamp]);
 
-  // Listen for frame reordering from Frame Navigation and sync to graph
-  useEffect(() => {
-    const handleFramesReordered = (event: CustomEvent) => {
-      const { fromIndex, toIndex, reorderedFrames } = event.detail;
-      // console.log('🔄 Dual-pane: Frames reordered, updating graph layout:', {
-      //   fromIndex,
-      //   toIndex,
-      //   totalFrames: reorderedFrames.length
-      // });
-      
-      // Update frames in dual-pane view
-      onFramesChange(reorderedFrames);
-      
-      // Update graph nodes to reflect new order
-      setGraphState(prev => {
-        const updatedNodes = prev.nodes.map(node => {
-          if (node.data?.type === 'aiframe') {
-            const frameIndex = reorderedFrames.findIndex((f: AIFrame) => f.id === node.data.frameId);
-            if (frameIndex !== -1) {
-              // Update node position to reflect new order
-              return {
-                ...node,
-                position: {
-                  ...node.position,
-                  x: frameIndex * 500, // Maintain horizontal spacing
-                },
-                data: {
-                  ...node.data,
-                  order: frameIndex + 1
-                }
-              };
-            }
-          }
-          return node;
-        });
-        
-        return {
-          ...prev,
-          nodes: updatedNodes
-        };
-      });
-    };
-
-    // Listen for Frame Navigation selection and sync to graph
-    const handleFrameNavigationSelected = (event: CustomEvent) => {
-      const { frameId, frameIndex } = event.detail;
-      // console.log('🔄 Dual-pane: Frame Navigation selected, syncing to graph:', {
-      //   frameId,
-      //   frameIndex
-      // });
-      
-      // Find and select the corresponding graph node
-      const frameNode = graphState.nodes.find(node => 
-        node.data?.frameId === frameId
-      );
-      
-      if (frameNode) {
-        setGraphState(prev => ({
-          ...prev,
-          selectedNodeId: frameNode.id
-        }));
-        setSelectedNodeFrameId(frameId);
-        // console.log('✅ Dual-pane: Graph node selected via Frame Navigation:', {
-        //   nodeId: frameNode.id,
-        //   frameId
-        // });
-      }
-    };
-
-    // Listen for clear all frames event and reset graph
-    const handleClearAllFrames = (event: CustomEvent) => {
-      const { clearedCount } = event.detail;
-      console.log('🗑️ Dual-pane: Clear all frames event received, clearing graph:', {
-        clearedCount
-      });
-      
-      // Clear graph state
-      setGraphState({
-        nodes: [],
-        edges: [],
-        selectedNodeId: null,
-      });
-      
-      // Reset selection state
-      setSelectedNodeFrameId(null);
-      setEditingFrameId(null);
-      setEditData({});
-      
-      // Update parent with cleared state
-      if (onGraphStateUpdate) {
-        onGraphStateUpdate({
-          nodes: [],
-          edges: [],
-          selectedNodeId: null,
-        });
-      }
-    };
-
-    // Listen for individual frame edits and sync to graph
-    const handleFrameEdited = (event: CustomEvent) => {
-      const { frameId, frame } = event.detail;
-      // console.log('🔄 Dual-pane: Frame edited event received, syncing to graph:', {
-      //   frameId,
-      //   frameName: frame.title
-      // });
-      
-      // Update the specific frame in the frames array
-      const updatedFrames = frames.map(f => 
-        f.id === frameId 
-          ? { ...frame, updatedAt: new Date().toISOString() }
-          : f
-      );
-      onFramesChange(updatedFrames);
-      
-      // Update graph nodes to reflect the changes
-      setGraphState(prev => {
-        const updatedNodes = prev.nodes.map(node => {
-          if (node.data?.frameId === frameId) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                title: frame.title,
-                goal: frame.goal,
-                informationText: frame.informationText,
-                afterVideoText: frame.afterVideoText,
-                aiConcepts: frame.aiConcepts,
-                videoUrl: frame.videoUrl,
-                startTime: frame.startTime,
-                duration: frame.duration,
-              }
-            };
-          }
-          return node;
-        });
-        
-        return {
-          ...prev,
-          nodes: updatedNodes
-        };
-      });
-      
-      // 
-    };
-
-    // Connection status handlers
-    const handleConnectionAdded = (event: CustomEvent) => {
-      const { connection } = event.detail;
-      setConnectionStatuses(prev => ({
-        ...prev,
-        [connection.id]: 'connected'
-      }));
-      // 
-    };
-
-    const handleConnectionRemoved = (event: CustomEvent) => {
-      const { connection } = event.detail;
-      setConnectionStatuses(prev => ({
-        ...prev,
-        [connection.id]: 'disconnected'
-      }));
-      // 
-    };
-
-    window.addEventListener('frames-reordered', handleFramesReordered as EventListener);
-    window.addEventListener('frame-navigation-selected', handleFrameNavigationSelected as EventListener);
-    window.addEventListener('clear-all-frames', handleClearAllFrames as EventListener);
-    window.addEventListener('frame-edited', handleFrameEdited as EventListener);
-    window.addEventListener('graph-connection-added', handleConnectionAdded as EventListener);
-    window.addEventListener('graph-connection-removed', handleConnectionRemoved as EventListener);
-    
-    return () => {
-      window.removeEventListener('frames-reordered', handleFramesReordered as EventListener);
-      window.removeEventListener('frame-navigation-selected', handleFrameNavigationSelected as EventListener);
-      window.removeEventListener('clear-all-frames', handleClearAllFrames as EventListener);
-      window.removeEventListener('frame-edited', handleFrameEdited as EventListener);
-      window.removeEventListener('graph-connection-added', handleConnectionAdded as EventListener);
-      window.removeEventListener('graph-connection-removed', handleConnectionRemoved as EventListener);
-    };
-  }, [onFramesChange, graphState.nodes]);
+  // REMOVED: Event listeners that caused circular update loops
+  // DualPane is now passive - it only renders what's passed via props
+  // All updates flow through callbacks (onFramesChange, onGraphStateUpdate)
 
   // Handle frame updates from either view
   const handleFrameUpdate = useCallback((frameId: string, updatedData: Partial<AIFrame>) => {
@@ -540,9 +393,9 @@ export default function DualPaneFrameView({
         ? { ...frame, ...updatedData, updatedAt: new Date().toISOString() }
         : frame
     );
-    onFramesChange(updatedFrames);
+    invokeFramesChange(updatedFrames, "handleFrameUpdate");
     // 
-  }, [frames, onFramesChange]);
+  }, [frames, invokeFramesChange]);
 
   // Convert seconds to MM:SS format
   const secondsToTimestamp = (seconds: number): string => {
@@ -1284,7 +1137,7 @@ export default function DualPaneFrameView({
           }
         : frame
     );
-    onFramesChange(updatedFrames);
+    invokeFramesChange(updatedFrames, "handleAttachmentUpdate");
   };
 
   // Get video content from either attachment or legacy fields
@@ -1427,21 +1280,19 @@ export default function DualPaneFrameView({
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                {viewMode !== "linear" && renderViewToggle()}
+                {renderViewToggle()}
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {viewMode === "linear"
-                ? 'Graph hidden (linear view maximized)'
-                : `Drag and connect frames visually • ${viewMode === "graph" ? "Maximized" : "Split view"}`}
+              {`Drag and connect frames visually • ${viewMode === "graph" ? "Maximized" : "Split view"}`}
             </p>
           </div>
-          <div className={`flex-1 ${viewMode === "linear" ? "hidden" : ""}`}>
+          <div className="flex-1">
             <EnhancedLearningGraph
               mode={isCreationMode ? "creator" : "learner"}
               frames={frames}
               chapters={chapters}
-              onFramesChange={onFramesChange}
+              onFramesChange={invokeFramesChange}
               onChaptersChange={onChaptersChange}
               onGraphChange={handleGraphChange}
               initialGraphState={graphState}

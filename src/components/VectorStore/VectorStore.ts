@@ -17,7 +17,7 @@ import { RAGDocument } from "../../types/rag";
 import { OriginalAssetStore } from "@/lib/storage/OriginalAssetStore";
 
 // Document type enum
-export type DocumentType = 'userdocs' | 'virtual-docs' | 'ai-frames' | 'timecapsule' | 'bubblspace';
+export type DocumentType = 'userdocs' | 'virtual-docs' | 'ai-frames' | 'timecapsule' | 'bubblspace' | 'flow-session';
 
 // Add RxDB plugins
 addRxPlugin(RxDBDevModePlugin);
@@ -27,7 +27,7 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Document schema for RxDB
 const documentSchema = {
-  version: 5, // v5 normalizes chunk metadata + asset references
+  version: 6, // v6 adds 'flow-session' document type for session management
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -53,7 +53,7 @@ const documentSchema = {
         isGenerated: { type: 'boolean' },
         documentType: { 
           type: 'string',
-          enum: ['userdocs', 'virtual-docs', 'ai-frames', 'timecapsule', 'bubblspace']
+          enum: ['userdocs', 'virtual-docs', 'ai-frames', 'timecapsule', 'bubblspace', 'flow-session']
         },
         // Additional fields from previous schema
         bubblSpaceId: { type: 'string' },
@@ -471,6 +471,12 @@ export class VectorStore {
                   },
                   chunks: normalizedChunks
                 };
+              },
+              // Migration from version 5 to version 6 - add 'flow-session' document type
+              6: function(oldDoc: any) {
+                // No changes needed - just adding new enum value to documentType
+                // Existing documents remain unchanged
+                return oldDoc;
               }
             }
           }
@@ -597,6 +603,12 @@ export class VectorStore {
                   },
                   chunks: normalizedChunks
                 };
+              },
+              // Migration from version 5 to version 6 - add 'flow-session' document type
+              6: function(oldDoc: any) {
+                // No changes needed - just adding new enum value to documentType
+                // Existing documents remain unchanged
+                return oldDoc;
               }
             }
           }
@@ -767,6 +779,10 @@ export class VectorStore {
     });
   }
 
+  private async storeDocumentRecord(document: DocumentData): Promise<void> {
+    await this.documentsCollection.documents.insert(document);
+  }
+
   /**
    * Add a virtual document from web search results
    */
@@ -780,46 +796,62 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Enhanced ready state management
-    const downloadStatus = this._downloadStatus;
-    
-    if (downloadStatus === 'downloading') {
-      throw new Error('AI models are still downloading in the background. Please wait a moment and try again.');
-    } else if (downloadStatus === 'error') {
-      throw new Error('AI model download failed. Document processing requires AI processing capabilities.');
-    } else if (!this.documentProcessor || !this._processorAvailable) {
-      throw new Error('Document processing is unavailable. Please refresh the page and try again.');
+    const docId = `virtual_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    const baseMetadata = {
+      filename: title,
+      filesize: content.length,
+      filetype: 'text/html',
+      uploadedAt: new Date().toISOString(),
+      source: 'websearch',
+      description: `Web search result: ${title}`,
+      isGenerated: false,
+      documentType: 'virtual-docs' as DocumentType,
+      url: url
+    };
+
+    if (!this.documentProcessor || !this._processorAvailable) {
+      console.warn('⚠️ Document processor unavailable - storing virtual document without embeddings');
+      const simpleDoc: DocumentData = {
+        id: docId,
+        title,
+        content,
+        metadata: {
+          ...baseMetadata,
+          hasOriginalAsset: false,
+          hasImageAssets: false,
+          previewAssetIds: []
+        },
+        chunks: [
+          {
+            id: `chunk_${docId}_0`,
+            content,
+            startIndex: 0,
+            endIndex: content.length,
+            pageNumber: null,
+            sectionTitle: null,
+            markers: []
+          }
+        ],
+        vectors: []
+      };
+      await this.storeDocumentRecord(simpleDoc);
+      return docId;
     }
 
     console.log(`📄 Processing virtual document: ${title} from ${url}`);
     console.log(`📄 Content length: ${content.length} characters`);
     
-    // Generate document ID with virtual prefix
-    const docId = `virtual_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-
-    // Prepare document data for Web Worker
     const documentData = {
       id: docId,
       title: title,
       content: content,
-      metadata: {
-        filename: title,
-        filesize: content.length,
-        filetype: 'text/html',
-        uploadedAt: new Date().toISOString(),
-        source: 'websearch',
-        description: `Web search result: ${title}`,
-        isGenerated: false,
-        documentType: 'virtual-docs' as DocumentType,
-        url: url
-      }
+      metadata: baseMetadata
     };
 
     await this.ensureProcessorReady();
 
     return new Promise((resolve, reject) => {
-      // Use Web Worker to process document
-      this.documentProcessor.processDocument(
+      this.documentProcessor!.processDocument(
         documentData,
         // Progress callback
         (progress: ProcessingProgress) => {
@@ -863,8 +895,7 @@ export class VectorStore {
               previewAssetIds: processedDoc.metadata?.previewAssetIds || []
             };
 
-            // Convert to our DocumentData format
-            const documentData: DocumentData = {
+            const documentRecord: DocumentData = {
               id: processedDoc.id,
               title: processedDoc.title,
               content: processedDoc.content,
@@ -876,8 +907,7 @@ export class VectorStore {
               }))
             };
 
-            // Insert into RxDB
-            await this.documentsCollection.documents.insert(documentData);
+            await this.storeDocumentRecord(documentRecord);
             console.log(`✅ Virtual document stored with ID: ${docId}`);
             console.log(`📊 Final stats: ${processedDoc.chunks.length} chunks, ${processedDoc.vectors.length} vectors`);
             
@@ -1322,6 +1352,55 @@ export class VectorStore {
     }
   }
 
+  /**
+   * Generate query embedding using server-side API
+   * @param query Search query text
+   * @returns Embedding vector (384 dimensions)
+   * @throws Error if embedding generation fails
+   */
+  private async generateQueryEmbedding(query: string): Promise<number[]> {
+    const startTime = Date.now();
+    
+    try {
+      const response = await fetch('/api/kb/embed-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `Server error: ${response.status} ${response.statusText}`
+        );
+      }
+      
+      const { embedding } = await response.json();
+      
+      if (!Array.isArray(embedding) || embedding.length !== 384) {
+        throw new Error('Invalid embedding format received from server');
+      }
+      
+      const duration = Date.now() - startTime;
+      console.log(`🧠 Generated query embedding via server in ${duration}ms`);
+      
+      return embedding;
+    } catch (error: any) {
+      console.error('❌ Failed to generate query embedding:', error);
+      
+      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        throw new Error('Query embedding generation timed out. Please try again.');
+      }
+      
+      if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+        throw new Error('Unable to connect to embedding service. Please check your connection.');
+      }
+      
+      throw error;
+    }
+  }
+
   async searchSimilar(
     query: string, 
     threshold: number = 0.3, 
@@ -1337,15 +1416,15 @@ export class VectorStore {
       throw new Error('Vector Store not initialized');
     }
 
-    // Enhanced ready state management for search
-    const downloadStatus = this._downloadStatus;
-    
-    if (downloadStatus === 'downloading') {
-      throw new Error('AI models are still downloading in the background. Search will be available shortly.');
-    } else if (downloadStatus === 'error') {
-      throw new Error('AI model download failed. Semantic search requires AI processing capabilities.');
-    } else if (!this.documentProcessor || !this._processorAvailable) {
-      throw new Error('Search is unavailable. Please refresh the page and try again.');
+    // Validate query
+    if (!query || query.trim().length < 2) {
+      throw new Error('Search query must be at least 2 characters long');
+    }
+
+    // Truncate overly long queries
+    if (query.length > 1000) {
+      console.warn('Query exceeds 1000 characters, truncating...');
+      query = query.substring(0, 1000);
     }
 
     // Start RAG query tracking
@@ -1364,12 +1443,12 @@ export class VectorStore {
     console.log(`🔍 RAG Query ${queryId}: Searching for "${query}" with threshold: ${threshold}`);
 
     try {
-      // Generate query embedding using Web Worker
+      // Generate query embedding using server-side API
       const embeddingStartTime = Date.now();
-      const queryEmbedding = await this.documentProcessor.generateEmbedding(query);
+      const queryEmbedding = await this.generateQueryEmbedding(query);
       const embeddingTime = Date.now() - embeddingStartTime;
 
-      console.log(`🧠 RAG Query ${queryId}: Generated embedding in ${embeddingTime}ms`);
+      console.log(`🧠 RAG Query ${queryId}: Generated embedding via server in ${embeddingTime}ms`);
 
       // Get documents (filtered by type if specified)
       const documentsStartTime = Date.now();

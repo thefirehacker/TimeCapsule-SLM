@@ -221,33 +221,41 @@ export function parseJsonWithResilience(text: string): any {
         cleanText = cleanText.substring(thinkEnd + 8).trim();
       }
     }
-    
-    // Try to find JSON object
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+
+    cleanText = stripNonJsonCodeBlocks(cleanText);
+
+    // Handle ```json fenced blocks first (strip fences, ignore code keywords)
+    const fencedJson = cleanText.match(/```json([\s\S]*?)```/i);
+    if (fencedJson) {
       try {
-        let jsonText = jsonMatch[0];
-        // 🚨 FIX: Clean up common JSON issues from LLM responses
-        jsonText = cleanJsonText(jsonText);
+        const jsonText = cleanJsonText(fencedJson[1]);
         return JSON.parse(jsonText);
-      } catch (secondError) {
-        console.error('🔍 JSON extraction failed:', secondError);
-        console.error('🔍 Problematic JSON text:', jsonMatch[0].substring(0, 200) + '...');
+      } catch (fenceError) {
+        console.error('🔍 Fenced JSON parse failed:', fenceError);
       }
     }
-    
-    // Last resort: try to find array
-    const arrayMatch = cleanText.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
+
+    const jsonBody = extractFirstJsonObject(cleanText);
+    if (jsonBody) {
       try {
-        let arrayText = arrayMatch[0];
-        // 🚨 FIX: Clean up common JSON issues from LLM responses
-        arrayText = cleanJsonText(arrayText);
-        const parsed = JSON.parse(arrayText);
-        return Array.isArray(parsed) ? parsed : [parsed]; // Return as array
+        return JSON.parse(cleanJsonText(jsonBody));
+      } catch (objectError) {
+        console.error('🔍 Object extraction failed:', objectError);
+        console.error('🔍 Problematic JSON text:', jsonBody.substring(0, 200) + '...');
+      }
+    }
+
+    const trimmed = cleanText.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const arrayMatch = extractFirstJsonArray(trimmed);
+        if (arrayMatch) {
+          const parsed = JSON.parse(cleanJsonText(arrayMatch));
+          return Array.isArray(parsed) ? parsed : [parsed];
+        }
       } catch (thirdError) {
         console.error('🔍 Array extraction failed:', thirdError);
-        console.error('🔍 Problematic array text:', arrayMatch[0].substring(0, 200) + '...');
+        console.error('🔍 Problematic array text:', trimmed.substring(0, 200) + '...');
       }
     }
     
@@ -308,6 +316,98 @@ function cleanJsonText(jsonText: string): string {
   });
   
   return cleaned.trim();
+}
+
+function stripNonJsonCodeBlocks(text: string): string {
+  // Remove fenced code blocks that are not marked as JSON
+  let cleaned = text.replace(/```(?!json)[\s\S]*?```/gi, '');
+  // Remove ```json fences but keep inner content
+  cleaned = cleaned.replace(/```json/gi, '');
+  cleaned = cleaned.replace(/```/g, '');
+  // Remove inline array/code prefixes before JSON
+  cleaned = cleaned.replace(/^\s*\[[^\]]*\]\s*/g, '');
+  cleaned = cleaned.replace(/^\s*['"`][^'"`]+['"`]\s*/g, '');
+  return cleaned;
+}
+
+function extractFirstJsonObject(text: string): string | null {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    
+    if (start === -1) {
+      if (char === '{') {
+        start = i;
+        depth = 1;
+      }
+      continue;
+    }
+    
+    if (char === '"' && !escape) {
+      inString = !inString;
+    }
+    
+    escape = char === '\\' ? !escape : false;
+    
+    if (inString) {
+      continue;
+    }
+    
+    if (char === '{') {
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+  
+  return null;
+}
+
+function extractFirstJsonArray(text: string): string | null {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (start === -1) {
+      if (char === '[') {
+        start = i;
+        depth = 1;
+      }
+      continue;
+    }
+
+    if (char === '"' && !escape) {
+      inString = !inString;
+    }
+
+    escape = char === '\\' ? !escape : false;
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === '[') {
+      depth++;
+    } else if (char === ']') {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

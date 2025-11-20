@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
-import { Analytics } from "../components/analytics/Analytics";
-import { SessionProvider } from "../components/providers/SessionProvider";
-import { VectorStoreProvider } from "../components/providers/VectorStoreProvider";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import { ClientAppProviders } from "@/components/providers/ClientAppProviders";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -173,17 +170,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${poppins.className} antialiased`}>
-        <Analytics />
-        <VectorStoreProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SessionProvider>{children}</SessionProvider>
-          </ThemeProvider>
-        </VectorStoreProvider>
+        <ClientAppProviders>{children}</ClientAppProviders>
       </body>
     </html>
   );
