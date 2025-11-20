@@ -144,8 +144,13 @@ export function SourcesPanel({
   const categorizedDocuments = useMemo(() => {
     const categories: Record<string, EnhancedDocument[]> = {};
     
+    // Filter out flow-session documents (managed in AI Flow Builder)
+    const visibleDocuments = documents.filter(
+      doc => doc.metadata.documentType !== 'flow-session'
+    );
+    
     Object.keys(sourceTypeConfigs).forEach(type => {
-      categories[type] = documents.filter(doc => {
+      categories[type] = visibleDocuments.filter(doc => {
         // Primary filter by document type
         if (doc.metadata.documentType === type) return true;
         
@@ -174,8 +179,8 @@ export function SourcesPanel({
       });
     });
     
-    // Add "all" category
-    categories.all = documents;
+    // Add "all" category (excluding flow-session documents)
+    categories.all = visibleDocuments;
     
     return categories;
   }, [documents]);
@@ -242,11 +247,11 @@ export function SourcesPanel({
   const getReliabilityIndicator = (reliability?: string) => {
     switch (reliability) {
       case 'high':
-        return <CheckCircle className="w-4 h-4 text-green-500" title="High reliability source" />;
+        return <span title="High reliability source"><CheckCircle className="w-4 h-4 text-green-500" /></span>;
       case 'medium':
-        return <Info className="w-4 h-4 text-yellow-500" title="Medium reliability source" />;
+        return <span title="Medium reliability source"><Info className="w-4 h-4 text-yellow-500" /></span>;
       case 'low':
-        return <AlertCircle className="w-4 h-4 text-red-500" title="Low reliability source" />;
+        return <span title="Low reliability source"><AlertCircle className="w-4 h-4 text-red-500" /></span>;
       default:
         return null;
     }

@@ -17,7 +17,7 @@ import { RAGDocument } from "../../types/rag";
 import { OriginalAssetStore } from "@/lib/storage/OriginalAssetStore";
 
 // Document type enum
-export type DocumentType = 'userdocs' | 'virtual-docs' | 'ai-frames' | 'timecapsule' | 'bubblspace';
+export type DocumentType = 'userdocs' | 'virtual-docs' | 'ai-frames' | 'timecapsule' | 'bubblspace' | 'flow-session';
 
 // Add RxDB plugins
 addRxPlugin(RxDBDevModePlugin);
@@ -27,7 +27,7 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Document schema for RxDB
 const documentSchema = {
-  version: 5, // v5 normalizes chunk metadata + asset references
+  version: 6, // v6 adds 'flow-session' document type for session management
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -53,7 +53,7 @@ const documentSchema = {
         isGenerated: { type: 'boolean' },
         documentType: { 
           type: 'string',
-          enum: ['userdocs', 'virtual-docs', 'ai-frames', 'timecapsule', 'bubblspace']
+          enum: ['userdocs', 'virtual-docs', 'ai-frames', 'timecapsule', 'bubblspace', 'flow-session']
         },
         // Additional fields from previous schema
         bubblSpaceId: { type: 'string' },
@@ -471,6 +471,12 @@ export class VectorStore {
                   },
                   chunks: normalizedChunks
                 };
+              },
+              // Migration from version 5 to version 6 - add 'flow-session' document type
+              6: function(oldDoc: any) {
+                // No changes needed - just adding new enum value to documentType
+                // Existing documents remain unchanged
+                return oldDoc;
               }
             }
           }
@@ -597,6 +603,12 @@ export class VectorStore {
                   },
                   chunks: normalizedChunks
                 };
+              },
+              // Migration from version 5 to version 6 - add 'flow-session' document type
+              6: function(oldDoc: any) {
+                // No changes needed - just adding new enum value to documentType
+                // Existing documents remain unchanged
+                return oldDoc;
               }
             }
           }

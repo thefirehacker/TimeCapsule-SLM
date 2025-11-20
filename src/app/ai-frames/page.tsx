@@ -57,6 +57,7 @@ import { SafeImportDialog } from "@/components/ui/safe-import-dialog";
 import { ChapterDialog } from "@/components/ai-graphs/chapter-dialog";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
 import { AIFlowBuilderPanel } from "./components/AIFlowBuilderPanel";
+import { SessionContinuationDialog } from "./components/SessionContinuationDialog";
 import {
   Dialog,
   DialogContent,
@@ -878,6 +879,15 @@ export default function AIFramesPage() {
     includeGraph: false,
   });
 
+  // ✅ NEW: Session continuation dialog state
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [sessionDialogConfig, setSessionDialogConfig] = useState<{
+    type: "ai-flow" | "swe-bridge" | "manual";
+    currentSessionName?: string;
+    onContinue: () => void;
+    onCreateNew: () => void;
+  } | null>(null);
+
   const workspaceStats = useMemo(() => {
     const frames = unifiedStorage.frames;
     const chapters = unifiedStorage.chapters;
@@ -1055,6 +1065,92 @@ export default function AIFramesPage() {
         throw new Error(await response.text());
       }
       const data = await response.json();
+
+      // ✅ NEW: Session dialog logic for SWE Bridge sync
+      if (Array.isArray(data.frames) && data.frames.length > 0) {
+        const hasActiveSession = flowBuilder.activeSessionId;
+        const activeSession = flowBuilder.sessions.find(
+          (s) => s.id === flowBuilder.activeSessionId
+        );
+        const activeSource = activeSession?.source;
+
+        // If no session or session is not SWE Bridge, show dialog
+        if (!hasActiveSession || activeSource !== "swe-bridge") {
+          console.log("🔔 Showing session dialog for SWE Bridge sync");
+          setSessionDialogConfig({
+            type: "swe-bridge",
+            currentSessionName: activeSession?.name,
+            onContinue: async () => {
+              console.log("✅ Continuing with existing session for SWE Bridge");
+              // Use existing session - sync frames from SWE Bridge
+              if (Array.isArray(data.frames)) {
+                unifiedStorage.updateFrames(data.frames);
+              }
+              if (Array.isArray(data.chapters)) {
+                unifiedStorage.updateChapters(data.chapters);
+              }
+              if (data.graphState) {
+                unifiedStorage.updateGraphState(data.graphState);
+              }
+              const latestStamp =
+                data?.metadata?.lastUpdated || new Date().toISOString();
+              localBridgeRemoteStampRef.current = latestStamp;
+              localBridgeLastPulledRef.current = latestStamp;
+              setLocalBridgeHasPendingData(false);
+              setLocalBridgeSyncState("success");
+
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("auto-layout-requested", {
+                    detail: { source: "local-bridge" },
+                  })
+                );
+              }
+
+              setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
+            },
+            onCreateNew: async () => {
+              console.log("🆕 Creating new SWE Bridge session");
+              // Create new SWE Bridge session
+              flowBuilder.createNewSession(
+                "swe-bridge",
+                `SWE Sync ${new Date().toLocaleString()}`
+              );
+
+              // Then sync frames from SWE Bridge
+              if (Array.isArray(data.frames)) {
+                unifiedStorage.updateFrames(data.frames);
+              }
+              if (Array.isArray(data.chapters)) {
+                unifiedStorage.updateChapters(data.chapters);
+              }
+              if (data.graphState) {
+                unifiedStorage.updateGraphState(data.graphState);
+              }
+              const latestStamp =
+                data?.metadata?.lastUpdated || new Date().toISOString();
+              localBridgeRemoteStampRef.current = latestStamp;
+              localBridgeLastPulledRef.current = latestStamp;
+              setLocalBridgeHasPendingData(false);
+              setLocalBridgeSyncState("success");
+
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("auto-layout-requested", {
+                    detail: { source: "local-bridge" },
+                  })
+                );
+              }
+
+              setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
+            },
+          });
+          setShowSessionDialog(true);
+          return; // Wait for user choice
+        }
+      }
+
+      // Normal sync flow (no frames or already has SWE Bridge session)
       if (Array.isArray(data.frames)) {
         unifiedStorage.updateFrames(data.frames);
       }
@@ -1085,11 +1181,15 @@ export default function AIFramesPage() {
       setLocalBridgeSyncState("error");
       setTimeout(() => setLocalBridgeSyncState("idle"), 3000);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     localBridgeEnabled,
     unifiedStorage.updateFrames,
     unifiedStorage.updateChapters,
     unifiedStorage.updateGraphState,
+    // flowBuilder is used but not in deps - it's accessed via closure and is stable
+    setSessionDialogConfig,
+    setShowSessionDialog,
   ]);
 
   const broadcastChapterGraphSync = useCallback(
@@ -1133,6 +1233,15 @@ export default function AIFramesPage() {
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
   });
+
+  // Debug: Log session state changes
+  useEffect(() => {
+    console.log(`🔍 [PAGE-RENDER] Active session changed:`, {
+      activeSessionId: flowBuilder.activeSessionId,
+      sessionsCount: flowBuilder.sessions.length,
+      sessionsList: flowBuilder.sessions.map(s => ({ id: s.id, name: s.name, source: s.source }))
+    });
+  }, [flowBuilder.activeSessionId, flowBuilder.sessions]);
 
   const fileToDataUrl = useCallback((file: File) => {
     return new Promise<string>((resolve, reject) => {
@@ -1697,12 +1806,17 @@ export default function AIFramesPage() {
 
       // Auto-create manual session if needed
       let sessionForFrame: string | null = flowBuilder.activeSessionId;
+      console.log(`📊 [PAGE] Before session check - activeSessionId: ${flowBuilder.activeSessionId}, sessions count: ${flowBuilder.sessions.length}`);
+      
       if (!flowBuilder.activeSessionId || 
           (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
-        console.log("🆕 Auto-creating manual session for manual frame creation");
+        console.log("🆕 [PAGE] Auto-creating manual session for manual frame creation");
         const newSession = flowBuilder.createNewSession("manual", "Manual Session");
         sessionForFrame = newSession.id;
-        console.log(`✅ Created session ${sessionForFrame}, now syncing...`);
+        console.log(`✅ [PAGE] Created session ${sessionForFrame}`);
+        console.log(`📋 [PAGE] Sessions array now:`, flowBuilder.sessions.map(s => ({ id: s.id, name: s.name })));
+      } else {
+        console.log(`✓ [PAGE] Using existing session: ${sessionForFrame}`);
       }
 
       const fallbackIndex = unifiedStorage.frames.length + 1;
@@ -1775,6 +1889,61 @@ export default function AIFramesPage() {
     },
     [handleCreateFrame]
   );
+
+  // ✅ NEW: Helper to ensure a manual session exists for frame drops
+  const ensureManualSession = useCallback(() => {
+    console.log("🔍 Checking for manual session...", {
+      activeSessionId: flowBuilder.activeSessionId,
+      sessionsCount: flowBuilder.sessions.length,
+    });
+
+    // If no active session OR active session is not manual, create one
+    if (
+      !flowBuilder.activeSessionId ||
+      flowBuilder.sessions.find((s) => s.id === flowBuilder.activeSessionId)?.source !== "manual"
+    ) {
+      console.log("🆕 Auto-creating manual session for frame drop");
+      const newSession = flowBuilder.createNewSession("manual", "Manual Session");
+      console.log("✅ Manual session created:", newSession.id);
+      return newSession.id;
+    }
+
+    console.log("✅ Using existing manual session:", flowBuilder.activeSessionId);
+    return flowBuilder.activeSessionId;
+  }, [flowBuilder]);
+
+  // ✅ NEW: Event listener for ensuring manual session on frame drop
+  useEffect(() => {
+    const handleEnsureManualSession = () => {
+      ensureManualSession();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("ensure-manual-session", handleEnsureManualSession);
+      return () => window.removeEventListener("ensure-manual-session", handleEnsureManualSession);
+    }
+  }, [ensureManualSession]);
+
+  // ✅ NEW: Event listener for AI Flow session continuation dialog
+  useEffect(() => {
+    const handleAIFlowSessionCheck = (event: any) => {
+      const { currentSession, onContinue, onCreateNew } = event.detail;
+      console.log("🔔 Received AI Flow session check event", { currentSession });
+
+      setSessionDialogConfig({
+        type: "ai-flow",
+        currentSessionName: currentSession?.name,
+        onContinue,
+        onCreateNew,
+      });
+      setShowSessionDialog(true);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
+      return () => window.removeEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
+    }
+  }, [setSessionDialogConfig, setShowSessionDialog]);
 
   const handleAcceptAIFrames = useCallback(
     (frames: AIFrame[]) => {
@@ -2796,7 +2965,8 @@ export default function AIFramesPage() {
           doc.metadata.source === "aiframes_import" ||
           doc.metadata.source === "aiframes_combined" ||
           doc.title.toLowerCase().includes("timecapsule") ||
-          doc.metadata.isGenerated === true
+          doc.metadata.isGenerated === true ||
+          doc.metadata.documentType === "flow-session"
         );
       },
     },
@@ -2807,7 +2977,8 @@ export default function AIFramesPage() {
       filter: (doc: any) => {
         return (
           doc.metadata.source === "ai-frames" ||
-          doc.title.toLowerCase().includes("ai-frame")
+          doc.title.toLowerCase().includes("ai-frame") ||
+          doc.metadata.documentType === "flow-session"
         );
       },
     },
@@ -3519,6 +3690,27 @@ export default function AIFramesPage() {
             dispatchForceSave("chapter-dialog-cancelled");
           }}
         />
+      {/* ✅ NEW: Session Continuation Dialog */}
+      {showSessionDialog && sessionDialogConfig && (
+        <SessionContinuationDialog
+          open={showSessionDialog}
+          onOpenChange={setShowSessionDialog}
+          currentSessionName={
+            sessionDialogConfig.currentSessionName ||
+            flowBuilder.sessions.find((s) => s.id === flowBuilder.activeSessionId)?.name ||
+            "Current Session"
+          }
+          actionType={sessionDialogConfig.type}
+          onContinue={() => {
+            sessionDialogConfig.onContinue();
+            setShowSessionDialog(false);
+          }}
+          onCreateNew={() => {
+            sessionDialogConfig.onCreateNew();
+            setShowSessionDialog(false);
+          }}
+        />
+      )}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

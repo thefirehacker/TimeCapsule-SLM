@@ -1,68 +1,17 @@
 {
-  "frames": [
-    {
-      "id": "frame-1763647322947-6ens4pdw9",
-      "title": "Frame 1",
-      "goal": "Enter learning goal here...",
-      "informationText": "Provide background context and information...",
-      "afterVideoText": "Key takeaways and next steps...",
-      "aiConcepts": [],
-      "isGenerated": false,
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "type": "frame",
-      "createdAt": "2025-11-20T14:02:02.947Z",
-      "updatedAt": "2025-11-20T14:02:02.947Z",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-20T14:02:02.947Z",
-        "updatedAt": "2025-11-20T14:02:03.315Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T14:02:03.315Z"
-      },
-      "conceptIds": []
-    }
-  ],
+  "frames": [],
   "chapters": [],
   "graphState": {
-    "nodes": [
-      {
-        "id": "node_1763647322947_1ion8kbc8_2",
-        "type": "aiframe",
-        "position": {
-          "x": -44.75,
-          "y": 123.75
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame-1763647322947-6ens4pdw9",
-          "title": "Frame 1",
-          "goal": "Enter learning goal here...",
-          "informationText": "Provide background context and information...",
-          "afterVideoText": "Key takeaways and next steps...",
-          "aiConcepts": [],
-          "isGenerated": false,
-          "updatedAt": "2025-11-20T14:02:03.052Z"
-        },
-        "measured": {
-          "width": 480,
-          "height": 460
-        }
-      }
-    ],
+    "nodes": [],
     "edges": [],
-    "selectedNodeId": "node_1763647312994_8n9870vzd_1"
+    "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T14:02:03.496Z",
+    "lastUpdated": "2025-11-20T17:27:39.364Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-20T14:02:03.315Z",
-    "frameCount": 1,
-    "checksum": "eyJmcmFtZXMiOlt7"
+    "lastSaved": "2025-11-20T17:27:39.256Z",
+    "frameCount": 0,
+    "checksum": "eyJmcmFtZXMiOltd"
   }
 }

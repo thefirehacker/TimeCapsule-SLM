@@ -30,6 +30,14 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Bot,
   Loader2,
   Wand2,
@@ -136,6 +144,9 @@ export function AIFlowBuilderPanel({
   const [localBridgeBaseUrl, setLocalBridgeBaseUrl] = useState<string | null>(
     null
   );
+  const [clearLogsDialogOpen, setClearLogsDialogOpen] = useState(false);
+  const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
   const buildEnv = getBuildEnv();
   const localBridgeAvailable = isLocalBuildEnv();
   const localBridgeActive = aiProviders.activeProvider === "local-bridge";
@@ -1014,9 +1025,8 @@ const handleCopySwePrompt = async () => {
                             variant="ghost"
                             className="text-red-500 hover:text-red-600 hover:bg-red-50"
                             onClick={() => {
-                              if (confirm(`Delete session "${session.name}"?`)) {
-                                deleteSession(session.id);
-                              }
+                              setSessionToDelete({ id: session.id, name: session.name });
+                              setDeleteSessionDialogOpen(true);
                             }}
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
@@ -1040,11 +1050,7 @@ const handleCopySwePrompt = async () => {
                       variant="outline"
                       size="sm"
                       className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
-                      onClick={() => {
-                        if (confirm(`Clear all ${historySessions.length} legacy flow logs? This cannot be undone.`)) {
-                          historyActions.clearSessions();
-                        }
-                      }}
+                      onClick={() => setClearLogsDialogOpen(true)}
                     >
                       <Trash2 className="h-3 w-3 mr-2" />
                       Clear All Legacy Logs
@@ -1503,6 +1509,69 @@ const handleCopySwePrompt = async () => {
         onTestConnection={aiProviders.ollama.testConnection}
         connectionState={aiProviders.ollama.connectionState}
       />
+      
+      {/* Clear Legacy Logs Confirmation Dialog */}
+      <Dialog open={clearLogsDialogOpen} onOpenChange={setClearLogsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>localhost:3000 says</DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="py-4">
+            Clear all {historySessions.length} legacy flow logs? This cannot be undone.
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setClearLogsDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                historyActions.clearSessions();
+                setClearLogsDialogOpen(false);
+              }}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Session Confirmation Dialog */}
+      <Dialog open={deleteSessionDialogOpen} onOpenChange={setDeleteSessionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>localhost:3000 says</DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="py-4">
+            {sessionToDelete && `Delete session "${sessionToDelete.name}"?`}
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteSessionDialogOpen(false);
+                setSessionToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (sessionToDelete) {
+                  deleteSession(sessionToDelete.id);
+                  setDeleteSessionDialogOpen(false);
+                  setSessionToDelete(null);
+                }
+              }}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <input
         ref={historyImportInputRef}
         type="file"

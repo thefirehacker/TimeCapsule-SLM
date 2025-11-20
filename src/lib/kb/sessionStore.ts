@@ -37,20 +37,41 @@ export class SessionStore {
    */
   async saveSession(session: FlowSession): Promise<void> {
     try {
-      const sessionDoc: SessionDocument = {
-        id: `session_${session.id}`,
-        type: "session",
-        session,
-        searchableText: this.buildSearchableText(session),
+      const docId = `session_${session.id}`;
+      const content = JSON.stringify(session);
+      
+      const documentData: any = {
+        id: docId,
+        title: session.name,
+        content: content,
+        metadata: {
+          filename: session.name,
+          filesize: content.length,
+          filetype: 'application/json',
+          uploadedAt: session.updatedAt,
+          source: session.source,
+          description: `Flow session: ${session.name}`,
+          isGenerated: false,
+          documentType: 'flow-session' as const,
+          sessionId: session.id,
+          sessionSource: session.source,
+          sessionStatus: session.status,
+        },
+        chunks: [
+          {
+            id: `chunk_${docId}_0`,
+            content: content,
+            startIndex: 0,
+            endIndex: content.length,
+            pageNumber: null,
+            sectionTitle: null,
+            embedding: null,
+          },
+        ],
+        vectors: [],
       };
 
-      // Store as a special document in KB
-      await this.vectorStore.addVirtualDocument(
-        session.name,                     // title
-        JSON.stringify(session),           // content
-        `flow-session://${session.id}`     // url
-      );
-
+      await this.vectorStore.upsertDocument(documentData);
       console.log(`💾 Session saved: ${session.name} (${session.id})`);
     } catch (error) {
       console.error("❌ Failed to save session:", error);
@@ -87,7 +108,9 @@ export class SessionStore {
   async listSessions(): Promise<FlowSession[]> {
     try {
       const docs = await this.vectorStore.getAllDocuments();
-      const sessionDocs = docs.filter((d) => d.id.startsWith("session_"));
+      const sessionDocs = docs.filter(
+        (d) => d.id.startsWith("session_") && d.metadata?.documentType === 'flow-session'
+      );
 
       const sessions = sessionDocs
         .map((doc) => {

@@ -3138,6 +3138,16 @@ export default function EnhancedLearningGraph({
         data: newNodeData,
       };
 
+      // ✅ NEW: Ensure manual session exists when dropping AI Frame
+      if (type === 'aiframe') {
+        if (typeof window !== 'undefined') {
+          console.log("🎯 Dispatching ensure-manual-session event for frame drop");
+          window.dispatchEvent(new CustomEvent('ensure-manual-session', {
+            detail: { source: 'frame-drop', nodeId }
+          }));
+        }
+      }
+
       if (type === 'chapter') {
         boundChapterUpdateHandlers.current.add(nodeId);
         const existingChapters = chaptersRef.current || [];

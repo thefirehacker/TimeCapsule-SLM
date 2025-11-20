@@ -794,16 +794,52 @@ export function useAIFlowBuilder({
         store.listSessions().then((loadedSessions) => {
           setSessions(loadedSessions);
           console.log(`📋 Loaded ${loadedSessions.length} sessions from KB`);
+          
+          // ✅ NEW: Restore active session from localStorage if it exists
+          const savedActiveId = localStorage.getItem('timecapsule_active_session_id');
+          if (savedActiveId && loadedSessions.some(s => s.id === savedActiveId)) {
+            console.log(`🔄 Restoring active session from localStorage: ${savedActiveId}`);
+            setActiveSessionId(savedActiveId);
+            // Load the session state for the restored session
+            const restoredSession = loadedSessions.find(s => s.id === savedActiveId);
+            if (restoredSession) {
+              setSessionState(restoredSession.sessionState);
+            }
+          } else if (savedActiveId) {
+            console.log(`⚠️ Saved session ID ${savedActiveId} not found in loaded sessions, clearing localStorage`);
+            localStorage.removeItem('timecapsule_active_session_id');
+          }
         });
       });
     }
   }, [vectorStore, vectorStoreInitialized, sessionStore]);
 
-  // Load sessions from KB on mount
+  // Load sessions from KB when sessionStore changes
+  // Note: This useEffect runs after the initialization useEffect above
   useEffect(() => {
     if (sessionStore) {
       sessionStore.listSessions().then((loadedSessions) => {
         setSessions(loadedSessions);
+        
+        // ✅ FIXED: Also restore active session here to handle cases where this runs after initialization
+        const savedActiveId = localStorage.getItem('timecapsule_active_session_id');
+        if (savedActiveId && loadedSessions.some(s => s.id === savedActiveId)) {
+          // Only restore if not already set
+          setActiveSessionId(prevId => {
+            if (!prevId) {
+              console.log(`✅ Restored active session from localStorage: ${savedActiveId}`);
+              const restoredSession = loadedSessions.find(s => s.id === savedActiveId);
+              if (restoredSession) {
+                setSessionState(restoredSession.sessionState);
+              }
+              return savedActiveId;
+            }
+            return prevId; // Keep existing activeSessionId
+          });
+        } else if (savedActiveId) {
+          console.log(`⚠️ Saved session ID ${savedActiveId} not found, clearing localStorage`);
+          localStorage.removeItem('timecapsule_active_session_id');
+        }
       });
     }
   }, [sessionStore]);
@@ -814,9 +850,23 @@ export function useAIFlowBuilder({
       if (!sessionStore) {
         throw new Error("SessionStore not initialized");
       }
+      console.log(`🎬 [SESSION] Creating new ${source} session...`);
       const newSession = sessionStore.createNewSession(source, name);
-      setSessions((prev) => [newSession, ...prev]);
-      setActiveSessionId(newSession.id);
+      console.log(`📦 [SESSION] New session object created:`, {
+        id: newSession.id,
+        name: newSession.name,
+        source: newSession.source
+      });
+      
+      setSessions((prev) => {
+        console.log(`📋 [SESSION] Updating sessions array: ${prev.length} -> ${prev.length + 1}`);
+        return [newSession, ...prev];
+      });
+      
+      setActiveSessionId((prevId) => {
+        console.log(`🎯 [SESSION] Setting active session ID: ${prevId} -> ${newSession.id}`);
+        return newSession.id;
+      });
       
       // Sync Mastery Progress to new session (starts at 0%)
       setSessionState(newSession.sessionState);
@@ -840,7 +890,17 @@ export function useAIFlowBuilder({
         }
       }
       
-      console.log(`🆕 Created new ${source} session: ${newSession.name}`);
+      // Immediately save the new session to VectorStore for persistence
+      if (sessionStore) {
+        console.log(`💾 [SESSION] Saving new session to VectorStore...`);
+        sessionStore.saveSession(newSession).then(() => {
+          console.log(`✅ [SESSION] New session saved to VectorStore`);
+        }).catch((error) => {
+          console.error(`❌ [SESSION] Failed to save new session:`, error);
+        });
+      }
+      
+      console.log(`✅ [SESSION] Session creation complete. Returning session ID: ${newSession.id}`);
       return newSession;
     },
     [sessionStore]
@@ -1052,12 +1112,12 @@ export function useAIFlowBuilder({
     });
   }, [activeSessionId]);
 
-  // Auto-save on changes (debounced)
-  useEffect(() => {
-    if (activeSessionId && (plan || frameDrafts.length > 0 || sessionState)) {
-      saveCurrentSession(false); // Debounced save
-    }
-  }, [activeSessionId, plan, frameDrafts, sessionState, saveCurrentSession]);
+  // ✅ REMOVED: Auto-save on changes useEffect (was causing KB spam)
+  // The useEffect that triggered saveCurrentSession on every state change
+  // has been removed. Saves now happen via:
+  // 1. 2-minute interval auto-save (below)
+  // 2. Explicit saves on important actions (session creation, etc.)
+  // This prevents hundreds of duplicate session documents in KB.
 
   // Auto-save on 2-minute interval
   useEffect(() => {
@@ -1070,12 +1130,26 @@ export function useAIFlowBuilder({
 
     return () => {
       clearInterval(intervalId);
-      // Save one last time on unmount
-      if (activeSessionId) {
-        saveCurrentSession(true);
-      }
+      // ✅ FIX: Removed cleanup save to prevent KB spam
+      // The cleanup was saving on EVERY unmount (including re-renders),
+      // creating thousands of duplicate session documents.
+      // The 2-minute interval already handles regular saves,
+      // and explicit saves happen on important actions.
     };
   }, [activeSessionId, saveCurrentSession]);
+
+  // ✅ FIXED: Persist activeSessionId to localStorage for restoration after page reload
+  // Only persist when there's a value - don't clear on initial mount (null)
+  // Clearing is handled by the restoration logic when a saved session is invalid
+  useEffect(() => {
+    if (activeSessionId) {
+      console.log(`💾 Persisting active session ID to localStorage: ${activeSessionId}`);
+      localStorage.setItem('timecapsule_active_session_id', activeSessionId);
+    }
+    // Note: We don't clear localStorage here when activeSessionId is null
+    // because it might be null on initial mount before restoration happens.
+    // The restoration logic (lines 799-811) handles clearing invalid sessions.
+  }, [activeSessionId]);
 
   const persistSessionToKnowledgeBase = useCallback(
     async (state: LearningSessionState) => {
@@ -1732,15 +1806,26 @@ export function useAIFlowBuilder({
 
     // Session Management: Create or use active AI Flow session
     let aiFlowSession: FlowSession | null = null;
-    if (activeSessionId && sessions.find((s) => s.id === activeSessionId)?.source === "ai-flow") {
+    const activeSession = sessions.find((s) => s.id === activeSessionId);
+
+    // ✅ NEW: Check if user wants to continue with non-AI-Flow session
+    if (activeSessionId && activeSession && activeSession.source !== "ai-flow") {
+      console.log("🔔 Active session is not AI Flow - will show dialog to user");
+      // For now, create new AI Flow session automatically
+      // TODO: The dialog will be shown via event, but for now we proceed with new session
+      if (sessionStore) {
+        aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
+        console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
+      }
+    } else if (activeSessionId && activeSession?.source === "ai-flow") {
       // Use existing active AI Flow session
-      aiFlowSession = sessions.find((s) => s.id === activeSessionId) || null;
+      aiFlowSession = activeSession;
       console.log(`📂 Using existing AI Flow session: ${aiFlowSession?.name}`);
     } else {
       // Create new AI Flow session
       if (sessionStore) {
         aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
-        console.log(`🆕 Created new AI Flow session: ${aiFlowSession.name}`);
+        console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
       }
     }
 
