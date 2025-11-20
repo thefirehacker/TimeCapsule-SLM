@@ -1696,10 +1696,13 @@ export default function AIFramesPage() {
         : 1;
 
       // Auto-create manual session if needed
+      let sessionForFrame: string | null = flowBuilder.activeSessionId;
       if (!flowBuilder.activeSessionId || 
           (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
         console.log("🆕 Auto-creating manual session for manual frame creation");
-        flowBuilder.createNewSession("manual", "Manual Session");
+        const newSession = flowBuilder.createNewSession("manual", "Manual Session");
+        sessionForFrame = newSession.id;
+        console.log(`✅ Created session ${sessionForFrame}, now syncing...`);
       }
 
       const fallbackIndex = unifiedStorage.frames.length + 1;
@@ -1733,8 +1736,9 @@ export default function AIFramesPage() {
       const updatedFrames = [...unifiedStorage.frames, newFrame];
       unifiedStorage.updateFrames(updatedFrames);
 
-      // Sync frame to active session
-      if (flowBuilder.activeSessionId && flowBuilder.syncFrameToSession) {
+      // Sync frame to active session (use sessionForFrame which has the just-created session ID)
+      if (sessionForFrame && flowBuilder.syncFrameToSession) {
+        console.log(`🔄 Syncing frame ${newFrame.id} to session ${sessionForFrame}`);
         flowBuilder.syncFrameToSession(newFrame);
       }
 
@@ -3180,9 +3184,11 @@ export default function AIFramesPage() {
                           setIsFlowPanelOpen(true);
                           // Scroll to Flow Sessions section after panel opens
                           setTimeout(() => {
-                            const flowSessionsSection = document.querySelector('[class*="Flow Sessions"]')?.parentElement;
+                            const flowSessionsSection = document.getElementById('flow-sessions-section');
                             if (flowSessionsSection) {
                               flowSessionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            } else {
+                              console.warn('⚠️ Flow sessions section not found');
                             }
                           }, 300);
                         }}

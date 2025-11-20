@@ -1,245 +1,68 @@
 {
   "frames": [
     {
-      "id": "frame_1763646338484_u2bxhpjdq",
-      "title": "f11",
-      "goal": "",
-      "informationText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "afterVideoText": "",
+      "id": "frame-1763647322947-6ens4pdw9",
+      "title": "Frame 1",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
       "aiConcepts": [],
-      "conceptIds": [],
       "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
       "order": 1,
-      "parentFrameId": "chapter_1763646352327_ehklct",
-      "chapterId": "chapter_1763646352327_ehklct",
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
       "type": "frame",
-      "createdAt": "2025-11-20T13:45:38.483Z",
-      "updatedAt": "2025-11-20T13:45:38.483Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-20T13:45:38.483Z",
-        "updatedAt": "2025-11-20T13:45:57.366Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T13:45:57.366Z"
-      }
-    },
-    {
-      "id": "frame_1763646345721_g66d3y1th",
-      "title": "f222",
-      "goal": "",
-      "informationText": "",
+      "createdAt": "2025-11-20T14:02:02.947Z",
+      "updatedAt": "2025-11-20T14:02:02.947Z",
       "videoUrl": "",
       "startTime": 0,
-      "duration": 0,
-      "afterVideoText": "",
-      "aiConcepts": [],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 2,
-      "parentFrameId": "chapter_1763646352327_ehklct",
-      "chapterId": "chapter_1763646352327_ehklct",
-      "type": "frame",
-      "createdAt": "2025-11-20T13:45:45.721Z",
-      "updatedAt": "2025-11-20T13:45:45.721Z",
-      "notes": "",
-      "documents": [],
+      "duration": 300,
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-20T13:45:45.721Z",
-        "updatedAt": "2025-11-20T13:45:57.366Z",
+        "createdAt": "2025-11-20T14:02:02.947Z",
+        "updatedAt": "2025-11-20T14:02:03.315Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-20T13:45:57.366Z"
-      }
+        "lastSaved": "2025-11-20T14:02:03.315Z"
+      },
+      "conceptIds": []
     }
   ],
-  "chapters": [
-    {
-      "id": "chapter_1763646352327_ehklct",
-      "title": "c1111",
-      "description": "",
-      "color": "#3B82F6",
-      "conceptIds": [],
-      "frameIds": [
-        "frame_1763646338484_u2bxhpjdq",
-        "frame_1763646345721_g66d3y1th"
-      ],
-      "order": 0,
-      "createdAt": "2025-11-20T13:45:52.327Z",
-      "updatedAt": "2025-11-20T13:45:57.366Z",
-      "linkSequentially": true
-    }
-  ],
+  "chapters": [],
   "graphState": {
     "nodes": [
       {
-        "id": "node_1763646338486_lnmvjexn7_2",
+        "id": "node_1763647322947_1ion8kbc8_2",
         "type": "aiframe",
         "position": {
-          "x": -240.8386845604612,
-          "y": 112.66022537441819
+          "x": -44.75,
+          "y": 123.75
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_1763646338484_u2bxhpjdq",
-          "title": "f11",
-          "goal": "",
-          "informationText": "",
-          "afterVideoText": "",
+          "frameId": "frame-1763647322947-6ens4pdw9",
+          "title": "Frame 1",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false,
-          "chapterId": "chapter_1763646352327_ehklct",
-          "parentFrameId": "chapter_1763646352327_ehklct",
-          "updatedAt": "2025-11-20T13:45:52.343Z"
+          "updatedAt": "2025-11-20T14:02:03.052Z"
         },
         "measured": {
           "width": 480,
           "height": 460
-        },
-        "selected": false,
-        "dragging": false
-      },
-      {
-        "id": "node_1763646345722_1rvckhov4_3",
-        "type": "aiframe",
-        "position": {
-          "x": 236.69887312790905,
-          "y": 89.60594863953477
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763646345721_g66d3y1th",
-          "title": "f222",
-          "goal": "",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [],
-          "isGenerated": false,
-          "chapterId": "chapter_1763646352327_ehklct",
-          "parentFrameId": "chapter_1763646352327_ehklct",
-          "updatedAt": "2025-11-20T13:45:52.343Z"
-        },
-        "measured": {
-          "width": 480,
-          "height": 460
-        },
-        "selected": true,
-        "dragging": false
-      },
-      {
-        "id": "chapter_1763646352327_ehklct",
-        "type": "chapter",
-        "position": {
-          "x": -12.562091225579792,
-          "y": -203.72046915232164
-        },
-        "data": {
-          "type": "chapter",
-          "id": "chapter_1763646352327_ehklct",
-          "title": "c1111",
-          "description": "",
-          "frameIds": [
-            "frame_1763646338484_u2bxhpjdq",
-            "frame_1763646345721_g66d3y1th"
-          ],
-          "conceptIds": [],
-          "order": 0,
-          "color": "#3B82F6",
-          "linkSequentially": true,
-          "updatedAt": "2025-11-20T13:45:52.744Z"
-        },
-        "measured": {
-          "width": 320,
-          "height": 188
-        },
-        "selected": false,
-        "dragging": false
-      }
-    ],
-    "edges": [
-      {
-        "id": "edge_chapter_chapter_1763646352327_ehklct_node_1763646338486_lnmvjexn7_2",
-        "source": "chapter_1763646352327_ehklct",
-        "target": "node_1763646338486_lnmvjexn7_2",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1763646352327_ehklct"
-        }
-      },
-      {
-        "id": "edge_chapter_chapter_1763646352327_ehklct_node_1763646345722_1rvckhov4_3",
-        "source": "chapter_1763646352327_ehklct",
-        "target": "node_1763646345722_1rvckhov4_3",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1763646352327_ehklct"
-        }
-      },
-      {
-        "id": "edge_seq_node_1763646338486_lnmvjexn7_2_node_1763646345722_1rvckhov4_3",
-        "source": "node_1763646338486_lnmvjexn7_2",
-        "target": "node_1763646345722_1rvckhov4_3",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763646352327_ehklct"
         }
       }
     ],
-    "selectedNodeId": "node_1763646245804_6n5zl2k2z_1"
+    "edges": [],
+    "selectedNodeId": "node_1763647312994_8n9870vzd_1"
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T13:45:58.041Z",
+    "lastUpdated": "2025-11-20T14:02:03.496Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-20T13:45:57.366Z",
-    "frameCount": 2,
+    "lastSaved": "2025-11-20T14:02:03.315Z",
+    "frameCount": 1,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

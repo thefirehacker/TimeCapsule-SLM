@@ -906,7 +906,7 @@ const handleCopySwePrompt = async () => {
               </section>
             )}
 
-            <section className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+            <section id="flow-sessions-section" className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h4 className="text-slate-900 font-semibold">Flow Sessions</h4>
@@ -1032,23 +1032,38 @@ const handleCopySwePrompt = async () => {
               {/* Legacy Flow History (kept for logs) */}
               {historySessions.length > 0 && (
                 <details className="mt-4">
-                  <summary className="text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900">
-                    Legacy Flow Logs ({historySessions.length})
+                  <summary className="text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 flex items-center justify-between">
+                    <span>Legacy Flow Logs ({historySessions.length})</span>
                   </summary>
-                  <div className="mt-2 space-y-2 max-h-40 overflow-auto">
-                    {historySessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className="rounded-lg border border-slate-200 bg-white p-2 text-xs"
-                      >
-                        <p className="font-medium text-slate-800 truncate">
-                          {session.prompt}
-                        </p>
-                        <p className="text-slate-500">
-                          {new Date(session.updatedAt).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
+                  <div className="mt-2 space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+                      onClick={() => {
+                        if (confirm(`Clear all ${historySessions.length} legacy flow logs? This cannot be undone.`)) {
+                          historyActions.clearSessions();
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 mr-2" />
+                      Clear All Legacy Logs
+                    </Button>
+                    <div className="space-y-2 max-h-40 overflow-auto">
+                      {historySessions.map((session) => (
+                        <div
+                          key={session.id}
+                          className="rounded-lg border border-slate-200 bg-white p-2 text-xs"
+                        >
+                          <p className="font-medium text-slate-800 truncate">
+                            {session.prompt}
+                          </p>
+                          <p className="text-slate-500">
+                            {new Date(session.updatedAt).toLocaleString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </details>
               )}
