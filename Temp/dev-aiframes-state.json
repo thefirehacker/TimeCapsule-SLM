@@ -1,17 +1,1279 @@
 {
-  "frames": [],
-  "chapters": [],
+  "frames": [
+    {
+      "id": "frame_1763361560909_fleet_intro",
+      "title": "Introduction to Ship Fleet History",
+      "goal": "Understand the structure and purpose of ship fleet documentation",
+      "informationText": "Ship fleet history documents provide comprehensive records of vessels operated by maritime companies. These records include critical specifications such as ship names (in both English and Japanese for international operations), physical dimensions, engine specifications, service speeds, shipyard builders, and construction years. This data is essential for fleet management, maintenance planning, operational efficiency analysis, and historical documentation of maritime operations.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Key takeaway: Fleet history serves as a comprehensive database for understanding vessel capabilities, operational history, and fleet evolution over time.",
+      "aiConcepts": [
+        "fleet management",
+        "maritime operations",
+        "ship documentation",
+        "vessel specifications"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560908_fleet_overview",
+      "chapterId": "chapter_1763361560908_fleet_overview",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560910_fleet_categories",
+      "title": "Ship Categories and Types in the Fleet",
+      "goal": "Learn about different vessel categories represented in fleet records",
+      "informationText": "Maritime fleets typically consist of various vessel types, each designed for specific cargo or operational requirements. Common categories include: container ships (for standardized cargo), bulk carriers (for raw materials), tankers (for liquid cargo), and specialized vessels. Each category has distinct dimensional requirements, power needs, and speed characteristics. The fleet data shows vessels ranging from smaller ships (110×16m) to larger vessels (210×37m), indicating a diverse operational portfolio.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Remember: Different ship types require different specifications - understanding these categories helps in fleet planning and operational decisions.",
+      "aiConcepts": [
+        "vessel types",
+        "container ships",
+        "bulk carriers",
+        "fleet diversity"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560908_fleet_overview",
+      "chapterId": "chapter_1763361560908_fleet_overview",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560919_dimensions",
+      "title": "Ship Dimensions: Length and Breadth",
+      "goal": "Understand how ship dimensions affect capacity and operations",
+      "informationText": "Ship dimensions are critical specifications that determine cargo capacity, port accessibility, and operational capabilities. The fleet shows a wide range: from smaller vessels like GYOKUKAI MARU (110×16m) to larger ships like NINE FRONTIER (210×37m). Length Overall (LOA) and Breadth Moulded (Bmld) measurements are standardized metrics. Length affects cargo capacity and speed potential, while breadth impacts stability and cargo handling. Modern vessels tend toward larger dimensions for economies of scale, as seen in newer ships (200×32m, 210×37m) compared to older ones (110×16m, 162×38m).",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Key insight: Ship dimensions directly correlate with cargo capacity and operational efficiency - larger ships can carry more cargo but require deeper ports and wider channels.",
+      "aiConcepts": [
+        "LOA",
+        "breadth moulded",
+        "cargo capacity",
+        "port accessibility",
+        "ship dimensions"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560918_specifications",
+      "chapterId": "chapter_1763361560918_specifications",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560920_naming",
+      "title": "Ship Naming Conventions: English and Japanese",
+      "goal": "Learn about bilingual ship naming in international maritime operations",
+      "informationText": "Many ships in international fleets have names in both English and Japanese (船名), reflecting the global nature of maritime operations. Examples include GYOKUKAI MARU (玉海丸), CHUETSUSAN MARU (中越山丸), and TAIO MARU (大王丸). The suffix 'MARU' (丸) is a traditional Japanese naming convention. Modern international vessels often use English-only names (WORLD SWAN II, NINE FRONTIER) for global recognition. Bilingual naming facilitates operations in both Japanese and international ports, improving communication and regulatory compliance.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Remember: Ship names reflect operational context - traditional Japanese names with 'MARU' suffix vs. modern English names for international operations.",
+      "aiConcepts": [
+        "ship naming",
+        "maritime conventions",
+        "bilingual operations",
+        "international shipping"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560918_specifications",
+      "chapterId": "chapter_1763361560918_specifications",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560929_engine_power",
+      "title": "Main Engine Power: Maximum Continuous Rating (MCR)",
+      "goal": "Understand engine horsepower and its relationship to ship performance",
+      "informationText": "Main Engine Maximum Continuous Rating (MCR) in horsepower (hp) indicates the sustained power output a ship's engine can deliver. The fleet shows power ranges from D 3,300 hp (GYOKUKAI MARU) to D 14,000 hp (TAIO MARU). The 'D' prefix typically indicates diesel engines. Higher horsepower enables: (1) Greater cargo capacity handling, (2) Higher service speeds, (3) Better performance in adverse conditions. Modern vessels tend to have higher power ratings - newer ships (11,665-12,889 hp) compared to older ones (3,300-9,900 hp), reflecting advances in engine technology and efficiency.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Key insight: Engine power must be matched to vessel size and operational requirements - larger ships require more powerful engines.",
+      "aiConcepts": [
+        "MCR",
+        "horsepower",
+        "diesel engines",
+        "engine power",
+        "propulsion"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560928_performance",
+      "chapterId": "chapter_1763361560928_performance",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560930_service_speed",
+      "title": "Service Speed: Operational Performance",
+      "goal": "Learn how service speed affects maritime operations and scheduling",
+      "informationText": "Service speed (measured in knots, kt) represents the operational cruising speed a vessel maintains during normal operations. The fleet shows speeds ranging from 12.5 kt (GYOKUKAI MARU) to 15.1 kt (TAIO MARU). Service speed is typically 85-90% of maximum speed, optimized for fuel efficiency. Higher speeds enable: (1) Faster transit times, (2) More voyages per year, (3) Better schedule reliability. However, higher speeds increase fuel consumption exponentially. Modern vessels balance speed with fuel efficiency - newer ships (14.0-14.6 kt) show optimized performance compared to older designs (12.5-13.1 kt).",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Remember: Service speed is a trade-off between transit time and fuel costs - optimal speed balances operational efficiency with economic performance.",
+      "aiConcepts": [
+        "service speed",
+        "knots",
+        "fuel efficiency",
+        "operational speed",
+        "maritime scheduling"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560928_performance",
+      "chapterId": "chapter_1763361560928_performance",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560939_shipyards",
+      "title": "Shipyards and Builders: Construction Partners",
+      "goal": "Understand the role of shipyards in fleet development",
+      "informationText": "Shipyards (建造所) are specialized facilities that construct vessels according to specifications. The fleet shows various builders: Usuki Iron Works, MES, Harima Shipbuilding, MHIN, TSX, and SDX. Different shipyards specialize in different vessel types and sizes. Japanese shipyards (Usuki, Harima) have long traditions, while modern abbreviations (TSX, SDX, MHIN) may represent international partnerships or modern shipyard groups. Shipyard selection affects: (1) Construction quality and standards, (2) Delivery timelines, (3) Cost efficiency, (4) Post-construction support. Fleet diversity across multiple builders indicates strategic sourcing and risk management.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Key takeaway: Shipyard selection is strategic - different builders offer different capabilities, costs, and delivery schedules.",
+      "aiConcepts": [
+        "shipyards",
+        "shipbuilders",
+        "construction",
+        "maritime industry",
+        "fleet development"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560938_construction",
+      "chapterId": "chapter_1763361560938_construction",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763361560940_timeline",
+      "title": "Fleet Evolution: Construction Timeline Analysis",
+      "goal": "Analyze how fleet characteristics evolved over time",
+      "informationText": "Construction years (建造) reveal fleet evolution trends. The data shows vessels from the 1980s (SNIMOS ACE, 1983) to modern ships (WORLD SWAN II, 2006; NINE FRONTIER, 2008). Key trends: (1) Size increase - newer ships (200-210m length) vs. older (110-176m), (2) Power advancement - modern engines (11,665-12,889 hp) vs. older (3,300-9,900 hp), (3) Speed optimization - newer vessels maintain 14.0-14.6 kt with better fuel efficiency, (4) Design evolution - from traditional Japanese names to international naming. This evolution reflects: technological advances, market demands, regulatory changes (emissions, safety), and operational efficiency improvements.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Remember: Fleet evolution reflects industry trends - larger, more powerful, and more efficient vessels represent decades of maritime technology advancement.",
+      "aiConcepts": [
+        "fleet evolution",
+        "construction timeline",
+        "maritime technology",
+        "industry trends",
+        "vessel modernization"
+      ],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763361560938_construction",
+      "chapterId": "chapter_1763361560938_construction",
+      "type": "frame",
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-17T06:39:20.907846Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame-1763659885064-mco7sdqb5",
+      "title": "manual Frame",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
+      "aiConcepts": [],
+      "isGenerated": false,
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "type": "frame",
+      "createdAt": "2025-11-20T17:32:48.503Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-20T17:32:48.503Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      },
+      "conceptIds": []
+    },
+    {
+      "id": "frame_1763660242087_a1b3kimwi",
+      "title": "f66",
+      "goal": "",
+      "informationText": "",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "",
+      "aiConcepts": [],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763660249622_8155pw",
+      "chapterId": "chapter_1763660249622_8155pw",
+      "type": "frame",
+      "createdAt": "2025-11-20T17:37:22.086Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-20T17:37:22.086Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    },
+    {
+      "id": "frame_1763660247790_gm09fjrs6",
+      "title": "f77",
+      "goal": "",
+      "informationText": "",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "",
+      "aiConcepts": [],
+      "conceptIds": [],
+      "isGenerated": false,
+      "sourceGoal": "",
+      "sourceUrl": "",
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "chapter_1763660249622_8155pw",
+      "chapterId": "chapter_1763660249622_8155pw",
+      "type": "frame",
+      "createdAt": "2025-11-20T17:37:27.789Z",
+      "updatedAt": "2025-11-20T17:37:43.448Z",
+      "notes": "",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-20T17:37:27.789Z",
+        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T17:53:34.170Z"
+      }
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1763361560908_fleet_overview",
+      "title": "Fleet Overview",
+      "description": "Introduction to ship fleet history and vessel categories",
+      "color": "#3B82F6",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1763361560909_fleet_intro",
+        "frame_1763361560910_fleet_categories"
+      ],
+      "order": 0,
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:53:34.170Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_1763361560918_specifications",
+      "title": "Ship Specifications",
+      "description": "Understanding ship dimensions and naming conventions",
+      "color": "#10B981",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1763361560919_dimensions",
+        "frame_1763361560920_naming"
+      ],
+      "order": 1,
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:53:34.170Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_1763361560928_performance",
+      "title": "Engine Power and Performance",
+      "description": "Understanding engine specifications and service speeds",
+      "color": "#8B5CF6",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1763361560929_engine_power",
+        "frame_1763361560930_service_speed"
+      ],
+      "order": 2,
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:53:34.170Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_1763361560938_construction",
+      "title": "Shipyards and Construction",
+      "description": "Understanding shipyard partnerships and fleet evolution over time",
+      "color": "#F59E0B",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1763361560939_shipyards",
+        "frame_1763361560940_timeline"
+      ],
+      "order": 3,
+      "createdAt": "2025-11-17T06:39:20.907846Z",
+      "updatedAt": "2025-11-20T17:53:34.170Z",
+      "linkSequentially": true
+    },
+    {
+      "id": "chapter_1763660249622_8155pw",
+      "title": "C5",
+      "description": "",
+      "color": "#3B82F6",
+      "conceptIds": [],
+      "frameIds": [
+        "frame_1763660242087_a1b3kimwi",
+        "frame_1763660247790_gm09fjrs6"
+      ],
+      "order": 4,
+      "createdAt": "2025-11-20T17:37:29.622Z",
+      "updatedAt": "2025-11-20T17:53:34.170Z",
+      "linkSequentially": true
+    }
+  ],
   "graphState": {
-    "nodes": [],
-    "edges": [],
+    "nodes": [
+      {
+        "id": "chapter_1763361560908_fleet_overview",
+        "type": "chapter",
+        "position": {
+          "x": 70,
+          "y": 75
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_1763361560908_fleet_overview",
+          "title": "Fleet Overview",
+          "description": "Introduction to ship fleet history and vessel categories",
+          "frameIds": [
+            "frame_1763361560909_fleet_intro",
+            "frame_1763361560910_fleet_categories"
+          ],
+          "conceptIds": [],
+          "order": 0,
+          "color": "#3B82F6",
+          "linkSequentially": true
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "chapter_1763361560918_specifications",
+        "type": "chapter",
+        "position": {
+          "x": 590,
+          "y": 75
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_1763361560918_specifications",
+          "title": "Ship Specifications",
+          "description": "Understanding ship dimensions and naming conventions",
+          "frameIds": [
+            "frame_1763361560919_dimensions",
+            "frame_1763361560920_naming"
+          ],
+          "conceptIds": [],
+          "order": 1,
+          "color": "#10B981",
+          "linkSequentially": true
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "chapter_1763361560928_performance",
+        "type": "chapter",
+        "position": {
+          "x": 1110,
+          "y": 75
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_1763361560928_performance",
+          "title": "Engine Power and Performance",
+          "description": "Understanding engine specifications and service speeds",
+          "frameIds": [
+            "frame_1763361560929_engine_power",
+            "frame_1763361560930_service_speed"
+          ],
+          "conceptIds": [],
+          "order": 2,
+          "color": "#8B5CF6",
+          "linkSequentially": true
+        },
+        "measured": {
+          "width": 320,
+          "height": 233
+        }
+      },
+      {
+        "id": "chapter_1763361560938_construction",
+        "type": "chapter",
+        "position": {
+          "x": 1630,
+          "y": 75
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_1763361560938_construction",
+          "title": "Shipyards and Construction",
+          "description": "Understanding shipyard partnerships and fleet evolution over time",
+          "frameIds": [
+            "frame_1763361560939_shipyards",
+            "frame_1763361560940_timeline"
+          ],
+          "conceptIds": [],
+          "order": 3,
+          "color": "#F59E0B",
+          "linkSequentially": true
+        },
+        "measured": {
+          "width": 320,
+          "height": 253
+        }
+      },
+      {
+        "id": "chapter_1763660249622_8155pw",
+        "type": "chapter",
+        "position": {
+          "x": 2150,
+          "y": 75
+        },
+        "data": {
+          "type": "chapter",
+          "id": "chapter_1763660249622_8155pw",
+          "title": "C5",
+          "description": "",
+          "frameIds": [
+            "frame_1763660242087_a1b3kimwi",
+            "frame_1763660247790_gm09fjrs6"
+          ],
+          "conceptIds": [],
+          "order": 4,
+          "color": "#3B82F6",
+          "linkSequentially": true,
+          "updatedAt": "2025-11-20T17:37:30.174Z"
+        },
+        "measured": {
+          "width": 320,
+          "height": 188
+        }
+      },
+      {
+        "id": "node_1763659968068_13u2q9a86_0",
+        "type": "aiframe",
+        "position": {
+          "x": 180,
+          "y": 550
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560909_fleet_intro",
+          "title": "Introduction to Ship Fleet History",
+          "goal": "Understand the structure and purpose of ship fleet documentation",
+          "informationText": "Ship fleet history documents provide comprehensive records of vessels operated by maritime companies. These records include critical specifications such as ship names (in both English and Japanese for international operations), physical dimensions, engine specifications, service speeds, shipyard builders, and construction years. This data is essential for fleet management, maintenance planning, operational efficiency analysis, and historical documentation of maritime operations.",
+          "afterVideoText": "Key takeaway: Fleet history serves as a comprehensive database for understanding vessel capabilities, operational history, and fleet evolution over time.",
+          "aiConcepts": [
+            "fleet management",
+            "maritime operations",
+            "ship documentation",
+            "vessel specifications"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560908_fleet_overview",
+          "parentFrameId": "chapter_1763361560908_fleet_overview"
+        },
+        "measured": {
+          "width": 480,
+          "height": 639
+        }
+      },
+      {
+        "id": "node_1763659968069_6g0qp8us0_1",
+        "type": "aiframe",
+        "position": {
+          "x": 50,
+          "y": 1050
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560910_fleet_categories",
+          "title": "Ship Categories and Types in the Fleet",
+          "goal": "Learn about different vessel categories represented in fleet records",
+          "informationText": "Maritime fleets typically consist of various vessel types, each designed for specific cargo or operational requirements. Common categories include: container ships (for standardized cargo), bulk carriers (for raw materials), tankers (for liquid cargo), and specialized vessels. Each category has distinct dimensional requirements, power needs, and speed characteristics. The fleet data shows vessels ranging from smaller ships (110×16m) to larger vessels (210×37m), indicating a diverse operational portfolio.",
+          "afterVideoText": "Remember: Different ship types require different specifications - understanding these categories helps in fleet planning and operational decisions.",
+          "aiConcepts": [
+            "vessel types",
+            "container ships",
+            "bulk carriers",
+            "fleet diversity"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560908_fleet_overview",
+          "parentFrameId": "chapter_1763361560908_fleet_overview"
+        },
+        "measured": {
+          "width": 480,
+          "height": 639
+        }
+      },
+      {
+        "id": "node_1763659968069_3fkxhceme_2",
+        "type": "aiframe",
+        "position": {
+          "x": 700,
+          "y": 550
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560919_dimensions",
+          "title": "Ship Dimensions: Length and Breadth",
+          "goal": "Understand how ship dimensions affect capacity and operations",
+          "informationText": "Ship dimensions are critical specifications that determine cargo capacity, port accessibility, and operational capabilities. The fleet shows a wide range: from smaller vessels like GYOKUKAI MARU (110×16m) to larger ships like NINE FRONTIER (210×37m). Length Overall (LOA) and Breadth Moulded (Bmld) measurements are standardized metrics. Length affects cargo capacity and speed potential, while breadth impacts stability and cargo handling. Modern vessels tend toward larger dimensions for economies of scale, as seen in newer ships (200×32m, 210×37m) compared to older ones (110×16m, 162×38m).",
+          "afterVideoText": "Key insight: Ship dimensions directly correlate with cargo capacity and operational efficiency - larger ships can carry more cargo but require deeper ports and wider channels.",
+          "aiConcepts": [
+            "LOA",
+            "breadth moulded",
+            "cargo capacity",
+            "port accessibility",
+            "ship dimensions"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560918_specifications",
+          "parentFrameId": "chapter_1763361560918_specifications"
+        },
+        "measured": {
+          "width": 480,
+          "height": 639
+        }
+      },
+      {
+        "id": "node_1763659968069_96s8lwds2_3",
+        "type": "aiframe",
+        "position": {
+          "x": 570,
+          "y": 1050
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560920_naming",
+          "title": "Ship Naming Conventions: English and Japanese",
+          "goal": "Learn about bilingual ship naming in international maritime operations",
+          "informationText": "Many ships in international fleets have names in both English and Japanese (船名), reflecting the global nature of maritime operations. Examples include GYOKUKAI MARU (玉海丸), CHUETSUSAN MARU (中越山丸), and TAIO MARU (大王丸). The suffix 'MARU' (丸) is a traditional Japanese naming convention. Modern international vessels often use English-only names (WORLD SWAN II, NINE FRONTIER) for global recognition. Bilingual naming facilitates operations in both Japanese and international ports, improving communication and regulatory compliance.",
+          "afterVideoText": "Remember: Ship names reflect operational context - traditional Japanese names with 'MARU' suffix vs. modern English names for international operations.",
+          "aiConcepts": [
+            "ship naming",
+            "maritime conventions",
+            "bilingual operations",
+            "international shipping"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560918_specifications",
+          "parentFrameId": "chapter_1763361560918_specifications"
+        },
+        "measured": {
+          "width": 480,
+          "height": 664
+        }
+      },
+      {
+        "id": "node_1763659968069_5hpn3lwfl_4",
+        "type": "aiframe",
+        "position": {
+          "x": 1220,
+          "y": 550
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560929_engine_power",
+          "title": "Main Engine Power: Maximum Continuous Rating (MCR)",
+          "goal": "Understand engine horsepower and its relationship to ship performance",
+          "informationText": "Main Engine Maximum Continuous Rating (MCR) in horsepower (hp) indicates the sustained power output a ship's engine can deliver. The fleet shows power ranges from D 3,300 hp (GYOKUKAI MARU) to D 14,000 hp (TAIO MARU). The 'D' prefix typically indicates diesel engines. Higher horsepower enables: (1) Greater cargo capacity handling, (2) Higher service speeds, (3) Better performance in adverse conditions. Modern vessels tend to have higher power ratings - newer ships (11,665-12,889 hp) compared to older ones (3,300-9,900 hp), reflecting advances in engine technology and efficiency.",
+          "afterVideoText": "Key insight: Engine power must be matched to vessel size and operational requirements - larger ships require more powerful engines.",
+          "aiConcepts": [
+            "MCR",
+            "horsepower",
+            "diesel engines",
+            "engine power",
+            "propulsion"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560928_performance",
+          "parentFrameId": "chapter_1763361560928_performance"
+        },
+        "measured": {
+          "width": 480,
+          "height": 632
+        }
+      },
+      {
+        "id": "node_1763659968069_0y0slub80_5",
+        "type": "aiframe",
+        "position": {
+          "x": 1090,
+          "y": 1050
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560930_service_speed",
+          "title": "Service Speed: Operational Performance",
+          "goal": "Learn how service speed affects maritime operations and scheduling",
+          "informationText": "Service speed (measured in knots, kt) represents the operational cruising speed a vessel maintains during normal operations. The fleet shows speeds ranging from 12.5 kt (GYOKUKAI MARU) to 15.1 kt (TAIO MARU). Service speed is typically 85-90% of maximum speed, optimized for fuel efficiency. Higher speeds enable: (1) Faster transit times, (2) More voyages per year, (3) Better schedule reliability. However, higher speeds increase fuel consumption exponentially. Modern vessels balance speed with fuel efficiency - newer ships (14.0-14.6 kt) show optimized performance compared to older designs (12.5-13.1 kt).",
+          "afterVideoText": "Remember: Service speed is a trade-off between transit time and fuel costs - optimal speed balances operational efficiency with economic performance.",
+          "aiConcepts": [
+            "service speed",
+            "knots",
+            "fuel efficiency",
+            "operational speed",
+            "maritime scheduling"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560928_performance",
+          "parentFrameId": "chapter_1763361560928_performance"
+        },
+        "measured": {
+          "width": 480,
+          "height": 632
+        }
+      },
+      {
+        "id": "node_1763659968069_r8hbkllcr_6",
+        "type": "aiframe",
+        "position": {
+          "x": 1740,
+          "y": 550
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560939_shipyards",
+          "title": "Shipyards and Builders: Construction Partners",
+          "goal": "Understand the role of shipyards in fleet development",
+          "informationText": "Shipyards (建造所) are specialized facilities that construct vessels according to specifications. The fleet shows various builders: Usuki Iron Works, MES, Harima Shipbuilding, MHIN, TSX, and SDX. Different shipyards specialize in different vessel types and sizes. Japanese shipyards (Usuki, Harima) have long traditions, while modern abbreviations (TSX, SDX, MHIN) may represent international partnerships or modern shipyard groups. Shipyard selection affects: (1) Construction quality and standards, (2) Delivery timelines, (3) Cost efficiency, (4) Post-construction support. Fleet diversity across multiple builders indicates strategic sourcing and risk management.",
+          "afterVideoText": "Key takeaway: Shipyard selection is strategic - different builders offer different capabilities, costs, and delivery schedules.",
+          "aiConcepts": [
+            "shipyards",
+            "shipbuilders",
+            "construction",
+            "maritime industry",
+            "fleet development"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560938_construction",
+          "parentFrameId": "chapter_1763361560938_construction"
+        },
+        "measured": {
+          "width": 480,
+          "height": 644
+        }
+      },
+      {
+        "id": "node_1763659968069_g89pl1qt2_7",
+        "type": "aiframe",
+        "position": {
+          "x": 1610,
+          "y": 1050
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763361560940_timeline",
+          "title": "Fleet Evolution: Construction Timeline Analysis",
+          "goal": "Analyze how fleet characteristics evolved over time",
+          "informationText": "Construction years (建造) reveal fleet evolution trends. The data shows vessels from the 1980s (SNIMOS ACE, 1983) to modern ships (WORLD SWAN II, 2006; NINE FRONTIER, 2008). Key trends: (1) Size increase - newer ships (200-210m length) vs. older (110-176m), (2) Power advancement - modern engines (11,665-12,889 hp) vs. older (3,300-9,900 hp), (3) Speed optimization - newer vessels maintain 14.0-14.6 kt with better fuel efficiency, (4) Design evolution - from traditional Japanese names to international naming. This evolution reflects: technological advances, market demands, regulatory changes (emissions, safety), and operational efficiency improvements.",
+          "afterVideoText": "Remember: Fleet evolution reflects industry trends - larger, more powerful, and more efficient vessels represent decades of maritime technology advancement.",
+          "aiConcepts": [
+            "fleet evolution",
+            "construction timeline",
+            "maritime technology",
+            "industry trends",
+            "vessel modernization"
+          ],
+          "isGenerated": false,
+          "sourceGoal": "",
+          "sourceUrl": "",
+          "chapterId": "chapter_1763361560938_construction",
+          "parentFrameId": "chapter_1763361560938_construction"
+        },
+        "measured": {
+          "width": 480,
+          "height": 644
+        }
+      },
+      {
+        "id": "node_1763659885064_st6u0tujd_0",
+        "type": "aiframe",
+        "position": {
+          "x": 2610,
+          "y": 50
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame-1763659885064-mco7sdqb5",
+          "title": "manual Frame",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
+          "aiConcepts": [],
+          "isGenerated": false
+        },
+        "measured": {
+          "width": 480,
+          "height": 460
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_1763660242088_ipkycu03a_8",
+        "type": "aiframe",
+        "position": {
+          "x": 2437.5182481751826,
+          "y": 537.6723438767234
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763660242087_a1b3kimwi",
+          "title": "f66",
+          "goal": "",
+          "informationText": "",
+          "afterVideoText": "",
+          "aiConcepts": [],
+          "isGenerated": false,
+          "chapterId": "chapter_1763660249622_8155pw",
+          "parentFrameId": "chapter_1763660249622_8155pw",
+          "updatedAt": "2025-11-20T17:37:44.599Z"
+        },
+        "measured": {
+          "width": 480,
+          "height": 460
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_1763660247790_8srrgk5ov_9",
+        "type": "aiframe",
+        "position": {
+          "x": 2383.949716139497,
+          "y": 1047.5344687753447
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_1763660247790_gm09fjrs6",
+          "title": "f77",
+          "goal": "",
+          "informationText": "",
+          "afterVideoText": "",
+          "aiConcepts": [],
+          "isGenerated": false,
+          "chapterId": "chapter_1763660249622_8155pw",
+          "parentFrameId": "chapter_1763660249622_8155pw",
+          "updatedAt": "2025-11-20T17:37:44.599Z"
+        },
+        "measured": {
+          "width": 480,
+          "height": 460
+        },
+        "selected": true,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_chapter_chapter_1763361560908_fleet_overview_node_1763659968068_13u2q9a86_0",
+        "source": "chapter_1763361560908_fleet_overview",
+        "target": "node_1763659968068_13u2q9a86_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560908_fleet_overview"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560908_fleet_overview_node_1763659968069_6g0qp8us0_1",
+        "source": "chapter_1763361560908_fleet_overview",
+        "target": "node_1763659968069_6g0qp8us0_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560908_fleet_overview"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560918_specifications_node_1763659968069_3fkxhceme_2",
+        "source": "chapter_1763361560918_specifications",
+        "target": "node_1763659968069_3fkxhceme_2",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560918_specifications"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560918_specifications_node_1763659968069_96s8lwds2_3",
+        "source": "chapter_1763361560918_specifications",
+        "target": "node_1763659968069_96s8lwds2_3",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560918_specifications"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560928_performance_node_1763659968069_5hpn3lwfl_4",
+        "source": "chapter_1763361560928_performance",
+        "target": "node_1763659968069_5hpn3lwfl_4",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560928_performance"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560928_performance_node_1763659968069_0y0slub80_5",
+        "source": "chapter_1763361560928_performance",
+        "target": "node_1763659968069_0y0slub80_5",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560928_performance"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560938_construction_node_1763659968069_r8hbkllcr_6",
+        "source": "chapter_1763361560938_construction",
+        "target": "node_1763659968069_r8hbkllcr_6",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560938_construction"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763361560938_construction_node_1763659968069_g89pl1qt2_7",
+        "source": "chapter_1763361560938_construction",
+        "target": "node_1763659968069_g89pl1qt2_7",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763361560938_construction"
+        }
+      },
+      {
+        "id": "edge_seq_node_1763659968068_13u2q9a86_0_node_1763659968069_6g0qp8us0_1",
+        "source": "node_1763659968068_13u2q9a86_0",
+        "target": "node_1763659968069_6g0qp8us0_1",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763361560908_fleet_overview"
+        }
+      },
+      {
+        "id": "edge_seq_node_1763659968069_3fkxhceme_2_node_1763659968069_96s8lwds2_3",
+        "source": "node_1763659968069_3fkxhceme_2",
+        "target": "node_1763659968069_96s8lwds2_3",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763361560918_specifications"
+        }
+      },
+      {
+        "id": "edge_seq_node_1763659968069_5hpn3lwfl_4_node_1763659968069_0y0slub80_5",
+        "source": "node_1763659968069_5hpn3lwfl_4",
+        "target": "node_1763659968069_0y0slub80_5",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763361560928_performance"
+        }
+      },
+      {
+        "id": "edge_seq_node_1763659968069_r8hbkllcr_6_node_1763659968069_g89pl1qt2_7",
+        "source": "node_1763659968069_r8hbkllcr_6",
+        "target": "node_1763659968069_g89pl1qt2_7",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763361560938_construction"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763660249622_8155pw_node_1763660242088_ipkycu03a_8",
+        "source": "chapter_1763660249622_8155pw",
+        "target": "node_1763660242088_ipkycu03a_8",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763660249622_8155pw"
+        }
+      },
+      {
+        "id": "edge_chapter_chapter_1763660249622_8155pw_node_1763660247790_8srrgk5ov_9",
+        "source": "chapter_1763660249622_8155pw",
+        "target": "node_1763660247790_8srrgk5ov_9",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "chapter_1763660249622_8155pw"
+        }
+      },
+      {
+        "id": "edge_seq_node_1763660242088_ipkycu03a_8_node_1763660247790_8srrgk5ov_9",
+        "source": "node_1763660242088_ipkycu03a_8",
+        "target": "node_1763660247790_8srrgk5ov_9",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763660249622_8155pw"
+        }
+      }
+    ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T17:27:39.364Z",
+    "lastUpdated": "2025-11-20T17:53:34.861Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-20T17:27:39.256Z",
-    "frameCount": 0,
-    "checksum": "eyJmcmFtZXMiOltd"
+    "lastSaved": "2025-11-20T17:53:34.170Z",
+    "frameCount": 11,
+    "checksum": "eyJmcmFtZXMiOlt7"
   }
 }
