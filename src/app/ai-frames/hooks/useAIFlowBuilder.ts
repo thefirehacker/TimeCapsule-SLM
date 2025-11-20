@@ -822,6 +822,10 @@ export function useAIFlowBuilder({
     [calculateProgressMetrics, persistSessionToKnowledgeBase, updateHistorySession]
   );
 
+  // 🔥 FIX: This should only run ONCE on mount to restore from localStorage
+  // Having calculateProgressMetrics in deps causes infinite loop because:
+  // calculateProgressMetrics depends on frameDrafts → frameDrafts changes → 
+  // calculateProgressMetrics recreates → useEffect runs → state updates → LOOP!
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
@@ -834,7 +838,7 @@ export function useAIFlowBuilder({
     } catch (storageError) {
       console.warn("⚠️ Failed to restore previous AI Flow session:", storageError);
     }
-  }, [calculateProgressMetrics]);
+  }, []); // ✅ FIXED: Empty deps - only run once on mount
 
   const startTimeline = useCallback(
     (query: string) => {
@@ -1367,18 +1371,18 @@ export function useAIFlowBuilder({
         title: frame?.title || 'UNDEFINED',
         goal: frame?.goal || 'UNDEFINED',
         informationText: frame?.informationText || 'UNDEFINED',
-        learningPhase: frame?.learningPhase || 'UNDEFINED',
-        order: frame?.order ?? 'UNDEFINED',
         type: frame?.type || 'UNDEFINED',
+        order: frame?.order ?? 'UNDEFINED',
         isGenerated: frame?.isGenerated,
-        hasUndefinedFields: !frame || !frame.id || !frame.title || !frame.informationText,
+        hasUndefinedFields: !frame || !frame.id || !frame.title || !frame.informationText || !frame.type || frame.order === undefined,
         allFields: frame, // Full frame object for deep inspection
       })),
       validation: {
         undefinedFrames: frames.filter(f => !f || !f.id).length,
         missingTitle: frames.filter(f => f && !f.title).length,
         missingInformationText: frames.filter(f => f && !f.informationText).length,
-        missingLearningPhase: frames.filter(f => f && !f.learningPhase).length,
+        missingType: frames.filter(f => f && !f.type).length,
+        missingOrder: frames.filter(f => f && f.order === undefined).length,
       }
     };
     
@@ -1520,6 +1524,12 @@ export function useAIFlowBuilder({
         if (debugData.validation.missingInformationText > 0) {
           console.warn(`⚠️ WARNING: ${debugData.validation.missingInformationText} frames missing informationText`);
         }
+        if (debugData.validation.missingType > 0) {
+          console.warn(`⚠️ WARNING: ${debugData.validation.missingType} frames missing type`);
+        }
+        if (debugData.validation.missingOrder > 0) {
+          console.warn(`⚠️ WARNING: ${debugData.validation.missingOrder} frames missing order`);
+        }
         
         // Filter out undefined/malformed frames to prevent UI crash
         const validFrames = flowFrames.filter(frame => {
@@ -1531,6 +1541,7 @@ export function useAIFlowBuilder({
             console.error(`🚨 Filtered out malformed frame:`, { id: frame.id, title: frame.title });
             return false;
           }
+          // Note: type and order will be set by convertDraftToFrame, so we don't filter on them here
           return true;
         });
         
