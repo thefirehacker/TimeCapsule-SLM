@@ -47,6 +47,8 @@ import type {
 import { FlowFramePlannerAgent } from "@/lib/multi-agent/agents/FlowFramePlannerAgent";
 import { FlowFrameGeneratorAgent } from "@/lib/multi-agent/agents/FlowFrameGeneratorAgent";
 import type { AIFlowModelTier } from "../lib/openRouterModels";
+import type { FlowSession, SessionSource } from "../types/session";
+import { getSessionStore, SessionStore } from "@/lib/kb/sessionStore";
 
 interface KnowledgeCitation {
   label: string;
@@ -182,6 +184,7 @@ interface FrameDraft extends PlannerFrame {
   requiresVision?: boolean;
   isRemediation?: boolean;
   remediationParentId?: string;
+  source?: SessionSource; // Track frame origin
 }
 
 interface ContextPreview {
@@ -215,6 +218,7 @@ interface ProgressMetrics {
 export interface UseAIFlowBuilderProps {
   vectorStore: VectorStore | null;
   vectorStoreInitialized: boolean;
+  onAcceptFrames?: (frames: AIFrame[]) => void; // Optional callback for graph replacement
 }
 
 export interface UseAIFlowBuilderReturn {
@@ -252,6 +256,17 @@ export interface UseAIFlowBuilderReturn {
   timelineSteps: ResearchStep[];
   timelineExpandedSteps: Set<string>;
   handleTimelineStepClick: (step: ResearchStep) => void;
+  
+  // Session Management
+  activeSessionId: string | null;
+  sessions: FlowSession[];
+  createNewSession: (source: SessionSource, name?: string) => FlowSession;
+  saveCurrentSession: (immediate?: boolean) => Promise<void>;
+  switchSession: (sessionId: string) => Promise<void>;
+  renameSession: (sessionId: string, newName: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
+  syncFrameToSession: (frame: AIFrame) => void;
+  syncFrameDeletions: (currentFrameIds: Set<string>) => void;
 }
 
 const MAX_KB_RESULTS_FOR_PLAN = 8;
@@ -631,6 +646,7 @@ const convertFlowFrameToDraft = (
     } : undefined,
     quizHistory: [],
     masteryState: index === 0 ? "ready" : "locked",
+    source: "ai-flow" as SessionSource, // Track frame origin
   };
 };
 
@@ -666,6 +682,7 @@ const injectKnowledgeIntoContext = (
 export function useAIFlowBuilder({
   vectorStore,
   vectorStoreInitialized,
+  onAcceptFrames,
 }: UseAIFlowBuilderProps): UseAIFlowBuilderReturn {
   const aiProviders = useAIProviders();
   const firecrawl = useFirecrawlKey();
@@ -696,6 +713,13 @@ export function useAIFlowBuilder({
     remediationCount: 0,
     currentPhase: null,
   });
+  
+  // Session Management State
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<FlowSession[]>([]);
+  const [sessionStore, setSessionStore] = useState<SessionStore | null>(null);
+  const sessionSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const researchStepsState = useResearchSteps();
   const currentStepsRef = useRef<ResearchStep[]>([]);
   useEffect(() => {
@@ -760,6 +784,299 @@ export function useAIFlowBuilder({
     [frameDrafts]
   );
 
+  // Initialize SessionStore when VectorStore is ready
+  useEffect(() => {
+    if (vectorStore && vectorStoreInitialized && !sessionStore) {
+      const store = getSessionStore(vectorStore);
+      store.initialize().then(() => {
+        setSessionStore(store);
+        // Load all sessions
+        store.listSessions().then((loadedSessions) => {
+          setSessions(loadedSessions);
+          console.log(`📋 Loaded ${loadedSessions.length} sessions from KB`);
+        });
+      });
+    }
+  }, [vectorStore, vectorStoreInitialized, sessionStore]);
+
+  // Load sessions from KB on mount
+  useEffect(() => {
+    if (sessionStore) {
+      sessionStore.listSessions().then((loadedSessions) => {
+        setSessions(loadedSessions);
+      });
+    }
+  }, [sessionStore]);
+
+  // Session Management Functions
+  const createNewSession = useCallback(
+    (source: SessionSource, name?: string): FlowSession => {
+      if (!sessionStore) {
+        throw new Error("SessionStore not initialized");
+      }
+      const newSession = sessionStore.createNewSession(source, name);
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+      
+      // Sync Mastery Progress to new session (starts at 0%)
+      setSessionState(newSession.sessionState);
+      setProgressMetrics({
+        masteryPercent: 0,
+        framesCompleted: 0,
+        totalFrames: 0,
+        remediationCount: 0,
+        currentPhase: null,
+      });
+      
+      // Update localStorage
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            SESSION_STORAGE_KEY,
+            JSON.stringify(newSession.sessionState)
+          );
+        } catch (error) {
+          console.warn("⚠️ Failed to sync new session to localStorage:", error);
+        }
+      }
+      
+      console.log(`🆕 Created new ${source} session: ${newSession.name}`);
+      return newSession;
+    },
+    [sessionStore]
+  );
+
+  const saveCurrentSession = useCallback(
+    async (immediate = false) => {
+      if (!activeSessionId || !sessionStore) return;
+
+      // Clear any pending save
+      if (sessionSaveTimeoutRef.current) {
+        clearTimeout(sessionSaveTimeoutRef.current);
+        sessionSaveTimeoutRef.current = null;
+      }
+
+      const saveSession = async () => {
+        const currentSession = sessions.find((s) => s.id === activeSessionId);
+        if (!currentSession) return;
+
+        // Update session with current state
+        const updatedSession: FlowSession = {
+          ...currentSession,
+          plan,
+          frameDrafts: frameDrafts.map((draft) => ({
+            ...draft,
+            source: draft.source || currentSession.source, // Ensure source is set
+          })) as any,
+          sessionState: sessionState || currentSession.sessionState,
+          frameCount: frameDrafts.length,
+          acceptedFrameCount: frameDrafts.filter((d) => d.status === "generated")
+            .length,
+          updatedAt: new Date().toISOString(),
+          frameSources: {
+            manual: frameDrafts.filter((d) => d.source === "manual").length,
+            "ai-flow": frameDrafts.filter((d) => d.source === "ai-flow").length,
+            "swe-bridge": frameDrafts.filter((d) => d.source === "swe-bridge")
+              .length,
+          },
+        };
+
+        await sessionStore.saveSession(updatedSession);
+
+        // Update local state
+        setSessions((prev) =>
+          prev.map((s) => (s.id === activeSessionId ? updatedSession : s))
+        );
+        
+        // Sync Mastery Progress with updated session
+        const metrics = calculateProgressMetrics(updatedSession.sessionState);
+        setProgressMetrics(metrics);
+        
+        // Sync to localStorage
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.setItem(
+              SESSION_STORAGE_KEY,
+              JSON.stringify(updatedSession.sessionState)
+            );
+          } catch (error) {
+            console.warn("⚠️ Failed to sync session state to localStorage:", error);
+          }
+        }
+      };
+
+      if (immediate) {
+        await saveSession();
+      } else {
+        // Debounce save
+        sessionSaveTimeoutRef.current = setTimeout(saveSession, 1000);
+      }
+    },
+    [activeSessionId, sessionStore, sessions, plan, frameDrafts, sessionState, calculateProgressMetrics]
+  );
+
+  const switchSession = useCallback(
+    async (sessionId: string) => {
+      if (!sessionStore) return;
+
+      // Save current session first if active
+      if (activeSessionId) {
+        await saveCurrentSession(true);
+      }
+
+      // Load new session
+      const session = await sessionStore.loadSession(sessionId);
+      if (!session) {
+        console.error(`Session not found: ${sessionId}`);
+        return;
+      }
+
+      // Update state
+      const loadedDrafts = session.frameDrafts as any as FrameDraft[];
+      setPlan(session.plan);
+      setFrameDrafts(loadedDrafts);
+      setSessionState(session.sessionState);
+      setActiveSessionId(sessionId);
+
+      // Sync Mastery Progress with loaded session
+      const metrics = calculateProgressMetrics(session.sessionState);
+      setProgressMetrics(metrics);
+
+      // Update localStorage to match active session
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            SESSION_STORAGE_KEY,
+            JSON.stringify(session.sessionState)
+          );
+        } catch (error) {
+          console.warn("⚠️ Failed to sync session state to localStorage:", error);
+        }
+      }
+
+      console.log(`🔄 Switched to session: ${session.name} (${loadedDrafts.length} frames loaded)`);
+      console.log(`💡 Click "Accept All Frames" to add them to your workspace`);
+    },
+    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics]
+  );
+
+  const renameSession = useCallback(
+    async (sessionId: string, newName: string) => {
+      if (!sessionStore) return;
+      await sessionStore.updateSessionName(sessionId, newName);
+      // Reload sessions
+      const updatedSessions = await sessionStore.listSessions();
+      setSessions(updatedSessions);
+    },
+    [sessionStore]
+  );
+
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      if (!sessionStore) return;
+      await sessionStore.deleteSession(sessionId);
+      // Reload sessions
+      const updatedSessions = await sessionStore.listSessions();
+      setSessions(updatedSessions);
+      // If deleting active session, clear state
+      if (sessionId === activeSessionId) {
+        setActiveSessionId(null);
+        setPlan(null);
+        setFrameDrafts([]);
+        setSessionState(null);
+      }
+    },
+    [sessionStore, activeSessionId]
+  );
+
+  const syncFrameToSession = useCallback((frame: AIFrame) => {
+    if (!activeSessionId) return;
+    
+    // Convert AIFrame to FrameDraft
+    const frameDraft: FrameDraft = {
+      id: frame.id,
+      title: frame.title,
+      goal: frame.goal,
+      chapterId: frame.chapterId || "",
+      chapterTitle: "",
+      order: frame.order || 0,
+      aiConcepts: frame.aiConcepts || [],
+      citations: [],
+      attachmentSuggestions: [],
+      learningPhase: (frame.learningPhase || "overview") as LearningPhase,
+      requiresVision: false,
+      tempId: frame.id,
+      status: "generated",
+      generated: {
+        informationText: frame.informationText || "",
+        afterVideoText: frame.afterVideoText || "",
+        aiConcepts: frame.aiConcepts || [],
+        videoUrl: frame.videoUrl || "",
+        attachment: undefined, // Manual frames don't need complex attachments
+        attachments: [],
+        summary: "",
+        durationInSeconds: frame.duration || 0,
+        checkpointQuiz: frame.checkpointQuiz,
+        recommendedResources: [],
+      },
+      provider: undefined,
+      model: "manual",
+      generatedAt: frame.createdAt,
+      error: null,
+      knowledgeContext: undefined,
+      checkpointQuiz: frame.checkpointQuiz,
+      quizHistory: frame.quizHistory || [],
+      masteryState: frame.masteryState || "completed",
+      source: "manual",
+    };
+    
+    // Add to frameDrafts if not already present
+    setFrameDrafts(prev => {
+      const exists = prev.some(d => d.id === frame.id);
+      if (exists) return prev;
+      return [...prev, frameDraft];
+    });
+    
+    console.log(`🔗 Synced frame to session: ${frame.title}`);
+  }, [activeSessionId]);
+
+  const syncFrameDeletions = useCallback((currentFrameIds: Set<string>) => {
+    if (!activeSessionId) return;
+    
+    setFrameDrafts(prev => {
+      const filtered = prev.filter(draft => currentFrameIds.has(draft.id));
+      if (filtered.length !== prev.length) {
+        console.log(`🗑️ Synced ${prev.length - filtered.length} frame deletion(s) to session`);
+      }
+      return filtered;
+    });
+  }, [activeSessionId]);
+
+  // Auto-save on changes (debounced)
+  useEffect(() => {
+    if (activeSessionId && (plan || frameDrafts.length > 0 || sessionState)) {
+      saveCurrentSession(false); // Debounced save
+    }
+  }, [activeSessionId, plan, frameDrafts, sessionState, saveCurrentSession]);
+
+  // Auto-save on 2-minute interval
+  useEffect(() => {
+    if (!activeSessionId) return;
+
+    const intervalId = setInterval(() => {
+      console.log("⏰ Auto-saving session (2-minute interval)...");
+      saveCurrentSession(true); // Immediate save
+    }, 120000); // 2 minutes
+
+    return () => {
+      clearInterval(intervalId);
+      // Save one last time on unmount
+      if (activeSessionId) {
+        saveCurrentSession(true);
+      }
+    };
+  }, [activeSessionId, saveCurrentSession]);
+
   const persistSessionToKnowledgeBase = useCallback(
     async (state: LearningSessionState) => {
       if (!vectorStore || !vectorStoreInitialized) {
@@ -822,10 +1139,7 @@ export function useAIFlowBuilder({
     [calculateProgressMetrics, persistSessionToKnowledgeBase, updateHistorySession]
   );
 
-  // 🔥 FIX: This should only run ONCE on mount to restore from localStorage
-  // Having calculateProgressMetrics in deps causes infinite loop because:
-  // calculateProgressMetrics depends on frameDrafts → frameDrafts changes → 
-  // calculateProgressMetrics recreates → useEffect runs → state updates → LOOP!
+  // 🔥 FIX: Restore session state once on mount only
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
@@ -837,8 +1151,9 @@ export function useAIFlowBuilder({
       setProgressMetrics(calculateProgressMetrics(parsed));
     } catch (storageError) {
       console.warn("⚠️ Failed to restore previous AI Flow session:", storageError);
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
     }
-  }, []); // ✅ FIXED: Empty deps - only run once on mount
+  }, []); // Run once on mount only
 
   const startTimeline = useCallback(
     (query: string) => {
@@ -1415,6 +1730,20 @@ export function useAIFlowBuilder({
     console.log(`✅ Fix 4: DataInspector parsing improvements (methods, filename, JSON)`);
     console.log(`✅ Fix 5: Multi-line list parsing (preserve newlines in methods/concepts)`);
 
+    // Session Management: Create or use active AI Flow session
+    let aiFlowSession: FlowSession | null = null;
+    if (activeSessionId && sessions.find((s) => s.id === activeSessionId)?.source === "ai-flow") {
+      // Use existing active AI Flow session
+      aiFlowSession = sessions.find((s) => s.id === activeSessionId) || null;
+      console.log(`📂 Using existing AI Flow session: ${aiFlowSession?.name}`);
+    } else {
+      // Create new AI Flow session
+      if (sessionStore) {
+        aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
+        console.log(`🆕 Created new AI Flow session: ${aiFlowSession.name}`);
+      }
+    }
+
     const flowSessionId = `session_${Date.now()}`;
     currentHistoryIdRef.current = flowSessionId;
     startTimeline(prompt);
@@ -1962,6 +2291,7 @@ export function useAIFlowBuilder({
           isRemediation: true,
           remediationParentId: parentDraft.tempId,
           knowledgeContext: knowledge,
+          source: parentDraft.source || "ai-flow", // Inherit source from parent
         };
 
         setFrameDrafts((prev) => {
@@ -2299,5 +2629,16 @@ export function useAIFlowBuilder({
     timelineSteps: researchStepsState.steps,
     timelineExpandedSteps: researchStepsState.expandedSteps,
     handleTimelineStepClick: researchStepsState.handleStepClick,
+    
+    // Session Management
+    activeSessionId,
+    sessions,
+    createNewSession,
+    saveCurrentSession,
+    switchSession,
+    renameSession,
+    deleteSession,
+    syncFrameToSession,
+    syncFrameDeletions,
   };
 }

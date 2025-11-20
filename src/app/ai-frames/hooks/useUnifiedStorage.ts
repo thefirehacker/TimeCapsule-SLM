@@ -1398,6 +1398,13 @@ export const useUnifiedStorage = ({
     const handleConnectionChangedEvent = (event: any) => {
       const { connectionType, connectionData } = event.detail;
       
+      // CRITICAL FIX: Skip edge removal - it's handled by onEdgesDelete with correct frame data
+      // This handler would use stale framesRef causing deleted frames to reappear
+      if (connectionType === 'removed') {
+        console.log('⏭️ Skipping edge removal in connection-changed-event (handled by onEdgesDelete)');
+        return;
+      }
+      
       // Connection change detected
       
       // Handle connection/edge changes to graph state with deduplication
@@ -1406,21 +1413,24 @@ export const useUnifiedStorage = ({
       if (connectionType === 'added' && connectionData) {
         // Add new connection/edge
         newGraphState.edges = [...(newGraphState.edges || []), connectionData];
-      } else if (connectionType === 'removed' && connectionData) {
-        // Remove connection/edge
-        newGraphState.edges = (newGraphState.edges || []).filter(edge => edge.id !== connectionData.id);
+        
+        updateGraphState(newGraphState);
+        
+        // CRITICAL FIX: Trigger immediate background save for connections
+        setHasUnsavedChanges(true);
+        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
       } else if (connectionType === 'updated' && connectionData) {
         // Update existing connection/edge
         newGraphState.edges = (newGraphState.edges || []).map(edge => 
           edge.id === connectionData.id ? { ...edge, ...connectionData } : edge
         );
+        
+        updateGraphState(newGraphState);
+        
+        // CRITICAL FIX: Trigger immediate background save for connections
+        setHasUnsavedChanges(true);
+        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
       }
-      
-      updateGraphState(newGraphState);
-      
-      // CRITICAL FIX: Trigger immediate background save for connections
-      setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
     };
     
     const handleGraphElementChangedEvent = (event: any) => {
@@ -1430,12 +1440,17 @@ export const useUnifiedStorage = ({
       
       // DYNAMIC: Handle any graph element changes (nodes, edges, concepts, chapters, etc.)
       if (elementType === 'node') {
+        // CRITICAL FIX: Skip node removal - it's handled by handleNodesDelete with correct frame data
+        // This handler would use stale framesRef causing deleted frames to reappear
+        if (changeType === 'removed') {
+          console.log('⏭️ Skipping node removal in graph-element-changed (handled by handleNodesDelete)');
+          return;
+        }
+        
         const newGraphState = { ...graphStateRef.current };
 
         if (changeType === 'added' && elementData) {
           newGraphState.nodes = [...(newGraphState.nodes || []), elementData];
-        } else if (changeType === 'removed' && elementId) {
-          newGraphState.nodes = (newGraphState.nodes || []).filter(node => node.id !== elementId);
         } else if (changeType === 'updated' && elementId && elementData) {
           newGraphState.nodes = (newGraphState.nodes || []).map(node =>
             node.id === elementId ? { ...node, ...elementData } : node
@@ -1551,6 +1566,13 @@ export const useUnifiedStorage = ({
       const { connection } = event.detail;
       const eventType = event.type; // 'graph-connection-added' or 'graph-connection-removed'
       
+      // CRITICAL FIX: Skip edge removal - it's handled by onEdgesDelete with correct frame data
+      // This handler would use stale framesRef causing deleted frames to reappear
+      if (eventType === 'graph-connection-removed') {
+        console.log('⏭️ Skipping edge removal in graph-connection-event (handled by onEdgesDelete)');
+        return;
+      }
+      
       // Graph connection event detected
       let updatedGraphState = graphStateRef.current;
       
@@ -1561,17 +1583,11 @@ export const useUnifiedStorage = ({
           edges: [...(graphStateRef.current.edges || []), connection]
         };
         updateGraphState(updatedGraphState);
-      } else if (eventType === 'graph-connection-removed' && connection) {
-        updatedGraphState = {
-          ...graphStateRef.current,
-          edges: (graphStateRef.current.edges || []).filter(edge => edge.id !== connection.id)
-        };
-        updateGraphState(updatedGraphState);
+        
+        // CRITICAL: Trigger immediate background save for connections
+        setHasUnsavedChanges(true);
+        queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
       }
-      
-      // CRITICAL: Trigger immediate background save for connections
-      setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
     };
     
     // CRITICAL FIX: Handle frame deletion events

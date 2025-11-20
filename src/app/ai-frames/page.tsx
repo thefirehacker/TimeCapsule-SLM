@@ -1674,8 +1674,14 @@ export default function AIFramesPage() {
       }));
 
       unifiedStorage.updateFrames(convertedFrames);
+      
+      // Sync deletions to active session
+      if (flowBuilder.syncFrameDeletions && flowBuilder.frameDrafts.length > 0) {
+        const currentFrameIds = new Set(convertedFrames.map(f => f.id));
+        flowBuilder.syncFrameDeletions(currentFrameIds);
+      }
     },
-    [unifiedStorage]
+    [unifiedStorage, flowBuilder]
   );
 
   const handleCreateFrame = useCallback(
@@ -1688,6 +1694,13 @@ export default function AIFramesPage() {
       const nextOrder = existingOrders.length
         ? Math.max(...existingOrders) + 1
         : 1;
+
+      // Auto-create manual session if needed
+      if (!flowBuilder.activeSessionId || 
+          (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
+        console.log("🆕 Auto-creating manual session for manual frame creation");
+        flowBuilder.createNewSession("manual", "Manual Session");
+      }
 
       const fallbackIndex = unifiedStorage.frames.length + 1;
       const newFrame: AIFrame = {
@@ -1720,6 +1733,11 @@ export default function AIFramesPage() {
       const updatedFrames = [...unifiedStorage.frames, newFrame];
       unifiedStorage.updateFrames(updatedFrames);
 
+      // Sync frame to active session
+      if (flowBuilder.activeSessionId && flowBuilder.syncFrameToSession) {
+        flowBuilder.syncFrameToSession(newFrame);
+      }
+
       if (selectFrame) {
         const newIndex = updatedFrames.findIndex((frame) => frame.id === newFrame.id);
         if (newIndex >= 0) {
@@ -1737,7 +1755,7 @@ export default function AIFramesPage() {
 
       return newFrame;
     },
-    [setCurrentFrameIndex, unifiedStorage.frames, unifiedStorage.updateFrames]
+    [setCurrentFrameIndex, unifiedStorage.frames, unifiedStorage.updateFrames, flowBuilder]
   );
 
   const handleCreateFrameInline = useCallback(
@@ -3126,6 +3144,53 @@ export default function AIFramesPage() {
                         Saved
                       </Badge>
                     )}
+                  </div>
+                  
+                  {/* Active Session Display */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 font-medium">Active Session:</span>
+                      </div>
+                      {flowBuilder.activeSessionId ? (
+                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm">
+                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "ai-flow" ? "🤖" :
+                               flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "swe-bridge" ? "🔌" : "✏️"}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.name || "Unknown"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.frameCount || 0} frames
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                          <p className="text-xs text-gray-500 text-center">No active session</p>
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setIsFlowPanelOpen(true);
+                          // Scroll to Flow Sessions section after panel opens
+                          setTimeout(() => {
+                            const flowSessionsSection = document.querySelector('[class*="Flow Sessions"]')?.parentElement;
+                            if (flowSessionsSection) {
+                              flowSessionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                          }, 300);
+                        }}
+                      >
+                        <Bot className="h-4 w-4 mr-2" />
+                        Manage Sessions
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

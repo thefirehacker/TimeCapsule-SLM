@@ -1,17 +1,137 @@
 {
-  "frames": [],
-  "chapters": [],
+  "frames": [
+    {
+      "id": "frame-1763638696578-33e6mket9",
+      "title": "Frame 1",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
+      "aiConcepts": [],
+      "isGenerated": false,
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "type": "frame",
+      "createdAt": "2025-11-20T11:38:16.578Z",
+      "updatedAt": "2025-11-20T11:43:13.211Z",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-20T11:38:16.578Z",
+        "updatedAt": "2025-11-20T11:44:23.524Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T11:44:23.524Z"
+      },
+      "conceptIds": [],
+      "chapterId": "node_1763638988247_3wyl3saq4_0",
+      "parentFrameId": "node_1763638988247_3wyl3saq4_0"
+    }
+  ],
+  "chapters": [
+    {
+      "id": "node_1763638988247_3wyl3saq4_0",
+      "title": "New Chapter",
+      "description": "Chapter description",
+      "frameIds": [
+        "frame-1763638696578-33e6mket9"
+      ],
+      "conceptIds": [],
+      "order": 2,
+      "color": "#3B82F6",
+      "linkSequentially": false,
+      "createdAt": "2025-11-20T11:43:08.247Z",
+      "updatedAt": "2025-11-20T11:44:23.524Z"
+    }
+  ],
   "graphState": {
-    "nodes": [],
-    "edges": [],
+    "nodes": [
+      {
+        "id": "node_1763638988247_3wyl3saq4_0",
+        "type": "chapter",
+        "position": {
+          "x": 70,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "node_1763638988247_3wyl3saq4_0",
+          "title": "New Chapter",
+          "description": "Chapter description",
+          "frameIds": [
+            "frame-1763638696578-33e6mket9"
+          ],
+          "conceptIds": [],
+          "order": 2,
+          "color": "#3B82F6",
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 188
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_1763638696578_rwhkw74pa_0",
+        "type": "aiframe",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame-1763638696578-33e6mket9",
+          "title": "Frame 1",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
+          "aiConcepts": [],
+          "isGenerated": false,
+          "updatedAt": "2025-11-20T11:38:16.658Z",
+          "chapterId": "node_1763638988247_3wyl3saq4_0",
+          "parentFrameId": "node_1763638988247_3wyl3saq4_0"
+        },
+        "measured": {
+          "width": 480,
+          "height": 460
+        },
+        "selected": true,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_node_1763638988247_3wyl3saq4_0_node_1763638696578_rwhkw74pa_0_1763638993211_23t8swbh3",
+        "source": "node_1763638988247_3wyl3saq4_0",
+        "target": "node_1763638696578_rwhkw74pa_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership"
+        }
+      }
+    ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-19T20:39:47.852Z",
+    "lastUpdated": "2025-11-20T11:44:23.733Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-19T20:39:47.604Z",
-    "frameCount": 0,
-    "checksum": "eyJmcmFtZXMiOltd"
+    "lastSaved": "2025-11-20T11:44:23.524Z",
+    "frameCount": 1,
+    "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

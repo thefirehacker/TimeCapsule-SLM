@@ -109,6 +109,14 @@ export function AIFlowBuilderPanel({
     timelineSteps,
     timelineExpandedSteps,
     handleTimelineStepClick,
+    // Session Management
+    activeSessionId,
+    sessions,
+    createNewSession,
+    saveCurrentSession,
+    switchSession,
+    renameSession,
+    deleteSession,
   } = flowBuilder;
 
   const [openRouterKey, setOpenRouterKey] = useState("");
@@ -901,166 +909,151 @@ const handleCopySwePrompt = async () => {
             <section className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-slate-900 font-semibold">Flow History</h4>
+                  <h4 className="text-slate-900 font-semibold">Flow Sessions</h4>
                   <p className="text-sm text-slate-500">
-                    Saved agent outputs from recent sessions
+                    Manage all your frame creation sessions (AI Flow, SWE Bridge, Manual)
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    onClick={() => handleExportHistory()}
-                    disabled={historySessions.length === 0}
+                    onClick={() => createNewSession("manual")}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
-                    <DownloadIcon className="h-4 w-4 mr-1" />
-                    Export All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => historyImportInputRef.current?.click()}
-                  >
-                    Import
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500"
-                    onClick={historyActions.clearSessions}
-                    disabled={historySessions.length === 0}
-                  >
-                    Clear
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    New Manual Session
                   </Button>
                 </div>
               </div>
-              {historyImportError && (
-                <p className="text-sm text-red-500">{historyImportError}</p>
-              )}
-              <div className="space-y-2 max-h-60 overflow-auto">
-                {historySessions.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    No AI Flow sessions saved yet. Once you run the flow builder,
-                    the planner/generator logs will appear here for export.
-                  </p>
+              
+              <div className="space-y-2 max-h-96 overflow-auto">
+                {sessions.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-300 text-center bg-slate-50">
+                    <Bot className="h-8 w-8 mx-auto text-slate-400 mb-2" />
+                    <p className="text-sm text-slate-600 font-medium">No sessions yet</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Create a manual session or run AI Flow Builder to get started
+                    </p>
+                  </div>
                 ) : (
-                  historySessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {session.prompt.slice(0, 80)}
-                            {session.prompt.length > 80 ? "…" : ""}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {new Date(session.updatedAt).toLocaleString()}
-                          </p>
+                  sessions.map((session) => {
+                    const isActive = session.id === activeSessionId;
+                    const sourceIcon = session.source === "ai-flow" ? "🤖" : session.source === "swe-bridge" ? "🔌" : "✏️";
+                    const sourceBadges = [];
+                    if (session.frameSources.manual > 0) sourceBadges.push("Manual");
+                    if (session.frameSources["ai-flow"] > 0) sourceBadges.push("AI");
+                    if (session.frameSources["swe-bridge"] > 0) sourceBadges.push("SWE");
+                    
+                    return (
+                      <div
+                        key={session.id}
+                        className={`rounded-xl border p-3 flex flex-col gap-2 transition-all ${
+                          isActive
+                            ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                            : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{sourceIcon}</span>
+                              <input
+                                type="text"
+                                value={session.name}
+                                onChange={(e) => renameSession(session.id, e.target.value)}
+                                className="font-semibold text-slate-900 bg-transparent border-none outline-none focus:underline flex-1 min-w-0"
+                                placeholder="Session name..."
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-xs text-slate-500">
+                                {new Date(session.updatedAt).toLocaleString()}
+                              </p>
+                              <Badge variant="outline" className="text-xs">
+                                {session.frameCount} frames ({session.acceptedFrameCount} accepted)
+                              </Badge>
+                              {sourceBadges.length > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {sourceBadges.join(" + ")}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {isActive && (
+                              <Badge className="bg-emerald-500 text-white">Active</Badge>
+                            )}
+                            <Badge
+                              className={
+                                session.status === "completed"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : session.status === "generating"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-slate-100 text-slate-700"
+                              }
+                            >
+                              {session.status}
+                            </Badge>
+                          </div>
                         </div>
-                        <Badge
-                          className={
-                            session.status === "completed"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : session.status === "failed"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-blue-100 text-blue-700"
-                          }
-                        >
-                          {session.status}
-                        </Badge>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {!isActive && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => switchSession(session.id)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                              Load Session
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              if (confirm(`Delete session "${session.name}"?`)) {
+                                deleteSession(session.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setSelectedHistoryId((prev) =>
-                              prev === session.id ? null : session.id
-                            )
-                          }
-                        >
-                          View Logs
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleExportHistory(session.id)}
-                        >
-                          Export
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-500"
-                          onClick={() => historyActions.deleteSession(session.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
-              {selectedHistory && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-60 overflow-auto space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-800">
-                      Logs for {selectedHistory.prompt.slice(0, 40)}
-                      {selectedHistory.prompt.length > 40 ? "…" : ""}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopySelectedLogs}
-                        disabled={selectedHistory.logs.length === 0}
-                      >
-                        Copy logs
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedHistoryId(null)}
-                      >
-                        Hide
-                      </Button>
-                    </div>
-                  </div>
-                  {copyLogsState === "copied" && (
-                    <p className="text-xs text-emerald-600">Copied to clipboard.</p>
-                  )}
-                  {copyLogsState === "error" && (
-                    <p className="text-xs text-red-500">
-                      Unable to copy logs. Please try again.
-                    </p>
-                  )}
-                  {selectedHistory.logs.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No agent logs recorded for this session.
-                    </p>
-                  ) : (
-                    selectedHistory.logs.slice(0, 20).map((log) => (
+              
+              {/* Legacy Flow History (kept for logs) */}
+              {historySessions.length > 0 && (
+                <details className="mt-4">
+                  <summary className="text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900">
+                    Legacy Flow Logs ({historySessions.length})
+                  </summary>
+                  <div className="mt-2 space-y-2 max-h-40 overflow-auto">
+                    {historySessions.map((session) => (
                       <div
-                        key={log.id}
-                        className="rounded-lg border border-slate-200 bg-white p-2"
+                        key={session.id}
+                        className="rounded-lg border border-slate-200 bg-white p-2 text-xs"
                       >
-                        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                          <span className="font-semibold">
-                            {log.agent.toUpperCase()} · {log.role}
-                          </span>
-                          <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                        <pre className="whitespace-pre-wrap text-xs text-slate-700 max-h-32 overflow-auto">
-                          {log.content}
-                        </pre>
+                        <p className="font-medium text-slate-800 truncate">
+                          {session.prompt}
+                        </p>
+                        <p className="text-slate-500">
+                          {new Date(session.updatedAt).toLocaleString()}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
+                    ))}
+                  </div>
+                </details>
               )}
             </section>
+            
 
             <section className="space-y-3">
               <Label className="text-slate-700 flex items-center gap-2 text-sm uppercase tracking-wide">

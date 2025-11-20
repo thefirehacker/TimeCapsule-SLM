@@ -147,6 +147,7 @@ export default function EnhancedLearningGraph({
   const initialGraphStateRef = useRef(initialGraphState);
   const pendingFrameIdsRef = useRef<Set<string>>(new Set());
   const pendingAttachmentNodeIdsRef = useRef<Set<string>>(new Set());
+  const recentlyDeletedFrameIdsRef = useRef<Set<string>>(new Set()); // Track deleted frames to prevent re-merge
   const onFramesChangeRef = useRef(onFramesChange);
   const onChaptersChangeRef = useRef(onChaptersChange);
   const onGraphChangeRef = useRef(onGraphChange);
@@ -343,35 +344,58 @@ export default function EnhancedLearningGraph({
         }
       } else if (node.type === "aiframe" && node.data?.frameId) {
         const frameId = String(node.data.frameId);
+        
+        // Skip if frame is pending creation
         if (pendingFrameIdsRef.current.has(frameId)) {
           return;
         }
 
-        const framesReady =
-          Array.isArray(framesRef.current) && framesRef.current.length > 0;
+        const currentFrames = framesRef.current || [];
+        const framesReady = Array.isArray(currentFrames) && currentFrames.length > 0;
 
         if (!framesReady) {
           return;
         }
 
-        requestAnimationFrame(() => {
-          const stillExists = Array.isArray(framesRef.current)
-            ? framesRef.current.some((frame) => frame.id === frameId)
-            : false;
-
-          // REMOVED: graph-frame-deleted event dispatch
-          // Deletion is already handled by onFramesChange callback
-          // if (!stillExists && typeof window !== "undefined") {
-          //   window.dispatchEvent(
-          //     new CustomEvent("graph-frame-deleted", {
-          //       detail: {
-          //         frameId,
-          //         deletedFrameIds: [frameId],
-          //       },
-          //     })
-          //   );
-          // }
-        });
+        // Filter out the deleted frame
+        const filteredFrames = currentFrames.filter(
+          (frame) => frame.id !== frameId
+        );
+        
+        // Only proceed if frame was actually removed
+        if (filteredFrames.length !== currentFrames.length) {
+          // CRITICAL FIX: Track deleted frame to prevent re-merge
+          recentlyDeletedFrameIdsRef.current.add(frameId);
+          
+          // Clear tracking after delay to allow props to sync
+          setTimeout(() => {
+            recentlyDeletedFrameIdsRef.current.delete(frameId);
+          }, 2000);
+          
+          // Handle any frames that reference this frame as parent
+          let framesChanged = false;
+          const updatedFrames = filteredFrames.map((frame) => {
+            if (frame.parentFrameId === frameId) {
+              framesChanged = true;
+              return {
+                ...frame,
+                parentFrameId: undefined,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return frame;
+          });
+          
+          // Update ref
+          framesRef.current = framesChanged ? updatedFrames : filteredFrames;
+          
+          // Notify parent component with updated frames
+          invokeOnFramesChange(framesChanged ? updatedFrames : filteredFrames);
+          
+          // CRITICAL FIX: Don't emit events that trigger immediate saves with stale data
+          // The Sage's Wisdom (Battle 7): Let normal React update cycle handle saves
+          // Status will remain "unsaved" briefly, then save with correct data after React updates
+        }
       }
     });
   }, [invokeOnChaptersChange, invokeOnFramesChange]); // ✅ Removed setEdges
@@ -1869,6 +1893,13 @@ export default function EnhancedLearningGraph({
       const filteredLoadedNodes = loadedNodes.filter(node => {
         if (node.type === 'aiframe' && node.data?.frameId) {
           const frameId = node.data.frameId;
+          
+          // CRITICAL FIX: Skip recently deleted frames to prevent re-merge
+          if (recentlyDeletedFrameIdsRef.current.has(frameId)) {
+            skippedFrameIds.add(frameId);
+            return false;
+          }
+          
           if (!currentFrameIds.has(frameId)) {
             skippedFrameIds.add(frameId);
             return false;
