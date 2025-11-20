@@ -45,22 +45,11 @@ export class SessionStore {
       };
 
       // Store as a special document in KB
-      await this.vectorStore.addVirtualDocument({
-        id: sessionDoc.id,
-        title: session.name,
-        content: JSON.stringify(session),
-        source: "flow-session",
-        description: `Flow session: ${session.name}`,
-        metadata: {
-          sessionId: session.id,
-          sessionSource: session.source,
-          sessionStatus: session.status,
-          frameCount: session.frameCount,
-          acceptedFrameCount: session.acceptedFrameCount,
-          createdAt: session.createdAt,
-          updatedAt: session.updatedAt,
-        },
-      });
+      await this.vectorStore.addVirtualDocument(
+        session.name,                     // title
+        JSON.stringify(session),           // content
+        `flow-session://${session.id}`     // url
+      );
 
       console.log(`💾 Session saved: ${session.name} (${session.id})`);
     } catch (error) {
@@ -241,7 +230,7 @@ export class SessionStore {
       session.name,
       session.source,
       session.status,
-      ...(session.plan?.chapters.map((c) => c.title) || []),
+      ...(session.plan?.chapters.map((c: any) => c.title) || []),
       ...session.frameDrafts.map((f) => f.title),
     ];
     return parts.filter(Boolean).join(" ");
