@@ -1258,6 +1258,32 @@ const handleCopySwePrompt = async () => {
 
               {plan && (
                 <div className="space-y-4">
+                  {/* Accept All Button */}
+                  {frameDrafts.some((draft) => draft.status === "generated") && (
+                    <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-emerald-200 bg-emerald-50">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          Ready to accept {frameDrafts.filter((d) => d.status === "generated").length} generated frames
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          Accept all frames at once or review them individually below
+                        </p>
+                      </div>
+                      <Button
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        onClick={() => {
+                          const generatedIds = frameDrafts
+                            .filter((draft) => draft.status === "generated")
+                            .map((draft) => draft.tempId);
+                          generatedIds.forEach((id) => handleAcceptFrame(id));
+                        }}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Accept All Frames
+                      </Button>
+                    </div>
+                  )}
+
                   {plan.chapters.map((chapter) => {
                     const chapterFrames = frameDrafts.filter(
                       (draft) => draft.chapterId === chapter.id
@@ -1280,139 +1306,178 @@ const handleCopySwePrompt = async () => {
                             {chapterFrames.length} frames
                           </Badge>
                         </div>
-                        <div className="space-y-3">
+                        <Accordion type="multiple" className="space-y-3">
                           {chapterFrames.map((draft, index) => {
                             const displayOrder =
                               typeof draft.order === "number"
                                 ? draft.order + 1
                                 : index + 1;
                             return (
-                              <div
+                              <AccordionItem
                                 key={draft.tempId}
-                                className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3"
+                                value={draft.tempId}
+                                className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden"
                               >
-                                <div className="flex items-start justify-between gap-4">
-                                  <div>
-                                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                                      Frame {displayOrder}
-                                    </p>
-                                    <h4 className="text-lg font-semibold text-slate-900">
-                                      {draft.title}
-                                    </h4>
-                                    <p className="text-slate-500 text-sm">
-                                      {draft.goal}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    <Badge
-                                      className={`${
-                                        draft.status === "generated"
-                                          ? "bg-emerald-100 text-emerald-700"
-                                          : draft.status === "generating"
-                                          ? "bg-amber-100 text-amber-700"
-                                          : draft.status === "error"
-                                          ? "bg-red-100 text-red-700"
-                                          : "bg-slate-100 text-slate-700"
-                                      }`}
-                                    >
-                                      {draft.status}
-                                    </Badge>
-                                    {masteryBadge(draft.masteryState)}
-                                    {draft.requiresVision && (
-                                      <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1">
-                                        <Eye className="h-3 w-3" />
-                                        Vision
+                                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-100">
+                                  <div className="flex items-start justify-between gap-4 w-full">
+                                    <div className="text-left">
+                                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        Frame {displayOrder}
+                                      </p>
+                                      <h4 className="text-lg font-semibold text-slate-900">
+                                        {draft.title}
+                                      </h4>
+                                      <p className="text-slate-500 text-sm">
+                                        {draft.goal}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                      <Badge
+                                        className={`${
+                                          draft.status === "generated"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : draft.status === "generating"
+                                            ? "bg-amber-100 text-amber-700"
+                                            : draft.status === "error"
+                                            ? "bg-red-100 text-red-700"
+                                            : "bg-slate-100 text-slate-700"
+                                        }`}
+                                      >
+                                        {draft.status}
                                       </Badge>
+                                      {masteryBadge(draft.masteryState)}
+                                      {draft.requiresVision && (
+                                        <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1">
+                                          <Eye className="h-3 w-3" />
+                                          Vision
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pb-4 space-y-3">
+                                  <div className="text-sm text-slate-600 space-y-3">
+                                    {draft.generated ? (
+                                      <>
+                                        {/* Full Information Text */}
+                                        <div className="p-3 bg-white rounded-lg border border-slate-200">
+                                          <p className="font-semibold text-slate-900 mb-2">Learning Content:</p>
+                                          <div className="text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                                            {draft.generated.informationText}
+                                          </div>
+                                        </div>
+
+                                        {/* AI Concepts */}
+                                        <div>
+                                          <p className="font-semibold text-slate-900 mb-2 text-xs">Key Concepts:</p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {draft.generated.aiConcepts.map((concept) => (
+                                              <Badge
+                                                key={concept}
+                                                className="bg-white text-slate-700 border border-slate-200"
+                                              >
+                                                {concept}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Checkpoint Quiz Preview */}
+                                        {draft.generated.checkpointQuiz && (
+                                          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                            <p className="font-semibold text-slate-900 mb-2 text-sm flex items-center gap-2">
+                                              <Brain className="h-4 w-4 text-amber-600" />
+                                              Checkpoint Quiz (for learners):
+                                            </p>
+                                            <div className="space-y-2 text-xs">
+                                              {draft.generated.checkpointQuiz.questions.map((q, qIdx) => (
+                                                <div key={qIdx} className="p-2 bg-white rounded border border-amber-100">
+                                                  <p className="font-medium text-slate-800 mb-1">
+                                                    Q{qIdx + 1}: {q.prompt}
+                                                  </p>
+                                                  <p className="text-slate-500 italic">
+                                                    Type: {q.type}
+                                                    {q.choices && ` (${q.choices.length} options)`}
+                                                  </p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <p className="italic text-slate-400">
+                                        Waiting for generation...
+                                      </p>
+                                    )}
+                                    {draft.error && (
+                                      <p className="text-red-500 text-xs">
+                                        {draft.error}
+                                      </p>
                                     )}
                                   </div>
-                                </div>
-                                <div className="text-sm text-slate-600 space-y-2">
-                                  {draft.generated ? (
-                                    <>
-                                      <p className="line-clamp-3">
-                                        {draft.generated.informationText}
-                                      </p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {draft.generated.aiConcepts.map((concept) => (
-                                          <Badge
-                                            key={concept}
-                                            className="bg-white text-slate-700 border border-slate-200"
-                                          >
-                                            {concept}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <p className="italic text-slate-400">
-                                      Waiting for generation...
-                                    </p>
-                                  )}
-                                  {draft.error && (
-                                    <p className="text-red-500 text-xs">
-                                      {draft.error}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {draft.status === "planned" && (
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      disabled={draft.masteryState === "locked"}
-                                      title={
-                                        draft.masteryState === "locked"
-                                          ? "Complete earlier checkpoints to unlock this frame."
-                                          : "Generate AI content"
-                                      }
-                                      onClick={() =>
-                                        void generateFrameDrafts([draft.tempId])
-                                      }
-                                    >
-                                      <Brain className="h-4 w-4 mr-1" />
-                                      Generate
-                                    </Button>
-                                  )}
-                                  {draft.status === "generated" && (
-                                    <>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200">
+                                    {draft.status === "planned" && (
                                       <Button
                                         size="sm"
-                                        className="bg-blue-500 text-white hover:bg-blue-600"
-                                        disabled={draft.masteryState !== "completed"}
-                                        onClick={() => handleAcceptFrame(draft.tempId)}
-                                      >
-                                        <Check className="h-4 w-4 mr-1" />
-                                        Accept
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-slate-300 text-slate-700"
+                                        variant="secondary"
+                                        disabled={draft.masteryState === "locked"}
+                                        title={
+                                          draft.masteryState === "locked"
+                                            ? "Complete earlier checkpoints to unlock this frame."
+                                            : "Generate AI content"
+                                        }
                                         onClick={() =>
                                           void generateFrameDrafts([draft.tempId])
                                         }
                                       >
-                                        <RefreshCcw className="h-4 w-4 mr-1" />
-                                        Regenerate
+                                        <Brain className="h-4 w-4 mr-1" />
+                                        Generate
                                       </Button>
-                                    </>
-                                  )}
-                                  {draft.status === "error" && (
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() =>
-                                        void generateFrameDrafts([draft.tempId])
-                                      }
-                                    >
-                                      Retry
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
+                                    )}
+                                    {draft.status === "generated" && (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          className="bg-blue-500 text-white hover:bg-blue-600"
+                                          onClick={() => handleAcceptFrame(draft.tempId)}
+                                          title="Accept this frame and add it to your workspace"
+                                        >
+                                          <Check className="h-4 w-4 mr-1" />
+                                          Accept
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="border-slate-300 text-slate-700"
+                                          onClick={() =>
+                                            void generateFrameDrafts([draft.tempId])
+                                          }
+                                        >
+                                          <RefreshCcw className="h-4 w-4 mr-1" />
+                                          Regenerate
+                                        </Button>
+                                      </>
+                                    )}
+                                    {draft.status === "error" && (
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() =>
+                                          void generateFrameDrafts([draft.tempId])
+                                        }
+                                      >
+                                        Retry
+                                      </Button>
+                                    )}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
                             );
                           })}
-                        </div>
+                        </Accordion>
                       </div>
                     );
                   })}
