@@ -1396,6 +1396,7 @@ export const useUnifiedStorage = ({
     };
     
     const handleConnectionChangedEvent = (event: any) => {
+      console.log('📥 handleConnectionChangedEvent received:', { connectionType: event.detail?.connectionType, hasConnectionData: !!event.detail?.connectionData });
       const { connectionType, connectionData } = event.detail;
       
       // CRITICAL FIX: Skip edge removal - it's handled by onEdgesDelete with correct frame data
@@ -1563,6 +1564,7 @@ export const useUnifiedStorage = ({
     
     // CRITICAL FIX: Handle graph connection events (added/removed)
     const handleGraphConnectionEvent = (event: any) => {
+      console.log('📥 handleGraphConnectionEvent received:', { eventType: event.type, hasConnection: !!event.detail?.connection });
       const { connection } = event.detail;
       const eventType = event.type; // 'graph-connection-added' or 'graph-connection-removed'
       

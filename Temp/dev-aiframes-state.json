@@ -1,7 +1,7 @@
 {
   "frames": [
     {
-      "id": "frame-1763638696578-33e6mket9",
+      "id": "frame-1763645959406-y6dzx1mzg",
       "title": "Frame 1",
       "goal": "Enter learning goal here...",
       "informationText": "Provide background context and information...",
@@ -12,70 +12,101 @@
       "bubblSpaceId": "default",
       "timeCapsuleId": "default",
       "type": "frame",
-      "createdAt": "2025-11-20T11:38:16.578Z",
-      "updatedAt": "2025-11-20T11:43:13.211Z",
+      "createdAt": "2025-11-20T13:39:19.406Z",
+      "updatedAt": "2025-11-20T13:39:38.921Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-20T11:38:16.578Z",
-        "updatedAt": "2025-11-20T11:44:23.524Z",
+        "createdAt": "2025-11-20T13:39:19.406Z",
+        "updatedAt": "2025-11-20T13:39:39.596Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-20T11:44:23.524Z"
+        "lastSaved": "2025-11-20T13:39:39.596Z"
       },
-      "conceptIds": [],
-      "chapterId": "node_1763638988247_3wyl3saq4_0",
-      "parentFrameId": "node_1763638988247_3wyl3saq4_0"
+      "chapterId": "node_1763645963439_wx0l50r5x_2",
+      "parentFrameId": "node_1763645963439_wx0l50r5x_2",
+      "conceptIds": []
+    },
+    {
+      "id": "frame-1763645962368-7n49e4gwn",
+      "title": "Frame 2",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
+      "aiConcepts": [],
+      "isGenerated": false,
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "type": "frame",
+      "createdAt": "2025-11-20T13:39:22.368Z",
+      "updatedAt": "2025-11-20T13:39:38.921Z",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-20T13:39:22.368Z",
+        "updatedAt": "2025-11-20T13:39:39.596Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-20T13:39:39.596Z"
+      },
+      "chapterId": "node_1763645963439_wx0l50r5x_2",
+      "parentFrameId": "node_1763645963439_wx0l50r5x_2",
+      "conceptIds": []
     }
   ],
   "chapters": [
     {
-      "id": "node_1763638988247_3wyl3saq4_0",
+      "id": "node_1763645963439_wx0l50r5x_2",
       "title": "New Chapter",
       "description": "Chapter description",
       "frameIds": [
-        "frame-1763638696578-33e6mket9"
+        "frame-1763645959406-y6dzx1mzg",
+        "frame-1763645962368-7n49e4gwn"
       ],
       "conceptIds": [],
       "order": 2,
       "color": "#3B82F6",
-      "linkSequentially": false,
-      "createdAt": "2025-11-20T11:43:08.247Z",
-      "updatedAt": "2025-11-20T11:44:23.524Z"
+      "linkSequentially": true,
+      "createdAt": "2025-11-20T13:39:23.439Z",
+      "updatedAt": "2025-11-20T13:39:39.596Z"
     }
   ],
   "graphState": {
     "nodes": [
       {
-        "id": "node_1763638988247_3wyl3saq4_0",
+        "id": "node_1763645963439_wx0l50r5x_2",
         "type": "chapter",
         "position": {
-          "x": 70,
+          "x": 200,
           "y": 50
         },
         "data": {
           "type": "chapter",
-          "id": "node_1763638988247_3wyl3saq4_0",
+          "id": "node_1763645963439_wx0l50r5x_2",
           "title": "New Chapter",
           "description": "Chapter description",
           "frameIds": [
-            "frame-1763638696578-33e6mket9"
+            "frame-1763645959406-y6dzx1mzg",
+            "frame-1763645962368-7n49e4gwn"
           ],
           "conceptIds": [],
           "order": 2,
           "color": "#3B82F6",
-          "linkSequentially": false
+          "linkSequentially": true,
+          "updatedAt": "2025-11-20T13:39:31.413Z"
         },
         "measured": {
           "width": 320,
           "height": 188
         },
-        "selected": false,
+        "selected": true,
         "dragging": false
       },
       {
-        "id": "node_1763638696578_rwhkw74pa_0",
+        "id": "node_1763645959406_dl9bm4xlm_0",
         "type": "aiframe",
         "position": {
           "x": 50,
@@ -83,32 +114,76 @@
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame-1763638696578-33e6mket9",
+          "frameId": "frame-1763645959406-y6dzx1mzg",
           "title": "Frame 1",
           "goal": "Enter learning goal here...",
           "informationText": "Provide background context and information...",
           "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false,
-          "updatedAt": "2025-11-20T11:38:16.658Z",
-          "chapterId": "node_1763638988247_3wyl3saq4_0",
-          "parentFrameId": "node_1763638988247_3wyl3saq4_0"
+          "updatedAt": "2025-11-20T13:39:39.009Z"
         },
         "measured": {
           "width": 480,
           "height": 460
         },
-        "selected": true,
+        "selected": false,
         "dragging": false
+      },
+      {
+        "id": "node_1763645962368_656sntrie_1",
+        "type": "aiframe",
+        "position": {
+          "x": 180,
+          "y": 1000
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame-1763645962368-7n49e4gwn",
+          "title": "Frame 2",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
+          "aiConcepts": [],
+          "isGenerated": false,
+          "updatedAt": "2025-11-20T13:39:39.009Z"
+        },
+        "measured": {
+          "width": 480,
+          "height": 460
+        }
       }
     ],
     "edges": [
       {
-        "id": "edge_node_1763638988247_3wyl3saq4_0_node_1763638696578_rwhkw74pa_0_1763638993211_23t8swbh3",
-        "source": "node_1763638988247_3wyl3saq4_0",
-        "target": "node_1763638696578_rwhkw74pa_0",
+        "id": "edge_seq_node_1763645959406_dl9bm4xlm_0_node_1763645962368_656sntrie_1_1763645971384_v6ue",
+        "source": "node_1763645959406_dl9bm4xlm_0",
+        "target": "node_1763645962368_656sntrie_1",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "node_1763645963439_wx0l50r5x_2"
+        }
+      },
+      {
+        "id": "edge_chapter_node_1763645963439_wx0l50r5x_2_node_1763645959406_dl9bm4xlm_0",
+        "source": "node_1763645963439_wx0l50r5x_2",
+        "target": "node_1763645959406_dl9bm4xlm_0",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
         "style": {
           "stroke": "#10b981",
           "strokeWidth": 2.5
@@ -120,18 +195,41 @@
           "height": 16
         },
         "data": {
-          "relationship": "chapter-membership"
+          "relationship": "chapter-membership",
+          "chapterId": "node_1763645963439_wx0l50r5x_2"
+        }
+      },
+      {
+        "id": "edge_chapter_node_1763645963439_wx0l50r5x_2_node_1763645962368_656sntrie_1",
+        "source": "node_1763645963439_wx0l50r5x_2",
+        "target": "node_1763645962368_656sntrie_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "node_1763645963439_wx0l50r5x_2"
         }
       }
     ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T11:44:23.733Z",
+    "lastUpdated": "2025-11-20T13:39:39.798Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-20T11:44:23.524Z",
-    "frameCount": 1,
+    "lastSaved": "2025-11-20T13:39:39.596Z",
+    "frameCount": 2,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

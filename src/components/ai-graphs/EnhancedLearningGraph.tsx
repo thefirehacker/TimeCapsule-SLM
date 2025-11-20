@@ -392,9 +392,18 @@ export default function EnhancedLearningGraph({
           // Notify parent component with updated frames
           invokeOnFramesChange(framesChanged ? updatedFrames : filteredFrames);
           
-          // CRITICAL FIX: Don't emit events that trigger immediate saves with stale data
-          // The Sage's Wisdom (Battle 7): Let normal React update cycle handle saves
-          // Status will remain "unsaved" briefly, then save with correct data after React updates
+          // CRITICAL FIX: Delay save trigger to allow React to update framesRef.current
+          // Wait 500ms for React state to propagate before triggering background save
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('graph-frame-deleted', {
+                detail: {
+                  frameId: frameId,
+                  deletedFrameIds: [frameId]
+                }
+              }));
+            }
+          }, 500);
         }
       }
     });
@@ -2652,6 +2661,7 @@ export default function EnhancedLearningGraph({
   // Handle connections with attachment logic
   const onConnect = useCallback(
     (params: Connection) => {
+      console.log('🔗 onConnect triggered:', { source: params.source, target: params.target, sourceHandle: params.sourceHandle, targetHandle: params.targetHandle });
       const currentNodes = nodesRef.current;
       const currentEdges = edgesRef.current;
 
@@ -2835,6 +2845,7 @@ export default function EnhancedLearningGraph({
       
       // Emit connection event for real-time sync
       if (typeof window !== 'undefined') {
+        console.log('📤 Emitting graph-connection-added event:', { edgeId: edge.id, source: edge.source, target: edge.target });
         window.dispatchEvent(new CustomEvent('graph-connection-added', {
             detail: {
               connection: edge,
@@ -2879,6 +2890,7 @@ export default function EnhancedLearningGraph({
             }
           }
 
+          console.log('📤 Emitting graph-state-changed event (edge-added):', { edgeId: edge.id, totalEdges: nextEdges.length });
           emitGraphStateChange('edge-added', {
             edgeData: edge
           }, {
