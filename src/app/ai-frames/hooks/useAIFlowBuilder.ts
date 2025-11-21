@@ -1746,8 +1746,11 @@ export function useAIFlowBuilder({
     
     // Chapter nodes - horizontal row at y=50
     chapters.forEach((chapter, index) => {
+      // Avoid double-prefixing: only add 'chapter_' if not already present
+      const chapterNodeId = chapter.id.startsWith('chapter_') ? chapter.id : `chapter_${chapter.id}`;
+      
       nodes.push({
-        id: `chapter_${chapter.id}`,
+        id: chapterNodeId,
         type: 'chapter',
         position: { x: index * 400, y: 50 },
         data: {
@@ -1768,9 +1771,12 @@ export function useAIFlowBuilder({
       const framesInChapter = frames.filter((f) => (f.chapterId || chapters[0]?.id) === chapterId);
       const indexInChapter = framesInChapter.findIndex((f) => f.id === frame.id);
       
+      // Avoid double-prefixing: only add 'frame_' if not already present
+      const frameNodeId = frame.id.startsWith('frame_') ? frame.id : `frame_${frame.id}`;
+      
       nodes.push({
-        id: `frame_${frame.id}`,
-        type: 'frame',
+        id: frameNodeId,
+        type: 'aiframe',
         position: { x: chapterIndex * 400 + indexInChapter * 200, y: 500 },
         data: {
           id: frame.id,
@@ -1783,10 +1789,13 @@ export function useAIFlowBuilder({
       // Chapter-to-frame edge
       const chapter = chapters.find((c) => c.id === chapterId);
       if (chapter) {
+        // Use consistent chapter node ID to match the node we created above
+        const chapterNodeId = chapterId.startsWith('chapter_') ? chapterId : `chapter_${chapterId}`;
+        
         edges.push({
           id: `edge_chapter_${chapterId}_node_${frame.id}`,
-          source: `chapter_${chapterId}`,
-          target: `frame_${frame.id}`,
+          source: chapterNodeId,
+          target: frameNodeId,
           sourceHandle: 'chapter-frame-out',
           targetHandle: 'chapter-frame-in',
           type: 'smoothstep',
@@ -1799,10 +1808,11 @@ export function useAIFlowBuilder({
       // Sequential frame-to-frame edge
       if (indexInChapter > 0 && chapter?.linkSequentially) {
         const prevFrame = framesInChapter[indexInChapter - 1];
+        const prevFrameNodeId = prevFrame.id.startsWith('frame_') ? prevFrame.id : `frame_${prevFrame.id}`;
         edges.push({
           id: `edge_frame_${prevFrame.id}_frame_${frame.id}`,
-          source: `frame_${prevFrame.id}`,
-          target: `frame_${frame.id}`,
+          source: prevFrameNodeId,
+          target: frameNodeId,
           type: 'smoothstep',
           style: { stroke: '#94a3b8', strokeWidth: 2 },
           markerEnd: { type: 'arrowclosed', color: '#94a3b8' },
@@ -1885,8 +1895,8 @@ export function useAIFlowBuilder({
     let aiFlowSession: FlowSession | null = null;
     const activeSession = sessions.find((s) => s.id === activeSessionId);
 
-    // ✅ NEW: Check if user wants to continue with non-AI-Flow session
-    if (activeSessionId && activeSession && activeSession.source !== "ai-flow") {
+    // ✅ Check if user wants to continue with existing session (any source)
+    if (activeSessionId && activeSession) {
       console.log("🔔 AI Flow needs session decision - emitting dialog event");
       
       // Emit event to page.tsx to show dialog and wait for response
@@ -1921,12 +1931,8 @@ export function useAIFlowBuilder({
           console.log(`✅ Continuing AI Flow with existing session: ${aiFlowSession?.name}`);
         }
       }
-    } else if (activeSessionId && activeSession?.source === "ai-flow") {
-      // Use existing active AI Flow session
-      aiFlowSession = activeSession;
-      console.log(`📂 Using existing AI Flow session: ${aiFlowSession?.name}`);
     } else {
-      // Create new AI Flow session
+      // Create new AI Flow session (no active session)
       if (sessionStore) {
         aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
         console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
@@ -2345,7 +2351,13 @@ export function useAIFlowBuilder({
 
   // Helper to normalize attachment types from generator output to React Flow node types
   const normalizeAttachmentType = (generatorType: string): string => {
-    switch (generatorType) {
+    // Handle empty/falsy types
+    if (!generatorType || generatorType.trim() === '') {
+      return 'text-attachment';
+    }
+    
+    const normalizedType = generatorType.toLowerCase().trim();
+    switch (normalizedType) {
       case 'video':
         return 'video-attachment';
       case 'pdf':
@@ -2357,7 +2369,8 @@ export function useAIFlowBuilder({
       case 'image':
         return 'text-attachment';
       default:
-        return 'text-attachment'; // Fallback
+        console.warn(`Unknown attachment type: "${generatorType}", defaulting to text-attachment`);
+        return 'text-attachment';
     }
   };
 
