@@ -102,10 +102,33 @@ JSON SHAPE:
 `.trim();
 
     const response = await this.llm(prompt);
-    const parsed = parseJsonWithResilience(response) as PlannerResponse;
+    let parsed: PlannerResponse | null = null;
+    
+    try {
+      parsed = parseJsonWithResilience(response) as PlannerResponse;
+    } catch (error) {
+      console.warn(
+        "FlowFramePlannerAgent: Initial JSON parse failed, attempting fallback",
+        {
+          error,
+          responseLength: response.length,
+          responsePreview: response.substring(0, 300)
+        }
+      );
+      
+      // Create minimal fallback plan from prompt
+      parsed = this.createFallbackPlan(prompt, response);
+    }
 
     if (!parsed?.frames?.length) {
-      throw new Error("FlowFramePlannerAgent failed to produce any frames.");
+      console.warn(
+        "FlowFramePlannerAgent: No frames in parsed response, creating emergency fallback"
+      );
+      parsed = this.createFallbackPlan(prompt, response);
+    }
+    
+    if (!parsed?.frames?.length) {
+      throw new Error("FlowFramePlannerAgent failed to produce any frames even with fallback.");
     }
 
     context.flowBuilder = context.flowBuilder || {};
@@ -156,5 +179,59 @@ JSON SHAPE:
         return `[EXCERPT ${index + 1}] Source: ${chunk.source}\n${cleanText}`;
       })
       .join("\n\n");
+  }
+
+  /**
+   * Creates a minimal fallback plan when LLM parsing fails
+   */
+  private createFallbackPlan(prompt: string, llmResponse: string): PlannerResponse {
+    const timestamp = Date.now();
+    const chapterId = `chapter_${timestamp}_fallback`;
+    const frameId = `frame_${timestamp}_fallback`;
+    
+    console.warn("⚠️ FlowFramePlannerAgent: Creating emergency fallback plan");
+    
+    // Try to extract any useful info from the malformed response
+    let extractedTitle = "Learning Topic";
+    let extractedGoal = prompt.slice(0, 300);
+    
+    // Simple regex extraction attempts
+    const titleMatch = llmResponse.match(/"title"\s*:\s*"([^"]{10,100})"/);
+    if (titleMatch) {
+      extractedTitle = titleMatch[1];
+    }
+    
+    const goalMatch = llmResponse.match(/"goal"\s*:\s*"([^"]{20,500})"/);
+    if (goalMatch) {
+      extractedGoal = goalMatch[1];
+    }
+
+    return {
+      summary: `Fallback plan created for: ${prompt.slice(0, 100)}`,
+      learningMode: "freeform",
+      chapters: [
+        {
+          id: chapterId,
+          title: extractedTitle,
+          description: "This chapter was created as a fallback due to a parsing error",
+          color: "#6B7280",
+          frameIds: [frameId],
+          order: 0,
+          linkSequentially: true
+        }
+      ],
+      frames: [
+        {
+          id: frameId,
+          title: extractedTitle,
+          goal: extractedGoal,
+          phase: "overview",
+          chapterId: chapterId,
+          requiresVision: false,
+          aiConcepts: [],
+          checkpoints: []
+        }
+      ]
+    };
   }
 }

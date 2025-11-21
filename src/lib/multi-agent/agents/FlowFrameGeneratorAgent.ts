@@ -104,7 +104,12 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
       } catch (error) {
         console.warn(
           `FlowFrameGeneratorAgent: failed to parse generator response for frame ${framePlan.id}`,
-          error
+          {
+            error,
+            responseLength: llmResponse.length,
+            responsePreview: llmResponse.substring(0, 300),
+            responseSuffix: llmResponse.substring(Math.max(0, llmResponse.length - 100))
+          }
         );
       }
 
@@ -117,10 +122,13 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
         parsed = await this.repairFrameResponse(framePlan, llmResponse);
       }
 
+      // Final fallback: create minimal valid frame instead of throwing
       if (!parsed?.informationText) {
-        throw new Error(
-          `FlowFrameGeneratorAgent failed to generate content for frame ${framePlan.id}`
+        console.warn(
+          `⚠️ FlowFrameGeneratorAgent: All parsing failed for ${framePlan.id}, using fallback`,
+          { responseLength: llmResponse.length }
         );
+        parsed = this.createFallbackFrame(framePlan, llmResponse);
       }
 
       const generated: FlowGeneratedFrame = {
@@ -267,5 +275,35 @@ Do not include markdown fences or commentary—respond with JSON only.
       );
       return null;
     }
+  }
+
+  /**
+   * Creates a minimal fallback frame when all parsing attempts fail
+   */
+  private createFallbackFrame(
+    framePlan: FlowPlannedFrame,
+    llmResponse: string
+  ): GeneratorResponse {
+    // Try to extract informationText value from malformed JSON
+    let extractedText = "";
+    const infoTextMatch = llmResponse.match(/"informationText"\s*:\s*"([\s\S]*?)"/);
+    if (infoTextMatch && infoTextMatch[1].length > 50) {
+      extractedText = infoTextMatch[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\t/g, '\t')
+        .trim();
+    }
+    
+    // Fallback: Use frame goal and title
+    const fallbackText = extractedText || 
+      `## ${framePlan.title}\n\n${framePlan.goal}\n\n*⚠️ Note: This frame's content generation encountered a parsing error. The system has created placeholder content based on the frame's goal. Please regenerate this frame for complete content.*`;
+
+    return {
+      informationText: fallbackText,
+      afterVideoText: "",
+      aiConcepts: framePlan.aiConcepts || [],
+      attachment: undefined,
+    };
   }
 }

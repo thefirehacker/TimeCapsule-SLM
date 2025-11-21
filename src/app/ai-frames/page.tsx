@@ -1972,11 +1972,18 @@ export default function AIFramesPage() {
       );
 
       const timestamp = new Date().toISOString();
-      const normalized = frames.map((frame, index) => ({
+      const normalized: UnifiedAIFrame[] = frames.map((frame, index) => ({
         ...frame,
         order: existingMaxOrder + index + 1,
         createdAt: frame.createdAt || timestamp,
         updatedAt: timestamp,
+        metadata: {
+          version: "2.0",
+          createdAt: frame.createdAt || timestamp,
+          updatedAt: timestamp,
+          source: "ai-frames" as const,
+          lastSaved: timestamp,
+        },
       }));
 
       // Debug logging to verify frame IDs match chapter references
@@ -1984,40 +1991,34 @@ export default function AIFramesPage() {
       console.log(`📦 Frame IDs:`, normalized.map(f => f.id));
       console.log(`📦 Chapter frame mappings:`, plannerChapters?.map(c => ({ chapterId: c.id, frameIds: c.frames.map(f => f.id) })));
 
-      // Update frames
-      unifiedStorage.updateFrames([
-        ...unifiedStorage.frames,
-        ...normalized,
-      ]);
+      // Convert PlannerChapter[] to Chapter[]
+      const convertedChapters: Chapter[] = (plannerChapters || []).map((pc) => ({
+        id: pc.id,
+        title: pc.title,
+        description: pc.goal, // Map goal to description
+        color: pc.color,
+        order: pc.order,
+        frameIds: pc.frames.map(f => f.id), // Extract frame IDs from planner frames
+        conceptIds: [], // Initialize empty, will be populated by frames
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }));
 
-      // Convert PlannerChapter[] to Chapter[] and update if provided
-      if (plannerChapters && plannerChapters.length > 0) {
-        const convertedChapters: Chapter[] = plannerChapters.map((pc) => ({
-          id: pc.id,
-          title: pc.title,
-          description: pc.goal, // Map goal to description
-          color: pc.color,
-          order: pc.order,
-          frameIds: pc.frames.map(f => f.id), // Extract frame IDs from planner frames
-          conceptIds: [], // Initialize empty, will be populated by frames
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        }));
-
-        unifiedStorage.updateChapters([
-          ...unifiedStorage.chapters,
-          ...convertedChapters,
-        ]);
-
-        // Generate graph state from converted chapters and frames
+      // Prepare graphState
+      let graphStateToUse = flowBuilder.plan?.graphState;
+      if (!graphStateToUse && plannerChapters && plannerChapters.length > 0) {
+        console.warn('⚠️ No graphState in plan, generating fallback');
         const allFrames = [...unifiedStorage.frames, ...normalized];
-        const allChapters = [...unifiedStorage.chapters, ...convertedChapters];
-        const graphState = flowBuilder.generateGraphState(plannerChapters, allFrames);
-        
-        if (graphState) {
-          unifiedStorage.updateGraphState(graphState);
-        }
+        graphStateToUse = flowBuilder.generateGraphState(plannerChapters, allFrames);
       }
+
+      // ✅ ATOMIC UPDATE: Use batch update (like SWE Bridge) to prevent race conditions
+      console.log('✅ Using atomic batchUpdate (prevents duplicate nodes)');
+      unifiedStorage.batchUpdate({
+        frames: [...unifiedStorage.frames, ...normalized],
+        chapters: [...unifiedStorage.chapters, ...convertedChapters],
+        graphState: graphStateToUse,
+      });
 
       // Trigger auto-layout
       if (typeof window !== "undefined") {

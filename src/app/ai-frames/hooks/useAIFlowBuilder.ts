@@ -123,6 +123,7 @@ interface PlannerPlan {
   createdAt: string;
   model?: string;
   learningMode?: "bootstrapped_stepwise" | "freeform";
+  graphState?: GraphState;
 }
 
 const AGENT_TIER_HINTS: Record<string, AIFlowModelTier> = {
@@ -1771,18 +1772,18 @@ export function useAIFlowBuilder({
       const framesInChapter = frames.filter((f) => (f.chapterId || chapters[0]?.id) === chapterId);
       const indexInChapter = framesInChapter.findIndex((f) => f.id === frame.id);
       
-      // Avoid double-prefixing: only add 'frame_' if not already present
-      const frameNodeId = frame.id.startsWith('frame_') ? frame.id : `frame_${frame.id}`;
+      // Match SWE Bridge format: node_{frameId}_{indexInChapter}
+      const frameNodeId = `node_${frame.id}_${indexInChapter}`;
       
       nodes.push({
         id: frameNodeId,
         type: 'aiframe',
         position: { x: chapterIndex * 400 + indexInChapter * 200, y: 500 },
         data: {
-          id: frame.id,
-          title: frame.title,
-          goal: frame.goal,
-          chapterId: frame.chapterId,
+          ...frame,
+          id: frame.id,          // Keep for backward compatibility  
+          frameId: frame.id,     // Required for EnhancedLearningGraph merge filter
+          type: 'aiframe',       // Ensure type is set
         },
       });
       
@@ -1808,7 +1809,7 @@ export function useAIFlowBuilder({
       // Sequential frame-to-frame edge
       if (indexInChapter > 0 && chapter?.linkSequentially) {
         const prevFrame = framesInChapter[indexInChapter - 1];
-        const prevFrameNodeId = prevFrame.id.startsWith('frame_') ? prevFrame.id : `frame_${prevFrame.id}`;
+        const prevFrameNodeId = `node_${prevFrame.id}_${indexInChapter - 1}`;
         edges.push({
           id: `edge_frame_${prevFrame.id}_frame_${frame.id}`,
           source: prevFrameNodeId,
@@ -1920,9 +1921,9 @@ export function useAIFlowBuilder({
         });
 
         if (createNew) {
-          // Create new AI Flow session
-          if (sessionStore) {
-            aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
+      // Create new AI Flow session
+      if (sessionStore) {
+        aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
             console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
           }
         } else {
@@ -2055,6 +2056,17 @@ export function useAIFlowBuilder({
           console.warn(`⚠️ WARNING: ${debugData.validation.missingOrder} frames missing order`);
         }
         
+        // Check for fallback frames (frames that used emergency fallback due to parsing errors)
+        const fallbackFrames = flowFrames.filter(frame => 
+          frame?.informationText?.includes('⚠️ Note: This frame\'s content generation encountered')
+        );
+        if (fallbackFrames.length > 0) {
+          console.warn(
+            `⚠️ FALLBACK FRAMES DETECTED: ${fallbackFrames.length} frames used emergency fallback content`,
+            fallbackFrames.map(f => ({ id: f.id, title: f.title }))
+          );
+        }
+        
         // Filter out undefined/malformed frames to prevent UI crash
         const validFrames = flowFrames.filter(frame => {
           if (!frame) {
@@ -2120,9 +2132,42 @@ export function useAIFlowBuilder({
         sessionSnapshot: session,
       });
 
-      setPlan(legacyPlan);
+      // Generate and store graphState in the plan (like SWE Bridge does)
+      const framesForGraph = flowFrames.map(frame => ({
+        id: frame.id,
+        chapterId: frame.chapterId || fallbackChapterId,
+        title: frame.title,
+        goal: frame.goal,
+        informationText: frame.informationText,
+        afterVideoText: frame.afterVideoText,
+        aiConcepts: frame.aiConcepts || [],
+        attachment: frame.attachment,
+      }));
+      const generatedGraphState = generateGraphState(legacyPlan.chapters, framesForGraph);
+      const planWithGraphState = {
+        ...legacyPlan,
+        graphState: generatedGraphState,
+      };
+
+      setPlan(planWithGraphState);
       setFrameDrafts(drafts);
-      finalizeTimeline("completed", "Flow Builder orchestration complete", subSteps);
+      
+      // Add warning if any frames used fallback
+      const fallbackFrameCount = flowFrames.filter(frame => 
+        frame?.informationText?.includes('⚠️ Note: This frame\'s content generation encountered')
+      ).length;
+      
+      if (fallbackFrameCount > 0) {
+        const warningMessage = `Completed with ${fallbackFrameCount} frame${fallbackFrameCount > 1 ? 's' : ''} using fallback content due to parsing errors`;
+        finalizeTimeline("completed", warningMessage, subSteps);
+        recordHistoryLog(
+          "system",
+          "info",
+          `⚠️ ${fallbackFrameCount} frame(s) encountered JSON parsing errors and used emergency fallback content. These frames may need regeneration.`
+        );
+      } else {
+        finalizeTimeline("completed", "Flow Builder orchestration complete", subSteps);
+      }
     } catch (plannerError) {
       console.error("AI Flow orchestration failed:", plannerError);
       recordHistoryLog(
