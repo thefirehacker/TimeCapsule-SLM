@@ -48,6 +48,7 @@ import { FlowFramePlannerAgent } from "@/lib/multi-agent/agents/FlowFramePlanner
 import { FlowFrameGeneratorAgent } from "@/lib/multi-agent/agents/FlowFrameGeneratorAgent";
 import type { AIFlowModelTier } from "../lib/openRouterModels";
 import type { FlowSession, SessionSource } from "../types/session";
+import type { GraphState } from "@/components/ai-graphs/types";
 import { getSessionStore, SessionStore } from "@/lib/kb/sessionStore";
 
 interface KnowledgeCitation {
@@ -104,7 +105,7 @@ interface PlannerFrame {
   requiresVision?: boolean;
 }
 
-interface PlannerChapter {
+export interface PlannerChapter {
   id: string;
   title: string;
   goal: string;
@@ -267,6 +268,7 @@ export interface UseAIFlowBuilderReturn {
   deleteSession: (sessionId: string) => Promise<void>;
   syncFrameToSession: (frame: AIFrame) => void;
   syncFrameDeletions: (currentFrameIds: Set<string>) => void;
+  generateGraphState: (chapters: PlannerChapter[], frames: AIFrame[]) => GraphState;
 }
 
 const MAX_KB_RESULTS_FOR_PLAN = 8;
@@ -610,10 +612,6 @@ const convertFlowFrameToDraft = (
     attachments: baseAttachment ? [baseAttachment] : [],
     summary: frame.summary,
     durationInSeconds: frame.durationInSeconds,
-    checkpointQuiz: frame.checkpointQuiz ? {
-      ...frame.checkpointQuiz,
-      difficulty: "checkpoint" as const,
-    } : undefined,
     recommendedResources: baseAttachment ? [baseAttachment] : [],
   };
 
@@ -640,10 +638,6 @@ const convertFlowFrameToDraft = (
     generatedAt: new Date().toISOString(),
     error: null,
     knowledgeContext: undefined,
-    checkpointQuiz: frame.checkpointQuiz ? {
-      ...frame.checkpointQuiz,
-      difficulty: "checkpoint" as const,
-    } : undefined,
     quizHistory: [],
     masteryState: index === 0 ? "ready" : "locked",
     source: "ai-flow" as SessionSource, // Track frame origin
@@ -1375,12 +1369,13 @@ export function useAIFlowBuilder({
 
       return drafts.map((draft) => {
         const quizHistory = draft.quizHistory || [];
+        // QUIZ REMOVED: All generated frames are "ready" by default
         let masteryState: FrameMasteryState = draft.masteryState || "locked";
 
         if (completed.has(draft.tempId)) {
           masteryState = "completed";
         } else if (draft.tempId === currentId) {
-          masteryState = draft.status === "generated" ? "awaiting_quiz" : "ready";
+          masteryState = "ready"; // Always ready, no quiz required
         } else if (unlocked.has(draft.tempId)) {
           masteryState = "ready";
         } else if (
@@ -1744,16 +1739,98 @@ export function useAIFlowBuilder({
     []
   );
 
+  // Generate graph state from chapters and frames
+  const generateGraphState = useCallback((chapters: any[], frames: any[]) => {
+    const nodes: any[] = [];
+    const edges: any[] = [];
+    
+    // Chapter nodes - horizontal row at y=50
+    chapters.forEach((chapter, index) => {
+      nodes.push({
+        id: `chapter_${chapter.id}`,
+        type: 'chapter',
+        position: { x: index * 400, y: 50 },
+        data: {
+          id: chapter.id,
+          title: chapter.title,
+          description: chapter.description,
+          color: chapter.color,
+          frameIds: chapter.frameIds || [],
+          order: chapter.order,
+        },
+      });
+    });
+    
+    // Frame nodes - below chapters at y=500, grouped by chapter
+    frames.forEach((frame, index) => {
+      const chapterId = frame.chapterId || chapters[0]?.id || 'default';
+      const chapterIndex = chapters.findIndex((c) => c.id === chapterId);
+      const framesInChapter = frames.filter((f) => (f.chapterId || chapters[0]?.id) === chapterId);
+      const indexInChapter = framesInChapter.findIndex((f) => f.id === frame.id);
+      
+      nodes.push({
+        id: `frame_${frame.id}`,
+        type: 'frame',
+        position: { x: chapterIndex * 400 + indexInChapter * 200, y: 500 },
+        data: {
+          id: frame.id,
+          title: frame.title,
+          goal: frame.goal,
+          chapterId: frame.chapterId,
+        },
+      });
+      
+      // Chapter-to-frame edge
+      const chapter = chapters.find((c) => c.id === chapterId);
+      if (chapter) {
+        edges.push({
+          id: `edge_chapter_${chapterId}_node_${frame.id}`,
+          source: `chapter_${chapterId}`,
+          target: `frame_${frame.id}`,
+          sourceHandle: 'chapter-frame-out',
+          targetHandle: 'chapter-frame-in',
+          type: 'smoothstep',
+          style: { stroke: chapter.color || '#3B82F6', strokeWidth: 2.5 },
+          markerEnd: { type: 'arrowclosed', color: chapter.color || '#3B82F6' },
+          data: { relationship: 'chapter-membership', chapterId },
+        });
+      }
+      
+      // Sequential frame-to-frame edge
+      if (indexInChapter > 0 && chapter?.linkSequentially) {
+        const prevFrame = framesInChapter[indexInChapter - 1];
+        edges.push({
+          id: `edge_frame_${prevFrame.id}_frame_${frame.id}`,
+          source: `frame_${prevFrame.id}`,
+          target: `frame_${frame.id}`,
+          type: 'smoothstep',
+          style: { stroke: '#94a3b8', strokeWidth: 2 },
+          markerEnd: { type: 'arrowclosed', color: '#94a3b8' },
+          data: { relationship: 'sequential' },
+        });
+      }
+    });
+    
+    return { nodes, edges, selectedNodeId: null };
+  }, []);
+
   // 🔬 DEBUG CHECKPOINT: Export frames for inspection
-  const exportFramesDebugData = useCallback((frames: any[], checkpoint: string) => {
+  const exportFramesDebugData = useCallback((frames: any[], checkpoint: string, chapters?: any[]) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `debug-frames-${checkpoint}-${timestamp}.json`;
+    
+    // Generate graph state if chapters are provided
+    const graphState = chapters && chapters.length > 0
+      ? generateGraphState(chapters, frames)
+      : undefined;
     
     const debugData = {
       checkpoint,
       timestamp: new Date().toISOString(),
       version: TIMECAPSULE_VERSION,
       frameCount: frames.length,
+      chapters: chapters || [],
+      graphState,
       frames: frames.map((frame, idx) => ({
         index: idx,
         id: frame?.id || 'UNDEFINED',
@@ -1810,12 +1887,39 @@ export function useAIFlowBuilder({
 
     // ✅ NEW: Check if user wants to continue with non-AI-Flow session
     if (activeSessionId && activeSession && activeSession.source !== "ai-flow") {
-      console.log("🔔 Active session is not AI Flow - will show dialog to user");
-      // For now, create new AI Flow session automatically
-      // TODO: The dialog will be shown via event, but for now we proceed with new session
-      if (sessionStore) {
-        aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
-        console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
+      console.log("🔔 AI Flow needs session decision - emitting dialog event");
+      
+      // Emit event to page.tsx to show dialog and wait for response
+      if (typeof window !== "undefined") {
+        const createNew = await new Promise<boolean>((resolve) => {
+          const handleDialogResponse = (event: CustomEvent) => {
+            window.removeEventListener("ai-flow-session-response", handleDialogResponse as EventListener);
+            resolve(event.detail.createNew);
+          };
+          
+          window.addEventListener("ai-flow-session-response", handleDialogResponse as EventListener);
+          
+          window.dispatchEvent(
+            new CustomEvent("ai-flow-session-check", {
+              detail: {
+                currentSession: activeSession,
+                source: "ai-flow",
+              },
+            })
+          );
+        });
+
+        if (createNew) {
+          // Create new AI Flow session
+          if (sessionStore) {
+            aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
+            console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
+          }
+        } else {
+          // Continue with existing session
+          aiFlowSession = activeSession;
+          console.log(`✅ Continuing AI Flow with existing session: ${aiFlowSession?.name}`);
+        }
       }
     } else if (activeSessionId && activeSession?.source === "ai-flow") {
       // Use existing active AI Flow session
@@ -1926,7 +2030,7 @@ export function useAIFlowBuilder({
 
       // 🔬 DEBUG CHECKPOINT: Export frames before pushing to UI
       if (flowFrames.length > 0) {
-        const debugData = exportFramesDebugData(flowFrames, 'flowframegenerator');
+        const debugData = exportFramesDebugData(flowFrames, 'flowframegenerator', flowPlan?.chapters);
         
         // Log critical warnings
         if (debugData.validation.undefinedFrames > 0) {
@@ -2137,9 +2241,7 @@ export function useAIFlowBuilder({
                 "Instructions:",
                 "- Use headings and bullet points where helpful.",
                 "- Reference citations by label (KB-1, WEB-1, etc).",
-                "- Include actionable takeaways.",
-                "- Produce a checkpointQuiz with 1-3 thoughtful questions that verify understanding before the learner can advance.",
-                "- If the learner fails the quiz, we will request a remediation frame, so keep the summary granular.",
+                "- Include actionable takeaways and key concepts.",
               ].join("\n\n"),
             },
           ];
@@ -2241,11 +2343,29 @@ export function useAIFlowBuilder({
     ]
   );
 
+  // Helper to normalize attachment types from generator output to React Flow node types
+  const normalizeAttachmentType = (generatorType: string): string => {
+    switch (generatorType) {
+      case 'video':
+        return 'video-attachment';
+      case 'pdf':
+        return 'pdf-attachment';
+      case 'document':
+      case 'diagram':
+      case 'code_snippet':
+      case 'text':
+      case 'image':
+        return 'text-attachment';
+      default:
+        return 'text-attachment'; // Fallback
+    }
+  };
+
   const convertDraftToFrame = useCallback((draft: FrameDraft): AIFrame | null => {
     if (!draft.generated) return null;
 
     return {
-      id: generateFrameId(),
+      id: draft.id, // Preserve original planner ID like SWE sync does
       title: draft.generated.summary || draft.title,
       goal: draft.goal,
       informationText: draft.generated.informationText || "",
@@ -2266,7 +2386,7 @@ export function useAIFlowBuilder({
       attachment: draft.generated.attachment
         ? {
             id: draft.generated.attachment.id,
-            type: draft.generated.attachment.type,
+            type: normalizeAttachmentType(draft.generated.attachment.type),
             data: {
               description: draft.generated.attachment.description,
               referenceLabel: draft.generated.attachment.referenceLabel,
@@ -2311,9 +2431,9 @@ export function useAIFlowBuilder({
               formatKnowledgeContext(knowledge),
               formatWebContext(webContext),
               "Instructions:",
-              "- Focus on the most common misconceptions that could cause incorrect answers.",
+              "- Focus on the most common misconceptions and clarify them.",
               "- Use analogies or visual references when possible.",
-              "- Provide a fresh checkpointQuiz so the learner can retry after reviewing this remediation frame.",
+              "- Provide clear examples to reinforce understanding.",
             ].join("\n\n"),
           },
         ];
@@ -2590,9 +2710,8 @@ export function useAIFlowBuilder({
         frameIds ? frameIds.includes(draft.tempId) : draft.status === "generated"
       );
 
-      const masteredTargets = targets.filter(
-        (draft) => draft.masteryState === "completed"
-      );
+      // QUIZ REMOVED: Accept all generated frames without mastery requirement
+      const masteredTargets = targets;
 
       const frames: AIFrame[] = [];
       const remaining: FrameDraft[] = [];
@@ -2613,7 +2732,7 @@ export function useAIFlowBuilder({
 
       if (!frames.length) {
         setError(
-          "No completed frames are ready to sync. Pass the checkpoint quiz before accepting."
+          "No frames are ready to sync. Please generate frames first."
         );
         return [];
       }
@@ -2725,5 +2844,6 @@ export function useAIFlowBuilder({
     deleteSession,
     syncFrameToSession,
     syncFrameDeletions,
+    generateGraphState,
   };
 }

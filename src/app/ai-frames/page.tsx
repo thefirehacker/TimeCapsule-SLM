@@ -103,7 +103,7 @@ import type { Chapter } from "./types/frames";
 
 // UNIFIED: Replace old fragmented storage with unified system
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
-import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
+import { useAIFlowBuilder, PlannerChapter } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
 import { getBuildEnv, isLocalBuildEnv } from "./utils/buildEnv";
@@ -1927,14 +1927,28 @@ export default function AIFramesPage() {
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
     const handleAIFlowSessionCheck = (event: any) => {
-      const { currentSession, onContinue, onCreateNew } = event.detail;
+      const { currentSession } = event.detail;
       console.log("🔔 Received AI Flow session check event", { currentSession });
 
       setSessionDialogConfig({
         type: "ai-flow",
         currentSessionName: currentSession?.name,
-        onContinue,
-        onCreateNew,
+        onContinue: () => {
+          window.dispatchEvent(
+            new CustomEvent("ai-flow-session-response", {
+              detail: { createNew: false },
+            })
+          );
+          setShowSessionDialog(false);
+        },
+        onCreateNew: () => {
+          window.dispatchEvent(
+            new CustomEvent("ai-flow-session-response", {
+              detail: { createNew: true },
+            })
+          );
+          setShowSessionDialog(false);
+        },
       });
       setShowSessionDialog(true);
     };
@@ -1946,7 +1960,7 @@ export default function AIFramesPage() {
   }, [setSessionDialogConfig, setShowSessionDialog]);
 
   const handleAcceptAIFrames = useCallback(
-    (frames: AIFrame[]) => {
+    (frames: AIFrame[], plannerChapters?: PlannerChapter[]) => {
       if (!frames.length) return;
 
       const existingMaxOrder = unifiedStorage.frames.reduce(
@@ -1965,12 +1979,56 @@ export default function AIFramesPage() {
         updatedAt: timestamp,
       }));
 
+      // Debug logging to verify frame IDs match chapter references
+      console.log(`📦 Accept All: Pushing ${normalized.length} frames and ${plannerChapters?.length || 0} chapters`);
+      console.log(`📦 Frame IDs:`, normalized.map(f => f.id));
+      console.log(`📦 Chapter frame mappings:`, plannerChapters?.map(c => ({ chapterId: c.id, frameIds: c.frames.map(f => f.id) })));
+
+      // Update frames
       unifiedStorage.updateFrames([
         ...unifiedStorage.frames,
         ...normalized,
       ]);
+
+      // Convert PlannerChapter[] to Chapter[] and update if provided
+      if (plannerChapters && plannerChapters.length > 0) {
+        const convertedChapters: Chapter[] = plannerChapters.map((pc) => ({
+          id: pc.id,
+          title: pc.title,
+          description: pc.goal, // Map goal to description
+          color: pc.color,
+          order: pc.order,
+          frameIds: pc.frames.map(f => f.id), // Extract frame IDs from planner frames
+          conceptIds: [], // Initialize empty, will be populated by frames
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }));
+
+        unifiedStorage.updateChapters([
+          ...unifiedStorage.chapters,
+          ...convertedChapters,
+        ]);
+
+        // Generate graph state from converted chapters and frames
+        const allFrames = [...unifiedStorage.frames, ...normalized];
+        const allChapters = [...unifiedStorage.chapters, ...convertedChapters];
+        const graphState = flowBuilder.generateGraphState(plannerChapters, allFrames);
+        
+        if (graphState) {
+          unifiedStorage.updateGraphState(graphState);
+        }
+      }
+
+      // Trigger auto-layout
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("auto-layout-requested", {
+            detail: { source: "ai-flow-accept" },
+          })
+        );
+      }
     },
-    [unifiedStorage.frames, unifiedStorage.updateFrames]
+    [unifiedStorage, flowBuilder]
   );
 
   const handleExportFrames = useCallback(() => {
@@ -3148,7 +3206,7 @@ export default function AIFramesPage() {
         {flowPanelReady ? (
           <AIFlowBuilderPanel
             flowBuilder={flowBuilder}
-            onAcceptFrames={handleAcceptAIFrames}
+            onAcceptFrames={(frames, chapters) => handleAcceptAIFrames(frames, chapters)}
             isOpen={isFlowPanelOpen}
             onToggle={() => setIsFlowPanelOpen(false)}
             workspaceStats={workspaceStats}

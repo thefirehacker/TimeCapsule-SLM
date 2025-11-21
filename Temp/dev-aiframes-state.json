@@ -1,944 +1,892 @@
 {
   "frames": [
     {
-      "id": "frame_1763361560909_fleet_intro",
-      "title": "Introduction to Ship Fleet History",
-      "goal": "Understand the structure and purpose of ship fleet documentation",
-      "informationText": "Ship fleet history documents provide comprehensive records of vessels operated by maritime companies. These records include critical specifications such as ship names (in both English and Japanese for international operations), physical dimensions, engine specifications, service speeds, shipyard builders, and construction years. This data is essential for fleet management, maintenance planning, operational efficiency analysis, and historical documentation of maritime operations.",
+      "id": "frame_1",
+      "title": "This frame introduces the visual mental model of Distributed Data Parallel (DDP) in PyTorch, illustrating model replication across GPUs and gradient synchronization for efficient distributed training.",
+      "goal": "Understand how DDP replicates models across GPUs and synchronizes gradients for efficient distributed training.",
+      "informationText": "# Visual Mental Model of DDP\n\nDistributed Data Parallel (DDP) in PyTorch is a technique for scaling model training across multiple GPUs efficiently. It works by **replicating the entire model** on each GPU, splitting the input data (batch) across devices, and then **synchronizing gradients** after the backward pass to ensure all model replicas update identically. This allows for faster training without changing the model architecture, as each GPU processes a subset of the data in parallel.\n\n## Key Steps in DDP\n1. **Model Replication**: Before training starts, the same model is initialized on every GPU with identical weights. This is achieved by setting a consistent random seed across all processes (more on seeding in later frames).\n2. **Data Parallelism**: The training batch is divided equally among GPUs. Each GPU computes the forward pass on its local data shard, producing a local loss.\n3. **Backward Pass and Gradient Computation**: Each GPU performs `loss.backward()` independently, computing gradients based on its local data.\n4. **Gradient Synchronization**: Gradients from all GPUs are averaged using an **all-reduce** operation (via `torch.distributed.all_reduce`). This ensures every GPU receives the same averaged gradients, preventing divergence.\n5. **Model Update**: Each GPU applies the optimizer step using the synchronized gradients, keeping all replicas in sync.\n\nThis process repeats for each training step, scaling throughput linearly with the number of GPUs (up to hardware limits).\n\n## Visual Diagram\n\nHere's an ASCII art representation of the DDP process across two GPUs (Rank 0 and Rank 1). Imagine more GPUs extending horizontally.\n\n```\nRank 0 (GPU 0)                  Rank 1 (GPU 1)\n┌─────────────────────┐         ┌─────────────────────┐\n│ Identical Model     │         │ Identical Model     │\n│ (same weights)      │         │ (same weights)      │\n│                     │         │                     │\n│ Local Batch Data ──▶│ Forward │ Local Batch Data ──▶│ Forward\n│ (e.g., batch/2)     │         │ (e.g., batch/2)     │\n│                     │         │                     │\n│ Local Loss ─────────│◀────────│ Local Loss          │\n└─────────┬───────────┘         └─────────┬───────────┘\n          │                               │\n          ▼                               ▼\n┌─────────────────────┐         ┌─────────────────────┐\n│ loss.backward()     │         │ loss.backward()     │\n│ Local Gradients     │         │ Local Gradients     │\n└─────────┬───────────┘         └─────────┬───────────┘\n          │                               │\n          └───────────────┬──────────────┘\n                          ▼\n                  All-Reduce (Average Grads)\n                  (Sum all grads, divide by world_size)\n                          ▼\n          ┌──────────────┴──────────────┐\n          │ Synchronized Gradients      │\n          │ (identical on all GPUs)     │\n          └──────────────┬──────────────┘\n                         │\n                ┌────────┴────────┐\n                │ Optimizer Step  │\n                │ (update weights)│\n                └─────────────────┘\n```\n\nIn this diagram:\n- **Forward and Backward**: Happen locally on each GPU with data shards.\n- **All-Reduce**: The critical synchronization step—gradients are summed across GPUs and divided by the number of GPUs (`world_size`) to compute the global average.\n- **Result**: All models remain identical after the update, ready for the next batch.\n\n## Why This Matters\nDDP avoids the bottlenecks of single-GPU training by parallelizing compute while ensuring correctness through synchronization. Without averaging gradients, models would diverge due to local updates. Note: This is a high-level view; implementation details (like handling the all-reduce) are wrapped in PyTorch's `DistributedDataParallel` module.",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
-      "afterVideoText": "Key takeaway: Fleet history serves as a comprehensive database for understanding vessel capabilities, operational history, and fleet evolution over time.",
+      "afterVideoText": "To reinforce your understanding, reflect on this checkpoint question: *What happens to gradients after the backward pass in multiple GPUs?* (Hint: They are not used immediately—think about synchronization.) Sketch your own version of the ASCII diagram on paper, labeling what changes if you add a third GPU. If you're comfortable, pseudocode a simple training step showing the all-reduce call. This will prepare you for the next frame on seeding and Python idioms.",
       "aiConcepts": [
-        "fleet management",
-        "maritime operations",
-        "ship documentation",
-        "vessel specifications"
+        "Distributed Data Parallel (DDP)",
+        "Model Replication Across GPUs",
+        "Gradient Synchronization via All-Reduce",
+        "Data Parallelism for Scalable Training",
+        "Gradient Averaging to Prevent Model Divergence"
       ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
+      "conceptIds": [
+        "Distributed Data Parallel (DDP)",
+        "Model Replication Across GPUs",
+        "Gradient Synchronization via All-Reduce",
+        "Data Parallelism for Scalable Training",
+        "Gradient Averaging to Prevent Model Divergence"
+      ],
+      "isGenerated": true,
+      "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
       "sourceUrl": "",
       "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560908_fleet_overview",
-      "chapterId": "chapter_1763361560908_fleet_overview",
+      "chapterId": "flow_overview",
       "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560910_fleet_categories",
-      "title": "Ship Categories and Types in the Fleet",
-      "goal": "Learn about different vessel categories represented in fleet records",
-      "informationText": "Maritime fleets typically consist of various vessel types, each designed for specific cargo or operational requirements. Common categories include: container ships (for standardized cargo), bulk carriers (for raw materials), tankers (for liquid cargo), and specialized vessels. Each category has distinct dimensional requirements, power needs, and speed characteristics. The fleet data shows vessels ranging from smaller ships (110×16m) to larger vessels (210×37m), indicating a diverse operational portfolio.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Remember: Different ship types require different specifications - understanding these categories helps in fleet planning and operational decisions.",
-      "aiConcepts": [
-        "vessel types",
-        "container ships",
-        "bulk carriers",
-        "fleet diversity"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560908_fleet_overview",
-      "chapterId": "chapter_1763361560908_fleet_overview",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560919_dimensions",
-      "title": "Ship Dimensions: Length and Breadth",
-      "goal": "Understand how ship dimensions affect capacity and operations",
-      "informationText": "Ship dimensions are critical specifications that determine cargo capacity, port accessibility, and operational capabilities. The fleet shows a wide range: from smaller vessels like GYOKUKAI MARU (110×16m) to larger ships like NINE FRONTIER (210×37m). Length Overall (LOA) and Breadth Moulded (Bmld) measurements are standardized metrics. Length affects cargo capacity and speed potential, while breadth impacts stability and cargo handling. Modern vessels tend toward larger dimensions for economies of scale, as seen in newer ships (200×32m, 210×37m) compared to older ones (110×16m, 162×38m).",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Key insight: Ship dimensions directly correlate with cargo capacity and operational efficiency - larger ships can carry more cargo but require deeper ports and wider channels.",
-      "aiConcepts": [
-        "LOA",
-        "breadth moulded",
-        "cargo capacity",
-        "port accessibility",
-        "ship dimensions"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560918_specifications",
-      "chapterId": "chapter_1763361560918_specifications",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560920_naming",
-      "title": "Ship Naming Conventions: English and Japanese",
-      "goal": "Learn about bilingual ship naming in international maritime operations",
-      "informationText": "Many ships in international fleets have names in both English and Japanese (船名), reflecting the global nature of maritime operations. Examples include GYOKUKAI MARU (玉海丸), CHUETSUSAN MARU (中越山丸), and TAIO MARU (大王丸). The suffix 'MARU' (丸) is a traditional Japanese naming convention. Modern international vessels often use English-only names (WORLD SWAN II, NINE FRONTIER) for global recognition. Bilingual naming facilitates operations in both Japanese and international ports, improving communication and regulatory compliance.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Remember: Ship names reflect operational context - traditional Japanese names with 'MARU' suffix vs. modern English names for international operations.",
-      "aiConcepts": [
-        "ship naming",
-        "maritime conventions",
-        "bilingual operations",
-        "international shipping"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560918_specifications",
-      "chapterId": "chapter_1763361560918_specifications",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560929_engine_power",
-      "title": "Main Engine Power: Maximum Continuous Rating (MCR)",
-      "goal": "Understand engine horsepower and its relationship to ship performance",
-      "informationText": "Main Engine Maximum Continuous Rating (MCR) in horsepower (hp) indicates the sustained power output a ship's engine can deliver. The fleet shows power ranges from D 3,300 hp (GYOKUKAI MARU) to D 14,000 hp (TAIO MARU). The 'D' prefix typically indicates diesel engines. Higher horsepower enables: (1) Greater cargo capacity handling, (2) Higher service speeds, (3) Better performance in adverse conditions. Modern vessels tend to have higher power ratings - newer ships (11,665-12,889 hp) compared to older ones (3,300-9,900 hp), reflecting advances in engine technology and efficiency.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Key insight: Engine power must be matched to vessel size and operational requirements - larger ships require more powerful engines.",
-      "aiConcepts": [
-        "MCR",
-        "horsepower",
-        "diesel engines",
-        "engine power",
-        "propulsion"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560928_performance",
-      "chapterId": "chapter_1763361560928_performance",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560930_service_speed",
-      "title": "Service Speed: Operational Performance",
-      "goal": "Learn how service speed affects maritime operations and scheduling",
-      "informationText": "Service speed (measured in knots, kt) represents the operational cruising speed a vessel maintains during normal operations. The fleet shows speeds ranging from 12.5 kt (GYOKUKAI MARU) to 15.1 kt (TAIO MARU). Service speed is typically 85-90% of maximum speed, optimized for fuel efficiency. Higher speeds enable: (1) Faster transit times, (2) More voyages per year, (3) Better schedule reliability. However, higher speeds increase fuel consumption exponentially. Modern vessels balance speed with fuel efficiency - newer ships (14.0-14.6 kt) show optimized performance compared to older designs (12.5-13.1 kt).",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Remember: Service speed is a trade-off between transit time and fuel costs - optimal speed balances operational efficiency with economic performance.",
-      "aiConcepts": [
-        "service speed",
-        "knots",
-        "fuel efficiency",
-        "operational speed",
-        "maritime scheduling"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560928_performance",
-      "chapterId": "chapter_1763361560928_performance",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560939_shipyards",
-      "title": "Shipyards and Builders: Construction Partners",
-      "goal": "Understand the role of shipyards in fleet development",
-      "informationText": "Shipyards (建造所) are specialized facilities that construct vessels according to specifications. The fleet shows various builders: Usuki Iron Works, MES, Harima Shipbuilding, MHIN, TSX, and SDX. Different shipyards specialize in different vessel types and sizes. Japanese shipyards (Usuki, Harima) have long traditions, while modern abbreviations (TSX, SDX, MHIN) may represent international partnerships or modern shipyard groups. Shipyard selection affects: (1) Construction quality and standards, (2) Delivery timelines, (3) Cost efficiency, (4) Post-construction support. Fleet diversity across multiple builders indicates strategic sourcing and risk management.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Key takeaway: Shipyard selection is strategic - different builders offer different capabilities, costs, and delivery schedules.",
-      "aiConcepts": [
-        "shipyards",
-        "shipbuilders",
-        "construction",
-        "maritime industry",
-        "fleet development"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560938_construction",
-      "chapterId": "chapter_1763361560938_construction",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame_1763361560940_timeline",
-      "title": "Fleet Evolution: Construction Timeline Analysis",
-      "goal": "Analyze how fleet characteristics evolved over time",
-      "informationText": "Construction years (建造) reveal fleet evolution trends. The data shows vessels from the 1980s (SNIMOS ACE, 1983) to modern ships (WORLD SWAN II, 2006; NINE FRONTIER, 2008). Key trends: (1) Size increase - newer ships (200-210m length) vs. older (110-176m), (2) Power advancement - modern engines (11,665-12,889 hp) vs. older (3,300-9,900 hp), (3) Speed optimization - newer vessels maintain 14.0-14.6 kt with better fuel efficiency, (4) Design evolution - from traditional Japanese names to international naming. This evolution reflects: technological advances, market demands, regulatory changes (emissions, safety), and operational efficiency improvements.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "Remember: Fleet evolution reflects industry trends - larger, more powerful, and more efficient vessels represent decades of maritime technology advancement.",
-      "aiConcepts": [
-        "fleet evolution",
-        "construction timeline",
-        "maritime technology",
-        "industry trends",
-        "vessel modernization"
-      ],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763361560938_construction",
-      "chapterId": "chapter_1763361560938_construction",
-      "type": "frame",
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
-    },
-    {
-      "id": "frame-1763659885064-mco7sdqb5",
-      "title": "manual Frame",
-      "goal": "Enter learning goal here...",
-      "informationText": "Provide background context and information...",
-      "afterVideoText": "Key takeaways and next steps...",
-      "aiConcepts": [],
-      "isGenerated": false,
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "type": "frame",
-      "createdAt": "2025-11-20T17:32:48.503Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-20T17:32:48.503Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:42:29.464Z",
+      "attachment": {
+        "id": "frame_1763725291558_v14vcy2sx",
+        "type": "text-attachment",
+        "data": {
+          "description": "",
+          "source": "knowledge_base",
+          "startTime": 0,
+          "duration": 300
+        }
       },
-      "conceptIds": []
-    },
-    {
-      "id": "frame_1763660242087_a1b3kimwi",
-      "title": "f66",
-      "goal": "",
-      "informationText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "afterVideoText": "",
-      "aiConcepts": [],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763660249622_8155pw",
-      "chapterId": "chapter_1763660249622_8155pw",
-      "type": "frame",
-      "createdAt": "2025-11-20T17:37:22.086Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
+      "notes": "This frame introduces the visual mental model of Distributed Data Parallel (DDP) in PyTorch, illustrating model replication across GPUs and gradient synchronization for efficient distributed training.",
       "documents": [],
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-20T17:37:22.086Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "createdAt": "2025-11-21T11:42:16.641Z",
+        "updatedAt": "2025-11-21T11:54:26.721Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
+        "lastSaved": "2025-11-21T11:54:26.721Z"
+      },
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "flow_overview"
     },
     {
-      "id": "frame_1763660247790_gm09fjrs6",
-      "title": "f77",
-      "goal": "",
-      "informationText": "",
+      "id": "frame_2",
+      "title": "This frame introduces the motivations for Distributed Data Parallel (DDP) in PyTorch, explaining how it scales training from single to multi-GPU setups to overcome compute and memory limitations while boosting throughput.",
+      "goal": "Grasp the motivation for DDP in scaling from single GPU to multi-GPU setups using PyTorch.",
+      "informationText": "# Why Distributed Training Matters\n\nIn the world of deep learning, training large models on massive datasets can take days or even weeks on a single GPU. This frame explores the core motivations for using **Distributed Data Parallel (DDP)** in PyTorch to scale training across multiple GPUs, enabling faster iteration, handling larger models, and achieving higher throughput without sacrificing accuracy.\n\n## The Single-GPU Bottleneck\nA single GPU has inherent limitations:\n- **Compute Constraints**: Modern GPUs like NVIDIA A100s offer impressive FLOPS (e.g., ~300 TFLOPS in FP16), but for models like GPT-3 or Stable Diffusion, a single GPU can't keep up with the required computations.\n- **Memory Limits**: GPUs have fixed VRAM (e.g., 40-80GB on high-end cards). Large models or big batches quickly exceed this, forcing techniques like gradient checkpointing or smaller batch sizes, which slow training.\n- **Time Inefficiency**: Training a ResNet on ImageNet might take hours on one GPU; scaling to production models could take weeks, delaying experimentation and deployment.\n\n## The Power of Multi-GPU Scaling\nDistributed training addresses these by leveraging multiple GPUs (e.g., in a single machine or across a cluster). Key benefits include:\n- **Increased Throughput**: Split data across GPUs to process more samples in parallel. With 4 GPUs, you can theoretically achieve ~4x speedup (linear scaling isn't always perfect due to communication overhead).\n- **Larger Effective Batch Sizes**: Each GPU handles a mini-batch; aggregate for a global batch size that stabilizes gradients without OOM errors.\n- **Model and Data Growth**: Train bigger models on bigger datasets, crucial for state-of-the-art AI.\n\n## What is DDP and Why PyTorch?\nPyTorch's **DistributedDataParallel (DDP)** is a data-parallel training strategy:\n- **Model Replication**: Identical model copies on each GPU (ensured via seeding).\n- **Data Parallelism**: Dataset split across GPUs; each computes forward/backward independently.\n- **Gradient Synchronization**: Local gradients averaged across GPUs via `all_reduce` (e.g., sum then divide by world_size) to update a shared model state.\n\nThis keeps training deterministic and efficient. DDP is preferred over DataParallel (DP) for multi-node setups due to better scalability and lower overhead.\n\n### Visual Mental Model of DDP\nHere's a simple ASCII diagram showing two GPUs in action:\n\n```\nRank 0 (GPU0)              Rank 1 (GPU1)\n┌──────────────┐          ┌──────────────┐\n│ Model Copy   │          │ Model Copy   │\n│ (same weights)           │ (same weights)\n│ Forward Pass │          │ Forward Pass │\n│ on Batch 1   │          │ on Batch 2   │\n└──────┬───────┘          └──────┬───────┘\n       │                         │\n       │ Loss & Backward          │ Loss & Backward\n       │ (Local Grads)            │ (Local Grads)\n       └──────────┬────────────┘   │\n                  │                │\n                  └────────────────┘\n                           │\n                  All-Reduce (Average Grads)\n                           │\n                  Update Model (Optimizer Step)\n```\n\nEach GPU processes its data shard, computes gradients, and syncs via all-reduce for a global update. This ensures all replicas stay in sync.\n\n## When Does It Matter?\n- **Single GPU → Multi-GPU Transition**: If your training time exceeds a day or you hit memory walls, DDP is essential.\n- **PyTorch Integration**: Built on `torch.distributed`, it handles process groups, ranks, and world_size seamlessly.\n- **Real-World Impact**: Teams at OpenAI, Meta, and Hugging Face use DDP to train models 10-100x faster.\n\nFor deeper dives, we'll cover seeding for identical replicas and Python idioms like dict comprehensions for data prep.",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
-      "afterVideoText": "",
-      "aiConcepts": [],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
+      "afterVideoText": "Reflect on a recent training run you've done: How long did it take on a single GPU, and what bottlenecks (time or memory) did you hit? Imagine scaling to 4 GPUs with DDP—estimate the speedup and practice sketching a simple data-split diagram for your model. \n\n**Checkpoint**: If confused on scaling benefits, revisit single vs. multi-GPU throughput differences (e.g., compare batch processing rates). Try a quick mental exercise: For a 1-hour single-GPU job, what's the ideal time on 8 GPUs?",
+      "aiConcepts": [
+        "PyTorch Distributed",
+        "Model Replication",
+        "Data Parallelism",
+        "Gradient Averaging",
+        "Scaling Throughput",
+        "Synchronization Overhead"
+      ],
+      "conceptIds": [
+        "PyTorch Distributed",
+        "Model Replication",
+        "Data Parallelism",
+        "Gradient Averaging",
+        "Scaling Throughput",
+        "Synchronization Overhead"
+      ],
+      "isGenerated": true,
+      "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
       "sourceUrl": "",
       "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "default",
-      "parentFrameId": "chapter_1763660249622_8155pw",
-      "chapterId": "chapter_1763660249622_8155pw",
+      "chapterId": "flow_overview",
       "type": "frame",
-      "createdAt": "2025-11-20T17:37:27.789Z",
-      "updatedAt": "2025-11-20T17:37:43.448Z",
-      "notes": "",
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:42:29.464Z",
+      "attachment": {
+        "id": "https://thefirehacker.github.io/til-ddp-python-basics.html",
+        "type": "pdf-attachment",
+        "data": {
+          "description": "DDP Python Basics Reference",
+          "source": "knowledge_base",
+          "startTime": 0,
+          "duration": 300
+        }
+      },
+      "notes": "This frame introduces the motivations for Distributed Data Parallel (DDP) in PyTorch, explaining how it scales training from single to multi-GPU setups to overcome compute and memory limitations while boosting throughput.",
       "documents": [],
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-20T17:37:27.789Z",
-        "updatedAt": "2025-11-20T17:53:34.170Z",
+        "createdAt": "2025-11-21T11:42:16.641Z",
+        "updatedAt": "2025-11-21T11:54:26.721Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-20T17:53:34.170Z"
-      }
+        "lastSaved": "2025-11-21T11:54:26.721Z"
+      },
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "flow_overview"
+    },
+    {
+      "id": "frame_3",
+      "title": "This frame covers the critical role of identical seeding across processes to initialize consistent model replicas in PyTorch DDP, preventing training divergence.",
+      "goal": "Learn to seed processes identically to ensure consistent model initialization across ranks.",
+      "informationText": "# Seeding for Identical Model Replicas\n\nIn distributed training with PyTorch's Distributed Data Parallel (DDP), ensuring that all processes (ranks) start with identical model replicas is crucial for consistent synchronization and gradient averaging. Randomness in model initialization—such as weight initialization in neural networks—must be controlled to avoid divergence across GPUs.\n\n## Why Seed Before Creating the Model?\n\nPyTorch models often rely on random number generators (RNGs) for initializing parameters (e.g., `nn.Linear` layers use random weights from uniform or normal distributions). If each process uses a different random seed, the models will initialize with different weights, leading to:\n- **Inconsistent forward passes**: Even with the same input, outputs (and thus losses) will differ across ranks.\n- **Gradient divergence**: During backpropagation, gradients won't align properly, causing unstable training or incorrect averaging via `dist.all_reduce`.\n- **Non-reproducible results**: Training outcomes become unpredictable, defeating the purpose of distributed scaling.\n\n**Solution**: Set the same seed *before* instantiating the model in each process. This ensures all replicas are bitwise identical from the start.\n\n### How to Implement Identical Seeding\n\nUse `torch.manual_seed(seed)` (and optionally `random.seed` and `numpy.random.seed` for full coverage) at the beginning of each process's code, after `dist.init_process_group` but before model creation:\n\n```python\nimport torch\nimport torch.distributed as dist\nimport os\n\n# Initialize process group (e.g., via torchrun or mpirun)\nlocal_rank = int(os.environ['LOCAL_RANK'])\ndist.init_process_group(backend='nccl', init_method='env://', rank=local_rank, world_size=dist.get_world_size())\n\ntorch.cuda.set_device(local_rank)\n\n# Seed identically across all processes BEFORE model creation\nseed = 42  # Fixed seed for reproducibility\ntorch.manual_seed(seed)\nif torch.cuda.is_available():\n    torch.cuda.manual_seed_all(seed)\n\n# Now create the model - all replicas will be identical\nmodel = MyModel().to(local_rank)\n\n# Wrap with DDP\nmodel = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])\n```\n\nThis guarantees that RNG states are synchronized, so `torch.nn.init` calls produce the same values everywhere.\n\n## What If Seeds Differ?\n\nIf seeds vary (e.g., each process uses `local_rank` as part of the seed), models initialize differently:\n\n**ASCII Diagram: Identical vs. Divergent Initialization**\n\n**Identical Seeding (Good):**\n```\nRank 0 (GPU 0)          Rank 1 (GPU 1)\n┌─────────────────┐     ┌─────────────────┐\n│ torch.manual_seed(42) │  │ torch.manual_seed(42) │\n│ Model Init:     │     │ Model Init:     │\n│ Weights = [0.1, │     │ Weights = [0.1, │\n│ 0.2, ...]       │     │ 0.2, ...]       │\n└─────────────────┘     └─────────────────┘\n     (Same Replicas)           ^\n                               |\n                          Gradient Sync Works\n```\n\n**Differing Seeds (Bad):**\n```\nRank 0 (GPU 0)          Rank 1 (GPU 1)\n┌─────────────────┐     ┌─────────────────┐\n│ torch.manual_seed(0)  │  │ torch.manual_seed(1)  │\n│ Model Init:     │     │ Model Init:     │\n│ Weights = [0.1, │     │ Weights = [0.3, │\n│ 0.2, ...]       │     │ 0.4, ...]       │\n└─────────────────┘     └─────────────────┘\n     (Different Replicas)      ^\n                               |\n                          Gradient Sync Fails\n                          (Divergent Losses)\n```\n\nIn practice, this can cause NaN losses or slow convergence. Always seed early and identically!\n\n## Key Pitfall from DDP Essentials\n\nFrom distributed training best practices: Seed *every* process the same way *before* you create the model. Post-initialization seeding won't retroactively fix random weights already generated during `model = MyModel()`.\n\nThis foundational step enables the rest of DDP, like uniform data sharding and gradient averaging.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Reflect on this: Why might seeding *after* model creation fail to make replicas identical? Try a quick experiment—write a simple multi-process script (using `torch.multiprocessing`) where two processes create a small model with different seeds, then print a few weights to observe the difference. What happens if you average gradients anyway? This reinforces the need for upfront consistency. If you're stuck, review the KB excerpt on DDP essentials for a reminder.",
+      "aiConcepts": [
+        "Random Seed Management",
+        "Process Initialization",
+        "Model Replica Consistency",
+        "Deterministic Training in DDP",
+        "RNG Synchronization Across Ranks"
+      ],
+      "conceptIds": [
+        "Random Seed Management",
+        "Process Initialization",
+        "Model Replica Consistency",
+        "Deterministic Training in DDP",
+        "RNG Synchronization Across Ranks"
+      ],
+      "isGenerated": true,
+      "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+      "sourceUrl": "",
+      "order": 1,
+      "chapterId": "flow_fundamentals",
+      "type": "frame",
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:42:29.464Z",
+      "attachment": {
+        "id": "frame_1763725291558_yayk7pj4f",
+        "type": "text-attachment",
+        "data": {
+          "description": "Example seeding code for DDP initialization",
+          "source": "knowledge_base",
+          "startTime": 0,
+          "duration": 300
+        }
+      },
+      "notes": "This frame covers the critical role of identical seeding across processes to initialize consistent model replicas in PyTorch DDP, preventing training divergence.",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-21T11:42:16.641Z",
+        "updatedAt": "2025-11-21T11:54:26.721Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-21T11:54:26.721Z"
+      },
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "flow_fundamentals"
+    },
+    {
+      "id": "frame_4",
+      "title": "This frame explores Python idioms like dictionary comprehensions and kwargs unpacking for efficient data handling in PyTorch DDP, alongside the mathematical equivalence of gradient averaging and learning rate scaling for synchronized multi-GPU training.",
+      "goal": "Master dictionary comprehensions, kwargs unpacking, and the equivalence of gradient averaging vs. LR scaling.",
+      "informationText": "# Python Idioms and Gradient Averaging\n\nIn this frame, we'll dive into key Python techniques that are ubiquitous in distributed training with PyTorch's Distributed Data Parallel (DDP). These idioms streamline data preparation and model invocation, while we'll also explore how gradient handling works across multiple GPUs, including the equivalence between averaging gradients and scaling the learning rate.\n\n## 1. Dictionary Comprehensions: Elegant Data Transformation\n\nDictionary comprehensions allow you to transform raw data (e.g., from a Hugging Face dataset) into model-ready tensors in a single, readable line. This is crucial for preparing batches to send to the GPU in distributed setups.\n\n**Example:** Converting a dataset sample to tensors on the device:\n```python\n{ k: torch.tensor(v).to(device) for k, v in item.items() }\n```\nThis maps each key-value pair in the item (e.g., `input_ids`, `attention_mask`) to a PyTorch tensor on the specified device, ensuring proper shapes and types for the model.\n\n**Why it matters in DDP:** In multi-GPU training, each process handles a subset of data. Comprehensions ensure consistent, efficient tensor conversion without verbose loops, reducing boilerplate and errors.\n\n## 2. Kwargs Unpacking: Seamless Function Calls\n\nKwargs (keyword arguments) unpacking uses `**` to pass a dictionary as named arguments to a function. This is perfect for models like those from Hugging Face Transformers, where inputs like `input_ids`, `attention_mask`, and `labels` must match exact parameter names.\n\n**Example:** Passing a batch to the model:\n```python\nmodel(**batch)\n```\nHere, `batch` is a dict with keys matching the model's `forward()` parameters. Unpacking automatically distributes the values, making code flexible and readable.\n\n**Why it matters in DDP:** In a distributed loop, batches vary per process, but unpacking ensures the model receives inputs uniformly across replicas, simplifying the training code.\n\n## 3. Gradient Averaging in Distributed Training\n\nIn DDP, each GPU computes gradients independently on its data shard. To synchronize, we use `torch.distributed.all_reduce()` to sum gradients across processes, then average by dividing by `world_size` (number of GPUs).\n\n**Key Steps:**\n- After `loss.backward()`, gradients are local to each process.\n- Call `dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)` for each parameter.\n- Divide: `param.grad /= world_size`.\n\n### Equivalence: Gradient Averaging vs. Learning Rate Scaling\n\nMathematically, averaging gradients before the optimizer step is equivalent to scaling the learning rate (LR) by `1/world_size` after:\n\n- **Averaging Gradients:** Effective update = (sum(grads) / world_size) * LR\n- **Scaling LR:** sum(grads) * (LR / world_size)\n\nThe choice depends on your algorithm: average gradients for standard optimizers, or scale LR if you need full-sum gradients (e.g., for custom logic). In practice, DDP handles averaging internally, but understanding this demystifies the math.\n\n**Visual Mental Model (ASCII Art):**\n```\nRank 0 (GPU0)          Rank 1 (GPU1)          ...\n┌─────────────────┐    ┌─────────────────┐\n│   Forward Pass   │    │   Forward Pass   │  (Identical model weights)\n│ (Local Batch)    │    │ (Local Batch)    │\n└─────────┬────────┘    └─────────┬────────┘\n          │                       │\n          ▼                       ▼\n┌─────────────────┐    ┌─────────────────┐\n│ loss.backward() │    │ loss.backward() │\n│ (Local Grads)   │    │ (Local Grads)   │\n└─────────┬────────┘    └─────────┬────────┘\n          │                       │\n          └───────────┬───────────┘\n                      │\n                ┌─────▼─────┐\n                │ all_reduce│ (SUM grads across ranks)\n                │   & Avg   │ (Divide by world_size)\n                └─────┬─────┘\n                      │\n                ┌─────▼─────┐\n                │ Optimizer │ (Step with averaged grads)\n                │   Step    │\n                └───────────┘\n```\nThis shows how local computations sync to a global update, ensuring all replicas converge identically.\n\n## DDP Essentials Recap\n- **Seed Processes:** Set the same random seed before model creation for identical replicas.\n- **Use Idioms:** Comprehensions for data prep, `**kwargs` for model calls.\n- **Gradient Sync:** All-reduce and average to mimic single-GPU training at scale.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "## Reflection and Practice\n\nTo reinforce these concepts:\n- **Try It Yourself:** Write a dictionary comprehension to convert a sample Hugging Face dataset item (e.g., {'input_ids': [1,2,3], 'labels': 0}) to tensors on 'cuda'. Test it with `torch.tensor(v).to('cuda')`.\n- **Remediation Checkpoint:** Practice converting a full dataset sample to tensors using dict comprehension. If stuck, revisit the example code and experiment in a Jupyter notebook.\n- **Think Deeper:** Why might you prefer LR scaling over gradient averaging in a custom optimizer? Sketch a quick pros/cons list.\n\nThese exercises build intuition for clean, scalable DDP code.",
+      "aiConcepts": [
+        "Dictionary Comprehensions",
+        "Kwargs Unpacking",
+        "Gradient All-Reduce",
+        "Learning Rate Scaling Equivalence"
+      ],
+      "conceptIds": [
+        "Dictionary Comprehensions",
+        "Kwargs Unpacking",
+        "Gradient All-Reduce",
+        "Learning Rate Scaling Equivalence"
+      ],
+      "isGenerated": true,
+      "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+      "sourceUrl": "",
+      "order": 1,
+      "chapterId": "flow_fundamentals",
+      "type": "frame",
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:42:29.464Z",
+      "attachment": {
+        "id": "frame_1763725291558_svtxbsmh1",
+        "type": "pdf-attachment",
+        "data": {
+          "description": "DDP Python Basics Reference",
+          "source": "knowledge_base",
+          "startTime": 0,
+          "duration": 300
+        }
+      },
+      "notes": "This frame explores Python idioms like dictionary comprehensions and kwargs unpacking for efficient data handling in PyTorch DDP, alongside the mathematical equivalence of gradient averaging and learning rate scaling for synchronized multi-GPU training.",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-21T11:42:16.641Z",
+        "updatedAt": "2025-11-21T11:54:26.721Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-21T11:54:26.721Z"
+      },
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "flow_fundamentals"
+    },
+    {
+      "id": "frame_5",
+      "title": "This frame guides you through implementing a simple DDP wrapper to replicate models and synchronize gradients across GPUs, demystifying distributed training fundamentals.",
+      "goal": "Implement a simple DDP wrapper from scratch to handle model replication and gradient sync.",
+      "informationText": "# Building a Tiny DDP Wrapper\n\nIn this deep-dive frame, we'll implement a simple Distributed Data Parallel (DDP) wrapper from scratch using PyTorch's `torch.distributed` module. This toy implementation demystifies how DDP handles model replication across multiple GPUs and synchronizes gradients, giving you hands-on insight into scaling training. By the end, you'll understand the core mechanics without relying on PyTorch's built-in `DistributedDataParallel` class.\n\n## Why Build a Tiny Wrapper?\nDDP is PyTorch's go-to for multi-GPU training, but its internals can feel like black magic. A minimal wrapper reveals:\n- **Model Replication**: Ensuring all processes start with identical model weights.\n- **Gradient Synchronization**: Averaging gradients across processes to mimic single-GPU training.\n- **Efficiency**: Avoiding data duplication while scaling compute.\n\nThis aligns with the overall learning flow: from high-level mental models to practical implementation, building skills for real-world distributed training.\n\n## Prerequisites from Earlier Frames\n- Familiarity with PyTorch basics (models, optimizers, DataLoaders).\n- Understanding of `torch.distributed` init (e.g., `dist.init_process_group`).\n- Seeding processes identically for reproducible replicas (covered in prior seeding concepts).\n\n## Step-by-Step Implementation\nWe'll create a `TinyDDP` class that wraps a model, handles broadcasting, and syncs gradients. Assume we've already initialized the process group with `torch.distributed.init_process_group(backend='nccl')` and have access to `world_size` and `rank`.\n\n### 1. Model Replication via Seeding and Broadcasting\nTo ensure all GPUs have the same model weights:\n- **Seed identically**: Before creating the model, set `torch.manual_seed(seed)` in every process (same seed value).\n- **Broadcast parameters**: After model creation, broadcast weights from rank 0 to others. This fixes any floating-point differences from random init.\n\nWhy broadcast if we seed? Seeding ensures the same random numbers, but numerical precision can vary slightly across GPUs. Broadcasting enforces exact identity.\n\nCode snippet:\n```python\nimport torch\nimport torch.distributed as dist\n\nclass TinyDDP:\n    def __init__(self, model, device):\n        self.model = model.to(device)\n        self.device = device\n        # Broadcast model parameters from rank 0\n        for param in self.model.parameters():\n            dist.broadcast(param.data, src=0)\n```\n\n### 2. Forward Pass\nEach process gets a unique batch of data (via DistributedSampler). Forward is local—no sync needed yet.\n\n```python\n    def forward(self, batch):\n        # Assume batch is a dict (e.g., from Hugging Face: {'input_ids': ..., 'labels': ...})\n        # Use kwargs unpacking for clean model call\n        outputs = self.model(**batch)\n        return outputs\n```\n\nPro Tip: Use dictionary comprehensions to prep data: `{k: torch.tensor(v).to(self.device) for k, v in batch.items()}`.\n\n### 3. Backward and Gradient Sync\nCompute loss locally, then backward. Sync gradients with `all_reduce` (sum across processes, then divide by `world_size`).\n\n```python\n    def backward(self, loss):\n        loss.backward()\n        # Average gradients\n        for param in self.model.parameters():\n            if param.grad is not None:\n                dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)\n                param.grad /= dist.get_world_size()\n```\n\nThis is equivalent to scaling the learning rate by `1/world_size`—choose based on your optimizer flow.\n\n### 4. Training Loop Integration\nWrap your loop:\n```python\noptimizer = torch.optim.Adam(tiny_ddp.model.parameters(), lr=1e-3)\nfor batch in dataloader:\n    outputs = tiny_ddp.forward(batch)\n    loss = outputs.loss  # e.g., for language models\n    tiny_ddp.backward(loss)\n    optimizer.step()\n    optimizer.zero_grad()\n```\n\nOnly rank 0 handles logging/evaluation to avoid duplication.\n\n## Visual Mental Model\nHere's an ASCII diagram of the flow across two ranks (GPUs):\n\n```\nRank 0 (GPU0)              Rank 1 (GPU1)\n┌─────────────────┐       ┌─────────────────┐\n│ Identical Model │       │ Identical Model │\n│ (Broadcast Init)│       │ (Broadcast Init)│\n└─────────┬───────┘       └─────────┬───────┘\n          │                           │\n┌─────────▼───────┐       ┌─────────▼───────┐\n│ Local Forward   │       │ Local Forward   │\n│ (Unique Batch)  │       │ (Unique Batch)  │\n└─────────┬───────┘       └─────────┬───────┘\n          │                           │\n┌─────────▼───────┐       ┌─────────▼───────┐\n│ Local Backward  │       │ Local Backward  │\n│ (Local Grads)   │       │ (Local Grads)   │\n└─────────┬───────┘       └─────────┬───────┘\n          │                           │\n          └────────────all_reduce────┘\n                          │\n                  ┌───────▼───────┐\n                  │ Avg Grads     │\n                  │ (Divide by    │\n                  │ world_size)   │\n                  └───────────────┘\n                          │\n                  Optimizer Step (Local)\n```\n\nGradients flow from local computation to global average, ensuring consistent updates.\n\n## Common Pitfalls\n- Forgetting to divide by `world_size` after `all_reduce`—leads to exploding gradients.\n- Not broadcasting: Models diverge over time.\n- Uneven data: Use `DistributedSampler` for fair splits.\n\n## From Toy to Real DDP\nPyTorch's DDP automates this (hooks into backward, buckets comms for efficiency). Our wrapper teaches the 'why' before the 'how' of production code.\n\nTrace the flow: `all_reduce` sums gradients (op=SUM), then divide by world_size for averaging—ensuring each process updates as if training on full data.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Now that you've seen the tiny DDP wrapper in action, reflect on the checkpoint: Trace the gradient flow—how does `all_reduce` with SUM op followed by division average across processes? Practice by implementing the `TinyDDP` class yourself in a Jupyter notebook with 2 processes (use `torchrun --nproc_per_node=2`). Experiment: What happens if you skip broadcasting? Add logging to visualize gradient values pre/post-sync. This reinforces scaling pitfalls and Python idioms like kwargs unpacking for batch handling.",
+      "aiConcepts": [
+        "Custom DDP Implementation",
+        "Broadcast Parameters",
+        "Gradient Averaging with all_reduce",
+        "Model Replication via Seeding",
+        "Process Synchronization in Training Loops"
+      ],
+      "conceptIds": [
+        "Custom DDP Implementation",
+        "Broadcast Parameters",
+        "Gradient Averaging with all_reduce",
+        "Model Replication via Seeding",
+        "Process Synchronization in Training Loops"
+      ],
+      "isGenerated": true,
+      "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+      "sourceUrl": "",
+      "order": 1,
+      "chapterId": "flow_deep-dive",
+      "type": "frame",
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:42:29.464Z",
+      "attachment": {
+        "id": "frame_1763725291558_3qpxjwape",
+        "type": "text-attachment",
+        "data": {
+          "description": "Tiny DDP Wrapper Implementation",
+          "source": "knowledge_base",
+          "startTime": 0,
+          "duration": 300
+        }
+      },
+      "notes": "This frame guides you through implementing a simple DDP wrapper to replicate models and synchronize gradients across GPUs, demystifying distributed training fundamentals.",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-21T11:42:16.641Z",
+        "updatedAt": "2025-11-21T11:54:26.721Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-21T11:54:26.721Z"
+      },
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "flow_deep-dive"
+    },
+    {
+      "id": "frame_6",
+      "title": "Learners build a minimal distributed training loop, debug pitfalls like seeding and gradient errors, and learn to use PyTorch's real DDP for scalable training.",
+      "goal": "Construct a distributed training loop, explore common errors like improper seeding, and transition to real DDP.",
+      "informationText": "# Minimal Training Loop and Pitfalls\n\nIn this deep-dive frame, we'll construct a minimal distributed training loop from scratch, explore common errors like improper seeding and gradient mishandling, and transition to PyTorch's real Distributed Data Parallel (DDP). This builds on prior concepts of seeding for identical model replicas and Python idioms like dictionary comprehensions and kwargs unpacking.\n\n## Visual Mental Model of Distributed Training\n\nDistributed training with DDP involves multiple processes (one per GPU) running in parallel, each with an identical model replica. They process different data batches, compute losses, and synchronize gradients.\n\nHere's an ASCII diagram of the process:\n\n```\nRank 0 (GPU0)          Rank 1 (GPU1)          ...\n┌──────────────┐       ┌──────────────┐\n│   forward    │       │   forward    │  (same model weights)\n│ (batch 0)    │       │ (batch 1)    │\n└──────┬───────┘       └──────┬───────┘\n       │                       │\n       │ loss.backward()       │ loss.backward()\n       │                       │\n       │ grads                 │ grads\n       ▼                       ▼\n   ┌──────────────┐       ┌──────────────┐\n   │ all_reduce    │<──────│ (sum & avg)  │\n   └──────────────┘       └──────────────┘\n           │\n           ▼\n   Optimizer step (averaged grads)\n```\n\nEach rank computes gradients independently, then uses `dist.all_reduce` to sum them across processes and divide by `world_size` for averaging.\n\n## Constructing the Minimal Training Loop\n\nA basic distributed training loop follows these steps:\n\n1. **Initialization**: Set the same seed across all processes for reproducibility. Use `torch.manual_seed(seed + rank)` to ensure identical model initialization.\n   ```python\n   import torch.distributed as dist\n   from torch.nn.parallel import DistributedDataParallel as DDP\n   \n   dist.init_process_group(backend='nccl')\n   rank = dist.get_rank()\n   world_size = dist.get_world_size()\n   torch.manual_seed(42 + rank)  # Identical replicas\n   model = MyModel().to(rank)  # Create model\n   model = DDP(model, device_ids=[rank])\n   ```\n\n2. **Data Loading**: Use `DistributedSampler` to split data across ranks. Unpack batches with kwargs for model input.\n   ```python\n   from torch.utils.data.distributed import DistributedSampler\n   sampler = DistributedSampler(dataset, world_size, rank)\n   loader = DataLoader(dataset, sampler=sampler, batch_size=32)\n   for batch in loader:\n       batch = {k: torch.tensor(v).to(rank) for k, v in batch.items()}  # Dict comprehension\n       outputs = model(**batch)  # Kwargs unpacking\n   ```\n\n3. **Forward-Backward Pass**: Compute loss and backward.\n   ```python\n   optimizer = torch.optim.Adam(model.parameters(), lr=1e-3 / world_size)  # Scale LR\n   for epoch in range(epochs):\n       sampler.set_epoch(epoch)  # Shuffle data\n       for batch in loader:\n           outputs = model(**batch)\n           loss = criterion(outputs, batch['labels'])\n           loss.backward()\n   ```\n\n4. **Gradient Synchronization**: After backward, average gradients.\n   ```python\n   for param in model.parameters():\n       if param.grad is not None:\n           dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)\n           param.grad /= world_size\n   optimizer.step()\n   ```\n\nNote: Scaling the learning rate by `1/world_size` is equivalent to averaging gradients—choose based on your optimizer's needs.\n\n## Common Pitfalls and Fixes\n\n- **Improper Seeding**: Forgetting to seed before model creation leads to divergent replicas. *Fix*: Seed early with `torch.manual_seed(seed + rank)`.\n\n- **Gradient Averaging Errors**: Not dividing by `world_size` after `all_reduce` causes exploding gradients. *Fix*: Always normalize: `param.grad /= world_size`.\n\n- **Broadcast at Init**: Even with seeding, broadcast model state from rank 0 to ensure exact synchronization.\n   ```python\n   if rank == 0:\n       # Load or init model\n   dist.broadcast_object_list([model.state_dict()], src=0)\n   ```\n\n- **Data Overlap**: Without `DistributedSampler`, ranks process the same data, wasting compute. *Fix*: Use sampler and call `set_epoch`.\n\n- **LR Scaling Mismatch**: Mixing gradient averaging and LR scaling doubles the effect. *Fix*: Pick one method consistently.\n\n## Transition to Real DDP\n\nOur toy wrapper mimics DDP by manually handling all_reduce and broadcasting. PyTorch's `DDP` automates this: wrap your model with `DDP(model, device_ids=[rank])`, and it hooks into backward for automatic gradient sync. No manual all_reduce needed! This scales seamlessly to multi-node setups.\n\nExplore the checkpoint: Debug a scenario where gradients aren't averaged correctly by inspecting `param.grad` norms across ranks.",
+      "videoUrl": "",
+      "startTime": 0,
+      "duration": 300,
+      "afterVideoText": "Reflect on the pitfalls: Implement the minimal loop in a multi-GPU setup and intentionally introduce an improper seeding error—observe how model outputs diverge. Then, tackle the remediation checkpoint by debugging a gradient averaging issue. Practice scaling the LR vs. averaging gradients to see equivalence in a toy linear regression task. This reinforces why DDP abstractions are valuable.",
+      "aiConcepts": [
+        "Distributed Training Loop",
+        "Seeding for Model Replicas",
+        "Gradient Averaging Techniques",
+        "Common Pitfalls in DDP",
+        "Transition to Official DDP"
+      ],
+      "conceptIds": [
+        "Distributed Training Loop",
+        "Seeding for Model Replicas",
+        "Gradient Averaging Techniques",
+        "Common Pitfalls in DDP",
+        "Transition to Official DDP"
+      ],
+      "isGenerated": true,
+      "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+      "sourceUrl": "",
+      "order": 1,
+      "chapterId": "flow_deep-dive",
+      "type": "frame",
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:42:29.464Z",
+      "attachment": {
+        "id": "frame_1763725291558_4mgkigjaa",
+        "type": "pdf-attachment",
+        "data": {
+          "description": "DDP Python Basics Guide",
+          "source": "knowledge_base",
+          "startTime": 0,
+          "duration": 300
+        }
+      },
+      "notes": "Learners build a minimal distributed training loop, debug pitfalls like seeding and gradient errors, and learn to use PyTorch's real DDP for scalable training.",
+      "documents": [],
+      "metadata": {
+        "version": "2.0",
+        "createdAt": "2025-11-21T11:42:16.641Z",
+        "updatedAt": "2025-11-21T11:54:26.721Z",
+        "source": "ai-frames",
+        "lastSaved": "2025-11-21T11:54:26.721Z"
+      },
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "default",
+      "parentFrameId": "flow_deep-dive"
     }
   ],
   "chapters": [
     {
-      "id": "chapter_1763361560908_fleet_overview",
-      "title": "Fleet Overview",
-      "description": "Introduction to ship fleet history and vessel categories",
-      "color": "#3B82F6",
-      "conceptIds": [],
-      "frameIds": [
-        "frame_1763361560909_fleet_intro",
-        "frame_1763361560910_fleet_categories"
-      ],
+      "id": "flow_overview",
+      "title": "Orientation",
+      "description": "Set context and highlight the learner journey.",
+      "color": "#0EA5E9",
       "order": 0,
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:53:34.170Z",
-      "linkSequentially": true
+      "frameIds": [
+        "frame_1",
+        "frame_2"
+      ],
+      "conceptIds": [],
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:54:26.721Z",
+      "linkSequentially": false
     },
     {
-      "id": "chapter_1763361560918_specifications",
-      "title": "Ship Specifications",
-      "description": "Understanding ship dimensions and naming conventions",
-      "color": "#10B981",
-      "conceptIds": [],
-      "frameIds": [
-        "frame_1763361560919_dimensions",
-        "frame_1763361560920_naming"
-      ],
+      "id": "flow_fundamentals",
+      "title": "Build the Experience",
+      "description": "Cover the foundational steps and workflows.",
+      "color": "#A855F7",
       "order": 1,
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:53:34.170Z",
-      "linkSequentially": true
+      "frameIds": [
+        "frame_3",
+        "frame_4"
+      ],
+      "conceptIds": [],
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:54:26.721Z",
+      "linkSequentially": false
     },
     {
-      "id": "chapter_1763361560928_performance",
-      "title": "Engine Power and Performance",
-      "description": "Understanding engine specifications and service speeds",
-      "color": "#8B5CF6",
-      "conceptIds": [],
-      "frameIds": [
-        "frame_1763361560929_engine_power",
-        "frame_1763361560930_service_speed"
-      ],
+      "id": "flow_deep-dive",
+      "title": "Launch + Iterate",
+      "description": "Advanced mastery and iteration tactics.",
+      "color": "#F97316",
       "order": 2,
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:53:34.170Z",
-      "linkSequentially": true
-    },
-    {
-      "id": "chapter_1763361560938_construction",
-      "title": "Shipyards and Construction",
-      "description": "Understanding shipyard partnerships and fleet evolution over time",
-      "color": "#F59E0B",
-      "conceptIds": [],
       "frameIds": [
-        "frame_1763361560939_shipyards",
-        "frame_1763361560940_timeline"
+        "frame_5",
+        "frame_6"
       ],
-      "order": 3,
-      "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-20T17:53:34.170Z",
-      "linkSequentially": true
-    },
-    {
-      "id": "chapter_1763660249622_8155pw",
-      "title": "C5",
-      "description": "",
-      "color": "#3B82F6",
       "conceptIds": [],
-      "frameIds": [
-        "frame_1763660242087_a1b3kimwi",
-        "frame_1763660247790_gm09fjrs6"
-      ],
-      "order": 4,
-      "createdAt": "2025-11-20T17:37:29.622Z",
-      "updatedAt": "2025-11-20T17:53:34.170Z",
-      "linkSequentially": true
+      "createdAt": "2025-11-21T11:42:16.641Z",
+      "updatedAt": "2025-11-21T11:54:26.721Z",
+      "linkSequentially": false
     }
   ],
   "graphState": {
     "nodes": [
       {
-        "id": "chapter_1763361560908_fleet_overview",
+        "id": "chapter_flow_overview",
         "type": "chapter",
-        "position": {
-          "x": 70,
-          "y": 75
-        },
-        "data": {
-          "type": "chapter",
-          "id": "chapter_1763361560908_fleet_overview",
-          "title": "Fleet Overview",
-          "description": "Introduction to ship fleet history and vessel categories",
-          "frameIds": [
-            "frame_1763361560909_fleet_intro",
-            "frame_1763361560910_fleet_categories"
-          ],
-          "conceptIds": [],
-          "order": 0,
-          "color": "#3B82F6",
-          "linkSequentially": true
-        },
-        "measured": {
-          "width": 320,
-          "height": 208
-        }
-      },
-      {
-        "id": "chapter_1763361560918_specifications",
-        "type": "chapter",
-        "position": {
-          "x": 590,
-          "y": 75
-        },
-        "data": {
-          "type": "chapter",
-          "id": "chapter_1763361560918_specifications",
-          "title": "Ship Specifications",
-          "description": "Understanding ship dimensions and naming conventions",
-          "frameIds": [
-            "frame_1763361560919_dimensions",
-            "frame_1763361560920_naming"
-          ],
-          "conceptIds": [],
-          "order": 1,
-          "color": "#10B981",
-          "linkSequentially": true
-        },
-        "measured": {
-          "width": 320,
-          "height": 208
-        }
-      },
-      {
-        "id": "chapter_1763361560928_performance",
-        "type": "chapter",
-        "position": {
-          "x": 1110,
-          "y": 75
-        },
-        "data": {
-          "type": "chapter",
-          "id": "chapter_1763361560928_performance",
-          "title": "Engine Power and Performance",
-          "description": "Understanding engine specifications and service speeds",
-          "frameIds": [
-            "frame_1763361560929_engine_power",
-            "frame_1763361560930_service_speed"
-          ],
-          "conceptIds": [],
-          "order": 2,
-          "color": "#8B5CF6",
-          "linkSequentially": true
-        },
-        "measured": {
-          "width": 320,
-          "height": 233
-        }
-      },
-      {
-        "id": "chapter_1763361560938_construction",
-        "type": "chapter",
-        "position": {
-          "x": 1630,
-          "y": 75
-        },
-        "data": {
-          "type": "chapter",
-          "id": "chapter_1763361560938_construction",
-          "title": "Shipyards and Construction",
-          "description": "Understanding shipyard partnerships and fleet evolution over time",
-          "frameIds": [
-            "frame_1763361560939_shipyards",
-            "frame_1763361560940_timeline"
-          ],
-          "conceptIds": [],
-          "order": 3,
-          "color": "#F59E0B",
-          "linkSequentially": true
-        },
-        "measured": {
-          "width": 320,
-          "height": 253
-        }
-      },
-      {
-        "id": "chapter_1763660249622_8155pw",
-        "type": "chapter",
-        "position": {
-          "x": 2150,
-          "y": 75
-        },
-        "data": {
-          "type": "chapter",
-          "id": "chapter_1763660249622_8155pw",
-          "title": "C5",
-          "description": "",
-          "frameIds": [
-            "frame_1763660242087_a1b3kimwi",
-            "frame_1763660247790_gm09fjrs6"
-          ],
-          "conceptIds": [],
-          "order": 4,
-          "color": "#3B82F6",
-          "linkSequentially": true,
-          "updatedAt": "2025-11-20T17:37:30.174Z"
-        },
-        "measured": {
-          "width": 320,
-          "height": 188
-        }
-      },
-      {
-        "id": "node_1763659968068_13u2q9a86_0",
-        "type": "aiframe",
-        "position": {
-          "x": 180,
-          "y": 550
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560909_fleet_intro",
-          "title": "Introduction to Ship Fleet History",
-          "goal": "Understand the structure and purpose of ship fleet documentation",
-          "informationText": "Ship fleet history documents provide comprehensive records of vessels operated by maritime companies. These records include critical specifications such as ship names (in both English and Japanese for international operations), physical dimensions, engine specifications, service speeds, shipyard builders, and construction years. This data is essential for fleet management, maintenance planning, operational efficiency analysis, and historical documentation of maritime operations.",
-          "afterVideoText": "Key takeaway: Fleet history serves as a comprehensive database for understanding vessel capabilities, operational history, and fleet evolution over time.",
-          "aiConcepts": [
-            "fleet management",
-            "maritime operations",
-            "ship documentation",
-            "vessel specifications"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560908_fleet_overview",
-          "parentFrameId": "chapter_1763361560908_fleet_overview"
-        },
-        "measured": {
-          "width": 480,
-          "height": 639
-        }
-      },
-      {
-        "id": "node_1763659968069_6g0qp8us0_1",
-        "type": "aiframe",
         "position": {
           "x": 50,
-          "y": 1050
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560910_fleet_categories",
-          "title": "Ship Categories and Types in the Fleet",
-          "goal": "Learn about different vessel categories represented in fleet records",
-          "informationText": "Maritime fleets typically consist of various vessel types, each designed for specific cargo or operational requirements. Common categories include: container ships (for standardized cargo), bulk carriers (for raw materials), tankers (for liquid cargo), and specialized vessels. Each category has distinct dimensional requirements, power needs, and speed characteristics. The fleet data shows vessels ranging from smaller ships (110×16m) to larger vessels (210×37m), indicating a diverse operational portfolio.",
-          "afterVideoText": "Remember: Different ship types require different specifications - understanding these categories helps in fleet planning and operational decisions.",
-          "aiConcepts": [
-            "vessel types",
-            "container ships",
-            "bulk carriers",
-            "fleet diversity"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560908_fleet_overview",
-          "parentFrameId": "chapter_1763361560908_fleet_overview"
-        },
-        "measured": {
-          "width": 480,
-          "height": 639
-        }
-      },
-      {
-        "id": "node_1763659968069_3fkxhceme_2",
-        "type": "aiframe",
-        "position": {
-          "x": 700,
-          "y": 550
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560919_dimensions",
-          "title": "Ship Dimensions: Length and Breadth",
-          "goal": "Understand how ship dimensions affect capacity and operations",
-          "informationText": "Ship dimensions are critical specifications that determine cargo capacity, port accessibility, and operational capabilities. The fleet shows a wide range: from smaller vessels like GYOKUKAI MARU (110×16m) to larger ships like NINE FRONTIER (210×37m). Length Overall (LOA) and Breadth Moulded (Bmld) measurements are standardized metrics. Length affects cargo capacity and speed potential, while breadth impacts stability and cargo handling. Modern vessels tend toward larger dimensions for economies of scale, as seen in newer ships (200×32m, 210×37m) compared to older ones (110×16m, 162×38m).",
-          "afterVideoText": "Key insight: Ship dimensions directly correlate with cargo capacity and operational efficiency - larger ships can carry more cargo but require deeper ports and wider channels.",
-          "aiConcepts": [
-            "LOA",
-            "breadth moulded",
-            "cargo capacity",
-            "port accessibility",
-            "ship dimensions"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560918_specifications",
-          "parentFrameId": "chapter_1763361560918_specifications"
-        },
-        "measured": {
-          "width": 480,
-          "height": 639
-        }
-      },
-      {
-        "id": "node_1763659968069_96s8lwds2_3",
-        "type": "aiframe",
-        "position": {
-          "x": 570,
-          "y": 1050
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560920_naming",
-          "title": "Ship Naming Conventions: English and Japanese",
-          "goal": "Learn about bilingual ship naming in international maritime operations",
-          "informationText": "Many ships in international fleets have names in both English and Japanese (船名), reflecting the global nature of maritime operations. Examples include GYOKUKAI MARU (玉海丸), CHUETSUSAN MARU (中越山丸), and TAIO MARU (大王丸). The suffix 'MARU' (丸) is a traditional Japanese naming convention. Modern international vessels often use English-only names (WORLD SWAN II, NINE FRONTIER) for global recognition. Bilingual naming facilitates operations in both Japanese and international ports, improving communication and regulatory compliance.",
-          "afterVideoText": "Remember: Ship names reflect operational context - traditional Japanese names with 'MARU' suffix vs. modern English names for international operations.",
-          "aiConcepts": [
-            "ship naming",
-            "maritime conventions",
-            "bilingual operations",
-            "international shipping"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560918_specifications",
-          "parentFrameId": "chapter_1763361560918_specifications"
-        },
-        "measured": {
-          "width": 480,
-          "height": 664
-        }
-      },
-      {
-        "id": "node_1763659968069_5hpn3lwfl_4",
-        "type": "aiframe",
-        "position": {
-          "x": 1220,
-          "y": 550
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560929_engine_power",
-          "title": "Main Engine Power: Maximum Continuous Rating (MCR)",
-          "goal": "Understand engine horsepower and its relationship to ship performance",
-          "informationText": "Main Engine Maximum Continuous Rating (MCR) in horsepower (hp) indicates the sustained power output a ship's engine can deliver. The fleet shows power ranges from D 3,300 hp (GYOKUKAI MARU) to D 14,000 hp (TAIO MARU). The 'D' prefix typically indicates diesel engines. Higher horsepower enables: (1) Greater cargo capacity handling, (2) Higher service speeds, (3) Better performance in adverse conditions. Modern vessels tend to have higher power ratings - newer ships (11,665-12,889 hp) compared to older ones (3,300-9,900 hp), reflecting advances in engine technology and efficiency.",
-          "afterVideoText": "Key insight: Engine power must be matched to vessel size and operational requirements - larger ships require more powerful engines.",
-          "aiConcepts": [
-            "MCR",
-            "horsepower",
-            "diesel engines",
-            "engine power",
-            "propulsion"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560928_performance",
-          "parentFrameId": "chapter_1763361560928_performance"
-        },
-        "measured": {
-          "width": 480,
-          "height": 632
-        }
-      },
-      {
-        "id": "node_1763659968069_0y0slub80_5",
-        "type": "aiframe",
-        "position": {
-          "x": 1090,
-          "y": 1050
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560930_service_speed",
-          "title": "Service Speed: Operational Performance",
-          "goal": "Learn how service speed affects maritime operations and scheduling",
-          "informationText": "Service speed (measured in knots, kt) represents the operational cruising speed a vessel maintains during normal operations. The fleet shows speeds ranging from 12.5 kt (GYOKUKAI MARU) to 15.1 kt (TAIO MARU). Service speed is typically 85-90% of maximum speed, optimized for fuel efficiency. Higher speeds enable: (1) Faster transit times, (2) More voyages per year, (3) Better schedule reliability. However, higher speeds increase fuel consumption exponentially. Modern vessels balance speed with fuel efficiency - newer ships (14.0-14.6 kt) show optimized performance compared to older designs (12.5-13.1 kt).",
-          "afterVideoText": "Remember: Service speed is a trade-off between transit time and fuel costs - optimal speed balances operational efficiency with economic performance.",
-          "aiConcepts": [
-            "service speed",
-            "knots",
-            "fuel efficiency",
-            "operational speed",
-            "maritime scheduling"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560928_performance",
-          "parentFrameId": "chapter_1763361560928_performance"
-        },
-        "measured": {
-          "width": 480,
-          "height": 632
-        }
-      },
-      {
-        "id": "node_1763659968069_r8hbkllcr_6",
-        "type": "aiframe",
-        "position": {
-          "x": 1740,
-          "y": 550
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560939_shipyards",
-          "title": "Shipyards and Builders: Construction Partners",
-          "goal": "Understand the role of shipyards in fleet development",
-          "informationText": "Shipyards (建造所) are specialized facilities that construct vessels according to specifications. The fleet shows various builders: Usuki Iron Works, MES, Harima Shipbuilding, MHIN, TSX, and SDX. Different shipyards specialize in different vessel types and sizes. Japanese shipyards (Usuki, Harima) have long traditions, while modern abbreviations (TSX, SDX, MHIN) may represent international partnerships or modern shipyard groups. Shipyard selection affects: (1) Construction quality and standards, (2) Delivery timelines, (3) Cost efficiency, (4) Post-construction support. Fleet diversity across multiple builders indicates strategic sourcing and risk management.",
-          "afterVideoText": "Key takeaway: Shipyard selection is strategic - different builders offer different capabilities, costs, and delivery schedules.",
-          "aiConcepts": [
-            "shipyards",
-            "shipbuilders",
-            "construction",
-            "maritime industry",
-            "fleet development"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560938_construction",
-          "parentFrameId": "chapter_1763361560938_construction"
-        },
-        "measured": {
-          "width": 480,
-          "height": 644
-        }
-      },
-      {
-        "id": "node_1763659968069_g89pl1qt2_7",
-        "type": "aiframe",
-        "position": {
-          "x": 1610,
-          "y": 1050
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_1763361560940_timeline",
-          "title": "Fleet Evolution: Construction Timeline Analysis",
-          "goal": "Analyze how fleet characteristics evolved over time",
-          "informationText": "Construction years (建造) reveal fleet evolution trends. The data shows vessels from the 1980s (SNIMOS ACE, 1983) to modern ships (WORLD SWAN II, 2006; NINE FRONTIER, 2008). Key trends: (1) Size increase - newer ships (200-210m length) vs. older (110-176m), (2) Power advancement - modern engines (11,665-12,889 hp) vs. older (3,300-9,900 hp), (3) Speed optimization - newer vessels maintain 14.0-14.6 kt with better fuel efficiency, (4) Design evolution - from traditional Japanese names to international naming. This evolution reflects: technological advances, market demands, regulatory changes (emissions, safety), and operational efficiency improvements.",
-          "afterVideoText": "Remember: Fleet evolution reflects industry trends - larger, more powerful, and more efficient vessels represent decades of maritime technology advancement.",
-          "aiConcepts": [
-            "fleet evolution",
-            "construction timeline",
-            "maritime technology",
-            "industry trends",
-            "vessel modernization"
-          ],
-          "isGenerated": false,
-          "sourceGoal": "",
-          "sourceUrl": "",
-          "chapterId": "chapter_1763361560938_construction",
-          "parentFrameId": "chapter_1763361560938_construction"
-        },
-        "measured": {
-          "width": 480,
-          "height": 644
-        }
-      },
-      {
-        "id": "node_1763659885064_st6u0tujd_0",
-        "type": "aiframe",
-        "position": {
-          "x": 2610,
           "y": 50
         },
         "data": {
+          "id": "flow_overview",
+          "title": "Orientation",
+          "description": "Set context and highlight the learner journey.",
+          "color": "#0EA5E9",
+          "frameIds": [
+            "frame_1",
+            "frame_2"
+          ],
+          "order": 0,
+          "conceptIds": [],
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "chapter_flow_fundamentals",
+        "type": "chapter",
+        "position": {
+          "x": 510,
+          "y": 50
+        },
+        "data": {
+          "id": "flow_fundamentals",
+          "title": "Build the Experience",
+          "description": "Cover the foundational steps and workflows.",
+          "color": "#A855F7",
+          "frameIds": [
+            "frame_3",
+            "frame_4"
+          ],
+          "order": 1,
+          "conceptIds": [],
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "chapter_flow_deep-dive",
+        "type": "chapter",
+        "position": {
+          "x": 970,
+          "y": 50
+        },
+        "data": {
+          "id": "flow_deep-dive",
+          "title": "Launch + Iterate",
+          "description": "Advanced mastery and iteration tactics.",
+          "color": "#F97316",
+          "frameIds": [
+            "frame_5",
+            "frame_6"
+          ],
+          "order": 2,
+          "conceptIds": [],
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "flow_overview",
+        "type": "chapter",
+        "position": {
+          "x": 1430,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "flow_overview",
+          "title": "Orientation",
+          "description": "Set context and highlight the learner journey.",
+          "frameIds": [
+            "frame_1",
+            "frame_2"
+          ],
+          "conceptIds": [],
+          "order": 0,
+          "color": "#0EA5E9",
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        },
+        "selected": false
+      },
+      {
+        "id": "flow_fundamentals",
+        "type": "chapter",
+        "position": {
+          "x": 2430,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "flow_fundamentals",
+          "title": "Build the Experience",
+          "description": "Cover the foundational steps and workflows.",
+          "frameIds": [
+            "frame_3",
+            "frame_4"
+          ],
+          "conceptIds": [],
+          "order": 1,
+          "color": "#A855F7",
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "flow_deep-dive",
+        "type": "chapter",
+        "position": {
+          "x": 3430,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "flow_deep-dive",
+          "title": "Launch + Iterate",
+          "description": "Advanced mastery and iteration tactics.",
+          "frameIds": [
+            "frame_5",
+            "frame_6"
+          ],
+          "conceptIds": [],
+          "order": 2,
+          "color": "#F97316",
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "node_1763725336909_y9uosn04e_0",
+        "type": "aiframe",
+        "position": {
+          "x": 1160,
+          "y": 500
+        },
+        "data": {
           "type": "aiframe",
-          "frameId": "frame-1763659885064-mco7sdqb5",
-          "title": "manual Frame",
-          "goal": "Enter learning goal here...",
-          "informationText": "Provide background context and information...",
-          "afterVideoText": "Key takeaways and next steps...",
-          "aiConcepts": [],
-          "isGenerated": false
+          "frameId": "frame_1",
+          "title": "This frame introduces the visual mental model of Distributed Data Parallel (DDP) in PyTorch, illustrating model replication across GPUs and gradient synchronization for efficient distributed training.",
+          "goal": "Understand how DDP replicates models across GPUs and synchronizes gradients for efficient distributed training.",
+          "informationText": "# Visual Mental Model of DDP\n\nDistributed Data Parallel (DDP) in PyTorch is a technique for scaling model training across multiple GPUs efficiently. It works by **replicating the entire model** on each GPU, splitting the input data (batch) across devices, and then **synchronizing gradients** after the backward pass to ensure all model replicas update identically. This allows for faster training without changing the model architecture, as each GPU processes a subset of the data in parallel.\n\n## Key Steps in DDP\n1. **Model Replication**: Before training starts, the same model is initialized on every GPU with identical weights. This is achieved by setting a consistent random seed across all processes (more on seeding in later frames).\n2. **Data Parallelism**: The training batch is divided equally among GPUs. Each GPU computes the forward pass on its local data shard, producing a local loss.\n3. **Backward Pass and Gradient Computation**: Each GPU performs `loss.backward()` independently, computing gradients based on its local data.\n4. **Gradient Synchronization**: Gradients from all GPUs are averaged using an **all-reduce** operation (via `torch.distributed.all_reduce`). This ensures every GPU receives the same averaged gradients, preventing divergence.\n5. **Model Update**: Each GPU applies the optimizer step using the synchronized gradients, keeping all replicas in sync.\n\nThis process repeats for each training step, scaling throughput linearly with the number of GPUs (up to hardware limits).\n\n## Visual Diagram\n\nHere's an ASCII art representation of the DDP process across two GPUs (Rank 0 and Rank 1). Imagine more GPUs extending horizontally.\n\n```\nRank 0 (GPU 0)                  Rank 1 (GPU 1)\n┌─────────────────────┐         ┌─────────────────────┐\n│ Identical Model     │         │ Identical Model     │\n│ (same weights)      │         │ (same weights)      │\n│                     │         │                     │\n│ Local Batch Data ──▶│ Forward │ Local Batch Data ──▶│ Forward\n│ (e.g., batch/2)     │         │ (e.g., batch/2)     │\n│                     │         │                     │\n│ Local Loss ─────────│◀────────│ Local Loss          │\n└─────────┬───────────┘         └─────────┬───────────┘\n          │                               │\n          ▼                               ▼\n┌─────────────────────┐         ┌─────────────────────┐\n│ loss.backward()     │         │ loss.backward()     │\n│ Local Gradients     │         │ Local Gradients     │\n└─────────┬───────────┘         └─────────┬───────────┘\n          │                               │\n          └───────────────┬──────────────┘\n                          ▼\n                  All-Reduce (Average Grads)\n                  (Sum all grads, divide by world_size)\n                          ▼\n          ┌──────────────┴──────────────┐\n          │ Synchronized Gradients      │\n          │ (identical on all GPUs)     │\n          └──────────────┬──────────────┘\n                         │\n                ┌────────┴────────┐\n                │ Optimizer Step  │\n                │ (update weights)│\n                └─────────────────┘\n```\n\nIn this diagram:\n- **Forward and Backward**: Happen locally on each GPU with data shards.\n- **All-Reduce**: The critical synchronization step—gradients are summed across GPUs and divided by the number of GPUs (`world_size`) to compute the global average.\n- **Result**: All models remain identical after the update, ready for the next batch.\n\n## Why This Matters\nDDP avoids the bottlenecks of single-GPU training by parallelizing compute while ensuring correctness through synchronization. Without averaging gradients, models would diverge due to local updates. Note: This is a high-level view; implementation details (like handling the all-reduce) are wrapped in PyTorch's `DistributedDataParallel` module.",
+          "afterVideoText": "To reinforce your understanding, reflect on this checkpoint question: *What happens to gradients after the backward pass in multiple GPUs?* (Hint: They are not used immediately—think about synchronization.) Sketch your own version of the ASCII diagram on paper, labeling what changes if you add a third GPU. If you're comfortable, pseudocode a simple training step showing the all-reduce call. This will prepare you for the next frame on seeding and Python idioms.",
+          "aiConcepts": [
+            "Distributed Data Parallel (DDP)",
+            "Model Replication Across GPUs",
+            "Gradient Synchronization via All-Reduce",
+            "Data Parallelism for Scalable Training",
+            "Gradient Averaging to Prevent Model Divergence"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+          "sourceUrl": "",
+          "chapterId": "flow_overview",
+          "parentFrameId": "flow_overview",
+          "attachment": {
+            "id": "frame_1763725291558_v14vcy2sx",
+            "type": "text-attachment",
+            "data": {
+              "description": "",
+              "source": "knowledge_base"
+            }
+          }
         },
         "measured": {
           "width": 480,
-          "height": 460
+          "height": 788
+        },
+        "selected": false
+      },
+      {
+        "id": "node_1763725336909_ou5owjdb9_1",
+        "type": "aiframe",
+        "position": {
+          "x": 1684.6316218355807,
+          "y": 384.4208513868898
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_2",
+          "title": "This frame introduces the motivations for Distributed Data Parallel (DDP) in PyTorch, explaining how it scales training from single to multi-GPU setups to overcome compute and memory limitations while boosting throughput.",
+          "goal": "Grasp the motivation for DDP in scaling from single GPU to multi-GPU setups using PyTorch.",
+          "informationText": "# Why Distributed Training Matters\n\nIn the world of deep learning, training large models on massive datasets can take days or even weeks on a single GPU. This frame explores the core motivations for using **Distributed Data Parallel (DDP)** in PyTorch to scale training across multiple GPUs, enabling faster iteration, handling larger models, and achieving higher throughput without sacrificing accuracy.\n\n## The Single-GPU Bottleneck\nA single GPU has inherent limitations:\n- **Compute Constraints**: Modern GPUs like NVIDIA A100s offer impressive FLOPS (e.g., ~300 TFLOPS in FP16), but for models like GPT-3 or Stable Diffusion, a single GPU can't keep up with the required computations.\n- **Memory Limits**: GPUs have fixed VRAM (e.g., 40-80GB on high-end cards). Large models or big batches quickly exceed this, forcing techniques like gradient checkpointing or smaller batch sizes, which slow training.\n- **Time Inefficiency**: Training a ResNet on ImageNet might take hours on one GPU; scaling to production models could take weeks, delaying experimentation and deployment.\n\n## The Power of Multi-GPU Scaling\nDistributed training addresses these by leveraging multiple GPUs (e.g., in a single machine or across a cluster). Key benefits include:\n- **Increased Throughput**: Split data across GPUs to process more samples in parallel. With 4 GPUs, you can theoretically achieve ~4x speedup (linear scaling isn't always perfect due to communication overhead).\n- **Larger Effective Batch Sizes**: Each GPU handles a mini-batch; aggregate for a global batch size that stabilizes gradients without OOM errors.\n- **Model and Data Growth**: Train bigger models on bigger datasets, crucial for state-of-the-art AI.\n\n## What is DDP and Why PyTorch?\nPyTorch's **DistributedDataParallel (DDP)** is a data-parallel training strategy:\n- **Model Replication**: Identical model copies on each GPU (ensured via seeding).\n- **Data Parallelism**: Dataset split across GPUs; each computes forward/backward independently.\n- **Gradient Synchronization**: Local gradients averaged across GPUs via `all_reduce` (e.g., sum then divide by world_size) to update a shared model state.\n\nThis keeps training deterministic and efficient. DDP is preferred over DataParallel (DP) for multi-node setups due to better scalability and lower overhead.\n\n### Visual Mental Model of DDP\nHere's a simple ASCII diagram showing two GPUs in action:\n\n```\nRank 0 (GPU0)              Rank 1 (GPU1)\n┌──────────────┐          ┌──────────────┐\n│ Model Copy   │          │ Model Copy   │\n│ (same weights)           │ (same weights)\n│ Forward Pass │          │ Forward Pass │\n│ on Batch 1   │          │ on Batch 2   │\n└──────┬───────┘          └──────┬───────┘\n       │                         │\n       │ Loss & Backward          │ Loss & Backward\n       │ (Local Grads)            │ (Local Grads)\n       └──────────┬────────────┘   │\n                  │                │\n                  └────────────────┘\n                           │\n                  All-Reduce (Average Grads)\n                           │\n                  Update Model (Optimizer Step)\n```\n\nEach GPU processes its data shard, computes gradients, and syncs via all-reduce for a global update. This ensures all replicas stay in sync.\n\n## When Does It Matter?\n- **Single GPU → Multi-GPU Transition**: If your training time exceeds a day or you hit memory walls, DDP is essential.\n- **PyTorch Integration**: Built on `torch.distributed`, it handles process groups, ranks, and world_size seamlessly.\n- **Real-World Impact**: Teams at OpenAI, Meta, and Hugging Face use DDP to train models 10-100x faster.\n\nFor deeper dives, we'll cover seeding for identical replicas and Python idioms like dict comprehensions for data prep.",
+          "afterVideoText": "Reflect on a recent training run you've done: How long did it take on a single GPU, and what bottlenecks (time or memory) did you hit? Imagine scaling to 4 GPUs with DDP—estimate the speedup and practice sketching a simple data-split diagram for your model. \n\n**Checkpoint**: If confused on scaling benefits, revisit single vs. multi-GPU throughput differences (e.g., compare batch processing rates). Try a quick mental exercise: For a 1-hour single-GPU job, what's the ideal time on 8 GPUs?",
+          "aiConcepts": [
+            "PyTorch Distributed",
+            "Model Replication",
+            "Data Parallelism",
+            "Gradient Averaging",
+            "Scaling Throughput",
+            "Synchronization Overhead"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+          "sourceUrl": "",
+          "chapterId": "flow_overview",
+          "parentFrameId": "flow_overview",
+          "attachment": {
+            "id": "https://thefirehacker.github.io/til-ddp-python-basics.html",
+            "type": "pdf-attachment",
+            "data": {
+              "description": "DDP Python Basics Reference",
+              "source": "knowledge_base"
+            }
+          }
+        },
+        "measured": {
+          "width": 480,
+          "height": 729
         },
         "selected": false,
         "dragging": false
       },
       {
-        "id": "node_1763660242088_ipkycu03a_8",
+        "id": "node_1763725336909_1h8829qak_2",
         "type": "aiframe",
         "position": {
-          "x": 2437.5182481751826,
-          "y": 537.6723438767234
+          "x": 2160,
+          "y": 500
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_1763660242087_a1b3kimwi",
-          "title": "f66",
-          "goal": "",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [],
-          "isGenerated": false,
-          "chapterId": "chapter_1763660249622_8155pw",
-          "parentFrameId": "chapter_1763660249622_8155pw",
-          "updatedAt": "2025-11-20T17:37:44.599Z"
+          "frameId": "frame_3",
+          "title": "This frame covers the critical role of identical seeding across processes to initialize consistent model replicas in PyTorch DDP, preventing training divergence.",
+          "goal": "Learn to seed processes identically to ensure consistent model initialization across ranks.",
+          "informationText": "# Seeding for Identical Model Replicas\n\nIn distributed training with PyTorch's Distributed Data Parallel (DDP), ensuring that all processes (ranks) start with identical model replicas is crucial for consistent synchronization and gradient averaging. Randomness in model initialization—such as weight initialization in neural networks—must be controlled to avoid divergence across GPUs.\n\n## Why Seed Before Creating the Model?\n\nPyTorch models often rely on random number generators (RNGs) for initializing parameters (e.g., `nn.Linear` layers use random weights from uniform or normal distributions). If each process uses a different random seed, the models will initialize with different weights, leading to:\n- **Inconsistent forward passes**: Even with the same input, outputs (and thus losses) will differ across ranks.\n- **Gradient divergence**: During backpropagation, gradients won't align properly, causing unstable training or incorrect averaging via `dist.all_reduce`.\n- **Non-reproducible results**: Training outcomes become unpredictable, defeating the purpose of distributed scaling.\n\n**Solution**: Set the same seed *before* instantiating the model in each process. This ensures all replicas are bitwise identical from the start.\n\n### How to Implement Identical Seeding\n\nUse `torch.manual_seed(seed)` (and optionally `random.seed` and `numpy.random.seed` for full coverage) at the beginning of each process's code, after `dist.init_process_group` but before model creation:\n\n```python\nimport torch\nimport torch.distributed as dist\nimport os\n\n# Initialize process group (e.g., via torchrun or mpirun)\nlocal_rank = int(os.environ['LOCAL_RANK'])\ndist.init_process_group(backend='nccl', init_method='env://', rank=local_rank, world_size=dist.get_world_size())\n\ntorch.cuda.set_device(local_rank)\n\n# Seed identically across all processes BEFORE model creation\nseed = 42  # Fixed seed for reproducibility\ntorch.manual_seed(seed)\nif torch.cuda.is_available():\n    torch.cuda.manual_seed_all(seed)\n\n# Now create the model - all replicas will be identical\nmodel = MyModel().to(local_rank)\n\n# Wrap with DDP\nmodel = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])\n```\n\nThis guarantees that RNG states are synchronized, so `torch.nn.init` calls produce the same values everywhere.\n\n## What If Seeds Differ?\n\nIf seeds vary (e.g., each process uses `local_rank` as part of the seed), models initialize differently:\n\n**ASCII Diagram: Identical vs. Divergent Initialization**\n\n**Identical Seeding (Good):**\n```\nRank 0 (GPU 0)          Rank 1 (GPU 1)\n┌─────────────────┐     ┌─────────────────┐\n│ torch.manual_seed(42) │  │ torch.manual_seed(42) │\n│ Model Init:     │     │ Model Init:     │\n│ Weights = [0.1, │     │ Weights = [0.1, │\n│ 0.2, ...]       │     │ 0.2, ...]       │\n└─────────────────┘     └─────────────────┘\n     (Same Replicas)           ^\n                               |\n                          Gradient Sync Works\n```\n\n**Differing Seeds (Bad):**\n```\nRank 0 (GPU 0)          Rank 1 (GPU 1)\n┌─────────────────┐     ┌─────────────────┐\n│ torch.manual_seed(0)  │  │ torch.manual_seed(1)  │\n│ Model Init:     │     │ Model Init:     │\n│ Weights = [0.1, │     │ Weights = [0.3, │\n│ 0.2, ...]       │     │ 0.4, ...]       │\n└─────────────────┘     └─────────────────┘\n     (Different Replicas)      ^\n                               |\n                          Gradient Sync Fails\n                          (Divergent Losses)\n```\n\nIn practice, this can cause NaN losses or slow convergence. Always seed early and identically!\n\n## Key Pitfall from DDP Essentials\n\nFrom distributed training best practices: Seed *every* process the same way *before* you create the model. Post-initialization seeding won't retroactively fix random weights already generated during `model = MyModel()`.\n\nThis foundational step enables the rest of DDP, like uniform data sharding and gradient averaging.",
+          "afterVideoText": "Reflect on this: Why might seeding *after* model creation fail to make replicas identical? Try a quick experiment—write a simple multi-process script (using `torch.multiprocessing`) where two processes create a small model with different seeds, then print a few weights to observe the difference. What happens if you average gradients anyway? This reinforces the need for upfront consistency. If you're stuck, review the KB excerpt on DDP essentials for a reminder.",
+          "aiConcepts": [
+            "Random Seed Management",
+            "Process Initialization",
+            "Model Replica Consistency",
+            "Deterministic Training in DDP",
+            "RNG Synchronization Across Ranks"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+          "sourceUrl": "",
+          "chapterId": "flow_fundamentals",
+          "parentFrameId": "flow_fundamentals",
+          "attachment": {
+            "id": "frame_1763725291558_yayk7pj4f",
+            "type": "text-attachment",
+            "data": {
+              "description": "Example seeding code for DDP initialization",
+              "source": "knowledge_base"
+            }
+          }
         },
         "measured": {
           "width": 480,
-          "height": 460
-        },
-        "selected": false,
-        "dragging": false
+          "height": 679
+        }
       },
       {
-        "id": "node_1763660247790_8srrgk5ov_9",
+        "id": "node_1763725336909_xo09aii9d_3",
         "type": "aiframe",
         "position": {
-          "x": 2383.949716139497,
-          "y": 1047.5344687753447
+          "x": 2756.348901329222,
+          "y": 468.9197092486381
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_1763660247790_gm09fjrs6",
-          "title": "f77",
-          "goal": "",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [],
-          "isGenerated": false,
-          "chapterId": "chapter_1763660249622_8155pw",
-          "parentFrameId": "chapter_1763660249622_8155pw",
-          "updatedAt": "2025-11-20T17:37:44.599Z"
+          "frameId": "frame_4",
+          "title": "This frame explores Python idioms like dictionary comprehensions and kwargs unpacking for efficient data handling in PyTorch DDP, alongside the mathematical equivalence of gradient averaging and learning rate scaling for synchronized multi-GPU training.",
+          "goal": "Master dictionary comprehensions, kwargs unpacking, and the equivalence of gradient averaging vs. LR scaling.",
+          "informationText": "# Python Idioms and Gradient Averaging\n\nIn this frame, we'll dive into key Python techniques that are ubiquitous in distributed training with PyTorch's Distributed Data Parallel (DDP). These idioms streamline data preparation and model invocation, while we'll also explore how gradient handling works across multiple GPUs, including the equivalence between averaging gradients and scaling the learning rate.\n\n## 1. Dictionary Comprehensions: Elegant Data Transformation\n\nDictionary comprehensions allow you to transform raw data (e.g., from a Hugging Face dataset) into model-ready tensors in a single, readable line. This is crucial for preparing batches to send to the GPU in distributed setups.\n\n**Example:** Converting a dataset sample to tensors on the device:\n```python\n{ k: torch.tensor(v).to(device) for k, v in item.items() }\n```\nThis maps each key-value pair in the item (e.g., `input_ids`, `attention_mask`) to a PyTorch tensor on the specified device, ensuring proper shapes and types for the model.\n\n**Why it matters in DDP:** In multi-GPU training, each process handles a subset of data. Comprehensions ensure consistent, efficient tensor conversion without verbose loops, reducing boilerplate and errors.\n\n## 2. Kwargs Unpacking: Seamless Function Calls\n\nKwargs (keyword arguments) unpacking uses `**` to pass a dictionary as named arguments to a function. This is perfect for models like those from Hugging Face Transformers, where inputs like `input_ids`, `attention_mask`, and `labels` must match exact parameter names.\n\n**Example:** Passing a batch to the model:\n```python\nmodel(**batch)\n```\nHere, `batch` is a dict with keys matching the model's `forward()` parameters. Unpacking automatically distributes the values, making code flexible and readable.\n\n**Why it matters in DDP:** In a distributed loop, batches vary per process, but unpacking ensures the model receives inputs uniformly across replicas, simplifying the training code.\n\n## 3. Gradient Averaging in Distributed Training\n\nIn DDP, each GPU computes gradients independently on its data shard. To synchronize, we use `torch.distributed.all_reduce()` to sum gradients across processes, then average by dividing by `world_size` (number of GPUs).\n\n**Key Steps:**\n- After `loss.backward()`, gradients are local to each process.\n- Call `dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)` for each parameter.\n- Divide: `param.grad /= world_size`.\n\n### Equivalence: Gradient Averaging vs. Learning Rate Scaling\n\nMathematically, averaging gradients before the optimizer step is equivalent to scaling the learning rate (LR) by `1/world_size` after:\n\n- **Averaging Gradients:** Effective update = (sum(grads) / world_size) * LR\n- **Scaling LR:** sum(grads) * (LR / world_size)\n\nThe choice depends on your algorithm: average gradients for standard optimizers, or scale LR if you need full-sum gradients (e.g., for custom logic). In practice, DDP handles averaging internally, but understanding this demystifies the math.\n\n**Visual Mental Model (ASCII Art):**\n```\nRank 0 (GPU0)          Rank 1 (GPU1)          ...\n┌─────────────────┐    ┌─────────────────┐\n│   Forward Pass   │    │   Forward Pass   │  (Identical model weights)\n│ (Local Batch)    │    │ (Local Batch)    │\n└─────────┬────────┘    └─────────┬────────┘\n          │                       │\n          ▼                       ▼\n┌─────────────────┐    ┌─────────────────┐\n│ loss.backward() │    │ loss.backward() │\n│ (Local Grads)   │    │ (Local Grads)   │\n└─────────┬────────┘    └─────────┬────────┘\n          │                       │\n          └───────────┬───────────┘\n                      │\n                ┌─────▼─────┐\n                │ all_reduce│ (SUM grads across ranks)\n                │   & Avg   │ (Divide by world_size)\n                └─────┬─────┘\n                      │\n                ┌─────▼─────┐\n                │ Optimizer │ (Step with averaged grads)\n                │   Step    │\n                └───────────┘\n```\nThis shows how local computations sync to a global update, ensuring all replicas converge identically.\n\n## DDP Essentials Recap\n- **Seed Processes:** Set the same random seed before model creation for identical replicas.\n- **Use Idioms:** Comprehensions for data prep, `**kwargs` for model calls.\n- **Gradient Sync:** All-reduce and average to mimic single-GPU training at scale.",
+          "afterVideoText": "## Reflection and Practice\n\nTo reinforce these concepts:\n- **Try It Yourself:** Write a dictionary comprehension to convert a sample Hugging Face dataset item (e.g., {'input_ids': [1,2,3], 'labels': 0}) to tensors on 'cuda'. Test it with `torch.tensor(v).to('cuda')`.\n- **Remediation Checkpoint:** Practice converting a full dataset sample to tensors using dict comprehension. If stuck, revisit the example code and experiment in a Jupyter notebook.\n- **Think Deeper:** Why might you prefer LR scaling over gradient averaging in a custom optimizer? Sketch a quick pros/cons list.\n\nThese exercises build intuition for clean, scalable DDP code.",
+          "aiConcepts": [
+            "Dictionary Comprehensions",
+            "Kwargs Unpacking",
+            "Gradient All-Reduce",
+            "Learning Rate Scaling Equivalence"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+          "sourceUrl": "",
+          "chapterId": "flow_fundamentals",
+          "parentFrameId": "flow_fundamentals",
+          "attachment": {
+            "id": "frame_1763725291558_svtxbsmh1",
+            "type": "pdf-attachment",
+            "data": {
+              "description": "DDP Python Basics Reference",
+              "source": "knowledge_base"
+            }
+          }
         },
         "measured": {
           "width": 480,
-          "height": 460
+          "height": 749
         },
         "selected": true,
         "dragging": false
+      },
+      {
+        "id": "node_1763725336909_ti3w5k2pt_4",
+        "type": "aiframe",
+        "position": {
+          "x": 3160,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_5",
+          "title": "This frame guides you through implementing a simple DDP wrapper to replicate models and synchronize gradients across GPUs, demystifying distributed training fundamentals.",
+          "goal": "Implement a simple DDP wrapper from scratch to handle model replication and gradient sync.",
+          "informationText": "# Building a Tiny DDP Wrapper\n\nIn this deep-dive frame, we'll implement a simple Distributed Data Parallel (DDP) wrapper from scratch using PyTorch's `torch.distributed` module. This toy implementation demystifies how DDP handles model replication across multiple GPUs and synchronizes gradients, giving you hands-on insight into scaling training. By the end, you'll understand the core mechanics without relying on PyTorch's built-in `DistributedDataParallel` class.\n\n## Why Build a Tiny Wrapper?\nDDP is PyTorch's go-to for multi-GPU training, but its internals can feel like black magic. A minimal wrapper reveals:\n- **Model Replication**: Ensuring all processes start with identical model weights.\n- **Gradient Synchronization**: Averaging gradients across processes to mimic single-GPU training.\n- **Efficiency**: Avoiding data duplication while scaling compute.\n\nThis aligns with the overall learning flow: from high-level mental models to practical implementation, building skills for real-world distributed training.\n\n## Prerequisites from Earlier Frames\n- Familiarity with PyTorch basics (models, optimizers, DataLoaders).\n- Understanding of `torch.distributed` init (e.g., `dist.init_process_group`).\n- Seeding processes identically for reproducible replicas (covered in prior seeding concepts).\n\n## Step-by-Step Implementation\nWe'll create a `TinyDDP` class that wraps a model, handles broadcasting, and syncs gradients. Assume we've already initialized the process group with `torch.distributed.init_process_group(backend='nccl')` and have access to `world_size` and `rank`.\n\n### 1. Model Replication via Seeding and Broadcasting\nTo ensure all GPUs have the same model weights:\n- **Seed identically**: Before creating the model, set `torch.manual_seed(seed)` in every process (same seed value).\n- **Broadcast parameters**: After model creation, broadcast weights from rank 0 to others. This fixes any floating-point differences from random init.\n\nWhy broadcast if we seed? Seeding ensures the same random numbers, but numerical precision can vary slightly across GPUs. Broadcasting enforces exact identity.\n\nCode snippet:\n```python\nimport torch\nimport torch.distributed as dist\n\nclass TinyDDP:\n    def __init__(self, model, device):\n        self.model = model.to(device)\n        self.device = device\n        # Broadcast model parameters from rank 0\n        for param in self.model.parameters():\n            dist.broadcast(param.data, src=0)\n```\n\n### 2. Forward Pass\nEach process gets a unique batch of data (via DistributedSampler). Forward is local—no sync needed yet.\n\n```python\n    def forward(self, batch):\n        # Assume batch is a dict (e.g., from Hugging Face: {'input_ids': ..., 'labels': ...})\n        # Use kwargs unpacking for clean model call\n        outputs = self.model(**batch)\n        return outputs\n```\n\nPro Tip: Use dictionary comprehensions to prep data: `{k: torch.tensor(v).to(self.device) for k, v in batch.items()}`.\n\n### 3. Backward and Gradient Sync\nCompute loss locally, then backward. Sync gradients with `all_reduce` (sum across processes, then divide by `world_size`).\n\n```python\n    def backward(self, loss):\n        loss.backward()\n        # Average gradients\n        for param in self.model.parameters():\n            if param.grad is not None:\n                dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)\n                param.grad /= dist.get_world_size()\n```\n\nThis is equivalent to scaling the learning rate by `1/world_size`—choose based on your optimizer flow.\n\n### 4. Training Loop Integration\nWrap your loop:\n```python\noptimizer = torch.optim.Adam(tiny_ddp.model.parameters(), lr=1e-3)\nfor batch in dataloader:\n    outputs = tiny_ddp.forward(batch)\n    loss = outputs.loss  # e.g., for language models\n    tiny_ddp.backward(loss)\n    optimizer.step()\n    optimizer.zero_grad()\n```\n\nOnly rank 0 handles logging/evaluation to avoid duplication.\n\n## Visual Mental Model\nHere's an ASCII diagram of the flow across two ranks (GPUs):\n\n```\nRank 0 (GPU0)              Rank 1 (GPU1)\n┌─────────────────┐       ┌─────────────────┐\n│ Identical Model │       │ Identical Model │\n│ (Broadcast Init)│       │ (Broadcast Init)│\n└─────────┬───────┘       └─────────┬───────┘\n          │                           │\n┌─────────▼───────┐       ┌─────────▼───────┐\n│ Local Forward   │       │ Local Forward   │\n│ (Unique Batch)  │       │ (Unique Batch)  │\n└─────────┬───────┘       └─────────┬───────┘\n          │                           │\n┌─────────▼───────┐       ┌─────────▼───────┐\n│ Local Backward  │       │ Local Backward  │\n│ (Local Grads)   │       │ (Local Grads)   │\n└─────────┬───────┘       └─────────┬───────┘\n          │                           │\n          └────────────all_reduce────┘\n                          │\n                  ┌───────▼───────┐\n                  │ Avg Grads     │\n                  │ (Divide by    │\n                  │ world_size)   │\n                  └───────────────┘\n                          │\n                  Optimizer Step (Local)\n```\n\nGradients flow from local computation to global average, ensuring consistent updates.\n\n## Common Pitfalls\n- Forgetting to divide by `world_size` after `all_reduce`—leads to exploding gradients.\n- Not broadcasting: Models diverge over time.\n- Uneven data: Use `DistributedSampler` for fair splits.\n\n## From Toy to Real DDP\nPyTorch's DDP automates this (hooks into backward, buckets comms for efficiency). Our wrapper teaches the 'why' before the 'how' of production code.\n\nTrace the flow: `all_reduce` sums gradients (op=SUM), then divide by world_size for averaging—ensuring each process updates as if training on full data.",
+          "afterVideoText": "Now that you've seen the tiny DDP wrapper in action, reflect on the checkpoint: Trace the gradient flow—how does `all_reduce` with SUM op followed by division average across processes? Practice by implementing the `TinyDDP` class yourself in a Jupyter notebook with 2 processes (use `torchrun --nproc_per_node=2`). Experiment: What happens if you skip broadcasting? Add logging to visualize gradient values pre/post-sync. This reinforces scaling pitfalls and Python idioms like kwargs unpacking for batch handling.",
+          "aiConcepts": [
+            "Custom DDP Implementation",
+            "Broadcast Parameters",
+            "Gradient Averaging with all_reduce",
+            "Model Replication via Seeding",
+            "Process Synchronization in Training Loops"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+          "sourceUrl": "",
+          "chapterId": "flow_deep-dive",
+          "parentFrameId": "flow_deep-dive",
+          "attachment": {
+            "id": "frame_1763725291558_3qpxjwape",
+            "type": "text-attachment",
+            "data": {
+              "description": "Tiny DDP Wrapper Implementation",
+              "source": "knowledge_base"
+            }
+          }
+        },
+        "measured": {
+          "width": 480,
+          "height": 711
+        }
+      },
+      {
+        "id": "node_1763725336909_lb4fuw4gh_5",
+        "type": "aiframe",
+        "position": {
+          "x": 3660,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_6",
+          "title": "Learners build a minimal distributed training loop, debug pitfalls like seeding and gradient errors, and learn to use PyTorch's real DDP for scalable training.",
+          "goal": "Construct a distributed training loop, explore common errors like improper seeding, and transition to real DDP.",
+          "informationText": "# Minimal Training Loop and Pitfalls\n\nIn this deep-dive frame, we'll construct a minimal distributed training loop from scratch, explore common errors like improper seeding and gradient mishandling, and transition to PyTorch's real Distributed Data Parallel (DDP). This builds on prior concepts of seeding for identical model replicas and Python idioms like dictionary comprehensions and kwargs unpacking.\n\n## Visual Mental Model of Distributed Training\n\nDistributed training with DDP involves multiple processes (one per GPU) running in parallel, each with an identical model replica. They process different data batches, compute losses, and synchronize gradients.\n\nHere's an ASCII diagram of the process:\n\n```\nRank 0 (GPU0)          Rank 1 (GPU1)          ...\n┌──────────────┐       ┌──────────────┐\n│   forward    │       │   forward    │  (same model weights)\n│ (batch 0)    │       │ (batch 1)    │\n└──────┬───────┘       └──────┬───────┘\n       │                       │\n       │ loss.backward()       │ loss.backward()\n       │                       │\n       │ grads                 │ grads\n       ▼                       ▼\n   ┌──────────────┐       ┌──────────────┐\n   │ all_reduce    │<──────│ (sum & avg)  │\n   └──────────────┘       └──────────────┘\n           │\n           ▼\n   Optimizer step (averaged grads)\n```\n\nEach rank computes gradients independently, then uses `dist.all_reduce` to sum them across processes and divide by `world_size` for averaging.\n\n## Constructing the Minimal Training Loop\n\nA basic distributed training loop follows these steps:\n\n1. **Initialization**: Set the same seed across all processes for reproducibility. Use `torch.manual_seed(seed + rank)` to ensure identical model initialization.\n   ```python\n   import torch.distributed as dist\n   from torch.nn.parallel import DistributedDataParallel as DDP\n   \n   dist.init_process_group(backend='nccl')\n   rank = dist.get_rank()\n   world_size = dist.get_world_size()\n   torch.manual_seed(42 + rank)  # Identical replicas\n   model = MyModel().to(rank)  # Create model\n   model = DDP(model, device_ids=[rank])\n   ```\n\n2. **Data Loading**: Use `DistributedSampler` to split data across ranks. Unpack batches with kwargs for model input.\n   ```python\n   from torch.utils.data.distributed import DistributedSampler\n   sampler = DistributedSampler(dataset, world_size, rank)\n   loader = DataLoader(dataset, sampler=sampler, batch_size=32)\n   for batch in loader:\n       batch = {k: torch.tensor(v).to(rank) for k, v in batch.items()}  # Dict comprehension\n       outputs = model(**batch)  # Kwargs unpacking\n   ```\n\n3. **Forward-Backward Pass**: Compute loss and backward.\n   ```python\n   optimizer = torch.optim.Adam(model.parameters(), lr=1e-3 / world_size)  # Scale LR\n   for epoch in range(epochs):\n       sampler.set_epoch(epoch)  # Shuffle data\n       for batch in loader:\n           outputs = model(**batch)\n           loss = criterion(outputs, batch['labels'])\n           loss.backward()\n   ```\n\n4. **Gradient Synchronization**: After backward, average gradients.\n   ```python\n   for param in model.parameters():\n       if param.grad is not None:\n           dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)\n           param.grad /= world_size\n   optimizer.step()\n   ```\n\nNote: Scaling the learning rate by `1/world_size` is equivalent to averaging gradients—choose based on your optimizer's needs.\n\n## Common Pitfalls and Fixes\n\n- **Improper Seeding**: Forgetting to seed before model creation leads to divergent replicas. *Fix*: Seed early with `torch.manual_seed(seed + rank)`.\n\n- **Gradient Averaging Errors**: Not dividing by `world_size` after `all_reduce` causes exploding gradients. *Fix*: Always normalize: `param.grad /= world_size`.\n\n- **Broadcast at Init**: Even with seeding, broadcast model state from rank 0 to ensure exact synchronization.\n   ```python\n   if rank == 0:\n       # Load or init model\n   dist.broadcast_object_list([model.state_dict()], src=0)\n   ```\n\n- **Data Overlap**: Without `DistributedSampler`, ranks process the same data, wasting compute. *Fix*: Use sampler and call `set_epoch`.\n\n- **LR Scaling Mismatch**: Mixing gradient averaging and LR scaling doubles the effect. *Fix*: Pick one method consistently.\n\n## Transition to Real DDP\n\nOur toy wrapper mimics DDP by manually handling all_reduce and broadcasting. PyTorch's `DDP` automates this: wrap your model with `DDP(model, device_ids=[rank])`, and it hooks into backward for automatic gradient sync. No manual all_reduce needed! This scales seamlessly to multi-node setups.\n\nExplore the checkpoint: Debug a scenario where gradients aren't averaged correctly by inspecting `param.grad` norms across ranks.",
+          "afterVideoText": "Reflect on the pitfalls: Implement the minimal loop in a multi-GPU setup and intentionally introduce an improper seeding error—observe how model outputs diverge. Then, tackle the remediation checkpoint by debugging a gradient averaging issue. Practice scaling the LR vs. averaging gradients to see equivalence in a toy linear regression task. This reinforces why DDP abstractions are valuable.",
+          "aiConcepts": [
+            "Distributed Training Loop",
+            "Seeding for Model Replicas",
+            "Gradient Averaging Techniques",
+            "Common Pitfalls in DDP",
+            "Transition to Official DDP"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training",
+          "sourceUrl": "",
+          "chapterId": "flow_deep-dive",
+          "parentFrameId": "flow_deep-dive",
+          "attachment": {
+            "id": "frame_1763725291558_4mgkigjaa",
+            "type": "pdf-attachment",
+            "data": {
+              "description": "DDP Python Basics Guide",
+              "source": "knowledge_base"
+            }
+          }
+        },
+        "measured": {
+          "width": 480,
+          "height": 711
+        }
+      },
+      {
+        "id": "frame_1763725291558_v14vcy2sx",
+        "type": "text-attachment-attachment",
+        "position": {
+          "x": 1580,
+          "y": 500
+        },
+        "data": {
+          "id": "frame_1763725291558_v14vcy2sx",
+          "title": "Untitled",
+          "attachedToFrameId": "frame_1",
+          "isAttached": true
+        },
+        "measured": {
+          "width": 150,
+          "height": 22
+        }
+      },
+      {
+        "id": "https://thefirehacker.github.io/til-ddp-python-basics.html",
+        "type": "pdf-attachment-attachment",
+        "position": {
+          "x": 2080,
+          "y": 500
+        },
+        "data": {
+          "id": "https://thefirehacker.github.io/til-ddp-python-basics.html",
+          "title": "Untitled",
+          "attachedToFrameId": "frame_2",
+          "isAttached": true
+        },
+        "measured": {
+          "width": 150,
+          "height": 22
+        }
+      },
+      {
+        "id": "frame_1763725291558_yayk7pj4f",
+        "type": "text-attachment-attachment",
+        "position": {
+          "x": 2580,
+          "y": 500
+        },
+        "data": {
+          "id": "frame_1763725291558_yayk7pj4f",
+          "title": "Untitled",
+          "attachedToFrameId": "frame_3",
+          "isAttached": true
+        },
+        "measured": {
+          "width": 150,
+          "height": 22
+        }
+      },
+      {
+        "id": "frame_1763725291558_svtxbsmh1",
+        "type": "pdf-attachment-attachment",
+        "position": {
+          "x": 3080,
+          "y": 500
+        },
+        "data": {
+          "id": "frame_1763725291558_svtxbsmh1",
+          "title": "Untitled",
+          "attachedToFrameId": "frame_4",
+          "isAttached": true
+        },
+        "measured": {
+          "width": 150,
+          "height": 22
+        }
+      },
+      {
+        "id": "frame_1763725291558_3qpxjwape",
+        "type": "text-attachment-attachment",
+        "position": {
+          "x": 3580,
+          "y": 500
+        },
+        "data": {
+          "id": "frame_1763725291558_3qpxjwape",
+          "title": "Untitled",
+          "attachedToFrameId": "frame_5",
+          "isAttached": true
+        },
+        "measured": {
+          "width": 150,
+          "height": 22
+        }
+      },
+      {
+        "id": "frame_1763725291558_4mgkigjaa",
+        "type": "pdf-attachment-attachment",
+        "position": {
+          "x": 4080,
+          "y": 500
+        },
+        "data": {
+          "id": "frame_1763725291558_4mgkigjaa",
+          "title": "Untitled",
+          "attachedToFrameId": "frame_6",
+          "isAttached": true
+        },
+        "measured": {
+          "width": 150,
+          "height": 22
+        }
       }
     ],
     "edges": [
       {
-        "id": "edge_chapter_chapter_1763361560908_fleet_overview_node_1763659968068_13u2q9a86_0",
-        "source": "chapter_1763361560908_fleet_overview",
-        "target": "node_1763659968068_13u2q9a86_0",
+        "id": "edge_chapter_flow_overview_node_1763725336909_y9uosn04e_0",
+        "source": "flow_overview",
+        "target": "node_1763725336909_y9uosn04e_0",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -954,13 +902,13 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560908_fleet_overview"
+          "chapterId": "flow_overview"
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560908_fleet_overview_node_1763659968069_6g0qp8us0_1",
-        "source": "chapter_1763361560908_fleet_overview",
-        "target": "node_1763659968069_6g0qp8us0_1",
+        "id": "edge_chapter_flow_overview_node_1763725336909_ou5owjdb9_1",
+        "source": "flow_overview",
+        "target": "node_1763725336909_ou5owjdb9_1",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -976,13 +924,13 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560908_fleet_overview"
+          "chapterId": "flow_overview"
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560918_specifications_node_1763659968069_3fkxhceme_2",
-        "source": "chapter_1763361560918_specifications",
-        "target": "node_1763659968069_3fkxhceme_2",
+        "id": "edge_chapter_flow_fundamentals_node_1763725336909_1h8829qak_2",
+        "source": "flow_fundamentals",
+        "target": "node_1763725336909_1h8829qak_2",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -998,13 +946,13 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560918_specifications"
+          "chapterId": "flow_fundamentals"
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560918_specifications_node_1763659968069_96s8lwds2_3",
-        "source": "chapter_1763361560918_specifications",
-        "target": "node_1763659968069_96s8lwds2_3",
+        "id": "edge_chapter_flow_fundamentals_node_1763725336909_xo09aii9d_3",
+        "source": "flow_fundamentals",
+        "target": "node_1763725336909_xo09aii9d_3",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -1020,13 +968,13 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560918_specifications"
+          "chapterId": "flow_fundamentals"
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560928_performance_node_1763659968069_5hpn3lwfl_4",
-        "source": "chapter_1763361560928_performance",
-        "target": "node_1763659968069_5hpn3lwfl_4",
+        "id": "edge_chapter_flow_deep-dive_node_1763725336909_ti3w5k2pt_4",
+        "source": "flow_deep-dive",
+        "target": "node_1763725336909_ti3w5k2pt_4",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -1042,13 +990,13 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560928_performance"
+          "chapterId": "flow_deep-dive"
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560928_performance_node_1763659968069_0y0slub80_5",
-        "source": "chapter_1763361560928_performance",
-        "target": "node_1763659968069_0y0slub80_5",
+        "id": "edge_chapter_flow_deep-dive_node_1763725336909_lb4fuw4gh_5",
+        "source": "flow_deep-dive",
+        "target": "node_1763725336909_lb4fuw4gh_5",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -1064,216 +1012,84 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560928_performance"
+          "chapterId": "flow_deep-dive"
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560938_construction_node_1763659968069_r8hbkllcr_6",
-        "source": "chapter_1763361560938_construction",
-        "target": "node_1763659968069_r8hbkllcr_6",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
+        "id": "edge_frame_1763725291558_v14vcy2sx_node_1763725336909_y9uosn04e_0_attachment",
+        "source": "frame_1763725291558_v14vcy2sx",
+        "target": "node_1763725336909_y9uosn04e_0",
+        "targetHandle": "attachment-slot",
+        "type": "straight",
         "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560938_construction"
+          "stroke": "#f97316",
+          "strokeWidth": 3
         }
       },
       {
-        "id": "edge_chapter_chapter_1763361560938_construction_node_1763659968069_g89pl1qt2_7",
-        "source": "chapter_1763361560938_construction",
-        "target": "node_1763659968069_g89pl1qt2_7",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
+        "id": "edge_https://thefirehacker.github.io/til-ddp-python-basics.html_node_1763725336909_ou5owjdb9_1_attachment",
+        "source": "https://thefirehacker.github.io/til-ddp-python-basics.html",
+        "target": "node_1763725336909_ou5owjdb9_1",
+        "targetHandle": "attachment-slot",
+        "type": "straight",
         "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1763361560938_construction"
+          "stroke": "#f97316",
+          "strokeWidth": 3
         }
       },
       {
-        "id": "edge_seq_node_1763659968068_13u2q9a86_0_node_1763659968069_6g0qp8us0_1",
-        "source": "node_1763659968068_13u2q9a86_0",
-        "target": "node_1763659968069_6g0qp8us0_1",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
+        "id": "edge_frame_1763725291558_yayk7pj4f_node_1763725336909_1h8829qak_2_attachment",
+        "source": "frame_1763725291558_yayk7pj4f",
+        "target": "node_1763725336909_1h8829qak_2",
+        "targetHandle": "attachment-slot",
+        "type": "straight",
         "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763361560908_fleet_overview"
+          "stroke": "#f97316",
+          "strokeWidth": 3
         }
       },
       {
-        "id": "edge_seq_node_1763659968069_3fkxhceme_2_node_1763659968069_96s8lwds2_3",
-        "source": "node_1763659968069_3fkxhceme_2",
-        "target": "node_1763659968069_96s8lwds2_3",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
+        "id": "edge_frame_1763725291558_svtxbsmh1_node_1763725336909_xo09aii9d_3_attachment",
+        "source": "frame_1763725291558_svtxbsmh1",
+        "target": "node_1763725336909_xo09aii9d_3",
+        "targetHandle": "attachment-slot",
+        "type": "straight",
         "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763361560918_specifications"
+          "stroke": "#f97316",
+          "strokeWidth": 3
         }
       },
       {
-        "id": "edge_seq_node_1763659968069_5hpn3lwfl_4_node_1763659968069_0y0slub80_5",
-        "source": "node_1763659968069_5hpn3lwfl_4",
-        "target": "node_1763659968069_0y0slub80_5",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
+        "id": "edge_frame_1763725291558_3qpxjwape_node_1763725336909_ti3w5k2pt_4_attachment",
+        "source": "frame_1763725291558_3qpxjwape",
+        "target": "node_1763725336909_ti3w5k2pt_4",
+        "targetHandle": "attachment-slot",
+        "type": "straight",
         "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763361560928_performance"
+          "stroke": "#f97316",
+          "strokeWidth": 3
         }
       },
       {
-        "id": "edge_seq_node_1763659968069_r8hbkllcr_6_node_1763659968069_g89pl1qt2_7",
-        "source": "node_1763659968069_r8hbkllcr_6",
-        "target": "node_1763659968069_g89pl1qt2_7",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
+        "id": "edge_frame_1763725291558_4mgkigjaa_node_1763725336909_lb4fuw4gh_5_attachment",
+        "source": "frame_1763725291558_4mgkigjaa",
+        "target": "node_1763725336909_lb4fuw4gh_5",
+        "targetHandle": "attachment-slot",
+        "type": "straight",
         "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763361560938_construction"
-        }
-      },
-      {
-        "id": "edge_chapter_chapter_1763660249622_8155pw_node_1763660242088_ipkycu03a_8",
-        "source": "chapter_1763660249622_8155pw",
-        "target": "node_1763660242088_ipkycu03a_8",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1763660249622_8155pw"
-        }
-      },
-      {
-        "id": "edge_chapter_chapter_1763660249622_8155pw_node_1763660247790_8srrgk5ov_9",
-        "source": "chapter_1763660249622_8155pw",
-        "target": "node_1763660247790_8srrgk5ov_9",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1763660249622_8155pw"
-        }
-      },
-      {
-        "id": "edge_seq_node_1763660242088_ipkycu03a_8_node_1763660247790_8srrgk5ov_9",
-        "source": "node_1763660242088_ipkycu03a_8",
-        "target": "node_1763660247790_8srrgk5ov_9",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763660249622_8155pw"
+          "stroke": "#f97316",
+          "strokeWidth": 3
         }
       }
     ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-20T17:53:34.861Z",
+    "lastUpdated": "2025-11-21T11:54:33.208Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-20T17:53:34.170Z",
-    "frameCount": 11,
+    "lastSaved": "2025-11-21T11:54:26.721Z",
+    "frameCount": 6,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

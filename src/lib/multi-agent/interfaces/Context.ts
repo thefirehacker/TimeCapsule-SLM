@@ -221,6 +221,15 @@ export interface ResearchContext {
 export interface FlowPlannerPlan {
   summary: string;
   learningMode: 'bootstrapped_stepwise' | 'freeform';
+  chapters?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    color: string;
+    frameIds: string[];
+    order: number;
+    linkSequentially: boolean;
+  }>;
   frames: FlowPlannedFrame[];
 }
 
@@ -229,6 +238,7 @@ export interface FlowPlannedFrame {
   title: string;
   goal: string;
   phase: 'overview' | 'fundamentals' | 'deep-dive' | 'remediation';
+  chapterId?: string;
   requiresVision?: boolean;
   aiConcepts?: string[];
   checkpoints?: string[];
@@ -238,22 +248,22 @@ export interface FlowGeneratedFrame extends FlowPlannedFrame {
   informationText: string;
   afterVideoText: string;
   aiConcepts: string[];
+  // SWE-compatible fields
+  type?: string;
+  order?: number;
+  videoUrl?: string;
+  startTime?: number;
+  duration?: number;
+  bubblSpaceId?: string;
+  timeCapsuleId?: string;
+  parentFrameId?: string;
+  chapterId?: string;
+  notes?: string;
+  documents?: any[];
   attachment?: {
     type: string;
     description: string;
     url?: string;
-  };
-  checkpointQuiz?: {
-    id: string;
-    instructions: string;
-    questions: Array<{
-      id: string;
-      prompt: string;
-      type: 'single_choice' | 'multi_choice' | 'short_answer';
-      choices?: Array<{ id: string; label: string; isCorrect?: boolean }>;
-      correctAnswers: string[];
-      explanation?: string;
-    }>;
   };
   durationInSeconds?: number;
   summary?: string;

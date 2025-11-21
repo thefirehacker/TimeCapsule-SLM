@@ -7,11 +7,21 @@ import { parseJsonWithResilience } from "@/components/DeepResearch/hooks/respons
 interface PlannerResponse {
   summary: string;
   learningMode: "bootstrapped_stepwise" | "freeform";
+  chapters?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    color: string;
+    frameIds: string[];
+    order: number;
+    linkSequentially: boolean;
+  }>;
   frames: Array<{
     id: string;
     title: string;
     goal: string;
     phase: "overview" | "fundamentals" | "deep-dive" | "remediation";
+    chapterId?: string;
     requiresVision?: boolean;
     aiConcepts?: string[];
     checkpoints?: string[];
@@ -21,7 +31,7 @@ interface PlannerResponse {
 export class FlowFramePlannerAgent extends BaseAgent {
   readonly name = "FlowFramePlanner";
   readonly description =
-    "Plans a multi-phase learning flow (overview → fundamentals → deep dive) for AI Frames, producing structured frame blueprints.";
+    "Plans a multi-phase learning flow with chapters for AI Frames, producing structured frame and chapter blueprints with colors.";
 
   private llm: LLMFunction;
 
@@ -39,9 +49,11 @@ export class FlowFramePlannerAgent extends BaseAgent {
     );
 
     const kbSummary = this.buildKnowledgeSummary(context);
+    const timestamp = Date.now();
+    const chapterColors = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#06B6D4"];
 
     const prompt = `
-You are an AI learning architect building a bootstrapped learning flow. Plan frames that progress from a high-level overview into fundamentals and finally deep-dive mastery. Each frame must have a clear goal, learning phase, suggested AI concepts, and checkpoint hints (questions to verify understanding later). Return STRICT JSON only.
+You are an AI learning architect building a bootstrapped learning flow. Plan frames that progress from a high-level overview into fundamentals and finally deep-dive mastery. Group frames into pedagogically meaningful chapters with distinct colors. Return STRICT JSON only.
 
 USER GOAL:
 ${context.query}
@@ -52,20 +64,35 @@ ${kbSummary}
 REQUIREMENTS:
 - Phases must progress: overview → fundamentals → deep-dive (add remediation if you anticipate confusion).
 - Produce 4-8 frames unless the subject truly requires more.
-- For each frame include: id, title, goal, phase, requiresVision (boolean), aiConcepts[], checkpoints[].
+- Group every 2-3 related frames into a chapter with a descriptive title and color.
+- Use these chapter colors in order: ${chapterColors.join(", ")}
+- For each frame include: id, title, goal, phase, chapterId, requiresVision (boolean), aiConcepts[], checkpoints[].
+- For each chapter include: id, title, description, color, frameIds[], order, linkSequentially (true for sequential learning).
 - Summary should explain the overall learning story.
 - learningMode is always "bootstrapped_stepwise" unless user explicitly asks for freeform exploration.
 
 JSON SHAPE:
 {
-  "summary": "...",
+  "summary": "Overall learning story...",
   "learningMode": "bootstrapped_stepwise",
+  "chapters": [
+    {
+      "id": "chapter_${timestamp}_1",
+      "title": "Introduction & Core Concepts",
+      "description": "What this chapter covers",
+      "color": "#3B82F6",
+      "frameIds": ["frame_plan_1", "frame_plan_2"],
+      "order": 0,
+      "linkSequentially": true
+    }
+  ],
   "frames": [
     {
       "id": "frame_plan_1",
       "title": "...",
       "goal": "...",
       "phase": "overview",
+      "chapterId": "chapter_${timestamp}_1",
       "requiresVision": false,
       "aiConcepts": ["..."],
       "checkpoints": ["Short question..."]
@@ -75,7 +102,7 @@ JSON SHAPE:
 `.trim();
 
     const response = await this.llm(prompt);
-    const parsed = parseJsonWithResilience<PlannerResponse>(response);
+    const parsed = parseJsonWithResilience(response) as PlannerResponse;
 
     if (!parsed?.frames?.length) {
       throw new Error("FlowFramePlannerAgent failed to produce any frames.");
@@ -85,24 +112,28 @@ JSON SHAPE:
     context.flowBuilder.plan = {
       summary: parsed.summary,
       learningMode: parsed.learningMode || "bootstrapped_stepwise",
+      chapters: parsed.chapters || [],
       frames: parsed.frames,
     };
 
     context.sharedKnowledge.agentFindings.FlowFramePlanner = {
       summary: parsed.summary,
       frameCount: parsed.frames.length,
+      chapterCount: parsed.chapters?.length || 0,
       plan: parsed.frames,
+      chapters: parsed.chapters || [],
       timestamp: Date.now(),
     };
 
+    const chapterInfo = parsed.chapters?.length ? ` in ${parsed.chapters.length} chapters` : "";
     this.setReasoning(
-      `Planned ${parsed.frames.length} frames (${parsed.learningMode})`
+      `Planned ${parsed.frames.length} frames${chapterInfo} (${parsed.learningMode})`
     );
 
     await this.progressCallback?.onAgentProgress(
       this.name,
       100,
-      `Planned ${parsed.frames.length} frames`
+      `Planned ${parsed.frames.length} frames${chapterInfo}`
     );
 
     return context;

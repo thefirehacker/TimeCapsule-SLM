@@ -12,22 +12,22 @@ interface GeneratorResponse {
   informationText: string;
   afterVideoText: string;
   aiConcepts: string[];
+  // SWE-compatible fields
+  type?: string;
+  order?: number;
+  videoUrl?: string;
+  startTime?: number;
+  duration?: number;
+  bubblSpaceId?: string;
+  timeCapsuleId?: string;
+  parentFrameId?: string;
+  chapterId?: string;
+  notes?: string;
+  documents?: any[];
   attachment?: {
     type: string;
     description: string;
     url?: string;
-  };
-  checkpointQuiz?: {
-    id: string;
-    instructions: string;
-    questions: Array<{
-      id: string;
-      prompt: string;
-      type: "single_choice" | "multi_choice" | "short_answer";
-      choices?: Array<{ id: string; label: string; isCorrect?: boolean }>;
-      correctAnswers: string[];
-      explanation?: string;
-    }>;
   };
   durationInSeconds?: number;
   summary?: string;
@@ -36,25 +36,22 @@ interface GeneratorResponse {
 const GENERATOR_SCHEMA_DESCRIPTION = `{
   "informationText": "Detailed explanation in markdown-friendly text",
   "afterVideoText": "Reflection or practice instructions",
-  "aiConcepts": ["concept"],
+  "aiConcepts": ["concept1", "concept2", "concept3"],
+  "type": "frame",
+  "order": 1,
+  "videoUrl": "",
+  "startTime": 0,
+  "duration": 480,
+  "bubblSpaceId": "default",
+  "timeCapsuleId": "default",
+  "parentFrameId": "",
+  "chapterId": "",
+  "notes": "",
+  "documents": [],
   "attachment": {
     "type": "video|image|pdf|text",
     "description": "How the learner should use it",
     "url": "https://..."
-  },
-  "checkpointQuiz": {
-    "id": "frame_quiz",
-    "instructions": "How to answer",
-    "questions": [
-      {
-        "id": "q1",
-        "prompt": "Question stem",
-        "type": "single_choice|multi_choice|short_answer",
-        "choices": [{"id": "A","label": "Option","isCorrect": true}],
-        "correctAnswers": ["A"],
-        "explanation": "Why it is correct"
-      }
-    ]
   },
   "durationInSeconds": 420,
   "summary": "One-sentence recap"
@@ -63,7 +60,7 @@ const GENERATOR_SCHEMA_DESCRIPTION = `{
 export class FlowFrameGeneratorAgent extends BaseAgent {
   readonly name = "FlowFrameGenerator";
   readonly description =
-    "Expands each planned learning frame into detailed content, after-video prompts, and checkpoint quizzes.";
+    "Expands each planned learning frame into detailed content with SWE-compatible structure.";
 
   private llm: LLMFunction;
 
@@ -103,7 +100,7 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
 
       let parsed: GeneratorResponse | null = null;
       try {
-        parsed = parseJsonWithResilience<GeneratorResponse>(llmResponse);
+        parsed = parseJsonWithResilience(llmResponse) as GeneratorResponse;
       } catch (error) {
         console.warn(
           `FlowFrameGeneratorAgent: failed to parse generator response for frame ${framePlan.id}`,
@@ -133,8 +130,19 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
         aiConcepts: parsed.aiConcepts?.length
           ? parsed.aiConcepts
           : framePlan.aiConcepts || [],
+        // SWE-compatible fields with defaults
+        type: "frame",
+        order: index + 1,
+        videoUrl: parsed.videoUrl || "",
+        startTime: parsed.startTime || 0,
+        duration: parsed.duration || 480,
+        bubblSpaceId: parsed.bubblSpaceId || "default",
+        timeCapsuleId: parsed.timeCapsuleId || "default",
+        parentFrameId: parsed.parentFrameId || "",
+        chapterId: parsed.chapterId || "",
+        notes: parsed.notes || "",
+        documents: parsed.documents || [],
         attachment: parsed.attachment,
-        checkpointQuiz: parsed.checkpointQuiz,
         durationInSeconds: parsed.durationInSeconds,
         summary: parsed.summary,
       };
@@ -169,7 +177,7 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
   private buildFramePrompt(context: ResearchContext, frame: FlowPlannedFrame) {
     const kbExcerpt = this.collectKnowledge(context, 4);
     return `
-You are an AI learning designer. Expand the following planned frame into rich content and a checkpoint quiz. Return STRICT JSON matching the schema provided.
+You are an AI learning designer. Expand the following planned frame into rich content with SWE-compatible structure. Return STRICT JSON matching the schema provided.
 
 FRAME PLAN:
 ${JSON.stringify(frame, null, 2)}
@@ -181,11 +189,15 @@ LEARNING CONTEXT:
 ${kbExcerpt}
 
 REQUIREMENTS:
-- informationText: detailed explanation (allow Markdown lists/headings).
-- afterVideoText: reflection or practice suggestions after a video is watched.
-- aiConcepts: highlight/clarify major ideas (3-6).
+- informationText: detailed explanation (allow Markdown lists/headings, visual diagrams with ASCII art).
+- afterVideoText: reflection or practice suggestions to reinforce learning.
+- aiConcepts: highlight/clarify major ideas (3-6 key concepts).
 - durationInSeconds: rough estimate (keep between 180 and 900 seconds).
-- checkpointQuiz: 1-3 thoughtful questions referencing the content; for multiple choice include choices with isCorrect flags.
+- type: always "frame"
+- order: sequential position number
+- videoUrl: empty string (placeholder for future video)
+- startTime: 0
+- duration: 480 (default 8 minutes)
 - attachment: optional supporting resource (type + description + optional URL).
 
 Return JSON only:
@@ -193,8 +205,18 @@ Return JSON only:
   "informationText": "...",
   "afterVideoText": "...",
   "aiConcepts": ["..."],
+  "type": "frame",
+  "order": 1,
+  "videoUrl": "",
+  "startTime": 0,
+  "duration": 480,
+  "bubblSpaceId": "default",
+  "timeCapsuleId": "default",
+  "parentFrameId": "",
+  "chapterId": "",
+  "notes": "",
+  "documents": [],
   "attachment": {"type": "...", "description": "...", "url": "..."},
-  "checkpointQuiz": {...},
   "durationInSeconds": 420,
   "summary": "One sentence recap"
 }
@@ -237,7 +259,7 @@ Do not include markdown fences or commentary—respond with JSON only.
         tierHint: "generator",
         temperature: 0.2,
       });
-      return parseJsonWithResilience<GeneratorResponse>(repairResponse);
+      return parseJsonWithResilience(repairResponse) as GeneratorResponse;
     } catch (error) {
       console.error(
         `FlowFrameGeneratorAgent: JSON repair failed for frame ${framePlan.id}`,

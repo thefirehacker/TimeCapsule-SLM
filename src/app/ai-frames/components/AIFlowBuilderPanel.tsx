@@ -57,7 +57,7 @@ import {
   Copy,
   AlertTriangle,
 } from "lucide-react";
-import type { UseAIFlowBuilderReturn } from "../hooks/useAIFlowBuilder";
+import type { UseAIFlowBuilderReturn, PlannerChapter } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
 import type { AIFlowModelTier } from "../lib/openRouterModels";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
@@ -74,7 +74,7 @@ interface WorkspaceStats {
 
 interface AIFlowBuilderPanelProps {
   flowBuilder: UseAIFlowBuilderReturn;
-  onAcceptFrames: (frames: AIFrame[]) => void;
+  onAcceptFrames: (frames: AIFrame[], chapters?: PlannerChapter[]) => void;
   isOpen: boolean;
   onToggle: () => void;
   workspaceStats: WorkspaceStats;
@@ -147,6 +147,23 @@ export function AIFlowBuilderPanel({
   const [clearLogsDialogOpen, setClearLogsDialogOpen] = useState(false);
   const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
+  
+  // Auto-download JSON frames preference (default: true)
+  const [autoDownloadFrames, setAutoDownloadFrames] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ai-flow-auto-download');
+      return saved !== null ? saved === 'true' : true; // Default to true
+    }
+    return true;
+  });
+  
+  // Update localStorage when preference changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ai-flow-auto-download', String(autoDownloadFrames));
+    }
+  }, [autoDownloadFrames]);
+  
   const buildEnv = getBuildEnv();
   const localBridgeAvailable = isLocalBuildEnv();
   const localBridgeActive = aiProviders.activeProvider === "local-bridge";
@@ -348,7 +365,7 @@ if (!isOpen) {
   const handleAcceptAll = () => {
     const accepted = acceptDrafts();
     if (accepted.length) {
-      onAcceptFrames(accepted);
+      onAcceptFrames(accepted, plan?.chapters);
     }
   };
 
@@ -834,6 +851,16 @@ const handleCopySwePrompt = async () => {
                     onCheckedChange={(checked) => setWebSearchEnabled(checked)}
                   />
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 flex items-center gap-2">
+                    <DownloadIcon className="h-4 w-4" />
+                    Auto-download frames as JSON
+                  </span>
+                  <Switch
+                    checked={autoDownloadFrames}
+                    onCheckedChange={(checked) => setAutoDownloadFrames(checked)}
+                  />
+                </div>
                 <Button
                   variant="outline"
                   className="w-full border-slate-300 text-slate-700"
@@ -1056,19 +1083,19 @@ const handleCopySwePrompt = async () => {
                       Clear All Legacy Logs
                     </Button>
                     <div className="space-y-2 max-h-40 overflow-auto">
-                      {historySessions.map((session) => (
-                        <div
-                          key={session.id}
-                          className="rounded-lg border border-slate-200 bg-white p-2 text-xs"
-                        >
-                          <p className="font-medium text-slate-800 truncate">
-                            {session.prompt}
-                          </p>
-                          <p className="text-slate-500">
-                            {new Date(session.updatedAt).toLocaleString()}
-                          </p>
-                        </div>
-                      ))}
+                    {historySessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className="rounded-lg border border-slate-200 bg-white p-2 text-xs"
+                      >
+                        <p className="font-medium text-slate-800 truncate">
+                          {session.prompt}
+                        </p>
+                        <p className="text-slate-500">
+                          {new Date(session.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
                     </div>
                   </div>
                 </details>
@@ -1285,12 +1312,7 @@ const handleCopySwePrompt = async () => {
                       </div>
                       <Button
                         className="bg-emerald-600 text-white hover:bg-emerald-700"
-                        onClick={() => {
-                          const generatedIds = frameDrafts
-                            .filter((draft) => draft.status === "generated")
-                            .map((draft) => draft.tempId);
-                          generatedIds.forEach((id) => handleAcceptFrame(id));
-                        }}
+                        onClick={handleAcceptAll}
                       >
                         <Check className="h-4 w-4 mr-2" />
                         Accept All Frames

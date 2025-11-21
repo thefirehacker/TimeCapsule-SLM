@@ -1425,12 +1425,12 @@ export const useUnifiedStorage = ({
         newGraphState.edges = (newGraphState.edges || []).map(edge => 
           edge.id === connectionData.id ? { ...edge, ...connectionData } : edge
         );
-        
-        updateGraphState(newGraphState);
-        
-        // CRITICAL FIX: Trigger immediate background save for connections
-        setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
+      
+      updateGraphState(newGraphState);
+      
+      // CRITICAL FIX: Trigger immediate background save for connections
+      setHasUnsavedChanges(true);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
       }
     };
     
@@ -1585,10 +1585,10 @@ export const useUnifiedStorage = ({
           edges: [...(graphStateRef.current.edges || []), connection]
         };
         updateGraphState(updatedGraphState);
-        
-        // CRITICAL: Trigger immediate background save for connections
-        setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
+      
+      // CRITICAL: Trigger immediate background save for connections
+      setHasUnsavedChanges(true);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
       }
     };
     
