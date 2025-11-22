@@ -148,6 +148,9 @@ export function AIFlowBuilderPanel({
   const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
   
+  // Ref for click-outside detection
+  const panelRef = useRef<HTMLDivElement>(null);
+  
   // Auto-download JSON frames preference (default: true)
   const [autoDownloadFrames, setAutoDownloadFrames] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -190,6 +193,40 @@ export function AIFlowBuilderPanel({
   useEffect(() => {
     setCopyLogsState("idle");
   }, [selectedHistoryId]);
+
+  // Click-outside detection to close panel
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Don't close if clicking on the panel itself
+      if (panelRef.current && panelRef.current.contains(target)) {
+        return;
+      }
+      
+      // Don't close if clicking on the "Open Flow Builder" button
+      // (check if target or any parent has the button text or specific class)
+      const isOpenButton = target.closest('button')?.textContent?.includes('Open Flow Builder');
+      if (isOpenButton) {
+        return;
+      }
+      
+      // Close panel when clicking outside
+      onToggle();
+    };
+
+    // Add event listener with slight delay to avoid immediate closure
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onToggle]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -522,9 +559,21 @@ const handleCopySwePrompt = async () => {
     return <Badge className={fallback.className}>{fallback.label}</Badge>;
   };
 
+  if (!isOpen) return null;
+
   return (
     <>
-      <div className="fixed top-24 right-6 z-50 w-full max-w-5xl pointer-events-auto">
+      {/* Backdrop/overlay */}
+      <div 
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"
+        aria-hidden="true"
+      />
+      
+      {/* Panel */}
+      <div 
+        ref={panelRef}
+        className="fixed top-24 right-6 z-50 w-full max-w-5xl pointer-events-auto"
+      >
         <Card className="bg-white text-slate-900 border border-slate-200 shadow-2xl rounded-3xl max-h-[80vh] overflow-y-auto">
           <CardHeader className="space-y-2">
             <div className="flex items-center justify-between gap-4">

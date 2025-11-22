@@ -888,26 +888,6 @@ export default function AIFramesPage() {
     onCreateNew: () => void;
   } | null>(null);
 
-  const workspaceStats = useMemo(() => {
-    const frames = unifiedStorage.frames;
-    const chapters = unifiedStorage.chapters;
-    const totalConcepts = frames.reduce(
-      (acc, frame) => acc + (frame.aiConcepts?.length || 0),
-      0
-    );
-    const masteredFrames = frames.reduce(
-      (acc, frame) => acc + (frame.masteryState === "completed" ? 1 : 0),
-      0
-    );
-
-    return {
-      frames: frames.length,
-      masteredFrames,
-      chapters: chapters.length,
-      concepts: totalConcepts,
-    };
-  }, [unifiedStorage.frames, unifiedStorage.chapters]);
-
   const framesByChapter = useMemo(() => {
     const map = new Map<string, UnifiedAIFrame[]>();
     unifiedStorage.frames.forEach((frame) => {
@@ -1242,6 +1222,38 @@ export default function AIFramesPage() {
       sessionsList: flowBuilder.sessions.map(s => ({ id: s.id, name: s.name, source: s.source }))
     });
   }, [flowBuilder.activeSessionId, flowBuilder.sessions]);
+
+  // Session-based frame filtering - only show frames belonging to active session
+  const sessionFilteredFrames = useMemo(() => {
+    if (!flowBuilder.activeSessionId) {
+      // No active session: show all frames (legacy behavior)
+      return unifiedStorage.frames;
+    }
+    // Filter to show only frames from active session OR frames without sessionId (legacy frames)
+    return unifiedStorage.frames.filter(f => 
+      f.sessionId === flowBuilder.activeSessionId || !f.sessionId
+    );
+  }, [unifiedStorage.frames, flowBuilder.activeSessionId]);
+
+  const workspaceStats = useMemo(() => {
+    const frames = sessionFilteredFrames;
+    const chapters = unifiedStorage.chapters;
+    const totalConcepts = frames.reduce(
+      (acc, frame) => acc + (frame.aiConcepts?.length || 0),
+      0
+    );
+    const masteredFrames = frames.reduce(
+      (acc, frame) => acc + (frame.masteryState === "completed" ? 1 : 0),
+      0
+    );
+
+    return {
+      frames: frames.length,
+      masteredFrames,
+      chapters: chapters.length,
+      concepts: totalConcepts,
+    };
+  }, [sessionFilteredFrames, unifiedStorage.chapters]);
 
   const fileToDataUrl = useCallback((file: File) => {
     return new Promise<string>((resolve, reject) => {
@@ -1624,6 +1636,25 @@ export default function AIFramesPage() {
     loadDocuments();
   }, [vectorStoreReady, providerVectorStore]);
 
+  // Listen for KB document changes (e.g., session deletions)
+  useEffect(() => {
+    const handleKBDocumentsChanged = async () => {
+      if (!vectorStoreReady || !providerVectorStore) return;
+      try {
+        const allDocuments = await providerVectorStore.getAllDocuments();
+        setDocuments(allDocuments);
+        console.log('📚 KB documents refreshed after change');
+      } catch (error) {
+        console.error('Failed to refresh KB documents:', error);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('kb-documents-changed', handleKBDocumentsChanged);
+      return () => window.removeEventListener('kb-documents-changed', handleKBDocumentsChanged);
+    }
+  }, [vectorStoreReady, providerVectorStore]);
+
   // CRITICAL FIX: Expose sync methods for FrameGraphIntegration to use (reduced logging frequency)
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -1842,6 +1873,7 @@ export default function AIFramesPage() {
         type: "frame",
         createdAt: now,
         updatedAt: now,
+        sessionId: sessionForFrame || flowBuilder.activeSessionId || undefined,
         attachment: undefined,
         notes: "",
         documents: [],
@@ -1977,6 +2009,7 @@ export default function AIFramesPage() {
         order: existingMaxOrder + index + 1,
         createdAt: frame.createdAt || timestamp,
         updatedAt: timestamp,
+        sessionId: frame.sessionId || flowBuilder.activeSessionId || undefined,
         metadata: {
           version: "2.0",
           createdAt: frame.createdAt || timestamp,
@@ -1991,33 +2024,55 @@ export default function AIFramesPage() {
       console.log(`📦 Frame IDs:`, normalized.map(f => f.id));
       console.log(`📦 Chapter frame mappings:`, plannerChapters?.map(c => ({ chapterId: c.id, frameIds: c.frames.map(f => f.id) })));
 
-      // Convert PlannerChapter[] to Chapter[]
-      const convertedChapters: Chapter[] = (plannerChapters || []).map((pc) => ({
-        id: pc.id,
-        title: pc.title,
-        description: pc.goal, // Map goal to description
-        color: pc.color,
-        order: pc.order,
-        frameIds: pc.frames.map(f => f.id), // Extract frame IDs from planner frames
-        conceptIds: [], // Initialize empty, will be populated by frames
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      }));
+      // ✅ REPLACE AI Flow content (not append) - Remove old AI Flow frames/chapters
+      // Keep frames from other sources (manual, SWE-bridge, etc.)
+      const oldAIFlowFrameIds = unifiedStorage.frames
+        .filter(f => f.metadata?.source === "ai-frames")
+        .map(f => f.id);
+      
+      const nonAIFlowFrames = unifiedStorage.frames.filter(
+        f => f.metadata?.source !== "ai-frames"
+      );
+      
+      // Remove chapters that reference old AI Flow frames
+      const nonAIFlowChapters = unifiedStorage.chapters.filter(
+        c => !c.frameIds.some(fid => oldAIFlowFrameIds.includes(fid))
+      );
 
-      // Prepare graphState
-      let graphStateToUse = flowBuilder.plan?.graphState;
-      if (!graphStateToUse && plannerChapters && plannerChapters.length > 0) {
-        console.warn('⚠️ No graphState in plan, generating fallback');
-        const allFrames = [...unifiedStorage.frames, ...normalized];
+      console.log(`🔄 Replacing AI Flow content: removing ${oldAIFlowFrameIds.length} old frames, adding ${normalized.length} new frames`);
+
+      // ⚠️ CRITICAL FIX: Regenerate graphState with CONVERTED frames (not raw generator output)
+      // The plan.graphState contains raw attachment data; we need to regenerate with normalized frames
+      let graphStateToUse: any = null;
+      let chaptersToUse = nonAIFlowChapters;
+      
+      if (plannerChapters && plannerChapters.length > 0) {
+        // ALWAYS regenerate graphState with normalized (converted) frames
+        // This ensures attachment data is properly structured
+        const allFrames = [...nonAIFlowFrames, ...normalized];
         graphStateToUse = flowBuilder.generateGraphState(plannerChapters, allFrames);
+        console.log(`✅ Regenerated graphState with ${normalized.length} converted frames (proper attachment structure)`);
+        console.log(`✅ Using chapter nodes from graphState (no separate Chapter[] needed)`);
+      } else {
+        // Fallback: no plannerChapters means manual frames only
+        console.warn('⚠️ No plannerChapters provided');
       }
 
       // ✅ ATOMIC UPDATE: Use batch update (like SWE Bridge) to prevent race conditions
-      console.log('✅ Using atomic batchUpdate (prevents duplicate nodes)');
+      console.log('✅ Using atomic batchUpdate with replaced content (prevents duplicate nodes)');
       unifiedStorage.batchUpdate({
-        frames: [...unifiedStorage.frames, ...normalized],
-        chapters: [...unifiedStorage.chapters, ...convertedChapters],
+        frames: [...nonAIFlowFrames, ...normalized],
+        chapters: chaptersToUse,
         graphState: graphStateToUse,
+      });
+      
+      // Debug: Log state after batchUpdate
+      console.log('📊 After batchUpdate:', {
+        frameCount: unifiedStorage.frames.length,
+        chapterCount: unifiedStorage.chapters.length,
+        graphStateNodeCount: graphStateToUse?.nodes?.length,
+        graphStateChapterNodeCount: graphStateToUse?.nodes?.filter((n: any) => n.type === 'chapter').length,
+        graphStateFrameNodeCount: graphStateToUse?.nodes?.filter((n: any) => n.type === 'aiframe').length,
       });
 
       // Trigger auto-layout
@@ -2028,8 +2083,12 @@ export default function AIFramesPage() {
           })
         );
       }
+
+      // Close Flow Builder panel after accepting frames
+      setIsFlowPanelOpen(false);
+      console.log('✅ Flow Builder panel closed after accepting frames');
     },
-    [unifiedStorage, flowBuilder]
+    [unifiedStorage, flowBuilder, setIsFlowPanelOpen]
   );
 
   const handleExportFrames = useCallback(() => {
@@ -2645,11 +2704,11 @@ export default function AIFramesPage() {
   // Fix FrameGraphIntegration props by ensuring order is always a number
   const framesWithOrder = useMemo(
     () =>
-      unifiedStorage.frames.map((frame) => ({
+      sessionFilteredFrames.map((frame) => ({
         ...frame,
         order: frame.order ?? 0,
       })),
-    [unifiedStorage.frames]
+    [sessionFilteredFrames]
   );
 
   const frameOrderLookup = useMemo(() => {
@@ -3115,12 +3174,14 @@ export default function AIFramesPage() {
             doc.metadata.source === "aiframes_import" ||
             doc.metadata.source === "aiframes_combined" ||
             doc.title.toLowerCase().includes("timecapsule") ||
-            doc.metadata.isGenerated === true
+            doc.metadata.isGenerated === true ||
+            doc.metadata.documentType === "flow-session"
           );
         case "aiFrames":
           return (
             doc.metadata.source === "ai-frames" ||
-            doc.title.toLowerCase().includes("ai-frame")
+            doc.title.toLowerCase().includes("ai-frame") ||
+            doc.metadata.documentType === "flow-session"
           );
         case "system":
           return (

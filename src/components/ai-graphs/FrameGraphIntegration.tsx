@@ -1888,7 +1888,12 @@ useEffect(() => {
                 }
               }}
               disabled={isAutoSaving}
-              className="text-green-600 hover:text-green-700"
+              className="text-green-600 hover:text-green-700 min-h-[44px] min-w-[44px] px-4 py-2"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                cursor: 'pointer'
+              }}
             >
               <Layers className="h-4 w-4 mr-2" />
               Auto-Layout

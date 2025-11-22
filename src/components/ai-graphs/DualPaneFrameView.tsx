@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1360,7 +1361,7 @@ export default function DualPaneFrameView({
             </p>
           </div>
 
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-4 overflow-x-auto">
             {!hasFrames && !hasChapters ? (
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
@@ -1459,9 +1460,9 @@ export default function DualPaneFrameView({
                                     >
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 space-y-2">
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-2 min-w-0">
                                             <Badge variant="secondary">{sequenceLabel}</Badge>
-                                            <span className="font-medium text-sm text-gray-800 dark:text-gray-100">
+                                            <span className="font-medium text-sm text-gray-800 dark:text-gray-100 break-words min-w-0">
                                               {entry.chapter.title}
                                             </span>
                                             {isActiveChapter && (
@@ -1485,10 +1486,10 @@ export default function DualPaneFrameView({
                                                       size="sm"
                                                       variant={isActiveFrame ? 'default' : 'outline'}
                                                       onClick={() => navigateToFrame(frame.id)}
-                                                      className="flex items-center gap-1 h-7 text-xs"
+                                                      className="flex items-center gap-1 min-h-[28px] h-auto text-xs w-full"
                                                     >
-                                                      <Play className="h-3 w-3" />
-                                                      {frame.title || 'Untitled Frame'}
+                                                      <Play className="h-3 w-3 flex-shrink-0" />
+                                                      <span className="line-clamp-2 text-left">{frame.title || 'Untitled Frame'}</span>
                                                     </Button>
                                                     {renderRelationBadges(frame.id, entry.chapter.id)}
                                                   </div>
@@ -1555,9 +1556,9 @@ export default function DualPaneFrameView({
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
                                   <Badge variant="secondary">{(entry.chapter.order ?? 0) + 1}</Badge>
-                                  <span className="font-medium text-sm text-gray-800 dark:text-gray-100">
+                                  <span className="font-medium text-sm text-gray-800 dark:text-gray-100 break-words min-w-0">
                                     {entry.chapter.title}
                                   </span>
                                 </div>
@@ -1580,10 +1581,10 @@ export default function DualPaneFrameView({
                                           size="sm"
                                           variant={isActiveFrame ? 'default' : 'outline'}
                                           onClick={() => navigateToFrame(frame.id)}
-                                          className="flex items-center gap-1 h-7 text-xs"
+                                          className="flex items-center gap-1 min-h-[28px] h-auto text-xs w-full"
                                         >
-                                          <Play className="h-3 w-3" />
-                                          {frame.title || 'Untitled Frame'}
+                                          <Play className="h-3 w-3 flex-shrink-0" />
+                                          <span className="line-clamp-2 text-left">{frame.title || 'Untitled Frame'}</span>
                                         </Button>
                                         {renderRelationBadges(frame.id, entry.chapter.id)}
                                       </div>
@@ -1785,21 +1786,14 @@ export default function DualPaneFrameView({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {editingFrameId === currentFrame.id ? (
-                      <Textarea
-                        value={editData.informationText || ''}
-                        onChange={(e) => setEditData(prev => ({ ...prev, informationText: e.target.value }))}
-                        className="min-h-24"
-                      />
-                    ) : (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        {currentFrame.informationText.split('\n').map((paragraph, index) => (
-                          <p key={index} className="mb-3 leading-relaxed">
-                            {paragraph.trim()}
-                          </p>
-                        ))}
-                      </div>
-                    )}
+                    <RichTextEditor
+                      content={editingFrameId === currentFrame.id ? (editData.informationText || '') : (currentFrame.informationText || '')}
+                      onChange={(html) => setEditData(prev => ({ ...prev, informationText: html }))}
+                      editable={editingFrameId === currentFrame.id}
+                      placeholder="Enter context and background information..."
+                      className="min-h-[200px]"
+                      format="markdown"
+                    />
                   </CardContent>
                 </Card>
 
@@ -1912,21 +1906,14 @@ export default function DualPaneFrameView({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {editingFrameId === currentFrame.id ? (
-                      <Textarea
-                        value={editData.afterVideoText || ''}
-                        onChange={(e) => setEditData(prev => ({ ...prev, afterVideoText: e.target.value }))}
-                        className="min-h-24"
-                      />
-                    ) : (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        {currentFrame.afterVideoText.split('\n').map((paragraph, index) => (
-                          <p key={index} className="mb-3 leading-relaxed">
-                            {paragraph.trim()}
-                          </p>
-                        ))}
-                      </div>
-                    )}
+                    <RichTextEditor
+                      content={editingFrameId === currentFrame.id ? (editData.afterVideoText || '') : (currentFrame.afterVideoText || '')}
+                      onChange={(html) => setEditData(prev => ({ ...prev, afterVideoText: html }))}
+                      editable={editingFrameId === currentFrame.id}
+                      placeholder="Enter key takeaways and summary..."
+                      className="min-h-[200px]"
+                      format="markdown"
+                    />
                   </CardContent>
                 </Card>
 

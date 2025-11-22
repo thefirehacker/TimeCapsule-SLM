@@ -822,3 +822,142 @@ Fast-path mode automatically skips 1-2 and goes directly to 3.
 
 - Handles 0 files (web), 1 file (fast), many files (full pipeline)
 - Future-proof for DataInspector enhancement without blocking
+
+---
+
+# LOG ANALYSIS OBSERVATIONS (2025-11-21)
+
+## Executive Summary
+
+Analysis of `Test/temp/logs.md` confirms micro-sessions ARE implemented and working, but validation logic has the exact issue described above. The dual-validation cycle creates overhead that will compound with document count.
+
+## Current Performance (1 Document - Actual Logs)
+
+**Iterations & Execution:**
+- Master LLM iterations: 4
+- Agents executed: 4 (DataInspector → PlanningAgent → PatternGenerator → SynthesisCoordinator)
+- Micro-sessions: 4 started, 4 completed successfully
+- Total time: ~60-90 seconds
+- **SUCCESS**: Pipeline completed, 14 items extracted
+
+**Evidence Micro-Sessions Work:**
+- Line 44: `✅ Micro-session architecture enabled (60 iterations, per-agent limits)`
+- Line 646: `🧾 Micro-session "Extract structured data..." finished with status: completed`
+- Line 645: `✅ PatternGenerator micro-session goal achieved: patterns + extraction complete`
+
+**Evidence of Validation Problem:**
+- Line 690: `⚠️ PLAN-AWARE SEQUENCING WARNING: Extractor must run before SynthesisCoordinator`
+- Line 700-705: System checks micro-session status AFTER warning fires
+- Line 705: `- Extraction completed: true` ← Found by secondary check
+- **Result**: Warning fires even though extraction micro-session is complete
+
+## The Dual Validation Cycle
+
+Current flow (inefficient):
+1. Validation triggers at line 687
+2. Checks: "Was Extractor agent called?" → NO
+3. Fires warning at line 690
+4. Secondary check at lines 700-705 finds micro-session completed
+5. Auto-correction allows synthesis to proceed
+
+**This is exactly the problem described in Fix #2 and Fix #6 above.**
+
+## 3-Document Performance Projection
+
+| Metric | 1 Doc (Actual) | 3 Docs (Realistic) | 3 Docs (Worst) |
+|--------|---------------|-------------------|----------------|
+| Iterations | 4 | 7-9 | 12-15 |
+| Agents | 4 | 6-8 | 9-12 |
+| Sequencing Warnings | 1 (auto-resolved) | 2-3 | 4-6 |
+| Time | 60-90s | 120-180s | 240-360s |
+| Items Extracted | 14 | 35-50 | 35-50 |
+
+### Scaling Bottleneck
+
+**Linear components:**
+- DataInspector: 3x work (analyze 3 documents)
+- PatternGenerator: 1.5x work (patterns reusable)
+- SynthesisCoordinator: 2x work (cross-document synthesis)
+
+**The bottleneck: Validation overhead**
+- Dual validation cycle repeats 2-3 times with 3 docs
+- Each cycle: warning → status check → auto-correct
+- Adds 2-3 extra iterations just for validation
+- **This overhead scales with document count**
+
+## Discrepancy with Fix Document
+
+The fix document references line numbers that don't match current logs:
+- Fix doc line 796: Not found in current logs
+- Fix doc line 802: Not found in current logs
+- Fix doc line 826: Not found in current logs
+
+**However, the described issue is 100% accurate.** The fix document appears to reference logs from a different run, but the validation problem it describes matches exactly what's happening.
+
+## Extraction Quality - Better Than Expected
+
+**Fix document claims "0 items extracted" but logs show:**
+- Line 608: `🎯 Extracted 14 data points using patterns`
+- Line 633: `✅ PatternGenerator extracted 14 items`
+- Line 726: `🚫 SKIPPING REDUNDANT EXTRACTOR: PatternGenerator already extracted 14 items`
+
+**Extraction is working.** The issue is validation doesn't recognize PatternGenerator's extraction as satisfying the extraction prerequisite.
+
+## Status of Proposed Fixes
+
+### Already Partially Applied:
+- ✅ Fix #5: Micro-session status logging (lines 700-705)
+- ✅ Secondary validation checks extraction goal completion
+- ✅ Auto-correction prevents pipeline failure
+
+### Still Needed (High Priority):
+- ❌ Fix #2: Primary validation must check micro-session completion FIRST
+- ❌ Fix #6: Execution plan validation must be micro-session-aware
+- ❌ Fix #1: Helper methods `hasMicroSessionCompletedGoal()` and `getCompletedMicroSession()`
+
+### Still Needed (Medium Priority):
+- ❌ Fix #4: `isMicroSessionGoalAchieved()` for dual-goal patterns (pattern + extract)
+- ❌ Fix #3: `hasExtractedData()` to check all data sources
+
+### Low Priority (DataInspector bugs):
+- Fix #7-9: Parsing improvements for MAIN_ENTITY, technical terms, filename metadata
+- **Note**: Current extraction works with 14 items, so these are enhancements not blockers
+
+## Impact Assessment
+
+**Current state: Functional but inefficient**
+- Pipeline succeeds with 1 document
+- Dual validation adds 1-2 extra iterations
+- Auto-correction prevents failures
+
+**With 3 documents: Inefficiency compounds**
+- 7-9 iterations (vs optimal 5-6)
+- 2-3 validation warning cycles
+- 120-180s (vs optimal 90-120s)
+
+**After applying fixes: Optimal performance**
+- 5-6 iterations for 3 documents
+- No validation warnings
+- 90-120s for 3 documents
+- **20-30% improvement in speed and iteration count**
+
+## Recommended Implementation Order
+
+1. **Fix #1**: Add helper methods (foundation)
+2. **Fix #2**: Update `validateAgentExecution` (eliminates dual validation)
+3. **Fix #6**: Update execution plan validation (prevents warnings)
+4. **Fix #5**: Already applied, verify logging
+5. **Fix #3, #4**: Data quality improvements (optional enhancements)
+6. **Fix #7-9**: DataInspector parsing (future optimization)
+
+## Fast-Path Consideration
+
+The "Fast Path" section suggests bypassing DataInspector/PatternGenerator for simple queries. Given that:
+- Current 1-doc scenario: 4 iterations, 60-90s
+- Fast-path projection: 2 iterations, <10s to synthesis
+
+**Recommendation**:
+1. First apply validation fixes (Fixes #1, #2, #6) to optimize current architecture
+2. Then evaluate if fast-path is needed - may not be necessary if validation fixes reduce to 5-6 iterations
+
+The validation fixes are lower risk and preserve the full agent pipeline for complex scenarios while eliminating the inefficiency for all scenarios.

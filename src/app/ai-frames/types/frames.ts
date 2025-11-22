@@ -71,6 +71,7 @@ export interface AIFrame {
   type: "frame" | "chapter" | "module";
   createdAt: string;
   updatedAt: string;
+  sessionId?: string;
   learningPhase?: LearningPhase;
   checkpointQuiz?: FrameQuiz;
   quizHistory?: QuizAttempt[];
