@@ -1807,7 +1807,7 @@ useEffect(() => {
   return (
     <div className="h-full flex flex-col">
       {/* Fixed Header with Stats and Actions */}
-      <div className="flex-none sticky top-0 z-20 border-b border-slate-200 dark:border-slate-700 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm p-4 shadow-sm">
+      <div className="flex-none sticky top-24 z-20 border-b border-slate-200 dark:border-slate-700 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">

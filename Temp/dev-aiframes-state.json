@@ -21,9 +21,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T17:34:09.286Z",
-        "updatedAt": "2025-11-22T17:34:38.097Z",
+        "updatedAt": "2025-11-22T17:35:08.404Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T17:34:38.097Z"
+        "lastSaved": "2025-11-22T17:35:08.404Z"
       },
       "chapterId": "chapter_1763832873045_2b9cqk",
       "parentFrameId": "chapter_1763832873045_2b9cqk",
@@ -42,7 +42,7 @@
       "timeCapsuleId": "timecapsule_1763831671804_k9vvsxvh2",
       "type": "frame",
       "createdAt": "2025-11-22T17:34:16.667Z",
-      "updatedAt": "2025-11-22T17:34:37.637Z",
+      "updatedAt": "2025-11-22T17:35:08.220Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
@@ -50,9 +50,21 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T17:34:16.667Z",
-        "updatedAt": "2025-11-22T17:34:38.097Z",
+        "updatedAt": "2025-11-22T17:35:08.404Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T17:34:38.097Z"
+        "lastSaved": "2025-11-22T17:35:08.404Z"
+      },
+      "attachment": {
+        "id": "node_1763832893364_eyuw2s101_4",
+        "type": "pdf",
+        "data": {
+          "title": "PDF Document01",
+          "pdfUrl": "",
+          "pages": "",
+          "notes": "",
+          "startTime": 0,
+          "duration": 300
+        }
       },
       "chapterId": "chapter_1763832873045_2b9cqk",
       "parentFrameId": "chapter_1763832873045_2b9cqk",
@@ -72,7 +84,7 @@
       ],
       "order": 0,
       "createdAt": "2025-11-22T17:34:33.045Z",
-      "updatedAt": "2025-11-22T17:34:38.097Z",
+      "updatedAt": "2025-11-22T17:35:08.404Z",
       "linkSequentially": true
     }
   ],
@@ -121,7 +133,9 @@
           "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false,
-          "updatedAt": "2025-11-22T17:34:37.709Z"
+          "chapterId": "chapter_1763832873045_2b9cqk",
+          "parentFrameId": "chapter_1763832873045_2b9cqk",
+          "updatedAt": "2025-11-22T17:34:38.104Z"
         },
         "measured": {
           "width": 480,
@@ -146,11 +160,47 @@
           "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false,
-          "updatedAt": "2025-11-22T17:34:37.709Z"
+          "chapterId": "chapter_1763832873045_2b9cqk",
+          "parentFrameId": "chapter_1763832873045_2b9cqk",
+          "attachment": {
+            "id": "node_1763832893364_eyuw2s101_4",
+            "type": "pdf",
+            "data": {
+              "title": "PDF Document",
+              "notes": "",
+              "pdfUrl": "",
+              "pages": ""
+            }
+          },
+          "updatedAt": "2025-11-22T17:34:38.104Z"
         },
         "measured": {
           "width": 480,
-          "height": 460
+          "height": 400
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_1763832893364_eyuw2s101_4",
+        "type": "pdf-attachment",
+        "position": {
+          "x": 1048.4898516533246,
+          "y": 1221.537748054493
+        },
+        "data": {
+          "type": "pdf-attachment",
+          "id": "node_1763832893364_eyuw2s101_4",
+          "title": "PDF Document01",
+          "pdfUrl": "",
+          "pages": "",
+          "notes": "",
+          "isAttached": true,
+          "attachedToFrameId": "frame-1763832856667-vjen0xib9"
+        },
+        "measured": {
+          "width": 400,
+          "height": 441
         },
         "selected": true,
         "dragging": false
@@ -233,15 +283,36 @@
           "relationship": "chapter-membership",
           "chapterId": "chapter_1763832873045_2b9cqk"
         }
+      },
+      {
+        "id": "edge|node_1763832893364_eyuw2s101_4|node_1763832856667_3s3meaa3t_3|1763832895433_gkwvn0ppp",
+        "source": "node_1763832893364_eyuw2s101_4",
+        "target": "node_1763832856667_3s3meaa3t_3",
+        "targetHandle": "attachment-slot",
+        "style": {
+          "stroke": "#f97316",
+          "strokeWidth": 3
+        }
+      },
+      {
+        "id": "edge|node_1763832893364_eyuw2s101_4|node_1763832856667_3s3meaa3t_3|1763832895433_gkwvn0ppp",
+        "source": "node_1763832893364_eyuw2s101_4",
+        "target": "node_1763832856667_3s3meaa3t_3",
+        "sourceHandle": null,
+        "targetHandle": "attachment-slot",
+        "style": {
+          "stroke": "#f97316",
+          "strokeWidth": 3
+        }
       }
     ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-22T17:34:38.309Z",
+    "lastUpdated": "2025-11-22T17:35:08.581Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-22T17:34:38.097Z",
+    "lastSaved": "2025-11-22T17:35:08.404Z",
     "frameCount": 2,
     "checksum": "eyJmcmFtZXMiOlt7"
   }

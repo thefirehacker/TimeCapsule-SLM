@@ -8,7 +8,7 @@ export default function AIFramesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pt-24">
       <Navbar />
       {children}
     </div>
