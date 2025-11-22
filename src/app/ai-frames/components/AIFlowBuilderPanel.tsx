@@ -207,9 +207,24 @@ export function AIFlowBuilderPanel({
       }
       
       // Don't close if clicking on the "Open Flow Builder" button
-      // (check if target or any parent has the button text or specific class)
       const isOpenButton = target.closest('button')?.textContent?.includes('Open Flow Builder');
       if (isOpenButton) {
+        return;
+      }
+      
+      // Don't close if clicking on any portal-rendered components (dropdowns, dialogs, popovers, etc.)
+      const isPortalContent = 
+        target.closest('[role="listbox"]') ||           // Select dropdown menus
+        target.closest('[role="dialog"]') ||            // Dialog/Modal components
+        target.closest('[role="menu"]') ||              // Context menus
+        target.closest('[role="tooltip"]') ||           // Tooltips
+        target.closest('[data-radix-select-content]') || // Radix Select content
+        target.closest('[data-radix-dialog-content]') || // Radix Dialog content
+        target.closest('[data-radix-popper-content-wrapper]') || // Radix Popper wrapper
+        target.closest('[data-radix-portal]') ||        // Any Radix portal
+        target.closest('.radix-portal');                // Radix portal class fallback
+        
+      if (isPortalContent) {
         return;
       }
       
