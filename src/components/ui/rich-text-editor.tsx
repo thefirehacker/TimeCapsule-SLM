@@ -6,6 +6,7 @@ import {
   BubbleMenu,
   FloatingMenu,
 } from "@tiptap/react";
+import { markdownToHtml } from "@/lib/markdownToHtml";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Mathematics } from "@tiptap/extension-mathematics";
 import { Image } from "@tiptap/extension-image";
@@ -44,7 +45,7 @@ import {
   Copy,
   Calculator,
 } from "lucide-react";
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import {
   Popover,
   PopoverContent,
@@ -83,6 +84,7 @@ interface RichTextEditorProps {
   editable?: boolean;
   placeholder?: string;
   className?: string;
+  format?: 'markdown' | 'html';
 }
 
 export function RichTextEditor({
@@ -91,11 +93,20 @@ export function RichTextEditor({
   editable = true,
   placeholder = "Start typing...",
   className = "",
+  format = 'html',
 }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [textColor, setTextColor] = useState("#000000");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Convert markdown to HTML if format is markdown
+  const htmlContent = useMemo(() => {
+    if (format === 'markdown' && content) {
+      return markdownToHtml(content);
+    }
+    return content;
+  }, [content, format]);
 
   const editor = useEditor({
     extensions: [
@@ -149,7 +160,7 @@ export function RichTextEditor({
       TextStyle,
       Color,
     ],
-    content: content || (editable ? "<p></p>" : ""),
+    content: htmlContent || (editable ? "<p></p>" : ""),
     editable,
     onUpdate: ({ editor }) => {
       if (onChange) {
@@ -175,10 +186,10 @@ export function RichTextEditor({
 
   // Update content when prop changes
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || (editable ? "<p></p>" : ""));
+    if (editor && htmlContent !== editor.getHTML()) {
+      editor.commands.setContent(htmlContent || (editable ? "<p></p>" : ""));
     }
-  }, [editor, content, editable]);
+  }, [editor, htmlContent, editable]);
 
   const handleImageUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {

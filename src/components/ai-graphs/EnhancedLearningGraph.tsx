@@ -1919,6 +1919,24 @@ export default function EnhancedLearningGraph({
         }
 
         if (node.type?.includes('-attachment')) {
+          // Check both possible field names (graphState uses frameId, auto-gen uses attachedToFrameId)
+          const frameId = node.data?.frameId || node.data?.attachedToFrameId;
+          
+          // NEW: Check if an attachment for this frame already exists (by frameId match)
+          const attachmentForFrameExists = nodes.some(n => 
+            n.type?.includes('attachment') && 
+            (n.data?.frameId === frameId || n.data?.attachedToFrameId === frameId)
+          );
+          
+          if (attachmentForFrameExists) {
+            // Skip this attachment - auto-generation already created one for this frame
+            if (frameId) {
+              skippedAttachmentIds.add(frameId);
+            }
+            return false;
+          }
+          
+          // Keep existing logic below for other attachment checks
           const parentFrameId = node.data?.attachedToFrameId;
           if (!parentFrameId) {
             return true;
