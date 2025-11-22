@@ -1,373 +1,388 @@
-# AI Agent System - Current Status & Critical Issues
+# Duplicate Nodes Issue - AI Flow Builder Accept All
 
-**Date**: 2025-11-18  
-**Context**: Issue 021 - SWE-Like Agent Performance  
-**Phase**: 0 (Micro-Session Architecture) - BLOCKED by fundamental bugs
+## Issue Summary
+When clicking "Accept All" in AI Flow Builder, duplicate nodes appear on the graph:
+- **Expected**: 9 nodes (3 chapters + 6 frames)
+- **Actual**: 18 nodes (duplicates of everything)
+  - 3 duplicate orphan chapters
+  - 6 duplicate frames (some showing as "Untitled")
+  - Additional orphan attachment nodes
 
----
+## Root Cause Analysis
 
-## 🔄 Latest Progress (2025-11-18)
+### The Problem: Race Condition Between Two Node Creation Paths
 
-- AI Flow Builder now gates rendering on unified readiness flags and shows a placeholder until both VectorStore and unified storage report ready.
-- DataInspector prompt + parser support the structured JSON path for future-proof extraction (although outputs are still empty downstream).
-- VectorStore persistence accepts virtual docs even while the client-side DocumentProcessor is offline.
-- Select triggers + dialog overlays were refactored with memoized handlers/forward refs to minimize render loops.
+There are TWO separate code paths that create nodes in `EnhancedLearningGraph.tsx`:
 
-## ⚠️ Fresh Issues Observed on Reload
-
-- VectorStore initialization keeps re-running; the init modal reopens repeatedly and eventually throws "Maximum update depth exceeded" (logs: `Test/temp/logs.md`).
-- Structured JSON fields from DataInspector are still not propagating into `context.sharedKnowledge`, so PatternGenerator/Extractor/Synthesis never receive usable hints.
-- Unified storage readiness stays false for empty accounts, so Flow Builder never renders without manually clearing storage.
-- Modal/select stack may still loop if VectorStore init fails; need to retest once provider stability is fixed.
-
-## 🎯 Immediate Next Steps
-
-1. **VectorStore initialization loop** – Ensure `initializationAttempted` resets only after success, stop re-invoking `initializeVectorStore()` every render, and auto-close `VectorStoreInitModal` when `vectorStoreInitialized` is true (suppress repeats after failure).
-2. **Data extraction reliability** – Confirm `DataInspectorAgent` actually populates structured JSON fields, pipe them to `context.sharedKnowledge`, and require `hasExtractedData` to be true before Synthesis runs.
-3. **Unified storage fallback** – Flip `flowPanelReady` to true once unified storage load completes even with zero frames/chapters so the Flow Builder UI renders for new users.
-4. **Modal/Select crash verification** – After fixing the provider loop, retest for the depth error and inspect `showVectorStoreInitModal` and Select Trigger handlers if it persists.
-
----
-
-## 🔍 Recent Debugging Notes
-
-- **Graph view stabilized**: `EnhancedLearningGraph` now routes `onFramesChange`, `onChaptersChange`, and `onGraphChange` through ref-backed helpers and debounced setters. ReactFlow’s StoreUpdater only flips props on the first render, so the “Maximum update depth exceeded” error from the graph pane is resolved.
-- **Dual-pane still loops**: `DualPaneFrameView` re-registers its `frames-reordered`/`frame-edited` listeners on every render (effect depends on the `frames` array). Those handlers immediately call `setGraphState`, which triggers another render, re-running the effect, etc. The Radix `ScrollArea` logs the depth error because it keeps receiving new refs during this loop.
-- **Next fix for dual-pane**: Limit the listener effect dependencies to stable refs (`graphState`, `onFrameIndexChange`, `onGraphStateUpdate`), keep all frame mutations going through the ref-backed `invokeFramesChange`, and remove any remaining frame updates inside event handlers (only local graph state should change). Once that effect stops re-running, repeated reloads should no longer trigger the Radix scroll error and all three views (graph, linear, dual) can coexist.
-
----
-
-## 🚨 CRITICAL BLOCKERS (Must Fix Before Phase 0 Testing)
-
-### **Priority 1: Data Extraction Pipeline Completely Broken**
-
-The AI agent pipeline is producing **0 useful extractions** due to THREE independent parsing bugs that compound each other:
-
-#### **Bug #1: filename="unknown"** 
-- **Location**: VectorStore upload OR DataInspector sampling
-- **Impact**: Document type classification fails → "Unknown Document" → generic patterns
-- **Evidence**: `DataInspectorAgent.ts:914` shows `filename: 'unknown'` in document sample
-- **Fix Required**: Preserve actual filename from PDF upload through to DataInspector sampling
-
-#### **Bug #2: MAIN_ENTITY Regex Parsing Failure**
-- **Location**: `DataInspectorAgent.ts` lines ~1089-1134
-- **Impact**: LLM correctly extracts entity, but regex can't parse it → "Unknown Entity"
-- **Evidence**:
-  - Line 1217: LLM returns `"PyTorch Distributed Data Parallel (DDP) - instructional material... --- STEP 3: Entity..."`
-  - Line 1101: `⚠️ MAIN_ENTITY extraction failed`
-  - Line 1130: `❌ Could not extract entity`
-  - Line 1137: `mainEntity: 'Unknown Entity'`
-- **Root Cause**: Regex pattern `/MAIN_ENTITY:\s*"?([^"\n]+)"?/` fails because:
-  1. Response contains `---` mid-line (regex stops at `[^"\n]` before reaching it)
-  2. Doesn't handle multi-line entity descriptions
-- **Fix Options**:
-  - **Quick**: More robust regex: `/MAIN_?ENTITY:\s*"?([^"\n]+?)(?:\s*---|"|\n)/i`
-  - **Proper**: Structured JSON output (aligns with Phase 1 Requirement 2)
-
-#### **Bug #3: Technical Terms Response Format Mismatch**
-- **Location**: `DataInspectorAgent.ts` lines 2788-2855 (`parseQueryRelevantTermsResponse`)
-- **Impact**: LLM extracts rich data, parser returns empty arrays → PatternGenerator has no hints
-- **Evidence**:
-  - Line 2508 (logs): LLM returns:
-    ```
-    **METHODS:**
-    - DDP (Distributed Data Parallel)
-    - PyTorch DDP
-    
-    **CONCEPTS:**
-    - Distributed training
-    
-    **DATA_TYPES:**
-    - Hugging Face datasets
-    ```
-  - Line 2512 (logs): Parser returns `{methods: [], concepts: [], people: [], data: []}`
-  - Line 2533 (logs): `⚠️ No methods extracted from document content`
-- **Root Cause**: Parser expects lowercase without asterisks:
-  ```typescript
-  // Parser (line 2809):
-  if (trimmed.startsWith("methods:") || trimmed.startsWith("concepts:") || trimmed.startsWith("data:"))
-  
-  // LLM returns:
-  "**METHODS:**", "**CONCEPTS:**", "**DATA_TYPES:**"
-  ```
-- **Fix Required**: Either:
-  1. Update parser to handle `**METHODS:**` (uppercase, asterisks)
-  2. Update LLM prompt to enforce lowercase without asterisks
-  3. Use structured JSON output (best, aligns with Phase 1)
-
----
-
-### **Priority 2: UI Stability Issues**
-
-#### **Bug #4: VectorStore Document Processing Unavailable**
-- **Location**: `VectorStore.ts:791` → `useAIFlowBuilder.ts:769`
-- **Impact**: Session persistence fails, user loses work, AI frames cannot be saved to Knowledge Base
-- **Trigger**: Occurs when trying to persist AI frame session via unified tool (`persistSessionToKnowledgeBase`)
-- **Evidence**: 
-  ```
-  useAIFlowBuilder.ts:776 ⚠️ Failed to persist session to Knowledge Base: 
-  Error: Document processing is unavailable. Please refresh the page and try again.
-      at VectorStore.addVirtualDocument (VectorStore.ts:791:13)
-      at useAIFlowBuilder.useCallback[persistSessionToKnowledgeBase] (useAIFlowBuilder.ts:769:27)
-      at useAIFlowBuilder.useCallback[persistSessionState] (useAIFlowBuilder.ts:812:15)
-      at useAIFlowBuilder.useCallback[planFlow] (useAIFlowBuilder.ts:1488:13)
-  ```
-- **Root Cause**: Client-side document processor (embeddings model) not initialized when `addVirtualDocument` is called
-- **Note**: Likely related to our server-side embedding migration (Issue 020) - document processor may no longer be needed but checks still exist
-
-#### **Bug #5: SelectTrigger Infinite Re-Render (REGRESSION)**
-- **Location**: `select.tsx:36` → `AIFlowBuilderPanel.tsx:440` → `AIFramesPage (page.tsx:2946)`
-- **Impact**: UI crashes with "Maximum update depth exceeded", entire app becomes unusable
-- **Trigger**: Occurs after AI frames generation completes, when UI tries to render results
-- **Evidence**:
-  ```
-  error-boundary-callbacks.js:83 Uncaught Error: Maximum update depth exceeded. 
-  This can happen when a component repeatedly calls setState inside 
-  componentWillUpdate or componentDidUpdate. React limits the number of nested 
-  updates to prevent infinite loops.
-      at SelectTrigger (select.tsx:36:5)
-      at AIFlowBuilderPanel (AIFlowBuilderPanel.tsx:440:19)
-      at AIFramesPage (page.tsx:2946:9)
-  ```
-- **Status**: **REGRESSION** - We supposedly fixed this with `useCallback` hooks earlier!
-- **Possible Causes**:
-  1. Fix wasn't properly saved/applied to all Select components
-  2. Another non-memoized handler exists (provider/model selection dropdowns)
-  3. Component re-rendering triggered by state update loop from frame generation results
-  4. Bug #4 (VectorStore error) may be triggering error boundary that causes re-renders
-- **Action Required**: 
-  1. Re-verify `useCallback` implementation in `AIFlowBuilderPanel.tsx` around line 440
-  2. Check all `Select` components for non-memoized `onValueChange` handlers
-  3. May be related to Bug #4 - fix VectorStore issue first to see if this resolves
-
----
-
-## 💥 COMPLETE FAILURE CHAIN
-
-```
-1. filename="unknown" (Bug #1)
-   ↓
-2. DataInspector → "Unknown Document" classification
-   ↓
-3. MAIN_ENTITY parsing fails (Bug #2) → "Unknown Entity"
-   ↓
-4. Technical terms LLM extracts correctly but parser returns [] (Bug #3)
-   ↓
-5. PatternGenerator gets no entity/method hints → generates 1 useless pattern
-   ↓
-6. PatternGenerator extracts only 1 item: "10" from chunk_3
-   ↓
-7. Extractor is skipped: "PatternGenerator already extracted 1 items"
-   ↓
-8. SynthesisCoordinator has only 1 data item → validation fails
-   ↓
-9. Retry still has only 1 item → produces garbage output
-   ↓
-10. Orchestrator completes, triggers unified tool persistence
-   ↓
-11. VectorStore.addVirtualDocument fails (Bug #4) → "Document processing unavailable"
-   ↓
-12. Error triggers component re-render cycle
-   ↓
-13. SelectTrigger infinite re-render loop (Bug #5) → UI crashes
-   ↓
-14. User sees error screen: "Maximum update depth exceeded"
-   ↓
-RESULT: No frames generated, no session saved, UI unusable
+#### Path 1: Frame-to-Node Auto-Generation (Line 1992)
+```typescript
+// Only sync if we have frames and no nodes currently displayed
+if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length) {
+  // Creates nodes from frames prop
+  frames.forEach((frame, index) => {
+    // Create frame node + attachment node if exists
+  });
+}
 ```
 
-**Key Observation**: Bugs #4 and #5 occur AFTER the poor-quality output is generated, meaning even if we fix UI bugs, the core extraction problems (Bugs #1-3) still need fixing for quality output.
+#### Path 2: GraphState Merge (Line 1854)
+```typescript
+// If initialGraphState was provided with nodes, merge them with existing nodes
+if (initialGraphState?.nodes?.length) {
+  // Skip if already merged (line 1858-1865)
+  const alreadyMerged = Array.from(graphStateNodeIds).every(id => existingNodeIds.has(id));
+  if (alreadyMerged && nodes.length >= initialGraphState.nodes.length) {
+    return;
+  }
+  // Merge nodes from initialGraphState
+  const mergedNodes = [...nodes, ...filteredLoadedNodes];
+  setNodes(mergedNodes);
+}
+```
 
----
+### The Race Condition
 
-## 📊 Current Pipeline Output Quality
+When "Accept All" is clicked in `page.tsx`:
 
-**With 1 relevant DDP tutorial document:**
-- ✅ DataInspector: Finds document, samples 9 chunks
-- ❌ Document classified as "Unknown Document" (Bug #1)
-- ❌ Entity extracted as "Unknown Entity" (Bug #2)
-- ❌ Technical terms: 0 methods, 0 concepts extracted (Bug #3)
-- ❌ PatternGenerator: Creates 1 useless pattern, extracts 1 item ("10")
-- ❌ Extractor: Skipped (redundant)
-- ❌ SynthesisCoordinator: Only 1 data item → fails validation
-- ❌ Final output: "Based on the available data, I cannot create a lesson plan for you using DDP. **Insufficient Inform..."
+1. **Step 1**: `unifiedStorage.updateFrames(normalized)` is called
+   - `frames` prop updates → triggers useEffect at line 1992
+   - **At this moment**: `nodes.length === 0` AND `initialGraphState?.nodes?.length` is from OLD state
+   - **Condition evaluates to TRUE** (incorrectly)
+   - **Result**: Creates 12 nodes (6 frames + 6 attachments)
 
-**Expected output:**
-- ✅ "Educational Tutorial" document type
-- ✅ "PyTorch DDP" entity
-- ✅ 8-12 methods extracted (DDP, PyTorch DDP, all_reduce, etc.)
-- ✅ 10+ concepts extracted (distributed training, gradient averaging, etc.)
-- ✅ 50+ data items extracted
-- ✅ Comprehensive lesson plan with 11 modules
+2. **Step 2**: `unifiedStorage.updateGraphState(flowBuilder.plan.graphState)` is called
+   - `initialGraphState` prop updates → triggers useEffect at line 1854
+   - **At this moment**: `nodes.length === 12` (from step 1)
+   - **Result**: Tries to merge 9 nodes from graphState
+   - First merge appends 3 chapter nodes → now 15 nodes total
+   - Second merge appends 3 more nodes → now 18 nodes total
 
-**Extraction efficiency: 1/50+ = 2% (98% data loss due to parsing bugs)**
+### Evidence from Logs (21Nov_09 run)
 
----
+```
+Line 1314: 📦 Accept All: Pushing 6 frames and 3 chapters
+Line 1320: frameCount: 6 (correct)
+Line 1324: 🧪 Graph merge from initialGraphState 
+           {existingNodeCount: 12, appendedNodeIds: Array(3)}
+           ❌ Already had 12 nodes before merge!
+Line 1335: 🧪 Graph merge from initialGraphState 
+           {existingNodeCount: 15, appendedNodeIds: Array(3)}
+           ❌ Now 15 nodes, appending 3 more!
+Line 1343: nodeCount: 18, frameCount: 6
+           ❌ Double the expected nodes!
+```
 
-## 🎯 Phase 0 (Micro-Sessions) Status
+### Why the Current Fix Doesn't Work
 
-### ✅ **Completed**:
-- Micro-session core architecture (`Orchestrator.ts`)
-- Per-agent iteration limits within micro-sessions
-- Goal-based session management
-- Consecutive agent call guards
-- Session history tracking
+The fix at line 1992:
+```typescript
+if (frames.length > 0 && nodes.length === 0 && !initialGraphState?.nodes?.length)
+```
 
-### ⏸️ **BLOCKED** (Cannot Test):
-Micro-session architecture **CANNOT be tested** until parsing bugs are fixed because:
-1. Micro-sessions iterate agents 3x to improve results
-2. If input data is garbage (Bug #1-3), 3 iterations of garbage = still garbage
-3. "Garbage in, garbage out" - even perfect iteration logic won't help
+**Fails because**: React state updates are asynchronous. When `frames` prop updates, `initialGraphState` still has its OLD value (from previous render), so the condition `!initialGraphState?.nodes?.length` may still be true when it shouldn't be.
 
-**Critical Path**: Fix Bugs #1-3 → THEN test micro-sessions with real data → THEN wire success signals
+## How SWE Bridge Works Correctly
 
-### 🔄 **Next (After Bug Fixes)**:
-1. Test micro-session iteration with corrected data extraction
-2. Wire success signals from each agent (PatternGenerator → Extractor → SynthesisCoordinator)
-3. Expose micro-session markers in context for observability
-4. Verify agents auto-advance only when goals achieved
-
----
-
-## 🛠️ Recommended Fix Order
-
-### **Step 1: Fix Data Extraction (Bugs #1-3)** - ONE FIX SOLVES ALL THREE
-Implement **Structured JSON Output** (aligns with Phase 1 Requirement 2):
+### SWE Bridge Flow (from `src/app/ai-frames/components/SWEBridge.tsx`)
 
 ```typescript
-// DataInspector prompt:
-"Return your analysis as JSON:
-{
-  \"mainEntity\": \"PyTorch DDP\",
-  \"documentType\": \"Educational Tutorial\",
-  \"isRelevant\": true,
-  \"methods\": [\"DDP\", \"PyTorch DDP\"],
-  \"concepts\": [\"distributed training\"],
-  \"dataTypes\": [\"tensors\", \"input_ids\"]
-}"
-
-// Parse as JSON (robust):
-const analysis = JSON.parse(llmResponse);
+const handlePullAndSync = async () => {
+  // 1. Fetch JSON payload from SWE
+  const payload = await fetch(url).then(r => r.json());
+  
+  // 2. Update EVERYTHING in one atomic operation
+  unifiedStorage.updateFrames(payload.frames);
+  unifiedStorage.updateChapters(payload.chapters);
+  unifiedStorage.updateGraphState(payload.graphState);  // ✅ All at once!
+  
+  // 3. GraphState already has nodes, so merge happens cleanly
+};
 ```
 
-**Benefits**:
-- ✅ Fixes all 3 parsing bugs at once
-- ✅ Eliminates regex brittleness
-- ✅ Aligns with Phase 1 design
-- ✅ Industry standard (Cursor, Codex, SWE-agent all use structured output)
-- ✅ Easier to validate and debug
+**Why it works**:
+- Updates happen in quick succession within same function
+- By the time `frames` prop triggers useEffect, `initialGraphState` is already updated (or updating)
+- The check `!initialGraphState?.nodes?.length` correctly prevents double creation
 
-**Time**: ~30-40 minutes to implement + test
+## The Correct Solution
 
-### **Step 2: Fix VectorStore Initialization (Bug #4)**
-- **Problem**: `persistSessionToKnowledgeBase` calls `addVirtualDocument`, which checks for document processor availability
-- **Likely cause**: After Issue 020 migration to server-side embeddings, client-side processor is no longer initialized but legacy checks remain
-- **Fix options**:
-  1. **Option A (Quick)**: Skip document processor check in `addVirtualDocument` when adding virtual/session documents (they don't need embeddings generated)
-  2. **Option B (Proper)**: Initialize document processor only for display purposes OR remove dependency entirely
-- **Files to check**:
-  - `VectorStore.ts:791` - the check that throws the error
-  - `useAIFlowBuilder.ts:769-812` - the persistence flow
-- Related to Issue 020 (server-side embeddings)
+### Option 1: Use a Ref to Track GraphState Presence (Recommended)
 
-**Time**: ~10-15 minutes
+```typescript
+const initialGraphStateRef = useRef<GraphState | null>(null);
 
-### **Step 3: Fix SelectTrigger Re-Render (Bug #5)**
-- **Important**: May be partially caused by Bug #4 - test after fixing VectorStore issue first
-- Re-verify `useCallback` implementation in `AIFlowBuilderPanel.tsx` around line 440
-- Check all `Select` components (provider selection, model selection) for non-memoized handlers
-- Look for error boundary re-render cycles triggered by VectorStore failure
-- Add React DevTools profiler to identify re-render source if still occurring after Bug #4 fix
+// Update ref immediately when prop changes
+useEffect(() => {
+  if (initialGraphState?.nodes?.length) {
+    initialGraphStateRef.current = initialGraphState;
+  }
+}, [initialGraphState]);
 
-**Time**: ~20 minutes (less if resolved by Bug #4 fix)
-
-### **Step 4: Test Micro-Sessions with Clean Data**
-- Run AI Flow Builder with fixed parsing
-- Verify micro-sessions iterate effectively
-- Check agent progression logic
-
-**Time**: ~30 minutes testing
-
----
-
-## 💡 Key Insight
-
-**The micro-session architecture is SOUND**, but we discovered it during a system-wide failure:
-
-```
-✅ Micro-session design: EXCELLENT (matches Cursor/Codex pattern)
-❌ Input data quality: ZERO (parsing completely broken)
-Result: Can't validate excellent architecture with broken inputs
+// Use ref in condition (not stale)
+if (frames.length > 0 && nodes.length === 0 && !initialGraphStateRef.current?.nodes?.length) {
+  // Only create nodes if graphState has NEVER been provided
+}
 ```
 
-**Analogy**: We built a Formula 1 race car (micro-sessions) but the fuel tank has holes (parsing bugs). We need to fix the tank before we can test the car's performance.
+### Option 2: Atomic Update in Accept All (Simpler)
+
+Modify `handleAcceptAIFrames` in `page.tsx` to batch updates:
+
+```typescript
+const handleAcceptAIFrames = useCallback((frames, plannerChapters) => {
+  // Convert frames and chapters
+  const normalized = frames.map(convertDraftToFrame);
+  const convertedChapters = plannerChapters.map(convertPlannerChapter);
+  
+  // Get graphState BEFORE updating anything
+  const graphState = flowBuilder.plan?.graphState;
+  
+  // Update in single batch (prevents race)
+  unifiedStorage.batchUpdate({
+    frames: [...unifiedStorage.frames, ...normalized],
+    chapters: [...unifiedStorage.chapters, ...convertedChapters],
+    graphState: graphState  // ✅ All at once, like SWE!
+  });
+}, []);
+```
+
+### Option 3: Disable Frame-to-Node Conversion When GraphState Exists
+
+Simplest fix - just never auto-generate nodes when coming from AI Flow:
+
+```typescript
+// In EnhancedLearningGraph.tsx, line 1992
+// Check if we're in a "managed" scenario (graphState will be provided)
+const hasGraphStateSource = initialGraphState !== null; // Even if empty, means it's managed
+
+if (frames.length > 0 && nodes.length === 0 && !hasGraphStateSource) {
+  // Only create nodes for manual frame drops, not AI Flow
+}
+```
+
+## ✅ IMPLEMENTED FIX: Atomic Batch Update (Option 2)
+
+### Implementation Details
+
+**Added to `useUnifiedStorage.ts` (lines ~1825-1867)**:
+```typescript
+const batchUpdate = useCallback((payload: {
+  frames?: AIFrame[];
+  chapters?: Chapter[];
+  graphState?: GraphState;
+}) => {
+  // Update all state atomically - React batches these in single render
+  if (payload.frames) setFrames(payload.frames);
+  if (payload.chapters) setChapters(payload.chapters);
+  if (payload.graphState) updateGraphState(payload.graphState);
+  
+  // Single background save
+  queueBackgroundSave(...);
+}, []);
+```
+
+**Updated in `page.tsx` `handleAcceptAIFrames` (lines ~1983-2013)**:
+```typescript
+// OLD (caused race):
+unifiedStorage.updateFrames([...frames, ...normalized]);
+unifiedStorage.updateChapters([...chapters, ...converted]);
+unifiedStorage.updateGraphState(graphState);
+
+// NEW (atomic):
+unifiedStorage.batchUpdate({
+  frames: [...frames, ...normalized],
+  chapters: [...chapters, ...converted],
+  graphState: flowBuilder.plan?.graphState,
+});
+```
+
+### Why This Works
+- **Single React Render**: All state updates happen in one batch
+- **No Race Condition**: Impossible for `frames` to update before `graphState`
+- **SWE Pattern**: Matches proven working architecture
+- **Isolated**: Doesn't affect chapter dialog, manual creation, or SWE Bridge
+
+## Testing Checklist
+
+After fix, verify:
+- [ ] AI Flow "Accept All" shows exactly 9 nodes (3 chapters + 6 frames)
+- [ ] No duplicate key warnings in console
+- [ ] No orphan "Untitled" nodes
+- [ ] SWE Bridge "Pull & Sync" still works (should show correct node count)
+- [ ] Manual frame drag-and-drop still creates nodes
+- [ ] Graph auto-layout works correctly
+- [ ] Node count in logs matches expected count
+
+## Reference Files
+
+- **Logs**: `Test/temp/logs.md` (lines 1314-1343 show the duplicate issue)
+- **Latest Run**: `Delete/21Nov_09_5_11PM_debug-frames-flowframegenerator-2025-11-21T11-41-31-553Z.json`
+- **Graph Component**: `src/components/ai-graphs/EnhancedLearningGraph.tsx` (lines 1854, 1992)
+- **Accept Handler**: `src/app/ai-frames/page.tsx` (line 1983+)
+- **SWE Bridge**: `src/app/ai-frames/components/SWEBridge.tsx` (working reference)
+
+## Key Insight
+
+**The fundamental issue**: Trying to support BOTH "auto-generate from frames" (manual mode) AND "use provided graphState" (AI Flow mode) in the same useEffect with async prop updates creates race conditions.
+
+**SWE Bridge doesn't have this issue** because it ONLY uses graphState - it never auto-generates nodes from frames.
+
+**AI Flow should work the same way**: Provide complete graphState, disable auto-generation.
 
 ---
 
-## 📈 Expected Results After Fixes
+## ✅ IMPLEMENTATION COMPLETED (Nov 21, 2025)
 
-With all bugs fixed and micro-sessions active:
+### Files Modified
+1. **`src/app/ai-frames/hooks/useUnifiedStorage.ts`**:
+   - Added `batchUpdate` function (lines 1834-1876)
+   - Updated interface to accept `UnifiedAIFrame[]` (line 28)
+   - Exported `batchUpdate` in return statement (line 1893)
 
-**DataInspector Micro-Session (Goal: "Analyze document structure")**:
-- Attempt 1: Finds document, classifies as "Unknown Document" (Bug #1 fixed → now "Educational Tutorial")
-- Attempt 2: (Not needed, goal achieved on first try)
-- ✅ Advance to next session
+2. **`src/app/ai-frames/page.tsx`**:
+   - Updated `handleAcceptAIFrames` to use `batchUpdate` (lines 2010-2014)
+   - Added `metadata` field to normalized frames (lines 1975-1985)
+   - Type annotation for `normalized` as `UnifiedAIFrame[]` (line 1975)
 
-**PatternGenerator Micro-Session (Goal: "Generate extraction patterns")**:
-- Attempt 1: Creates 2 generic patterns (Bug #3 fixed → now has method/concept hints)
-- Attempt 2: Refines patterns based on document type, generates 5 specific patterns
-- Attempt 3: Validates patterns against sample, extracts 50+ items
-- ✅ Advance to next session
+### Type Safety Fix
+- Changed `batchUpdate` parameter from `AIFrame[]` to `UnifiedAIFrame[]`
+- Added metadata generation in `handleAcceptAIFrames` to ensure frames have required fields
+- All TypeScript linter errors resolved
 
-**Result**: ~15-20 total LLM calls (vs 60 now), 50+ items extracted (vs 1 now), comprehensive lesson plan output
+### What's Protected
+- ✅ Chapter Dialog (uses direct `updateFrames`)
+- ✅ SWE Bridge (uses separate update calls)
+- ✅ Manual Frame Drop (uses `handleFramesChange`)
+- ✅ Frame Creation (uses `handleCreateFrame`)
 
----
-
-## 🎬 Action Plan
-
-**Immediate (Today)**:
-1. ✅ Document all 5 bugs in detail (DONE - this file)
-2. 🔄 Create fix plan for structured JSON output (addresses Bugs #1-3)
-3. 🔄 Create fix plan for VectorStore + SelectTrigger (Bugs #4-5)
-4. ⏳ Get user approval to proceed
-
-**Next (After Approval)**:
-1. Implement structured JSON output for DataInspector
-2. Fix VectorStore initialization check
-3. Debug SelectTrigger re-render
-4. Test full pipeline with DDP document
-5. Validate micro-session iteration behavior
-6. Update 021-todo.md with results
-
-**Timeline**: ~2-3 hours total implementation + testing
+### Ready for Testing
+The atomic batch update is now live and type-safe. Test the "Accept All Frames" functionality in AI Flow Builder.
 
 ---
 
-## 📚 References
+## ✅ NODE ID FORMAT FIX (Nov 21, 2025 - Final)
 
-- **Issue 020**: Server-Side Query Embeddings (may be related to Bug #4)
-- **Issue 021**: SWE-Like Agent Performance (current focus)
-- **021-SWELikeAgents.md**: Full requirements document
-- **021-todo.md**: Implementation tracking
-- **Logs**: `Test/temp/logs.md` (1130 lines, session 1763458322190)
+### Critical Issue: Duplicate Orphan Nodes
+After implementing batch update, duplicate nodes (3 orphan chapters + 6 orphan frames) were still appearing.
+
+### Root Cause
+**AI Flow Builder** was generating frame node IDs as:
+- `"frame_plan_1"` ❌
+
+**SWE Bridge** generates frame node IDs as:
+- `"node_frame_1763361560909_fleet_intro_0"` ✅
+- Format: `node_{frameId}_{indexInChapter}`
+
+This format mismatch broke `EnhancedLearningGraph`'s deduplication filter at line 1902, causing it to fail to skip nodes that already existed.
+
+### Solution
+Updated `src/app/ai-frames/hooks/useAIFlowBuilder.ts` `generateGraphState` function:
+
+**Line 1776** - Frame node ID generation:
+```typescript
+// OLD (WRONG):
+const frameNodeId = frame.id.startsWith('frame_') ? frame.id : `frame_${frame.id}`;
+
+// NEW (CORRECT):
+const frameNodeId = `node_${frame.id}_${indexInChapter}`;
+```
+
+**Line 1812** - Sequential edge source:
+```typescript
+// OLD (WRONG):
+const prevFrameNodeId = prevFrame.id.startsWith('frame_') ? prevFrame.id : `frame_${prevFrame.id}`;
+
+// NEW (CORRECT):
+const prevFrameNodeId = `node_${prevFrame.id}_${indexInChapter - 1}`;
+```
+
+### Why This Works
+- `EnhancedLearningGraph.tsx` has a sophisticated deduplication filter (lines 1897-1964)
+- It skips nodes where `existingNodeIds.has(node.id)` or `existingFrameIds.has(frameId)`
+- With matching node ID formats, the filter correctly identifies duplicates and skips them
+- **No changes needed to `EnhancedLearningGraph.tsx`** - it works perfectly with correct input
+
+### Verification
+Expected console log after "Accept All":
+```
+🧪 Graph merge from initialGraphState {
+  existingNodeCount: 9,
+  incomingNodeIds: [],
+  appendedNodeIds: [],  // ← Should be EMPTY (no duplicates)
+  skippedFrameIds: [],
+  skippedAttachmentIds: [],
+  skippedChapterIds: []
+}
+```
+
+### Files Modified
+- `src/app/ai-frames/hooks/useAIFlowBuilder.ts` (lines 1776, 1812)
 
 ---
 
-**Status**: 🔴 BLOCKED - Critical parsing bugs must be fixed before Phase 0 testing can proceed.
+## ✅ BATCH UPDATE ATOMICITY FIX (Nov 21, 2025 - Final)
 
----
+### Critical Issue: Double Merge Causing Duplicate Nodes
+Even after fixing node ID format, duplicate nodes were still appearing because `batchUpdate` was triggering TWO merge cycles in `EnhancedLearningGraph`.
 
-## Additional Failures From Latest Run (Feb 18)
+### Root Cause
+**Line 1866 in `useUnifiedStorage.ts`**:
+```typescript
+// WRONG:
+updateGraphState(payload.graphState);
+```
 
-### **Bug #6: FlowFrameGenerator JSON parsing explodes on code snippets**
-- **Where**: `responseCompletion.ts:209-280` (array extraction) → `FlowFrameGeneratorAgent.ts:106`
-- **What happened**: The generator’s LLM response included a bare array snippet (`['LOCAL_RANK']` … ) before the actual JSON. `parseJsonWithResilience` saw the `[` and tried to `JSON.parse` it, which threw `Unexpected token '''`. The fallback never reached the real JSON body, so the entire frame failed with “Invalid JSON after all extraction attempts.”
-- **Why it matters**: Even when upstream agents succeed, FlowFrameGenerator aborts and the UI never receives a usable frame.
-- **Fix ideas**: Strip fenced code/array blocks before looking for JSON; or tighten the LLM prompt so it never emits raw arrays outside the JSON envelope. Detect obvious code keywords (`device =`, `dist.init_process_group`) and skip the array parser when present.
+This caused:
+1. `updateGraphState` calls `setGraphState()` → triggers merge #1
+2. `updateGraphState` calls `queueBackgroundSave()` → redundant save
+3. `batchUpdate` calls `queueBackgroundSave()` again → redundant save
+4. State updates in non-atomic order → triggers merge #2
+5. **Result**: Duplicate nodes appended twice
 
-### **Bug #7: SelectTrigger infinite loop resurfaces when generator fails**
-- **Where**: Radix Select controls inside `AIFlowBuilderPanel`. When FlowFrameGenerator throws, `planFlow` updates state rapidly, the selects recreate their handlers, and Radix keeps reattaching refs until React hits the same “Maximum update depth exceeded” error logged in `Test/temp/logs.md:1560-1640`.
-- **Impact**: After FlowFrameGenerator/KB errors, the entire AI Frames UI crashes again.
-- **Fix**: Memoize every `onValueChange`/stateful prop passed to `SelectTrigger`, or gate re-renders when KB persistence fails so we don’t open/close the VectorStore modal repeatedly.
+### Solution
+Make `batchUpdate` truly atomic by directly setting state like it does for frames and chapters:
 
-These stack on top of Bugs #1-5, so once parsing and persistence are repaired we need to address them before trusting the FlowFrame pipeline.
+```typescript
+// CORRECT:
+if (payload.graphState !== undefined) {
+  // Deduplicate edges (same logic as updateGraphState) - ATOMIC: no redundant save
+  const deduplicatedState = {
+    ...payload.graphState,
+    edges: payload.graphState.edges ? 
+      payload.graphState.edges.filter((edge, index, array) => {
+        const firstByIdIndex = array.findIndex(e => e.id === edge.id);
+        if (firstByIdIndex !== index) return false;
+        
+        const edgeAny = edge as any;
+        const key = `${edge.source}-${edge.target}-${edgeAny.sourceHandle || 'null'}-${edgeAny.targetHandle || 'null'}`;
+        return array.findIndex(e => {
+          const eAny = e as any;
+          const eKey = `${e.source}-${e.target}-${eAny.sourceHandle || 'null'}-${eAny.targetHandle || 'null'}`;
+          return eKey === key;
+        }) === index;
+      }) : []
+  };
+  
+  setGraphState(deduplicatedState);
+  graphStateRef.current = deduplicatedState;
+}
+```
+
+### Why This Works
+- **Atomic state updates**: All three states (frames, chapters, graphState) set in one batch
+- **Single save call**: Only one `queueBackgroundSave` at the end of `batchUpdate`
+- **No cascade**: Direct `setGraphState` doesn't trigger `updateGraphState`'s save
+- **Edge deduplication preserved**: Copied from `updateGraphState` to maintain data integrity
+
+### Expected Result
+Console log after "Accept All":
+```
+🧪 Graph merge from initialGraphState {
+  existingNodeCount: 0,
+  appendedNodeIds: []  // ← Empty = perfect atomicity!
+}
+```
+
+### Files Modified
+- `src/app/ai-frames/hooks/useUnifiedStorage.ts` (lines 1864-1885)
+

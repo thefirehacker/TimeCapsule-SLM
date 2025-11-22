@@ -56,48 +56,55 @@ export function SessionContinuationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-1">
             {getActionIcon()}
-            <DialogTitle className="text-xl">{getActionTitle()}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">{getActionTitle()}</DialogTitle>
           </div>
-          <DialogDescription className="text-base pt-2">
+          <DialogDescription className="text-sm text-slate-600 pt-1">
             {getActionDescription()}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
+        <div className="space-y-5 py-2">
+          {/* Current Session Display */}
           <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
-            <p className="text-sm font-medium text-slate-700 mb-1">Current Active Session:</p>
-            <p className="text-base font-semibold text-slate-900">{currentSessionName}</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">
+              Current Active Session
+            </p>
+            <p className="text-base font-semibold text-slate-900 break-words">
+              {currentSessionName}
+            </p>
           </div>
 
-          <p className="text-sm text-slate-600">
-            Would you like to continue with your current session or start a new one?
-          </p>
+          {/* Question */}
+          <div className="text-center">
+            <p className="text-sm text-slate-700">
+              Would you like to continue with your current session or start a new one?
+            </p>
+          </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2 mt-4 flex-col sm:flex-row">
           <Button
             variant="outline"
             onClick={() => {
               onContinue();
               onOpenChange(false);
             }}
-            className="flex-1"
+            className="w-full sm:flex-1 h-11 text-sm font-medium"
           >
             Continue Current Session
           </Button>
           <Button
-            variant="default"
             onClick={() => {
               onCreateNew();
               onOpenChange(false);
             }}
-            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+            className="w-full sm:flex-1 h-11 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium"
           >
-            <Sparkles className="h-4 w-4 mr-2" />
+            <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
             Create New Session
           </Button>
         </DialogFooter>

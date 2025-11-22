@@ -66,7 +66,7 @@ export class SessionStore {
             pageNumber: null,
             sectionTitle: null,
             embedding: null,
-          },
+        },
         ],
         vectors: [],
       };

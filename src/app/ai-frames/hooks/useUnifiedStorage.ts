@@ -24,6 +24,11 @@ interface UseUnifiedStorageReturn {
   updateFrames: (frames: AIFrame[]) => void;
   updateChapters: (chapters: Chapter[]) => void;
   updateGraphState: (graphState: GraphState) => void;
+  batchUpdate: (payload: {
+    frames?: UnifiedAIFrame[];
+    chapters?: Chapter[];
+    graphState?: GraphState;
+  }) => void;
   clearAll: () => void;
   
   // Auto-save control
@@ -1425,12 +1430,12 @@ export const useUnifiedStorage = ({
         newGraphState.edges = (newGraphState.edges || []).map(edge => 
           edge.id === connectionData.id ? { ...edge, ...connectionData } : edge
         );
-        
-        updateGraphState(newGraphState);
-        
-        // CRITICAL FIX: Trigger immediate background save for connections
-        setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
+      
+      updateGraphState(newGraphState);
+      
+      // CRITICAL FIX: Trigger immediate background save for connections
+      setHasUnsavedChanges(true);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, newGraphState, { skipVectorStore: true });
       }
     };
     
@@ -1585,10 +1590,10 @@ export const useUnifiedStorage = ({
           edges: [...(graphStateRef.current.edges || []), connection]
         };
         updateGraphState(updatedGraphState);
-        
-        // CRITICAL: Trigger immediate background save for connections
-        setHasUnsavedChanges(true);
-        queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
+      
+      // CRITICAL: Trigger immediate background save for connections
+      setHasUnsavedChanges(true);
+      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
       }
     };
     
@@ -1822,6 +1827,72 @@ export const useUnifiedStorage = ({
   // NOTE: Removed duplicate force-save-frames listener that was using stale graphStateRef
   // The main event listener at line 1466 already handles force-save-frames correctly with fresh graph state
 
+  /**
+   * Batch update frames, chapters, and graphState atomically (like SWE Bridge).
+   * This prevents race conditions by updating everything in a single operation.
+   */
+  const batchUpdate = useCallback((payload: {
+    frames?: UnifiedAIFrame[];
+    chapters?: Chapter[];
+    graphState?: GraphState;
+  }) => {
+    console.log('🔄 Batch update:', {
+      hasFrames: !!payload.frames,
+      hasChapters: !!payload.chapters,
+      hasGraphState: !!payload.graphState,
+      frameCount: payload.frames?.length,
+      chapterCount: payload.chapters?.length,
+      nodeCount: payload.graphState?.nodes?.length
+    });
+
+    // Update all state atomically (React batches these automatically in React 18+)
+    if (payload.frames !== undefined) {
+      setFrames(payload.frames);
+      framesRef.current = payload.frames;
+    }
+    
+    if (payload.chapters !== undefined) {
+      const normalizedChapters = payload.chapters.map(chapter => ({
+        ...chapter,
+        frameIds: chapter.frameIds || [],
+        conceptIds: chapter.conceptIds || [],
+      }));
+      setChapters(normalizedChapters);
+      chaptersRef.current = normalizedChapters;
+    }
+    
+    if (payload.graphState !== undefined) {
+      // Deduplicate edges (same logic as updateGraphState) - ATOMIC: no redundant save
+      const deduplicatedState = {
+        ...payload.graphState,
+        edges: payload.graphState.edges ? 
+          payload.graphState.edges.filter((edge, index, array) => {
+            const firstByIdIndex = array.findIndex(e => e.id === edge.id);
+            if (firstByIdIndex !== index) return false;
+            
+            const edgeAny = edge as any;
+            const key = `${edge.source}-${edge.target}-${edgeAny.sourceHandle || 'null'}-${edgeAny.targetHandle || 'null'}`;
+            return array.findIndex(e => {
+              const eAny = e as any;
+              const eKey = `${e.source}-${e.target}-${eAny.sourceHandle || 'null'}-${eAny.targetHandle || 'null'}`;
+              return eKey === key;
+            }) === index;
+          }) : []
+      };
+      
+      setGraphState(deduplicatedState);
+      graphStateRef.current = deduplicatedState;
+    }
+
+    // Queue a single save with the updated data
+    setHasUnsavedChanges(true);
+    queueBackgroundSave(
+      payload.frames || framesRef.current,
+      payload.chapters || chaptersRef.current,
+      payload.graphState || graphStateRef.current
+    );
+  }, [updateGraphState, queueBackgroundSave]);
+
   return {
     // State
     frames,
@@ -1837,6 +1908,7 @@ export const useUnifiedStorage = ({
     updateFrames,
     updateChapters,
     updateGraphState,
+    batchUpdate,
     clearAll,
     
     // Auto-save control

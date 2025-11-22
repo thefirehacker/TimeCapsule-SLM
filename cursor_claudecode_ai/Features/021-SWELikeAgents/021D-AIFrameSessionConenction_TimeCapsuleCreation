@@ -1,0 +1,386 @@
+# TimeCapsule Architecture Implementation
+
+## Vision
+
+TimeCapsule = A complete isolated project containing KB + AI Frames + Sessions + Metadata
+
+- Users can create multiple TimeCapsules (projects)
+- **Each TimeCapsule has many AI Frames and many KB documents**
+- **Switching TimeCapsule filters and shows only that TimeCapsule's frames and KB**
+- Future: Enable export/sync of entire TimeCapsules
+
+## Hierarchy & Relationships
+
+```
+TimeCapsule (Project)
+├── id, name, description, createdAt, updatedAt
+├── AI Frames (MANY - directly linked by timeCapsuleId)
+│   └── Each frame also linked to sessionId within the TimeCapsule
+├── Knowledge Base Documents (MANY - linked by timeCapsuleId)
+├── Flow Sessions (linked by timeCapsuleId)
+│   ├── AI Flow Session (tracks frameIds created in this session)
+│   ├── SWE Bridge Session (tracks frameIds created in this session)
+│   └── Manual Session (tracks frameIds created in this session)
+├── Metadata (BubblSpace, etc., linked by timeCapsuleId)
+└── Settings
+```
+
+**Key Relationships**:
+
+- **TimeCapsule → AI Frames**: ONE-TO-MANY (each frame has timeCapsuleId)
+- **TimeCapsule → KB Documents**: ONE-TO-MANY (each document has timeCapsuleId)
+- **TimeCapsule → Sessions**: ONE-TO-MANY (each session has timeCapsuleId)
+- **Session → AI Frames**: ONE-TO-MANY (each frame has sessionId, tracked in session.frameIds)
+
+**Switching TimeCapsule Behavior**:
+
+When user switches TimeCapsule, the app MUST:
+
+1. **Clear Graph**: Remove all current frames from display
+2. **Load Frames**: Query and display ONLY AI frames with matching timeCapsuleId
+3. **Load KB**: Load ONLY KB documents with matching timeCapsuleId
+4. **Load Sessions**: Load ONLY sessions with matching timeCapsuleId
+5. **Update UI**: Knowledge Base Manager shows only that TimeCapsule's documents
+6. **Update Context**: All child components receive new activeTimeCapsuleId
+7. **Persist Choice**: Save activeTimeCapsuleId to localStorage
+
+## Implementation Steps
+
+### 1. Create TimeCapsule Type & Store
+
+**File**: `src/lib/kb/types/timecapsule.ts` (new)
+
+```typescript
+export interface TimeCapsule {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  frameCount?: number; // Computed from frames with this timeCapsuleId
+  documentCount?: number; // Computed from KB docs with this timeCapsuleId
+  settings?: {
+    defaultView?: 'graph' | 'split' | 'linear';
+    theme?: string;
+  };
+}
+```
+
+**File**: `src/lib/kb/timeCapsuleStore.ts` (new)
+
+- `createTimeCapsule(name: string, description: string): TimeCapsule`
+- `getTimeCapsule(id: string): TimeCapsule | null`
+- `listTimeCapsules(): TimeCapsule[]`
+- `updateTimeCapsule(id: string, updates: Partial<TimeCapsule>): void`
+- `deleteTimeCapsule(id: string): void` - CASCADE delete all related data
+- Store in VectorStore with documentType: 'timecapsule'
+
+### 2. Link AI Frames to TimeCapsule
+
+**File**: Frame type definition (where AIFrame interface is defined)
+
+Update AIFrame interface:
+
+```typescript
+export interface AIFrame {
+  // ... existing fields
+  timeCapsuleId: string; // NEW: Direct link to parent TimeCapsule
+  sessionId?: string; // Existing: Link to session within TimeCapsule
+}
+```
+
+**File**: Frame creation/storage
+
+- When creating any frame, require timeCapsuleId parameter
+- Store frames with timeCapsuleId in their metadata
+- Add `getFramesByTimeCapsule(timeCapsuleId: string): AIFrame[]` query
+
+### 3. Link Sessions to TimeCapsule
+
+**File**: `src/lib/kb/types/session.ts`
+
+Update FlowSession interface:
+
+```typescript
+export interface FlowSession {
+  // ... existing fields
+  timeCapsuleId: string; // NEW: Link to parent TimeCapsule
+  frameIds: string[]; // NEW: Track associated frames
+}
+```
+
+**File**: `src/lib/kb/sessionStore.ts`
+
+- Update `createNewSession` to accept `timeCapsuleId`
+- Add `getSessionsByTimeCapsule(timeCapsuleId: string): FlowSession[]`
+- Update save/load to include timeCapsuleId
+- Add `syncFrameToSession(sessionId: string, frameId: string)` to update frameIds
+
+### 4. Link KB Documents to TimeCapsule
+
+**File**: `src/components/VectorStore/VectorStore.ts`
+
+- Update document metadata to include `timeCapsuleId` field
+- Add `getDocumentsByTimeCapsule(timeCapsuleId: string)` query
+- Filter documents by timeCapsuleId when loading
+
+**File**: KB upload/management components
+
+- Pass activeTimeCapsuleId when uploading documents
+- Show only documents from active TimeCapsule
+
+### 5. Link Metadata to TimeCapsule
+
+**File**: `src/lib/MetadataManager.ts`
+
+- Update BubblSpace, metadata objects to include `timeCapsuleId`
+- Filter by timeCapsuleId when loading
+
+### 6. Active TimeCapsule Management Hook
+
+**File**: `src/app/ai-frames/hooks/useTimeCapsule.ts` (new)
+
+```typescript
+export function useTimeCapsule(vectorStore: VectorStore | null) {
+  const [activeTimeCapsuleId, setActiveTimeCapsuleId] = useState<string | null>(null);
+  const [timeCapsules, setTimeCapsules] = useState<TimeCapsule[]>([]);
+  
+  // Load all TimeCapsules on mount
+  // Restore activeTimeCapsuleId from localStorage
+  
+  const switchTimeCapsule = useCallback(async (timeCapsuleId: string) => {
+    // 1. Save current state
+    // 2. Clear current frames/KB from UI
+    // 3. Set new activeTimeCapsuleId
+    // 4. Trigger reload of frames/KB for new TimeCapsule
+    // 5. Persist to localStorage
+  }, []);
+  
+  const createTimeCapsule = useCallback(async (name: string, description: string) => {
+    // Create and set as active
+  }, []);
+  
+  return {
+    activeTimeCapsuleId,
+    activeTimeCapsule,
+    timeCapsules,
+    createTimeCapsule,
+    switchTimeCapsule,
+    deleteTimeCapsule,
+    updateTimeCapsule
+  };
+}
+```
+
+### 7. TimeCapsule UI Components
+
+**File**: `src/app/ai-frames/components/TimeCapsuleSelector.tsx` (new)
+
+- Dropdown in header showing active TimeCapsule name
+- List of all TimeCapsules
+- Click to switch
+- "Create New TimeCapsule" option
+
+**File**: `src/app/ai-frames/components/TimeCapsuleDialog.tsx` (new)
+
+- Dialog for creating/editing TimeCapsule
+- Fields: Name (required), Description (optional)
+- Show frame count and document count (read-only)
+- Save/Cancel buttons
+
+**File**: `src/app/ai-frames/components/TimeCapsuleManager.tsx` (new)
+
+- Full-screen modal to manage all TimeCapsules
+- Grid/List view of TimeCapsules
+- Each card shows: Name, Description, Frame count, Doc count, Last updated
+- Actions: Edit, Delete, Switch to, Export (future)
+- Accessible from main menu
+
+### 8. Integration with Page.tsx
+
+**File**: `src/app/ai-frames/page.tsx`
+
+```typescript
+// Add useTimeCapsule hook
+const {
+  activeTimeCapsuleId,
+  timeCapsules,
+  switchTimeCapsule,
+  createTimeCapsule
+} = useTimeCapsule(providerVectorStore);
+
+// Pass to all child components via context or props
+// Filter frames by activeTimeCapsuleId before passing to graph
+// Filter KB documents by activeTimeCapsuleId
+
+// Add TimeCapsuleSelector to header
+<TimeCapsuleSelector
+  timeCapsules={timeCapsules}
+  activeId={activeTimeCapsuleId}
+  onSwitch={switchTimeCapsule}
+  onCreate={createTimeCapsule}
+/>
+```
+
+### 9. Update Unified Storage to Filter by TimeCapsule
+
+**File**: `src/app/ai-frames/hooks/useUnifiedStorage.ts`
+
+- Accept `activeTimeCapsuleId` parameter
+- Filter loaded frames to only those with matching timeCapsuleId
+- When saving, include timeCapsuleId in all frame metadata
+
+### 10. Update AI Flow Builder to Use TimeCapsule
+
+**File**: `src/app/ai-frames/hooks/useAIFlowBuilder.ts`
+
+- Accept `activeTimeCapsuleId` parameter
+- Pass timeCapsuleId when creating sessions
+- Filter sessions by timeCapsuleId
+- Ensure all created frames include timeCapsuleId
+
+### 11. Update VectorStore Schema
+
+**File**: `src/components/VectorStore/VectorStore.ts`
+
+- Add `timeCapsuleId` to document metadata schema
+- Add `timecapsule` to DocumentType enum
+- Bump schema version
+- Add migration function
+
+### 12. Implement Default TimeCapsule
+
+**On First Launch**:
+
+```typescript
+// In useTimeCapsule hook initialization
+useEffect(() => {
+  async function initializeDefaultTimeCapsule() {
+    const capsules = await timeCapsuleStore.listTimeCapsules();
+    if (capsules.length === 0) {
+      // Create default TimeCapsule
+      const defaultCapsule = await timeCapsuleStore.createTimeCapsule(
+        "My First TimeCapsule",
+        "Your default project workspace"
+      );
+      
+      // Migrate existing data to this TimeCapsule
+      await migrateExistingDataToTimeCapsule(defaultCapsule.id);
+      
+      // Set as active
+      setActiveTimeCapsuleId(defaultCapsule.id);
+    } else {
+      // Restore last active from localStorage
+      const savedId = localStorage.getItem('activeTimeCapsuleId');
+      if (savedId && capsules.some(c => c.id === savedId)) {
+        setActiveTimeCapsuleId(savedId);
+      } else {
+        setActiveTimeCapsuleId(capsules[0].id);
+      }
+    }
+  }
+  
+  initializeDefaultTimeCapsule();
+}, []);
+```
+
+**Migration Function**:
+
+```typescript
+async function migrateExistingDataToTimeCapsule(timeCapsuleId: string) {
+  // Add timeCapsuleId to all existing frames
+  // Add timeCapsuleId to all existing sessions
+  // Add timeCapsuleId to all existing KB documents
+  // Add timeCapsuleId to all existing metadata
+}
+```
+
+### 13. Implement TimeCapsule Switching Logic
+
+**In useTimeCapsule hook**:
+
+```typescript
+const switchTimeCapsule = useCallback(async (newTimeCapsuleId: string) => {
+  console.log(`🔄 Switching from ${activeTimeCapsuleId} to ${newTimeCapsuleId}`);
+  
+  // 1. Emit event to clear current frames from graph
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('timecapsule-switch-start', {
+      detail: { oldId: activeTimeCapsuleId, newId: newTimeCapsuleId }
+    }));
+  }
+  
+  // 2. Update active ID
+  setActiveTimeCapsuleId(newTimeCapsuleId);
+  localStorage.setItem('activeTimeCapsuleId', newTimeCapsuleId);
+  
+  // 3. Emit event to load new TimeCapsule's data
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('timecapsule-switched', {
+      detail: { timeCapsuleId: newTimeCapsuleId }
+    }));
+  }
+}, [activeTimeCapsuleId]);
+```
+
+**In page.tsx - Listen for switching events**:
+
+```typescript
+useEffect(() => {
+  const handleSwitchStart = () => {
+    // Clear graph
+    // Clear UI state
+  };
+  
+  const handleSwitched = async (event: CustomEvent) => {
+    const { timeCapsuleId } = event.detail;
+    // Load frames for new TimeCapsule
+    await unifiedStorage.loadAll(); // Will filter by timeCapsuleId
+    // Load sessions for new TimeCapsule
+    await flowBuilder.loadSessions(); // Will filter by timeCapsuleId
+  };
+  
+  window.addEventListener('timecapsule-switch-start', handleSwitchStart);
+  window.addEventListener('timecapsule-switched', handleSwitched);
+  
+  return () => {
+    window.removeEventListener('timecapsule-switch-start', handleSwitchStart);
+    window.removeEventListener('timecapsule-switched', handleSwitched);
+  };
+}, []);
+```
+
+## Implementation Order
+
+1. **Create TimeCapsule infrastructure** (types, store, hook)
+2. **Add timeCapsuleId to all data types** (frames, sessions, KB docs)
+3. **Update VectorStore schema** (add timeCapsuleId field)
+4. **Create TimeCapsule UI components** (Selector, Dialog, Manager)
+5. **Implement default TimeCapsule & migration**
+6. **Integrate with page.tsx** (add hook, pass to children)
+7. **Update data loading** (filter by timeCapsuleId everywhere)
+8. **Implement switching logic** (clear + reload)
+9. **Update frame/session creation** (include timeCapsuleId)
+10. **Test isolation** (verify switching shows only correct data)
+
+## Testing Checklist
+
+- [ ] Create multiple TimeCapsules
+- [ ] Add frames to TimeCapsule A
+- [ ] Add KB documents to TimeCapsule A
+- [ ] Switch to TimeCapsule B - verify empty state
+- [ ] Add different frames to TimeCapsule B
+- [ ] Switch back to TimeCapsule A - verify A's frames show, B's don't
+- [ ] Verify KB Manager shows only active TimeCapsule's documents
+- [ ] Delete TimeCapsule - verify cascade delete of all data
+- [ ] Reload page - verify activeTimeCapsule persists
+- [ ] Create session in TimeCapsule A - verify isolated from B
+
+## Future Enhancements (Not in this iteration)
+
+- Export TimeCapsule to JSON/ZIP
+- Import TimeCapsule from file
+- Sync TimeCapsules across devices
+- Share TimeCapsules with other users
+- TimeCapsule templates
+- Duplicate TimeCapsule

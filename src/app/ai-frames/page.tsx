@@ -103,7 +103,7 @@ import type { Chapter } from "./types/frames";
 
 // UNIFIED: Replace old fragmented storage with unified system
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
-import { useAIFlowBuilder } from "./hooks/useAIFlowBuilder";
+import { useAIFlowBuilder, PlannerChapter } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
 import { getBuildEnv, isLocalBuildEnv } from "./utils/buildEnv";
@@ -1927,14 +1927,28 @@ export default function AIFramesPage() {
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
     const handleAIFlowSessionCheck = (event: any) => {
-      const { currentSession, onContinue, onCreateNew } = event.detail;
+      const { currentSession } = event.detail;
       console.log("🔔 Received AI Flow session check event", { currentSession });
 
       setSessionDialogConfig({
         type: "ai-flow",
         currentSessionName: currentSession?.name,
-        onContinue,
-        onCreateNew,
+        onContinue: () => {
+          window.dispatchEvent(
+            new CustomEvent("ai-flow-session-response", {
+              detail: { createNew: false },
+            })
+          );
+          setShowSessionDialog(false);
+        },
+        onCreateNew: () => {
+          window.dispatchEvent(
+            new CustomEvent("ai-flow-session-response", {
+              detail: { createNew: true },
+            })
+          );
+          setShowSessionDialog(false);
+        },
       });
       setShowSessionDialog(true);
     };
@@ -1946,7 +1960,7 @@ export default function AIFramesPage() {
   }, [setSessionDialogConfig, setShowSessionDialog]);
 
   const handleAcceptAIFrames = useCallback(
-    (frames: AIFrame[]) => {
+    (frames: AIFrame[], plannerChapters?: PlannerChapter[]) => {
       if (!frames.length) return;
 
       const existingMaxOrder = unifiedStorage.frames.reduce(
@@ -1958,19 +1972,64 @@ export default function AIFramesPage() {
       );
 
       const timestamp = new Date().toISOString();
-      const normalized = frames.map((frame, index) => ({
+      const normalized: UnifiedAIFrame[] = frames.map((frame, index) => ({
         ...frame,
         order: existingMaxOrder + index + 1,
         createdAt: frame.createdAt || timestamp,
         updatedAt: timestamp,
+        metadata: {
+          version: "2.0",
+          createdAt: frame.createdAt || timestamp,
+          updatedAt: timestamp,
+          source: "ai-frames" as const,
+          lastSaved: timestamp,
+        },
       }));
 
-      unifiedStorage.updateFrames([
-        ...unifiedStorage.frames,
-        ...normalized,
-      ]);
+      // Debug logging to verify frame IDs match chapter references
+      console.log(`📦 Accept All: Pushing ${normalized.length} frames and ${plannerChapters?.length || 0} chapters`);
+      console.log(`📦 Frame IDs:`, normalized.map(f => f.id));
+      console.log(`📦 Chapter frame mappings:`, plannerChapters?.map(c => ({ chapterId: c.id, frameIds: c.frames.map(f => f.id) })));
+
+      // Convert PlannerChapter[] to Chapter[]
+      const convertedChapters: Chapter[] = (plannerChapters || []).map((pc) => ({
+        id: pc.id,
+        title: pc.title,
+        description: pc.goal, // Map goal to description
+        color: pc.color,
+        order: pc.order,
+        frameIds: pc.frames.map(f => f.id), // Extract frame IDs from planner frames
+        conceptIds: [], // Initialize empty, will be populated by frames
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }));
+
+      // Prepare graphState
+      let graphStateToUse = flowBuilder.plan?.graphState;
+      if (!graphStateToUse && plannerChapters && plannerChapters.length > 0) {
+        console.warn('⚠️ No graphState in plan, generating fallback');
+        const allFrames = [...unifiedStorage.frames, ...normalized];
+        graphStateToUse = flowBuilder.generateGraphState(plannerChapters, allFrames);
+      }
+
+      // ✅ ATOMIC UPDATE: Use batch update (like SWE Bridge) to prevent race conditions
+      console.log('✅ Using atomic batchUpdate (prevents duplicate nodes)');
+      unifiedStorage.batchUpdate({
+        frames: [...unifiedStorage.frames, ...normalized],
+        chapters: [...unifiedStorage.chapters, ...convertedChapters],
+        graphState: graphStateToUse,
+      });
+
+      // Trigger auto-layout
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("auto-layout-requested", {
+            detail: { source: "ai-flow-accept" },
+          })
+        );
+      }
     },
-    [unifiedStorage.frames, unifiedStorage.updateFrames]
+    [unifiedStorage, flowBuilder]
   );
 
   const handleExportFrames = useCallback(() => {
@@ -3148,7 +3207,7 @@ export default function AIFramesPage() {
         {flowPanelReady ? (
           <AIFlowBuilderPanel
             flowBuilder={flowBuilder}
-            onAcceptFrames={handleAcceptAIFrames}
+            onAcceptFrames={(frames, chapters) => handleAcceptAIFrames(frames, chapters)}
             isOpen={isFlowPanelOpen}
             onToggle={() => setIsFlowPanelOpen(false)}
             workspaceStats={workspaceStats}

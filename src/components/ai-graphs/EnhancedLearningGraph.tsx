@@ -2046,10 +2046,20 @@ export default function EnhancedLearningGraph({
             n.data?.frameId === frame.id && n.type?.includes('attachment')
           );
           const attachmentNodeId = savedAttachmentNode?.id || frame.attachment.id || getId();
-          // Normalize 'pdf-kb' to 'pdf-attachment' since they use the same node component
-          const nodeType = frame.attachment.type === 'pdf-kb'
-            ? 'pdf-attachment'
-            : `${frame.attachment.type}-attachment`;
+          
+          // Helper to avoid double -attachment suffix
+          const getAttachmentNodeType = (attachmentType: string): string => {
+            if (attachmentType === 'pdf-kb') {
+              return 'pdf-attachment';
+            }
+            // Don't add suffix if already present
+            if (attachmentType.endsWith('-attachment')) {
+              return attachmentType;
+            }
+            return `${attachmentType}-attachment`;
+          };
+          
+          const nodeType = getAttachmentNodeType(frame.attachment.type);
           const attachmentNode: Node = {
             id: attachmentNodeId,
             type: nodeType,
@@ -2429,8 +2439,20 @@ export default function EnhancedLearningGraph({
           x: frameNode.position.x + 420,
           y: frameNode.position.y,
         };
-      const attachmentType =
-        attachment.type === 'pdf-kb' ? 'pdf-attachment' : `${attachment.type}-attachment`;
+      
+      // Helper to avoid double -attachment suffix
+      const getAttachmentNodeType = (attachmentType: string): string => {
+        if (attachmentType === 'pdf-kb') {
+          return 'pdf-attachment';
+        }
+        // Don't add suffix if already present
+        if (attachmentType.endsWith('-attachment')) {
+          return attachmentType;
+        }
+        return `${attachmentType}-attachment`;
+      };
+      
+      const attachmentType = getAttachmentNodeType(attachment.type);
 
       const attachmentNode: Node = {
         id: attachmentNodeId,
