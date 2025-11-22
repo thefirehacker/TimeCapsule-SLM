@@ -3387,10 +3387,10 @@ export default function AIFramesPage() {
           </div>
         )}
         {(localBridgeEnabled || !isFlowPanelOpen) && (
-          <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+          <div className="fixed bottom-6 right-6 z-10 flex flex-col items-end gap-3 pointer-events-none">
             {!isFlowPanelOpen && (
               <button
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2 pointer-events-auto"
                 onClick={() => setIsFlowPanelOpen(true)}
               >
                 <Bot className="h-4 w-4" />
@@ -3399,7 +3399,7 @@ export default function AIFramesPage() {
             )}
             {localBridgeEnabled && (
               <button
-                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto"
                 onClick={handlePullFromLocalBridge}
                 disabled={localBridgeButtonDisabled}
               >

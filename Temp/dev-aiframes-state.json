@@ -4,8 +4,8 @@
       "id": "frame-1763832849282-mvgkorxam",
       "title": "Frame 1",
       "goal": "Enter learning goal here...",
-      "informationText": "Provide background context and information...",
-      "afterVideoText": "Key takeaways and next steps...",
+      "informationText": "<h1>Test01</h1>",
+      "afterVideoText": "<h1>test</h1>",
       "aiConcepts": [],
       "isGenerated": false,
       "order": 1,
@@ -13,7 +13,7 @@
       "timeCapsuleId": "timecapsule_1763831671804_k9vvsxvh2",
       "type": "frame",
       "createdAt": "2025-11-22T17:34:09.286Z",
-      "updatedAt": "2025-11-22T17:34:37.637Z",
+      "updatedAt": "2025-11-22T18:17:35.421Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
@@ -21,9 +21,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T17:34:09.286Z",
-        "updatedAt": "2025-11-22T17:35:08.404Z",
+        "updatedAt": "2025-11-22T18:19:11.688Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T17:35:08.404Z"
+        "lastSaved": "2025-11-22T18:19:11.688Z"
       },
       "chapterId": "chapter_1763832873045_2b9cqk",
       "parentFrameId": "chapter_1763832873045_2b9cqk",
@@ -50,9 +50,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T17:34:16.667Z",
-        "updatedAt": "2025-11-22T17:35:08.404Z",
+        "updatedAt": "2025-11-22T18:19:11.688Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T17:35:08.404Z"
+        "lastSaved": "2025-11-22T18:19:11.688Z"
       },
       "attachment": {
         "id": "node_1763832893364_eyuw2s101_4",
@@ -84,7 +84,7 @@
       ],
       "order": 0,
       "createdAt": "2025-11-22T17:34:33.045Z",
-      "updatedAt": "2025-11-22T17:35:08.404Z",
+      "updatedAt": "2025-11-22T18:19:11.688Z",
       "linkSequentially": true
     }
   ],
@@ -94,8 +94,8 @@
         "id": "chapter_1763832873045_2b9cqk",
         "type": "chapter",
         "position": {
-          "x": 200,
-          "y": 50
+          "x": 129.14046887247542,
+          "y": -120.31150463983968
         },
         "data": {
           "type": "chapter",
@@ -110,27 +110,29 @@
           "order": 0,
           "color": "#EF4444",
           "linkSequentially": true,
-          "updatedAt": "2025-11-22T17:34:33.562Z"
+          "updatedAt": "2025-11-22T18:17:54.881Z"
         },
         "measured": {
           "width": 320,
           "height": 188
-        }
+        },
+        "selected": false,
+        "dragging": false
       },
       {
         "id": "node_1763832849413_8takbi9jd_2",
         "type": "aiframe",
         "position": {
-          "x": 50,
-          "y": 500
+          "x": -50.42171883002811,
+          "y": 498.67866159434175
         },
         "data": {
           "type": "aiframe",
           "frameId": "frame-1763832849282-mvgkorxam",
           "title": "Frame 1",
           "goal": "Enter learning goal here...",
-          "informationText": "Provide background context and information...",
-          "afterVideoText": "Key takeaways and next steps...",
+          "informationText": "<h1>Test01</h1>",
+          "afterVideoText": "<h1>test</h1>",
           "aiConcepts": [],
           "isGenerated": false,
           "chapterId": "chapter_1763832873045_2b9cqk",
@@ -141,14 +143,14 @@
           "width": 480,
           "height": 460
         },
-        "selected": false,
+        "selected": true,
         "dragging": false
       },
       {
         "id": "node_1763832856667_3s3meaa3t_3",
         "type": "aiframe",
         "position": {
-          "x": 180,
+          "x": 310,
           "y": 1000
         },
         "data": {
@@ -185,8 +187,8 @@
         "id": "node_1763832893364_eyuw2s101_4",
         "type": "pdf-attachment",
         "position": {
-          "x": 1048.4898516533246,
-          "y": 1221.537748054493
+          "x": 860,
+          "y": 1000
         },
         "data": {
           "type": "pdf-attachment",
@@ -202,7 +204,7 @@
           "width": 400,
           "height": 441
         },
-        "selected": true,
+        "selected": false,
         "dragging": false
       }
     ],
@@ -216,28 +218,6 @@
         "style": {
           "stroke": "#3b82f6",
           "strokeWidth": 2
-        }
-      },
-      {
-        "id": "edge|seq|node_1763832849413_8takbi9jd_2|node_1763832856667_3s3meaa3t_3",
-        "source": "node_1763832849413_8takbi9jd_2",
-        "target": "node_1763832856667_3s3meaa3t_3",
-        "sourceHandle": "frame-sequence-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#3B82F6",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#3B82F6",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-sequence",
-          "chapterId": "chapter_1763832873045_2b9cqk"
         }
       },
       {
@@ -295,24 +275,35 @@
         }
       },
       {
-        "id": "edge|node_1763832893364_eyuw2s101_4|node_1763832856667_3s3meaa3t_3|1763832895433_gkwvn0ppp",
-        "source": "node_1763832893364_eyuw2s101_4",
+        "id": "edge|seq|node_1763832849413_8takbi9jd_2|node_1763832856667_3s3meaa3t_3",
+        "source": "node_1763832849413_8takbi9jd_2",
         "target": "node_1763832856667_3s3meaa3t_3",
-        "sourceHandle": null,
-        "targetHandle": "attachment-slot",
+        "sourceHandle": "frame-sequence-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
         "style": {
-          "stroke": "#f97316",
-          "strokeWidth": 3
+          "stroke": "#3B82F6",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#3B82F6",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763832873045_2b9cqk"
         }
       }
     ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-22T17:35:08.581Z",
+    "lastUpdated": "2025-11-22T18:19:11.885Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-22T17:35:08.404Z",
+    "lastSaved": "2025-11-22T18:19:11.688Z",
     "frameCount": 2,
     "checksum": "eyJmcmFtZXMiOlt7"
   }

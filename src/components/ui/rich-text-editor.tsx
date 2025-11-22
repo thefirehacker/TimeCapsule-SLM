@@ -174,22 +174,62 @@ export function RichTextEditor({
     },
   });
 
-  // Focus the editor when it becomes editable
+  // Track transitioning state to prevent race conditions
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Update editable state when prop changes
   useEffect(() => {
-    if (editor && editable) {
-      // Small delay to ensure the editor is ready
+    if (editor) {
+      // Mark as transitioning to block other operations
+      setIsTransitioning(true);
+      editor.setEditable(editable);
+
+      // Wait for transition to complete (increased to 100ms for safety)
       setTimeout(() => {
-        editor.commands.focus();
+        setIsTransitioning(false);
       }, 100);
     }
   }, [editor, editable]);
 
-  // Update content when prop changes
+  // Focus the editor when it becomes editable
   useEffect(() => {
-    if (editor && htmlContent !== editor.getHTML()) {
-      editor.commands.setContent(htmlContent || (editable ? "<p></p>" : ""));
+    if (editor && editable && !isTransitioning) {
+      // Small delay to ensure the editor is ready
+      setTimeout(() => {
+        if (editor && !editor.isDestroyed) {
+          editor.commands.focus();
+        }
+      }, 100);
     }
-  }, [editor, htmlContent, editable]);
+  }, [editor, editable, isTransitioning]);
+
+  // Update content when prop changes (with enhanced race condition prevention)
+  useEffect(() => {
+    if (!editor || isTransitioning) return; // Block during transitions
+
+    // Double-check editor state hasn't been destroyed
+    if (editor.isDestroyed) return;
+
+    // Prevent content updates during editable state transitions
+    const isEditableTransitioning = editor.isEditable !== editable;
+    if (isEditableTransitioning) {
+      // Wait for editable state to stabilize first
+      return;
+    }
+
+    if (htmlContent !== editor.getHTML()) {
+      // Increased delay from 0ms to 50ms for better DOM stability
+      setTimeout(() => {
+        // Enhanced safety checks before content update
+        if (editor && !editor.isDestroyed && !isTransitioning) {
+          // Check if editor view is still valid
+          if (editor.view && !editor.view.isDestroyed) {
+            editor.commands.setContent(htmlContent || (editable ? "<p></p>" : ""));
+          }
+        }
+      }, 50);
+    }
+  }, [editor, htmlContent, editable, isTransitioning]);
 
   const handleImageUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,6 +310,15 @@ export function RichTextEditor({
     if (editor) {
       navigator.clipboard.writeText(editor.getText());
     }
+  }, [editor]);
+
+  // Cleanup editor on unmount
+  useEffect(() => {
+    return () => {
+      if (editor && !editor.isDestroyed) {
+        editor.destroy();
+      }
+    };
   }, [editor]);
 
   if (!editor) {
