@@ -1,428 +1,112 @@
 {
   "frames": [
     {
-      "id": "frame_1",
-      "title": "This frame introduces the 10 PMP Knowledge Areas from the PMBOK Guide, their application across project phases, and interconnections in Sodexo site projects like cafeteria implementations.",
-      "goal": "Understand the structure and purpose of the 10 Knowledge Areas and how they interconnect in managing Sodexo site projects like cafeteria implementations or facility maintenance.",
-      "informationText": "# Overview of the 10 PMP Knowledge Areas in Sodexo Context\n\n## Introduction to PMBOK and Knowledge Areas\nThe Project Management Body of Knowledge (PMBOK) Guide, published by the Project Management Institute (PMI), serves as the foundational framework for project management practices. It defines **10 Knowledge Areas** as the core technical subject matter essential for effective project, program, and portfolio management. These areas represent key aspects that project managers must oversee to plan, schedule, track, and deliver projects successfully, in collaboration with teams and stakeholders.\n\nIn the context of Sodexo site services—such as implementing new cafeteria setups, facility maintenance overhauls, or food services expansions—these knowledge areas provide a structured approach to managing complex, on-site projects. They ensure projects align with Sodexo's goals of operational efficiency, client satisfaction, and regulatory compliance in facility management and food services.\n\n## Project Life Cycle Phases (Process Groups)\nKnowledge areas are applied across the **five project life cycle phases** (also called process groups):\n1. **Initiation**: Defining the project and obtaining approvals.\n2. **Planning**: Developing the project management plan.\n3. **Execution**: Carrying out the plan and managing resources.\n4. **Monitoring and Controlling**: Tracking progress and making adjustments.\n5. **Closing**: Finalizing all activities and obtaining approvals.\n\nThink of the process groups as horizontal stages, while the knowledge areas run vertically, intersecting throughout the project lifecycle. This matrix ensures comprehensive coverage.\n\n### Visual Diagram: Process Groups vs. Knowledge Areas\n```\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n| Knowledge Areas   | Initiation        | Planning          | Execution         | Monitoring/       |\n|                   |                   |                   |                   | Controlling       |\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n| 1. Integration    | Charter          | Develop Plan      | Direct Work       | Control Changes   |\n| 2. Scope          | Define           | Define WBS        | Validate Scope    | Control Scope     |\n| 3. Schedule       | Milestones       | Develop Schedule  | Manage Activities | Control Schedule  |\n| 4. Cost           | Budget Est.      | Cost Management   | Manage Costs      | Control Costs     |\n| 5. Quality        | Standards        | Plan Quality      | Perform QA        | Control Quality   |\n| 6. Resource       | Team Assembly    | Acquire Resources | Manage Team       | Control Resources |\n| 7. Communications | Plan Comm.       | Distribute Info   | Manage Comm.      | Control Comm.     |\n| 8. Risk           | Identify Risks   | Plan Risk Resp.   | Implement Resp.   | Monitor Risks     |\n| 9. Procurement    | Plan Procure.    | Conduct Procure.  | Control Procure.  | Close Procure.    |\n| 10. Stakeholder   | Identify         | Plan Engagement   | Manage Engagement | Monitor Engagement|\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n|                   |                   |                   |                   | Closing           |\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n```\n(This simplified ASCII diagram illustrates how knowledge areas span all phases, with example processes.)\n\n## The 10 Knowledge Areas: Descriptions and Sodexo Applications\nHere’s a detailed overview of each knowledge area, including key documents and a Sodexo-specific example:\n\n1. **Project Integration Management**: Coordinates all project elements for unified execution. Key documents: Project Charter, Project Management Plan.\n   - *Sodexo Example*: In a cafeteria implementation, integrating scope changes with schedule adjustments to avoid delays in site opening.\n\n2. **Project Scope Management**: Defines and controls what is included/excluded. Key documents: Requirements Documentation, Work Breakdown Structure (WBS).\n   - *Sodexo Example*: Outlining exact features for a facility maintenance project, like kitchen upgrades, to prevent scope creep.\n\n3. **Project Schedule Management**: Develops and controls timelines. Key documents: Schedule Baseline, Gantt Charts.\n   - *Sodexo Example*: Sequencing tasks for a site renovation, ensuring food service downtime is minimized during peak hours.\n\n4. **Project Cost Management**: Estimates, budgets, and controls costs. Key documents: Cost Baseline, Earned Value Management reports.\n   - *Sodexo Example*: Budgeting for equipment procurement in a new cafeteria setup while tracking variances due to supply chain issues.\n\n5. **Project Quality Management**: Ensures deliverables meet standards. Key documents: Quality Management Plan, Inspection Checklists.\n   - *Sodexo Example*: Implementing hygiene protocols in food services projects to comply with health regulations.\n\n6. **Project Resource Management**: Plans, acquires, and manages team and physical resources. Key documents: Resource Calendars, RACI Matrix.\n   - *Sodexo Example*: Assigning on-site technicians and vendors for facility maintenance without over-allocating staff.\n\n7. **Project Communications Management**: Ensures timely information sharing. Key documents: Communications Management Plan, Status Reports.\n   - *Sodexo Example*: Updating stakeholders on a site overhaul's progress via dashboards to maintain client trust.\n\n8. **Project Risk Management**: Identifies, analyzes, and responds to risks. Key documents: Risk Register, Risk Response Plan.\n   - *Sodexo Example*: Mitigating supply delays in cafeteria implementations due to vendor issues.\n\n9. **Project Procurement Management**: Manages external purchases and contracts. Key documents: Procurement Management Plan, Contracts.\n   - *Sodexo Example*: Negotiating with suppliers for kitchen appliances in a food services project.\n\n10. **Project Stakeholder Management**: Identifies and engages stakeholders. Key documents: Stakeholder Register, Engagement Plan.\n    - *Sodexo Example*: Engaging site clients and employees in a maintenance project to gather feedback and ensure buy-in.\n\n## Interconnections in Sodexo Projects\nThe knowledge areas are interdependent. For instance, poor scope management (Area 2) can inflate costs (Area 4) and delay schedules (Area 3). In a Sodexo site renovation—like upgrading a corporate cafeteria—risk management (Area 8) might identify supply chain disruptions, prompting adjustments in procurement (Area 9) and communications (Area 7) to keep stakeholders informed. This holistic approach ensures projects deliver value, such as improved site efficiency and service quality.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 420,
-      "afterVideoText": "## Reflection and Practice\nTo reinforce your understanding:\n- **Checkpoint 1**: List the 10 Knowledge Areas from memory. If you miss any, review the list above.\n- **Checkpoint 2**: Think of a Sodexo project, like a cafeteria implementation or facility maintenance. Describe how at least three knowledge areas overlap (e.g., scope, cost, and risk in budgeting for unexpected repairs).\n\nJournal your thoughts: How might applying these areas improve a past project you managed? Share in the discussion forum for peer feedback.",
-      "aiConcepts": [
-        "PMBOK Guide: The standard framework outlining project management best practices.",
-        "10 Knowledge Areas: Core domains like scope, schedule, and risk that span the project lifecycle.",
-        "Project Life Cycle Phases: Five process groups (initiation to closing) where knowledge areas are applied.",
-        "Sodexo Site Services: Tailored applications, such as cafeteria setups and maintenance, integrating PMP principles for operational success."
-      ],
-      "conceptIds": [
-        "PMBOK Guide: The standard framework outlining project management best practices.",
-        "10 Knowledge Areas: Core domains like scope, schedule, and risk that span the project lifecycle.",
-        "Project Life Cycle Phases: Five process groups (initiation to closing) where knowledge areas are applied.",
-        "Sodexo Site Services: Tailored applications, such as cafeteria setups and maintenance, integrating PMP principles for operational success."
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
+      "id": "frame-1763832849282-mvgkorxam",
+      "title": "Frame 1",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
+      "aiConcepts": [],
+      "isGenerated": false,
       "order": 1,
-      "chapterId": "flow_overview",
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "timecapsule_1763831671804_k9vvsxvh2",
       "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame introduces the 10 PMP Knowledge Areas from the PMBOK Guide, their application across project phases, and interconnections in Sodexo site projects like cafeteria implementations.",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
-      },
-      "parentFrameId": "flow_overview"
-    },
-    {
-      "id": "frame_2",
-      "title": "This frame explores foundational processes in Project Integration, Scope, and Schedule Management, with practical applications to Sodexo projects like food service rollouts.",
-      "goal": "Grasp the basic processes for integrating project elements, defining scope, and scheduling tasks, applied to Sodexo scenarios like planning a new food service rollout at a site.",
-      "informationText": "# Fundamentals: Integration, Scope, and Schedule Management\n\nThis frame introduces the core processes for **Project Integration Management**, **Scope Management**, and **Schedule Management** as defined in the PMBOK Guide. These knowledge areas are essential for overseeing project elements cohesively, ensuring clear boundaries, and timely execution. In Sodexo contexts, such as rolling out a new food service at a corporate site, these fundamentals help managers align facility upgrades, vendor integrations, and timelines to deliver seamless services without delays or overruns.\n\n## Project Integration Management\n\nIntegration Management acts as the 'glue' holding all project activities together. It involves coordinating processes across the five project life cycle phases: initiation, planning, execution, monitoring/controlling, and closing. Key outputs include the **Project Charter** (formal authorization) and the **Project Management Plan** (comprehensive roadmap).\n\nIn a Sodexo scenario, imagine planning a cafeteria setup at a new client site:\n- **Initiation**: Develop a project charter outlining objectives, like integrating food services with existing facilities.\n- **Execution**: Coordinate teams for procurement, installation, and staff training.\n\n**Key Processes**:\n- Develop Project Charter\n- Develop Project Management Plan\n- Direct and Manage Project Work\n- Manage Project Knowledge\n- Monitor and Control Project Work\n- Perform Integrated Change Control\n- Close Project or Phase\n\n## Scope Management\n\nScope Management defines and controls what is (and isn't) included in the project to prevent **scope creep**—uncontrolled changes that inflate costs and timelines. It starts with collecting requirements and ends with validating deliverables.\n\nFor a Sodexo facilities upgrade (e.g., kitchen renovations for better hygiene compliance):\n- Use a **Work Breakdown Structure (WBS)** to decompose the project into manageable tasks, like 'design phase' > 'plumbing installation' > 'inspection'.\n- Define scope baseline: Clear requirements from stakeholders (e.g., client needs for eco-friendly materials) to avoid adding unplanned features mid-project.\n\n**Key Processes**:\n- Plan Scope Management\n- Collect Requirements\n- Define Scope\n- Create WBS\n- Validate Scope\n- Control Scope\n\n**ASCII Art: Simple WBS Example for Sodexo Cafeteria Rollout**\n```\nProject: New Food Service Rollout\n├── 1.0 Initiation\n│   ├── 1.1 Charter Development\n│   └── 1.2 Stakeholder Identification\n├── 2.0 Planning\n│   ├── 2.1 Scope Definition\n│   ├── 2.2 WBS Creation\n│   └── 2.3 Schedule Development\n├── 3.0 Execution\n│   ├── 3.1 Vendor Integration\n│   └── 3.2 Installation\n└── 4.0 Closing\n    └── 4.1 Validation & Handover\n```\n\n## Schedule Management\n\nSchedule Management focuses on developing, monitoring, and controlling the project timeline to ensure on-time completion. Tools like **Gantt Charts** visualize dependencies and milestones.\n\nIn Sodexo projects, such as a site maintenance overhaul:\n- Identify activities, sequence them (e.g., equipment delivery before installation), estimate durations, and develop the schedule.\n- Use Gantt charts to track progress: For a food service rollout, bars represent tasks like 'menu design (Week 1-2)' overlapping with 'staff training (Week 3)'.\n\n**Key Processes**:\n- Plan Schedule Management\n- Define Activities\n- Sequence Activities\n- Estimate Activity Durations\n- Develop Schedule\n- Control Schedule\n\n**ASCII Art: Basic Gantt Chart Snippet for Sodexo Project**\n```\nTask                  | Week 1 | Week 2 | Week 3 | Week 4 |\n----------------------|--------|--------|--------|--------|\nScope Definition      | █████  |        |        |        |\nWBS Creation          |        | █████  |        |        |\nResource Allocation   |        | ███    | ███    |        |\nExecution & Install   |        |        | █████  | █████  |\nMilestone: Go-Live    |        |        |        |  ●     |\n```\n\nThese areas intersect vertically across process groups (horizontal), as per PMBOK. In Sodexo, mastering them ensures projects like food service integrations run efficiently, aligning with stakeholder expectations in facility and service management.",
+      "createdAt": "2025-11-22T17:34:09.286Z",
+      "updatedAt": "2025-11-22T17:34:37.637Z",
       "videoUrl": "",
       "startTime": 0,
-      "duration": 420,
-      "afterVideoText": "Reflect on the checkpoints: Consider how a project charter would authorize a Sodexo site integration—draft a simple one-sentence charter for a hypothetical cafeteria rollout. Then, brainstorm ways to define scope for a facilities upgrade, listing 3-5 measures to prevent creep (e.g., change control board). Apply this by sketching a basic WBS or Gantt for a personal project scenario at your Sodexo site.",
-      "aiConcepts": [
-        "Project Integration Management",
-        "Scope Management",
-        "Schedule Management",
-        "Work Breakdown Structure",
-        "Gantt Charts in Sodexo Projects"
-      ],
-      "conceptIds": [
-        "Project Integration Management",
-        "Scope Management",
-        "Schedule Management",
-        "Work Breakdown Structure",
-        "Gantt Charts in Sodexo Projects"
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
-      "order": 2,
-      "chapterId": "flow_fundamentals",
-      "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame explores foundational processes in Project Integration, Scope, and Schedule Management, with practical applications to Sodexo projects like food service rollouts.",
-      "documents": [],
+      "duration": 300,
+      "sessionId": "manual_1763832849284_6u3ufomgy",
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
+        "createdAt": "2025-11-22T17:34:09.286Z",
+        "updatedAt": "2025-11-22T17:34:38.097Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
+        "lastSaved": "2025-11-22T17:34:38.097Z"
       },
-      "parentFrameId": "flow_fundamentals"
+      "chapterId": "chapter_1763832873045_2b9cqk",
+      "parentFrameId": "chapter_1763832873045_2b9cqk",
+      "conceptIds": []
     },
     {
-      "id": "frame_3",
-      "title": "This frame introduces foundational techniques in cost estimation, quality assurance, and resource allocation, illustrated with practical Sodexo examples like vendor budgeting and site cleaning operations.",
-      "goal": "Learn essential cost estimation, quality assurance, and resource allocation techniques, with examples from budgeting Sodexo vendor contracts or ensuring quality in site cleaning services.",
-      "informationText": "# Fundamentals: Cost, Quality, and Resource Management\n\nIn project management, as outlined in the PMBOK Guide by the Project Management Institute (PMI), the 10 Knowledge Areas provide the core technical subject matter for effective project delivery. This frame focuses on three interconnected areas: **Project Cost Management**, **Project Quality Management**, and **Project Resource Management**. These are managed across the five process groups (Initiation, Planning, Execution, Monitoring & Controlling, Closing) and are crucial for Sodexo site and project managers handling facility management, food services, or maintenance projects.\n\nTailored to Sodexo contexts, we'll explore essential techniques for estimating costs (e.g., budgeting vendor contracts for cafeteria supplies), assuring quality (e.g., in site cleaning services), and allocating resources (e.g., staffing for a new site overhaul). These fundamentals build practical skills to deliver projects on time, within budget, and to stakeholder satisfaction.\n\n## Project Cost Management\n\nCost Management involves planning, estimating, budgeting, financing, funding, managing, and controlling costs to ensure the project completes within the approved budget. Key processes include:\n- **Plan Cost Management**: Define how costs will be estimated, budgeted, and controlled.\n- **Estimate Costs**: Use techniques like analogous estimating (based on similar past projects) or parametric estimating (e.g., cost per square foot for facility cleaning).\n- **Determine Budget**: Aggregate estimated costs into a cost baseline.\n- **Control Costs**: Monitor variances and implement corrective actions.\n\n### Sodexo Example: Cost Baseline in Procurement\nIn a Sodexo project procuring vendor contracts for food services, the **cost baseline** is the approved version of the time-phased project budget, excluding management reserves. It serves as a reference for measuring performance. For instance:\n- Estimate costs for ingredients and labor at $50,000/month based on historical data from similar cafeteria setups.\n- Aggregate into a baseline: $300,000 for the first quarter.\n- Use **Earned Value Management (EVM)** to track: If you've spent $100,000 but earned $120,000 in value (e.g., completed 40% of setup), you're under budget.\n\nEVM formula example: Schedule Variance (SV) = Earned Value (EV) - Planned Value (PV).\n\n## Project Quality Management\n\nQuality Management ensures that the project satisfies the needs for which it was undertaken by planning, managing, and controlling quality activities. It focuses on prevention over inspection and aligns with stakeholder expectations.\n\nKey processes:\n- **Plan Quality Management**: Identify quality requirements and standards (e.g., ISO standards for food safety in Sodexo cafeterias).\n- **Manage Quality**: Perform audits and process improvements.\n- **Control Quality**: Monitor results to verify compliance (e.g., checklists for cleaning efficacy).\n\n### Sodexo Example: Ensuring Quality in Site Cleaning Services\nFor daily site operations, quality assurance involves proactive measures like training staff on hygiene protocols and using tools such as cause-and-effect diagrams to identify defects (e.g., why a cafeteria floor isn't meeting shine standards). Control quality through inspections: If 95% compliance is the target, sample 10% of cleaned areas daily and remediate variances. This prevents rework, reduces costs, and maintains client satisfaction in facility management projects.\n\n## Project Resource Management\n\nResource Management is about identifying, acquiring, and managing the people and other resources needed for project success. It includes developing the team and ensuring optimal allocation.\n\nKey processes:\n- **Plan Resource Management**: Determine roles, responsibilities, and reporting structures (e.g., RACI matrix for site teams).\n- **Estimate Activity Resources**: Forecast what resources are required (e.g., number of cleaners per shift).\n- **Acquire Resources**: Obtain the team and materials.\n- **Develop and Manage Team**: Build skills and resolve conflicts.\n- **Control Resources**: Monitor utilization to avoid overallocation.\n\n### Sodexo Example: Resource Allocation for Site Teams\nIn a site maintenance overhaul, use **resource histograms** to visualize staffing needs over time, preventing burnout and gaps.\n\nASCII Art Example of a Simple Resource Histogram (Cleaners per Week for a 4-Week Project):\n\n```\nWeek 1 | Week 2 | Week 3 | Week 4\n  ****|  ******|  ***** |  ***\n(4)   | (6)    | (5)    | (3)\nDeep Clean | Routine | Inspection | Final\n```\n\nHere, bars represent cleaners allocated; peaks in Week 2 ensure intensive cleaning without exceeding budget.\n\n## Integration in Sodexo Projects\nThese areas interconnect: Poor resource allocation can inflate costs, while quality lapses lead to rework expenses. In a cafeteria setup project, balance a $200,000 budget by allocating 10 cleaners efficiently and auditing quality weekly using EVM to stay on track.",
+      "id": "frame-1763832856667-vjen0xib9",
+      "title": "Frame 2",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
+      "aiConcepts": [],
+      "isGenerated": false,
+      "order": 1,
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "timecapsule_1763831671804_k9vvsxvh2",
+      "type": "frame",
+      "createdAt": "2025-11-22T17:34:16.667Z",
+      "updatedAt": "2025-11-22T17:34:37.637Z",
       "videoUrl": "",
       "startTime": 0,
-      "duration": 600,
-      "afterVideoText": "Reflect on the checkpoints: Try explaining a cost baseline for a hypothetical Sodexo vendor contract procurement—outline the estimated costs, baseline approval, and how you'd use EVM to monitor it. For quality, brainstorm 3-5 steps to ensure standards in daily site cleaning, such as implementing checklists or staff training. Practice by sketching a resource histogram for your current project team and identify potential overallocations. If challenges arise, revisit the cost and quality sections for remediation.",
-      "aiConcepts": [
-        "Cost Management",
-        "Quality Management",
-        "Resource Management",
-        "Earned Value Management",
-        "Resource Histograms for Site Teams"
-      ],
-      "conceptIds": [
-        "Cost Management",
-        "Quality Management",
-        "Resource Management",
-        "Earned Value Management",
-        "Resource Histograms for Site Teams"
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
-      "order": 3,
-      "chapterId": "flow_fundamentals",
-      "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame introduces foundational techniques in cost estimation, quality assurance, and resource allocation, illustrated with practical Sodexo examples like vendor budgeting and site cleaning operations.",
-      "documents": [],
+      "duration": 300,
+      "sessionId": "manual_1763832849284_6u3ufomgy",
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
+        "createdAt": "2025-11-22T17:34:16.667Z",
+        "updatedAt": "2025-11-22T17:34:38.097Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
+        "lastSaved": "2025-11-22T17:34:38.097Z"
       },
-      "parentFrameId": "flow_fundamentals"
-    },
-    {
-      "id": "frame_4",
-      "title": "This frame introduces foundational Communications and Risk Management skills tailored to Sodexo projects, emphasizing tools like matrices and simulations for effective stakeholder engagement and risk mitigation.",
-      "goal": "Build foundational skills in communicating project status and identifying/managing risks, using Sodexo examples like reporting to site stakeholders or mitigating delays in food supply chains.",
-      "informationText": "# Fundamentals: Communications and Risk Management\n\nIn project management, effective communication and risk management are crucial for ensuring project success, especially in dynamic environments like Sodexo's facility management and food services operations. This frame builds foundational skills by exploring two key PMBOK knowledge areas: Communications Management and Risk Management. These areas help project managers at Sodexo sites plan, execute, and control projects such as cafeteria setups or maintenance overhauls, where clear stakeholder updates and proactive risk handling can prevent delays and cost overruns.\n\n## Communications Management\n\nCommunications Management involves planning, managing, and monitoring communications to ensure timely and appropriate generation, collection, distribution, storage, retrieval, and disposition of project information. According to PMBOK, this knowledge area spans all project phases (initiation through closing) and is vital for stakeholder engagement.\n\n### Key Components\n- **Communication Planning**: Identify who needs what information, when, and how. For Sodexo site managers, this means creating a Communication Matrix to tailor messages for stakeholders like facility teams, suppliers, or executives.\n- **Managing Communications**: Distribute information effectively using tools like emails, meetings, or dashboards.\n- **Controlling Communications**: Monitor and adjust to resolve issues, ensuring feedback loops.\n\n### Sodexo Example: Reporting to Site Stakeholders\nImagine implementing a new cafeteria setup at a corporate site. Site managers must report progress to stakeholders (e.g., HR for employee impact, vendors for supply timelines). Suitable channels include:\n- Weekly email updates for executives (high-level summaries).\n- Daily stand-ups for on-site teams (quick verbal huddles).\n- Shared dashboards (e.g., via Microsoft Teams) for real-time status.\n\n#### Sample Communication Matrix (ASCII Art Representation)\n```\n+--------------------+----------+--------+----------+-------------+\n| Stakeholder        | Info Type| Frequency| Method   | Responsible |\n+--------------------+----------+--------+----------+-------------+\n| Site Manager       | Status   | Weekly  | Email    | PM          |\n| Facility Team      | Details  | Daily   | Meeting  | Coordinator |\n| Executive Sponsor  | Summary  | Bi-weekly| Dashboard| PM          |\n| Supplier           | Updates  | As Needed| Phone    | Procurement |\n+--------------------+----------+--------+----------+-------------+\n```\nThis matrix ensures alignment and reduces miscommunication in fast-paced Sodexo projects.\n\n## Risk Management\n\nRisk Management focuses on identifying, analyzing, and responding to project risks to maximize positive outcomes and minimize negatives. PMBOK emphasizes this as a proactive process across all life cycle phases, using tools like the Risk Register to track potential issues.\n\n### Key Processes\n- **Plan Risk Management**: Define how to approach risk handling.\n- **Identify Risks**: Brainstorm potential threats/opportunities.\n- **Perform Qualitative/Quantitative Analysis**: Assess probability and impact (e.g., qualitative via high/medium/low; quantitative via simulations).\n- **Plan Risk Responses**: Develop strategies like avoid, mitigate, transfer, or accept.\n- **Monitor Risks**: Track and adjust throughout the project.\n\n### Sodexo Example: Mitigating Delays in Food Supply Chains\nIn a food services project, a risk might be supplier delays due to weather, impacting cafeteria operations. Identification: Use brainstorming with procurement teams. Analysis: Qualitative (high impact on service delivery); Quantitative: Monte Carlo Simulation to model delay probabilities and cost variances.\n\n#### Sample Risk Register (Markdown Table)\n| Risk ID | Description | Probability | Impact | Response Strategy | Owner | Status |\n|---------|-------------|-------------|--------|-------------------|-------|--------|\n| R001   | Supply chain delay | Medium (40%) | High  | Mitigate: Diversify suppliers | Procurement | Open |\n| R002   | Budget overrun from material costs | Low (20%) | Medium | Transfer: Insurance clause | Finance | Monitored |\n\n### Monte Carlo Simulation for Sodexo Risks\nThis quantitative tool runs thousands of simulations using input variables (e.g., delivery times, costs) to predict outcomes. For Sodexo, simulate food supply risks: If delays occur 30% of the time, it forecasts project completion probabilities, helping prioritize mitigations like backup vendors.\n\nBy mastering these fundamentals, Sodexo managers can enhance project delivery in facility and food services contexts, aligning with PMBOK's vertical knowledge areas integrated across horizontal process groups.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 420,
-      "afterVideoText": "Reflect on the checkpoints: Consider what communication channels would best suit Sodexo site managers in a maintenance project (e.g., in-person vs. digital). Practice by identifying a risk in a facilities project, such as equipment failure during a site overhaul, and outline a response strategy (e.g., mitigation via preventive maintenance). Journal your thoughts or discuss with a colleague to reinforce application.",
-      "aiConcepts": [
-        "Communications Management",
-        "Risk Management",
-        "Risk Register",
-        "Communication Matrix",
-        "Monte Carlo Simulation for Sodexo Risks"
-      ],
-      "conceptIds": [
-        "Communications Management",
-        "Risk Management",
-        "Risk Register",
-        "Communication Matrix",
-        "Monte Carlo Simulation for Sodexo Risks"
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
-      "order": 4,
-      "chapterId": "flow_fundamentals",
-      "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame introduces foundational Communications and Risk Management skills tailored to Sodexo projects, emphasizing tools like matrices and simulations for effective stakeholder engagement and risk mitigation.",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
-      },
-      "parentFrameId": "flow_fundamentals"
-    },
-    {
-      "id": "frame_5",
-      "title": "This frame introduces the fundamentals of procurement processes and stakeholder engagement, with practical applications to Sodexo scenarios like vendor contracting and client management in facility projects.",
-      "goal": "Understand procurement processes and stakeholder engagement basics, tailored to Sodexo contexts like contracting external vendors for site maintenance or managing client expectations in services.",
-      "informationText": "# Fundamentals: Procurement and Stakeholder Management\n\nIn project management, particularly within Sodexo's facility management and food services operations, **Procurement Management** and **Stakeholder Management** are essential knowledge areas from the PMBOK framework. These areas ensure that projects like site maintenance overhauls or new cafeteria setups are delivered efficiently by sourcing external resources and engaging key parties effectively.\n\n## Procurement Management\nProcurement Management involves the processes required to purchase or acquire products, services, or results needed from outside the project team to complete the work. In Sodexo contexts, this often means contracting external vendors for tasks such as HVAC repairs at a client site or sourcing kitchen equipment for a new food service installation.\n\n### Key Steps in Procurement (Tailored to Sodexo Vendor Selection):\n1. **Plan Procurement Management**: Identify what to procure (e.g., make-or-buy decision for site cleaning services). Develop procurement strategy, including contract types like fixed-price for predictable maintenance jobs.\n2. **Conduct Procurements**: Solicit bids from vendors, evaluate proposals based on cost, quality, and Sodexo compliance (e.g., sustainability standards). Select the best vendor through tools like RFPs (Request for Proposals).\n3. **Control Procurements**: Monitor vendor performance, manage contracts, and handle changes (e.g., addressing delays in cafeteria equipment delivery).\n4. **Close Procurements**: Finalize payments, document lessons learned, and release vendors.\n\n### Make-or-Buy Analysis\nA critical tool here is the **Make-or-Buy Analysis**, which helps decide whether to handle tasks in-house (e.g., Sodexo staff managing basic site upkeep) or outsource (e.g., hiring specialized plumbers for complex repairs). Factors include cost, expertise availability, and risk—Sodexo might 'buy' for non-core services to focus on client-facing food and facility excellence.\n\n## Stakeholder Management\nStakeholder Management focuses on identifying, analyzing, and engaging individuals or groups affected by or influencing the project. In Sodexo projects, stakeholders could include clients (e.g., hospital administrators expecting seamless cafeteria operations), internal teams (e.g., site managers), vendors, and end-users (e.g., employees using maintained facilities).\n\n### Key Processes:\n1. **Identify Stakeholders**: Create a **Stakeholder Register** listing names, roles, interests, and influence (e.g., a client rep with high interest in service uptime).\n2. **Plan Stakeholder Engagement**: Develop strategies to manage expectations, such as regular updates for a demanding client during a site renovation.\n3. **Manage Stakeholder Engagement**: Communicate effectively, resolve issues (e.g., addressing vendor complaints about site access).\n4. **Monitor Stakeholder Engagement**: Assess involvement and adjust plans as needed.\n\n### Power/Interest Grid in Sodexo Context\nUse the **Power/Interest Grid** to prioritize stakeholders:\n\n```\n          High Power\n     +------------------+\nHigh | Manage Closely   | (e.g., Client CEO - high power, high interest in project success)\nInterest| (Keep Satisfied) |\n     |------------------|\nLow  | (Keep Informed)  | (e.g., Regulatory Body - high power, low interest)\nInterest| (Minimal Effort) |\n     +------------------+\n          Low Power\n```\n- **High Power/High Interest**: Engage actively (e.g., site director for maintenance projects).\n- **High Power/Low Interest**: Satisfy needs minimally to avoid risks.\n- **Low Power/High Interest**: Keep informed to maintain support.\n- **Low Power/Low Interest**: Monitor without much effort.\n\nThese concepts align with PMBOK's vertical knowledge areas, integrated across project phases like planning and execution, ensuring Sodexo projects meet client expectations while controlling costs.\n\n## Checkpoints for Reinforcement\n- Describe the procurement steps for a Sodexo vendor selection (e.g., for site maintenance).\n- Explain how to prioritize stakeholders in a site project using the Power/Interest Grid.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 480,
-      "afterVideoText": "Reflect on a recent Sodexo project you've been involved in, such as a vendor contract for facility upgrades. Journal: 1) What procurement decisions did you face, and would a make-or-buy analysis have helped? 2) Who were the key stakeholders, and how might the Power/Interest Grid guide your engagement? Practice by drafting a simple Stakeholder Register for a hypothetical cafeteria setup project, then discuss with a colleague to identify potential oversights.",
-      "aiConcepts": [
-        "Procurement Management",
-        "Stakeholder Management",
-        "Make-or-Buy Analysis",
-        "Stakeholder Register",
-        "Power/Interest Grid in Sodexo"
-      ],
-      "conceptIds": [
-        "Procurement Management",
-        "Stakeholder Management",
-        "Make-or-Buy Analysis",
-        "Stakeholder Register",
-        "Power/Interest Grid in Sodexo"
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
-      "order": 5,
-      "chapterId": "flow_fundamentals",
-      "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame introduces the fundamentals of procurement processes and stakeholder engagement, with practical applications to Sodexo scenarios like vendor contracting and client management in facility projects.",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
-      },
-      "parentFrameId": "flow_fundamentals"
-    },
-    {
-      "id": "frame_6",
-      "title": "This frame dives into applying PMP Knowledge Areas 1-6 (Integration through Resource Management) to Sodexo projects, focusing on tools for handling issues like scope changes in cafeteria setups.",
-      "goal": "Master advanced application of Integration through Resource Management in Sodexo projects, including tools and remediation for issues like scope changes in a cafeteria setup.",
-      "informationText": "# Deep-Dive: Applying Planning Knowledge Areas (1-6) at Sodexo Sites\n\nIn this frame, we explore the advanced application of the first six PMP Knowledge Areas—Integration Management, Scope Management, Schedule Management, Cost Management, Quality Management, and Resource Management—in the context of Sodexo projects. Sodexo, as a leader in facility management and food services, often handles projects like setting up new cafeterias, overhauling site maintenance, or optimizing resource allocation for on-site dining operations. These knowledge areas intersect vertically across the project life cycle phases (initiation, planning, execution, monitoring/controlling, and closing), ensuring projects are delivered efficiently while adapting to real-world challenges such as scope changes due to client feedback or supply chain disruptions.\n\n## Key Applications in Sodexo Projects\n\n### 1. Integration Management: Coordinating All Elements\nIntegration Management acts as the 'glue' for all knowledge areas, ensuring cohesive project execution. In a Sodexo cafeteria setup, this involves developing a project management plan that aligns food service installation with facility upgrades. Tools like the Integrated Change Control process help manage scope changes, such as adding eco-friendly kitchen equipment mid-project.\n\n- **Change Control Process**: Evaluate impacts on time, cost, and quality before approving changes.\n- **Sodexo Example**: If a client requests vegan menu expansions, integrate this by updating the project charter and baseline plans.\n\n### 2. Scope Management: Defining and Controlling What’s Included\nScope Management prevents 'scope creep' by clearly defining deliverables. For a cafeteria project, validate scope through stakeholder workshops to confirm requirements like seating capacity and menu variety.\n\n- **Scope Validation Techniques**: Use acceptance criteria checklists and work breakdown structures (WBS) to verify deliverables.\n- **Remediation for Issues**: If scope changes occur (e.g., expanding the cafeteria footprint), perform a scope baseline update and re-validate with inspections.\n\n### 3. Schedule Management: Timely Delivery\nSchedule Management ensures projects stay on track using techniques like the Critical Path Method (CPM). In Sodexo site projects, delays from vendor shipments can be mitigated by identifying float (slack time) in non-critical tasks.\n\n- **Critical Path Method**: Map dependencies to find the longest sequence of tasks determining project duration.\n- **Visual Diagram (ASCII Art)**:\n```\nStart --> Task A (5 days) --> Task B (3 days, Critical) --> Task C (7 days) --> End\n         |                  |\n         +--> Task D (4 days, Float: 2) --> +\n```\nHere, Task D has 2 days of float for delays without impacting the critical path.\n\n### 4. Cost Management: Budget Control\nTrack and control costs to avoid overruns. In Sodexo budgets for site setups, estimate using analogous methods (past cafeteria projects) and monitor with earned value management (EVM).\n\n- **Tools**: Cost baseline variance analysis.\n- **Sodexo Case**: A 10% material cost increase due to inflation—remediate by value engineering (e.g., substitute suppliers).\n\n### 5. Quality Management: Ensuring Standards\nQuality Management integrates audits to meet Sodexo’s high standards for food safety and service. Plan quality with metrics like defect rates in cafeteria installations.\n\n- **Quality Audits**: Regular inspections of equipment setup to ensure compliance with HACCP (Hazard Analysis Critical Control Points).\n- **Techniques**: Pareto analysis to prioritize quality issues.\n\n### 6. Resource Management: Optimizing People and Assets\nAcquire, develop, and manage teams and materials efficiently. For Sodexo, this means scheduling chefs and maintenance crews without overlaps.\n\n- **Resource Optimization**: Use resource histograms to level workloads and avoid burnout.\n- **Sodexo Case Study**: In a multi-site rollout, optimize by cross-training staff, reducing hiring costs by 15%.\n\n## Interconnections and Tools\nThese areas overlap; for instance, a scope change triggers schedule and cost updates via integration. Use PMBOK-aligned tools like MS Project for scheduling or Primavera for resource leveling. In Sodexo environments, apply these to handle issues like cafeteria scope changes by conducting impact assessments and stakeholder approvals.\n\nDraw from PMBOK fundamentals: Knowledge areas are vertical pillars supporting horizontal process groups, essential for successful project delivery in dynamic settings like food services.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 600,
-      "afterVideoText": "To reinforce your learning, reflect on the interconnections between these knowledge areas. **Practice Suggestion 1**: Simulate handling a cost overrun in a site budget—assume a 20% variance in cafeteria equipment costs; outline steps using cost management tools like EVM to remediate (e.g., re-allocate resources or negotiate vendor discounts). **Practice Suggestion 2**: If confused on scheduling, review: What is float and how to use it in delays? Float is the amount of time a task can be delayed without affecting the project end date; apply it by prioritizing critical path tasks and buffering non-critical ones in your Sodexo project timeline. Journal your insights and revisit the WBS for the cafeteria example.",
-      "aiConcepts": [
-        "Change Control in Integration",
-        "Scope Validation Techniques",
-        "Critical Path Method",
-        "Quality Audits",
-        "Resource Optimization",
-        "Sodexo Case Studies"
-      ],
-      "conceptIds": [
-        "Change Control in Integration",
-        "Scope Validation Techniques",
-        "Critical Path Method",
-        "Quality Audits",
-        "Resource Optimization",
-        "Sodexo Case Studies"
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
-      "order": 6,
-      "chapterId": "flow_deep-dive",
-      "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame dives into applying PMP Knowledge Areas 1-6 (Integration through Resource Management) to Sodexo projects, focusing on tools for handling issues like scope changes in cafeteria setups.",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
-      },
-      "parentFrameId": "flow_deep-dive"
-    },
-    {
-      "id": "frame_7",
-      "title": "This frame provides in-depth applications of PMP knowledge areas 7-10 (Communications, Risk, Procurement, Stakeholder Management) tailored to Sodexo site projects, with examples and integration strategies.",
-      "goal": "Achieve expertise in Communications, Risk, Procurement, and Stakeholder Management applications, with Sodexo-specific examples like risk in supply disruptions and stakeholder alignment in service contracts; includes remediation for communication gaps.",
-      "informationText": "# Deep-Dive: Applying Support Knowledge Areas (7-10) at Sodexo Sites\n\nThis frame builds expertise in the four support knowledge areas from the PMBOK Guide: Project Communications Management, Project Risk Management, Project Procurement Management, and Project Stakeholder Management. These areas are crucial for Sodexo site and project managers handling services like facility maintenance, food services, and cafeteria setups. We'll explore practical applications with Sodexo-specific examples, such as mitigating supply disruptions in food procurement or aligning stakeholders in multi-site service contracts. Emphasis is placed on integration across areas, including remediation strategies for communication gaps.\n\n## Project Communications Management\nEffective communication ensures project information flows to the right people at the right time. In Sodexo contexts, this involves reporting on site operations, like updates on a new cafeteria installation project.\n\n- **Key Processes**: Plan Communications, Manage Communications, Monitor Communications.\n- **Escalation Processes**: Define clear escalation paths for issues, e.g., if a facility maintenance delay affects food service, escalate from site supervisor to regional manager within 24 hours.\n- **Sodexo Example**: During a site overhaul, use tools like shared dashboards to bridge communication gaps between on-site teams and corporate stakeholders, remediating gaps by conducting weekly feedback sessions.\n\n## Project Risk Management\nRisk management identifies, analyzes, and responds to uncertainties that could impact project objectives. Sodexo projects often face risks like supply chain volatility in food services.\n\n- **Key Processes**: Plan Risk Management, Identify Risks, Perform Qualitative/Quantitative Risk Analysis, Plan Risk Responses, Implement Risk Responses, Monitor Risks.\n- **Qualitative vs. Quantitative Risk Analysis**: Qualitative assesses probability and impact subjectively (e.g., high-impact vendor delay rated 'high' risk); quantitative uses numerical data (e.g., Monte Carlo simulation estimating 20% chance of $50K overrun in a cafeteria setup).\n- **Sodexo Example**: For supply disruptions (e.g., delayed fresh produce delivery), develop contingency plans like alternative local suppliers to avoid service interruptions at client sites.\n\n## Project Procurement Management\nThis area handles acquiring goods and services from external sources, vital for Sodexo's vendor-dependent operations in facility and food services.\n\n- **Key Processes**: Plan Procurement Management, Conduct Procurements, Control Procurements, Close Procurements.\n- **Contract Types**: Fixed-price for predictable cafeteria equipment installs; cost-reimbursable for variable site maintenance; time-and-materials for short-term food supply trials.\n- **Sodexo Example**: In service contracts, negotiate SLAs (Service Level Agreements) with vendors to ensure timely deliveries, integrating risk assessments to avoid cost overruns.\n\n## Project Stakeholder Management\nStakeholders include clients, employees, and vendors; managing them ensures buy-in and project success.\n\n- **Key Processes**: Identify Stakeholders, Plan Stakeholder Engagement, Manage Stakeholder Engagement, Monitor Stakeholder Engagement.\n- **Stakeholder Engagement Plans**: Create tailored strategies, e.g., regular town halls for site employees during a maintenance project.\n- **Sodexo Example**: Map stakeholders in a food service contract (e.g., client executives, kitchen staff, suppliers) and align them through joint workshops to resolve conflicts over service specs.\n\n## Sodexo Integration Across Areas\nThese knowledge areas interconnect: Poor communication can amplify risks, while strong stakeholder engagement aids procurement. For instance, in a site-wide upgrade, use risk analysis to inform communication plans and stakeholder updates, ensuring holistic project control.\n\n**Visual Diagram: Knowledge Areas Integration**\n```\n+-------------------+     +-------------------+     +-------------------+\n| Communications    |<--->|   Risk Management |<--->| Procurement       |\n| (Escalation)      |     | (Analysis/Response)|     | (Contracts)       |\n+-------------------+     +-------------------+     +-------------------+\n         ^                           |                           ^\n         |                           |                           |\n         +------------+--------------+------------+--------------+\n                      | Stakeholder Management (Engagement Plans) |\n                      +------------------------------------------+\n                          Sodexo Site Application\n```\n\nRemediation for Gaps: If communication breakdowns occur (e.g., misaligned expectations in contracts), revisit stakeholder registers and conduct targeted training.",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 420,
-      "afterVideoText": "Reflect on your learning by applying concepts to a Sodexo scenario: Develop a risk response plan for a vendor delay in a food service project at your site, including escalation via communications and stakeholder notifications. If confusion arises with stakeholder mapping, revisit: How to identify and engage key players (e.g., clients, teams, suppliers) in Sodexo services? Practice by drafting a simple stakeholder engagement matrix for a hypothetical cafeteria setup project.",
-      "aiConcepts": [
-        "Escalation Processes in Communications",
-        "Qualitative vs. Quantitative Risk Analysis",
-        "Contract Types for Procurement",
-        "Stakeholder Engagement Plans",
-        "Sodexo Integration Across Areas"
-      ],
-      "conceptIds": [
-        "Escalation Processes in Communications",
-        "Qualitative vs. Quantitative Risk Analysis",
-        "Contract Types for Procurement",
-        "Stakeholder Engagement Plans",
-        "Sodexo Integration Across Areas"
-      ],
-      "isGenerated": true,
-      "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-      "sourceUrl": "",
-      "order": 7,
-      "chapterId": "flow_deep-dive",
-      "type": "frame",
-      "createdAt": "2025-11-22T09:51:08.338Z",
-      "updatedAt": "2025-11-22T09:51:08.340Z",
-      "notes": "This frame provides in-depth applications of PMP knowledge areas 7-10 (Communications, Risk, Procurement, Stakeholder Management) tailored to Sodexo site projects, with examples and integration strategies.",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T11:18:36.715Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-22T11:18:36.715Z"
-      },
-      "parentFrameId": "flow_deep-dive"
+      "chapterId": "chapter_1763832873045_2b9cqk",
+      "parentFrameId": "chapter_1763832873045_2b9cqk",
+      "conceptIds": []
     }
   ],
   "chapters": [
     {
-      "id": "flow_overview",
-      "title": "Orientation",
-      "description": "Set context and highlight the learner journey.",
-      "color": "#0EA5E9",
+      "id": "chapter_1763832873045_2b9cqk",
+      "title": "c1",
+      "description": "",
+      "color": "#EF4444",
+      "conceptIds": [],
+      "frameIds": [
+        "frame-1763832849282-mvgkorxam",
+        "frame-1763832856667-vjen0xib9"
+      ],
       "order": 0,
-      "frameIds": [
-        "frame_1"
-      ],
-      "conceptIds": [],
-      "createdAt": "2025-11-22T09:51:08.340Z",
-      "updatedAt": "2025-11-22T11:18:36.715Z"
-    },
-    {
-      "id": "flow_fundamentals",
-      "title": "Build the Experience",
-      "description": "Cover the foundational steps and workflows.",
-      "color": "#A855F7",
-      "order": 1,
-      "frameIds": [
-        "frame_2",
-        "frame_3",
-        "frame_4",
-        "frame_5"
-      ],
-      "conceptIds": [],
-      "createdAt": "2025-11-22T09:51:08.340Z",
-      "updatedAt": "2025-11-22T11:18:36.715Z"
-    },
-    {
-      "id": "flow_deep-dive",
-      "title": "Launch + Iterate",
-      "description": "Advanced mastery and iteration tactics.",
-      "color": "#F97316",
-      "order": 2,
-      "frameIds": [
-        "frame_6",
-        "frame_7"
-      ],
-      "conceptIds": [],
-      "createdAt": "2025-11-22T09:51:08.340Z",
-      "updatedAt": "2025-11-22T11:18:36.715Z"
+      "createdAt": "2025-11-22T17:34:33.045Z",
+      "updatedAt": "2025-11-22T17:34:38.097Z",
+      "linkSequentially": true
     }
   ],
   "graphState": {
     "nodes": [
       {
-        "id": "flow_overview",
+        "id": "chapter_1763832873045_2b9cqk",
         "type": "chapter",
         "position": {
-          "x": 70,
+          "x": 200,
           "y": 50
         },
         "data": {
           "type": "chapter",
-          "id": "flow_overview",
-          "title": "Orientation",
-          "description": "Set context and highlight the learner journey.",
+          "id": "chapter_1763832873045_2b9cqk",
+          "title": "c1",
+          "description": "",
           "frameIds": [
-            "frame_1"
+            "frame-1763832849282-mvgkorxam",
+            "frame-1763832856667-vjen0xib9"
           ],
           "conceptIds": [],
           "order": 0,
-          "color": "#0EA5E9",
-          "linkSequentially": false
+          "color": "#EF4444",
+          "linkSequentially": true,
+          "updatedAt": "2025-11-22T17:34:33.562Z"
         },
         "measured": {
           "width": 320,
-          "height": 208
+          "height": 188
         }
       },
       {
-        "id": "flow_fundamentals",
-        "type": "chapter",
-        "position": {
-          "x": 1320,
-          "y": 50
-        },
-        "data": {
-          "type": "chapter",
-          "id": "flow_fundamentals",
-          "title": "Build the Experience",
-          "description": "Cover the foundational steps and workflows.",
-          "frameIds": [
-            "frame_2",
-            "frame_3",
-            "frame_4",
-            "frame_5"
-          ],
-          "conceptIds": [],
-          "order": 1,
-          "color": "#A855F7",
-          "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 208
-        }
-      },
-      {
-        "id": "flow_deep-dive",
-        "type": "chapter",
-        "position": {
-          "x": 2820,
-          "y": 50
-        },
-        "data": {
-          "type": "chapter",
-          "id": "flow_deep-dive",
-          "title": "Launch + Iterate",
-          "description": "Advanced mastery and iteration tactics.",
-          "frameIds": [
-            "frame_6",
-            "frame_7"
-          ],
-          "conceptIds": [],
-          "order": 2,
-          "color": "#F97316",
-          "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 208
-        }
-      },
-      {
-        "id": "node_1763810306410_6hw2x6g4m_0",
+        "id": "node_1763832849413_8takbi9jd_2",
         "type": "aiframe",
         "position": {
           "x": 50,
@@ -430,271 +114,86 @@
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_1",
-          "title": "This frame introduces the 10 PMP Knowledge Areas from the PMBOK Guide, their application across project phases, and interconnections in Sodexo site projects like cafeteria implementations.",
-          "goal": "Understand the structure and purpose of the 10 Knowledge Areas and how they interconnect in managing Sodexo site projects like cafeteria implementations or facility maintenance.",
-          "informationText": "# Overview of the 10 PMP Knowledge Areas in Sodexo Context\n\n## Introduction to PMBOK and Knowledge Areas\nThe Project Management Body of Knowledge (PMBOK) Guide, published by the Project Management Institute (PMI), serves as the foundational framework for project management practices. It defines **10 Knowledge Areas** as the core technical subject matter essential for effective project, program, and portfolio management. These areas represent key aspects that project managers must oversee to plan, schedule, track, and deliver projects successfully, in collaboration with teams and stakeholders.\n\nIn the context of Sodexo site services—such as implementing new cafeteria setups, facility maintenance overhauls, or food services expansions—these knowledge areas provide a structured approach to managing complex, on-site projects. They ensure projects align with Sodexo's goals of operational efficiency, client satisfaction, and regulatory compliance in facility management and food services.\n\n## Project Life Cycle Phases (Process Groups)\nKnowledge areas are applied across the **five project life cycle phases** (also called process groups):\n1. **Initiation**: Defining the project and obtaining approvals.\n2. **Planning**: Developing the project management plan.\n3. **Execution**: Carrying out the plan and managing resources.\n4. **Monitoring and Controlling**: Tracking progress and making adjustments.\n5. **Closing**: Finalizing all activities and obtaining approvals.\n\nThink of the process groups as horizontal stages, while the knowledge areas run vertically, intersecting throughout the project lifecycle. This matrix ensures comprehensive coverage.\n\n### Visual Diagram: Process Groups vs. Knowledge Areas\n```\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n| Knowledge Areas   | Initiation        | Planning          | Execution         | Monitoring/       |\n|                   |                   |                   |                   | Controlling       |\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n| 1. Integration    | Charter          | Develop Plan      | Direct Work       | Control Changes   |\n| 2. Scope          | Define           | Define WBS        | Validate Scope    | Control Scope     |\n| 3. Schedule       | Milestones       | Develop Schedule  | Manage Activities | Control Schedule  |\n| 4. Cost           | Budget Est.      | Cost Management   | Manage Costs      | Control Costs     |\n| 5. Quality        | Standards        | Plan Quality      | Perform QA        | Control Quality   |\n| 6. Resource       | Team Assembly    | Acquire Resources | Manage Team       | Control Resources |\n| 7. Communications | Plan Comm.       | Distribute Info   | Manage Comm.      | Control Comm.     |\n| 8. Risk           | Identify Risks   | Plan Risk Resp.   | Implement Resp.   | Monitor Risks     |\n| 9. Procurement    | Plan Procure.    | Conduct Procure.  | Control Procure.  | Close Procure.    |\n| 10. Stakeholder   | Identify         | Plan Engagement   | Manage Engagement | Monitor Engagement|\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n|                   |                   |                   |                   | Closing           |\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n```\n(This simplified ASCII diagram illustrates how knowledge areas span all phases, with example processes.)\n\n## The 10 Knowledge Areas: Descriptions and Sodexo Applications\nHere’s a detailed overview of each knowledge area, including key documents and a Sodexo-specific example:\n\n1. **Project Integration Management**: Coordinates all project elements for unified execution. Key documents: Project Charter, Project Management Plan.\n   - *Sodexo Example*: In a cafeteria implementation, integrating scope changes with schedule adjustments to avoid delays in site opening.\n\n2. **Project Scope Management**: Defines and controls what is included/excluded. Key documents: Requirements Documentation, Work Breakdown Structure (WBS).\n   - *Sodexo Example*: Outlining exact features for a facility maintenance project, like kitchen upgrades, to prevent scope creep.\n\n3. **Project Schedule Management**: Develops and controls timelines. Key documents: Schedule Baseline, Gantt Charts.\n   - *Sodexo Example*: Sequencing tasks for a site renovation, ensuring food service downtime is minimized during peak hours.\n\n4. **Project Cost Management**: Estimates, budgets, and controls costs. Key documents: Cost Baseline, Earned Value Management reports.\n   - *Sodexo Example*: Budgeting for equipment procurement in a new cafeteria setup while tracking variances due to supply chain issues.\n\n5. **Project Quality Management**: Ensures deliverables meet standards. Key documents: Quality Management Plan, Inspection Checklists.\n   - *Sodexo Example*: Implementing hygiene protocols in food services projects to comply with health regulations.\n\n6. **Project Resource Management**: Plans, acquires, and manages team and physical resources. Key documents: Resource Calendars, RACI Matrix.\n   - *Sodexo Example*: Assigning on-site technicians and vendors for facility maintenance without over-allocating staff.\n\n7. **Project Communications Management**: Ensures timely information sharing. Key documents: Communications Management Plan, Status Reports.\n   - *Sodexo Example*: Updating stakeholders on a site overhaul's progress via dashboards to maintain client trust.\n\n8. **Project Risk Management**: Identifies, analyzes, and responds to risks. Key documents: Risk Register, Risk Response Plan.\n   - *Sodexo Example*: Mitigating supply delays in cafeteria implementations due to vendor issues.\n\n9. **Project Procurement Management**: Manages external purchases and contracts. Key documents: Procurement Management Plan, Contracts.\n   - *Sodexo Example*: Negotiating with suppliers for kitchen appliances in a food services project.\n\n10. **Project Stakeholder Management**: Identifies and engages stakeholders. Key documents: Stakeholder Register, Engagement Plan.\n    - *Sodexo Example*: Engaging site clients and employees in a maintenance project to gather feedback and ensure buy-in.\n\n## Interconnections in Sodexo Projects\nThe knowledge areas are interdependent. For instance, poor scope management (Area 2) can inflate costs (Area 4) and delay schedules (Area 3). In a Sodexo site renovation—like upgrading a corporate cafeteria—risk management (Area 8) might identify supply chain disruptions, prompting adjustments in procurement (Area 9) and communications (Area 7) to keep stakeholders informed. This holistic approach ensures projects deliver value, such as improved site efficiency and service quality.",
-          "afterVideoText": "## Reflection and Practice\nTo reinforce your understanding:\n- **Checkpoint 1**: List the 10 Knowledge Areas from memory. If you miss any, review the list above.\n- **Checkpoint 2**: Think of a Sodexo project, like a cafeteria implementation or facility maintenance. Describe how at least three knowledge areas overlap (e.g., scope, cost, and risk in budgeting for unexpected repairs).\n\nJournal your thoughts: How might applying these areas improve a past project you managed? Share in the discussion forum for peer feedback.",
-          "aiConcepts": [
-            "PMBOK Guide: The standard framework outlining project management best practices.",
-            "10 Knowledge Areas: Core domains like scope, schedule, and risk that span the project lifecycle.",
-            "Project Life Cycle Phases: Five process groups (initiation to closing) where knowledge areas are applied.",
-            "Sodexo Site Services: Tailored applications, such as cafeteria setups and maintenance, integrating PMP principles for operational success."
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_overview",
-          "parentFrameId": "flow_overview"
+          "frameId": "frame-1763832849282-mvgkorxam",
+          "title": "Frame 1",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
+          "aiConcepts": [],
+          "isGenerated": false,
+          "updatedAt": "2025-11-22T17:34:37.709Z"
         },
         "measured": {
           "width": 480,
-          "height": 848
-        }
+          "height": 460
+        },
+        "selected": false,
+        "dragging": false
       },
       {
-        "id": "node_1763810306410_ossz49vnv_1",
+        "id": "node_1763832856667_3s3meaa3t_3",
         "type": "aiframe",
         "position": {
-          "x": 550,
-          "y": 500
+          "x": 180,
+          "y": 1000
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_2",
-          "title": "This frame explores foundational processes in Project Integration, Scope, and Schedule Management, with practical applications to Sodexo projects like food service rollouts.",
-          "goal": "Grasp the basic processes for integrating project elements, defining scope, and scheduling tasks, applied to Sodexo scenarios like planning a new food service rollout at a site.",
-          "informationText": "# Fundamentals: Integration, Scope, and Schedule Management\n\nThis frame introduces the core processes for **Project Integration Management**, **Scope Management**, and **Schedule Management** as defined in the PMBOK Guide. These knowledge areas are essential for overseeing project elements cohesively, ensuring clear boundaries, and timely execution. In Sodexo contexts, such as rolling out a new food service at a corporate site, these fundamentals help managers align facility upgrades, vendor integrations, and timelines to deliver seamless services without delays or overruns.\n\n## Project Integration Management\n\nIntegration Management acts as the 'glue' holding all project activities together. It involves coordinating processes across the five project life cycle phases: initiation, planning, execution, monitoring/controlling, and closing. Key outputs include the **Project Charter** (formal authorization) and the **Project Management Plan** (comprehensive roadmap).\n\nIn a Sodexo scenario, imagine planning a cafeteria setup at a new client site:\n- **Initiation**: Develop a project charter outlining objectives, like integrating food services with existing facilities.\n- **Execution**: Coordinate teams for procurement, installation, and staff training.\n\n**Key Processes**:\n- Develop Project Charter\n- Develop Project Management Plan\n- Direct and Manage Project Work\n- Manage Project Knowledge\n- Monitor and Control Project Work\n- Perform Integrated Change Control\n- Close Project or Phase\n\n## Scope Management\n\nScope Management defines and controls what is (and isn't) included in the project to prevent **scope creep**—uncontrolled changes that inflate costs and timelines. It starts with collecting requirements and ends with validating deliverables.\n\nFor a Sodexo facilities upgrade (e.g., kitchen renovations for better hygiene compliance):\n- Use a **Work Breakdown Structure (WBS)** to decompose the project into manageable tasks, like 'design phase' > 'plumbing installation' > 'inspection'.\n- Define scope baseline: Clear requirements from stakeholders (e.g., client needs for eco-friendly materials) to avoid adding unplanned features mid-project.\n\n**Key Processes**:\n- Plan Scope Management\n- Collect Requirements\n- Define Scope\n- Create WBS\n- Validate Scope\n- Control Scope\n\n**ASCII Art: Simple WBS Example for Sodexo Cafeteria Rollout**\n```\nProject: New Food Service Rollout\n├── 1.0 Initiation\n│   ├── 1.1 Charter Development\n│   └── 1.2 Stakeholder Identification\n├── 2.0 Planning\n│   ├── 2.1 Scope Definition\n│   ├── 2.2 WBS Creation\n│   └── 2.3 Schedule Development\n├── 3.0 Execution\n│   ├── 3.1 Vendor Integration\n│   └── 3.2 Installation\n└── 4.0 Closing\n    └── 4.1 Validation & Handover\n```\n\n## Schedule Management\n\nSchedule Management focuses on developing, monitoring, and controlling the project timeline to ensure on-time completion. Tools like **Gantt Charts** visualize dependencies and milestones.\n\nIn Sodexo projects, such as a site maintenance overhaul:\n- Identify activities, sequence them (e.g., equipment delivery before installation), estimate durations, and develop the schedule.\n- Use Gantt charts to track progress: For a food service rollout, bars represent tasks like 'menu design (Week 1-2)' overlapping with 'staff training (Week 3)'.\n\n**Key Processes**:\n- Plan Schedule Management\n- Define Activities\n- Sequence Activities\n- Estimate Activity Durations\n- Develop Schedule\n- Control Schedule\n\n**ASCII Art: Basic Gantt Chart Snippet for Sodexo Project**\n```\nTask                  | Week 1 | Week 2 | Week 3 | Week 4 |\n----------------------|--------|--------|--------|--------|\nScope Definition      | █████  |        |        |        |\nWBS Creation          |        | █████  |        |        |\nResource Allocation   |        | ███    | ███    |        |\nExecution & Install   |        |        | █████  | █████  |\nMilestone: Go-Live    |        |        |        |  ●     |\n```\n\nThese areas intersect vertically across process groups (horizontal), as per PMBOK. In Sodexo, mastering them ensures projects like food service integrations run efficiently, aligning with stakeholder expectations in facility and service management.",
-          "afterVideoText": "Reflect on the checkpoints: Consider how a project charter would authorize a Sodexo site integration—draft a simple one-sentence charter for a hypothetical cafeteria rollout. Then, brainstorm ways to define scope for a facilities upgrade, listing 3-5 measures to prevent creep (e.g., change control board). Apply this by sketching a basic WBS or Gantt for a personal project scenario at your Sodexo site.",
-          "aiConcepts": [
-            "Project Integration Management",
-            "Scope Management",
-            "Schedule Management",
-            "Work Breakdown Structure",
-            "Gantt Charts in Sodexo Projects"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_fundamentals",
-          "parentFrameId": "flow_fundamentals"
+          "frameId": "frame-1763832856667-vjen0xib9",
+          "title": "Frame 2",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
+          "aiConcepts": [],
+          "isGenerated": false,
+          "updatedAt": "2025-11-22T17:34:37.709Z"
         },
         "measured": {
           "width": 480,
-          "height": 791
-        }
-      },
-      {
-        "id": "node_1763810306410_0wzjxs5o4_2",
-        "type": "aiframe",
-        "position": {
-          "x": 1050,
-          "y": 500
+          "height": 460
         },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_3",
-          "title": "This frame introduces foundational techniques in cost estimation, quality assurance, and resource allocation, illustrated with practical Sodexo examples like vendor budgeting and site cleaning operations.",
-          "goal": "Learn essential cost estimation, quality assurance, and resource allocation techniques, with examples from budgeting Sodexo vendor contracts or ensuring quality in site cleaning services.",
-          "informationText": "# Fundamentals: Cost, Quality, and Resource Management\n\nIn project management, as outlined in the PMBOK Guide by the Project Management Institute (PMI), the 10 Knowledge Areas provide the core technical subject matter for effective project delivery. This frame focuses on three interconnected areas: **Project Cost Management**, **Project Quality Management**, and **Project Resource Management**. These are managed across the five process groups (Initiation, Planning, Execution, Monitoring & Controlling, Closing) and are crucial for Sodexo site and project managers handling facility management, food services, or maintenance projects.\n\nTailored to Sodexo contexts, we'll explore essential techniques for estimating costs (e.g., budgeting vendor contracts for cafeteria supplies), assuring quality (e.g., in site cleaning services), and allocating resources (e.g., staffing for a new site overhaul). These fundamentals build practical skills to deliver projects on time, within budget, and to stakeholder satisfaction.\n\n## Project Cost Management\n\nCost Management involves planning, estimating, budgeting, financing, funding, managing, and controlling costs to ensure the project completes within the approved budget. Key processes include:\n- **Plan Cost Management**: Define how costs will be estimated, budgeted, and controlled.\n- **Estimate Costs**: Use techniques like analogous estimating (based on similar past projects) or parametric estimating (e.g., cost per square foot for facility cleaning).\n- **Determine Budget**: Aggregate estimated costs into a cost baseline.\n- **Control Costs**: Monitor variances and implement corrective actions.\n\n### Sodexo Example: Cost Baseline in Procurement\nIn a Sodexo project procuring vendor contracts for food services, the **cost baseline** is the approved version of the time-phased project budget, excluding management reserves. It serves as a reference for measuring performance. For instance:\n- Estimate costs for ingredients and labor at $50,000/month based on historical data from similar cafeteria setups.\n- Aggregate into a baseline: $300,000 for the first quarter.\n- Use **Earned Value Management (EVM)** to track: If you've spent $100,000 but earned $120,000 in value (e.g., completed 40% of setup), you're under budget.\n\nEVM formula example: Schedule Variance (SV) = Earned Value (EV) - Planned Value (PV).\n\n## Project Quality Management\n\nQuality Management ensures that the project satisfies the needs for which it was undertaken by planning, managing, and controlling quality activities. It focuses on prevention over inspection and aligns with stakeholder expectations.\n\nKey processes:\n- **Plan Quality Management**: Identify quality requirements and standards (e.g., ISO standards for food safety in Sodexo cafeterias).\n- **Manage Quality**: Perform audits and process improvements.\n- **Control Quality**: Monitor results to verify compliance (e.g., checklists for cleaning efficacy).\n\n### Sodexo Example: Ensuring Quality in Site Cleaning Services\nFor daily site operations, quality assurance involves proactive measures like training staff on hygiene protocols and using tools such as cause-and-effect diagrams to identify defects (e.g., why a cafeteria floor isn't meeting shine standards). Control quality through inspections: If 95% compliance is the target, sample 10% of cleaned areas daily and remediate variances. This prevents rework, reduces costs, and maintains client satisfaction in facility management projects.\n\n## Project Resource Management\n\nResource Management is about identifying, acquiring, and managing the people and other resources needed for project success. It includes developing the team and ensuring optimal allocation.\n\nKey processes:\n- **Plan Resource Management**: Determine roles, responsibilities, and reporting structures (e.g., RACI matrix for site teams).\n- **Estimate Activity Resources**: Forecast what resources are required (e.g., number of cleaners per shift).\n- **Acquire Resources**: Obtain the team and materials.\n- **Develop and Manage Team**: Build skills and resolve conflicts.\n- **Control Resources**: Monitor utilization to avoid overallocation.\n\n### Sodexo Example: Resource Allocation for Site Teams\nIn a site maintenance overhaul, use **resource histograms** to visualize staffing needs over time, preventing burnout and gaps.\n\nASCII Art Example of a Simple Resource Histogram (Cleaners per Week for a 4-Week Project):\n\n```\nWeek 1 | Week 2 | Week 3 | Week 4\n  ****|  ******|  ***** |  ***\n(4)   | (6)    | (5)    | (3)\nDeep Clean | Routine | Inspection | Final\n```\n\nHere, bars represent cleaners allocated; peaks in Week 2 ensure intensive cleaning without exceeding budget.\n\n## Integration in Sodexo Projects\nThese areas interconnect: Poor resource allocation can inflate costs, while quality lapses lead to rework expenses. In a cafeteria setup project, balance a $200,000 budget by allocating 10 cleaners efficiently and auditing quality weekly using EVM to stay on track.",
-          "afterVideoText": "Reflect on the checkpoints: Try explaining a cost baseline for a hypothetical Sodexo vendor contract procurement—outline the estimated costs, baseline approval, and how you'd use EVM to monitor it. For quality, brainstorm 3-5 steps to ensure standards in daily site cleaning, such as implementing checklists or staff training. Practice by sketching a resource histogram for your current project team and identify potential overallocations. If challenges arise, revisit the cost and quality sections for remediation.",
-          "aiConcepts": [
-            "Cost Management",
-            "Quality Management",
-            "Resource Management",
-            "Earned Value Management",
-            "Resource Histograms for Site Teams"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_fundamentals",
-          "parentFrameId": "flow_fundamentals"
-        },
-        "measured": {
-          "width": 480,
-          "height": 784
-        }
-      },
-      {
-        "id": "node_1763810306410_sbmd3xd1q_3",
-        "type": "aiframe",
-        "position": {
-          "x": 1550,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_4",
-          "title": "This frame introduces foundational Communications and Risk Management skills tailored to Sodexo projects, emphasizing tools like matrices and simulations for effective stakeholder engagement and risk mitigation.",
-          "goal": "Build foundational skills in communicating project status and identifying/managing risks, using Sodexo examples like reporting to site stakeholders or mitigating delays in food supply chains.",
-          "informationText": "# Fundamentals: Communications and Risk Management\n\nIn project management, effective communication and risk management are crucial for ensuring project success, especially in dynamic environments like Sodexo's facility management and food services operations. This frame builds foundational skills by exploring two key PMBOK knowledge areas: Communications Management and Risk Management. These areas help project managers at Sodexo sites plan, execute, and control projects such as cafeteria setups or maintenance overhauls, where clear stakeholder updates and proactive risk handling can prevent delays and cost overruns.\n\n## Communications Management\n\nCommunications Management involves planning, managing, and monitoring communications to ensure timely and appropriate generation, collection, distribution, storage, retrieval, and disposition of project information. According to PMBOK, this knowledge area spans all project phases (initiation through closing) and is vital for stakeholder engagement.\n\n### Key Components\n- **Communication Planning**: Identify who needs what information, when, and how. For Sodexo site managers, this means creating a Communication Matrix to tailor messages for stakeholders like facility teams, suppliers, or executives.\n- **Managing Communications**: Distribute information effectively using tools like emails, meetings, or dashboards.\n- **Controlling Communications**: Monitor and adjust to resolve issues, ensuring feedback loops.\n\n### Sodexo Example: Reporting to Site Stakeholders\nImagine implementing a new cafeteria setup at a corporate site. Site managers must report progress to stakeholders (e.g., HR for employee impact, vendors for supply timelines). Suitable channels include:\n- Weekly email updates for executives (high-level summaries).\n- Daily stand-ups for on-site teams (quick verbal huddles).\n- Shared dashboards (e.g., via Microsoft Teams) for real-time status.\n\n#### Sample Communication Matrix (ASCII Art Representation)\n```\n+--------------------+----------+--------+----------+-------------+\n| Stakeholder        | Info Type| Frequency| Method   | Responsible |\n+--------------------+----------+--------+----------+-------------+\n| Site Manager       | Status   | Weekly  | Email    | PM          |\n| Facility Team      | Details  | Daily   | Meeting  | Coordinator |\n| Executive Sponsor  | Summary  | Bi-weekly| Dashboard| PM          |\n| Supplier           | Updates  | As Needed| Phone    | Procurement |\n+--------------------+----------+--------+----------+-------------+\n```\nThis matrix ensures alignment and reduces miscommunication in fast-paced Sodexo projects.\n\n## Risk Management\n\nRisk Management focuses on identifying, analyzing, and responding to project risks to maximize positive outcomes and minimize negatives. PMBOK emphasizes this as a proactive process across all life cycle phases, using tools like the Risk Register to track potential issues.\n\n### Key Processes\n- **Plan Risk Management**: Define how to approach risk handling.\n- **Identify Risks**: Brainstorm potential threats/opportunities.\n- **Perform Qualitative/Quantitative Analysis**: Assess probability and impact (e.g., qualitative via high/medium/low; quantitative via simulations).\n- **Plan Risk Responses**: Develop strategies like avoid, mitigate, transfer, or accept.\n- **Monitor Risks**: Track and adjust throughout the project.\n\n### Sodexo Example: Mitigating Delays in Food Supply Chains\nIn a food services project, a risk might be supplier delays due to weather, impacting cafeteria operations. Identification: Use brainstorming with procurement teams. Analysis: Qualitative (high impact on service delivery); Quantitative: Monte Carlo Simulation to model delay probabilities and cost variances.\n\n#### Sample Risk Register (Markdown Table)\n| Risk ID | Description | Probability | Impact | Response Strategy | Owner | Status |\n|---------|-------------|-------------|--------|-------------------|-------|--------|\n| R001   | Supply chain delay | Medium (40%) | High  | Mitigate: Diversify suppliers | Procurement | Open |\n| R002   | Budget overrun from material costs | Low (20%) | Medium | Transfer: Insurance clause | Finance | Monitored |\n\n### Monte Carlo Simulation for Sodexo Risks\nThis quantitative tool runs thousands of simulations using input variables (e.g., delivery times, costs) to predict outcomes. For Sodexo, simulate food supply risks: If delays occur 30% of the time, it forecasts project completion probabilities, helping prioritize mitigations like backup vendors.\n\nBy mastering these fundamentals, Sodexo managers can enhance project delivery in facility and food services contexts, aligning with PMBOK's vertical knowledge areas integrated across horizontal process groups.",
-          "afterVideoText": "Reflect on the checkpoints: Consider what communication channels would best suit Sodexo site managers in a maintenance project (e.g., in-person vs. digital). Practice by identifying a risk in a facilities project, such as equipment failure during a site overhaul, and outline a response strategy (e.g., mitigation via preventive maintenance). Journal your thoughts or discuss with a colleague to reinforce application.",
-          "aiConcepts": [
-            "Communications Management",
-            "Risk Management",
-            "Risk Register",
-            "Communication Matrix",
-            "Monte Carlo Simulation for Sodexo Risks"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_fundamentals",
-          "parentFrameId": "flow_fundamentals"
-        },
-        "measured": {
-          "width": 480,
-          "height": 809
-        }
-      },
-      {
-        "id": "node_1763810306410_btzqenppe_4",
-        "type": "aiframe",
-        "position": {
-          "x": 2050,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_5",
-          "title": "This frame introduces the fundamentals of procurement processes and stakeholder engagement, with practical applications to Sodexo scenarios like vendor contracting and client management in facility projects.",
-          "goal": "Understand procurement processes and stakeholder engagement basics, tailored to Sodexo contexts like contracting external vendors for site maintenance or managing client expectations in services.",
-          "informationText": "# Fundamentals: Procurement and Stakeholder Management\n\nIn project management, particularly within Sodexo's facility management and food services operations, **Procurement Management** and **Stakeholder Management** are essential knowledge areas from the PMBOK framework. These areas ensure that projects like site maintenance overhauls or new cafeteria setups are delivered efficiently by sourcing external resources and engaging key parties effectively.\n\n## Procurement Management\nProcurement Management involves the processes required to purchase or acquire products, services, or results needed from outside the project team to complete the work. In Sodexo contexts, this often means contracting external vendors for tasks such as HVAC repairs at a client site or sourcing kitchen equipment for a new food service installation.\n\n### Key Steps in Procurement (Tailored to Sodexo Vendor Selection):\n1. **Plan Procurement Management**: Identify what to procure (e.g., make-or-buy decision for site cleaning services). Develop procurement strategy, including contract types like fixed-price for predictable maintenance jobs.\n2. **Conduct Procurements**: Solicit bids from vendors, evaluate proposals based on cost, quality, and Sodexo compliance (e.g., sustainability standards). Select the best vendor through tools like RFPs (Request for Proposals).\n3. **Control Procurements**: Monitor vendor performance, manage contracts, and handle changes (e.g., addressing delays in cafeteria equipment delivery).\n4. **Close Procurements**: Finalize payments, document lessons learned, and release vendors.\n\n### Make-or-Buy Analysis\nA critical tool here is the **Make-or-Buy Analysis**, which helps decide whether to handle tasks in-house (e.g., Sodexo staff managing basic site upkeep) or outsource (e.g., hiring specialized plumbers for complex repairs). Factors include cost, expertise availability, and risk—Sodexo might 'buy' for non-core services to focus on client-facing food and facility excellence.\n\n## Stakeholder Management\nStakeholder Management focuses on identifying, analyzing, and engaging individuals or groups affected by or influencing the project. In Sodexo projects, stakeholders could include clients (e.g., hospital administrators expecting seamless cafeteria operations), internal teams (e.g., site managers), vendors, and end-users (e.g., employees using maintained facilities).\n\n### Key Processes:\n1. **Identify Stakeholders**: Create a **Stakeholder Register** listing names, roles, interests, and influence (e.g., a client rep with high interest in service uptime).\n2. **Plan Stakeholder Engagement**: Develop strategies to manage expectations, such as regular updates for a demanding client during a site renovation.\n3. **Manage Stakeholder Engagement**: Communicate effectively, resolve issues (e.g., addressing vendor complaints about site access).\n4. **Monitor Stakeholder Engagement**: Assess involvement and adjust plans as needed.\n\n### Power/Interest Grid in Sodexo Context\nUse the **Power/Interest Grid** to prioritize stakeholders:\n\n```\n          High Power\n     +------------------+\nHigh | Manage Closely   | (e.g., Client CEO - high power, high interest in project success)\nInterest| (Keep Satisfied) |\n     |------------------|\nLow  | (Keep Informed)  | (e.g., Regulatory Body - high power, low interest)\nInterest| (Minimal Effort) |\n     +------------------+\n          Low Power\n```\n- **High Power/High Interest**: Engage actively (e.g., site director for maintenance projects).\n- **High Power/Low Interest**: Satisfy needs minimally to avoid risks.\n- **Low Power/High Interest**: Keep informed to maintain support.\n- **Low Power/Low Interest**: Monitor without much effort.\n\nThese concepts align with PMBOK's vertical knowledge areas, integrated across project phases like planning and execution, ensuring Sodexo projects meet client expectations while controlling costs.\n\n## Checkpoints for Reinforcement\n- Describe the procurement steps for a Sodexo vendor selection (e.g., for site maintenance).\n- Explain how to prioritize stakeholders in a site project using the Power/Interest Grid.",
-          "afterVideoText": "Reflect on a recent Sodexo project you've been involved in, such as a vendor contract for facility upgrades. Journal: 1) What procurement decisions did you face, and would a make-or-buy analysis have helped? 2) Who were the key stakeholders, and how might the Power/Interest Grid guide your engagement? Practice by drafting a simple Stakeholder Register for a hypothetical cafeteria setup project, then discuss with a colleague to identify potential oversights.",
-          "aiConcepts": [
-            "Procurement Management",
-            "Stakeholder Management",
-            "Make-or-Buy Analysis",
-            "Stakeholder Register",
-            "Power/Interest Grid in Sodexo"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_fundamentals",
-          "parentFrameId": "flow_fundamentals"
-        },
-        "measured": {
-          "width": 480,
-          "height": 841
-        }
-      },
-      {
-        "id": "node_1763810306410_82dedg1ci_5",
-        "type": "aiframe",
-        "position": {
-          "x": 2550,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_6",
-          "title": "This frame dives into applying PMP Knowledge Areas 1-6 (Integration through Resource Management) to Sodexo projects, focusing on tools for handling issues like scope changes in cafeteria setups.",
-          "goal": "Master advanced application of Integration through Resource Management in Sodexo projects, including tools and remediation for issues like scope changes in a cafeteria setup.",
-          "informationText": "# Deep-Dive: Applying Planning Knowledge Areas (1-6) at Sodexo Sites\n\nIn this frame, we explore the advanced application of the first six PMP Knowledge Areas—Integration Management, Scope Management, Schedule Management, Cost Management, Quality Management, and Resource Management—in the context of Sodexo projects. Sodexo, as a leader in facility management and food services, often handles projects like setting up new cafeterias, overhauling site maintenance, or optimizing resource allocation for on-site dining operations. These knowledge areas intersect vertically across the project life cycle phases (initiation, planning, execution, monitoring/controlling, and closing), ensuring projects are delivered efficiently while adapting to real-world challenges such as scope changes due to client feedback or supply chain disruptions.\n\n## Key Applications in Sodexo Projects\n\n### 1. Integration Management: Coordinating All Elements\nIntegration Management acts as the 'glue' for all knowledge areas, ensuring cohesive project execution. In a Sodexo cafeteria setup, this involves developing a project management plan that aligns food service installation with facility upgrades. Tools like the Integrated Change Control process help manage scope changes, such as adding eco-friendly kitchen equipment mid-project.\n\n- **Change Control Process**: Evaluate impacts on time, cost, and quality before approving changes.\n- **Sodexo Example**: If a client requests vegan menu expansions, integrate this by updating the project charter and baseline plans.\n\n### 2. Scope Management: Defining and Controlling What’s Included\nScope Management prevents 'scope creep' by clearly defining deliverables. For a cafeteria project, validate scope through stakeholder workshops to confirm requirements like seating capacity and menu variety.\n\n- **Scope Validation Techniques**: Use acceptance criteria checklists and work breakdown structures (WBS) to verify deliverables.\n- **Remediation for Issues**: If scope changes occur (e.g., expanding the cafeteria footprint), perform a scope baseline update and re-validate with inspections.\n\n### 3. Schedule Management: Timely Delivery\nSchedule Management ensures projects stay on track using techniques like the Critical Path Method (CPM). In Sodexo site projects, delays from vendor shipments can be mitigated by identifying float (slack time) in non-critical tasks.\n\n- **Critical Path Method**: Map dependencies to find the longest sequence of tasks determining project duration.\n- **Visual Diagram (ASCII Art)**:\n```\nStart --> Task A (5 days) --> Task B (3 days, Critical) --> Task C (7 days) --> End\n         |                  |\n         +--> Task D (4 days, Float: 2) --> +\n```\nHere, Task D has 2 days of float for delays without impacting the critical path.\n\n### 4. Cost Management: Budget Control\nTrack and control costs to avoid overruns. In Sodexo budgets for site setups, estimate using analogous methods (past cafeteria projects) and monitor with earned value management (EVM).\n\n- **Tools**: Cost baseline variance analysis.\n- **Sodexo Case**: A 10% material cost increase due to inflation—remediate by value engineering (e.g., substitute suppliers).\n\n### 5. Quality Management: Ensuring Standards\nQuality Management integrates audits to meet Sodexo’s high standards for food safety and service. Plan quality with metrics like defect rates in cafeteria installations.\n\n- **Quality Audits**: Regular inspections of equipment setup to ensure compliance with HACCP (Hazard Analysis Critical Control Points).\n- **Techniques**: Pareto analysis to prioritize quality issues.\n\n### 6. Resource Management: Optimizing People and Assets\nAcquire, develop, and manage teams and materials efficiently. For Sodexo, this means scheduling chefs and maintenance crews without overlaps.\n\n- **Resource Optimization**: Use resource histograms to level workloads and avoid burnout.\n- **Sodexo Case Study**: In a multi-site rollout, optimize by cross-training staff, reducing hiring costs by 15%.\n\n## Interconnections and Tools\nThese areas overlap; for instance, a scope change triggers schedule and cost updates via integration. Use PMBOK-aligned tools like MS Project for scheduling or Primavera for resource leveling. In Sodexo environments, apply these to handle issues like cafeteria scope changes by conducting impact assessments and stakeholder approvals.\n\nDraw from PMBOK fundamentals: Knowledge areas are vertical pillars supporting horizontal process groups, essential for successful project delivery in dynamic settings like food services.",
-          "afterVideoText": "To reinforce your learning, reflect on the interconnections between these knowledge areas. **Practice Suggestion 1**: Simulate handling a cost overrun in a site budget—assume a 20% variance in cafeteria equipment costs; outline steps using cost management tools like EVM to remediate (e.g., re-allocate resources or negotiate vendor discounts). **Practice Suggestion 2**: If confused on scheduling, review: What is float and how to use it in delays? Float is the amount of time a task can be delayed without affecting the project end date; apply it by prioritizing critical path tasks and buffering non-critical ones in your Sodexo project timeline. Journal your insights and revisit the WBS for the cafeteria example.",
-          "aiConcepts": [
-            "Change Control in Integration",
-            "Scope Validation Techniques",
-            "Critical Path Method",
-            "Quality Audits",
-            "Resource Optimization",
-            "Sodexo Case Studies"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_deep-dive",
-          "parentFrameId": "flow_deep-dive"
-        },
-        "measured": {
-          "width": 480,
-          "height": 816
-        }
-      },
-      {
-        "id": "node_1763810306410_ehkl7d8rb_6",
-        "type": "aiframe",
-        "position": {
-          "x": 3050,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_7",
-          "title": "This frame provides in-depth applications of PMP knowledge areas 7-10 (Communications, Risk, Procurement, Stakeholder Management) tailored to Sodexo site projects, with examples and integration strategies.",
-          "goal": "Achieve expertise in Communications, Risk, Procurement, and Stakeholder Management applications, with Sodexo-specific examples like risk in supply disruptions and stakeholder alignment in service contracts; includes remediation for communication gaps.",
-          "informationText": "# Deep-Dive: Applying Support Knowledge Areas (7-10) at Sodexo Sites\n\nThis frame builds expertise in the four support knowledge areas from the PMBOK Guide: Project Communications Management, Project Risk Management, Project Procurement Management, and Project Stakeholder Management. These areas are crucial for Sodexo site and project managers handling services like facility maintenance, food services, and cafeteria setups. We'll explore practical applications with Sodexo-specific examples, such as mitigating supply disruptions in food procurement or aligning stakeholders in multi-site service contracts. Emphasis is placed on integration across areas, including remediation strategies for communication gaps.\n\n## Project Communications Management\nEffective communication ensures project information flows to the right people at the right time. In Sodexo contexts, this involves reporting on site operations, like updates on a new cafeteria installation project.\n\n- **Key Processes**: Plan Communications, Manage Communications, Monitor Communications.\n- **Escalation Processes**: Define clear escalation paths for issues, e.g., if a facility maintenance delay affects food service, escalate from site supervisor to regional manager within 24 hours.\n- **Sodexo Example**: During a site overhaul, use tools like shared dashboards to bridge communication gaps between on-site teams and corporate stakeholders, remediating gaps by conducting weekly feedback sessions.\n\n## Project Risk Management\nRisk management identifies, analyzes, and responds to uncertainties that could impact project objectives. Sodexo projects often face risks like supply chain volatility in food services.\n\n- **Key Processes**: Plan Risk Management, Identify Risks, Perform Qualitative/Quantitative Risk Analysis, Plan Risk Responses, Implement Risk Responses, Monitor Risks.\n- **Qualitative vs. Quantitative Risk Analysis**: Qualitative assesses probability and impact subjectively (e.g., high-impact vendor delay rated 'high' risk); quantitative uses numerical data (e.g., Monte Carlo simulation estimating 20% chance of $50K overrun in a cafeteria setup).\n- **Sodexo Example**: For supply disruptions (e.g., delayed fresh produce delivery), develop contingency plans like alternative local suppliers to avoid service interruptions at client sites.\n\n## Project Procurement Management\nThis area handles acquiring goods and services from external sources, vital for Sodexo's vendor-dependent operations in facility and food services.\n\n- **Key Processes**: Plan Procurement Management, Conduct Procurements, Control Procurements, Close Procurements.\n- **Contract Types**: Fixed-price for predictable cafeteria equipment installs; cost-reimbursable for variable site maintenance; time-and-materials for short-term food supply trials.\n- **Sodexo Example**: In service contracts, negotiate SLAs (Service Level Agreements) with vendors to ensure timely deliveries, integrating risk assessments to avoid cost overruns.\n\n## Project Stakeholder Management\nStakeholders include clients, employees, and vendors; managing them ensures buy-in and project success.\n\n- **Key Processes**: Identify Stakeholders, Plan Stakeholder Engagement, Manage Stakeholder Engagement, Monitor Stakeholder Engagement.\n- **Stakeholder Engagement Plans**: Create tailored strategies, e.g., regular town halls for site employees during a maintenance project.\n- **Sodexo Example**: Map stakeholders in a food service contract (e.g., client executives, kitchen staff, suppliers) and align them through joint workshops to resolve conflicts over service specs.\n\n## Sodexo Integration Across Areas\nThese knowledge areas interconnect: Poor communication can amplify risks, while strong stakeholder engagement aids procurement. For instance, in a site-wide upgrade, use risk analysis to inform communication plans and stakeholder updates, ensuring holistic project control.\n\n**Visual Diagram: Knowledge Areas Integration**\n```\n+-------------------+     +-------------------+     +-------------------+\n| Communications    |<--->|   Risk Management |<--->| Procurement       |\n| (Escalation)      |     | (Analysis/Response)|     | (Contracts)       |\n+-------------------+     +-------------------+     +-------------------+\n         ^                           |                           ^\n         |                           |                           |\n         +------------+--------------+------------+--------------+\n                      | Stakeholder Management (Engagement Plans) |\n                      +------------------------------------------+\n                          Sodexo Site Application\n```\n\nRemediation for Gaps: If communication breakdowns occur (e.g., misaligned expectations in contracts), revisit stakeholder registers and conduct targeted training.",
-          "afterVideoText": "Reflect on your learning by applying concepts to a Sodexo scenario: Develop a risk response plan for a vendor delay in a food service project at your site, including escalation via communications and stakeholder notifications. If confusion arises with stakeholder mapping, revisit: How to identify and engage key players (e.g., clients, teams, suppliers) in Sodexo services? Practice by drafting a simple stakeholder engagement matrix for a hypothetical cafeteria setup project.",
-          "aiConcepts": [
-            "Escalation Processes in Communications",
-            "Qualitative vs. Quantitative Risk Analysis",
-            "Contract Types for Procurement",
-            "Stakeholder Engagement Plans",
-            "Sodexo Integration Across Areas"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
-          "sourceUrl": "",
-          "chapterId": "flow_deep-dive",
-          "parentFrameId": "flow_deep-dive"
-        },
-        "measured": {
-          "width": 480,
-          "height": 841
-        }
+        "selected": true,
+        "dragging": false
       }
     ],
     "edges": [
       {
-        "id": "edge_chapter_flow_overview_node_1763810306410_6hw2x6g4m_0",
-        "source": "flow_overview",
-        "target": "node_1763810306410_6hw2x6g4m_0",
-        "sourceHandle": "chapter-frame-out",
+        "id": "edge|node_1763832849413_8takbi9jd_2|node_1763832856667_3s3meaa3t_3|1763832859428_56qrmyeiw",
+        "source": "node_1763832849413_8takbi9jd_2",
+        "target": "node_1763832856667_3s3meaa3t_3",
+        "sourceHandle": "frame-sequence-out",
         "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
         "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "flow_overview"
+          "stroke": "#3b82f6",
+          "strokeWidth": 2
         }
       },
       {
-        "id": "edge_chapter_flow_fundamentals_node_1763810306410_ossz49vnv_1",
-        "source": "flow_fundamentals",
-        "target": "node_1763810306410_ossz49vnv_1",
-        "sourceHandle": "chapter-frame-out",
+        "id": "edge|seq|node_1763832849413_8takbi9jd_2|node_1763832856667_3s3meaa3t_3",
+        "source": "node_1763832849413_8takbi9jd_2",
+        "target": "node_1763832856667_3s3meaa3t_3",
+        "sourceHandle": "frame-sequence-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
         "style": {
-          "stroke": "#10b981",
+          "stroke": "#3B82F6",
           "strokeWidth": 2.5
         },
         "markerEnd": {
           "type": "arrowclosed",
-          "color": "#10b981",
+          "color": "#3B82F6",
           "width": 16,
           "height": 16
         },
         "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "flow_fundamentals"
+          "relationship": "chapter-sequence",
+          "chapterId": "chapter_1763832873045_2b9cqk"
         }
       },
       {
-        "id": "edge_chapter_flow_fundamentals_node_1763810306410_0wzjxs5o4_2",
-        "source": "flow_fundamentals",
-        "target": "node_1763810306410_0wzjxs5o4_2",
+        "id": "edge|chapter|chapter_1763832873045_2b9cqk|node_1763832849413_8takbi9jd_2",
+        "source": "chapter_1763832873045_2b9cqk",
+        "target": "node_1763832849413_8takbi9jd_2",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -710,13 +209,13 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "flow_fundamentals"
+          "chapterId": "chapter_1763832873045_2b9cqk"
         }
       },
       {
-        "id": "edge_chapter_flow_fundamentals_node_1763810306410_sbmd3xd1q_3",
-        "source": "flow_fundamentals",
-        "target": "node_1763810306410_sbmd3xd1q_3",
+        "id": "edge|chapter|chapter_1763832873045_2b9cqk|node_1763832856667_3s3meaa3t_3",
+        "source": "chapter_1763832873045_2b9cqk",
+        "target": "node_1763832856667_3s3meaa3t_3",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
         "type": "smoothstep",
@@ -732,84 +231,18 @@
         },
         "data": {
           "relationship": "chapter-membership",
-          "chapterId": "flow_fundamentals"
-        }
-      },
-      {
-        "id": "edge_chapter_flow_fundamentals_node_1763810306410_btzqenppe_4",
-        "source": "flow_fundamentals",
-        "target": "node_1763810306410_btzqenppe_4",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "flow_fundamentals"
-        }
-      },
-      {
-        "id": "edge_chapter_flow_deep-dive_node_1763810306410_82dedg1ci_5",
-        "source": "flow_deep-dive",
-        "target": "node_1763810306410_82dedg1ci_5",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "flow_deep-dive"
-        }
-      },
-      {
-        "id": "edge_chapter_flow_deep-dive_node_1763810306410_ehkl7d8rb_6",
-        "source": "flow_deep-dive",
-        "target": "node_1763810306410_ehkl7d8rb_6",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "flow_deep-dive"
+          "chapterId": "chapter_1763832873045_2b9cqk"
         }
       }
     ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-22T11:18:38.120Z",
+    "lastUpdated": "2025-11-22T17:34:38.309Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-22T11:18:36.715Z",
-    "frameCount": 7,
+    "lastSaved": "2025-11-22T17:34:38.097Z",
+    "frameCount": 2,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

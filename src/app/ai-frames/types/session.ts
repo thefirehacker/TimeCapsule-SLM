@@ -3,7 +3,7 @@
  * Supports AI Flow, SWE Bridge, and Manual frame creation workflows
  */
 
-import type { PlannerPlan } from "@/lib/multi-agent/agents/FlowFramePlannerAgent";
+import type { PlannerPlan } from "../hooks/useAIFlowBuilder";
 import type { FrameDraft as BaseFrameDraft } from "../hooks/useAIFlowBuilder";
 
 // Session source tracking
@@ -43,6 +43,10 @@ export interface FlowSession {
   updatedAt: string;
   frameCount: number;
   acceptedFrameCount: number;
+  
+  // TimeCapsule isolation
+  timeCapsuleId: string; // Link to parent TimeCapsule
+  frameIds: string[]; // Track associated accepted frames
 
   // Full session state
   plan: PlannerPlan | null;

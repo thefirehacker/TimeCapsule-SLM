@@ -56,6 +56,7 @@ export class SessionStore {
           sessionId: session.id,
           sessionSource: session.source,
           sessionStatus: session.status,
+          timeCapsuleId: session.timeCapsuleId, // TimeCapsule isolation
         },
         chunks: [
           {
@@ -201,7 +202,8 @@ export class SessionStore {
    */
   createNewSession(
     source: SessionSource,
-    name?: string
+    name?: string,
+    timeCapsuleId?: string
   ): FlowSession {
     const timestamp = new Date().toISOString();
     const defaultName =
@@ -221,6 +223,8 @@ export class SessionStore {
       updatedAt: timestamp,
       frameCount: 0,
       acceptedFrameCount: 0,
+      timeCapsuleId: timeCapsuleId || '', // Link to parent TimeCapsule
+      frameIds: [], // Track associated frames
       plan: null,
       frameDrafts: [],
       sessionState: {
@@ -243,6 +247,44 @@ export class SessionStore {
         "swe-bridge": 0,
       },
     };
+  }
+
+  /**
+   * Get all sessions for a specific TimeCapsule
+   */
+  async getSessionsByTimeCapsule(timeCapsuleId: string): Promise<FlowSession[]> {
+    try {
+      const allSessions = await this.listSessions();
+      const filtered = allSessions.filter(s => s.timeCapsuleId === timeCapsuleId);
+      console.log(`📋 Found ${filtered.length} sessions for TimeCapsule: ${timeCapsuleId}`);
+      return filtered;
+    } catch (error) {
+      console.error("❌ Failed to get sessions by TimeCapsule:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Sync a frame to a session's frameIds
+   */
+  async syncFrameToSession(sessionId: string, frameId: string): Promise<void> {
+    try {
+      const session = await this.loadSession(sessionId);
+      if (!session) {
+        throw new Error(`Session not found: ${sessionId}`);
+      }
+
+      // Add frame ID if not already present
+      if (!session.frameIds.includes(frameId)) {
+        session.frameIds.push(frameId);
+        session.updatedAt = new Date().toISOString();
+        await this.saveSession(session);
+        console.log(`🔗 Frame ${frameId} synced to session ${sessionId}`);
+      }
+    } catch (error) {
+      console.error("❌ Failed to sync frame to session:", error);
+      throw error;
+    }
   }
 
   /**

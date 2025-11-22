@@ -80,6 +80,7 @@ interface AIFlowBuilderPanelProps {
   workspaceStats: WorkspaceStats;
   knowledgeBaseUnavailable?: boolean;
   knowledgeBaseUnavailableMessage?: string | null;
+  onGraphReset?: () => void;
 }
 
 export function AIFlowBuilderPanel({
@@ -90,6 +91,7 @@ export function AIFlowBuilderPanel({
   workspaceStats,
   knowledgeBaseUnavailable = false,
   knowledgeBaseUnavailableMessage,
+  onGraphReset,
 }: AIFlowBuilderPanelProps) {
   const {
     prompt,
@@ -125,6 +127,7 @@ export function AIFlowBuilderPanel({
     switchSession,
     renameSession,
     deleteSession,
+    duplicateSession,
   } = flowBuilder;
 
   const [openRouterKey, setOpenRouterKey] = useState("");
@@ -150,6 +153,7 @@ export function AIFlowBuilderPanel({
   
   // Ref for click-outside detection
   const panelRef = useRef<HTMLDivElement>(null);
+  const downloadInProgressRef = useRef(false); // Prevent closing during downloads
   
   // Auto-download JSON frames preference (default: true)
   const [autoDownloadFrames, setAutoDownloadFrames] = useState(() => {
@@ -199,6 +203,11 @@ export function AIFlowBuilderPanel({
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't close if download in progress
+      if (downloadInProgressRef.current) {
+        return;
+      }
+      
       const target = event.target as HTMLElement;
       
       // Don't close if clicking on the panel itself
@@ -434,6 +443,9 @@ if (!isOpen) {
   };
 
   const downloadJson = (filename: string, content: string) => {
+    // Set flag to prevent panel closure during download
+    downloadInProgressRef.current = true;
+    
     const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -441,6 +453,11 @@ if (!isOpen) {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+    
+    // Clear flag after download completes
+    setTimeout(() => {
+      downloadInProgressRef.current = false;
+    }, 500);
   };
 
   const handleExportHistory = (sessionId?: string) => {
@@ -1020,7 +1037,7 @@ const handleCopySwePrompt = async () => {
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => createNewSession("manual")}
+                    onClick={() => createNewSession("manual", undefined, onGraphReset)}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
                     <Sparkles className="h-4 w-4 mr-1" />
@@ -1105,12 +1122,21 @@ const handleCopySwePrompt = async () => {
                             <Button
                               size="sm"
                               variant="default"
-                              onClick={() => switchSession(session.id)}
+                              onClick={() => switchSession(session.id, onGraphReset)}
                               className="bg-blue-500 hover:bg-blue-600 text-white"
                             >
                               Load Session
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => duplicateSession(session.id, onGraphReset)}
+                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Duplicate
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"

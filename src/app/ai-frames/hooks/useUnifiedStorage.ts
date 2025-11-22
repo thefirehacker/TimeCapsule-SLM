@@ -130,7 +130,9 @@ export const useUnifiedStorage = ({
       } : null,
       nodePositions: roundedPositions
     });
-    return btoa(stateString).slice(0, 16);
+    // ✅ FIX: Use Unicode-safe encoding (handles emojis, special characters, etc.)
+    // Convert Unicode → UTF-8 bytes → Latin1-safe string → base64
+    return btoa(unescape(encodeURIComponent(stateString))).slice(0, 16);
   }, []);
 
   // Update refs whenever state changes to prevent stale closures

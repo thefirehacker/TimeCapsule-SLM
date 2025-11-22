@@ -115,7 +115,7 @@ export interface PlannerChapter {
   frames: PlannerFrame[];
 }
 
-interface PlannerPlan {
+export interface PlannerPlan {
   id: string;
   summary?: string;
   chapters: PlannerChapter[];
@@ -170,7 +170,7 @@ interface GeneratedFrameContent {
   visionCue?: string;
 }
 
-interface FrameDraft extends PlannerFrame {
+export interface FrameDraft extends PlannerFrame {
   tempId: string;
   chapterTitle: string;
   status: FrameDraftStatus;
@@ -262,11 +262,18 @@ export interface UseAIFlowBuilderReturn {
   // Session Management
   activeSessionId: string | null;
   sessions: FlowSession[];
-  createNewSession: (source: SessionSource, name?: string) => FlowSession;
+  loadSessions: () => Promise<void>;
+  createNewSession: (
+    source: SessionSource, 
+    name?: string, 
+    onGraphReset?: () => void,
+    options?: { skipClear?: boolean; timeCapsuleId?: string }
+  ) => FlowSession;
   saveCurrentSession: (immediate?: boolean) => Promise<void>;
-  switchSession: (sessionId: string) => Promise<void>;
+  switchSession: (sessionId: string, onGraphReset?: () => void) => Promise<void>;
   renameSession: (sessionId: string, newName: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
+  duplicateSession: (sessionId: string, onGraphReset?: () => void) => Promise<FlowSession | null>;
   syncFrameToSession: (frame: AIFrame) => void;
   syncFrameDeletions: (currentFrameIds: Set<string>) => void;
   generateGraphState: (chapters: PlannerChapter[], frames: AIFrame[]) => GraphState;
@@ -841,28 +848,54 @@ export function useAIFlowBuilder({
 
   // Session Management Functions
   const createNewSession = useCallback(
-    (source: SessionSource, name?: string): FlowSession => {
+    (source: SessionSource, name?: string, onGraphReset?: () => void, options?: { 
+      skipClear?: boolean;
+      timeCapsuleId?: string;
+    }): FlowSession => {
       if (!sessionStore) {
         throw new Error("SessionStore not initialized");
       }
       console.log(`🎬 [SESSION] Creating new ${source} session...`);
-      const newSession = sessionStore.createNewSession(source, name);
+      const newSession = sessionStore.createNewSession(
+        source, 
+        name,
+        options?.timeCapsuleId // Pass timeCapsuleId to session
+      );
       console.log(`📦 [SESSION] New session object created:`, {
         id: newSession.id,
         name: newSession.name,
-        source: newSession.source
+        source: newSession.source,
+        timeCapsuleId: newSession.timeCapsuleId
       });
-      
+
+      // Clear previous session data
+      setFrameDrafts([]);
+      setPlan(null);
+      setContextPreview(null);
+
       setSessions((prev) => {
         console.log(`📋 [SESSION] Updating sessions array: ${prev.length} -> ${prev.length + 1}`);
         return [newSession, ...prev];
       });
-      
+
       setActiveSessionId((prevId) => {
         console.log(`🎯 [SESSION] Setting active session ID: ${prevId} -> ${newSession.id}`);
         return newSession.id;
       });
-      
+
+      // Clear unifiedStorage frames for new blank session (conditional)
+      if (onAcceptFrames && !options?.skipClear) {
+        onAcceptFrames([]);
+        console.log(`🧹 [SESSION] Cleared workspace for new session`);
+      } else if (options?.skipClear) {
+        console.log(`⏭️ [SESSION] Skipped workspace clearing (skipClear=true)`);
+      }
+
+      // Trigger graph reset if callback provided
+      if (onGraphReset) {
+        onGraphReset();
+      }
+
       // Sync Mastery Progress to new session (starts at 0%)
       setSessionState(newSession.sessionState);
       setProgressMetrics({
@@ -898,7 +931,7 @@ export function useAIFlowBuilder({
       console.log(`✅ [SESSION] Session creation complete. Returning session ID: ${newSession.id}`);
       return newSession;
     },
-    [sessionStore]
+    [sessionStore, onAcceptFrames]
   );
 
   const saveCurrentSession = useCallback(
@@ -971,7 +1004,7 @@ export function useAIFlowBuilder({
   );
 
   const switchSession = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, onGraphReset?: () => void) => {
       if (!sessionStore) return;
 
       // Save current session first if active
@@ -993,6 +1026,50 @@ export function useAIFlowBuilder({
       setSessionState(session.sessionState);
       setActiveSessionId(sessionId);
 
+      // Trigger graph reset if callback provided
+      if (onGraphReset) {
+        onGraphReset();
+      }
+
+      // Update unifiedStorage with session frames (even if empty)
+      // This ensures the frames displayed match the session
+      if (onAcceptFrames) {
+        if (loadedDrafts.length > 0) {
+          // Convert frameDrafts to AIFrames for display
+          const timestamp = new Date().toISOString();
+          const aiFrames = loadedDrafts.map(draft => ({
+            id: draft.id,
+            type: 'frame' as const,
+            title: draft.title,
+            goal: draft.goal,
+            informationText: draft.generated?.informationText || '',
+            videoUrl: draft.generated?.videoUrl || '',
+            startTime: 0,
+            duration: draft.generated?.durationInSeconds || 300,
+            afterVideoText: draft.generated?.afterVideoText || '',
+            aiConcepts: draft.aiConcepts || [],
+            order: draft.order || 0,
+            chapterId: draft.chapterId || '',
+            learningPhase: draft.learningPhase,
+            sessionId: sessionId, // Ensure sessionId is set
+            isGenerated: true,
+            masteryState: draft.masteryState || 'unlocked',
+            quiz: undefined,
+            quizHistory: draft.quizHistory || [],
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          } as AIFrame));
+
+          // Update unifiedStorage via the callback
+          onAcceptFrames(aiFrames);
+          console.log(`✅ Updated workspace with ${aiFrames.length} frames from session`);
+        } else {
+          // Clear frames for empty session
+          onAcceptFrames([]);
+          console.log(`✅ Cleared workspace for empty session`);
+        }
+      }
+
       // Sync Mastery Progress with loaded session
       const metrics = calculateProgressMetrics(session.sessionState);
       setProgressMetrics(metrics);
@@ -1004,15 +1081,16 @@ export function useAIFlowBuilder({
             SESSION_STORAGE_KEY,
             JSON.stringify(session.sessionState)
           );
+          // Also persist the active session ID
+          localStorage.setItem('timecapsule_active_session_id', sessionId);
         } catch (error) {
           console.warn("⚠️ Failed to sync session state to localStorage:", error);
         }
       }
 
       console.log(`🔄 Switched to session: ${session.name} (${loadedDrafts.length} frames loaded)`);
-      console.log(`💡 Click "Accept All Frames" to add them to your workspace`);
     },
-    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics]
+    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics, onAcceptFrames]
   );
 
   const renameSession = useCallback(
@@ -1025,6 +1103,21 @@ export function useAIFlowBuilder({
     },
     [sessionStore]
   );
+
+  const loadSessions = useCallback(async () => {
+    if (!sessionStore) {
+      console.warn("⚠️ SessionStore not initialized, cannot load sessions");
+      return;
+    }
+
+    try {
+      const loadedSessions = await sessionStore.listSessions();
+      setSessions(loadedSessions);
+      console.log(`📋 Reloaded ${loadedSessions.length} sessions from KB`);
+    } catch (error) {
+      console.error("❌ Failed to load sessions:", error);
+    }
+  }, [sessionStore]);
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -1046,6 +1139,61 @@ export function useAIFlowBuilder({
       }
     },
     [sessionStore, activeSessionId]
+  );
+
+  const duplicateSession = useCallback(
+    async (sessionId: string, onGraphReset?: () => void): Promise<FlowSession | null> => {
+      if (!sessionStore) return null;
+
+      // Load the session to duplicate
+      const originalSession = await sessionStore.loadSession(sessionId);
+      if (!originalSession) {
+        console.error(`Session not found for duplication: ${sessionId}`);
+        return null;
+      }
+
+      // Create a new session with copied data
+      const duplicateName = `${originalSession.name} (Copy)`;
+      const newSession = sessionStore.createNewSession(originalSession.source, duplicateName);
+
+      // Copy all the data from original session
+      const duplicatedSession: FlowSession = {
+        ...newSession,
+        plan: originalSession.plan ? { ...originalSession.plan } : null,
+        frameDrafts: originalSession.frameDrafts ?
+          originalSession.frameDrafts.map((draft: any) => ({ ...draft })) : [],
+        sessionState: originalSession.sessionState ? { ...originalSession.sessionState } : newSession.sessionState,
+        frameCount: originalSession.frameCount,
+        acceptedFrameCount: originalSession.acceptedFrameCount,
+        frameSources: originalSession.frameSources ? { ...originalSession.frameSources } : {
+          manual: 0,
+          "ai-flow": 0,
+          "swe-bridge": 0,
+        },
+      };
+
+      // Save the duplicated session
+      await sessionStore.saveSession(duplicatedSession);
+
+      // Reload sessions list
+      const updatedSessions = await sessionStore.listSessions();
+      setSessions(updatedSessions);
+
+      // Switch to the duplicated session
+      setPlan(duplicatedSession.plan);
+      setFrameDrafts(duplicatedSession.frameDrafts as any as FrameDraft[]);
+      setSessionState(duplicatedSession.sessionState);
+      setActiveSessionId(duplicatedSession.id);
+
+      // Trigger graph reset if callback provided
+      if (onGraphReset) {
+        onGraphReset();
+      }
+
+      console.log(`✨ Duplicated session "${originalSession.name}" as "${duplicateName}"`);
+      return duplicatedSession;
+    },
+    [sessionStore]
   );
 
   const syncFrameToSession = useCallback((frame: AIFrame) => {
@@ -2944,13 +3092,16 @@ export function useAIFlowBuilder({
     // Session Management
     activeSessionId,
     sessions,
+    loadSessions,
     createNewSession,
     saveCurrentSession,
     switchSession,
     renameSession,
     deleteSession,
+    duplicateSession,
     syncFrameToSession,
     syncFrameDeletions,
     generateGraphState,
   };
 }
+
