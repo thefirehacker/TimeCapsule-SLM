@@ -1486,10 +1486,10 @@ export default function DualPaneFrameView({
                                                       size="sm"
                                                       variant={isActiveFrame ? 'default' : 'outline'}
                                                       onClick={() => navigateToFrame(frame.id)}
-                                                      className="flex items-center gap-1 h-7 text-xs max-w-[200px]"
+                                                      className="flex items-center gap-1 min-h-[28px] h-auto text-xs w-full"
                                                     >
                                                       <Play className="h-3 w-3 flex-shrink-0" />
-                                                      <span className="truncate">{frame.title || 'Untitled Frame'}</span>
+                                                      <span className="line-clamp-2 text-left">{frame.title || 'Untitled Frame'}</span>
                                                     </Button>
                                                     {renderRelationBadges(frame.id, entry.chapter.id)}
                                                   </div>
@@ -1581,10 +1581,10 @@ export default function DualPaneFrameView({
                                           size="sm"
                                           variant={isActiveFrame ? 'default' : 'outline'}
                                           onClick={() => navigateToFrame(frame.id)}
-                                          className="flex items-center gap-1 h-7 text-xs max-w-[200px]"
+                                          className="flex items-center gap-1 min-h-[28px] h-auto text-xs w-full"
                                         >
                                           <Play className="h-3 w-3 flex-shrink-0" />
-                                          <span className="truncate">{frame.title || 'Untitled Frame'}</span>
+                                          <span className="line-clamp-2 text-left">{frame.title || 'Untitled Frame'}</span>
                                         </Button>
                                         {renderRelationBadges(frame.id, entry.chapter.id)}
                                       </div>

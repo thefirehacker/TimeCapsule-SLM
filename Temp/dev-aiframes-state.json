@@ -34,9 +34,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_overview"
     },
@@ -76,9 +76,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_fundamentals"
     },
@@ -118,9 +118,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_fundamentals"
     },
@@ -160,9 +160,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_fundamentals"
     },
@@ -202,9 +202,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_fundamentals"
     },
@@ -246,9 +246,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_deep-dive"
     },
@@ -288,9 +288,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T09:51:08.338Z",
-        "updatedAt": "2025-11-22T09:51:10.449Z",
+        "updatedAt": "2025-11-22T11:18:36.715Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T09:51:10.449Z"
+        "lastSaved": "2025-11-22T11:18:36.715Z"
       },
       "parentFrameId": "flow_deep-dive"
     }
@@ -307,7 +307,7 @@
       ],
       "conceptIds": [],
       "createdAt": "2025-11-22T09:51:08.340Z",
-      "updatedAt": "2025-11-22T09:51:10.449Z"
+      "updatedAt": "2025-11-22T11:18:36.715Z"
     },
     {
       "id": "flow_fundamentals",
@@ -323,7 +323,7 @@
       ],
       "conceptIds": [],
       "createdAt": "2025-11-22T09:51:08.340Z",
-      "updatedAt": "2025-11-22T09:51:10.449Z"
+      "updatedAt": "2025-11-22T11:18:36.715Z"
     },
     {
       "id": "flow_deep-dive",
@@ -337,492 +337,478 @@
       ],
       "conceptIds": [],
       "createdAt": "2025-11-22T09:51:08.340Z",
-      "updatedAt": "2025-11-22T09:51:10.449Z"
+      "updatedAt": "2025-11-22T11:18:36.715Z"
     }
   ],
   "graphState": {
     "nodes": [
       {
-        "id": "node_1763803424947_jxtouwzjr_0",
-        "type": "aiframe",
+        "id": "flow_overview",
+        "type": "chapter",
         "position": {
-          "x": 50,
+          "x": 70,
           "y": 50
         },
         "data": {
-          "type": "aiframe",
-          "frameId": "frame_ddp_1",
-          "title": "This frame provides an overview of PyTorch's Distributed Data Parallel (DDP), highlighting its purpose for scaling multi-GPU training through data parallelism and gradient synchronization via all_reduce.",
-          "goal": "Understand the high-level purpose and benefits of DDP for scaling training across multiple GPUs.",
-          "informationText": "# What is Distributed Data Parallel (DDP)?\n\nDistributed Data Parallel (DDP) is a PyTorch module designed for efficient multi-GPU training. It implements data parallelism, where the training dataset is split across multiple GPUs (or processes), allowing each GPU to process a subset of the data independently while keeping model replicas synchronized.\n\n## High-Level Purpose\nThe primary goal of DDP is to scale deep learning model training beyond a single GPU. In single-GPU setups, training large models or using big batch sizes is often limited by GPU memory and compute power. DDP addresses this by distributing the workload across multiple GPUs, enabling faster training times and the ability to handle larger models or datasets.\n\nKey benefits include:\n- **Speedup**: Achieves near-linear scaling with the number of GPUs (e.g., 4 GPUs can theoretically train 4x faster).\n- **Ease of Use**: Wraps around your existing PyTorch model with minimal code changes.\n- **Memory Efficiency**: Each GPU holds a full model replica but processes only a portion of the batch, reducing per-GPU memory usage for data.\n- **Fault Tolerance**: Supports multi-node setups (e.g., across machines) for even larger scales.\n\n## Why Use DDP Over Single-GPU Training?\nSingle-GPU training is straightforward but bottlenecks at scale:\n- **Compute Limitations**: One GPU can't parallelize matrix operations across hardware.\n- **Memory Constraints**: Large models (e.g., transformers) exceed single-GPU VRAM.\n- **Time Inefficiency**: Training epochs take longer as datasets grow.\n\nDDP overcomes these by:\n- Splitting batches across GPUs (e.g., batch size 32 on 4 GPUs = 8 per GPU).\n- Synchronizing only gradients (not full models or activations), minimizing communication overhead.\n- Integrating seamlessly with PyTorch's `torch.distributed` backend (e.g., NCCL for GPUs).\n\nIn practice, DDP is ideal for scenarios like fine-tuning LLMs on clusters, where single-GPU might take days but DDP reduces it to hours.\n\n## Role of All-Reduce in DDP\nAfter each backward pass, each GPU computes local gradients from its data subset. To keep all model replicas identical, DDP uses an **all_reduce** operation:\n- **What it does**: Collects gradients from all GPUs, sums them (or averages), and broadcasts the result back to every GPU.\n- **Why essential**: Ensures consistent updates across replicas, preventing divergence.\n- **Efficiency**: Performed only on gradients, using optimized collectives like NCCL's ring all-reduce for low latency.\n\nVisual mental model (ASCII art representation of gradient sync):\n\n```\nGPU 0 (Rank 0)          GPU 1 (Rank 1)          GPU 2 (Rank 2)          GPU 3 (Rank 3)\n   |                         |                         |                         |\n   v                         v                         v                         v\nLocal Grads ───────────────┼── all_reduce (SUM) ───┼───────────────▶ (Every rank gets sum of all grads)\n   │                         │ divide by world_size (4) │\n   │                         │                         │\n   └─────────────────────────┼─────────────────────────┼───→ Synchronized Grads\n                             │                         │\n                             └───────── optimizer.step() ────────→ Updated Model (all replicas)\n```\n\nThis sync happens automatically in DDP's `backward()` hook. Note: Seeding (e.g., `torch.manual_seed()`) ensures initial model states are identical across replicas, as highlighted in PyTorch best practices.\n\nFor implementation basics, DDP wraps your model like: `model = DDP(model, device_ids=[local_rank])`, launched via `torchrun` or `mp.spawn`.",
-          "afterVideoText": "Reflect on your current training setups: How could DDP accelerate a project you're working on? Try sketching a simple multi-GPU training loop pseudocode, incorporating all_reduce, to solidify the concepts. If you have access to multiple GPUs, experiment with a toy model using PyTorch's DDP tutorial.",
-          "aiConcepts": [
-            "Distributed Data Parallel (DDP)",
-            "PyTorch Multi-GPU Training",
-            "Data Parallelism",
-            "Gradient All-Reduce",
-            "Model Synchronization"
+          "type": "chapter",
+          "id": "flow_overview",
+          "title": "Orientation",
+          "description": "Set context and highlight the learner journey.",
+          "frameIds": [
+            "frame_1"
           ],
-          "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
-          "sourceUrl": "",
-          "chapterId": "flow_overview",
-          "parentFrameId": "flow_overview",
-          "attachment": {
-            "id": "attachment_frame_ddp_1",
-            "type": "pdf-attachment",
-            "data": {
-              "title": "DDP Python Basics Guide",
-              "notes": "DDP Python Basics Guide",
-              "pdfUrl": "https://thefirehacker.github.io/til/ddp-python-basics.html",
-              "pages": "",
-              "pdfFileName": "ddp-python-basics.html",
-              "pdfSource": "url"
-            }
-          }
+          "conceptIds": [],
+          "order": 0,
+          "color": "#0EA5E9",
+          "linkSequentially": false
         },
         "measured": {
-          "width": 480,
-          "height": 736
+          "width": 320,
+          "height": 208
         }
       },
       {
-        "id": "node_1763803424947_v4o1h0wyv_1",
-        "type": "aiframe",
+        "id": "flow_fundamentals",
+        "type": "chapter",
         "position": {
-          "x": 550,
+          "x": 1320,
           "y": 50
         },
         "data": {
+          "type": "chapter",
+          "id": "flow_fundamentals",
+          "title": "Build the Experience",
+          "description": "Cover the foundational steps and workflows.",
+          "frameIds": [
+            "frame_2",
+            "frame_3",
+            "frame_4",
+            "frame_5"
+          ],
+          "conceptIds": [],
+          "order": 1,
+          "color": "#A855F7",
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "flow_deep-dive",
+        "type": "chapter",
+        "position": {
+          "x": 2820,
+          "y": 50
+        },
+        "data": {
+          "type": "chapter",
+          "id": "flow_deep-dive",
+          "title": "Launch + Iterate",
+          "description": "Advanced mastery and iteration tactics.",
+          "frameIds": [
+            "frame_6",
+            "frame_7"
+          ],
+          "conceptIds": [],
+          "order": 2,
+          "color": "#F97316",
+          "linkSequentially": false
+        },
+        "measured": {
+          "width": 320,
+          "height": 208
+        }
+      },
+      {
+        "id": "node_1763810306410_6hw2x6g4m_0",
+        "type": "aiframe",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
           "type": "aiframe",
-          "frameId": "frame_ddp_2",
-          "title": "This frame provides a visual mental model of DDP's replica-based training flow and explains seeding's role in ensuring identical, reproducible model states across workers.",
-          "goal": "Grasp the conceptual flow of DDP replicas and ensure model reproducibility with seeding.",
-          "informationText": "# Visual Mental Model and Seeding in DDP\n\n## Overview of DDP Conceptual Flow\nDistributed Data Parallel (DDP) in PyTorch enables efficient multi-GPU or multi-node training by creating identical model replicas across workers (ranks). Each worker processes a shard of the data, computes gradients independently, and synchronizes them via `all_reduce` operations. This frame builds a visual mental model to understand how replicas interact and why seeding is crucial for reproducibility.\n\n### Key Components of the DDP Flow\n1. **Model Replicas**: Each worker (e.g., GPU) holds an identical copy of the model. During initialization, parameters are broadcast from rank 0 to ensure consistency.\n2. **Data Sharding**: The dataset is split across workers. Each processes its batch independently.\n3. **Forward and Backward Passes**: Local computations happen per replica.\n4. **Gradient Synchronization**: After backward, gradients are averaged across all workers using `all_reduce` (sum followed by divide by world_size).\n5. **Optimizer Step**: Updated parameters are applied locally, but since grads are synced, models remain identical.\n\n## Visual Mental Model (ASCII Diagram)\nHere's a simplified diagram of 4 workers (ranks 0-3) in a DDP setup:\n\n```\n+---------------+     +---------------+     +---------------+     +---------------+\n|   Worker 0    |     |   Worker 1    |     |   Worker 2    |     |   Worker 3    |\n| (Rank 0)      |     | (Rank 1)      |     | (Rank 2)      |     | (Rank 3)      |\n| Model Replica |     | Model Replica |     | Model Replica |     | Model Replica |\n|               |     |               |     |               |     |               |\n| Data Shard 0  |     | Data Shard 1  |     | Data Shard 2  |     | Data Shard 3  |\n| Forward Pass  |     | Forward Pass  |     | Forward Pass  |     | Forward Pass  |\n| Backward Pass |     | Backward Pass |     | Backward Pass |     | Backward Pass |\n| Grads: [g0]   |<--->| Grads: [g1]   |<--->| Grads: [g2]   |<--->| Grads: [g3]   |\n+---------------+  all_reduce  +---------------+  all_reduce  +---------------+  all_reduce\n                           (SUM & Avg)                          (Broadcast Params from Rank 0)\n\n                           ↓\n                    Synced Grads: [(g0+g1+g2+g3)/4]\n                           ↓\n                    Optimizer Step (All Replicas)\n```\n- **Arrows**: Represent data flow and gradient synchronization.\n- **all_reduce**: Core operation ensuring every rank gets the average gradient.\n- **Broadcast**: At init, ensures all replicas start with identical parameters.\n\n## Ensuring Reproducibility with Seeding\nSeeding sets the random number generator (RNG) states to a fixed value across all workers, making random operations (e.g., weight initialization, data shuffling) deterministic and identical.\n\n### Why Seeding Makes DDP Workers Identical\n- Without seeding, each worker's RNG state (from PyTorch, NumPy, Python's random) could differ due to process forking or timing, leading to divergent model initializations or data orders.\n- Proper seeding (e.g., via `torch.manual_seed(seed)` and `torch.cuda.manual_seed_all(seed)`) ensures:\n  - Identical model parameters at start.\n  - Consistent dropout masks, augmentations, etc., during training.\n  - Reproducible experiments across runs or machines.\n\nFrom the knowledge base, a standard seeding function:\n```python\ndef set_seed(seed: int = 43):\n    import random\n    import numpy as np\n    import torch\n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)\n```\nCall this before model instantiation and data loading in your main process. DDP will propagate it, but explicit per-worker seeding (e.g., `torch.manual_seed(seed + rank)`) can handle edge cases for data shuffling.\n\n### What Happens Without Proper Seeding?\n- **Divergent Replicas**: Models start with different weights, causing inconsistent gradients even after `all_reduce`. Training may diverge or fail to converge.\n- **Non-Reproducible Results**: Rerunning the same setup yields different outcomes, hindering debugging and comparisons.\n- **Data Inconsistencies**: Shuffled datasets differ across workers, leading to uneven training.\n- **Common Pitfall**: CUDA operations are non-deterministic by default; seeding + `torch.backends.cudnn.deterministic = True` fixes this.\n\n**Checkpoint Responses**:\n- *How does seeding make DDP workers identical?* By fixing RNG states, it ensures identical random initializations and operations across replicas, preventing divergence.\n- *What happens without proper seeding in distributed setups?* Workers develop inconsistent states, leading to non-reproducible training, divergent models, and potential instability.\n\nThis foundation prepares you for implementation details in later frames.",
-          "afterVideoText": "## Reflection and Practice\nTake a moment to visualize the DDP flow: Sketch your own diagram for 2 workers and label where seeding impacts the process. To reinforce:\n- Implement the `set_seed` function in a single-GPU script and verify reproducibility by running it twice—check if model weights match.\n- Experiment: Remove seeding and observe differences in a simple linear model training loop. What varies?\n- Address checkpoints: Journal answers to the questions above, then test in a multi-process setup using `torch.multiprocessing`.\nThese exercises build intuition before diving into code.",
+          "frameId": "frame_1",
+          "title": "This frame introduces the 10 PMP Knowledge Areas from the PMBOK Guide, their application across project phases, and interconnections in Sodexo site projects like cafeteria implementations.",
+          "goal": "Understand the structure and purpose of the 10 Knowledge Areas and how they interconnect in managing Sodexo site projects like cafeteria implementations or facility maintenance.",
+          "informationText": "# Overview of the 10 PMP Knowledge Areas in Sodexo Context\n\n## Introduction to PMBOK and Knowledge Areas\nThe Project Management Body of Knowledge (PMBOK) Guide, published by the Project Management Institute (PMI), serves as the foundational framework for project management practices. It defines **10 Knowledge Areas** as the core technical subject matter essential for effective project, program, and portfolio management. These areas represent key aspects that project managers must oversee to plan, schedule, track, and deliver projects successfully, in collaboration with teams and stakeholders.\n\nIn the context of Sodexo site services—such as implementing new cafeteria setups, facility maintenance overhauls, or food services expansions—these knowledge areas provide a structured approach to managing complex, on-site projects. They ensure projects align with Sodexo's goals of operational efficiency, client satisfaction, and regulatory compliance in facility management and food services.\n\n## Project Life Cycle Phases (Process Groups)\nKnowledge areas are applied across the **five project life cycle phases** (also called process groups):\n1. **Initiation**: Defining the project and obtaining approvals.\n2. **Planning**: Developing the project management plan.\n3. **Execution**: Carrying out the plan and managing resources.\n4. **Monitoring and Controlling**: Tracking progress and making adjustments.\n5. **Closing**: Finalizing all activities and obtaining approvals.\n\nThink of the process groups as horizontal stages, while the knowledge areas run vertically, intersecting throughout the project lifecycle. This matrix ensures comprehensive coverage.\n\n### Visual Diagram: Process Groups vs. Knowledge Areas\n```\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n| Knowledge Areas   | Initiation        | Planning          | Execution         | Monitoring/       |\n|                   |                   |                   |                   | Controlling       |\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n| 1. Integration    | Charter          | Develop Plan      | Direct Work       | Control Changes   |\n| 2. Scope          | Define           | Define WBS        | Validate Scope    | Control Scope     |\n| 3. Schedule       | Milestones       | Develop Schedule  | Manage Activities | Control Schedule  |\n| 4. Cost           | Budget Est.      | Cost Management   | Manage Costs      | Control Costs     |\n| 5. Quality        | Standards        | Plan Quality      | Perform QA        | Control Quality   |\n| 6. Resource       | Team Assembly    | Acquire Resources | Manage Team       | Control Resources |\n| 7. Communications | Plan Comm.       | Distribute Info   | Manage Comm.      | Control Comm.     |\n| 8. Risk           | Identify Risks   | Plan Risk Resp.   | Implement Resp.   | Monitor Risks     |\n| 9. Procurement    | Plan Procure.    | Conduct Procure.  | Control Procure.  | Close Procure.    |\n| 10. Stakeholder   | Identify         | Plan Engagement   | Manage Engagement | Monitor Engagement|\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n|                   |                   |                   |                   | Closing           |\n+-------------------+-------------------+-------------------+-------------------+-------------------+\n```\n(This simplified ASCII diagram illustrates how knowledge areas span all phases, with example processes.)\n\n## The 10 Knowledge Areas: Descriptions and Sodexo Applications\nHere’s a detailed overview of each knowledge area, including key documents and a Sodexo-specific example:\n\n1. **Project Integration Management**: Coordinates all project elements for unified execution. Key documents: Project Charter, Project Management Plan.\n   - *Sodexo Example*: In a cafeteria implementation, integrating scope changes with schedule adjustments to avoid delays in site opening.\n\n2. **Project Scope Management**: Defines and controls what is included/excluded. Key documents: Requirements Documentation, Work Breakdown Structure (WBS).\n   - *Sodexo Example*: Outlining exact features for a facility maintenance project, like kitchen upgrades, to prevent scope creep.\n\n3. **Project Schedule Management**: Develops and controls timelines. Key documents: Schedule Baseline, Gantt Charts.\n   - *Sodexo Example*: Sequencing tasks for a site renovation, ensuring food service downtime is minimized during peak hours.\n\n4. **Project Cost Management**: Estimates, budgets, and controls costs. Key documents: Cost Baseline, Earned Value Management reports.\n   - *Sodexo Example*: Budgeting for equipment procurement in a new cafeteria setup while tracking variances due to supply chain issues.\n\n5. **Project Quality Management**: Ensures deliverables meet standards. Key documents: Quality Management Plan, Inspection Checklists.\n   - *Sodexo Example*: Implementing hygiene protocols in food services projects to comply with health regulations.\n\n6. **Project Resource Management**: Plans, acquires, and manages team and physical resources. Key documents: Resource Calendars, RACI Matrix.\n   - *Sodexo Example*: Assigning on-site technicians and vendors for facility maintenance without over-allocating staff.\n\n7. **Project Communications Management**: Ensures timely information sharing. Key documents: Communications Management Plan, Status Reports.\n   - *Sodexo Example*: Updating stakeholders on a site overhaul's progress via dashboards to maintain client trust.\n\n8. **Project Risk Management**: Identifies, analyzes, and responds to risks. Key documents: Risk Register, Risk Response Plan.\n   - *Sodexo Example*: Mitigating supply delays in cafeteria implementations due to vendor issues.\n\n9. **Project Procurement Management**: Manages external purchases and contracts. Key documents: Procurement Management Plan, Contracts.\n   - *Sodexo Example*: Negotiating with suppliers for kitchen appliances in a food services project.\n\n10. **Project Stakeholder Management**: Identifies and engages stakeholders. Key documents: Stakeholder Register, Engagement Plan.\n    - *Sodexo Example*: Engaging site clients and employees in a maintenance project to gather feedback and ensure buy-in.\n\n## Interconnections in Sodexo Projects\nThe knowledge areas are interdependent. For instance, poor scope management (Area 2) can inflate costs (Area 4) and delay schedules (Area 3). In a Sodexo site renovation—like upgrading a corporate cafeteria—risk management (Area 8) might identify supply chain disruptions, prompting adjustments in procurement (Area 9) and communications (Area 7) to keep stakeholders informed. This holistic approach ensures projects deliver value, such as improved site efficiency and service quality.",
+          "afterVideoText": "## Reflection and Practice\nTo reinforce your understanding:\n- **Checkpoint 1**: List the 10 Knowledge Areas from memory. If you miss any, review the list above.\n- **Checkpoint 2**: Think of a Sodexo project, like a cafeteria implementation or facility maintenance. Describe how at least three knowledge areas overlap (e.g., scope, cost, and risk in budgeting for unexpected repairs).\n\nJournal your thoughts: How might applying these areas improve a past project you managed? Share in the discussion forum for peer feedback.",
           "aiConcepts": [
-            "Seeding",
-            "Model Replicas",
-            "Reproducibility",
-            "Gradient Synchronization",
-            "Data Sharding"
+            "PMBOK Guide: The standard framework outlining project management best practices.",
+            "10 Knowledge Areas: Core domains like scope, schedule, and risk that span the project lifecycle.",
+            "Project Life Cycle Phases: Five process groups (initiation to closing) where knowledge areas are applied.",
+            "Sodexo Site Services: Tailored applications, such as cafeteria setups and maintenance, integrating PMP principles for operational success."
           ],
           "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
           "sourceUrl": "",
           "chapterId": "flow_overview",
           "parentFrameId": "flow_overview"
         },
         "measured": {
           "width": 480,
-          "height": 739
-        },
-        "selected": false,
-        "dragging": false
+          "height": 848
+        }
       },
       {
-        "id": "node_1763803424947_nviu6n0e7_2",
+        "id": "node_1763810306410_ossz49vnv_1",
+        "type": "aiframe",
+        "position": {
+          "x": 550,
+          "y": 500
+        },
+        "data": {
+          "type": "aiframe",
+          "frameId": "frame_2",
+          "title": "This frame explores foundational processes in Project Integration, Scope, and Schedule Management, with practical applications to Sodexo projects like food service rollouts.",
+          "goal": "Grasp the basic processes for integrating project elements, defining scope, and scheduling tasks, applied to Sodexo scenarios like planning a new food service rollout at a site.",
+          "informationText": "# Fundamentals: Integration, Scope, and Schedule Management\n\nThis frame introduces the core processes for **Project Integration Management**, **Scope Management**, and **Schedule Management** as defined in the PMBOK Guide. These knowledge areas are essential for overseeing project elements cohesively, ensuring clear boundaries, and timely execution. In Sodexo contexts, such as rolling out a new food service at a corporate site, these fundamentals help managers align facility upgrades, vendor integrations, and timelines to deliver seamless services without delays or overruns.\n\n## Project Integration Management\n\nIntegration Management acts as the 'glue' holding all project activities together. It involves coordinating processes across the five project life cycle phases: initiation, planning, execution, monitoring/controlling, and closing. Key outputs include the **Project Charter** (formal authorization) and the **Project Management Plan** (comprehensive roadmap).\n\nIn a Sodexo scenario, imagine planning a cafeteria setup at a new client site:\n- **Initiation**: Develop a project charter outlining objectives, like integrating food services with existing facilities.\n- **Execution**: Coordinate teams for procurement, installation, and staff training.\n\n**Key Processes**:\n- Develop Project Charter\n- Develop Project Management Plan\n- Direct and Manage Project Work\n- Manage Project Knowledge\n- Monitor and Control Project Work\n- Perform Integrated Change Control\n- Close Project or Phase\n\n## Scope Management\n\nScope Management defines and controls what is (and isn't) included in the project to prevent **scope creep**—uncontrolled changes that inflate costs and timelines. It starts with collecting requirements and ends with validating deliverables.\n\nFor a Sodexo facilities upgrade (e.g., kitchen renovations for better hygiene compliance):\n- Use a **Work Breakdown Structure (WBS)** to decompose the project into manageable tasks, like 'design phase' > 'plumbing installation' > 'inspection'.\n- Define scope baseline: Clear requirements from stakeholders (e.g., client needs for eco-friendly materials) to avoid adding unplanned features mid-project.\n\n**Key Processes**:\n- Plan Scope Management\n- Collect Requirements\n- Define Scope\n- Create WBS\n- Validate Scope\n- Control Scope\n\n**ASCII Art: Simple WBS Example for Sodexo Cafeteria Rollout**\n```\nProject: New Food Service Rollout\n├── 1.0 Initiation\n│   ├── 1.1 Charter Development\n│   └── 1.2 Stakeholder Identification\n├── 2.0 Planning\n│   ├── 2.1 Scope Definition\n│   ├── 2.2 WBS Creation\n│   └── 2.3 Schedule Development\n├── 3.0 Execution\n│   ├── 3.1 Vendor Integration\n│   └── 3.2 Installation\n└── 4.0 Closing\n    └── 4.1 Validation & Handover\n```\n\n## Schedule Management\n\nSchedule Management focuses on developing, monitoring, and controlling the project timeline to ensure on-time completion. Tools like **Gantt Charts** visualize dependencies and milestones.\n\nIn Sodexo projects, such as a site maintenance overhaul:\n- Identify activities, sequence them (e.g., equipment delivery before installation), estimate durations, and develop the schedule.\n- Use Gantt charts to track progress: For a food service rollout, bars represent tasks like 'menu design (Week 1-2)' overlapping with 'staff training (Week 3)'.\n\n**Key Processes**:\n- Plan Schedule Management\n- Define Activities\n- Sequence Activities\n- Estimate Activity Durations\n- Develop Schedule\n- Control Schedule\n\n**ASCII Art: Basic Gantt Chart Snippet for Sodexo Project**\n```\nTask                  | Week 1 | Week 2 | Week 3 | Week 4 |\n----------------------|--------|--------|--------|--------|\nScope Definition      | █████  |        |        |        |\nWBS Creation          |        | █████  |        |        |\nResource Allocation   |        | ███    | ███    |        |\nExecution & Install   |        |        | █████  | █████  |\nMilestone: Go-Live    |        |        |        |  ●     |\n```\n\nThese areas intersect vertically across process groups (horizontal), as per PMBOK. In Sodexo, mastering them ensures projects like food service integrations run efficiently, aligning with stakeholder expectations in facility and service management.",
+          "afterVideoText": "Reflect on the checkpoints: Consider how a project charter would authorize a Sodexo site integration—draft a simple one-sentence charter for a hypothetical cafeteria rollout. Then, brainstorm ways to define scope for a facilities upgrade, listing 3-5 measures to prevent creep (e.g., change control board). Apply this by sketching a basic WBS or Gantt for a personal project scenario at your Sodexo site.",
+          "aiConcepts": [
+            "Project Integration Management",
+            "Scope Management",
+            "Schedule Management",
+            "Work Breakdown Structure",
+            "Gantt Charts in Sodexo Projects"
+          ],
+          "isGenerated": true,
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
+          "sourceUrl": "",
+          "chapterId": "flow_fundamentals",
+          "parentFrameId": "flow_fundamentals"
+        },
+        "measured": {
+          "width": 480,
+          "height": 791
+        }
+      },
+      {
+        "id": "node_1763810306410_0wzjxs5o4_2",
         "type": "aiframe",
         "position": {
           "x": 1050,
-          "y": 50
+          "y": 500
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_ddp_3",
-          "title": "This frame explores Python dictionary comprehensions and kwargs unpacking to efficiently transform Hugging Face dataset dictionaries into device-ready tensors for PyTorch models in DDP training.",
-          "goal": "Learn dictionary comprehensions and kwargs unpacking to transform data into tensors for models.",
-          "informationText": "# Python Idioms for Data Preparation\n\nIn distributed training with PyTorch's Distributed Data Parallel (DDP), preparing data efficiently is crucial for performance and correctness. Hugging Face Datasets, a popular library for loading and managing datasets, returns data samples as Python dictionaries containing lists and integers. However, PyTorch models expect inputs as tensors—specialized data structures optimized for GPU acceleration and mathematical operations like matrix multiplications.\n\n## Why Convert Lists to Tensors?\nPyTorch models perform tensor operations that require PyTorch tensor objects, not raw Python lists or integers. Passing lists directly leads to errors such as:\n- **TypeError**: Expected Tensor as element 0 in argument 0, but got list.\n- **RuntimeError**: Expected all tensors to be on the same device.\n\nTensors ensure data is on the correct device (e.g., GPU) and in the proper shape for model forward passes. This conversion is essential before feeding data into models, especially in distributed setups where data must be consistent across ranks.\n\n## Dictionary Comprehensions: Elegant Data Transformation\nDictionary comprehensions provide a concise way to transform each dictionary item from a Hugging Face dataset into a tensor-ready format. Here's the core pattern:\n\n```python\n# Assume 'item' is a dict from Hugging Face dataset, e.g., {'input_ids': [1, 2, 3], 'labels': 42}\n# Convert to tensors on the specified device\nbatch = {k: torch.tensor(v).to(device) for k, v in item.items()}\n```\n\nThis one-liner:\n- Iterates over each key-value pair in the dictionary.\n- Wraps values (lists/ints) in `torch.tensor()`.\n- Moves them to the target device (e.g., `cuda` for GPU).\n\nFor batched data, apply this in a loop or map over dataset samples:\n\n```python\n# Example for a batch of items\ndataset = hf_dataset.map(lambda item: {k: torch.tensor(v).to(device) for k, v in item.items()})\n```\n\n### Visual Data Flow (ASCII Diagram)\n```\nHugging Face Dataset Sample\n+---------------------------+\n| {'input_ids': [1,2,3],    |\n|   'attention_mask': [1,1,1],\n|   'labels': 42}           |\n+---------------------------+\n           |\n           v\nDictionary Comprehension\n{k: torch.tensor(v).to(device) for k,v in item.items()}\n           |\n           v\nTensor Dict on Device\n+---------------------------+\n| {'input_ids': tensor([1,2,3], device='cuda:0'),\n|   'attention_mask': tensor([1,1,1], device='cuda:0'),\n|   'labels': tensor(42, device='cuda:0')} |\n+---------------------------+\n```\n\n## Kwargs Unpacking: Seamless Model Input\nOnce your data is in a tensor dictionary (e.g., `batch`), use kwargs unpacking (`**`) to pass it directly to the model's `forward()` method. This automatically maps dictionary keys to the model's named parameters.\n\n```python\n# Hugging Face models like AutoModelForSequenceClassification\noutputs = model(**batch)  # Unpacks to model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])\n```\n\n### How Does **batch Map Keys to Model Parameters?\nThe `**` operator unpacks the dictionary into keyword arguments. Hugging Face models are designed to accept these exact keys (e.g., `input_ids`, `labels`), making the call intuitive and error-proof. In distributed training, this ensures consistent input across processes.\n\n## Integration in DDP Training Loop\nThese idioms fit into the minimal DDP loop:\n1. Load dataset with Hugging Face.\n2. Use dict comprehensions to tensorize batches.\n3. Unpack with `**` in `model.forward()`.\n4. Handle gradients with DDP's `all_reduce` (sum and divide by world_size).\n\nRemember to seed for reproducibility (e.g., `torch.manual_seed(43)`) before data prep to ensure identical replicas across ranks.\n\n## Common Pitfalls\n- Forgetting `.to(device)`: Tensors stay on CPU, causing device mismatch errors.\n- Shape mismatches: Ensure lists convert to tensors with compatible dimensions (e.g., batch-first).\n- Non-tensor values: Nested dicts/lists may need recursive handling.",
-          "afterVideoText": "To reinforce this frame, try these practice exercises:\n- Write a dictionary comprehension to convert a sample Hugging Face dataset item (e.g., from the GLUE benchmark) into tensors. Test it by printing shapes and devices.\n- Experiment with kwargs unpacking: Create a mock model function that takes `input_ids` and `labels`, then call it with `**batch`. Observe what happens if a key is missing.\n- Reflect: Why might these idioms be especially useful in distributed training? Consider how they reduce boilerplate code across multiple GPUs. If you encounter errors like TypeError, debug by checking tensor types with `type(batch['input_ids'])`.",
+          "frameId": "frame_3",
+          "title": "This frame introduces foundational techniques in cost estimation, quality assurance, and resource allocation, illustrated with practical Sodexo examples like vendor budgeting and site cleaning operations.",
+          "goal": "Learn essential cost estimation, quality assurance, and resource allocation techniques, with examples from budgeting Sodexo vendor contracts or ensuring quality in site cleaning services.",
+          "informationText": "# Fundamentals: Cost, Quality, and Resource Management\n\nIn project management, as outlined in the PMBOK Guide by the Project Management Institute (PMI), the 10 Knowledge Areas provide the core technical subject matter for effective project delivery. This frame focuses on three interconnected areas: **Project Cost Management**, **Project Quality Management**, and **Project Resource Management**. These are managed across the five process groups (Initiation, Planning, Execution, Monitoring & Controlling, Closing) and are crucial for Sodexo site and project managers handling facility management, food services, or maintenance projects.\n\nTailored to Sodexo contexts, we'll explore essential techniques for estimating costs (e.g., budgeting vendor contracts for cafeteria supplies), assuring quality (e.g., in site cleaning services), and allocating resources (e.g., staffing for a new site overhaul). These fundamentals build practical skills to deliver projects on time, within budget, and to stakeholder satisfaction.\n\n## Project Cost Management\n\nCost Management involves planning, estimating, budgeting, financing, funding, managing, and controlling costs to ensure the project completes within the approved budget. Key processes include:\n- **Plan Cost Management**: Define how costs will be estimated, budgeted, and controlled.\n- **Estimate Costs**: Use techniques like analogous estimating (based on similar past projects) or parametric estimating (e.g., cost per square foot for facility cleaning).\n- **Determine Budget**: Aggregate estimated costs into a cost baseline.\n- **Control Costs**: Monitor variances and implement corrective actions.\n\n### Sodexo Example: Cost Baseline in Procurement\nIn a Sodexo project procuring vendor contracts for food services, the **cost baseline** is the approved version of the time-phased project budget, excluding management reserves. It serves as a reference for measuring performance. For instance:\n- Estimate costs for ingredients and labor at $50,000/month based on historical data from similar cafeteria setups.\n- Aggregate into a baseline: $300,000 for the first quarter.\n- Use **Earned Value Management (EVM)** to track: If you've spent $100,000 but earned $120,000 in value (e.g., completed 40% of setup), you're under budget.\n\nEVM formula example: Schedule Variance (SV) = Earned Value (EV) - Planned Value (PV).\n\n## Project Quality Management\n\nQuality Management ensures that the project satisfies the needs for which it was undertaken by planning, managing, and controlling quality activities. It focuses on prevention over inspection and aligns with stakeholder expectations.\n\nKey processes:\n- **Plan Quality Management**: Identify quality requirements and standards (e.g., ISO standards for food safety in Sodexo cafeterias).\n- **Manage Quality**: Perform audits and process improvements.\n- **Control Quality**: Monitor results to verify compliance (e.g., checklists for cleaning efficacy).\n\n### Sodexo Example: Ensuring Quality in Site Cleaning Services\nFor daily site operations, quality assurance involves proactive measures like training staff on hygiene protocols and using tools such as cause-and-effect diagrams to identify defects (e.g., why a cafeteria floor isn't meeting shine standards). Control quality through inspections: If 95% compliance is the target, sample 10% of cleaned areas daily and remediate variances. This prevents rework, reduces costs, and maintains client satisfaction in facility management projects.\n\n## Project Resource Management\n\nResource Management is about identifying, acquiring, and managing the people and other resources needed for project success. It includes developing the team and ensuring optimal allocation.\n\nKey processes:\n- **Plan Resource Management**: Determine roles, responsibilities, and reporting structures (e.g., RACI matrix for site teams).\n- **Estimate Activity Resources**: Forecast what resources are required (e.g., number of cleaners per shift).\n- **Acquire Resources**: Obtain the team and materials.\n- **Develop and Manage Team**: Build skills and resolve conflicts.\n- **Control Resources**: Monitor utilization to avoid overallocation.\n\n### Sodexo Example: Resource Allocation for Site Teams\nIn a site maintenance overhaul, use **resource histograms** to visualize staffing needs over time, preventing burnout and gaps.\n\nASCII Art Example of a Simple Resource Histogram (Cleaners per Week for a 4-Week Project):\n\n```\nWeek 1 | Week 2 | Week 3 | Week 4\n  ****|  ******|  ***** |  ***\n(4)   | (6)    | (5)    | (3)\nDeep Clean | Routine | Inspection | Final\n```\n\nHere, bars represent cleaners allocated; peaks in Week 2 ensure intensive cleaning without exceeding budget.\n\n## Integration in Sodexo Projects\nThese areas interconnect: Poor resource allocation can inflate costs, while quality lapses lead to rework expenses. In a cafeteria setup project, balance a $200,000 budget by allocating 10 cleaners efficiently and auditing quality weekly using EVM to stay on track.",
+          "afterVideoText": "Reflect on the checkpoints: Try explaining a cost baseline for a hypothetical Sodexo vendor contract procurement—outline the estimated costs, baseline approval, and how you'd use EVM to monitor it. For quality, brainstorm 3-5 steps to ensure standards in daily site cleaning, such as implementing checklists or staff training. Practice by sketching a resource histogram for your current project team and identify potential overallocations. If challenges arise, revisit the cost and quality sections for remediation.",
           "aiConcepts": [
-            "Dictionary Comprehensions",
-            "Kwargs Unpacking",
-            "Hugging Face Datasets"
+            "Cost Management",
+            "Quality Management",
+            "Resource Management",
+            "Earned Value Management",
+            "Resource Histograms for Site Teams"
           ],
           "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
           "sourceUrl": "",
           "chapterId": "flow_fundamentals",
-          "parentFrameId": "flow_fundamentals",
-          "attachment": {
-            "id": "attachment_frame_ddp_3",
-            "type": "pdf-attachment",
-            "data": {
-              "title": "DDP Python Basics Guide with examples on data preparation idioms",
-              "notes": "DDP Python Basics Guide with examples on data preparation idioms",
-              "pdfUrl": "https://thefirehacker.github.io/til-ddp-python-basics.html",
-              "pages": "",
-              "pdfFileName": "til-ddp-python-basics.html",
-              "pdfSource": "url"
-            }
-          }
+          "parentFrameId": "flow_fundamentals"
         },
         "measured": {
           "width": 480,
-          "height": 704
-        },
-        "selected": true,
-        "dragging": false
+          "height": 784
+        }
       },
       {
-        "id": "node_1763803424947_8o25sy8ji_3",
+        "id": "node_1763810306410_sbmd3xd1q_3",
         "type": "aiframe",
         "position": {
           "x": 1550,
-          "y": 50
+          "y": 500
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_ddp_4",
-          "title": "This frame teaches seeding across libraries and device placement to achieve reproducible and consistent DDP training environments.",
-          "goal": "Implement seeding functions and device placement for consistent DDP environments.",
-          "informationText": "# Setting Up Seeds and Devices\n\nIn distributed training with PyTorch's Distributed Data Parallel (DDP), ensuring reproducibility and consistent behavior across multiple processes is crucial. Without proper seeding, random operations (e.g., weight initialization, data shuffling) can differ between runs or ranks, leading to inconsistent results. Similarly, correct device placement ensures that each process utilizes the appropriate GPU (or CPU) without conflicts.\n\n## Why Seeding Matters in DDP\nSeeding sets the random state for various libraries to make model replicas identical across processes. This is especially important in DDP, where each process (rank) trains on a subset of data but must synchronize gradients. Key libraries to seed include Python's `random`, NumPy, and PyTorch (both CPU and CUDA).\n\n### Implementing a Seeding Function\nHere's a robust `set_seed` function to call at the start of your training script:\n\n```python\ndef set_seed(seed: int = 43):\n    import random\n    import numpy as np\n    import torch\n    \n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)\n```\n\n- **random.seed(seed)**: Controls Python's built-in random module (e.g., for data sampling).\n- **np.random.seed(seed)**: Seeds NumPy's random number generator (common in data loading).\n- **torch.manual_seed(seed)**: Seeds PyTorch's CPU random operations (e.g., model initialization).\n- **torch.cuda.manual_seed_all(seed)**: Seeds all CUDA devices for GPU randomness.\n\nCall this before initializing your model or data loader: `set_seed(42)`.\n\n**Checkpoint**: What libraries need seeding for full reproducibility? *Answer: random, NumPy, and PyTorch (CPU + CUDA).* If results vary across runs, check which seeds are missing—remediation often involves adding overlooked seeds like NumPy.\n\n## Device Management in DDP\nEach DDP process runs on a specific device (typically a GPU). PyTorch uses `local_rank` to assign devices automatically in multi-GPU setups.\n\n### Key Steps for Device Placement\n1. **Set the Device**: Use `torch.cuda.set_device(local_rank)` to bind the process to its GPU.\n2. **Move Model to Device**: After wrapping with DDP, move the model: `model = model.to(device)`.\n3. **Data to Device**: In your training loop, move batches: `batch = {k: v.to(device) for k, v in batch.items()}` (using dictionary comprehension for efficiency).\n\n### Visual Mental Model: Ranks and Devices\nIn a 2-GPU setup with `torchrun --nproc_per_node=2`:\n\n```\nWorld Size: 2\n\nProcess 0 (Rank 0) ──► GPU 0\n  ├── Model Replica (seeded identically)\n  ├── Data Subset (shuffled with seed)\n  └── Gradients → AllReduce Sync\n\nProcess 1 (Rank 1) ──► GPU 1\n  ├── Model Replica (seeded identically)\n  ├── Data Subset (shuffled with seed)\n  └── Gradients → AllReduce Sync\n\nSynchronization:\n  All Processes → Broadcast Parameters → Average Gradients / World Size\n```\n\nThis ensures all replicas start the same and compute synchronized updates. Common pitfall: Forgetting `torch.cuda.manual_seed_all()` leads to divergent CUDA randomness across GPUs.\n\nFor CPU-only: Use `device = torch.device('cpu')` and skip CUDA seeds.",
-          "afterVideoText": "## Reflect and Practice\n- **Reflection**: Why might unseeded NumPy operations cause issues in DDP data loaders? (Hint: Data shuffling varies per rank.)\n- **Practice Suggestion**: Write a simple script with `set_seed(42)`, initialize a small model on multiple devices (simulate with `torchrun`), and verify identical initial weights across ranks using `torch.distributed.all_gather`. Run it twice to confirm reproducibility. If variances appear, debug missing seeds.",
+          "frameId": "frame_4",
+          "title": "This frame introduces foundational Communications and Risk Management skills tailored to Sodexo projects, emphasizing tools like matrices and simulations for effective stakeholder engagement and risk mitigation.",
+          "goal": "Build foundational skills in communicating project status and identifying/managing risks, using Sodexo examples like reporting to site stakeholders or mitigating delays in food supply chains.",
+          "informationText": "# Fundamentals: Communications and Risk Management\n\nIn project management, effective communication and risk management are crucial for ensuring project success, especially in dynamic environments like Sodexo's facility management and food services operations. This frame builds foundational skills by exploring two key PMBOK knowledge areas: Communications Management and Risk Management. These areas help project managers at Sodexo sites plan, execute, and control projects such as cafeteria setups or maintenance overhauls, where clear stakeholder updates and proactive risk handling can prevent delays and cost overruns.\n\n## Communications Management\n\nCommunications Management involves planning, managing, and monitoring communications to ensure timely and appropriate generation, collection, distribution, storage, retrieval, and disposition of project information. According to PMBOK, this knowledge area spans all project phases (initiation through closing) and is vital for stakeholder engagement.\n\n### Key Components\n- **Communication Planning**: Identify who needs what information, when, and how. For Sodexo site managers, this means creating a Communication Matrix to tailor messages for stakeholders like facility teams, suppliers, or executives.\n- **Managing Communications**: Distribute information effectively using tools like emails, meetings, or dashboards.\n- **Controlling Communications**: Monitor and adjust to resolve issues, ensuring feedback loops.\n\n### Sodexo Example: Reporting to Site Stakeholders\nImagine implementing a new cafeteria setup at a corporate site. Site managers must report progress to stakeholders (e.g., HR for employee impact, vendors for supply timelines). Suitable channels include:\n- Weekly email updates for executives (high-level summaries).\n- Daily stand-ups for on-site teams (quick verbal huddles).\n- Shared dashboards (e.g., via Microsoft Teams) for real-time status.\n\n#### Sample Communication Matrix (ASCII Art Representation)\n```\n+--------------------+----------+--------+----------+-------------+\n| Stakeholder        | Info Type| Frequency| Method   | Responsible |\n+--------------------+----------+--------+----------+-------------+\n| Site Manager       | Status   | Weekly  | Email    | PM          |\n| Facility Team      | Details  | Daily   | Meeting  | Coordinator |\n| Executive Sponsor  | Summary  | Bi-weekly| Dashboard| PM          |\n| Supplier           | Updates  | As Needed| Phone    | Procurement |\n+--------------------+----------+--------+----------+-------------+\n```\nThis matrix ensures alignment and reduces miscommunication in fast-paced Sodexo projects.\n\n## Risk Management\n\nRisk Management focuses on identifying, analyzing, and responding to project risks to maximize positive outcomes and minimize negatives. PMBOK emphasizes this as a proactive process across all life cycle phases, using tools like the Risk Register to track potential issues.\n\n### Key Processes\n- **Plan Risk Management**: Define how to approach risk handling.\n- **Identify Risks**: Brainstorm potential threats/opportunities.\n- **Perform Qualitative/Quantitative Analysis**: Assess probability and impact (e.g., qualitative via high/medium/low; quantitative via simulations).\n- **Plan Risk Responses**: Develop strategies like avoid, mitigate, transfer, or accept.\n- **Monitor Risks**: Track and adjust throughout the project.\n\n### Sodexo Example: Mitigating Delays in Food Supply Chains\nIn a food services project, a risk might be supplier delays due to weather, impacting cafeteria operations. Identification: Use brainstorming with procurement teams. Analysis: Qualitative (high impact on service delivery); Quantitative: Monte Carlo Simulation to model delay probabilities and cost variances.\n\n#### Sample Risk Register (Markdown Table)\n| Risk ID | Description | Probability | Impact | Response Strategy | Owner | Status |\n|---------|-------------|-------------|--------|-------------------|-------|--------|\n| R001   | Supply chain delay | Medium (40%) | High  | Mitigate: Diversify suppliers | Procurement | Open |\n| R002   | Budget overrun from material costs | Low (20%) | Medium | Transfer: Insurance clause | Finance | Monitored |\n\n### Monte Carlo Simulation for Sodexo Risks\nThis quantitative tool runs thousands of simulations using input variables (e.g., delivery times, costs) to predict outcomes. For Sodexo, simulate food supply risks: If delays occur 30% of the time, it forecasts project completion probabilities, helping prioritize mitigations like backup vendors.\n\nBy mastering these fundamentals, Sodexo managers can enhance project delivery in facility and food services contexts, aligning with PMBOK's vertical knowledge areas integrated across horizontal process groups.",
+          "afterVideoText": "Reflect on the checkpoints: Consider what communication channels would best suit Sodexo site managers in a maintenance project (e.g., in-person vs. digital). Practice by identifying a risk in a facilities project, such as equipment failure during a site overhaul, and outline a response strategy (e.g., mitigation via preventive maintenance). Journal your thoughts or discuss with a colleague to reinforce application.",
           "aiConcepts": [
-            "Random Seed",
-            "CUDA Manual Seed",
-            "Device Management",
-            "Reproducibility in DDP",
-            "Model Replica Synchronization"
+            "Communications Management",
+            "Risk Management",
+            "Risk Register",
+            "Communication Matrix",
+            "Monte Carlo Simulation for Sodexo Risks"
           ],
           "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
           "sourceUrl": "",
           "chapterId": "flow_fundamentals",
-          "parentFrameId": "flow_fundamentals",
-          "attachment": {
-            "id": "attachment_frame_ddp_4",
-            "type": "pdf-attachment",
-            "data": {
-              "title": "DDP Python Basics Guide (covers seeding and device setup)",
-              "notes": "DDP Python Basics Guide (covers seeding and device setup)",
-              "pdfUrl": "https://thefirehacker.github.io/til/ddp/python-basics.html",
-              "pages": "",
-              "pdfFileName": "python-basics.html",
-              "pdfSource": "url"
-            }
-          }
+          "parentFrameId": "flow_fundamentals"
         },
         "measured": {
           "width": 480,
-          "height": 654
+          "height": 809
         }
       },
       {
-        "id": "node_1763803424947_8flxqc5dh_4",
+        "id": "node_1763810306410_btzqenppe_4",
         "type": "aiframe",
         "position": {
           "x": 2050,
-          "y": 50
+          "y": 500
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_ddp_5",
-          "title": "This frame guides building a simple DDP model wrapper and dissecting the distributed training loop, emphasizing tensor preparation, forward passes, and gradient sync.",
-          "goal": "Create a simple DDP wrapper and understand the basic training loop structure.",
-          "informationText": "# Building a Minimal DDP Wrapper\n\nIn this frame, we'll dive into creating a simple Distributed Data Parallel (DDP) wrapper around a PyTorch model and explore the structure of a basic distributed training loop. This builds on the fundamentals of seeding and data preparation, allowing you to replicate models across multiple GPUs while synchronizing gradients efficiently.\n\n## Why a DDP Wrapper?\nDDP (Distributed Data Parallel) is PyTorch's recommended way to scale training across multiple GPUs or nodes. It wraps your model to handle:\n- **Automatic gradient synchronization** via `all_reduce` operations.\n- **Broadcasting parameters** to ensure all replicas start identically.\n- **Efficient communication** without manual data splitting (unlike DataParallel).\n\nA minimal wrapper is a 'teaching version' that initializes DDP, sets up the training loop, and avoids common pitfalls like unseeded randomness or device mismatches.\n\n## Key Components from Python Idioms\nBefore coding, recall two essential Python patterns from DDP basics:\n1. **Dictionary Comprehensions for Data Transformation**:\n   Hugging Face datasets return Python dicts with lists/ints. Convert to tensors on the correct device:\n   ```python\n   batch = {k: torch.tensor(v).to(device) for k, v in item.items()}\n   ```\n   This ensures model-ready inputs (e.g., for token IDs, labels) without type errors like 'expected Tensor but got list'.\n\n2. **Kwargs Unpacking for Forward Pass**:\n   Pass the batch dict directly to the model:\n   ```python\n   outputs = model(**batch)\n   ```\n   This maps keys (e.g., 'input_ids', 'labels') to the model's `forward()` method arguments.\n\n## Creating the Minimal DDP Wrapper\nHere's a step-by-step implementation of a tiny DDP wrapper:\n\n1. **Seeding for Reproducibility**:\n   Ensure identical model replicas:\n   ```python\n   def set_seed(seed: int = 43):\n       import random\n       import numpy as np\n       import torch\n       random.seed(seed)\n       np.random.seed(seed)\n       torch.manual_seed(seed)\n       torch.cuda.manual_seed_all(seed)\n   set_seed()\n   ```\n   Call this before model instantiation.\n\n2. **Initialize Process Group and DDP**:\n   Use `torch.distributed` for multi-GPU setup (assumes `torchrun` or `mp.spawn` launcher):\n   ```python\n   import torch.distributed as dist\n   from torch.nn.parallel import DistributedDataParallel as DDP\n   \n   dist.init_process_group(backend='nccl')  # For GPUs\n   local_rank = int(os.environ['LOCAL_RANK'])\n   device = torch.device(f'cuda:{local_rank}')\n   \n   # Load your model (e.g., from Hugging Face)\n   from transformers import AutoModelForSequenceClassification\n   model = AutoModelForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2)\n   model.to(device)\n   \n   # Wrap with DDP\n   model = DDP(model, device_ids=[local_rank])\n   ```\n   **Note**: Broadcasting happens at DDP init to sync parameters, even after seeding, to handle any init-time randomness.\n\n## The Basic Training Loop Structure\nA minimal distributed training iteration follows these steps:\n\n1. **Data Loading**: Use `DistributedSampler` for even data splitting across ranks.\n2. **Forward Pass**: Compute loss with `model(**batch)`.\n3. **Backward Pass**: `loss.backward()` accumulates gradients locally.\n4. **Gradient Sync**: DDP's `all_reduce(SUM)` averages gradients across ranks (divided by world_size internally).\n5. **Optimizer Step**: `optimizer.step()` updates parameters (broadcast implicitly).\n6. **Zero Gradients**: `optimizer.zero_grad()`.\n\nVisual mental model (ASCII art):\n```\nRank 0                  Rank 1                  ...\n  |                       |                       |\nBatch 0 --> Forward --> Loss --> Backward --> Grads\n  |                       |                       |\n  +-----------------------+                       |\n  | all_reduce(SUM) --> Avg Grads (divide by N)   |\n  |                       |                       |\n  +--> Optimizer.step() (sync params via broadcast)\n```\n\nFull loop skeleton:\n```python\nfor batch in dataloader:\n    batch = {k: v.to(device) for k, v in batch.items()}\n    outputs = model(**batch)\n    loss = outputs.loss  # Or compute manually\n    loss.backward()\n    optimizer.step()\n    optimizer.zero_grad()\n    if dist.get_rank() == 0:\n        print(f'Loss: {loss.item()}')  # Log only on rank 0\n```\n\n## Checkpoint: Forward() Origins in AutoModel\nThe `forward()` method in Hugging Face's `AutoModel` (and subclasses like `AutoModelForSequenceClassification`) inherits from PyTorch's `nn.Module`. It's the core entry point for tensor operations:\n- Called implicitly via `model(**inputs)`.\n- Handles tensor flows: inputs → embeddings → transformer layers → outputs (logits/loss).\n- Why tensors? PyTorch ops (e.g., matmul) require them; lists cause device/type errors.\n\nCommon Pitfall: Forgetting `.to(device)` leads to 'Expected all tensors on same device'.\n\n## Checkpoint: Steps in a DDP Training Iteration\n1. Seed and init DDP.\n2. Load split batch on local device.\n3. Forward: `model(**batch)` → loss.\n4. Backward: `loss.backward()`.\n5. DDP syncs grads via all_reduce.\n6. `optimizer.step()` and `zero_grad()`.\n\nThis structure scales to real setups—next, we'll expand to full datasets.",
-          "afterVideoText": "Reflect on the checkpoints: Trace where `forward()` is called in your code—does it originate from `nn.Module`? Sketch the DDP training steps for a 2-GPU setup and identify potential pitfalls like unsynced seeds. Practice by implementing the wrapper on a toy dataset (e.g., MNIST) and verify loss decreases identically across ranks. Refer to exercises in the DDP basics resource for hands-on tweaks.",
+          "frameId": "frame_5",
+          "title": "This frame introduces the fundamentals of procurement processes and stakeholder engagement, with practical applications to Sodexo scenarios like vendor contracting and client management in facility projects.",
+          "goal": "Understand procurement processes and stakeholder engagement basics, tailored to Sodexo contexts like contracting external vendors for site maintenance or managing client expectations in services.",
+          "informationText": "# Fundamentals: Procurement and Stakeholder Management\n\nIn project management, particularly within Sodexo's facility management and food services operations, **Procurement Management** and **Stakeholder Management** are essential knowledge areas from the PMBOK framework. These areas ensure that projects like site maintenance overhauls or new cafeteria setups are delivered efficiently by sourcing external resources and engaging key parties effectively.\n\n## Procurement Management\nProcurement Management involves the processes required to purchase or acquire products, services, or results needed from outside the project team to complete the work. In Sodexo contexts, this often means contracting external vendors for tasks such as HVAC repairs at a client site or sourcing kitchen equipment for a new food service installation.\n\n### Key Steps in Procurement (Tailored to Sodexo Vendor Selection):\n1. **Plan Procurement Management**: Identify what to procure (e.g., make-or-buy decision for site cleaning services). Develop procurement strategy, including contract types like fixed-price for predictable maintenance jobs.\n2. **Conduct Procurements**: Solicit bids from vendors, evaluate proposals based on cost, quality, and Sodexo compliance (e.g., sustainability standards). Select the best vendor through tools like RFPs (Request for Proposals).\n3. **Control Procurements**: Monitor vendor performance, manage contracts, and handle changes (e.g., addressing delays in cafeteria equipment delivery).\n4. **Close Procurements**: Finalize payments, document lessons learned, and release vendors.\n\n### Make-or-Buy Analysis\nA critical tool here is the **Make-or-Buy Analysis**, which helps decide whether to handle tasks in-house (e.g., Sodexo staff managing basic site upkeep) or outsource (e.g., hiring specialized plumbers for complex repairs). Factors include cost, expertise availability, and risk—Sodexo might 'buy' for non-core services to focus on client-facing food and facility excellence.\n\n## Stakeholder Management\nStakeholder Management focuses on identifying, analyzing, and engaging individuals or groups affected by or influencing the project. In Sodexo projects, stakeholders could include clients (e.g., hospital administrators expecting seamless cafeteria operations), internal teams (e.g., site managers), vendors, and end-users (e.g., employees using maintained facilities).\n\n### Key Processes:\n1. **Identify Stakeholders**: Create a **Stakeholder Register** listing names, roles, interests, and influence (e.g., a client rep with high interest in service uptime).\n2. **Plan Stakeholder Engagement**: Develop strategies to manage expectations, such as regular updates for a demanding client during a site renovation.\n3. **Manage Stakeholder Engagement**: Communicate effectively, resolve issues (e.g., addressing vendor complaints about site access).\n4. **Monitor Stakeholder Engagement**: Assess involvement and adjust plans as needed.\n\n### Power/Interest Grid in Sodexo Context\nUse the **Power/Interest Grid** to prioritize stakeholders:\n\n```\n          High Power\n     +------------------+\nHigh | Manage Closely   | (e.g., Client CEO - high power, high interest in project success)\nInterest| (Keep Satisfied) |\n     |------------------|\nLow  | (Keep Informed)  | (e.g., Regulatory Body - high power, low interest)\nInterest| (Minimal Effort) |\n     +------------------+\n          Low Power\n```\n- **High Power/High Interest**: Engage actively (e.g., site director for maintenance projects).\n- **High Power/Low Interest**: Satisfy needs minimally to avoid risks.\n- **Low Power/High Interest**: Keep informed to maintain support.\n- **Low Power/Low Interest**: Monitor without much effort.\n\nThese concepts align with PMBOK's vertical knowledge areas, integrated across project phases like planning and execution, ensuring Sodexo projects meet client expectations while controlling costs.\n\n## Checkpoints for Reinforcement\n- Describe the procurement steps for a Sodexo vendor selection (e.g., for site maintenance).\n- Explain how to prioritize stakeholders in a site project using the Power/Interest Grid.",
+          "afterVideoText": "Reflect on a recent Sodexo project you've been involved in, such as a vendor contract for facility upgrades. Journal: 1) What procurement decisions did you face, and would a make-or-buy analysis have helped? 2) Who were the key stakeholders, and how might the Power/Interest Grid guide your engagement? Practice by drafting a simple Stakeholder Register for a hypothetical cafeteria setup project, then discuss with a colleague to identify potential oversights.",
           "aiConcepts": [
-            "DDP Wrapper",
-            "Training Loop",
-            "Forward Pass",
-            "Gradient Synchronization",
-            "Seeding for Reproducibility"
+            "Procurement Management",
+            "Stakeholder Management",
+            "Make-or-Buy Analysis",
+            "Stakeholder Register",
+            "Power/Interest Grid in Sodexo"
           ],
           "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
           "sourceUrl": "",
-          "chapterId": "flow_deep-dive",
-          "parentFrameId": "flow_deep-dive",
-          "attachment": {
-            "id": "attachment_frame_ddp_5",
-            "type": "pdf-attachment",
-            "data": {
-              "title": "DDP Python Basics Guide with code examples and cheatsheet",
-              "notes": "DDP Python Basics Guide with code examples and cheatsheet",
-              "pdfUrl": "https://thefirehacker.github.io/til/ddp-python-basics.html",
-              "pages": "",
-              "pdfFileName": "ddp-python-basics.html",
-              "pdfSource": "url"
-            }
-          }
+          "chapterId": "flow_fundamentals",
+          "parentFrameId": "flow_fundamentals"
         },
         "measured": {
           "width": 480,
-          "height": 679
+          "height": 841
         }
       },
       {
-        "id": "node_1763803424947_p70gqxt3j_5",
+        "id": "node_1763810306410_82dedg1ci_5",
         "type": "aiframe",
         "position": {
           "x": 2550,
-          "y": 50
+          "y": 500
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_ddp_6",
-          "title": "This frame details how DDP uses all-reduce to sum and average gradients across processes, divided by world size, before synchronized optimizer steps to maintain model consistency in distributed training.",
-          "goal": "Explain all_reduce, averaging gradients, and optimizer steps in distributed training.",
-          "informationText": "# Gradient Synchronization in DDP\n\nIn Distributed Data Parallel (DDP) training, multiple processes (typically one per GPU) work together to train a model on a large dataset. Each process handles a subset of the data, computes forward and backward passes independently, and generates local gradients. However, to ensure all model replicas remain synchronized and learn consistently, these local gradients must be aggregated across all processes. This frame dives into the mechanics of gradient synchronization, focusing on the `all_reduce` operation, gradient averaging, and how optimizer steps fit into the distributed training loop.\n\n## The Need for Synchronization\n\nWithout synchronization, each process would update its model parameters based only on its local batch, leading to divergent models and inconsistent training. DDP addresses this by using collective communication primitives from PyTorch's `torch.distributed` module to average gradients across all processes after each backward pass. This averaging ensures that every process applies the same update to its model replica.\n\nKey benefits:\n- **Scalability**: Training speed scales nearly linearly with the number of GPUs.\n- **Consistency**: All models stay identical, enabling seamless aggregation (e.g., for ensemble predictions).\n- **Efficiency**: Operations like `all_reduce` are optimized for hardware (e.g., NCCL backend for GPUs).\n\n## Core Operation: All-Reduce\n\n`all_reduce` is a collective communication primitive where every process contributes its data (in this case, gradients), and all processes receive the aggregated result. In DDP, it's typically used in SUM mode: gradients from all processes are summed, then divided by the world size to compute the average.\n\n### Visual Mental Model (ASCII Diagram)\n\nHere's a simplified flow for 3 processes (world size = 3):\n\n```\n\nLocal Backward Pass:\n\nProcess 0 (Rank 0):  [gradients on batch 0]  ──→  grad0\n\nProcess 1 (Rank 1):  [gradients on batch 1]  ──→  grad1\n\nProcess 2 (Rank 2):  [gradients on batch 2]  ──→  grad2\n\nAll-Reduce Aggregation:\n\n     grad0\n       │\n     + grad1  ──→  SUM ──→  total_grads (grad0 + grad1 + grad2)\n       │              │\n     + grad2         │\n                    ↓\n               Divide by World Size (3)\n                    ↓\n                 avg_grads\n                    │\n                    ↓ (Broadcast to all ranks)\n\nSynchronized Update:\nProcess 0:  avg_grads  ──→  optimizer.step()\nProcess 1:  avg_grads  ──→  optimizer.step()\nProcess 2:  avg_grads  ──→  optimizer.step()\n\n```\n\n- **Step-by-Step**:\n  1. After `loss.backward()`, each process has local gradients stored in `.grad` attributes of model parameters.\n  2. DDP automatically calls `all_reduce` on these gradients (SUM reduction).\n  3. The sum is divided by `world_size` (e.g., `dist.get_world_size()`) to get the average.\n  4. The averaged gradients are applied identically on every process via `optimizer.step()`.\n\nThis happens *inside* the DDP wrapper, so you don't manually implement it in a basic setup. However, understanding it is crucial for debugging and custom extensions.\n\n## Gradient Averaging\n\nAveraging prevents any single process's gradients from dominating the update. The formula is straightforward:\n\n```\navg_grad = (sum_of_all_grads) / world_size\n```\n\n- **World Size**: The total number of processes (e.g., 4 for a 4-GPU setup). Retrieved via `torch.distributed.get_world_size()`. Larger world sizes mean more communication overhead but better parallelism.\n- **Why Average?** Local batches are random subsets; averaging provides a more stable, global estimate of the gradient, reducing variance in updates.\n\nIn code (conceptual, as DDP handles this):\n\n```python\nimport torch.distributed as dist\n\n# After backward()\nfor param in model.parameters():\n    if param.grad is not None:\n        dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)\n        param.grad /= dist.get_world_size()\n\noptimizer.step()\n```\n\nDDP wraps your model and injects this logic automatically after `backward()` and before `step()`.\n\n## Optimizer Steps in Distributed Training\n\nThe optimizer (e.g., Adam, SGD) uses the averaged gradients to update parameters. Importantly:\n- **Zero Gradients**: Call `optimizer.zero_grad()` *before* the forward-backward to clear old gradients.\n- **Timing**: Synchronization occurs post-backward, pre-step, ensuring all processes step in lockstep without data races on parameters.\n- **Parameter Sync**: DDP also broadcasts parameters from rank 0 periodically (e.g., after init) to handle any drift, but gradients are the primary sync point.\n\n## Initialization and Broadcasting\n\n### Why Broadcast Buffers at Initialization?\nEven with proper seeding (e.g., `torch.manual_seed(seed)` and `torch.cuda.manual_seed_all(seed)`), some model components like buffers (BatchNorm running stats) or lazily initialized parameters might differ across processes due to non-deterministic operations or loading order. DDP's `broadcast_buffers()` ensures all processes start with identical states by broadcasting from rank 0.\n\nFrom the knowledge base: Seeding makes *randomness* reproducible, but broadcasting handles *state* synchronization. Without it, subtle divergences can accumulate, leading to inconsistent training.\n\nCheckpoint: If your models diverge early, verify seeding + broadcasting in your init code:\n\n```python\ndef set_seed(seed: int = 43):\n    import random\n    import numpy as np\n    import torch\n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)\n\n# In DDP init:\nmodel = DDP(model, device_ids=[local_rank])\ndist.broadcast_object_list([model.state_dict()], src=0)  # Simplified\n```\n\n## Common Pitfalls and Remediation\n\n- **Gradients Not Syncing**: Symptoms include NaN losses or divergent accuracies across ranks.\n  - **Remediation**: Verify `all_reduce` placement—ensure it's after `backward()` but before `optimizer.step()`. In DDP, check if you're using `find_unused_parameters=False` correctly for dynamic models. Debug with `torch.distributed.barrier()` to sync processes and print gradient norms.\n- **World Size Mismatch**: If `world_size` is wrong (e.g., not matching `torchrun --nproc_per_node`), averaging fails.\n- **Communication Overhead**: For large models, use gradient accumulation to reduce all-reduce frequency.\n\nThis synchronization is what makes DDP \"plug-and-play\" for scaling PyTorch training.",
-          "afterVideoText": "Reflect on the diagram: What would happen if all-reduce was skipped on one parameter? Would the models diverge, and how quickly? To reinforce, try modifying a single-process training loop to simulate DDP by manually averaging mock gradients across 'ranks' (use multiprocessing). Experiment with world_size=2 and observe how local vs. averaged updates affect loss convergence. If gradients aren't syncing in your code, apply the remediation checkpoint: log gradient norms before/after all-reduce to verify equality across ranks.",
+          "frameId": "frame_6",
+          "title": "This frame dives into applying PMP Knowledge Areas 1-6 (Integration through Resource Management) to Sodexo projects, focusing on tools for handling issues like scope changes in cafeteria setups.",
+          "goal": "Master advanced application of Integration through Resource Management in Sodexo projects, including tools and remediation for issues like scope changes in a cafeteria setup.",
+          "informationText": "# Deep-Dive: Applying Planning Knowledge Areas (1-6) at Sodexo Sites\n\nIn this frame, we explore the advanced application of the first six PMP Knowledge Areas—Integration Management, Scope Management, Schedule Management, Cost Management, Quality Management, and Resource Management—in the context of Sodexo projects. Sodexo, as a leader in facility management and food services, often handles projects like setting up new cafeterias, overhauling site maintenance, or optimizing resource allocation for on-site dining operations. These knowledge areas intersect vertically across the project life cycle phases (initiation, planning, execution, monitoring/controlling, and closing), ensuring projects are delivered efficiently while adapting to real-world challenges such as scope changes due to client feedback or supply chain disruptions.\n\n## Key Applications in Sodexo Projects\n\n### 1. Integration Management: Coordinating All Elements\nIntegration Management acts as the 'glue' for all knowledge areas, ensuring cohesive project execution. In a Sodexo cafeteria setup, this involves developing a project management plan that aligns food service installation with facility upgrades. Tools like the Integrated Change Control process help manage scope changes, such as adding eco-friendly kitchen equipment mid-project.\n\n- **Change Control Process**: Evaluate impacts on time, cost, and quality before approving changes.\n- **Sodexo Example**: If a client requests vegan menu expansions, integrate this by updating the project charter and baseline plans.\n\n### 2. Scope Management: Defining and Controlling What’s Included\nScope Management prevents 'scope creep' by clearly defining deliverables. For a cafeteria project, validate scope through stakeholder workshops to confirm requirements like seating capacity and menu variety.\n\n- **Scope Validation Techniques**: Use acceptance criteria checklists and work breakdown structures (WBS) to verify deliverables.\n- **Remediation for Issues**: If scope changes occur (e.g., expanding the cafeteria footprint), perform a scope baseline update and re-validate with inspections.\n\n### 3. Schedule Management: Timely Delivery\nSchedule Management ensures projects stay on track using techniques like the Critical Path Method (CPM). In Sodexo site projects, delays from vendor shipments can be mitigated by identifying float (slack time) in non-critical tasks.\n\n- **Critical Path Method**: Map dependencies to find the longest sequence of tasks determining project duration.\n- **Visual Diagram (ASCII Art)**:\n```\nStart --> Task A (5 days) --> Task B (3 days, Critical) --> Task C (7 days) --> End\n         |                  |\n         +--> Task D (4 days, Float: 2) --> +\n```\nHere, Task D has 2 days of float for delays without impacting the critical path.\n\n### 4. Cost Management: Budget Control\nTrack and control costs to avoid overruns. In Sodexo budgets for site setups, estimate using analogous methods (past cafeteria projects) and monitor with earned value management (EVM).\n\n- **Tools**: Cost baseline variance analysis.\n- **Sodexo Case**: A 10% material cost increase due to inflation—remediate by value engineering (e.g., substitute suppliers).\n\n### 5. Quality Management: Ensuring Standards\nQuality Management integrates audits to meet Sodexo’s high standards for food safety and service. Plan quality with metrics like defect rates in cafeteria installations.\n\n- **Quality Audits**: Regular inspections of equipment setup to ensure compliance with HACCP (Hazard Analysis Critical Control Points).\n- **Techniques**: Pareto analysis to prioritize quality issues.\n\n### 6. Resource Management: Optimizing People and Assets\nAcquire, develop, and manage teams and materials efficiently. For Sodexo, this means scheduling chefs and maintenance crews without overlaps.\n\n- **Resource Optimization**: Use resource histograms to level workloads and avoid burnout.\n- **Sodexo Case Study**: In a multi-site rollout, optimize by cross-training staff, reducing hiring costs by 15%.\n\n## Interconnections and Tools\nThese areas overlap; for instance, a scope change triggers schedule and cost updates via integration. Use PMBOK-aligned tools like MS Project for scheduling or Primavera for resource leveling. In Sodexo environments, apply these to handle issues like cafeteria scope changes by conducting impact assessments and stakeholder approvals.\n\nDraw from PMBOK fundamentals: Knowledge areas are vertical pillars supporting horizontal process groups, essential for successful project delivery in dynamic settings like food services.",
+          "afterVideoText": "To reinforce your learning, reflect on the interconnections between these knowledge areas. **Practice Suggestion 1**: Simulate handling a cost overrun in a site budget—assume a 20% variance in cafeteria equipment costs; outline steps using cost management tools like EVM to remediate (e.g., re-allocate resources or negotiate vendor discounts). **Practice Suggestion 2**: If confused on scheduling, review: What is float and how to use it in delays? Float is the amount of time a task can be delayed without affecting the project end date; apply it by prioritizing critical path tasks and buffering non-critical ones in your Sodexo project timeline. Journal your insights and revisit the WBS for the cafeteria example.",
           "aiConcepts": [
-            "All-Reduce",
-            "Gradient Averaging",
-            "World Size",
-            "Broadcast Buffers",
-            "Optimizer Synchronization"
+            "Change Control in Integration",
+            "Scope Validation Techniques",
+            "Critical Path Method",
+            "Quality Audits",
+            "Resource Optimization",
+            "Sodexo Case Studies"
           ],
           "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
           "sourceUrl": "",
           "chapterId": "flow_deep-dive",
-          "parentFrameId": "flow_deep-dive",
-          "attachment": {
-            "id": "attachment_frame_ddp_6",
-            "type": "pdf-attachment",
-            "data": {
-              "title": "DDP Python Basics Guide covering all-reduce and synchronization patterns",
-              "notes": "DDP Python Basics Guide covering all-reduce and synchronization patterns",
-              "pdfUrl": "https://thefirehacker.github.io/til/ddp-python-basics.html",
-              "pages": "",
-              "pdfFileName": "ddp-python-basics.html",
-              "pdfSource": "url"
-            }
-          }
+          "parentFrameId": "flow_deep-dive"
         },
         "measured": {
           "width": 480,
-          "height": 704
+          "height": 816
         }
       },
       {
-        "id": "node_1763803424947_l7tw4wdus_6",
+        "id": "node_1763810306410_ehkl7d8rb_6",
         "type": "aiframe",
         "position": {
           "x": 3050,
-          "y": 50
+          "y": 500
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_ddp_7",
-          "title": "This frame identifies common DDP pitfalls like device mismatches and unseeded randomness, provides practical fixes, and guides transitioning from toy implementations to full-scale distributed training.",
-          "goal": "Identify and resolve typical DDP errors like device mismatches or unseeded randomness.",
-          "informationText": "# Common Pitfalls and Fixes in Distributed Data Parallel (DDP)\n\nIn this deep-dive frame, we'll identify and resolve typical errors encountered when implementing PyTorch's DDP, such as device mismatches, unseeded randomness, and issues with buffer synchronization. Understanding these pitfalls is crucial for robust distributed training. We'll draw from core Python patterns and DDP best practices to ensure your setups are reliable and scalable.\n\n## Key Pitfalls and Their Causes\n\nDistributed training amplifies small oversights into major failures. Here are the most common ones:\n\n### 1. Device Mismatches: 'Expected all tensors on same device' Errors\nThis error occurs when tensors in your model or data are not consistently placed on the same GPU device across ranks. PyTorch models expect all inputs and parameters to reside on the same device for operations like matrix multiplications.\n\n**Causes:**\n- Passing raw Python lists or integers from datasets (e.g., Hugging Face) directly to the model without conversion to tensors.\n- Forgetting to move data to the correct device (e.g., CUDA device per rank).\n- Inconsistent device assignment in multi-GPU setups.\n\n**Example Error Flow (ASCII Diagram):**\n```\nHugging Face Dataset Item:\n┌─────────────────────┐\n│ {'input_ids': [1,2,3], │\n│  'labels': 42 }      │\n└──────────┬───────────┘\n           │\n           ▼ (Direct Pass to Model)\nPyTorch Model Forward():\n┌─────────────────────┐\n│ TypeError: expected │\n│ Tensor, got list!   │\n│ OR                  │\n│ RuntimeError:       │\n│ Tensors on CPU/GPU  │\n│ mismatch!           │\n└─────────────────────┘\n```\n\n**Fix:** Use dictionary comprehensions to convert data to tensors and move them to the device:\n```python\n# Elegant one-liner transformation\nbatch = {k: torch.tensor(v).to(device) for k, v in item.items()}\nmodel(**batch)  # Kwargs unpacking handles the rest\n```\nThis ensures all tensors are on the correct device before feeding into the model.\n\n### 2. Unseeded Randomness: Inconsistent Model Replicas\nDDP requires identical model replicas across ranks for synchronized gradients. Without proper seeding, random initializations (e.g., weights, dropout) differ, leading to divergent training.\n\n**Causes:**\n- Failing to set seeds for Python's random, NumPy, and PyTorch (CPU/GPU).\n- Missing `torch.cuda.manual_seed_all(seed)` for multi-GPU consistency.\n\n**Fix:** Implement a global seeding function at the start of your script:\n```python\nimport random\nimport numpy as np\nimport torch\n\ndef set_seed(seed: int = 43):\n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)\n\nset_seed(43)\n```\nCall this before model initialization to ensure reproducibility.\n\n### 3. Broadcast Buffer Issues: Why Broadcast Even After Seeding?\nEven with seeding, some model buffers (e.g., batch norm statistics) might not initialize identically due to subtle differences in PyTorch's random number generation across devices.\n\n**Causes:**\n- Device-specific RNG states not fully synchronized.\n- Non-deterministic operations in model init.\n\n**Fix:** Use DDP's built-in broadcast at initialization:\n```python\nddp_model = DDP(model, device_ids=[local_rank])\n# Internally broadcasts parameters and buffers from rank 0 to all ranks\n```\nThis ensures all replicas start from the exact same state, overriding any seeding inconsistencies.\n\n## Error Handling Best Practices\n- **Wrap in Try-Except:** Catch common DDP errors like `RuntimeError` for device issues or `AssertionError` for rank mismatches.\n- **Logging:** Use `dist.barrier()` and print rank-specific logs to debug across processes.\n- **Validation:** After init, verify with `torch.allclose(model.state_dict(), other_model.state_dict())` between ranks.\n\n## Transitioning from Toy DDP to Full-Scale Training\nToy examples (e.g., minimal loops with synthetic data) are great for learning but don't scale. To go full-scale:\n1. **Data Loading:** Replace synthetic data with distributed samplers (e.g., `DistributedSampler` for even batch splitting).\n2. **Real Datasets:** Integrate Hugging Face or custom loaders with proper sharding.\n3. **Optimizer and Loop:** Scale the training loop with gradient accumulation for large batches; use `torch.distributed.all_reduce` for custom metrics.\n4. **Launchers:** Switch from `torchrun` for toys to SLURM or Kubernetes for production.\n5. **Monitoring:** Add tools like TensorBoard with distributed logging.\n\n**Checkpoint Reflection:**\n- What causes 'Expected all tensors on same device' errors? (Primarily inconsistent tensor-to-device placement.)\n- How to transition from toy DDP to full-scale training? (Focus on distributed data loading, scalable launchers, and production monitoring.)",
-          "afterVideoText": "To reinforce this frame, try intentionally introducing a device mismatch in a toy DDP script (e.g., forget `.to(device)` on one tensor) and debug it using the fixes discussed. Reflect on the checkpoints: How might unseeded randomness affect your model's convergence in a real project? Practice scaling a toy loop by integrating a small Hugging Face dataset with `DistributedSampler`. Share your error logs in the community forum for peer review.",
+          "frameId": "frame_7",
+          "title": "This frame provides in-depth applications of PMP knowledge areas 7-10 (Communications, Risk, Procurement, Stakeholder Management) tailored to Sodexo site projects, with examples and integration strategies.",
+          "goal": "Achieve expertise in Communications, Risk, Procurement, and Stakeholder Management applications, with Sodexo-specific examples like risk in supply disruptions and stakeholder alignment in service contracts; includes remediation for communication gaps.",
+          "informationText": "# Deep-Dive: Applying Support Knowledge Areas (7-10) at Sodexo Sites\n\nThis frame builds expertise in the four support knowledge areas from the PMBOK Guide: Project Communications Management, Project Risk Management, Project Procurement Management, and Project Stakeholder Management. These areas are crucial for Sodexo site and project managers handling services like facility maintenance, food services, and cafeteria setups. We'll explore practical applications with Sodexo-specific examples, such as mitigating supply disruptions in food procurement or aligning stakeholders in multi-site service contracts. Emphasis is placed on integration across areas, including remediation strategies for communication gaps.\n\n## Project Communications Management\nEffective communication ensures project information flows to the right people at the right time. In Sodexo contexts, this involves reporting on site operations, like updates on a new cafeteria installation project.\n\n- **Key Processes**: Plan Communications, Manage Communications, Monitor Communications.\n- **Escalation Processes**: Define clear escalation paths for issues, e.g., if a facility maintenance delay affects food service, escalate from site supervisor to regional manager within 24 hours.\n- **Sodexo Example**: During a site overhaul, use tools like shared dashboards to bridge communication gaps between on-site teams and corporate stakeholders, remediating gaps by conducting weekly feedback sessions.\n\n## Project Risk Management\nRisk management identifies, analyzes, and responds to uncertainties that could impact project objectives. Sodexo projects often face risks like supply chain volatility in food services.\n\n- **Key Processes**: Plan Risk Management, Identify Risks, Perform Qualitative/Quantitative Risk Analysis, Plan Risk Responses, Implement Risk Responses, Monitor Risks.\n- **Qualitative vs. Quantitative Risk Analysis**: Qualitative assesses probability and impact subjectively (e.g., high-impact vendor delay rated 'high' risk); quantitative uses numerical data (e.g., Monte Carlo simulation estimating 20% chance of $50K overrun in a cafeteria setup).\n- **Sodexo Example**: For supply disruptions (e.g., delayed fresh produce delivery), develop contingency plans like alternative local suppliers to avoid service interruptions at client sites.\n\n## Project Procurement Management\nThis area handles acquiring goods and services from external sources, vital for Sodexo's vendor-dependent operations in facility and food services.\n\n- **Key Processes**: Plan Procurement Management, Conduct Procurements, Control Procurements, Close Procurements.\n- **Contract Types**: Fixed-price for predictable cafeteria equipment installs; cost-reimbursable for variable site maintenance; time-and-materials for short-term food supply trials.\n- **Sodexo Example**: In service contracts, negotiate SLAs (Service Level Agreements) with vendors to ensure timely deliveries, integrating risk assessments to avoid cost overruns.\n\n## Project Stakeholder Management\nStakeholders include clients, employees, and vendors; managing them ensures buy-in and project success.\n\n- **Key Processes**: Identify Stakeholders, Plan Stakeholder Engagement, Manage Stakeholder Engagement, Monitor Stakeholder Engagement.\n- **Stakeholder Engagement Plans**: Create tailored strategies, e.g., regular town halls for site employees during a maintenance project.\n- **Sodexo Example**: Map stakeholders in a food service contract (e.g., client executives, kitchen staff, suppliers) and align them through joint workshops to resolve conflicts over service specs.\n\n## Sodexo Integration Across Areas\nThese knowledge areas interconnect: Poor communication can amplify risks, while strong stakeholder engagement aids procurement. For instance, in a site-wide upgrade, use risk analysis to inform communication plans and stakeholder updates, ensuring holistic project control.\n\n**Visual Diagram: Knowledge Areas Integration**\n```\n+-------------------+     +-------------------+     +-------------------+\n| Communications    |<--->|   Risk Management |<--->| Procurement       |\n| (Escalation)      |     | (Analysis/Response)|     | (Contracts)       |\n+-------------------+     +-------------------+     +-------------------+\n         ^                           |                           ^\n         |                           |                           |\n         +------------+--------------+------------+--------------+\n                      | Stakeholder Management (Engagement Plans) |\n                      +------------------------------------------+\n                          Sodexo Site Application\n```\n\nRemediation for Gaps: If communication breakdowns occur (e.g., misaligned expectations in contracts), revisit stakeholder registers and conduct targeted training.",
+          "afterVideoText": "Reflect on your learning by applying concepts to a Sodexo scenario: Develop a risk response plan for a vendor delay in a food service project at your site, including escalation via communications and stakeholder notifications. If confusion arises with stakeholder mapping, revisit: How to identify and engage key players (e.g., clients, teams, suppliers) in Sodexo services? Practice by drafting a simple stakeholder engagement matrix for a hypothetical cafeteria setup project.",
           "aiConcepts": [
-            "Broadcast Buffers",
-            "Device Mismatches",
-            "Seeding for Reproducibility",
-            "Error Handling in DDP",
-            "Scaling Toy to Production"
+            "Escalation Processes in Communications",
+            "Qualitative vs. Quantitative Risk Analysis",
+            "Contract Types for Procurement",
+            "Stakeholder Engagement Plans",
+            "Sodexo Integration Across Areas"
           ],
           "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
+          "sourceGoal": "I have to conduct a PMP training for Site manager and project manager at Sodexo. Build a training flow on 10 Knowledge Areas with context and example which Sodexo team can relate to. The focus should be on how to apply Knowledge Areas of PMP in Sodexo services as a Project manger at site.",
           "sourceUrl": "",
           "chapterId": "flow_deep-dive",
-          "parentFrameId": "flow_deep-dive",
-          "attachment": {
-            "id": "attachment_frame_ddp_7",
-            "type": "pdf-attachment",
-            "data": {
-              "title": "DDP Python Basics Guide covering pitfalls and fixes",
-              "notes": "DDP Python Basics Guide covering pitfalls and fixes",
-              "pdfUrl": "https://thefirehacker.github.io/til/ddp-python-basics.html",
-              "pages": "",
-              "pdfFileName": "ddp-python-basics.html",
-              "pdfSource": "url"
-            }
-          }
+          "parentFrameId": "flow_deep-dive"
         },
         "measured": {
           "width": 480,
-          "height": 704
-        }
-      },
-      {
-        "id": "node_1763803424947_4lpk86n3p_7",
-        "type": "aiframe",
-        "position": {
-          "x": 3550,
-          "y": 50
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_ddp_8",
-          "title": "This frame provides exercises and a cheatsheet for practicing DDP fundamentals, plus insights from Tyler Romero's Speed Run for advanced distributed training optimizations.",
-          "goal": "Practice with exercises, review key cheats, and explore Romero's Speed Run for advanced optimization tips.",
-          "informationText": "# Exercises, Cheatsheet, and Tyler Romero's Speed Run\n\nThis frame wraps up the deep dive into Distributed Data Parallel (DDP) by providing hands-on practice, a concise cheatsheet for quick reference, and an exploration of advanced optimization techniques from Tyler Romero's 'Speed Run' tutorial. These elements help solidify your understanding and prepare you for real-world implementation.\n\n## Hands-on Exercises\n\nThe exercises draw from the core Python patterns and DDP basics covered in the DDP PDF. They focus on common pitfalls like seeding, data preparation, and the training loop. Here's a structured set of exercises to practice:\n\n1. **Seeding Replicas**: Implement the `set_seed` function from the knowledge base and verify identical model outputs across ranks. Use this code snippet as a starting point:\n   ```python\ndef set_seed(seed: int = 43):\n    import random\nimport numpy as np\nimport torch\n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)\n```\n   - Task: Run a simple forward pass on two processes and assert outputs match.\n\n2. **Data Preparation with Dictionary Comprehensions**: Transform a Hugging Face dataset sample (dict with lists/ints) into tensors. Practice the idiom:\n   ```python\n   batch = {k: torch.tensor(v).to(device) for k, v in item.items()}\n   model(**batch)  # Unpack kwargs for forward pass\n   ```\n   - Task: Handle a batch of 4 samples, ensuring all tensors are on the same device. Debug common errors like 'TypeError: expected Tensor but got list'.\n\n3. **Minimal DDP Training Loop**: Wrap a toy model in DDP and implement the loop with `all_reduce` for gradients:\n   ```python\n   # Pseudo-loop\n   for batch in dataloader:\n       outputs = model(**batch)\n       loss = criterion(outputs, targets)\n       loss.backward()\n       dist.all_reduce(loss.grad, op=dist.ReduceOp.SUM)  # Sum grads\n       grads /= world_size\n       optimizer.step()\n   ```\n   - Task: Identify why broadcasting at init is needed post-seeding (hint: ensures identical initial states despite CUDA nondeterminism).\n\n4. **Pitfall Fix**: Simulate a device mismatch error and fix it by moving data to GPU before model input.\n\nThese exercises typically take 20-30 minutes. If you encounter issues, refer back to earlier frames on seeding and data prep.\n\n## DDP Cheatsheet\n\nA quick-reference guide to key DDP elements:\n\n- **Seeding**: Always seed before model init for replica identicality:\n  ```python\n  set_seed(43)\n  model = MyModel().to(device)\n  ddp_model = DDP(model, device_ids=[local_rank])\n  ```\n\n- **Data Prep Idiom**:\n  - Dict comprehension: `{k: torch.tensor(v).to(device) for k, v in batch.items()}`\n  - Kwargs unpack: `model(**tensors_dict)` for Hugging Face compatibility.\n\n- **Training Loop Essentials**:\n  1. Zero grads: `optimizer.zero_grad()`\n  2. Forward: `outputs = ddp_model(**batch)`\n  3. Backward: `loss.backward()` (auto all-reduce grads)\n  4. Step: `optimizer.step()`\n\n- **Common Pitfalls**:\n  - Mismatched devices: Ensure data/model on same GPU.\n  - Non-deterministic CUDA: Use `torch.backends.cudnn.deterministic = True`.\n  - Broadcast buffer: `ddp_model.broadcast_buffers()` at init.\n\nVisual Mental Model of DDP Flow (ASCII Art):\n```\nRank 0          Rank 1          Rank N\n[Data Shard] --> [Model Replica] --> Forward/Loss\n                  |                 |\n                  v                 v\n             [Local Grad]   [All-Reduce (SUM)] --> [Avg Grad] --> Optimizer.Step\n                  ^                 |\n             Broadcast Buffers <--- (Init Sync)\n```\n\n## Tyler Romero's Speed Run: Advanced Optimization Tips\n\nTyler Romero's 'Speed Run' tutorial (a practical video guide) demonstrates real-world DDP speedups for large-scale training. Key insights include:\n\n- **Gradient Accumulation for Larger Batches**: Simulate bigger effective batches without OOM by accumulating grads over micro-batches: `loss.backward(); if step % accum_steps == 0: optimizer.step(); optimizer.zero_grad()`.\n\n- **Mixed Precision (AMP)**: Use `torch.cuda.amp` for FP16 training to halve memory and double throughput: Wrap forward/backward in autocast.\n\n- **Efficient Data Loading**: Pin memory (`DataLoader(..., pin_memory=True)`) and use `num_workers > 0` to overlap CPU/GPU transfers.\n\n- **FSDP Integration**: For massive models, combine DDP with Fully Sharded Data Parallel to shard parameters across GPUs.\n\nWatch for techniques like avoiding unnecessary syncs and profiling with `torch.profiler`. One standout speedup: AMP + gradient accumulation can yield 2-3x faster training on multi-GPU setups without accuracy loss.\n\nThis section emphasizes transitioning from toy examples to production-scale optimizations.",
-          "afterVideoText": "Reflect on your progress: Complete at least two exercises and note any challenges. Review the cheatsheet before your next coding session. For Romero's Speed Run, watch the tutorial and summarize one key speedup technique (e.g., how mixed precision reduces memory usage). If you're stuck on exercises, revisit the seeding and data preparation frames for remediation. Practice tip: Implement a full DDP loop with one optimization from the Speed Run in your own project.",
-          "aiConcepts": [
-            "Hands-on Exercises for DDP Implementation",
-            "Quick-Reference Cheatsheet for Core Patterns",
-            "Advanced Optimization Techniques",
-            "Gradient Synchronization in Distributed Training",
-            "Practical Speedups from Real-World Tutorials"
-          ],
-          "isGenerated": true,
-          "sourceGoal": "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero",
-          "sourceUrl": "",
-          "chapterId": "flow_deep-dive",
-          "parentFrameId": "flow_deep-dive",
-          "attachment": {
-            "id": "attachment_frame_ddp_8",
-            "type": "text-attachment",
-            "data": {
-              "title": "Tyler Romero's DDP Speed Run Tutorial Video",
-              "notes": "Tyler Romero's DDP Speed Run Tutorial Video",
-              "text": "Tyler Romero's DDP Speed Run Tutorial Video"
-            }
-          }
-        },
-        "measured": {
-          "width": 480,
-          "height": 711
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_1",
-        "type": "pdf-attachment",
-        "position": {
-          "x": 4050,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_1",
-          "title": "DDP Python Basics Guide",
-          "notes": "DDP Python Basics Guide",
-          "attachedToFrameId": "frame_ddp_1",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 476
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_3",
-        "type": "pdf-attachment",
-        "position": {
-          "x": 4450,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_3",
-          "title": "DDP Python Basics Guide with examples on data preparation idioms",
-          "notes": "DDP Python Basics Guide with examples on data preparation idioms",
-          "attachedToFrameId": "frame_ddp_3",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 546
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_4",
-        "type": "pdf-attachment",
-        "position": {
-          "x": 4850,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_4",
-          "title": "DDP Python Basics Guide (covers seeding and device setup)",
-          "notes": "DDP Python Basics Guide (covers seeding and device setup)",
-          "attachedToFrameId": "frame_ddp_4",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 546
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_5",
-        "type": "pdf-attachment",
-        "position": {
-          "x": 5250,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_5",
-          "title": "DDP Python Basics Guide with code examples and cheatsheet",
-          "notes": "DDP Python Basics Guide with code examples and cheatsheet",
-          "attachedToFrameId": "frame_ddp_5",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 546
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_6",
-        "type": "pdf-attachment",
-        "position": {
-          "x": 5650,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_6",
-          "title": "DDP Python Basics Guide covering all-reduce and synchronization patterns",
-          "notes": "DDP Python Basics Guide covering all-reduce and synchronization patterns",
-          "attachedToFrameId": "frame_ddp_6",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 546
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_7",
-        "type": "pdf-attachment",
-        "position": {
-          "x": 6050,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_7",
-          "title": "DDP Python Basics Guide covering pitfalls and fixes",
-          "notes": "DDP Python Basics Guide covering pitfalls and fixes",
-          "attachedToFrameId": "frame_ddp_7",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 521
-        }
-      },
-      {
-        "id": "attachment_frame_ddp_8",
-        "type": "text-attachment",
-        "position": {
-          "x": 6450,
-          "y": 60
-        },
-        "data": {
-          "id": "attachment_frame_ddp_8",
-          "title": "Tyler Romero's DDP Speed Run Tutorial Video",
-          "notes": "Tyler Romero's DDP Speed Run Tutorial Video",
-          "attachedToFrameId": "frame_ddp_8",
-          "isAttached": true
-        },
-        "measured": {
-          "width": 400,
-          "height": 331
+          "height": 841
         }
       }
     ],
-    "edges": [],
+    "edges": [
+      {
+        "id": "edge_chapter_flow_overview_node_1763810306410_6hw2x6g4m_0",
+        "source": "flow_overview",
+        "target": "node_1763810306410_6hw2x6g4m_0",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_overview"
+        }
+      },
+      {
+        "id": "edge_chapter_flow_fundamentals_node_1763810306410_ossz49vnv_1",
+        "source": "flow_fundamentals",
+        "target": "node_1763810306410_ossz49vnv_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_fundamentals"
+        }
+      },
+      {
+        "id": "edge_chapter_flow_fundamentals_node_1763810306410_0wzjxs5o4_2",
+        "source": "flow_fundamentals",
+        "target": "node_1763810306410_0wzjxs5o4_2",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_fundamentals"
+        }
+      },
+      {
+        "id": "edge_chapter_flow_fundamentals_node_1763810306410_sbmd3xd1q_3",
+        "source": "flow_fundamentals",
+        "target": "node_1763810306410_sbmd3xd1q_3",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_fundamentals"
+        }
+      },
+      {
+        "id": "edge_chapter_flow_fundamentals_node_1763810306410_btzqenppe_4",
+        "source": "flow_fundamentals",
+        "target": "node_1763810306410_btzqenppe_4",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_fundamentals"
+        }
+      },
+      {
+        "id": "edge_chapter_flow_deep-dive_node_1763810306410_82dedg1ci_5",
+        "source": "flow_deep-dive",
+        "target": "node_1763810306410_82dedg1ci_5",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_deep-dive"
+        }
+      },
+      {
+        "id": "edge_chapter_flow_deep-dive_node_1763810306410_ehkl7d8rb_6",
+        "source": "flow_deep-dive",
+        "target": "node_1763810306410_ehkl7d8rb_6",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#10b981",
+          "strokeWidth": 2.5
+        },
+        "markerEnd": {
+          "type": "arrowclosed",
+          "color": "#10b981",
+          "width": 16,
+          "height": 16
+        },
+        "data": {
+          "relationship": "chapter-membership",
+          "chapterId": "flow_deep-dive"
+        }
+      }
+    ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-22T09:51:11.148Z",
+    "lastUpdated": "2025-11-22T11:18:38.120Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-22T09:51:10.449Z",
+    "lastSaved": "2025-11-22T11:18:36.715Z",
     "frameCount": 7,
     "checksum": "eyJmcmFtZXMiOlt7"
   }

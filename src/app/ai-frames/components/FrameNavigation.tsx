@@ -215,7 +215,7 @@ export const FrameNavigation: React.FC<FrameNavigationProps> = ({
                             </Badge>
                           )}
                         </div>
-                        <div className="text-xs opacity-75 truncate">
+                        <div className="text-xs opacity-75 line-clamp-2">
                           {frame.title}
                         </div>
                       </div>
