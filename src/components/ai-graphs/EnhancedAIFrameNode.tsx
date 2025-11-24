@@ -1,23 +1,21 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Handle, Position, NodeProps } from "@xyflow/react";
+import { Handle, Position, NodeProps, useReactFlow, useViewport } from "@xyflow/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { AIFrameNodeData, FrameAttachment } from "./types";
-import { 
-  Video, 
+import {
+  Video,
   FileText,
   File,
-  Clock, 
-  Target, 
-  BookOpen, 
-  Edit3, 
-  Save, 
-  X, 
+  Target,
+  BookOpen,
+  Edit3,
+  Save,
+  X,
   Plus,
   Link,
   Unlink,
@@ -33,10 +31,13 @@ interface EnhancedAIFrameNodeProps extends NodeProps {
   };
 }
 
-export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameNodeProps) {
+export default function EnhancedAIFrameNode({ data, selected, id }: EnhancedAIFrameNodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<AIFrameNodeData>(data);
   const [isSaving, setIsSaving] = useState(false);
+  const reactFlow = useReactFlow();
+  const viewport = useViewport();
+  const [previousViewport, setPreviousViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
 
   useEffect(() => {
     setEditData(prev => {
@@ -50,7 +51,20 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
   const handleStartEditing = useCallback(() => {
     setEditData({ ...data });
     setIsEditing(true);
-  }, [data]);
+
+    // Store current viewport before zooming
+    setPreviousViewport({ x: viewport.x, y: viewport.y, zoom: viewport.zoom });
+
+    // Zoom into the node
+    const node = reactFlow.getNode(id);
+    if (node) {
+      const x = node.position.x + (node.measured?.width ?? 300) / 2;
+      const y = node.position.y + (node.measured?.height ?? 200) / 2;
+
+      // Zoom to 1.5x for better visibility
+      reactFlow.setCenter(x, y, { zoom: 1.5, duration: 300 });
+    }
+  }, [data, reactFlow, id, viewport]);
 
   const handleSave = useCallback(async () => {
     console.log('🎯 SAVE ATTEMPT:', {
@@ -101,19 +115,31 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
         frameId: data.frameId,
         title: editData.title
       });
-      
+
       setIsEditing(false);
+
+      // Zoom back out to previous viewport
+      if (previousViewport) {
+        reactFlow.setViewport(previousViewport, { duration: 300 });
+        setPreviousViewport(null);
+      }
     } catch (error) {
       console.error('Failed to save frame:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [data, editData]);
+  }, [data, editData, previousViewport, reactFlow]);
 
   const handleCancel = useCallback(() => {
     setEditData({ ...data });
     setIsEditing(false);
-  }, [data]);
+
+    // Zoom back out to previous viewport
+    if (previousViewport) {
+      reactFlow.setViewport(previousViewport, { duration: 300 });
+      setPreviousViewport(null);
+    }
+  }, [data, previousViewport, reactFlow]);
 
   const handleDetachContent = useCallback(() => {
     if (data.onDetachContent && data.frameId) {
@@ -142,12 +168,6 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
       default: 
         return 'Unknown attachment';
     }
-  };
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -264,11 +284,15 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
               Learning Goal
             </Label>
             {isEditing ? (
-              <Textarea
-                value={editData.goal}
-                onChange={(e) => setEditData({...editData, goal: e.target.value})}
-                className="mt-1 text-xs h-16"
+              <RichTextEditor
+                content={editData.goal || ''}
+                onChange={(html) => setEditData({...editData, goal: html})}
+                editable={true}
                 placeholder="What should learners understand after this frame?"
+                className="text-xs"
+                format="html"
+                showExportButtons={false}
+                compact={true}
               />
             ) : (
               <RichTextEditor
@@ -290,11 +314,15 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
               Context & Background
             </Label>
             {isEditing ? (
-              <Textarea
-                value={editData.informationText}
-                onChange={(e) => setEditData({...editData, informationText: e.target.value})}
-                className="mt-1 text-xs h-20"
+              <RichTextEditor
+                content={editData.informationText || ''}
+                onChange={(html) => setEditData({...editData, informationText: html})}
+                editable={true}
                 placeholder="Provide background context and explanation..."
+                className="text-xs"
+                format="html"
+                showExportButtons={false}
+                compact={true}
               />
             ) : (
               <RichTextEditor
