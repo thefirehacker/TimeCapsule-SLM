@@ -878,7 +878,10 @@ export default function AIFramesPage() {
   // Function to trigger graph reset
   const triggerGraphReset = useCallback(() => {
     setGraphResetKey((prev) => prev + 1);
-  }, []);
+    // Ensure edges are also cleared to prevent duplicate edge keys
+    unifiedStorage.updateGraphState({ nodes: [], edges: [] });
+    console.log('🧹 Graph reset: cleared nodes and edges');
+  }, [unifiedStorage]);
 
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportForm, setExportForm] = useState({
@@ -2020,12 +2023,23 @@ export default function AIFramesPage() {
         timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
       });
       console.log("✅ Manual session created:", newSession.id);
+      
+      // Retroactively assign sessionId to orphaned frames (frames without sessionId)
+      const orphanedFrames = unifiedStorage.frames.filter(f => !f.sessionId);
+      if (orphanedFrames.length > 0) {
+        const fixedFrames = unifiedStorage.frames.map(f => 
+          !f.sessionId ? { ...f, sessionId: newSession.id } : f
+        );
+        unifiedStorage.updateFrames(fixedFrames);
+        console.log(`✅ Assigned sessionId to ${orphanedFrames.length} orphaned frames`);
+      }
+      
       return newSession.id;
     }
 
     console.log("✅ Using existing manual session:", flowBuilder.activeSessionId);
     return flowBuilder.activeSessionId;
-  }, [flowBuilder, triggerGraphReset, timeCapsule.activeTimeCapsuleId]);
+  }, [flowBuilder, triggerGraphReset, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
 
   // ✅ NEW: Event listener for ensuring manual session on frame drop
   useEffect(() => {
@@ -3374,6 +3388,7 @@ export default function AIFramesPage() {
             knowledgeBaseUnavailable={knowledgeBaseUnavailable}
             knowledgeBaseUnavailableMessage={knowledgeBaseErrorMessage}
             onGraphReset={triggerGraphReset}
+            activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
           />
         ) : (
           <div className="min-h-[32rem] rounded-3xl border border-slate-200 bg-white/70 flex flex-col items-center justify-center gap-4 text-center text-slate-500">
@@ -3480,15 +3495,17 @@ export default function AIFramesPage() {
 
                   {/* TimeCapsule Project Selector */}
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-gray-700">Projects</label>
+                    <label className="text-xs font-medium text-gray-700">TimeCapsules (Projects)</label>
                     <TimeCapsuleSelector
                       timeCapsules={timeCapsule.timeCapsules}
                       activeId={timeCapsule.activeTimeCapsuleId}
                       onSwitch={timeCapsule.switchTimeCapsule}
                       onCreate={timeCapsule.createTimeCapsule}
+                      sessions={flowBuilder.sessions}
+                      frames={unifiedStorage.frames}
                     />
                     <p className="text-xs text-slate-500">
-                      {timeCapsule.activeTimeCapsule?.frameCount || 0} frames · {timeCapsule.activeTimeCapsule?.documentCount || 0} docs
+                      {flowBuilder.sessions.filter(s => s.timeCapsuleId === timeCapsule.activeTimeCapsuleId).length} sessions · {sessionFilteredFrames.length} frames · {timeCapsule.activeTimeCapsule?.documentCount || 0} docs
                     </p>
                   </div>
 

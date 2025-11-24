@@ -23,6 +23,8 @@ export interface TimeCapsuleSelectorProps {
   activeId: string | null;
   onSwitch: (id: string) => void;
   onCreate: (name: string, description: string) => Promise<TimeCapsule | null>;
+  sessions?: any[];  // To calculate session count per TimeCapsule
+  frames?: any[];    // To calculate frame count per TimeCapsule
 }
 
 export function TimeCapsuleSelector({
@@ -30,10 +32,20 @@ export function TimeCapsuleSelector({
   activeId,
   onSwitch,
   onCreate,
+  sessions = [],
+  frames = [],
 }: TimeCapsuleSelectorProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   
   const activeTimeCapsule = timeCapsules.find(tc => tc.id === activeId);
+  
+  // Calculate counts per TimeCapsule
+  const getTimeCapsuleCounts = (tcId: string) => {
+    const sessionCount = sessions.filter(s => s.timeCapsuleId === tcId).length;
+    const frameCount = frames.filter(f => f.timeCapsuleId === tcId).length;
+    const docCount = timeCapsules.find(tc => tc.id === tcId)?.documentCount || 0;
+    return { sessionCount, frameCount, docCount };
+  };
 
   const handleCreate = async () => {
     // For now, create with default name
@@ -59,24 +71,27 @@ export function TimeCapsuleSelector({
           <ChevronDown className="h-4 w-4 ml-2" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[250px]">
-        <DropdownMenuLabel>Projects</DropdownMenuLabel>
+      <DropdownMenuContent align="start" className="w-[280px]">
+        <DropdownMenuLabel>TimeCapsule</DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {timeCapsules.map((tc) => (
-          <DropdownMenuItem
-            key={tc.id}
-            onClick={() => onSwitch(tc.id)}
-            className={activeId === tc.id ? 'bg-accent' : ''}
-          >
-            <div className="flex flex-col gap-1 w-full">
-              <div className="font-medium">{tc.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {tc.frameCount || 0} frames · {tc.documentCount || 0} docs
+        {timeCapsules.map((tc) => {
+          const counts = getTimeCapsuleCounts(tc.id);
+          return (
+            <DropdownMenuItem
+              key={tc.id}
+              onClick={() => onSwitch(tc.id)}
+              className={activeId === tc.id ? 'bg-accent' : ''}
+            >
+              <div className="flex flex-col gap-1 w-full">
+                <div className="font-medium">{tc.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {counts.sessionCount} sessions · {counts.frameCount} frames · {counts.docCount} docs
+                </div>
               </div>
-            </div>
-          </DropdownMenuItem>
-        ))}
+            </DropdownMenuItem>
+          );
+        })}
         
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleCreate}>

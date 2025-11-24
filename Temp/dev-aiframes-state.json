@@ -1,633 +1,69 @@
 {
   "frames": [
     {
-      "id": "frame_1",
-      "title": "What is Distributed Data Parallel (DDP)?",
-      "goal": "Understand the high-level purpose of DDP in training LLMs and why it's essential for scaling beyond single-GPU limits.",
-      "informationText": "",
-      "afterVideoText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "aiConcepts": [
-        "Distributed Training",
-        "Data Parallelism",
-        "LLM Scaling"
-      ],
-      "type": "frame",
+      "id": "frame-1764003085353-qrp85d3lq",
+      "title": "Frame 1",
+      "goal": "Enter learning goal here...",
+      "informationText": "Provide background context and information...",
+      "afterVideoText": "Key takeaways and next steps...",
+      "aiConcepts": [],
+      "isGenerated": false,
       "order": 1,
-      "chapterId": "chapter_1",
-      "parentFrameId": "chapter_1",
-      "isGenerated": true,
-      "createdAt": "2025-11-24T13:18:12.255Z",
-      "updatedAt": "2025-11-24T13:18:12.256Z",
-      "sessionId": "ai-flow_1763989942426_fe2hp69dr",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T13:18:12.255Z",
-        "updatedAt": "2025-11-24T13:18:29.080Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T13:18:29.080Z"
-      },
-      "conceptIds": [
-        "Distributed Training",
-        "Data Parallelism",
-        "LLM Scaling"
-      ]
-    },
-    {
-      "id": "frame_2",
-      "title": "Visual Mental Model of DDP Training",
-      "goal": "Grasp how DDP synchronizes model replicas across GPUs, including forward passes, gradient computation, and averaging.",
-      "informationText": "",
-      "afterVideoText": "",
+      "bubblSpaceId": "default",
+      "timeCapsuleId": "timecapsule_1764003078242_0f5gz1cen",
+      "type": "frame",
+      "createdAt": "2025-11-24T16:51:25.359Z",
+      "updatedAt": "2025-11-24T16:51:25.359Z",
       "videoUrl": "",
       "startTime": 0,
-      "duration": 0,
-      "aiConcepts": [
-        "Gradient Synchronization",
-        "Model Replication"
-      ],
-      "type": "frame",
-      "order": 2,
-      "chapterId": "chapter_1",
-      "parentFrameId": "chapter_1",
-      "isGenerated": true,
-      "createdAt": "2025-11-24T13:18:12.255Z",
-      "updatedAt": "2025-11-24T13:18:12.256Z",
-      "sessionId": "ai-flow_1763989942426_fe2hp69dr",
+      "duration": 300,
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-24T13:18:12.255Z",
-        "updatedAt": "2025-11-24T13:18:29.080Z",
+        "createdAt": "2025-11-24T16:51:25.359Z",
+        "updatedAt": "2025-11-24T16:51:30.759Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-24T13:18:29.080Z"
+        "lastSaved": "2025-11-24T16:51:30.759Z"
       },
-      "conceptIds": [
-        "Gradient Synchronization",
-        "Model Replication"
-      ]
-    },
-    {
-      "id": "frame_3",
-      "title": "Python Idioms: Dictionary Comprehensions and Kwargs Unpacking",
-      "goal": "Learn how to efficiently prepare Hugging Face datasets for LLMs using dict comprehensions and unpack batches into model calls.",
-      "informationText": "",
-      "afterVideoText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "aiConcepts": [
-        "Data Preprocessing",
-        "Hugging Face Transformers"
-      ],
-      "type": "frame",
-      "order": 3,
-      "chapterId": "chapter_2",
-      "parentFrameId": "chapter_2",
-      "isGenerated": true,
-      "createdAt": "2025-11-24T13:18:12.255Z",
-      "updatedAt": "2025-11-24T13:18:12.256Z",
-      "sessionId": "ai-flow_1763989942426_fe2hp69dr",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T13:18:12.255Z",
-        "updatedAt": "2025-11-24T13:18:29.080Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T13:18:29.080Z"
-      },
-      "conceptIds": [
-        "Data Preprocessing",
-        "Hugging Face Transformers"
-      ]
-    },
-    {
-      "id": "frame_4",
-      "title": "Seeding and Model Initialization in DDP",
-      "goal": "Master seeding processes identically and broadcasting initial parameters to ensure consistent model replicas across ranks.",
-      "informationText": "",
-      "afterVideoText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "aiConcepts": [
-        "Process Seeding",
-        "Parameter Broadcasting"
-      ],
-      "type": "frame",
-      "order": 4,
-      "chapterId": "chapter_2",
-      "parentFrameId": "chapter_2",
-      "isGenerated": true,
-      "createdAt": "2025-11-24T13:18:12.255Z",
-      "updatedAt": "2025-11-24T13:18:12.256Z",
-      "sessionId": "ai-flow_1763989942426_fe2hp69dr",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T13:18:12.255Z",
-        "updatedAt": "2025-11-24T13:18:29.080Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T13:18:29.080Z"
-      },
-      "conceptIds": [
-        "Process Seeding",
-        "Parameter Broadcasting"
-      ]
-    },
-    {
-      "id": "frame_5",
-      "title": "Building a Tiny DDP Wrapper",
-      "goal": "Implement a basic DDP wrapper from scratch to handle gradient all-reduce and averaging, demystifying the core mechanics.",
-      "informationText": "",
-      "afterVideoText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "aiConcepts": [
-        "All-Reduce Operation",
-        "Custom DDP"
-      ],
-      "type": "frame",
-      "order": 5,
-      "chapterId": "chapter_3",
-      "parentFrameId": "chapter_3",
-      "isGenerated": true,
-      "createdAt": "2025-11-24T13:18:12.255Z",
-      "updatedAt": "2025-11-24T13:18:12.256Z",
-      "sessionId": "ai-flow_1763989942426_fe2hp69dr",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T13:18:12.255Z",
-        "updatedAt": "2025-11-24T13:18:29.080Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T13:18:29.080Z"
-      },
-      "conceptIds": [
-        "All-Reduce Operation",
-        "Custom DDP"
-      ]
-    },
-    {
-      "id": "frame_6",
-      "title": "Minimal Training Loop, Pitfalls, and Real DDP",
-      "goal": "Construct a distributed training loop for LLMs, identify common errors like improper seeding, and bridge to PyTorch's full DDP.",
-      "informationText": "",
-      "afterVideoText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "aiConcepts": [
-        "Training Loop",
-        "Distributed Pitfalls"
-      ],
-      "type": "frame",
-      "order": 6,
-      "chapterId": "chapter_3",
-      "parentFrameId": "chapter_3",
-      "isGenerated": true,
-      "createdAt": "2025-11-24T13:18:12.255Z",
-      "updatedAt": "2025-11-24T13:18:12.256Z",
-      "sessionId": "ai-flow_1763989942426_fe2hp69dr",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T13:18:12.255Z",
-        "updatedAt": "2025-11-24T13:18:29.080Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T13:18:29.080Z"
-      },
-      "conceptIds": [
-        "Training Loop",
-        "Distributed Pitfalls"
-      ]
+      "conceptIds": []
     }
   ],
-  "chapters": [
-    {
-      "id": "chapter_1",
-      "title": "Overview of DDP for LLMs",
-      "description": "Introduces the concept of DDP and its role in scaling LLM training, including a visual mental model to build initial intuition.",
-      "color": "#3B82F6",
-      "order": 0,
-      "frameIds": [
-        "frame_1",
-        "frame_2"
-      ],
-      "conceptIds": [],
-      "createdAt": "2025-11-24T13:18:12.256Z",
-      "updatedAt": "2025-11-24T13:18:29.080Z"
-    },
-    {
-      "id": "chapter_2",
-      "title": "Fundamentals: Python Patterns and Setup",
-      "description": "Covers essential Python idioms for data handling and model preparation, plus seeding for consistent model replicas in distributed environments.",
-      "color": "#10B981",
-      "order": 1,
-      "frameIds": [
-        "frame_3",
-        "frame_4"
-      ],
-      "conceptIds": [],
-      "createdAt": "2025-11-24T13:18:12.256Z",
-      "updatedAt": "2025-11-24T13:18:29.080Z"
-    },
-    {
-      "id": "chapter_3",
-      "title": "Deep Dive: Implementation and Best Practices",
-      "description": "Explores building a minimal DDP wrapper, the training loop, gradient synchronization, common pitfalls, and transitions to real-world DDP usage.",
-      "color": "#8B5CF6",
-      "order": 2,
-      "frameIds": [
-        "frame_5",
-        "frame_6"
-      ],
-      "conceptIds": [],
-      "createdAt": "2025-11-24T13:18:12.256Z",
-      "updatedAt": "2025-11-24T13:18:29.080Z"
-    }
-  ],
+  "chapters": [],
   "graphState": {
     "nodes": [
       {
-        "id": "chapter_1",
-        "type": "chapter",
-        "position": {
-          "x": 320,
-          "y": 50
-        },
-        "data": {
-          "id": "chapter_1",
-          "title": "Overview of DDP for LLMs",
-          "description": "Introduces the concept of DDP and its role in scaling LLM training, including a visual mental model to build initial intuition.",
-          "color": "#3B82F6",
-          "frameIds": [
-            "frame_1",
-            "frame_2"
-          ],
-          "order": 0,
-          "conceptIds": [],
-          "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 253
-        }
-      },
-      {
-        "id": "chapter_2",
-        "type": "chapter",
-        "position": {
-          "x": 1320,
-          "y": 50
-        },
-        "data": {
-          "id": "chapter_2",
-          "title": "Fundamentals: Python Patterns and Setup",
-          "description": "Covers essential Python idioms for data handling and model preparation, plus seeding for consistent model replicas in distributed environments.",
-          "color": "#10B981",
-          "frameIds": [
-            "frame_3",
-            "frame_4"
-          ],
-          "order": 1,
-          "conceptIds": [],
-          "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 278
-        }
-      },
-      {
-        "id": "chapter_3",
-        "type": "chapter",
-        "position": {
-          "x": 2320,
-          "y": 50
-        },
-        "data": {
-          "id": "chapter_3",
-          "title": "Deep Dive: Implementation and Best Practices",
-          "description": "Explores building a minimal DDP wrapper, the training loop, gradient synchronization, common pitfalls, and transitions to real-world DDP usage.",
-          "color": "#8B5CF6",
-          "frameIds": [
-            "frame_5",
-            "frame_6"
-          ],
-          "order": 2,
-          "conceptIds": [],
-          "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 278
-        }
-      },
-      {
-        "id": "node_1763990292371_awbvi1a6v_0",
+        "id": "node_1764003085470_xqjf4frif_2",
         "type": "aiframe",
         "position": {
-          "x": 50,
-          "y": 500
+          "x": -150.04796301998596,
+          "y": -189.37821439568717
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame_1",
-          "title": "What is Distributed Data Parallel (DDP)?",
-          "goal": "Understand the high-level purpose of DDP in training LLMs and why it's essential for scaling beyond single-GPU limits.",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [
-            "Distributed Training",
-            "Data Parallelism",
-            "LLM Scaling"
-          ],
-          "isGenerated": true,
-          "chapterId": "chapter_1",
-          "parentFrameId": "chapter_1"
+          "frameId": "frame-1764003085353-qrp85d3lq",
+          "title": "Frame 1",
+          "goal": "Enter learning goal here...",
+          "informationText": "Provide background context and information...",
+          "afterVideoText": "Key takeaways and next steps...",
+          "aiConcepts": [],
+          "isGenerated": false
         },
         "measured": {
           "width": 480,
-          "height": 692
-        }
-      },
-      {
-        "id": "node_1763990292371_5hy6x178r_1",
-        "type": "aiframe",
-        "position": {
-          "x": 550,
-          "y": 500
+          "height": 519
         },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_2",
-          "title": "Visual Mental Model of DDP Training",
-          "goal": "Grasp how DDP synchronizes model replicas across GPUs, including forward passes, gradient computation, and averaging.",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [
-            "Gradient Synchronization",
-            "Model Replication"
-          ],
-          "isGenerated": true,
-          "chapterId": "chapter_1",
-          "parentFrameId": "chapter_1"
-        },
-        "measured": {
-          "width": 480,
-          "height": 635
-        }
-      },
-      {
-        "id": "node_1763990292371_n0hjkx2mh_2",
-        "type": "aiframe",
-        "position": {
-          "x": 1050,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_3",
-          "title": "Python Idioms: Dictionary Comprehensions and Kwargs Unpacking",
-          "goal": "Learn how to efficiently prepare Hugging Face datasets for LLMs using dict comprehensions and unpack batches into model calls.",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [
-            "Data Preprocessing",
-            "Hugging Face Transformers"
-          ],
-          "isGenerated": true,
-          "chapterId": "chapter_2",
-          "parentFrameId": "chapter_2"
-        },
-        "measured": {
-          "width": 480,
-          "height": 685
-        }
-      },
-      {
-        "id": "node_1763990292371_m9ptwwwhb_3",
-        "type": "aiframe",
-        "position": {
-          "x": 1550,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_4",
-          "title": "Seeding and Model Initialization in DDP",
-          "goal": "Master seeding processes identically and broadcasting initial parameters to ensure consistent model replicas across ranks.",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [
-            "Process Seeding",
-            "Parameter Broadcasting"
-          ],
-          "isGenerated": true,
-          "chapterId": "chapter_2",
-          "parentFrameId": "chapter_2"
-        },
-        "measured": {
-          "width": 480,
-          "height": 635
-        }
-      },
-      {
-        "id": "node_1763990292371_dz4iwnich_4",
-        "type": "aiframe",
-        "position": {
-          "x": 2050,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_5",
-          "title": "Building a Tiny DDP Wrapper",
-          "goal": "Implement a basic DDP wrapper from scratch to handle gradient all-reduce and averaging, demystifying the core mechanics.",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [
-            "All-Reduce Operation",
-            "Custom DDP"
-          ],
-          "isGenerated": true,
-          "chapterId": "chapter_3",
-          "parentFrameId": "chapter_3"
-        },
-        "measured": {
-          "width": 480,
-          "height": 635
-        }
-      },
-      {
-        "id": "node_1763990292371_y0e3jdcag_5",
-        "type": "aiframe",
-        "position": {
-          "x": 2550,
-          "y": 500
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame_6",
-          "title": "Minimal Training Loop, Pitfalls, and Real DDP",
-          "goal": "Construct a distributed training loop for LLMs, identify common errors like improper seeding, and bridge to PyTorch's full DDP.",
-          "informationText": "",
-          "afterVideoText": "",
-          "aiConcepts": [
-            "Training Loop",
-            "Distributed Pitfalls"
-          ],
-          "isGenerated": true,
-          "chapterId": "chapter_3",
-          "parentFrameId": "chapter_3"
-        },
-        "measured": {
-          "width": 480,
-          "height": 660
-        }
+        "selected": true,
+        "dragging": false
       }
     ],
-    "edges": [
-      {
-        "id": "edge|chapter|chapter_1|node_1763990292371_awbvi1a6v_0",
-        "source": "chapter_1",
-        "target": "node_1763990292371_awbvi1a6v_0",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1"
-        }
-      },
-      {
-        "id": "edge|chapter|chapter_1|node_1763990292371_5hy6x178r_1",
-        "source": "chapter_1",
-        "target": "node_1763990292371_5hy6x178r_1",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_1"
-        }
-      },
-      {
-        "id": "edge|chapter|chapter_2|node_1763990292371_n0hjkx2mh_2",
-        "source": "chapter_2",
-        "target": "node_1763990292371_n0hjkx2mh_2",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_2"
-        }
-      },
-      {
-        "id": "edge|chapter|chapter_2|node_1763990292371_m9ptwwwhb_3",
-        "source": "chapter_2",
-        "target": "node_1763990292371_m9ptwwwhb_3",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_2"
-        }
-      },
-      {
-        "id": "edge|chapter|chapter_3|node_1763990292371_dz4iwnich_4",
-        "source": "chapter_3",
-        "target": "node_1763990292371_dz4iwnich_4",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_3"
-        }
-      },
-      {
-        "id": "edge|chapter|chapter_3|node_1763990292371_y0e3jdcag_5",
-        "source": "chapter_3",
-        "target": "node_1763990292371_y0e3jdcag_5",
-        "sourceHandle": "chapter-frame-out",
-        "targetHandle": "chapter-frame-in",
-        "type": "smoothstep",
-        "style": {
-          "stroke": "#10b981",
-          "strokeWidth": 2.5
-        },
-        "markerEnd": {
-          "type": "arrowclosed",
-          "color": "#10b981",
-          "width": 16,
-          "height": 16
-        },
-        "data": {
-          "relationship": "chapter-membership",
-          "chapterId": "chapter_3"
-        }
-      }
-    ],
+    "edges": [],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-24T13:18:29.885Z",
+    "lastUpdated": "2025-11-24T16:51:30.795Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-24T13:18:29.080Z",
-    "frameCount": 6,
+    "lastSaved": "2025-11-24T16:51:30.759Z",
+    "frameCount": 1,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

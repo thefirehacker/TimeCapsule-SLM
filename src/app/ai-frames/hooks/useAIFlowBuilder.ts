@@ -956,17 +956,12 @@ export function useAIFlowBuilder({
         return newSession.id;
       });
 
-      // Clear unifiedStorage frames for new blank session (conditional)
-      if (onAcceptFrames && !options?.skipClear) {
-        onAcceptFrames([]);
-        console.log(`🧹 [SESSION] Cleared workspace for new session`);
-      } else if (options?.skipClear) {
-        console.log(`⏭️ [SESSION] Skipped workspace clearing (skipClear=true)`);
-      }
-
-      // Trigger graph reset if callback provided
+      // DON'T clear frames from storage - they belong to other sessions!
+      // The sessionFilteredFrames will handle showing only this session's frames
+      // Just clear the graph display
       if (onGraphReset) {
         onGraphReset();
+        console.log(`🧹 [SESSION] Cleared graph display for new session`);
       }
 
       // Sync Mastery Progress to new session (starts at 0%)
@@ -1080,67 +1075,64 @@ export function useAIFlowBuilder({
     async (sessionId: string, onGraphReset?: () => void) => {
       if (!sessionStore) return;
 
-      // Save current session first if active
+      // 1. Save current session first if active
       if (activeSessionId) {
         await saveCurrentSession(true);
       }
 
-      // Load new session
+      // 2. Load new session data
       const session = await sessionStore.loadSession(sessionId);
       if (!session) {
         console.error(`Session not found: ${sessionId}`);
         return;
       }
 
-      // Update state
+      // 3. Clear workspace and graph BEFORE changing activeSessionId
+      if (onAcceptFrames) {
+        onAcceptFrames([]); // Clear frames from workspace
+      }
+      if (onGraphReset) {
+        onGraphReset(); // Reset graph state including edges
+      }
+      console.log(`🧹 Cleared workspace for session switch`);
+
+      // 4. NOW update state with new session data (AFTER clearing)
       const loadedDrafts = session.frameDrafts as any as FrameDraft[];
       setPlan(session.plan);
       setFrameDrafts(loadedDrafts);
       setSessionState(session.sessionState);
-      setActiveSessionId(sessionId);
+      setActiveSessionId(sessionId); // Update sessionId AFTER clearing
 
-      // Trigger graph reset if callback provided
-      if (onGraphReset) {
-        onGraphReset();
-      }
+      // 5. Load new session frames
+      if (onAcceptFrames && loadedDrafts.length > 0) {
+        // Convert frameDrafts to AIFrames for display
+        const timestamp = new Date().toISOString();
+        const aiFrames = loadedDrafts.map(draft => ({
+          id: draft.id,
+          type: 'frame' as const,
+          title: draft.title,
+          goal: draft.goal,
+          informationText: draft.generated?.informationText || '',
+          videoUrl: draft.generated?.videoUrl || '',
+          startTime: 0,
+          duration: draft.generated?.durationInSeconds || 300,
+          afterVideoText: draft.generated?.afterVideoText || '',
+          aiConcepts: draft.aiConcepts || [],
+          order: draft.order || 0,
+          chapterId: draft.chapterId || '',
+          learningPhase: draft.learningPhase,
+          sessionId: sessionId, // Ensure sessionId is set
+          isGenerated: true,
+          masteryState: draft.masteryState || 'unlocked',
+          quiz: undefined,
+          quizHistory: draft.quizHistory || [],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        } as AIFrame));
 
-      // Update unifiedStorage with session frames (even if empty)
-      // This ensures the frames displayed match the session
-      if (onAcceptFrames) {
-        if (loadedDrafts.length > 0) {
-          // Convert frameDrafts to AIFrames for display
-          const timestamp = new Date().toISOString();
-          const aiFrames = loadedDrafts.map(draft => ({
-            id: draft.id,
-            type: 'frame' as const,
-            title: draft.title,
-            goal: draft.goal,
-            informationText: draft.generated?.informationText || '',
-            videoUrl: draft.generated?.videoUrl || '',
-            startTime: 0,
-            duration: draft.generated?.durationInSeconds || 300,
-            afterVideoText: draft.generated?.afterVideoText || '',
-            aiConcepts: draft.aiConcepts || [],
-            order: draft.order || 0,
-            chapterId: draft.chapterId || '',
-            learningPhase: draft.learningPhase,
-            sessionId: sessionId, // Ensure sessionId is set
-            isGenerated: true,
-            masteryState: draft.masteryState || 'unlocked',
-            quiz: undefined,
-            quizHistory: draft.quizHistory || [],
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          } as AIFrame));
-
-          // Update unifiedStorage via the callback
-          onAcceptFrames(aiFrames);
-          console.log(`✅ Updated workspace with ${aiFrames.length} frames from session`);
-        } else {
-          // Clear frames for empty session
-          onAcceptFrames([]);
-          console.log(`✅ Cleared workspace for empty session`);
-        }
+        // Update unifiedStorage via the callback
+        onAcceptFrames(aiFrames);
+        console.log(`✅ Loaded ${aiFrames.length} frames for session`);
       }
 
       // Sync Mastery Progress with loaded session

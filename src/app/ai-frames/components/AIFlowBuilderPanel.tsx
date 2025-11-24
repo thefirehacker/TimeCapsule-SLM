@@ -81,6 +81,7 @@ interface AIFlowBuilderPanelProps {
   knowledgeBaseUnavailable?: boolean;
   knowledgeBaseUnavailableMessage?: string | null;
   onGraphReset?: () => void;
+  activeTimeCapsuleId?: string;
 }
 
 export function AIFlowBuilderPanel({
@@ -92,6 +93,7 @@ export function AIFlowBuilderPanel({
   knowledgeBaseUnavailable = false,
   knowledgeBaseUnavailableMessage,
   onGraphReset,
+  activeTimeCapsuleId,
 }: AIFlowBuilderPanelProps) {
   const {
     prompt,
@@ -1037,7 +1039,10 @@ const handleCopySwePrompt = async () => {
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => createNewSession("manual", undefined, onGraphReset)}
+                    onClick={() => createNewSession("manual", undefined, onGraphReset, {
+                      skipClear: true,
+                      timeCapsuleId: activeTimeCapsuleId || undefined
+                    })}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
                     <Sparkles className="h-4 w-4 mr-1" />
