@@ -119,6 +119,7 @@ export interface PlannerPlan {
   id: string;
   summary?: string;
   chapters: PlannerChapter[];
+  frames?: FlowPlannedFrame[];  // Optional frames at root level for graph rendering
   sources: KnowledgeCitation[];
   createdAt: string;
   model?: string;
@@ -483,6 +484,70 @@ const normalizeCitations = (
 };
 
 const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
+  // Priority 1: Use existing chapters if they were generated
+  if (plan.chapters && plan.chapters.length > 0) {
+    console.log('Using generated chapters from FlowPlannerPlan:', plan.chapters);
+
+    // Create a map of frame IDs to frames for easy lookup
+    const frameMap = new Map<string, FlowPlannedFrame>();
+    plan.frames.forEach((frame, index) => {
+      const frameId = frame.id || `flow_frame_${index}`;
+      frameMap.set(frameId, { ...frame, id: frameId });
+    });
+
+    const chapters = plan.chapters.map((chapter) => {
+      // Get frames for this chapter based on frameIds
+      const chapterFrames = (chapter.frameIds || [])
+        .map(frameId => {
+          const frame = frameMap.get(frameId);
+          if (!frame) {
+            console.warn(`Frame ID ${frameId} referenced in chapter ${chapter.id} not found in frames`);
+          }
+          return frame;
+        })
+        .filter((frame): frame is FlowPlannedFrame => frame !== undefined)
+        .map((frame, index) => ({
+          id: frame.id!,
+          title: frame.title,
+          goal: frame.goal,
+          chapterId: chapter.id,
+          order: index,
+          aiConcepts: frame.aiConcepts || [],
+          citations: [],
+          attachmentSuggestions: [],
+          learningPhase: frame.phase,
+          requiresVision: frame.requiresVision,
+        }));
+
+      return {
+        id: chapter.id,
+        title: chapter.title,
+        goal: chapter.description, // Map description to goal for legacy compatibility
+        description: chapter.description, // Also provide as description for ChapterNodeData
+        order: chapter.order,
+        color: chapter.color,
+        citations: [],
+        frames: chapterFrames,
+        frameIds: chapter.frameIds || [], // Include frameIds for graph generation
+        linkSequentially: chapter.linkSequentially ?? true,
+      };
+    });
+
+    return {
+      id: `flow_${Date.now()}`,
+      summary: plan.summary,
+      learningMode: plan.learningMode,
+      chapters,
+      frames: plan.frames,  // Include frames at root level for graph rendering
+      sources: [],
+      createdAt: new Date().toISOString(),
+      model: "FlowFramePlanner",
+    };
+  }
+
+  // Priority 2: Fall back to phase-based grouping if no chapters exist
+  console.log('No chapters found in plan, falling back to phase-based grouping');
+
   const phaseMeta: Record<
     FlowPlannedFrame["phase"],
     { title: string; color: string; description: string; order: number }
@@ -542,6 +607,7 @@ const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
         id: chapterId,
         title: meta.title,
         goal: meta.description,
+        description: meta.description, // Also provide as description for ChapterNodeData
         order: meta.order,
         color: meta.color,
         citations: [],
@@ -557,30 +623,37 @@ const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
           learningPhase: frame.phase,
           requiresVision: frame.requiresVision,
         })),
+        frameIds: frames.map(f => f.id || `flow_frame_${frames.indexOf(f)}`), // Add frameIds for consistency
+        linkSequentially: true,
       };
     });
 
   // Fallback: ensure at least one chapter
   if (chapters.length === 0) {
+    const fallbackFrames = plan.frames.map((frame, index) => ({
+      id: frame.id || `flow_frame_${index}`,
+      title: frame.title,
+      goal: frame.goal,
+      chapterId: "flow_overview",
+      order: index,
+      aiConcepts: frame.aiConcepts || [],
+      citations: [],
+      attachmentSuggestions: [],
+      learningPhase: frame.phase,
+      requiresVision: frame.requiresVision,
+    }));
+
     chapters.push({
       id: "flow_overview",
       title: "AI Flow",
       goal: plan.summary || "",
+      description: plan.summary || "", // Also provide as description for ChapterNodeData
       order: 0,
       color: "#0284C7",
       citations: [],
-      frames: plan.frames.map((frame, index) => ({
-        id: frame.id || `flow_frame_${index}`,
-        title: frame.title,
-        goal: frame.goal,
-        chapterId: "flow_overview",
-        order: index,
-        aiConcepts: frame.aiConcepts || [],
-        citations: [],
-        attachmentSuggestions: [],
-        learningPhase: frame.phase,
-        requiresVision: frame.requiresVision,
-      })),
+      frames: fallbackFrames,
+      frameIds: plan.frames.map((f, i) => f.id || `flow_frame_${i}`), // Add frameIds for consistency
+      linkSequentially: true,
     });
   }
 
@@ -2961,6 +3034,46 @@ export function useAIFlowBuilder({
 
   const acceptDrafts = useCallback(
     (frameIds?: string[]): AIFrame[] => {
+          // PRIORITY 1: Check if plan.frames exists and use it (new architecture)
+      if (plan?.frames && plan.frames.length > 0) {
+        console.log(`✅ [ACCEPT] Using plan.frames (${plan.frames.length} frames available)`);
+        
+        const timestamp = new Date().toISOString();
+        const convertedFrames: AIFrame[] = plan.frames.map((frame, index) => {
+          // Map FlowPlannedFrame/FlowGeneratedFrame to AIFrame
+          const aiFrame: AIFrame = {
+            id: frame.id || `frame_${Date.now()}_${index}`,
+            title: frame.title,
+            goal: frame.goal,
+            informationText: (frame as any).informationText || '',
+            afterVideoText: (frame as any).afterVideoText || '',
+            videoUrl: (frame as any).videoUrl || '',
+            startTime: (frame as any).startTime || 0,
+            duration: (frame as any).duration || 0,
+            aiConcepts: frame.aiConcepts || [],
+            type: "frame" as const,
+            order: index,
+            chapterId: frame.chapterId,
+            parentFrameId: frame.chapterId,
+            isGenerated: true,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          };
+          return aiFrame;
+        });
+
+        // Filter by frameIds if provided
+        const filteredFrames = frameIds 
+          ? convertedFrames.filter(f => frameIds.includes(f.id))
+          : convertedFrames;
+
+        console.log(`✅ [ACCEPT] Converted ${filteredFrames.length} frames from plan.frames`);
+        return filteredFrames;
+      }
+
+      // FALLBACK: Use frameDrafts for backward compatibility (old architecture)
+      console.log(`⚠️ [ACCEPT] Falling back to frameDrafts (${frameDrafts.length} drafts)`);
+      
       const targets = frameDrafts.filter((draft) =>
         frameIds ? frameIds.includes(draft.tempId) : draft.status === "generated"
       );
@@ -3004,7 +3117,7 @@ export function useAIFlowBuilder({
 
       return frames;
     },
-    [convertDraftToFrame, frameDrafts, persistSessionState, sessionState]
+    [plan, convertDraftToFrame, frameDrafts, persistSessionState, sessionState]
   );
 
   const discardDrafts = useCallback(
