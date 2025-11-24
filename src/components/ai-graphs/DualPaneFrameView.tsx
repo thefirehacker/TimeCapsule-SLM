@@ -1748,7 +1748,14 @@ export default function DualPaneFrameView({
                           className="text-xl font-semibold"
                         />
                       ) : (
-                        currentFrame.title
+                        <div className="text-xl font-semibold">
+                          <RichTextEditor
+                            content={currentFrame.title || ''}
+                            editable={false}
+                            className="border-0 p-0"
+                            format="markdown"
+                          />
+                        </div>
                       )}
                     </CardTitle>
                   </CardHeader>
@@ -1770,9 +1777,13 @@ export default function DualPaneFrameView({
                         className="min-h-16"
                       />
                     ) : (
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {currentFrame.goal}
-                      </p>
+                      <RichTextEditor
+                        content={currentFrame.goal || ''}
+                        editable={false}
+                        placeholder="No learning goal specified"
+                        className="leading-relaxed"
+                        format="markdown"
+                      />
                     )}
                   </CardContent>
                 </Card>

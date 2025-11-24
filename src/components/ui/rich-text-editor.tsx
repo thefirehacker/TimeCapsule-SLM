@@ -85,6 +85,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   format?: 'markdown' | 'html';
+  showExportButtons?: boolean;
+  compact?: boolean;
 }
 
 export function RichTextEditor({
@@ -94,6 +96,8 @@ export function RichTextEditor({
   placeholder = "Start typing...",
   className = "",
   format = 'html',
+  showExportButtons = true,
+  compact = false,
 }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -169,7 +173,9 @@ export function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: `prose prose-slate dark:prose-invert max-w-none min-h-[500px] p-4 focus:outline-none ${className}`,
+        class: compact
+          ? `prose prose-slate dark:prose-invert max-w-none text-xs p-1 focus:outline-none ${className}`
+          : `prose prose-slate dark:prose-invert max-w-none min-h-[500px] p-4 focus:outline-none ${className}`,
       },
     },
   });
@@ -326,9 +332,9 @@ export function RichTextEditor({
   }
 
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <div className={compact ? "compact-rich-text" : "border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden"}>
       {/* Toolbar */}
-      {editable && (
+      {editable && !compact && (
         <div className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Text formatting */}
@@ -673,7 +679,7 @@ export function RichTextEditor({
       )}
 
       {/* Export toolbar for read-only mode */}
-      {!editable && (
+      {!editable && showExportButtons && !compact && (
         <div className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-4">
           <div className="flex items-center gap-3">
             <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm p-1">
@@ -703,11 +709,11 @@ export function RichTextEditor({
       )}
 
       {/* Editor Content */}
-      <div className="relative">
+      <div className={compact ? "line-clamp-3" : "relative"}>
         <EditorContent editor={editor} />
 
         {/* Bubble Menu for text selection */}
-        {editable && (
+        {editable && !compact && (
           <BubbleMenu
             editor={editor}
             tippyOptions={{
@@ -759,7 +765,7 @@ export function RichTextEditor({
         )}
 
         {/* Floating Menu for empty lines */}
-        {editable && (
+        {editable && !compact && (
           <FloatingMenu
             editor={editor}
             tippyOptions={{

@@ -3,8 +3,8 @@
     {
       "id": "frame-1763832849282-mvgkorxam",
       "title": "Frame 1",
-      "goal": "Enter learning goal here...",
-      "informationText": "<h1>Test01</h1>",
+      "goal": "Goal Test",
+      "informationText": "<h1>Test011</h1>",
       "afterVideoText": "<h1>test</h1>",
       "aiConcepts": [],
       "isGenerated": false,
@@ -13,7 +13,7 @@
       "timeCapsuleId": "timecapsule_1763831671804_k9vvsxvh2",
       "type": "frame",
       "createdAt": "2025-11-22T17:34:09.286Z",
-      "updatedAt": "2025-11-22T18:17:35.421Z",
+      "updatedAt": "2025-11-24T10:27:58.580Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
@@ -21,9 +21,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T17:34:09.286Z",
-        "updatedAt": "2025-11-22T18:19:11.688Z",
+        "updatedAt": "2025-11-24T10:28:15.252Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T18:19:11.688Z"
+        "lastSaved": "2025-11-24T10:28:15.252Z"
       },
       "chapterId": "chapter_1763832873045_2b9cqk",
       "parentFrameId": "chapter_1763832873045_2b9cqk",
@@ -50,9 +50,9 @@
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-22T17:34:16.667Z",
-        "updatedAt": "2025-11-22T18:19:11.688Z",
+        "updatedAt": "2025-11-24T10:28:15.252Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-22T18:19:11.688Z"
+        "lastSaved": "2025-11-24T10:28:15.252Z"
       },
       "attachment": {
         "id": "node_1763832893364_eyuw2s101_4",
@@ -84,7 +84,7 @@
       ],
       "order": 0,
       "createdAt": "2025-11-22T17:34:33.045Z",
-      "updatedAt": "2025-11-22T18:19:11.688Z",
+      "updatedAt": "2025-11-24T10:28:15.252Z",
       "linkSequentially": true
     }
   ],
@@ -110,7 +110,7 @@
           "order": 0,
           "color": "#EF4444",
           "linkSequentially": true,
-          "updatedAt": "2025-11-22T18:17:54.881Z"
+          "updatedAt": "2025-11-24T10:28:10.938Z"
         },
         "measured": {
           "width": 320,
@@ -123,25 +123,24 @@
         "id": "node_1763832849413_8takbi9jd_2",
         "type": "aiframe",
         "position": {
-          "x": -50.42171883002811,
-          "y": 498.67866159434175
+          "x": -571.8315632634607,
+          "y": 465.21576884978583
         },
         "data": {
           "type": "aiframe",
           "frameId": "frame-1763832849282-mvgkorxam",
           "title": "Frame 1",
-          "goal": "Enter learning goal here...",
-          "informationText": "<h1>Test01</h1>",
+          "goal": "Goal Test",
+          "informationText": "<h1>Test011</h1>",
           "afterVideoText": "<h1>test</h1>",
           "aiConcepts": [],
           "isGenerated": false,
           "chapterId": "chapter_1763832873045_2b9cqk",
-          "parentFrameId": "chapter_1763832873045_2b9cqk",
-          "updatedAt": "2025-11-22T17:34:38.104Z"
+          "parentFrameId": "chapter_1763832873045_2b9cqk"
         },
         "measured": {
           "width": 480,
-          "height": 460
+          "height": 561
         },
         "selected": true,
         "dragging": false
@@ -168,20 +167,19 @@
             "id": "node_1763832893364_eyuw2s101_4",
             "type": "pdf",
             "data": {
-              "title": "PDF Document",
-              "notes": "",
+              "title": "PDF Document01",
               "pdfUrl": "",
-              "pages": ""
+              "pages": "",
+              "notes": "",
+              "startTime": 0,
+              "duration": 300
             }
-          },
-          "updatedAt": "2025-11-22T17:34:38.104Z"
+          }
         },
         "measured": {
           "width": 480,
-          "height": 400
-        },
-        "selected": false,
-        "dragging": false
+          "height": 459
+        }
       },
       {
         "id": "node_1763832893364_eyuw2s101_4",
@@ -191,21 +189,19 @@
           "y": 1000
         },
         "data": {
-          "type": "pdf-attachment",
           "id": "node_1763832893364_eyuw2s101_4",
           "title": "PDF Document01",
-          "pdfUrl": "",
-          "pages": "",
           "notes": "",
+          "attachedToFrameId": "frame-1763832856667-vjen0xib9",
           "isAttached": true,
-          "attachedToFrameId": "frame-1763832856667-vjen0xib9"
+          "type": "pdf-attachment",
+          "pdfUrl": "",
+          "pages": ""
         },
         "measured": {
           "width": 400,
           "height": 441
-        },
-        "selected": false,
-        "dragging": false
+        }
       }
     ],
     "edges": [
@@ -300,10 +296,10 @@
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-22T18:19:11.885Z",
+    "lastUpdated": "2025-11-24T10:28:17.072Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-22T18:19:11.688Z",
+    "lastSaved": "2025-11-24T10:28:15.252Z",
     "frameCount": 2,
     "checksum": "eyJmcmFtZXMiOlt7"
   }

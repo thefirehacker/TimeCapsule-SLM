@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { AIFrameNodeData, FrameAttachment } from "./types";
 import { 
   Video, 
@@ -270,9 +271,15 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
                 placeholder="What should learners understand after this frame?"
               />
             ) : (
-              <p className="text-xs text-gray-600 mt-1 line-clamp-3">
-                {data.goal || "No learning goal specified"}
-              </p>
+              <RichTextEditor
+                content={data.goal || ''}
+                editable={false}
+                placeholder="No learning goal specified"
+                className="text-xs"
+                format="markdown"
+                showExportButtons={false}
+                compact={true}
+              />
             )}
           </div>
 
@@ -290,9 +297,15 @@ export default function EnhancedAIFrameNode({ data, selected }: EnhancedAIFrameN
                 placeholder="Provide background context and explanation..."
               />
             ) : (
-              <p className="text-xs text-gray-600 mt-1 line-clamp-4">
-                {data.informationText || "No background information provided"}
-              </p>
+              <RichTextEditor
+                content={data.informationText || ''}
+                editable={false}
+                placeholder="No background information provided"
+                className="text-xs"
+                format="markdown"
+                showExportButtons={false}
+                compact={true}
+              />
             )}
           </div>
 
