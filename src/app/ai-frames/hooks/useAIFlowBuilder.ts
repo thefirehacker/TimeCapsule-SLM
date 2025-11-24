@@ -277,6 +277,7 @@ export interface UseAIFlowBuilderReturn {
   duplicateSession: (sessionId: string, onGraphReset?: () => void) => Promise<FlowSession | null>;
   syncFrameToSession: (frame: AIFrame) => void;
   syncFrameDeletions: (currentFrameIds: Set<string>) => void;
+  updateSessionFrameCount: (frames: AIFrame[]) => Promise<void>;
   generateGraphState: (chapters: PlannerChapter[], frames: AIFrame[]) => GraphState;
 }
 
@@ -1288,6 +1289,38 @@ export function useAIFlowBuilder({
       return filtered;
     });
   }, [activeSessionId]);
+
+  const updateSessionFrameCount = useCallback(async (frames: AIFrame[]) => {
+    if (!activeSessionId || !sessionStore) return;
+    
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    if (!activeSession) return;
+    
+    // Count frames belonging to this session
+    const sessionFrames = frames.filter(f => f.sessionId === activeSessionId);
+    const frameCount = sessionFrames.length;
+    
+    console.log(`📊 Updating session frame count: ${frameCount} frames for session ${activeSessionId}`);
+    
+    // Update session metadata
+    const updatedSession: FlowSession = {
+      ...activeSession,
+      frameCount,
+      acceptedFrameCount: frameCount, // All manual/dropped frames are "accepted"
+      frameIds: sessionFrames.map(f => f.id),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Save to VectorStore
+    await sessionStore.saveSession(updatedSession);
+    
+    // Update local state
+    setSessions((prev) =>
+      prev.map((s) => (s.id === activeSessionId ? updatedSession : s))
+    );
+    
+    console.log(`✅ Session metadata updated with ${frameCount} frames`);
+  }, [activeSessionId, sessionStore, sessions]);
 
   // ✅ REMOVED: Auto-save on changes useEffect (was causing KB spam)
   // The useEffect that triggered saveCurrentSession on every state change
@@ -3171,6 +3204,7 @@ export function useAIFlowBuilder({
     duplicateSession,
     syncFrameToSession,
     syncFrameDeletions,
+    updateSessionFrameCount,
     generateGraphState,
   };
 }

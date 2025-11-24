@@ -2074,8 +2074,13 @@ export default function AIFramesPage() {
       
       unifiedStorage.updateFrames(fixedFrames);
       console.log(`✅ Assigned sessionId to ${orphanedFrames.length} orphaned frames`);
+      
+      // Update session frame count after assignment
+      if (flowBuilder.activeSessionId) {
+        flowBuilder.updateSessionFrameCount(fixedFrames);
+      }
     }
-  }, [unifiedStorage.frames.length, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
+  }, [unifiedStorage.frames.length, flowBuilder.activeSessionId, flowBuilder.updateSessionFrameCount, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
 
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
