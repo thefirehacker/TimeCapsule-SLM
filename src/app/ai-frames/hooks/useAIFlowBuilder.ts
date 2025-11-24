@@ -1087,53 +1087,18 @@ export function useAIFlowBuilder({
         return;
       }
 
-      // 3. Clear workspace and graph BEFORE changing activeSessionId
-      if (onAcceptFrames) {
-        onAcceptFrames([]); // Clear frames from workspace
-      }
+      // 3. Clear graph UI (not storage) BEFORE changing activeSessionId
       if (onGraphReset) {
         onGraphReset(); // Reset graph state including edges
       }
-      console.log(`🧹 Cleared workspace for session switch`);
+      console.log(`🧹 Cleared graph UI for session switch`);
 
-      // 4. NOW update state with new session data (AFTER clearing)
+      // 4. Update state with new session data
       const loadedDrafts = session.frameDrafts as any as FrameDraft[];
       setPlan(session.plan);
       setFrameDrafts(loadedDrafts);
       setSessionState(session.sessionState);
-      setActiveSessionId(sessionId); // Update sessionId AFTER clearing
-
-      // 5. Load new session frames
-      if (onAcceptFrames && loadedDrafts.length > 0) {
-        // Convert frameDrafts to AIFrames for display
-        const timestamp = new Date().toISOString();
-        const aiFrames = loadedDrafts.map(draft => ({
-          id: draft.id,
-          type: 'frame' as const,
-          title: draft.title,
-          goal: draft.goal,
-          informationText: draft.generated?.informationText || '',
-          videoUrl: draft.generated?.videoUrl || '',
-          startTime: 0,
-          duration: draft.generated?.durationInSeconds || 300,
-          afterVideoText: draft.generated?.afterVideoText || '',
-          aiConcepts: draft.aiConcepts || [],
-          order: draft.order || 0,
-          chapterId: draft.chapterId || '',
-          learningPhase: draft.learningPhase,
-          sessionId: sessionId, // Ensure sessionId is set
-          isGenerated: true,
-          masteryState: draft.masteryState || 'unlocked',
-          quiz: undefined,
-          quizHistory: draft.quizHistory || [],
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        } as AIFrame));
-
-        // Update unifiedStorage via the callback
-        onAcceptFrames(aiFrames);
-        console.log(`✅ Loaded ${aiFrames.length} frames for session`);
-      }
+      setActiveSessionId(sessionId); // This triggers sessionFilteredFrames to update the graph
 
       // Sync Mastery Progress with loaded session
       const metrics = calculateProgressMetrics(session.sessionState);
@@ -1153,9 +1118,9 @@ export function useAIFlowBuilder({
         }
       }
 
-      console.log(`🔄 Switched to session: ${session.name} (${loadedDrafts.length} frames loaded)`);
+      console.log(`🔄 Switched to session: ${session.name} (ID: ${sessionId})`);
     },
-    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics, onAcceptFrames]
+    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics]
   );
 
   const renameSession = useCallback(

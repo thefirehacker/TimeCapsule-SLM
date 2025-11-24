@@ -82,6 +82,7 @@ interface AIFlowBuilderPanelProps {
   knowledgeBaseUnavailableMessage?: string | null;
   onGraphReset?: () => void;
   activeTimeCapsuleId?: string;
+  allFrames?: AIFrame[];
 }
 
 export function AIFlowBuilderPanel({
@@ -94,6 +95,7 @@ export function AIFlowBuilderPanel({
   knowledgeBaseUnavailableMessage,
   onGraphReset,
   activeTimeCapsuleId,
+  allFrames = [],
 }: AIFlowBuilderPanelProps) {
   const {
     prompt,
@@ -1069,6 +1071,9 @@ const handleCopySwePrompt = async () => {
                     if (session.frameSources["ai-flow"] > 0) sourceBadges.push("AI");
                     if (session.frameSources["swe-bridge"] > 0) sourceBadges.push("SWE");
                     
+                    // Calculate actual frame count from allFrames
+                    const actualFrameCount = allFrames.filter(f => f.sessionId === session.id).length;
+                    
                     return (
                       <div
                         key={session.id}
@@ -1095,7 +1100,7 @@ const handleCopySwePrompt = async () => {
                                 {new Date(session.updatedAt).toLocaleString()}
                               </p>
                               <Badge variant="outline" className="text-xs">
-                                {session.frameCount} frames ({session.acceptedFrameCount} accepted)
+                                {actualFrameCount} frames
                               </Badge>
                               {sourceBadges.length > 0 && (
                                 <Badge variant="secondary" className="text-xs">

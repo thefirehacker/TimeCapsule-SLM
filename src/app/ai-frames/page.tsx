@@ -1245,22 +1245,18 @@ export default function AIFramesPage() {
 
   // Session-based frame filtering with TimeCapsule isolation
   const sessionFilteredFrames = useMemo(() => {
-    return unifiedStorage.frames.filter(f => {
-      // Filter by TimeCapsule first (project-level isolation)
-      // Allow frames without timeCapsuleId for backward compatibility
-      if (timeCapsule.activeTimeCapsuleId && f.timeCapsuleId && f.timeCapsuleId !== timeCapsule.activeTimeCapsuleId) {
-        return false;
-      }
-      
-      // Then filter by session (session-level isolation within TimeCapsule)
-      if (!flowBuilder.activeSessionId) {
-        // No active session: show only legacy frames (without sessionId)
-        return !f.sessionId;
-      }
-      
-      // Show frames from active session OR legacy frames (backward compatibility)
-      return f.sessionId === flowBuilder.activeSessionId || !f.sessionId;
-    });
+    // No active session: show all frames from active TimeCapsule
+    if (!flowBuilder.activeSessionId) {
+      return unifiedStorage.frames.filter(f => 
+        f.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      );
+    }
+    
+    // Active session: show only frames from that session in the active TimeCapsule
+    return unifiedStorage.frames.filter(f => 
+      f.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
+      f.sessionId === flowBuilder.activeSessionId
+    );
   }, [unifiedStorage.frames, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
 
   // REMOVED: Infinite loop fix - session frame count is already tracked by session metadata
@@ -1878,6 +1874,9 @@ export default function AIFramesPage() {
   // Handle frames change
   const handleFramesChange = useCallback(
     (newFrames: any[]) => {
+      // Get existing frames from storage
+      const existingFrames = unifiedStorage.frames;
+      
       // Convert the frames to ensure they have the correct type and order
       // AND assign timeCapsuleId + sessionId for proper isolation (FRESH data, no stale closures)
       const convertedFrames = newFrames.map((frame) => ({
@@ -1890,17 +1889,30 @@ export default function AIFramesPage() {
         sessionId: frame.sessionId || flowBuilder.activeSessionId || undefined,
       }));
 
-      console.log(`🔧 handleFramesChange: Assigned IDs to ${convertedFrames.length} frames`, {
+      // Create a map of existing frames by ID
+      const frameMap = new Map(existingFrames.map(f => [f.id, f]));
+      
+      // Merge: update existing frames or add new ones
+      convertedFrames.forEach(newFrame => {
+        frameMap.set(newFrame.id, newFrame);
+      });
+      
+      // Convert back to array
+      const mergedFrames = Array.from(frameMap.values());
+
+      console.log(`🔧 handleFramesChange: Merged ${convertedFrames.length} new frames with ${existingFrames.length} existing frames`, {
+        totalAfterMerge: mergedFrames.length,
         activeTimeCapsuleId: timeCapsule.activeTimeCapsuleId,
         activeSessionId: flowBuilder.activeSessionId,
-        framesWithBoth: convertedFrames.filter(f => f.timeCapsuleId && f.sessionId).length,
+        framesWithBoth: mergedFrames.filter(f => f.timeCapsuleId && f.sessionId).length,
       });
 
-      unifiedStorage.updateFrames(convertedFrames);
+      // Update storage with MERGED frames
+      unifiedStorage.updateFrames(mergedFrames);
       
       // Sync deletions to active session
       if (flowBuilder.syncFrameDeletions && flowBuilder.frameDrafts.length > 0) {
-        const currentFrameIds = new Set(convertedFrames.map(f => f.id));
+        const currentFrameIds = new Set(mergedFrames.map(f => f.id));
         flowBuilder.syncFrameDeletions(currentFrameIds);
       }
     },
@@ -2023,23 +2035,12 @@ export default function AIFramesPage() {
         timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
       });
       console.log("✅ Manual session created:", newSession.id);
-      
-      // Retroactively assign sessionId to orphaned frames (frames without sessionId)
-      const orphanedFrames = unifiedStorage.frames.filter(f => !f.sessionId);
-      if (orphanedFrames.length > 0) {
-        const fixedFrames = unifiedStorage.frames.map(f => 
-          !f.sessionId ? { ...f, sessionId: newSession.id } : f
-        );
-        unifiedStorage.updateFrames(fixedFrames);
-        console.log(`✅ Assigned sessionId to ${orphanedFrames.length} orphaned frames`);
-      }
-      
       return newSession.id;
     }
 
     console.log("✅ Using existing manual session:", flowBuilder.activeSessionId);
     return flowBuilder.activeSessionId;
-  }, [flowBuilder, triggerGraphReset, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
+  }, [flowBuilder, triggerGraphReset, timeCapsule.activeTimeCapsuleId]);
 
   // ✅ NEW: Event listener for ensuring manual session on frame drop
   useEffect(() => {
@@ -2052,6 +2053,29 @@ export default function AIFramesPage() {
       return () => window.removeEventListener("ensure-manual-session", handleEnsureManualSession);
     }
   }, [ensureManualSession]);
+
+  // ✅ NEW: Auto-assign sessionId to orphaned frames after they're saved
+  useEffect(() => {
+    if (!flowBuilder.activeSessionId) return;
+    
+    const orphanedFrames = unifiedStorage.frames.filter(f => 
+      !f.sessionId && 
+      f.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+    );
+    
+    if (orphanedFrames.length > 0) {
+      console.log(`🔧 Found ${orphanedFrames.length} orphaned frames, assigning to session ${flowBuilder.activeSessionId}`);
+      
+      const fixedFrames = unifiedStorage.frames.map(f => 
+        (!f.sessionId && f.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
+          ? { ...f, sessionId: flowBuilder.activeSessionId || undefined }
+          : f
+      );
+      
+      unifiedStorage.updateFrames(fixedFrames);
+      console.log(`✅ Assigned sessionId to ${orphanedFrames.length} orphaned frames`);
+    }
+  }, [unifiedStorage.frames.length, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
 
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
@@ -3389,6 +3413,7 @@ export default function AIFramesPage() {
             knowledgeBaseUnavailableMessage={knowledgeBaseErrorMessage}
             onGraphReset={triggerGraphReset}
             activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
+            allFrames={unifiedStorage.frames}
           />
         ) : (
           <div className="min-h-[32rem] rounded-3xl border border-slate-200 bg-white/70 flex flex-col items-center justify-center gap-4 text-center text-slate-500">
@@ -3469,7 +3494,9 @@ export default function AIFramesPage() {
               }`}
             >
               {!sidebarCollapsed && (
-                <div className="bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto h-screen">
+                <div className="bg-gray-50 border-r border-gray-200 h-full flex flex-col">
+                  {/* Scrollable Content Area */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-6">
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -3758,9 +3785,11 @@ export default function AIFramesPage() {
                   </div>
                 )}
               </div>
+                  </div>
+                  {/* End Scrollable Content Area */}
 
-                  {/* Danger Zone */}
-                  <div className="space-y-2 border-t border-gray-200 pt-4">
+                  {/* Danger Zone - Fixed at Bottom */}
+                  <div className="border-t border-gray-200 p-4 space-y-2">
                     <h4 className="text-sm font-medium text-gray-700">
                       Danger Zone
                     </h4>

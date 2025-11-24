@@ -1,7 +1,7 @@
 {
   "frames": [
     {
-      "id": "frame-1764003085353-qrp85d3lq",
+      "id": "frame-1764008063908-vkwo7t8t2",
       "title": "Frame 1",
       "goal": "Enter learning goal here...",
       "informationText": "Provide background context and information...",
@@ -10,59 +10,34 @@
       "isGenerated": false,
       "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764003078242_0f5gz1cen",
+      "timeCapsuleId": "timecapsule_1764008057398_wgx1o27pg",
       "type": "frame",
-      "createdAt": "2025-11-24T16:51:25.359Z",
-      "updatedAt": "2025-11-24T16:51:25.359Z",
+      "createdAt": "2025-11-24T18:14:23.912Z",
+      "updatedAt": "2025-11-24T18:14:23.912Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
+      "sessionId": "manual_1764008063910_ugwymhvkr",
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-24T16:51:25.359Z",
-        "updatedAt": "2025-11-24T16:51:30.759Z",
+        "createdAt": "2025-11-24T18:14:23.912Z",
+        "updatedAt": "2025-11-24T18:14:24.235Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-24T16:51:30.759Z"
+        "lastSaved": "2025-11-24T18:14:24.235Z"
       },
       "conceptIds": []
     }
   ],
   "chapters": [],
   "graphState": {
-    "nodes": [
-      {
-        "id": "node_1764003085470_xqjf4frif_2",
-        "type": "aiframe",
-        "position": {
-          "x": -150.04796301998596,
-          "y": -189.37821439568717
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame-1764003085353-qrp85d3lq",
-          "title": "Frame 1",
-          "goal": "Enter learning goal here...",
-          "informationText": "Provide background context and information...",
-          "afterVideoText": "Key takeaways and next steps...",
-          "aiConcepts": [],
-          "isGenerated": false
-        },
-        "measured": {
-          "width": 480,
-          "height": 519
-        },
-        "selected": true,
-        "dragging": false
-      }
-    ],
-    "edges": [],
-    "selectedNodeId": null
+    "nodes": [],
+    "edges": []
   },
   "metadata": {
-    "lastUpdated": "2025-11-24T16:51:30.795Z",
+    "lastUpdated": "2025-11-24T18:14:24.351Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-24T16:51:30.759Z",
+    "lastSaved": "2025-11-24T18:14:24.235Z",
     "frameCount": 1,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
