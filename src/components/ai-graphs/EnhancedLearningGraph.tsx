@@ -139,13 +139,36 @@ export default function EnhancedLearningGraph({
       
       // Only update if initialGraphState has content (session restore)
       if (hasNodes || hasEdges) {
+        const incomingNodes = initialGraphState.nodes || [];
+        const incomingEdges = initialGraphState.edges || [];
+        const currentNodes = nodesRef.current || [];
+        const currentEdges = edgesRef.current || [];
+        const incomingEdgeCount = incomingEdges.length;
+        const currentEdgeCount = currentEdges.length;
+        const incomingNodeCount = incomingNodes.length;
+        const currentNodeCount = currentNodes.length;
+
+        // Skip applying an older/stale snapshot (e.g., missing attachments/edges)
+        const isStaleSnapshot =
+          incomingNodeCount < currentNodeCount || incomingEdgeCount < currentEdgeCount;
+
+        if (isStaleSnapshot) {
+          console.log('⏭️ Skipping initialGraphState sync (snapshot is older/stale)', {
+            incomingNodeCount,
+            currentNodeCount,
+            incomingEdgeCount,
+            currentEdgeCount,
+          });
+          return;
+        }
+
         console.log('🔄 [Issue 16] Syncing initialGraphState to graph:', {
-          nodeCount: initialGraphState.nodes.length,
-          edgeCount: initialGraphState.edges.length
+          nodeCount: incomingNodeCount,
+          edgeCount: incomingEdgeCount
         });
-        setNodes(initialGraphState.nodes || []);
+        setNodes(incomingNodes);
         // Deduplicate edges before setting state to avoid duplicate key warnings
-        const deduped = dedupeEdges(initialGraphState.edges || []);
+        const deduped = dedupeEdges(incomingEdges);
         const currentEdgeIds = new Set((edgesRef.current || []).map(e => e.id));
         const dedupedEdgeIds = new Set(deduped.map(e => e.id));
         const edgesChanged = deduped.length !== (edgesRef.current?.length || 0) ||
