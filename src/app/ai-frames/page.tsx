@@ -1276,12 +1276,40 @@ export default function AIFramesPage() {
       );
     }
     
-    // Active session: show only chapters from that session in the active TimeCapsule
-    return unifiedStorage.chapters.filter(c => 
-      c.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
-      c.sessionId === flowBuilder.activeSessionId
-    );
+      // Active session: show only chapters from that session in the active TimeCapsule
+      return unifiedStorage.chapters.filter(c => 
+        c.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
+        c.sessionId === flowBuilder.activeSessionId
+      );
   }, [unifiedStorage.chapters, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
+
+  // Ensure graph is cleared once when switching to a session with no frames/chapters
+  const lastClearedSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!flowBuilder.activeSessionId) return;
+    const hasGraphContent = (unifiedStorage.graphState.nodes?.length || 0) > 0 || (unifiedStorage.graphState.edges?.length || 0) > 0;
+    const shouldClear =
+      sessionFilteredFrames.length === 0 &&
+      sessionFilteredChapters.length === 0 &&
+      hasGraphContent &&
+      lastClearedSessionRef.current !== flowBuilder.activeSessionId;
+    if (shouldClear) {
+      unifiedStorage.updateGraphState({ nodes: [], edges: [], selectedNodeId: null });
+      triggerGraphReset();
+      lastClearedSessionRef.current = flowBuilder.activeSessionId;
+    }
+    if (sessionFilteredFrames.length > 0 || sessionFilteredChapters.length > 0) {
+      lastClearedSessionRef.current = null;
+    }
+  }, [
+    flowBuilder.activeSessionId,
+    sessionFilteredFrames.length,
+    sessionFilteredChapters.length,
+    unifiedStorage.graphState.nodes?.length,
+    unifiedStorage.graphState.edges?.length,
+    triggerGraphReset,
+    unifiedStorage,
+  ]);
 
   // REMOVED: Infinite loop fix - session frame count is already tracked by session metadata
   // The useEffect here was causing infinite saves by triggering re-renders on every save

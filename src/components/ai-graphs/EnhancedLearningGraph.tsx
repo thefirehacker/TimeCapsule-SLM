@@ -145,7 +145,15 @@ export default function EnhancedLearningGraph({
         });
         setNodes(initialGraphState.nodes || []);
         // Deduplicate edges before setting state to avoid duplicate key warnings
-        setEdges(dedupeEdges(initialGraphState.edges || []));
+        const deduped = dedupeEdges(initialGraphState.edges || []);
+        const currentEdgeIds = new Set((edgesRef.current || []).map(e => e.id));
+        const dedupedEdgeIds = new Set(deduped.map(e => e.id));
+        const edgesChanged = deduped.length !== (edgesRef.current?.length || 0) ||
+          deduped.some(e => !currentEdgeIds.has(e.id)) ||
+          (edgesRef.current || []).some(e => !dedupedEdgeIds.has(e.id));
+        if (edgesChanged) {
+          setEdges(deduped);
+        }
       }
     }
   }, [initialGraphState, setNodes, setEdges, dedupeEdges]);
@@ -220,15 +228,6 @@ export default function EnhancedLearningGraph({
     edgesRef.current = dedupeEdges(edges as Edge[]);
     selectedNodeRef.current = selectedNode;
   }, [nodes, edges, selectedNode, dedupeEdges]);
-
-  // SAFETY: Ensure edges state is deduplicated before rendering to avoid duplicate key warnings
-  useEffect(() => {
-    if (!Array.isArray(edges)) return;
-    const deduped = dedupeEdges(edges);
-    if (deduped.length !== edges.length) {
-      setEdges(deduped);
-    }
-  }, [edges, setEdges, dedupeEdges]);
 
   useEffect(() => {
     initialGraphStateRef.current = initialGraphState;
@@ -2411,11 +2410,11 @@ export default function EnhancedLearningGraph({
             attachmentNodeKey &&
             allowedAttachmentIds.has(attachmentNodeKey);
 
-          if (attachmentStillExists) {
-            return true;
-          }
-
-          if (node.data?.isAttached) {
+          // Keep attachment if parent frame exists and either:
+          // - Allowed IDs list is absent (new attachment not yet synced to frame data), or
+          // - Attachment is in the allowed list, or
+          // - Node is marked as attached
+          if (!allowedAttachmentIds || attachmentStillExists || node.data?.isAttached) {
             return true;
           }
 

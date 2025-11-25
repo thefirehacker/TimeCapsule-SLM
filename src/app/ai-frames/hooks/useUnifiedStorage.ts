@@ -1580,21 +1580,29 @@ export const useUnifiedStorage = ({
       });
       
       // CRITICAL FIX (Issue 14): Use frames/chapters from event if provided (priority over stale refs)
-      // This ensures newly dropped frames/chapters are saved even if React state hasn't updated yet
-      const framesToSave = Array.isArray(eventFrames) ? eventFrames : framesRef.current;
-      const chaptersToSave = Array.isArray(eventChapters) ? eventChapters : chaptersRef.current;
+      // Merge event frames/chapters with existing by id to avoid overwriting prior items
+      const mergeById = <T extends { id?: string }>(current: T[], incoming?: T[]) => {
+        if (!Array.isArray(incoming) || incoming.length === 0) return current;
+        const map = new Map<string, T>();
+        current.forEach(item => { if (item?.id) map.set(item.id, item); });
+        incoming.forEach(item => { if (item?.id) map.set(item.id, item); });
+        return Array.from(map.values());
+      };
       
-      // Update refs if event provided fresh data
+      const framesToSave = mergeById(framesRef.current, Array.isArray(eventFrames) ? eventFrames : undefined);
+      const chaptersToSave = mergeById(chaptersRef.current, Array.isArray(eventChapters) ? eventChapters : undefined);
+      
+      // Update refs/state with merged data when event provided fresh items
       if (Array.isArray(eventFrames)) {
-        console.log(`✅ Using frames from event: ${eventFrames.length} frames`);
-        framesRef.current = eventFrames;
-        setFrames(eventFrames);
+        console.log(`✅ Using frames from event: ${eventFrames.length} frames (merged to ${framesToSave.length})`);
+        framesRef.current = framesToSave;
+        setFrames(framesToSave);
       }
       
       if (Array.isArray(eventChapters)) {
-        console.log(`✅ Using chapters from event: ${eventChapters.length} chapters`);
-        chaptersRef.current = eventChapters;
-        setChapters(eventChapters);
+        console.log(`✅ Using chapters from event: ${eventChapters.length} chapters (merged to ${chaptersToSave.length})`);
+        chaptersRef.current = chaptersToSave;
+        setChapters(chaptersToSave);
       }
       
       // CRITICAL FIX: Use fresh graph state from event if provided, otherwise fall back to ref
