@@ -39,6 +39,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plug,
+  Edit,
+  Sparkles,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -3604,6 +3606,9 @@ export default function AIFramesPage() {
                       activeId={timeCapsule.activeTimeCapsuleId}
                       onSwitch={timeCapsule.switchTimeCapsule}
                       onCreate={timeCapsule.createTimeCapsule}
+                      onRename={async (id, newName) => {
+                        await timeCapsule.updateTimeCapsule(id, { name: newName });
+                      }}
                       sessions={flowBuilder.sessions}
                       frames={unifiedStorage.frames}
                     />
@@ -3675,52 +3680,172 @@ export default function AIFramesPage() {
                     )}
                   </div>
                   
-                  {/* Active Session Display */}
+                  {/* Recent Sessions Display (up to 3) */}
                   <div className="pt-3 border-t border-gray-200">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 font-medium">Active Session:</span>
+                        <span className="text-gray-600 font-medium">Recent Sessions:</span>
+                        {flowBuilder.sessions.length > 3 && (
+                          <span className="text-xs text-gray-500">{flowBuilder.sessions.length} total</span>
+                        )}
                       </div>
-                      {flowBuilder.activeSessionId ? (
-                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm">
-                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "ai-flow" ? "🤖" :
-                               flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "swe-bridge" ? "🔌" : "✏️"}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.name || "Unknown"}
-                            </span>
+                      {(() => {
+                        // Helper function to get relative time
+                        const getRelativeTime = (date: Date | string) => {
+                          const now = new Date();
+                          const targetDate = typeof date === 'string' ? new Date(date) : date;
+                          const diff = now.getTime() - targetDate.getTime();
+                          const minutes = Math.floor(diff / 60000);
+                          if (minutes < 1) return 'just now';
+                          if (minutes < 60) return `${minutes}m ago`;
+                          const hours = Math.floor(minutes / 60);
+                          if (hours < 24) return `${hours}h ago`;
+                          const days = Math.floor(hours / 24);
+                          if (days < 30) return `${days}d ago`;
+                          return new Date(targetDate).toLocaleDateString();
+                        };
+
+                        // Session type configuration
+                        const sessionTypeConfig = {
+                          "manual": {
+                            icon: Edit,
+                            color: "blue",
+                            borderColor: "border-blue-400",
+                            bgColor: "bg-blue-50",
+                            iconBgColor: "bg-blue-100",
+                            iconColor: "text-blue-600",
+                          },
+                          "ai-flow": {
+                            icon: Bot,
+                            color: "purple",
+                            borderColor: "border-purple-400",
+                            bgColor: "bg-purple-50",
+                            iconBgColor: "bg-purple-100",
+                            iconColor: "text-purple-600",
+                          },
+                          "swe-bridge": {
+                            icon: Plug,
+                            color: "teal",
+                            borderColor: "border-teal-400",
+                            bgColor: "bg-teal-50",
+                            iconBgColor: "bg-teal-100",
+                            iconColor: "text-teal-600",
+                          },
+                        };
+
+                        // Get up to 3 most recent sessions, sorted by updatedAt
+                        const recentSessions = [...flowBuilder.sessions]
+                          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                          .slice(0, 3);
+
+                        if (recentSessions.length === 0) {
+                          return (
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                              <p className="text-xs text-gray-500 text-center">No sessions yet</p>
                           </div>
-                          <p className="text-xs text-gray-600">
-                            {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.frameCount || 0} frames
-                          </p>
+                          );
+                        }
+
+                        return recentSessions.map((session) => {
+                          const isActive = session.id === flowBuilder.activeSessionId;
+                          const config = sessionTypeConfig[session.source as keyof typeof sessionTypeConfig] || sessionTypeConfig["manual"];
+                          const SessionIcon = config.icon;
+                          const sessionFrameCount = unifiedStorage.frames.filter(f => f.sessionId === session.id).length;
+
+                          return (
+                            <div
+                              key={session.id}
+                              className={`relative rounded-xl border-l-4 p-2.5 cursor-pointer transition-all ${
+                                isActive
+                                  ? `${config.borderColor} ${config.bgColor} border-r border-t border-b ${config.borderColor} shadow-sm`
+                                  : 'border-l-slate-300 border-r border-t border-b border-slate-200 bg-white hover:bg-slate-50 hover:border-l-slate-400'
+                              }`}
+                              onClick={() => {
+                                if (!isActive) {
+                                  flowBuilder.switchSession(session.id, triggerGraphReset);
+                                }
+                              }}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className={`p-1 rounded-lg ${isActive ? config.iconBgColor : 'bg-slate-100'} flex-shrink-0`}>
+                                  <SessionIcon className={`h-3.5 w-3.5 ${isActive ? config.iconColor : 'text-slate-500'}`} />
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  {isActive ? (
+                                    <div className="group/input relative flex items-center gap-1">
+                                      <input
+                                        type="text"
+                                        value={session.name}
+                                        onChange={(e) => flowBuilder.renameSession(session.id, e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`font-semibold text-sm text-gray-900 bg-transparent border-b border-transparent hover:border-${config.color}-300 focus:border-${config.color}-500 outline-none transition-colors flex-1 min-w-0 pb-0.5`}
+                                        placeholder="Session name..."
+                                      />
+                                      <Edit className="h-3 w-3 text-slate-400 opacity-0 group-hover/input:opacity-100 transition-opacity flex-shrink-0" />
                         </div>
                       ) : (
-                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                          <p className="text-xs text-gray-500 text-center">No active session</p>
+                                    <div className="font-semibold text-sm text-gray-900 truncate">
+                                      {session.name}
                         </div>
                       )}
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <Layers className="h-3 w-3" />
+                                      <span className="font-medium">{sessionFrameCount}</span>
+                                    </div>
+                                    <span>•</span>
+                                    <span>{getRelativeTime(session.updatedAt)}</span>
+                                    {isActive && (
+                                      <>
+                                        <span>•</span>
+                                        <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0">Active</Badge>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+                          onClick={() => {
+                            flowBuilder.createNewSession("manual", undefined, triggerGraphReset, {
+                              skipClear: true,
+                              timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
+                            });
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1.5" />
+                          New Session
+                        </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full"
+                          className="flex-1"
                         onClick={() => {
                           setIsFlowPanelOpen(true);
                           // Scroll to Flow Sessions section after panel opens
                           setTimeout(() => {
-                            const flowSessionsSection = document.getElementById('flow-sessions-section');
+                              const flowSessionsSection = document.getElementById('flow-sessions-section');
                             if (flowSessionsSection) {
                               flowSessionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            } else {
-                              console.warn('⚠️ Flow sessions section not found');
+                              } else {
+                                console.warn('⚠️ Flow sessions section not found');
                             }
                           }, 300);
                         }}
                       >
-                        <Bot className="h-4 w-4 mr-2" />
-                        Manage Sessions
+                          <Bot className="h-4 w-4 mr-1.5" />
+                          Manage All
                       </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -56,6 +56,8 @@ import {
   Plug,
   Copy,
   AlertTriangle,
+  Edit,
+  Layers,
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn, PlannerChapter } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
@@ -84,6 +86,23 @@ interface AIFlowBuilderPanelProps {
   activeTimeCapsuleId?: string;
   allFrames?: AIFrame[];
 }
+
+// Helper function to format relative time
+const getRelativeTime = (date: Date | string) => {
+  const now = new Date();
+  const targetDate = typeof date === 'string' ? new Date(date) : date;
+  const diff = now.getTime() - targetDate.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+};
 
 export function AIFlowBuilderPanel({
   flowBuilder,
@@ -657,7 +676,7 @@ const handleCopySwePrompt = async () => {
                 </div>
               </Alert>
             )}
-            <section className="grid lg:grid-cols-3 gap-4">
+            <section className={`grid gap-4 ${aiProviders.activeProvider === 'local-bridge' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-slate-700 font-medium">
@@ -712,10 +731,26 @@ const handleCopySwePrompt = async () => {
                     Works with Cursor, Codex, and Claude Code when the SWE bridge is active.
                   </p>
                 </div>
+                
+                {/* Auto-download toggle - only for OpenRouter */}
+                {aiProviders.activeProvider === 'openrouter' && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600 flex items-center gap-2">
+                        <DownloadIcon className="h-4 w-4" />
+                        Auto-download frames as JSON
+                      </span>
+                      <Switch
+                        checked={autoDownloadFrames}
+                        onCheckedChange={(checked) => setAutoDownloadFrames(checked)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {localBridgeActive && (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                <div className={`p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3 ${aiProviders.activeProvider === 'local-bridge' ? 'lg:col-span-2' : ''}`}>
                   <div className="flex items-center justify-between">
                     <Label className="text-emerald-800 font-semibold flex items-center gap-2">
                       <Plug className="h-4 w-4" />
@@ -786,12 +821,14 @@ const handleCopySwePrompt = async () => {
                 </div>
               )}
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Key className="h-4 w-4" />
-                    OpenRouter API Key
-                  </Label>
+              {/* Hide OpenRouter card when Local SWE Bridge is active */}
+              {aiProviders.activeProvider !== 'local-bridge' && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-slate-700 font-medium flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      OpenRouter API Key
+                    </Label>
                   {openRouterState.maskedApiKey && (
                     <Badge variant="outline" className="text-xs text-slate-500">
                       {openRouterState.maskedApiKey}
@@ -880,14 +917,17 @@ const handleCopySwePrompt = async () => {
                 {openRouterState.error && (
                   <p className="text-xs text-red-500">{openRouterState.error}</p>
                 )}
-              </div>
+                </div>
+              )}
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    Firecrawl Key (Web Grounding)
-                  </Label>
+              {/* Hide Firecrawl card when Local SWE Bridge is active */}
+              {aiProviders.activeProvider !== 'local-bridge' && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-slate-700 font-medium flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      Firecrawl Key (Web Grounding)
+                    </Label>
                   {firecrawl.firecrawlState.configured && (
                     <Badge className="bg-emerald-100 text-emerald-700 text-xs">
                       Configured
@@ -936,16 +976,6 @@ const handleCopySwePrompt = async () => {
                     onCheckedChange={(checked) => setWebSearchEnabled(checked)}
                   />
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600 flex items-center gap-2">
-                    <DownloadIcon className="h-4 w-4" />
-                    Auto-download frames as JSON
-                  </span>
-                  <Switch
-                    checked={autoDownloadFrames}
-                    onCheckedChange={(checked) => setAutoDownloadFrames(checked)}
-                  />
-                </div>
                 <Button
                   variant="outline"
                   className="w-full border-slate-300 text-slate-700"
@@ -958,7 +988,8 @@ const handleCopySwePrompt = async () => {
                     {firecrawl.firecrawlState.error}
                   </p>
                 )}
-              </div>
+                </div>
+              )}
             </section>
 
             <section className="grid md:grid-cols-3 gap-4">
@@ -1032,7 +1063,7 @@ const handleCopySwePrompt = async () => {
             <section id="flow-sessions-section" className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-slate-900 font-semibold">Flow Sessions</h4>
+                  <h4 className="text-slate-900 font-semibold">Flow Builder Sessions</h4>
                   <p className="text-sm text-slate-500">
                     Manage all your frame creation sessions (AI Flow, SWE Bridge, Manual)
                   </p>
@@ -1065,7 +1096,35 @@ const handleCopySwePrompt = async () => {
                 ) : (
                   sessions.map((session) => {
                     const isActive = session.id === activeSessionId;
-                    const sourceIcon = session.source === "ai-flow" ? "🤖" : session.source === "swe-bridge" ? "🔌" : "✏️";
+                    
+                    // Determine session type styling
+                    const sessionTypeConfig = {
+                      "manual": {
+                        icon: Edit,
+                        color: "blue",
+                        borderColor: "border-blue-400",
+                        bgColor: "bg-blue-50",
+                        iconColor: "text-blue-600",
+                      },
+                      "ai-flow": {
+                        icon: Bot,
+                        color: "purple",
+                        borderColor: "border-purple-400",
+                        bgColor: "bg-purple-50",
+                        iconColor: "text-purple-600",
+                      },
+                      "swe-bridge": {
+                        icon: Plug,
+                        color: "teal",
+                        borderColor: "border-teal-400",
+                        bgColor: "bg-teal-50",
+                        iconColor: "text-teal-600",
+                      },
+                    };
+                    
+                    const config = sessionTypeConfig[session.source as keyof typeof sessionTypeConfig] || sessionTypeConfig["manual"];
+                    const SourceIcon = config.icon;
+                    
                     const sourceBadges = [];
                     if (session.frameSources.manual > 0) sourceBadges.push("Manual");
                     if (session.frameSources["ai-flow"] > 0) sourceBadges.push("AI");
@@ -1077,50 +1136,59 @@ const handleCopySwePrompt = async () => {
                     return (
                       <div
                         key={session.id}
-                        className={`rounded-xl border p-3 flex flex-col gap-2 transition-all ${
+                        className={`group relative rounded-xl border-l-4 p-4 flex flex-col gap-3 transition-all shadow-sm hover:shadow-md ${
                           isActive
-                            ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                            : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                            ? `${config.borderColor} ${config.bgColor} border-r border-t border-b ${config.borderColor}`
+                            : "border-l-slate-300 border-r border-t border-b border-slate-200 bg-white hover:border-l-slate-400"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-lg">{sourceIcon}</span>
-                              <input
-                                type="text"
-                                value={session.name}
-                                onChange={(e) => renameSession(session.id, e.target.value)}
-                                className="font-semibold text-slate-900 bg-transparent border-none outline-none focus:underline flex-1 min-w-0"
-                                placeholder="Session name..."
-                              />
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`p-1.5 rounded-lg ${config.bgColor}`}>
+                                <SourceIcon className={`h-4 w-4 ${config.iconColor}`} />
+                              </div>
+                              <div className="relative flex-1 flex items-center gap-1 group/input">
+                                <input
+                                  type="text"
+                                  value={session.name}
+                                  onChange={(e) => renameSession(session.id, e.target.value)}
+                                  className={`font-semibold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-${config.color}-500 outline-none transition-colors flex-1 min-w-0 pb-0.5`}
+                                  placeholder="Session name..."
+                                />
+                                <Edit className="h-3 w-3 text-slate-400 opacity-0 group-hover/input:opacity-100 transition-opacity" />
+                              </div>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-xs text-slate-500">
-                                {new Date(session.updatedAt).toLocaleString()}
-                              </p>
-                              <Badge variant="outline" className="text-xs">
-                                {actualFrameCount} frames
-                              </Badge>
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                <span>{getRelativeTime(session.updatedAt)}</span>
+                                <span className="text-slate-300">•</span>
+                                <div className="flex items-center gap-1">
+                                  <Layers className="h-3 w-3" />
+                                  <span className="font-medium text-slate-700">{actualFrameCount}</span>
+                                  <span>frames</span>
+                                </div>
+                              </div>
                               {sourceBadges.length > 0 && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-xs px-2 py-0">
                                   {sourceBadges.join(" + ")}
                                 </Badge>
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-1">
+                          <div className="flex flex-col items-end gap-1.5">
                             {isActive && (
-                              <Badge className="bg-emerald-500 text-white">Active</Badge>
+                              <Badge className="bg-emerald-500 text-white text-xs">Active</Badge>
                             )}
                             <Badge
-                              className={
+                              variant="outline"
+                              className={`text-xs ${
                                 session.status === "completed"
-                                  ? "bg-emerald-100 text-emerald-700"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                   : session.status === "generating"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-slate-100 text-slate-700"
-                              }
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : "bg-slate-50 text-slate-600 border-slate-200"
+                              }`}
                             >
                               {session.status}
                             </Badge>

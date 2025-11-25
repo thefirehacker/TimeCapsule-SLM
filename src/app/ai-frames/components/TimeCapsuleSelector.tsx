@@ -15,7 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Package, Plus, ChevronDown } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Package, Plus, ChevronDown, Edit, Check, X } from 'lucide-react';
 import { TimeCapsule } from '@/lib/kb/types/timecapsule';
 
 export interface TimeCapsuleSelectorProps {
@@ -23,6 +24,7 @@ export interface TimeCapsuleSelectorProps {
   activeId: string | null;
   onSwitch: (id: string) => void;
   onCreate: (name: string, description: string) => Promise<TimeCapsule | null>;
+  onRename?: (id: string, newName: string) => Promise<void>;
   sessions?: any[];  // To calculate session count per TimeCapsule
   frames?: any[];    // To calculate frame count per TimeCapsule
 }
@@ -32,10 +34,13 @@ export function TimeCapsuleSelector({
   activeId,
   onSwitch,
   onCreate,
+  onRename,
   sessions = [],
   frames = [],
 }: TimeCapsuleSelectorProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   
   const activeTimeCapsule = timeCapsules.find(tc => tc.id === activeId);
   
@@ -53,6 +58,27 @@ export function TimeCapsuleSelector({
     const timestamp = new Date().toLocaleString();
     await onCreate(`New Project ${timestamp}`, 'A new workspace');
     setShowCreateDialog(false);
+  };
+
+  const handleStartEdit = (tc: TimeCapsule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(tc.id);
+    setEditingName(tc.name);
+  };
+
+  const handleSaveEdit = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (onRename && editingName.trim() && editingName !== timeCapsules.find(tc => tc.id === id)?.name) {
+      await onRename(id, editingName.trim());
+    }
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const handleCancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+    setEditingName('');
   };
 
   return (
@@ -77,14 +103,71 @@ export function TimeCapsuleSelector({
         
         {timeCapsules.map((tc) => {
           const counts = getTimeCapsuleCounts(tc.id);
+          const isEditing = editingId === tc.id;
+          
           return (
             <DropdownMenuItem
               key={tc.id}
-              onClick={() => onSwitch(tc.id)}
-              className={activeId === tc.id ? 'bg-accent' : ''}
+              onClick={() => !isEditing && onSwitch(tc.id)}
+              className={`group ${activeId === tc.id ? 'bg-accent' : ''} ${isEditing ? 'bg-blue-50' : ''}`}
+              onSelect={(e) => {
+                if (isEditing) {
+                  e.preventDefault();
+                }
+              }}
             >
               <div className="flex flex-col gap-1 w-full">
-                <div className="font-medium">{tc.name}</div>
+                <div className="flex items-center gap-2 w-full">
+                  {isEditing ? (
+                    <>
+                      <Input
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter') {
+                            handleSaveEdit(tc.id);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit(e as any);
+                          }
+                        }}
+                        className="h-7 text-sm font-medium flex-1"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => handleSaveEdit(tc.id, e)}
+                        className="h-6 w-6 p-0 hover:bg-green-100"
+                      >
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleCancelEdit}
+                        className="h-6 w-6 p-0 hover:bg-red-100"
+                      >
+                        <X className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium flex-1">{tc.name}</span>
+                      {onRename && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => handleStartEdit(tc, e)}
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-blue-100"
+                        >
+                          <Edit className="h-3 w-3 text-blue-600" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {counts.sessionCount} sessions · {counts.frameCount} frames · {counts.docCount} docs
                 </div>
