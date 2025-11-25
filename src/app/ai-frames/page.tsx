@@ -41,6 +41,8 @@ import {
   Plug,
   Edit,
   Sparkles,
+  Copy,
+  AlertTriangle,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -900,6 +902,10 @@ export default function AIFramesPage() {
     onContinue: () => void;
     onCreateNew: () => void;
   } | null>(null);
+
+  // Session delete confirmation dialog state
+  const [showDeleteSessionDialog, setShowDeleteSessionDialog] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string; frameCount: number } | null>(null);
 
   const framesByChapter = useMemo(() => {
     const map = new Map<string, UnifiedAIFrame[]>();
@@ -3755,7 +3761,7 @@ export default function AIFramesPage() {
                           return (
                             <div
                               key={session.id}
-                              className={`relative rounded-xl border-l-4 p-2.5 cursor-pointer transition-all ${
+                              className={`group/card relative rounded-xl border-l-4 p-2.5 cursor-pointer transition-all ${
                                 isActive
                                   ? `${config.borderColor} ${config.bgColor} border-r border-t border-b ${config.borderColor} shadow-sm`
                                   : 'border-l-slate-300 border-r border-t border-b border-slate-200 bg-white hover:bg-slate-50 hover:border-l-slate-400'
@@ -3782,25 +3788,59 @@ export default function AIFramesPage() {
                                         placeholder="Session name..."
                                       />
                                       <Edit className="h-3 w-3 text-slate-400 opacity-0 group-hover/input:opacity-100 transition-opacity flex-shrink-0" />
-                        </div>
-                      ) : (
+                                    </div>
+                                  ) : (
                                     <div className="font-semibold text-sm text-gray-900 truncate">
                                       {session.name}
-                        </div>
-                      )}
-                                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <div className="flex items-center gap-1">
-                                      <Layers className="h-3 w-3" />
-                                      <span className="font-medium">{sessionFrameCount}</span>
                                     </div>
-                                    <span>•</span>
-                                    <span>{getRelativeTime(session.updatedAt)}</span>
-                                    {isActive && (
-                                      <>
-                                        <span>•</span>
-                                        <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0">Active</Badge>
-                                      </>
-                                    )}
+                                  )}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      <div className="flex items-center gap-1">
+                                        <Layers className="h-3 w-3" />
+                                        <span className="font-medium">{sessionFrameCount}</span>
+                                      </div>
+                                      <span>•</span>
+                                      <span>{getRelativeTime(session.updatedAt)}</span>
+                                      {isActive && (
+                                        <>
+                                          <span>•</span>
+                                          <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0">Active</Badge>
+                                        </>
+                                      )}
+                                    </div>
+                                    {/* Quick Actions - show on hover */}
+                                    <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          flowBuilder.duplicateSession(session.id, triggerGraphReset);
+                                        }}
+                                        className="h-6 w-6 p-0 hover:bg-purple-100"
+                                        title="Duplicate session"
+                                      >
+                                        <Copy className="h-3 w-3 text-purple-600" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSessionToDelete({
+                                            id: session.id,
+                                            name: session.name,
+                                            frameCount: sessionFrameCount
+                                          });
+                                          setShowDeleteSessionDialog(true);
+                                        }}
+                                        className="h-6 w-6 p-0 hover:bg-red-100"
+                                        title="Delete session"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-red-600" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -4192,6 +4232,81 @@ export default function AIFramesPage() {
           }}
         />
       )}
+
+      {/* Session Delete Confirmation Dialog */}
+      <Dialog open={showDeleteSessionDialog} onOpenChange={setShowDeleteSessionDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-lg bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <DialogTitle className="text-xl font-semibold">Delete Session?</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-slate-600 pt-2">
+              This action cannot be undone. This will permanently delete the session and all associated data.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Session Info */}
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                Session to Delete
+              </p>
+              <p className="text-base font-semibold text-slate-900 break-words mb-2">
+                {sessionToDelete?.name}
+              </p>
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <Layers className="h-4 w-4" />
+                <span className="font-medium">{sessionToDelete?.frameCount || 0} frames</span>
+                <span className="text-slate-400">•</span>
+                <span>will be deleted</span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            {(sessionToDelete?.frameCount || 0) > 0 && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Warning: Frame Data Loss</p>
+                  <p className="text-xs mt-1">
+                    All {sessionToDelete?.frameCount} frame{sessionToDelete?.frameCount !== 1 ? 's' : ''} in this session will be permanently deleted.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteSessionDialog(false);
+                setSessionToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (sessionToDelete) {
+                  flowBuilder.deleteSession(sessionToDelete.id);
+                }
+                setShowDeleteSessionDialog(false);
+                setSessionToDelete(null);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

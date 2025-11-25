@@ -370,72 +370,6 @@ const modelChangeHandlers = useMemo(() => ({
 }), [handlePlannerModelChange, handleGeneratorModelChange, handleVisionModelChange, handleFallbackModelChange]);
 
 // 🧪 TEST PATH ONLY: Does NOT use agent pipeline
-const handleTestPseudoFrames = useCallback(() => {
-  console.log('🧪 TEST: Creating pseudo frames (no agents)');
-  console.log(`🚀 Version ${TIMECAPSULE_VERSION} - Test Mode`);
-  
-  const now = new Date().toISOString();
-  const pseudoFrames: AIFrame[] = [
-    {
-      id: 'test-1',
-      title: 'Test Frame 1',
-      goal: 'Verify SelectTrigger fix works',
-      informationText: 'This is a pseudo frame to verify the SelectTrigger infinite loop is resolved. If you can see this without console errors, the fix is working!',
-      videoUrl: '',
-      startTime: 0,
-      duration: 0,
-      afterVideoText: '',
-      aiConcepts: ['SelectTrigger', 'React', 'Testing'],
-      order: 0,
-      type: 'frame' as const,
-      createdAt: now,
-      updatedAt: now,
-      learningPhase: 'overview' as const,
-      chapterId: 'test-chapter',
-      isGenerated: true,
-    },
-    {
-      id: 'test-2',
-      title: 'Test Frame 2',
-      goal: 'Check UI stability',
-      informationText: 'Second test frame. The Select dropdowns above should work without causing re-renders.',
-      videoUrl: '',
-      startTime: 0,
-      duration: 0,
-      afterVideoText: '',
-      aiConcepts: ['UI', 'Stability'],
-      order: 1,
-      type: 'frame' as const,
-      createdAt: now,
-      updatedAt: now,
-      learningPhase: 'fundamentals' as const,
-      chapterId: 'test-chapter',
-      isGenerated: true,
-    },
-    {
-      id: 'test-3',
-      title: 'Test Frame 3',
-      goal: 'Confirm success',
-      informationText: 'Three frames loaded successfully. Check console - there should be NO "Maximum update depth exceeded" error!',
-      videoUrl: '',
-      startTime: 0,
-      duration: 0,
-      afterVideoText: '',
-      aiConcepts: ['Success', 'Verification'],
-      order: 2,
-      type: 'frame' as const,
-      createdAt: now,
-      updatedAt: now,
-      learningPhase: 'deep-dive' as const,
-      chapterId: 'test-chapter',
-      isGenerated: true,
-    },
-  ];
-  
-  console.log('✅ TEST: Accepting pseudo frames');
-  onAcceptFrames(pseudoFrames);
-}, [onAcceptFrames]);
-
 if (!isOpen) {
   return null;
 }
@@ -676,7 +610,7 @@ const handleCopySwePrompt = async () => {
                 </div>
               </Alert>
             )}
-            <section className={`grid gap-4 ${aiProviders.activeProvider === 'local-bridge' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+            <section className={`grid gap-4 ${aiProviders.activeProvider === 'local-bridge' || aiProviders.activeProvider === 'ollama' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-slate-700 font-medium">
@@ -821,8 +755,8 @@ const handleCopySwePrompt = async () => {
                 </div>
               )}
 
-              {/* Hide OpenRouter card when Local SWE Bridge is active */}
-              {aiProviders.activeProvider !== 'local-bridge' && (
+              {/* Hide OpenRouter card when Local SWE Bridge or Ollama is active */}
+              {aiProviders.activeProvider !== 'local-bridge' && aiProviders.activeProvider !== 'ollama' && (
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-slate-700 font-medium flex items-center gap-2">
@@ -976,13 +910,6 @@ const handleCopySwePrompt = async () => {
                     onCheckedChange={(checked) => setWebSearchEnabled(checked)}
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  className="w-full border-slate-300 text-slate-700"
-                  onClick={() => setOllamaModalOpen(true)}
-                >
-                  Configure Ollama (Local)
-                </Button>
                 {firecrawl.firecrawlState.error && (
                   <p className="text-xs text-red-500">
                     {firecrawl.firecrawlState.error}
@@ -1079,7 +1006,7 @@ const handleCopySwePrompt = async () => {
                     className="bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
                     <Sparkles className="h-4 w-4 mr-1" />
-                    New Manual Session
+                    New Session
                   </Button>
                 </div>
               </div>
@@ -1297,40 +1224,6 @@ const handleCopySwePrompt = async () => {
                     <>
                       <Wand2 className="h-4 w-4 mr-2" />
                       AI Build Flow
-                    </>
-                  )}
-                </Button>
-                {/* 🧪 NEW: Test button for SelectTrigger verification */}
-                <Button
-                  onClick={handleTestPseudoFrames}
-                  variant="outline"
-                  size="sm"
-                  className="border-purple-400 text-purple-700"
-                  title="Test: Creates pseudo frames without agents"
-                >
-                  🧪 Test
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={
-                    generating ||
-                    localBridgeActive ||
-                    !frameDrafts.some(
-                      (draft) =>
-                        draft.status === "planned" || draft.status === "error"
-                    )
-                  }
-                  onClick={() => void generateFrameDrafts()}
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Generating Drafts...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="h-4 w-4 mr-2" />
-                      Generate All Frames
                     </>
                   )}
                 </Button>
@@ -1730,14 +1623,63 @@ const handleCopySwePrompt = async () => {
       
       {/* Delete Session Confirmation Dialog */}
       <Dialog open={deleteSessionDialogOpen} onOpenChange={setDeleteSessionDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>localhost:3000 says</DialogTitle>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-lg bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <DialogTitle className="text-xl font-semibold">Delete Session?</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-slate-600 pt-2">
+              This action cannot be undone. This will permanently delete the session and all associated data.
+            </DialogDescription>
           </DialogHeader>
-          <DialogDescription className="py-4">
-            {sessionToDelete && `Delete session "${sessionToDelete.name}"?`}
-          </DialogDescription>
-          <DialogFooter className="flex gap-2 sm:justify-end">
+
+          <div className="space-y-4 py-4">
+            {/* Session Info */}
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                Session to Delete
+              </p>
+              <p className="text-base font-semibold text-slate-900 break-words mb-2">
+                {sessionToDelete?.name}
+              </p>
+              {(() => {
+                const frameCount = sessionToDelete 
+                  ? allFrames.filter(f => f.sessionId === sessionToDelete.id).length 
+                  : 0;
+                return (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Layers className="h-4 w-4" />
+                    <span className="font-medium">{frameCount} frames</span>
+                    <span className="text-slate-400">•</span>
+                    <span>will be deleted</span>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Warning Message */}
+            {(() => {
+              const frameCount = sessionToDelete 
+                ? allFrames.filter(f => f.sessionId === sessionToDelete.id).length 
+                : 0;
+              return frameCount > 0 && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium">Warning: Frame Data Loss</p>
+                    <p className="text-xs mt-1">
+                      All {frameCount} frame{frameCount !== 1 ? 's' : ''} in this session will be permanently deleted.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => {
@@ -1748,6 +1690,7 @@ const handleCopySwePrompt = async () => {
               Cancel
             </Button>
             <Button
+              variant="destructive"
               onClick={() => {
                 if (sessionToDelete) {
                   deleteSession(sessionToDelete.id);
@@ -1755,8 +1698,10 @@ const handleCopySwePrompt = async () => {
                   setSessionToDelete(null);
                 }
               }}
+              className="bg-red-600 hover:bg-red-700"
             >
-              OK
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Session
             </Button>
           </DialogFooter>
         </DialogContent>
