@@ -2111,6 +2111,29 @@ export default function AIFramesPage() {
     }
   }, [unifiedStorage.frames.length, flowBuilder.activeSessionId, flowBuilder.updateSessionFrameCount, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
 
+  // ✅ NEW: Auto-assign sessionId/timeCapsuleId to orphaned chapters so linear view sees them
+  useEffect(() => {
+    if (!flowBuilder.activeSessionId) return;
+    
+    const orphanedChapters = unifiedStorage.chapters.filter(c =>
+      !c.sessionId &&
+      c.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+    );
+    
+    if (orphanedChapters.length > 0) {
+      console.log(`🔧 Found ${orphanedChapters.length} orphaned chapters, assigning to session ${flowBuilder.activeSessionId}`);
+      
+      const fixedChapters = unifiedStorage.chapters.map(c =>
+        (!c.sessionId && c.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
+          ? { ...c, sessionId: flowBuilder.activeSessionId || undefined }
+          : c
+      );
+      
+      unifiedStorage.updateChapters(fixedChapters);
+      console.log(`✅ Assigned sessionId to ${orphanedChapters.length} orphaned chapters`);
+    }
+  }, [unifiedStorage.chapters.length, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
+
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
     const handleAIFlowSessionCheck = (event: any) => {

@@ -2099,6 +2099,222 @@ After all fixes:
 
 ---
 
+## Issue 20: Props-Based Approach Failed - Race Condition with React Re-renders
+
+**Date**: 2024-11-25  
+**Reported**: After implementing Issue 17 (moving frame extraction inside setTimeout), frames still saved with `sessionId: undefined`
+
+### Symptoms
+
+**Despite the fix**, logs showed:
+- Line 602: `📦 Stored pending frame (AFTER session creation): {sessionId: undefined, timeCapsuleId: undefined}` ❌
+
+Even though session was created and `activeSessionId` was updated in `useAIFlowBuilder`, the prop hadn't propagated to `EnhancedLearningGraph` yet.
+
+### Root Cause (Codex Analysis)
+
+**The Timing Problem with Props**:
+
+Props need to propagate through **4 component layers**:
+1. `useAIFlowBuilder` updates state → `activeSessionId` set
+2. `page.tsx` re-renders
+3. `FrameGraphIntegration` re-renders
+4. `DualPaneFrameView` re-renders  
+5. `EnhancedLearningGraph` re-renders with new prop
+
+**100ms isn't enough for React's re-render cycle!**
+
+**Evidence from Logs**:
+- Line 256: `ensure-manual-session` event dispatched
+- Line 263: Session created: `manual_1764098522915_psmukfip7` ✅
+- Line 270: `activeSessionId` set in `useAIFlowBuilder` ✅
+- Line 602 (100ms later): Frame extracted, but prop is **STILL undefined** ❌
+
+### Solution: Use Refs Instead of Props (Codex Solution)
+
+**The Key Insight**: Don't wait for props to update - track the values in refs that update synchronously!
+
+**File**: `src/components/ai-graphs/EnhancedLearningGraph.tsx`
+
+**Step 1**: Add refs to track latest values (line ~178-179):
+
+```typescript
+// Track latest session/TimeCapsule IDs for use inside delayed callbacks (avoid stale closures)
+const activeSessionIdRef = useRef<string | undefined>(activeSessionId);
+const activeTimeCapsuleIdRef = useRef<string | undefined>(activeTimeCapsuleId);
+```
+
+**Step 2**: Keep refs in sync with props (line ~232-238):
+
+```typescript
+useEffect(() => {
+  activeSessionIdRef.current = activeSessionId;
+}, [activeSessionId]);
+
+useEffect(() => {
+  activeTimeCapsuleIdRef.current = activeTimeCapsuleId;
+}, [activeTimeCapsuleId]);
+```
+
+**Step 3**: Use refs (not props) when extracting frames (line ~3336-3349):
+
+```typescript
+setTimeout(() => {
+  if (type === 'aiframe') {
+    const currentSessionId = activeSessionIdRef.current;  // ✅ From ref!
+    const currentTimeCapsuleId = activeTimeCapsuleIdRef.current;  // ✅ From ref!
+    
+    const extractedFrame: AIFrame = {
+      id: frameData.frameId,
+      title: frameData.title || 'New AI Frame',
+      // ... other properties
+      sessionId: currentSessionId,  // ✅ Now defined!
+      timeCapsuleId: currentTimeCapsuleId,  // ✅ Now defined!
+      // ...
+    };
+    
+    pendingFramesRef.current = [extractedFrame];
+    console.log('📦 Stored pending frame:', { 
+      sessionId: extractedFrame.sessionId,  // ✅ Should be defined!
+      timeCapsuleId: extractedFrame.timeCapsuleId
+    });
+  }
+  // ... dispatch event
+}, 100);
+```
+
+**Step 4**: Use refs (not props) when extracting chapters (line ~3294-3299):
+
+```typescript
+if (type === 'chapter') {
+  const currentSessionId = activeSessionIdRef.current;  // ✅ From ref!
+  const currentTimeCapsuleId = activeTimeCapsuleIdRef.current;  // ✅ From ref!
+  
+  const nextChapters = [
+    ...existingChapters,
+    {
+      id: nodeId,
+      title: chapterData?.title || 'New Chapter',
+      // ... other properties
+      timeCapsuleId: currentTimeCapsuleId,  // ✅ From ref!
+      sessionId: currentSessionId,  // ✅ From ref!
+    } as AiChapter,
+  ];
+  // ...
+}
+```
+
+### Why This Works
+
+**Before (Props)**:
+```
+Session created → useAIFlowBuilder state updates → page.tsx re-renders → 
+FrameGraphIntegration re-renders → DualPaneFrameView re-renders → 
+EnhancedLearningGraph re-renders → prop finally available (> 100ms) ❌
+```
+
+**After (Refs)**:
+```
+Session created → useAIFlowBuilder state updates → 
+useEffect runs (< 5ms) → ref updated immediately ✅
+setTimeout fires → reads from ref (already updated) ✅
+```
+
+### Implementation
+
+**Files Changed**:
+- `src/components/ai-graphs/EnhancedLearningGraph.tsx`:
+  - Added `activeSessionIdRef` and `activeTimeCapsuleIdRef` (lines 178-179)
+  - Added `useEffect` to sync refs with props (lines 232-238)
+  - Used refs for frame extraction (lines 3336-3349)
+  - Used refs for chapter creation (lines 3298-3299)
+
+**Files Changed (useUnifiedStorage guard)**:
+- `src/app/ai-frames/hooks/useUnifiedStorage.ts`:
+  - Changed `hasFrames: !!eventFrames` to `hasFrames: Array.isArray(eventFrames)` (line 1576)
+  - Changed `hasChapters: !!eventChapters` to `hasChapters: Array.isArray(eventChapters)` (line 1578)
+  - Added `frameCount` and `chapterCount` to logs (lines 1577, 1579)
+  - Changed fallback logic to use `Array.isArray()` checks (lines 1584-1585, 1588, 1594)
+
+### Result
+
+✅ **Frames now save with correct sessionId and timeCapsuleId**  
+✅ **Chapters save with correct sessionId and timeCapsuleId**  
+✅ **Linear view shows frames and chapters immediately**  
+✅ **Session counts are accurate**
+
+---
+
+## Issue 21: Duplicate Edge Keys on Connect (Pending)
+
+**Date**: 2024-11-25  
+**Status**: **PENDING** - Not yet resolved  
+**Reported**: After connecting chapter and frame, React warning appears
+
+### Symptoms
+
+```
+Encountered two children with the same key, `edge|node_1764099273135_6fbuvbgkq_0|node_1764099278158_ogpywq0uf_1|1764099294905_mw58nkhfv`. 
+Keys should be unique so that components maintain their identity across updates.
+```
+
+### Root Cause (Codex Analysis)
+
+The same edge object is being added to the `edges` array twice, causing duplicate IDs.
+
+**Why**:
+1. `onConnect` adds edge to React state ✅
+2. External graph sync (e.g., `initialGraphState` sync from Issue 16) runs
+3. Same edge gets re-applied **without deduplication** ❌
+4. Result: Two identical edges in the array
+
+**Codex Quote**: 
+> "If that sync reapplies the same edge on top of the state we already have, with no deduplication, you end up with two entries with the same id."
+
+### Attempted Fixes (Not Working Yet)
+
+**Attempt 1**: Deduplicate edges in `edgesRef` (line 212-215):
+
+```typescript
+// Deduplicate edges by id to prevent React key collisions
+edgesRef.current = Array.isArray(edges)
+  ? edges.filter((edge, index, array) => array.findIndex(e => e.id === edge.id) === index)
+  : edges;
+```
+
+**Result**: ❌ Still seeing duplicates
+
+**Attempt 2**: Add safety `useEffect` to dedupe edges state (line 220-226):
+
+```typescript
+// SAFETY: Ensure edges state is deduplicated before rendering
+useEffect(() => {
+  if (!Array.isArray(edges)) return;
+  const deduped = edges.filter((edge, index, array) => 
+    array.findIndex(e => e.id === edge.id) === index
+  );
+  if (deduped.length !== edges.length) {
+    setEdges(deduped);
+  }
+}, [edges, setEdges]);
+```
+
+**Result**: ❌ Still seeing duplicates
+
+### Next Steps
+
+Need to investigate:
+1. Where is the duplicate edge being added from?
+2. Is `initialGraphState` sync causing the re-addition?
+3. Do we need to dedupe before calling `setEdges` in all places?
+4. Is the `graph-state-changed` event handler also adding duplicates?
+
+### Workaround
+
+The duplicate edge warning doesn't break functionality - connections work and persist correctly. This is a **visual/console warning** issue, not a data corruption issue.
+
+---
+
 ## Issue 12: Frame Node Filtered Out During Async Frame Loading
 
 **Date**: 2024-11-25  

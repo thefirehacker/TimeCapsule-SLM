@@ -124,6 +124,12 @@ export default function EnhancedLearningGraph({
   const setNodesRef = useRef(setNodes);
   const setEdgesRef = useRef(setEdges);
 
+  // Helper to deduplicate edges by id (hoisted early for use in effects)
+  const dedupeEdges = useCallback((edgesToDedupe: Edge[] | undefined | null) => {
+    if (!Array.isArray(edgesToDedupe)) return edgesToDedupe || [];
+    return edgesToDedupe.filter((edge, index, array) => array.findIndex(e => e.id === edge.id) === index);
+  }, []);
+
   // CRITICAL FIX (Issue 16): Sync initialGraphState changes when switching sessions
   // When session switches, initialGraphState prop updates but nodes/edges don't automatically sync
   useEffect(() => {
@@ -138,10 +144,11 @@ export default function EnhancedLearningGraph({
           edgeCount: initialGraphState.edges.length
         });
         setNodes(initialGraphState.nodes || []);
-        setEdges(initialGraphState.edges || []);
+        // Deduplicate edges before setting state to avoid duplicate key warnings
+        setEdges(dedupeEdges(initialGraphState.edges || []));
       }
     }
-  }, [initialGraphState, setNodes, setEdges]);
+  }, [initialGraphState, setNodes, setEdges, dedupeEdges]);
 
   useEffect(() => {
     onNodesChangeRef.current = onNodesChange;
@@ -209,9 +216,19 @@ export default function EnhancedLearningGraph({
     }
     
     nodesRef.current = nodes;
-    edgesRef.current = edges;
+    // Deduplicate edges by id to prevent React key collisions
+    edgesRef.current = dedupeEdges(edges as Edge[]);
     selectedNodeRef.current = selectedNode;
-  }, [nodes, edges, selectedNode]);
+  }, [nodes, edges, selectedNode, dedupeEdges]);
+
+  // SAFETY: Ensure edges state is deduplicated before rendering to avoid duplicate key warnings
+  useEffect(() => {
+    if (!Array.isArray(edges)) return;
+    const deduped = dedupeEdges(edges);
+    if (deduped.length !== edges.length) {
+      setEdges(deduped);
+    }
+  }, [edges, setEdges, dedupeEdges]);
 
   useEffect(() => {
     initialGraphStateRef.current = initialGraphState;
