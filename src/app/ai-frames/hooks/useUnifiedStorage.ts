@@ -1573,23 +1573,25 @@ export const useUnifiedStorage = ({
         reason, 
         hasGraphState: !!eventGraphState,
         nodeCount: eventGraphState?.nodes?.length,
-        hasFrames: !!eventFrames,
-        hasChapters: !!eventChapters
+        hasFrames: Array.isArray(eventFrames),
+        frameCount: Array.isArray(eventFrames) ? eventFrames.length : undefined,
+        hasChapters: Array.isArray(eventChapters),
+        chapterCount: Array.isArray(eventChapters) ? eventChapters.length : undefined
       });
       
       // CRITICAL FIX (Issue 14): Use frames/chapters from event if provided (priority over stale refs)
       // This ensures newly dropped frames/chapters are saved even if React state hasn't updated yet
-      const framesToSave = eventFrames || framesRef.current;
-      const chaptersToSave = eventChapters || chaptersRef.current;
+      const framesToSave = Array.isArray(eventFrames) ? eventFrames : framesRef.current;
+      const chaptersToSave = Array.isArray(eventChapters) ? eventChapters : chaptersRef.current;
       
       // Update refs if event provided fresh data
-      if (eventFrames) {
+      if (Array.isArray(eventFrames)) {
         console.log(`✅ Using frames from event: ${eventFrames.length} frames`);
         framesRef.current = eventFrames;
         setFrames(eventFrames);
       }
       
-      if (eventChapters) {
+      if (Array.isArray(eventChapters)) {
         console.log(`✅ Using chapters from event: ${eventChapters.length} chapters`);
         chaptersRef.current = eventChapters;
         setChapters(eventChapters);

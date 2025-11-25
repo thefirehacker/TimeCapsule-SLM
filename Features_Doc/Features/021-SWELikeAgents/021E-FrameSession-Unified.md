@@ -1889,6 +1889,216 @@ After both fixes:
 
 ---
 
+## Issue 17: Race Condition - Frame SessionId Still Undefined (Codex Analysis)
+
+**Date**: 2024-11-25  
+**Reported**: After implementing Issue 15 (passing activeSessionId as props), frames still saved with `sessionId: undefined`
+
+### Symptoms
+
+**Log Line 156**: `🎯 Dispatching ensure-manual-session event for frame drop`  
+**Log Line 165**: `📦 Stored pending frame: {sessionId: undefined, timeCapsuleId: undefined}` ❌  
+**Log Line 171-172**: Session created, `activeSessionId` updated ✅
+
+Frame is extracted BEFORE the session creation completes, so props haven't updated yet!
+
+### Root Cause (Codex)
+
+**The Timing Problem**:
+1. User drops frame on empty graph
+2. `ensure-manual-session` event dispatched
+3. Frame immediately extracted with `activeSessionId` (still undefined) ❌
+4. Event handler runs, creates session, updates `activeSessionId` ✅
+5. Too late - frame already saved with undefined!
+
+**Why Props Don't Help**: The props update is asynchronous (React state), but frame extraction happens synchronously in the same event loop.
+
+### Solution: Move Frame Extraction Inside setTimeout
+
+Extract frame data AFTER the 100ms delay, when `ensure-manual-session` has completed and `activeSessionId` is available.
+
+**File**: `src/components/ai-graphs/EnhancedLearningGraph.tsx`
+
+**Before (Broken)**:
+```typescript
+// Line ~3245
+if (type === 'aiframe') {
+  window.dispatchEvent(new CustomEvent('ensure-manual-session'));
+  
+  // ❌ Extract immediately (session not ready!)
+  const extractedFrame: AIFrame = {
+    sessionId: activeSessionId,  // undefined!
+    // ...
+  };
+  pendingFramesRef.current = [extractedFrame];
+}
+
+// Later...
+setTimeout(() => {
+  // Dispatch with stale data
+  window.dispatchEvent(new CustomEvent('force-save-frames', {
+    detail: { frames: pendingFramesRef.current }  // ❌ undefined!
+  }));
+}, 100);
+```
+
+**After (Fixed)**:
+```typescript
+// Line ~3245
+if (type === 'aiframe') {
+  window.dispatchEvent(new CustomEvent('ensure-manual-session'));
+  // Don't extract here - too early!
+}
+
+// Later...
+setTimeout(() => {
+  // ✅ Extract INSIDE setTimeout (session ready now!)
+  if (type === 'aiframe') {
+    const extractedFrame: AIFrame = {
+      sessionId: activeSessionId,  // ✅ Now available!
+      timeCapsuleId: activeTimeCapsuleId,  // ✅ Now available!
+      // ...
+    };
+    pendingFramesRef.current = [extractedFrame];
+  }
+  
+  // Dispatch with fresh data
+  window.dispatchEvent(new CustomEvent('force-save-frames', {
+    detail: { frames: pendingFramesRef.current }  // ✅ Has IDs!
+  }));
+}, 100);
+```
+
+### Implementation
+
+1. Remove frame extraction from initial `if (type === 'aiframe')` block (line ~3254-3284)
+2. Move extraction logic INSIDE `setTimeout` (line ~3338)
+3. Extract just before dispatching the `force-save-frames` event
+
+---
+
+## Issue 18: Missing Chapter Payload in Delayed Save (Codex Analysis)
+
+**Date**: 2024-11-25  
+**Reported**: Chapter visible on graph but not in linear view, session shows "0 chapters"
+
+### Symptoms
+
+**Log Line 968**: `Using chapters from event: 0 chapters; persistedChapterCount: 0`
+
+Even though chapter node appears on graph and `graphState.nodes` has it, the structured chapter data is empty.
+
+### Root Cause
+
+`pendingChaptersRef.current` is never populated during chapter drops, so the delayed save event carries `chapters: null`.
+
+**Evidence**: In chapter drop handler (line ~3294-3320), we update:
+- `chaptersRef.current = nextChapters` ✅
+- `invokeOnChaptersChange(nextChapters)` ✅
+- But NOT `pendingChaptersRef.current` ❌
+
+### Solution: Populate pendingChaptersRef
+
+**File**: `src/components/ai-graphs/EnhancedLearningGraph.tsx` (line ~3314)
+
+```typescript
+if (type === 'chapter') {
+  const nextChapters = [
+    ...existingChapters,
+    {
+      id: nodeId,
+      title: chapterData?.title || 'New Chapter',
+      // ...
+      timeCapsuleId: activeTimeCapsuleId,
+      sessionId: activeSessionId,
+    } as AiChapter,
+  ];
+  chaptersRef.current = nextChapters;
+  
+  // ✅ ADD THIS:
+  pendingChaptersRef.current = nextChapters;
+  
+  invokeOnChaptersChange(nextChapters);
+}
+```
+
+Also declare the ref at the top (line ~196):
+```typescript
+const pendingChaptersRef = useRef<AiChapter[] | null>(null);
+```
+
+And use it in the event (line ~3368):
+```typescript
+window.dispatchEvent(new CustomEvent('force-save-frames', {
+  detail: {
+    // ...
+    chapters: pendingChaptersRef.current || chaptersRef.current  // ✅ Include!
+  }
+}));
+```
+
+And clear it after use (line ~3382):
+```typescript
+pendingNodesRef.current = null;
+pendingFramesRef.current = null;
+pendingChaptersRef.current = null;  // ✅ Clear
+```
+
+---
+
+## Issue 19: Session Isolation - Already Fixed
+
+**Date**: 2024-11-25  
+**Status**: Already fixed in Issue 13
+
+Codex identified that "New Session" doesn't clear the graph, showing old connections. However, this was already fixed in Issue 13 by setting `skipClear: false` for manual "New Session" buttons.
+
+**Verification**:
+- `src/app/ai-frames/components/AIFlowBuilderPanel.tsx` (line 1003): `skipClear: false` ✅
+- `src/app/ai-frames/page.tsx` (line 3863): `skipClear: false` ✅
+- Auto-session creation (page.tsx line 1967): `skipClear: true` ✅ (correct - preserves nodes)
+
+No further action needed.
+
+---
+
+### Complete Testing Plan (Issues 15-19)
+
+After all fixes:
+
+1. **Drop chapter on empty graph**:
+   - ✅ Session auto-created
+   - ✅ Chapter visible on graph
+   - ✅ Session shows "1 chapter"
+   - ✅ Linear view shows chapter
+   - ✅ Log shows `persistedChapterCount: 1, sessionId: "manual_xxx"`
+
+2. **Drop frame on empty graph**:
+   - ✅ Session auto-created (if not already exists)
+   - ✅ Frame visible on graph
+   - ✅ Session shows "1 frame"
+   - ✅ Linear view shows frame
+   - ✅ Log shows `persistedFrameCount: 1, sessionId: "manual_xxx", timeCapsuleId: "xxx"`
+
+3. **Connect chapter-frame**:
+   - ✅ Connection visible on graph
+   - ✅ Linear view shows connection
+
+4. **Create new session (manual)**:
+   - ✅ Graph is BLANK (no old nodes/edges from previous session)
+   - ✅ Session shows "0 frames, 0 chapters"
+
+5. **Switch back to S1**:
+   - ✅ Graph shows c1-f1 with connection
+   - ✅ Session shows "1 frame, 1 chapter"
+   - ✅ Linear view shows both with connection
+
+6. **Refresh page**:
+   - ✅ All data persists correctly
+   - ✅ Graph, linear view, and session counts all match
+
+---
+
 ## Issue 12: Frame Node Filtered Out During Async Frame Loading
 
 **Date**: 2024-11-25  

@@ -174,6 +174,9 @@ export default function EnhancedLearningGraph({
   const onFramesChangeRef = useRef(onFramesChange);
   const onChaptersChangeRef = useRef(onChaptersChange);
   const onGraphChangeRef = useRef(onGraphChange);
+  // Track latest session/TimeCapsule IDs for use inside delayed callbacks (avoid stale closures)
+  const activeSessionIdRef = useRef<string | undefined>(activeSessionId);
+  const activeTimeCapsuleIdRef = useRef<string | undefined>(activeTimeCapsuleId);
   const debugPropsRef = useRef({
     nodes,
     edges,
@@ -194,6 +197,9 @@ export default function EnhancedLearningGraph({
   // CRITICAL FIX (Issue 14): Holds pending frames to include in delayed save event
   // This ensures frames are saved even if React state hasn't propagated to framesRef yet
   const pendingFramesRef = useRef<AIFrame[] | null>(null);
+  
+  // CRITICAL FIX (Issue 15 - Missing Chapter Payload): Holds pending chapters for delayed save
+  const pendingChaptersRef = useRef<AiChapter[] | null>(null);
 
   useEffect(() => {
     // Skip sync if we just did a manual update (e.g., during node drop)
@@ -222,6 +228,14 @@ export default function EnhancedLearningGraph({
   useEffect(() => {
     onGraphChangeRef.current = onGraphChange;
   }, [onGraphChange]);
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    activeTimeCapsuleIdRef.current = activeTimeCapsuleId;
+  }, [activeTimeCapsuleId]);
 
   const invokeOnFramesChange = useCallback((updatedFrames: any[]) => {
     onFramesChangeRef.current?.(updatedFrames);
@@ -3251,37 +3265,9 @@ export default function EnhancedLearningGraph({
           }));
         }
         
-        // CRITICAL FIX (Issue 14): Extract frame from node data and store in pending ref
-        // This ensures frame is included in delayed save event even if React state hasn't updated
-        // CRITICAL FIX (Issue 15): Use activeSessionId/activeTimeCapsuleId from props for correct association
-        const frameData = newNodeData as AIFrameNodeData;
-        const now = new Date().toISOString();
-        const extractedFrame: AIFrame = {
-          id: frameData.frameId,
-          title: frameData.title || 'New AI Frame',
-          goal: frameData.goal || '',
-          informationText: frameData.informationText || '',
-          videoUrl: '',
-          startTime: 0,
-          duration: 0,
-          afterVideoText: frameData.afterVideoText || '',
-          aiConcepts: frameData.aiConcepts || [],
-          sessionId: activeSessionId, // ✅ From props!
-          timeCapsuleId: activeTimeCapsuleId, // ✅ From props!
-          chapterId: (frameData.chapterId as string | undefined),
-          order: nodesRef.current.length,
-          type: 'frame',
-          createdAt: now,
-          updatedAt: now,
-          isGenerated: frameData.isGenerated || false,
-        };
-        
-        pendingFramesRef.current = [extractedFrame];
-        console.log('📦 Stored pending frame for delayed save:', { 
-          frameId: extractedFrame.id,
-          sessionId: extractedFrame.sessionId,
-          timeCapsuleId: extractedFrame.timeCapsuleId
-        });
+        // CRITICAL FIX (Issue 15 - Race Condition): DON'T extract frame here!
+        // Frame extraction moved INSIDE setTimeout (after ensure-manual-session completes)
+        // This ensures activeSessionId and activeTimeCapsuleId are available
       }
 
       if (type === 'chapter') {
@@ -3291,6 +3277,8 @@ export default function EnhancedLearningGraph({
         if (!hasRecord) {
           const now = new Date().toISOString();
           const chapterData = newNodeData as ChapterNodeData;
+          const currentSessionId = activeSessionIdRef.current;
+          const currentTimeCapsuleId = activeTimeCapsuleIdRef.current;
           const nextChapters = [
             ...existingChapters,
             {
@@ -3307,11 +3295,15 @@ export default function EnhancedLearningGraph({
               createdAt: now,
               updatedAt: now,
               bubblSpaceId: undefined,
-              timeCapsuleId: activeTimeCapsuleId, // ✅ From props!
-              sessionId: activeSessionId, // ✅ From props!
+              timeCapsuleId: currentTimeCapsuleId, // ✅ From latest props!
+              sessionId: currentSessionId, // ✅ From latest props!
             } as AiChapter,
           ];
           chaptersRef.current = nextChapters;
+          
+          // CRITICAL FIX (Issue 15 - Missing Chapter Payload): Store in pending ref
+          // This ensures chapters are included in the delayed save event
+          pendingChaptersRef.current = nextChapters;
           
           // CRITICAL: Update parent's chapters state immediately
           // This triggers save #1 with chapter data (but stale graph state)
@@ -3336,6 +3328,41 @@ export default function EnhancedLearningGraph({
         
         // Delay to ensure React Flow updates and useEffect syncs refs
         setTimeout(() => {
+          // CRITICAL FIX (Issue 15 - Race Condition): Extract frame INSIDE setTimeout
+          // By now, ensure-manual-session has completed and activeSessionId is available
+          if (type === 'aiframe') {
+            const frameData = newNodeData as AIFrameNodeData;
+            const now = new Date().toISOString();
+            const currentSessionId = activeSessionIdRef.current;
+            const currentTimeCapsuleId = activeTimeCapsuleIdRef.current;
+            const extractedFrame: AIFrame = {
+              id: frameData.frameId,
+              title: frameData.title || 'New AI Frame',
+              goal: frameData.goal || '',
+              informationText: frameData.informationText || '',
+              videoUrl: '',
+              startTime: 0,
+              duration: 0,
+              afterVideoText: frameData.afterVideoText || '',
+              aiConcepts: frameData.aiConcepts || [],
+              sessionId: currentSessionId, // ✅ Latest session ID
+              timeCapsuleId: currentTimeCapsuleId, // ✅ Latest TimeCapsule ID
+              chapterId: (frameData.chapterId as string | undefined),
+              order: nodesRef.current.length,
+              type: 'frame',
+              createdAt: now,
+              updatedAt: now,
+              isGenerated: frameData.isGenerated || false,
+            };
+            
+            pendingFramesRef.current = [extractedFrame];
+            console.log('📦 Stored pending frame for delayed save (AFTER session creation):', { 
+              frameId: extractedFrame.id,
+              sessionId: extractedFrame.sessionId,
+              timeCapsuleId: extractedFrame.timeCapsuleId
+            });
+          }
+          
           // Use pendingNodesRef (immune to useEffect) if available, fallback to nodesRef
           const nodesToUse = pendingNodesRef.current || nodesRef.current;
           console.log('🔥 DELAYED SAVE: setTimeout fired!', { type, nodeCount: nodesToUse.length, usedPending: !!pendingNodesRef.current });
@@ -3355,19 +3382,22 @@ export default function EnhancedLearningGraph({
               reason: 'node-drop-delayed',
               nodeType: type,
               graphState: freshGraphState,
-              frames: pendingFramesRef.current,  // Include pending frames
-              chapters: chaptersRef.current  // Include chapters (already updated by invokeOnChaptersChange)
+              frames: pendingFramesRef.current,  // Include pending frames (extracted above)
+              chapters: pendingChaptersRef.current || chaptersRef.current  // Prefer pending, fallback to current
             }
           }));
           
           console.log('🔥 DELAYED SAVE: Event dispatched', { 
             hasFrames: !!pendingFramesRef.current,
-            hasChapters: !!chaptersRef.current 
+            frameCount: pendingFramesRef.current?.length || 0,
+            hasChapters: !!(pendingChaptersRef.current || chaptersRef.current),
+            chapterCount: (pendingChaptersRef.current || chaptersRef.current)?.length || 0
           });
           
           // Clear pending refs after use
           pendingNodesRef.current = null;
           pendingFramesRef.current = null;
+          pendingChaptersRef.current = null;
         }, 100); // 100ms is sufficient for useEffect to update refs
         
         console.log('🎯 onDrop: setTimeout registered');

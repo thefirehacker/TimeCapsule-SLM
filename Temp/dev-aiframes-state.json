@@ -1,7 +1,7 @@
 {
   "frames": [
     {
-      "id": "frame-1764097348676-fczwslfbe",
+      "id": "frame-1764099278158-izqc4pze3",
       "title": "New AI Frame",
       "goal": "Enter learning goal here...",
       "informationText": "Provide background context and information...",
@@ -10,40 +10,63 @@
       "duration": 0,
       "afterVideoText": "Key takeaways and next steps...",
       "aiConcepts": [],
-      "order": 1,
+      "sessionId": "manual_1764099278159_1jk88oy9o",
+      "timeCapsuleId": "timecapsule_1764099260788_y47xih8l0",
+      "chapterId": "node_1764099273135_6fbuvbgkq_0",
+      "order": 2,
       "type": "frame",
-      "createdAt": "2025-11-25T19:02:28.681Z",
-      "updatedAt": "2025-11-25T19:02:28.681Z",
+      "createdAt": "2025-11-25T19:34:38.579Z",
+      "updatedAt": "2025-11-25T19:34:38.579Z",
       "isGenerated": false,
+      "parentFrameId": "node_1764099273135_6fbuvbgkq_0",
       "conceptIds": [],
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-25T19:02:28.681Z",
-        "updatedAt": "2025-11-25T19:02:39.852Z",
+        "createdAt": "2025-11-25T19:34:38.579Z",
+        "updatedAt": "2025-11-25T19:34:55.134Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-25T19:02:39.852Z"
+        "lastSaved": "2025-11-25T19:34:55.134Z"
       }
     }
   ],
-  "chapters": [],
+  "chapters": [
+    {
+      "id": "node_1764099273135_6fbuvbgkq_0",
+      "title": "New Chapter",
+      "description": "Chapter description",
+      "frameIds": [
+        "frame-1764099278158-izqc4pze3"
+      ],
+      "conceptIds": [],
+      "order": 0,
+      "color": "#3B82F6",
+      "createdAt": "2025-11-25T19:34:54.903Z",
+      "updatedAt": "2025-11-25T19:34:55.134Z",
+      "linkSequentially": false
+    }
+  ],
   "graphState": {
     "nodes": [
       {
-        "id": "node_1764097345679_6pxvqbtuk_0",
+        "id": "node_1764099273135_6fbuvbgkq_0",
         "type": "chapter",
         "position": {
-          "x": 167.6517733952859,
-          "y": 4.851926634556584
+          "x": 181.22587962766693,
+          "y": 402.53086833291934
         },
         "data": {
           "type": "chapter",
-          "id": "node_1764097345679_6pxvqbtuk_0",
+          "id": "node_1764099273135_6fbuvbgkq_0",
           "title": "New Chapter",
           "description": "Chapter description",
-          "frameIds": [],
+          "frameIds": [
+            "frame-1764099278158-izqc4pze3"
+          ],
           "conceptIds": [],
           "order": 0,
-          "color": "#3B82F6"
+          "color": "#3B82F6",
+          "linkSequentially": false,
+          "updatedAt": "2025-11-25T19:34:54.904Z"
         },
         "measured": {
           "width": 320,
@@ -53,22 +76,22 @@
         "dragging": false
       },
       {
-        "id": "node_1764097348676_wnr2za7zd_1",
+        "id": "node_1764099278158_ogpywq0uf_1",
         "type": "aiframe",
         "position": {
-          "x": 404.68219169736,
-          "y": 344.0578569373663
+          "x": 369.80618064898806,
+          "y": 777.4669106867326
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame-1764097348676-fczwslfbe",
+          "frameId": "frame-1764099278158-izqc4pze3",
           "title": "Frame 1",
           "goal": "Enter learning goal here...",
           "informationText": "Provide background context and information...",
           "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false,
-          "updatedAt": "2025-11-25T19:02:29.102Z"
+          "updatedAt": "2025-11-25T19:34:38.451Z"
         },
         "measured": {
           "width": 480,
@@ -76,14 +99,26 @@
         }
       }
     ],
-    "edges": [],
+    "edges": [
+      {
+        "id": "edge|node_1764099273135_6fbuvbgkq_0|node_1764099278158_ogpywq0uf_1|1764099294905_mw58nkhfv",
+        "source": "node_1764099273135_6fbuvbgkq_0",
+        "target": "node_1764099278158_ogpywq0uf_1",
+        "sourceHandle": "chapter-frame-out",
+        "targetHandle": "chapter-frame-in",
+        "style": {
+          "stroke": "#3b82f6",
+          "strokeWidth": 2
+        }
+      }
+    ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-25T19:02:41.222Z",
+    "lastUpdated": "2025-11-25T19:34:55.356Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-25T19:02:39.852Z",
+    "lastSaved": "2025-11-25T19:34:55.134Z",
     "frameCount": 1,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
