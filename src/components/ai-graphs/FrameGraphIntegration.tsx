@@ -72,6 +72,8 @@ interface FrameGraphIntegrationProps {
   onViewModeChange?: (mode: "graph" | "split" | "linear") => void;
   sidebarCollapsed?: boolean;
   onShowSidebar?: () => void;
+  activeSessionId?: string; // CRITICAL FIX (Issue 15): Active session ID for frame/chapter association
+  activeTimeCapsuleId?: string; // CRITICAL FIX (Issue 15): Active TimeCapsule ID for frame/chapter association
 }
 
 // Add debounce utility
@@ -419,6 +421,8 @@ export default function FrameGraphIntegration({
   onViewModeChange,
   sidebarCollapsed = false,
   onShowSidebar,
+  activeSessionId,
+  activeTimeCapsuleId,
 }: FrameGraphIntegrationProps) {
   
   // Debug: Track when frames prop changes (DISABLED to prevent spam)
@@ -1753,10 +1757,13 @@ useEffect(() => {
     const nextNodes = graphState.nodes.filter((node) => {
       if (node.type === 'chapter') {
         const nodeChapterId = (node.data as ChapterNodeData)?.id || node.id;
-        const keep =
-          canonicalChapterIds.size === 0
-            ? false
-            : nodeChapterId && canonicalChapterIds.has(nodeChapterId);
+        
+        // Keep chapter if:
+        // 1. Chapters still loading (empty array) - don't prune during async load
+        // 2. Chapter ID matches canonical chapters (normal operation)
+        const chaptersStillLoading = canonicalChapterIds.size === 0;
+        const matchesCanonical = nodeChapterId && canonicalChapterIds.has(nodeChapterId);
+        const keep = chaptersStillLoading || matchesCanonical;
 
         if (!keep) {
           nodesChanged = true;
@@ -1918,6 +1925,8 @@ useEffect(() => {
           onGraphStateUpdate={handleGraphStateUpdate}
           initialGraphState={graphState} // CRITICAL FIX: Pass initial graph state to restore standalone attachments
           onViewModeChange={onViewModeChange}
+          activeSessionId={activeSessionId}
+          activeTimeCapsuleId={activeTimeCapsuleId}
         />
       </div>
     </div>

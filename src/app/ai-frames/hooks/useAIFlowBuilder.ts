@@ -961,10 +961,13 @@ export function useAIFlowBuilder({
 
       // DON'T clear frames from storage - they belong to other sessions!
       // The sessionFilteredFrames will handle showing only this session's frames
-      // Just clear the graph display
-      if (onGraphReset) {
+      // Clear graph display ONLY if not skipping (i.e., manual session switch)
+      // During auto-creation (frame/chapter drops), preserve existing nodes
+      if (onGraphReset && !options?.skipClear) {
         onGraphReset();
         console.log(`🧹 [SESSION] Cleared graph display for new session`);
+      } else if (options?.skipClear) {
+        console.log(`✅ [SESSION] Skipping graph clear - preserving existing nodes`);
       }
 
       // Sync Mastery Progress to new session (starts at 0%)

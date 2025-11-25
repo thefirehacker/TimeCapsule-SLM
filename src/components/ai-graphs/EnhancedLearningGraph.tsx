@@ -28,7 +28,7 @@ import TextAttachmentNode from "./TextAttachmentNode";
 import ConceptNode from "./ConceptNode";
 import ChapterNode from "./ChapterNode";
 import EnhancedSidebar from "./EnhancedSidebar";
-import type { Chapter as AiChapter } from "@/app/ai-frames/types/frames";
+import type { Chapter as AiChapter, AIFrame } from "@/app/ai-frames/types/frames";
 
 // Extended Edge type with all ReactFlow properties
 type ExtendedEdge = Edge & {
@@ -92,6 +92,8 @@ interface EnhancedLearningGraphProps {
   initialGraphState?: GraphState;
   chapters?: AiChapter[];
   onChaptersChange?: (chapters: AiChapter[]) => void;
+  activeSessionId?: string; // CRITICAL FIX (Issue 15): Active session ID for frame/chapter association
+  activeTimeCapsuleId?: string; // CRITICAL FIX (Issue 15): Active TimeCapsule ID for frame/chapter association
 }
 
 export default function EnhancedLearningGraph({ 
@@ -102,6 +104,8 @@ export default function EnhancedLearningGraph({
   initialGraphState,
   chapters = [],
   onChaptersChange,
+  activeSessionId,
+  activeTimeCapsuleId,
 }: EnhancedLearningGraphProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraphState?.nodes || initialNodes);
@@ -119,6 +123,25 @@ export default function EnhancedLearningGraph({
   const onEdgesChangeRef = useRef(onEdgesChange);
   const setNodesRef = useRef(setNodes);
   const setEdgesRef = useRef(setEdges);
+
+  // CRITICAL FIX (Issue 16): Sync initialGraphState changes when switching sessions
+  // When session switches, initialGraphState prop updates but nodes/edges don't automatically sync
+  useEffect(() => {
+    if (initialGraphState) {
+      const hasNodes = initialGraphState.nodes && initialGraphState.nodes.length > 0;
+      const hasEdges = initialGraphState.edges && initialGraphState.edges.length > 0;
+      
+      // Only update if initialGraphState has content (session restore)
+      if (hasNodes || hasEdges) {
+        console.log('🔄 [Issue 16] Syncing initialGraphState to graph:', {
+          nodeCount: initialGraphState.nodes.length,
+          edgeCount: initialGraphState.edges.length
+        });
+        setNodes(initialGraphState.nodes || []);
+        setEdges(initialGraphState.edges || []);
+      }
+    }
+  }, [initialGraphState, setNodes, setEdges]);
 
   useEffect(() => {
     onNodesChangeRef.current = onNodesChange;
@@ -162,7 +185,23 @@ export default function EnhancedLearningGraph({
     onDrop: null as null | typeof onDrop,
   });
 
+  // Flag to prevent useEffect from overwriting manual ref updates (e.g., during node drops)
+  const skipNextRefSync = useRef(false);
+  
+  // Holds manually updated nodes during critical window (immune to useEffect overwrites)
+  const pendingNodesRef = useRef<Node[] | null>(null);
+  
+  // CRITICAL FIX (Issue 14): Holds pending frames to include in delayed save event
+  // This ensures frames are saved even if React state hasn't propagated to framesRef yet
+  const pendingFramesRef = useRef<AIFrame[] | null>(null);
+
   useEffect(() => {
+    // Skip sync if we just did a manual update (e.g., during node drop)
+    if (skipNextRefSync.current) {
+      skipNextRefSync.current = false;
+      return;
+    }
+    
     nodesRef.current = nodes;
     edgesRef.current = edges;
     selectedNodeRef.current = selectedNode;
@@ -2291,11 +2330,27 @@ export default function EnhancedLearningGraph({
     let attachmentsAdded = 0;
     const originalNodeMap = new Map(currentNodes.map(node => [node.id, node]));
 
+    // Build set of frame IDs that currently exist on graph (before filtering)
+    // This prevents newly created frames from being filtered out during async state updates
+    const existingFrameNodeIds = new Set(
+      currentNodes
+        .filter(n => n.type === 'aiframe' && n.data?.frameId)
+        .map(n => n.data.frameId)
+    );
+
     let hasChanges = false;
     const updatedNodes = currentNodes
       .filter(node => {
         if (node.type === 'aiframe' && node.data?.frameId) {
-          const shouldKeep = frameIds.has(node.data.frameId);
+          // Keep frame if:
+          // 1. Frame ID matches loaded frames (normal operation)
+          // 2. Frame exists on graph AND frames not loaded yet (async window protection)
+          const matchesLoaded = node.data.frameId && frameIds.has(node.data.frameId);
+          const framesNotLoadedYet = frames.length === 0;
+          const wasAlreadyOnGraph = framesNotLoadedYet && 
+            existingFrameNodeIds.has(node.data.frameId);
+          const shouldKeep = matchesLoaded || wasAlreadyOnGraph;
+          
           if (!shouldKeep) {
             hasChanges = true;
           }
@@ -2339,7 +2394,16 @@ export default function EnhancedLearningGraph({
 
         if (node.type === 'chapter') {
           const chapterId = node.data?.id || node.id;
-          const shouldKeep = chapterId && chapterIds.has(chapterId);
+          
+          // Normal operation: Keep if chapter exists in loaded chapters
+          const inLoadedChapters = chapterId && chapterIds.has(chapterId);
+          
+          // During async load (chapters === []): Keep ALL chapter nodes
+          // This prevents chapters from being filtered out during HMR/refresh
+          const chaptersStillLoading = chapters.length === 0 && chapterId;
+          
+          const shouldKeep = inLoadedChapters || chaptersStillLoading;
+          
           if (!shouldKeep) {
             hasChanges = true;
           }
@@ -3186,6 +3250,38 @@ export default function EnhancedLearningGraph({
             detail: { source: 'frame-drop', nodeId }
           }));
         }
+        
+        // CRITICAL FIX (Issue 14): Extract frame from node data and store in pending ref
+        // This ensures frame is included in delayed save event even if React state hasn't updated
+        // CRITICAL FIX (Issue 15): Use activeSessionId/activeTimeCapsuleId from props for correct association
+        const frameData = newNodeData as AIFrameNodeData;
+        const now = new Date().toISOString();
+        const extractedFrame: AIFrame = {
+          id: frameData.frameId,
+          title: frameData.title || 'New AI Frame',
+          goal: frameData.goal || '',
+          informationText: frameData.informationText || '',
+          videoUrl: '',
+          startTime: 0,
+          duration: 0,
+          afterVideoText: frameData.afterVideoText || '',
+          aiConcepts: frameData.aiConcepts || [],
+          sessionId: activeSessionId, // ✅ From props!
+          timeCapsuleId: activeTimeCapsuleId, // ✅ From props!
+          chapterId: (frameData.chapterId as string | undefined),
+          order: nodesRef.current.length,
+          type: 'frame',
+          createdAt: now,
+          updatedAt: now,
+          isGenerated: frameData.isGenerated || false,
+        };
+        
+        pendingFramesRef.current = [extractedFrame];
+        console.log('📦 Stored pending frame for delayed save:', { 
+          frameId: extractedFrame.id,
+          sessionId: extractedFrame.sessionId,
+          timeCapsuleId: extractedFrame.timeCapsuleId
+        });
       }
 
       if (type === 'chapter') {
@@ -3211,36 +3307,70 @@ export default function EnhancedLearningGraph({
               createdAt: now,
               updatedAt: now,
               bubblSpaceId: undefined,
-              timeCapsuleId: undefined,
+              timeCapsuleId: activeTimeCapsuleId, // ✅ From props!
+              sessionId: activeSessionId, // ✅ From props!
             } as AiChapter,
           ];
           chaptersRef.current = nextChapters;
+          
+          // CRITICAL: Update parent's chapters state immediately
+          // This triggers save #1 with chapter data (but stale graph state)
+          // The delayed force-save-frames event will trigger save #2 with fresh graph state
+          // Save #2 will override save #1 due to modified skip logic in useUnifiedStorage
           invokeOnChaptersChange(nextChapters);
         }
       }
-
-      setNodesRef.current((nds) => nds.concat(newNode));
+      
+      // CRITICAL FIX: Update both React state AND ref synchronously
+      const updatedNodes = nodesRef.current.concat(newNode);
+      setNodesRef.current(() => updatedNodes);  // Schedule React update
+      nodesRef.current = updatedNodes;  // Update ref immediately (don't wait for useEffect)
+      pendingNodesRef.current = updatedNodes;  // Store in pending ref (immune to useEffect)
+      skipNextRefSync.current = true;  // Prevent useEffect from overwriting this manual update
 
       // CRITICAL FIX: Emit save events for ALL node types (OUTSIDE setNodes to avoid React error)
+      console.log('🎯 onDrop: About to set up setTimeout', { type, hasWindow: typeof window !== 'undefined' });
+      
       if (typeof window !== 'undefined') {
+        console.log('🎯 onDrop: Setting up setTimeout for delayed save');
+        
         // Delay to ensure React Flow updates and useEffect syncs refs
         setTimeout(() => {
-          // Get fresh graph state from refs (updated by useEffect at lines 109-111)
+          // Use pendingNodesRef (immune to useEffect) if available, fallback to nodesRef
+          const nodesToUse = pendingNodesRef.current || nodesRef.current;
+          console.log('🔥 DELAYED SAVE: setTimeout fired!', { type, nodeCount: nodesToUse.length, usedPending: !!pendingNodesRef.current });
+          
+          // Use pendingNodesRef which is immune to useEffect overwrites
           const freshGraphState = {
-            nodes: nodesRef.current,
+            nodes: nodesToUse,  // ✅ Fresh! Immune to useEffect overwrites from re-renders
             edges: edgesRef.current,
             selectedNodeId: selectedNodeRef.current
           };
 
-          // Trigger save with fresh graph state included in event
+          console.log('🔥 DELAYED SAVE: Dispatching event', { nodeCount: freshGraphState.nodes.length, reason: 'node-drop-delayed' });
+
+          // Trigger save with fresh graph state AND frame/chapter data included in event
           window.dispatchEvent(new CustomEvent('force-save-frames', {
             detail: {
               reason: 'node-drop-delayed',
               nodeType: type,
-              graphState: freshGraphState
+              graphState: freshGraphState,
+              frames: pendingFramesRef.current,  // Include pending frames
+              chapters: chaptersRef.current  // Include chapters (already updated by invokeOnChaptersChange)
             }
           }));
+          
+          console.log('🔥 DELAYED SAVE: Event dispatched', { 
+            hasFrames: !!pendingFramesRef.current,
+            hasChapters: !!chaptersRef.current 
+          });
+          
+          // Clear pending refs after use
+          pendingNodesRef.current = null;
+          pendingFramesRef.current = null;
         }, 100); // 100ms is sufficient for useEffect to update refs
+        
+        console.log('🎯 onDrop: setTimeout registered');
       }
       
       // If it's an AI frame node, sync with frames array

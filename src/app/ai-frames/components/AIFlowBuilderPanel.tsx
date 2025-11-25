@@ -1000,7 +1000,7 @@ const handleCopySwePrompt = async () => {
                     variant="default"
                     size="sm"
                     onClick={() => createNewSession("manual", undefined, onGraphReset, {
-                      skipClear: true,
+                      skipClear: false, // CRITICAL FIX (Issue 13): Clear graph for manual session creation
                       timeCapsuleId: activeTimeCapsuleId || undefined
                     })}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white"

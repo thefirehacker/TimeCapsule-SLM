@@ -1963,7 +1963,10 @@ export default function AIFramesPage() {
       if (!flowBuilder.activeSessionId || 
           (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
         console.log("🆕 [PAGE] Auto-creating manual session for manual frame creation");
-        const newSession = flowBuilder.createNewSession("manual", "Manual Session", triggerGraphReset);
+        const newSession = flowBuilder.createNewSession("manual", "Manual Session", triggerGraphReset, {
+          skipClear: true, // Auto-creation: preserve any existing nodes
+          timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
+        });
         sessionForFrame = newSession.id;
         console.log(`✅ [PAGE] Created session ${sessionForFrame}`);
         console.log(`📋 [PAGE] Sessions array now:`, flowBuilder.sessions.map(s => ({ id: s.id, name: s.name })));
@@ -3857,7 +3860,7 @@ export default function AIFramesPage() {
                           className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                           onClick={() => {
                             flowBuilder.createNewSession("manual", undefined, triggerGraphReset, {
-                              skipClear: true,
+                              skipClear: false, // CRITICAL FIX (Issue 13): Clear graph for manual session creation
                               timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
                             });
                           }}
@@ -4083,6 +4086,8 @@ export default function AIFramesPage() {
                   onViewModeChange={handleViewModeChange}
                   sidebarCollapsed={sidebarCollapsed}
                   onShowSidebar={handleSidebarShow}
+                  activeSessionId={flowBuilder.activeSessionId || undefined}
+                  activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">

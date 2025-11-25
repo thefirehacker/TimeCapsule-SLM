@@ -107,6 +107,19 @@ const handleYourNewEvent = (event: any) => {
 - Skip `connectionType: 'added'`
 - Apply deletion skip logic to additions
 
+#### Chapter Creation (Drop new chapter node on graph)
+
+**✅ DO:**
+- Update `chaptersRef.current` with new chapter data
+- Call `setNodes()` to add visual node to React Flow
+- Rely on delayed `force-save-frames` event (100ms) for persistence
+- Let React Flow's update cycle complete before save
+
+**❌ DON'T:**
+- Call `invokeOnChaptersChange` immediately after chapter creation
+- Trigger save before React Flow updates `nodesRef.current`
+- Assume refs are fresh immediately after `setNodes()`
+
 #### Chapter Attachment (Attach chapter to frame)
 
 **✅ DO:**
@@ -209,7 +222,38 @@ If you're about to:
 
 **Why This Can Recur**: Accidentally applying deletion skip logic to 'added' changeTypes when adding new features
 
-### 2.4 Architecture Lessons Learned
+### 2.4 Issue: Chapter Drop Not Persisting
+
+**Problem**: Dropped chapters appear briefly then disappear after page reload, visual node missing from graph
+
+**Symptoms**: Chapter data saves to storage (chapterCount: 1) but graph state missing chapter node (nodeCount: 0), chapter disappears on reload
+
+**Root Cause**: Immediate `invokeOnChaptersChange()` call triggered save BEFORE React Flow completed asynchronous node creation. Save captured graph state with nodeCount: 0 because `nodesRef.current` hadn't been updated by React's useEffect yet.
+
+**Timing Issue**:
+- T+0ms: `chaptersRef.current = nextChapters` (chapter data stored)
+- T+0ms: `invokeOnChaptersChange(nextChapters)` triggers IMMEDIATE save
+- T+0ms: Save captures graph with nodeCount: 0 (React Flow hasn't updated yet)
+- T+0ms: `setNodesRef.current()` schedules React state update (async)
+- T+16-50ms: React Flow completes, updates `nodesRef.current` (too late!)
+- T+100ms: Delayed `force-save-frames` event skipped (save already in progress)
+
+**Solution Applied**:
+- Removed immediate `invokeOnChaptersChange()` call from chapter drop handler
+- Let delayed `force-save-frames` event (100ms timeout) handle the save
+- Chapter data stays in `chaptersRef.current`, picked up by delayed save
+- Delayed save captures complete graph state after React Flow updates
+
+**Files Changed**:
+- `EnhancedLearningGraph.tsx` lines 3191-3226 (removed immediate save call)
+
+**Why This Can Recur**: Any feature that creates new React Flow nodes AND triggers immediate saves will face this race condition. Always use delayed events for node creation to allow React's update cycle to complete.
+
+**Key Distinction**: 
+- "Chapter ATTACHMENT" (Sage line 110-119) = updating EXISTING frame with chapter reference, refs are fresh, immediate save OK
+- "Chapter CREATION" = creating NEW React Flow node, React state async, MUST use delayed save
+
+### 2.5 Architecture Lessons Learned
 
 **Lesson 1**: React refs update asynchronously; event handlers capture closure variables at creation time
 
@@ -228,9 +272,12 @@ If you're about to:
 The unified save system is robust when these principles are followed:
 
 1. **Deletions**: Always skip in event handlers, use timeouts
-2. **Additions**: Process immediately, no timeout needed
+2. **Additions**: 
+   - Data updates (frame/chapter attachment): Process immediately, no timeout needed
+   - Node creation (new React Flow nodes): MUST use delayed events, React state is async
 3. **Updates**: Process immediately, use fresh refs
 4. **Testing**: All 6 tests must pass before merging
 5. **Red Flags**: Review carefully when modifying core save logic
+6. **React Flow Timing**: Never trigger immediate saves after `setNodes()` - use delayed events (100ms+)
 
-When in doubt, refer to existing patterns in `handleNodesDelete` for deletions and `onConnect` for additions.
+When in doubt, refer to existing patterns in `handleNodesDelete` for deletions and `onDrop` for node creation.
